@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -22,20 +21,17 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 
-const DAMAGE_WAIVER_RATE = 0.1;
-
 interface OrderSummaryProps {
   items: OrderItem[];
   onUpdateQuantity: (itemCode: string, quantity: number) => void;
   onRemoveItem: (itemCode: string) => void;
-  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, damageWaiver: boolean, total: number }) => void;
+  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number }) => void;
   onClearOrder: () => void;
   onAddSuggestedItem: (item: CateringItem, quantity: number) => void;
 }
 
 export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder }: OrderSummaryProps) {
   const [rentalDays, setRentalDays] = useState(1);
-  const [damageWaiver, setDamageWaiver] = useState(false);
   const [isReviewOpen, setReviewOpen] = useState(false);
 
   const subtotal = useMemo(() => {
@@ -43,14 +39,12 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   }, [items]);
 
   const itemsTotal = subtotal * rentalDays;
-  const damageWaiverCost = damageWaiver ? itemsTotal * DAMAGE_WAIVER_RATE : 0;
-  const total = itemsTotal + damageWaiverCost;
+  const total = itemsTotal;
 
   const handleSubmit = () => {
     onSubmitOrder({
       items,
       days: rentalDays,
-      damageWaiver,
       total,
     });
     setReviewOpen(false);
@@ -75,7 +69,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
             <p className="text-sm">Añade artículos desde el catálogo para empezar.</p>
           </div>
         ) : (
-          <div className="max-h-64 overflow-y-auto pr-2 -mr-2">
+          <div className="max-h-[400px] overflow-y-auto pr-2 -mr-2">
             <ul className="space-y-4">
               {items.map((item) => (
                 <li key={item.itemCode} className="flex items-center gap-4">
@@ -111,12 +105,6 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                   className="w-24 ml-auto"
                 />
               </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox id="damage-waiver" checked={damageWaiver} onCheckedChange={(checked) => setDamageWaiver(!!checked)} />
-                <Label htmlFor="damage-waiver" className="text-sm font-normal">
-                  Añadir seguro por daños ({DAMAGE_WAIVER_RATE * 100}%)
-                </Label>
-              </div>
             </div>
             <Separator className="my-4" />
             <div className="space-y-2 text-sm">
@@ -128,12 +116,6 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                 <span>Días de alquiler:</span>
                 <span>x{rentalDays}</span>
               </div>
-              {damageWaiver && (
-                 <div className="flex justify-between text-primary">
-                  <span>Seguro por daños:</span>
-                  <span>{damageWaiverCost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-                </div>
-              )}
                <div className="flex justify-between font-bold text-lg pt-2">
                 <span>Total:</span>
                 <span>{total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
@@ -169,7 +151,6 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                 <div className="space-y-1 text-sm">
                     <div className="flex justify-between"><span>Subtotal:</span> <span>{subtotal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></div>
                     <div className="flex justify-between"><span>Días de alquiler:</span> <span>x{rentalDays}</span></div>
-                    {damageWaiver && <div className="flex justify-between"><span>Seguro de daños:</span> <span>{damageWaiverCost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></div>}
                     <div className="flex justify-between font-bold text-base pt-2"><span>Total Final:</span> <span>{total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></div>
                 </div>
             </div>
