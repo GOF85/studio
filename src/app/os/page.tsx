@@ -7,7 +7,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine } from 'lucide-react';
 
 import type { OrderItem, ServiceOrder } from '@/types';
 import { cn } from '@/lib/utils';
@@ -64,6 +64,7 @@ export const osFormSchema = z.object({
   dniList: z.string().default(''),
   sendTo: z.string().default(''),
   comments: z.string().default(''),
+  contractNumber: z.string().default(''),
 });
 
 export type OsFormValues = z.infer<typeof osFormSchema>;
@@ -73,7 +74,7 @@ export default function OsPage() {
   const searchParams = useSearchParams();
   const osId = searchParams.get('id');
 
-  const [order, setOrder] = useState<{ items: OrderItem[]; total: number; days: number } | null>(null);
+  const [order, setOrder] = useState<{ items: OrderItem[]; total: number; days: number, contractNumber?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { toast } = useToast();
@@ -83,7 +84,7 @@ export default function OsPage() {
     defaultValues: {
       serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', pax: 0,
       space: '', spaceContact: '', spacePhone: '', respMetre: '', agencyPercentage: 0, spacePercentage: 0,
-      uniformity: '', respCocina: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '',
+      uniformity: '', respCocina: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', contractNumber: '',
     },
   });
 
@@ -104,24 +105,27 @@ export default function OsPage() {
         form.reset(values);
         
         // If there's a new order in localStorage, it overrides the existing one.
-        const savedOrder = localStorage.getItem('currentOrder');
+        const savedOrder = localStorage.getItem(`currentOrder_${osId}`);
         if (savedOrder) {
             const parsedOrder = JSON.parse(savedOrder);
             setOrder(parsedOrder);
-            localStorage.removeItem('currentOrder');
+            form.setValue('contractNumber', parsedOrder.contractNumber || '');
+            localStorage.removeItem(`currentOrder_${osId}`);
         } else {
             setOrder(currentOS.order);
+            form.setValue('contractNumber', currentOS.order?.contractNumber || '');
         }
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
         router.push('/pes');
       }
     } else { // Creating new OS
-        const savedOrder = localStorage.getItem('currentOrder');
+        const savedOrder = localStorage.getItem('currentOrder_new');
         if (savedOrder) {
           const parsedOrder = JSON.parse(savedOrder);
           setOrder(parsedOrder);
-          localStorage.removeItem('currentOrder');
+          form.setValue('contractNumber', parsedOrder.contractNumber || '');
+          localStorage.removeItem('currentOrder_new');
         }
         const currentServiceNumber = `${new Date().getFullYear()}-${allOS.length + 1}`;
         form.setValue('serviceNumber', currentServiceNumber);
@@ -134,11 +138,13 @@ export default function OsPage() {
     let allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     let message = '';
     let newId = osId;
+    
+    const finalOrder = order ? { ...order, contractNumber: data.contractNumber } : null;
 
     if (osId) { // Update existing
       const osIndex = allOS.findIndex(os => os.id === osId);
       if (osIndex !== -1) {
-        allOS[osIndex] = { ...allOS[osIndex], ...data, order };
+        allOS[osIndex] = { ...allOS[osIndex], ...data, order: finalOrder };
         message = 'Orden de Servicio actualizada correctamente.';
       }
     } else { // Create new
@@ -146,7 +152,7 @@ export default function OsPage() {
       const newOS: ServiceOrder = {
         id: newId,
         ...data,
-        order,
+        order: finalOrder,
         status: 'Borrador',
       };
       allOS.push(newOS);
@@ -173,18 +179,19 @@ export default function OsPage() {
   const handleEditOrder = () => {
     // Save current form state to avoid data loss
     const currentValues = form.getValues();
-    const currentOS: Partial<ServiceOrder> = {
-        ...currentValues,
-        id: osId || 'temp', // Use temp id if new
-        status: 'Borrador',
-        startDate: currentValues.startDate.toISOString(),
-        endDate: currentValues.endDate.toISOString(),
-        order,
+    const osDataToSave: Partial<ServiceOrder> = {
+      ...currentValues,
+      id: osId || undefined,
+      startDate: currentValues.startDate ? currentValues.startDate.toISOString() : new Date().toISOString(),
+      endDate: currentValues.endDate ? currentValues.endDate.toISOString() : new Date().toISOString(),
+      order: order,
     };
-    localStorage.setItem('editingOS', JSON.stringify(currentOS));
+    
+    const storageKey = osId ? `os_temp_${osId}` : 'os_temp_new';
+    localStorage.setItem(storageKey, JSON.stringify(osDataToSave));
 
     // Redirect to home to edit/create the material order
-    const redirectUrl = osId ? `/?editOS=${osId}` : '/';
+    const redirectUrl = osId ? `/?editOS=${osId}` : '/?newOS=true';
     router.push(redirectUrl);
   }
 
@@ -211,15 +218,31 @@ export default function OsPage() {
             <nav className={cn("space-y-2", isSidebarCollapsed && 'flex flex-col items-center')}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Link href={osId ? `/?editOS=${osId}` : '/'} className={cn("flex items-center justify-between p-3 rounded-md bg-secondary text-secondary-foreground transition-colors", isSidebarCollapsed && 'w-auto justify-center')}>
-                    <div className="flex items-center gap-3">
-                      <Warehouse className="h-5 w-5 flex-shrink-0" />
-                      {!isSidebarCollapsed && <span className="font-medium">Almacén</span>}
-                    </div>
-                    {!isSidebarCollapsed && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
-                  </Link>
+                  <Button asChild variant="ghost" className={cn("w-full flex items-center justify-between p-3 rounded-md bg-secondary text-secondary-foreground transition-colors", isSidebarCollapsed && 'w-auto justify-center')}>
+                     <Link href={osId ? `/?editOS=${osId}` : '/?newOS=true'} onClick={handleEditOrder}>
+                        <div className="flex items-center gap-3">
+                          <Warehouse className="h-5 w-5 flex-shrink-0" />
+                          {!isSidebarCollapsed && <span className="font-medium">Almacén</span>}
+                        </div>
+                        {!isSidebarCollapsed && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+                      </Link>
+                  </Button>
                 </TooltipTrigger>
                 {isSidebarCollapsed && <TooltipContent side="right">Almacén</TooltipContent>}
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                   <Button asChild variant="ghost" className={cn("w-full flex items-center justify-between p-3 rounded-md hover:bg-secondary/80 transition-colors", isSidebarCollapsed && 'w-auto justify-center')}>
+                     <Link href={osId ? `/?editOS=${osId}` : '/?newOS=true'} onClick={handleEditOrder}>
+                        <div className="flex items-center gap-3">
+                          <Wine className="h-5 w-5 flex-shrink-0" />
+                          {!isSidebarCollapsed && <span className="font-medium">Bodega</span>}
+                        </div>
+                        {!isSidebarCollapsed && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+                      </Link>
+                  </Button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Bodega</TooltipContent>}
               </Tooltip>
             </nav>
           </aside>
@@ -235,7 +258,7 @@ export default function OsPage() {
                     <FormField control={form.control} name="serviceNumber" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Nº Servicio</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
+                        <FormControl><Input {...field} readOnly /></FormControl>
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="startDate" render={({ field }) => (
@@ -301,7 +324,7 @@ export default function OsPage() {
                     <FormField control={form.control} name="pax" render={({ field }) => (
                       <FormItem>
                         <FormLabel>PAX</FormLabel>
-                        <FormControl><Input type="number" {...field} onChange={field.onChange} /></FormControl>
+                        <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="commercial" render={({ field }) => (
@@ -373,13 +396,13 @@ export default function OsPage() {
                      <FormField control={form.control} name="agencyPercentage" render={({ field }) => (
                       <FormItem>
                         <FormLabel>% Agencia</FormLabel>
-                        <FormControl><Input type="number" {...field} onChange={field.onChange} /></FormControl>
+                        <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
                       </FormItem>
                     )} />
                      <FormField control={form.control} name="spacePercentage" render={({ field }) => (
                       <FormItem>
                         <FormLabel>% Espacio</FormLabel>
-                        <FormControl><Input type="number" {...field} onChange={field.onChange} /></FormControl>
+                        <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
                       </FormItem>
                     )} />
                     <div className="flex items-end">
@@ -413,6 +436,12 @@ export default function OsPage() {
                             <SelectItem value="dest2">Destinatario 2</SelectItem>
                           </SelectContent>
                         </Select>
+                      </FormItem>
+                    )} />
+                     <FormField control={form.control} name="contractNumber" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nº Contrato</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="comments" render={({ field }) => (
@@ -458,6 +487,11 @@ export default function OsPage() {
                                     <tfoot>
                                         <tr className="font-semibold">
                                             <td colSpan={2}></td>
+                                            <td className="px-6 py-3 text-right">Nº Contrato:</td>
+                                            <td className="px-6 py-3">{form.getValues('contractNumber')}</td>
+                                        </tr>
+                                        <tr className="font-semibold">
+                                            <td colSpan={2}></td>
                                             <td className="px-6 py-3 text-right">Días de alquiler:</td>
                                             <td className="px-6 py-3">{order.days}</td>
                                         </tr>
@@ -473,7 +507,7 @@ export default function OsPage() {
                         ) : (
                             <div className="text-center py-8 text-muted-foreground">
                                 <p>No hay ningún pedido de material asociado.</p>
-                                <Button variant="link" asChild><Link href={osId ? `/?editOS=${osId}` : '/'}>Crear un nuevo pedido</Link></Button>
+                                <Button type="button" variant="link" onClick={handleEditOrder}>Crear un nuevo pedido</Button>
                             </div>
                         )}
                     </CardContent>
