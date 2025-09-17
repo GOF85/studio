@@ -7,6 +7,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine } from 'lucide-react';
 
 import type { OrderItem, ServiceOrder, MaterialOrder } from '@/types';
@@ -237,13 +238,13 @@ export default function OsPage() {
                             <PopoverTrigger asChild>
                               <FormControl>
                                 <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                  {field.value ? format(field.value, "PPP") : <span>Elige una fecha</span>}
+                                  {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige una fecha</span>}
                                   <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                 </Button>
                               </FormControl>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                              <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
                             </PopoverContent>
                           </Popover>
                         </FormItem>
@@ -255,13 +256,13 @@ export default function OsPage() {
                             <PopoverTrigger asChild>
                               <FormControl>
                                 <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                  {field.value ? format(field.value, "PPP") : <span>Elige una fecha</span>}
+                                  {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige una fecha</span>}
                                   <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                 </Button>
                               </FormControl>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                              <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
                             </PopoverContent>
                           </Popover>
                         </FormItem>

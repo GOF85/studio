@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { ShoppingCart, Trash2, Minus, Plus, Calendar as CalendarIcon } from 'lucide-react';
 import { format } from "date-fns";
+import { es } from 'date-fns/locale';
 
 import type { OrderItem, CateringItem, ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,6 @@ interface OrderSummaryProps {
   onRemoveItem: (itemCode: string) => void;
   onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber?: string, deliveryDate?: string, deliveryLocation?: string }) => void;
   onClearOrder: () => void;
-  onAddSuggestedItem?: (item: CateringItem, quantity: number) => void;
   isEditing?: boolean;
   serviceOrder: ServiceOrder | null;
 }
@@ -47,7 +47,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
 
   useEffect(() => {
     if (serviceOrder) {
-      setContractNumber(serviceOrder.contractNumber || '');
+      setContractNumber(serviceOrder.serviceNumber || '');
       setDeliveryLocation(serviceOrder.space || '');
       if (serviceOrder.startDate) {
         setDeliveryDate(new Date(serviceOrder.startDate));
@@ -196,7 +196,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                         className={cn("w-full justify-start text-left font-normal", !deliveryDate && "text-muted-foreground")}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {deliveryDate ? format(deliveryDate, "PPP") : <span>Elige una fecha</span>}
+                        {deliveryDate ? format(deliveryDate, "PPP", { locale: es }) : <span>Elige una fecha</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
@@ -205,6 +205,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                         selected={deliveryDate}
                         onSelect={setDeliveryDate}
                         initialFocus
+                        locale={es}
                       />
                     </PopoverContent>
                   </Popover>
