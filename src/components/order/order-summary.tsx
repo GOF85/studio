@@ -25,7 +25,7 @@ interface OrderSummaryProps {
   items: OrderItem[];
   onUpdateQuantity: (itemCode: string, quantity: number) => void;
   onRemoveItem: (itemCode: string) => void;
-  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number }) => void;
+  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber: string }) => void;
   onClearOrder: () => void;
   onAddSuggestedItem: (item: CateringItem, quantity: number) => void;
 }
@@ -33,6 +33,7 @@ interface OrderSummaryProps {
 export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder }: OrderSummaryProps) {
   const [rentalDays, setRentalDays] = useState(1);
   const [isReviewOpen, setReviewOpen] = useState(false);
+  const [contractNumber, setContractNumber] = useState('');
 
   const subtotal = useMemo(() => {
     return items.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -46,8 +47,10 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
       items,
       days: rentalDays,
       total,
+      contractNumber,
     });
     setReviewOpen(false);
+    setContractNumber('');
   };
   
   return (
@@ -139,6 +142,16 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="contract-number">Número de Contrato</Label>
+                  <Input 
+                    id="contract-number" 
+                    placeholder="Ej. C-12345" 
+                    value={contractNumber}
+                    onChange={(e) => setContractNumber(e.target.value)}
+                  />
+                </div>
+                <Separator />
                 <ul className="space-y-2 max-h-48 overflow-y-auto">
                     {items.map(item => (
                         <li key={item.itemCode} className="flex justify-between items-center text-sm">
@@ -160,7 +173,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                   Cancelar
                 </Button>
               </DialogClose>
-              <Button type="button" onClick={handleSubmit}>Confirmar y Enviar Pedido</Button>
+              <Button type="button" onClick={handleSubmit} disabled={!contractNumber.trim()}>Confirmar y Enviar Pedido</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

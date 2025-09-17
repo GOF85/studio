@@ -84,11 +84,11 @@ export default function Home() {
     setOrderItems((prevItems) => prevItems.filter((item) => item.itemCode !== itemCode));
   };
 
-  const handleSubmitOrder = (finalOrder: { items: OrderItem[], days: number, total: number }) => {
+  const handleSubmitOrder = (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber: string }) => {
     console.log('Pedido Enviado:', finalOrder);
     toast({
       title: '¡Pedido enviado con éxito!',
-      description: 'Tu solicitud de alquiler ha sido procesada.',
+      description: `Tu solicitud de alquiler para el contrato ${finalOrder.contractNumber} ha sido procesada.`,
     });
     setOrderItems([]);
   };
