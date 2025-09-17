@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import type { OrderItem, CateringItem } from '@/types';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import type { OrderItem, CateringItem, ServiceOrder } from '@/types';
 import { CATERING_ITEMS } from '@/lib/data';
 import { Header } from '@/components/layout/header';
 import { ItemCatalog } from '@/components/catalog/item-catalog';
@@ -13,6 +13,19 @@ export default function Home() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editOSId = searchParams.get('editOS');
+
+  useEffect(() => {
+    // This effect runs only on the client
+    const allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    if (editOSId) {
+        const osToEdit = allOS.find(os => os.id === editOSId);
+        if (osToEdit?.order) {
+            setOrderItems(osToEdit.order.items);
+        }
+    }
+  }, [editOSId]);
 
   const handleAddItem = (item: CateringItem, quantity: number) => {
     if (quantity <= 0) return;
@@ -94,11 +107,13 @@ export default function Home() {
 
     toast({
       title: 'Pedido guardado',
-      description: `Tu pedido está listo para ser usado en una nueva Orden de Servicio.`,
+      description: `Tu pedido está listo para ser usado en una Orden de Servicio.`,
     });
     setOrderItems([]);
-    // Redirect to create a new OS
-    router.push('/os');
+    
+    // Redirect to the correct OS page (editing or new)
+    const destination = editOSId ? `/os?id=${editOSId}` : '/os';
+    router.push(destination);
   };
 
   const handleClearOrder = () => {
@@ -127,6 +142,7 @@ export default function Home() {
               onSubmitOrder={handleSubmitOrder}
               onClearOrder={handleClearOrder}
               onAddSuggestedItem={handleAddItem}
+              isEditing={!!editOSId}
             />
           </div>
         </div>

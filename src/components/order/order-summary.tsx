@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { ShoppingCart, Trash2, Minus, Plus } from 'lucide-react';
 
@@ -28,9 +28,10 @@ interface OrderSummaryProps {
   onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number }) => void;
   onClearOrder: () => void;
   onAddSuggestedItem: (item: CateringItem, quantity: number) => void;
+  isEditing?: boolean;
 }
 
-export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder }: OrderSummaryProps) {
+export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false }: OrderSummaryProps) {
   const [rentalDays, setRentalDays] = useState(1);
   const [isReviewOpen, setReviewOpen] = useState(false);
 
@@ -128,14 +129,14 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
         <Dialog open={isReviewOpen} onOpenChange={setReviewOpen}>
           <DialogTrigger asChild>
             <Button className="w-full" size="lg" disabled={items.length === 0}>
-              Crear Orden de Servicio
+              {isEditing ? 'Actualizar Pedido en OS' : 'Añadir Pedido a OS'}
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Crear Orden de Servicio</DialogTitle>
+              <DialogTitle>{isEditing ? 'Actualizar Pedido' : 'Crear Orden de Servicio'}</DialogTitle>
               <DialogDescription>
-                Se guardará tu pedido de material y serás redirigido para crear una nueva Orden de Servicio.
+                Se guardará tu pedido de material y serás redirigido a la Orden de Servicio.
               </DialogDescription>
             </DialogHeader>
              <div className="space-y-4 py-4">

@@ -14,8 +14,11 @@ export type OrderItem = CateringItem & {
   quantity: number;
 };
 
-export type ServiceOrder = OsFormValues & {
+// We need to allow string dates because they come from localStorage
+export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate'> & {
     id: string;
+    startDate: string; 
+    endDate: string;
     order: {
         items: OrderItem[];
         total: number;

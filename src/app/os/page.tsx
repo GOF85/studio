@@ -102,7 +102,16 @@ export default function OsPage() {
             endDate: new Date(currentOS.endDate),
         }
         form.reset(values);
-        setOrder(currentOS.order);
+        
+        // If there's a new order in localStorage, it overrides the existing one.
+        const savedOrder = localStorage.getItem('currentOrder');
+        if (savedOrder) {
+            const parsedOrder = JSON.parse(savedOrder);
+            setOrder(parsedOrder);
+            localStorage.removeItem('currentOrder');
+        } else {
+            setOrder(currentOS.order);
+        }
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
         router.push('/pes');
@@ -124,6 +133,7 @@ export default function OsPage() {
 
     let allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     let message = '';
+    let newId = osId;
 
     if (osId) { // Update existing
       const osIndex = allOS.findIndex(os => os.id === osId);
@@ -132,8 +142,9 @@ export default function OsPage() {
         message = 'Orden de Servicio actualizada correctamente.';
       }
     } else { // Create new
+      newId = Date.now().toString();
       const newOS: ServiceOrder = {
-        id: Date.now().toString(),
+        id: newId,
         ...data,
         order,
         status: 'Borrador',
@@ -150,8 +161,31 @@ export default function OsPage() {
         description: message,
       });
       setIsLoading(false);
-      router.push('/pes');
+      // Redirect to the same OS page to reflect changes and avoid data loss on refresh
+      if (newId) {
+          router.push(`/os?id=${newId}`);
+      } else {
+          router.push('/pes');
+      }
     }, 1000)
+  }
+
+  const handleEditOrder = () => {
+    // Save current form state to avoid data loss
+    const currentValues = form.getValues();
+    const currentOS: Partial<ServiceOrder> = {
+        ...currentValues,
+        id: osId || 'temp', // Use temp id if new
+        status: 'Borrador',
+        startDate: currentValues.startDate.toISOString(),
+        endDate: currentValues.endDate.toISOString(),
+        order,
+    };
+    localStorage.setItem('editingOS', JSON.stringify(currentOS));
+
+    // Redirect to home to edit/create the material order
+    const redirectUrl = osId ? `/?editOS=${osId}` : '/';
+    router.push(redirectUrl);
   }
 
   return (
@@ -177,7 +211,7 @@ export default function OsPage() {
             <nav className={cn("space-y-2", isSidebarCollapsed && 'flex flex-col items-center')}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Link href="#" className={cn("flex items-center justify-between p-3 rounded-md bg-secondary text-secondary-foreground transition-colors", isSidebarCollapsed && 'w-auto justify-center')}>
+                  <Link href={osId ? `/?editOS=${osId}` : '/'} className={cn("flex items-center justify-between p-3 rounded-md bg-secondary text-secondary-foreground transition-colors", isSidebarCollapsed && 'w-auto justify-center')}>
                     <div className="flex items-center gap-3">
                       <Warehouse className="h-5 w-5 flex-shrink-0" />
                       {!isSidebarCollapsed && <span className="font-medium">Almacén</span>}
@@ -392,7 +426,12 @@ export default function OsPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Briefing del Evento (Pedido de Material)</CardTitle>
+                        <div className="flex justify-between items-center">
+                            <CardTitle>Briefing del Evento (Pedido de Material)</CardTitle>
+                             <Button type="button" variant="outline" onClick={handleEditOrder}>
+                                {order && order.items.length > 0 ? 'Editar Pedido' : 'Crear Pedido'}
+                            </Button>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         {order && order.items.length > 0 ? (
@@ -434,7 +473,7 @@ export default function OsPage() {
                         ) : (
                             <div className="text-center py-8 text-muted-foreground">
                                 <p>No hay ningún pedido de material asociado.</p>
-                                <Button variant="link" asChild><Link href="/">Crear un nuevo pedido</Link></Button>
+                                <Button variant="link" asChild><Link href={osId ? `/?editOS=${osId}` : '/'}>Crear un nuevo pedido</Link></Button>
                             </div>
                         )}
                     </CardContent>
