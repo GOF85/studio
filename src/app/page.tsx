@@ -150,7 +150,8 @@ export default function Home() {
     setOrderItems([]);
     
     // Redirect back to the module page
-    const destination = `/${orderType.toLowerCase()}?osId=${osId}`;
+    const modulePath = orderType === 'Almacén' ? 'almacen' : 'bodega';
+    const destination = `/${modulePath}?osId=${osId}`;
     router.push(destination);
   };
 
