@@ -259,10 +259,10 @@ export default function OsPage() {
       });
       setIsLoading(false);
       form.reset(form.getValues()); // Mark form as not dirty
-      if (newId && !osId) { 
-          router.push(`/os?id=${newId}`);
-      } else if (isSubmittingFromDialog) {
-          router.push('/pes');
+      if (isSubmittingFromDialog) {
+        router.push('/pes');
+      } else if (newId && !osId) { 
+        router.push(`/os?id=${newId}`);
       } else {
         router.replace(`/os?id=${newId}&t=${Date.now()}`);
       }
@@ -691,7 +691,7 @@ export default function OsPage() {
             <div className="flex flex-col-reverse sm:flex-row gap-2">
                 <Button variant="destructive" className="bg-orange-500 hover:bg-orange-600" onClick={() => router.push('/pes')}>Descartar</Button>
                 <Button onClick={handleSaveFromDialog} disabled={isLoading}>
-                {isLoading && isSubmittingFromDialog ? <Loader2 className="animate-spin" /> : 'Guardar Cambios'}
+                {isLoading && isSubmittingFromDialog ? <Loader2 className="animate-spin" /> : 'Guardar y Salir'}
                 </Button>
             </div>
           </AlertDialogFooter>
