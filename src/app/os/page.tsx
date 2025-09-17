@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2 } from 'lucide-react';
 
 import type { OrderItem, ServiceOrder, MaterialOrder } from '@/types';
 import { cn } from '@/lib/utils';
@@ -66,6 +66,7 @@ export const osFormSchema = z.object({
   sendTo: z.string().optional().default(''),
   comments: z.string().optional().default(''),
   deliveryLocations: z.array(z.string()).optional().default([]),
+  status: z.enum(['Borrador', 'Confirmado', 'Finalizado']).default('Borrador'),
 });
 
 export type OsFormValues = z.infer<typeof osFormSchema>;
@@ -73,7 +74,8 @@ export type OsFormValues = z.infer<typeof osFormSchema>;
 const defaultValues: Partial<OsFormValues> = {
   serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', pax: 0,
   space: '', spaceContact: '', spacePhone: '', respMetre: '', agencyPercentage: 0, spacePercentage: 0,
-  uniformity: '', respCocina: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', deliveryLocations: []
+  uniformity: '', respCocina: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', deliveryLocations: [],
+  status: 'Borrador',
 };
 
 export default function OsPage() {
@@ -132,7 +134,7 @@ export default function OsPage() {
     if (osId) { // Update existing
       const osIndex = allOS.findIndex(os => os.id === osId);
       if (osIndex !== -1) {
-        allOS[osIndex] = { ...allOS[osIndex], ...data };
+        allOS[osIndex] = { ...allOS[osIndex], ...data, id: osId };
         message = 'Orden de Servicio actualizada correctamente.';
       }
     } else { // Create new
@@ -151,7 +153,8 @@ export default function OsPage() {
       const newOS: ServiceOrder = {
         id: newId,
         ...data,
-        status: 'Borrador',
+        startDate: data.startDate.toISOString(),
+        endDate: data.endDate.toISOString(),
       };
       allOS.push(newOS);
       message = 'Orden de Servicio creada correctamente.';
@@ -165,12 +168,28 @@ export default function OsPage() {
         description: message,
       });
       setIsLoading(false);
-      if (newId) {
+      if (newId && !osId) { // only push if it was a new creation
           router.push(`/os?id=${newId}`);
       } else {
-          router.push('/pes');
+        // Force re-render to reflect changes
+        router.replace(`/os?id=${newId}&t=${Date.now()}`);
       }
     }, 1000)
+  }
+
+  const handleEditMaterialOrder = (order: MaterialOrder) => {
+    const modulePath = order.type === 'Almacén' ? 'almacen' : 'bodega';
+    router.push(`/?osId=${osId}&type=${order.type}&orderId=${order.id}`);
+  }
+
+  const handleDeleteMaterialOrder = (orderId: string) => {
+     let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+     const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderId);
+     localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
+     setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId));
+     const total = updatedOrders.filter(o => o.osId === osId).reduce((sum, o) => sum + o.total, 0);
+     setTotalAmount(total);
+     toast({ title: 'Pedido de material eliminado' });
   }
 
   return (
@@ -179,10 +198,13 @@ export default function OsPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-headline font-bold">{osId ? 'Editar' : 'Nueva'} Orden de Servicio</h1>
-          <Button type="submit" form="os-form" disabled={isLoading}>
-            {isLoading ? <Loader2 className="animate-spin" /> : <FileDown />}
-            <span className="ml-2">{osId ? 'Guardar Cambios' : 'Guardar OS'}</span>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => router.push('/pes')}>Volver al listado</Button>
+            <Button type="submit" form="os-form" disabled={isLoading}>
+              {isLoading ? <Loader2 className="animate-spin" /> : <FileDown />}
+              <span className="ml-2">{osId ? 'Guardar Cambios' : 'Guardar OS'}</span>
+            </Button>
+          </div>
         </div>
 
         <div className={cn("grid gap-8 transition-[grid-template-columns] duration-300", isSidebarCollapsed ? "lg:grid-cols-[80px_1fr]" : "lg:grid-cols-[280px_1fr]")}>
@@ -387,9 +409,19 @@ export default function OsPage() {
                         <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
                       </FormItem>
                     )} />
-                    <div className="flex items-end">
-                        <p className="font-bold text-lg">NETA: <span>{(totalAmount).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></p>
-                    </div>
+                    <FormField control={form.control} name="status" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Estado</FormLabel>
+                         <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="Borrador">Borrador</SelectItem>
+                            <SelectItem value="Confirmado">Confirmado</SelectItem>
+                            <SelectItem value="Finalizado">Finalizado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )} />
                      <FormField control={form.control} name="plane" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Plano</FormLabel>
@@ -446,6 +478,7 @@ export default function OsPage() {
                                             <th scope="col" className="px-6 py-3">Artículos</th>
                                             <th scope="col" className="px-6 py-3">Días</th>
                                             <th scope="col" className="px-6 py-3">Importe</th>
+                                            <th scope="col" className="px-6 py-3 text-right">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -456,14 +489,22 @@ export default function OsPage() {
                                                 <td className="px-6 py-4">{order.items.length}</td>
                                                 <td className="px-6 py-4">{order.days}</td>
                                                 <td className="px-6 py-4">{(order.total).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                                                <td className="px-6 py-4 text-right">
+                                                  <Button variant="ghost" size="icon" onClick={() => handleEditMaterialOrder(order)} disabled={order.status !== 'Asignado'}>
+                                                    <FilePenLine className="h-4 w-4" />
+                                                  </Button>
+                                                  <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteMaterialOrder(order.id)} disabled={order.status !== 'Asignado'}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                  </Button>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                     <tfoot>
                                         <tr className="font-semibold text-lg">
-                                            <td colSpan={3}></td>
+                                            <td colSpan={4}></td>
                                             <td className="px-6 py-3 text-right">Total Pedidos:</td>
-                                            <td className="px-6 py-3">{totalAmount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                                            <td className="px-6 py-3" colSpan={2}>{totalAmount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
                                         </tr>
                                     </tfoot>
                                 </table>

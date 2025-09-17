@@ -34,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { CATERING_ITEMS } from '@/lib/data';
 
 export default function PesPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
@@ -44,17 +45,124 @@ export default function PesPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    const storedOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    setServiceOrders(storedOrders);
+    const storedOrders = localStorage.getItem('serviceOrders');
+    
+    if (!storedOrders || JSON.parse(storedOrders).length === 0) {
+      // Create dummy data if no orders exist
+      const dummyOS: ServiceOrder[] = [
+        {
+          id: '1720000000001',
+          serviceNumber: 'OS-2024-001',
+          startDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+          endDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
+          client: 'Empresa Innovadora S.L.',
+          pax: 150,
+          status: 'Confirmado',
+          space: 'Finca La Reunión',
+          deliveryLocations: ['Salón Principal', 'Cocina Trasera'],
+          contact: 'Ana Torres',
+          phone: '611223344',
+          finalClient: 'Tech Conference 2024',
+          commercial: 'com1',
+          spaceContact: 'Luis García',
+          spacePhone: '699887766',
+          respMetre: 'metre1',
+          agencyPercentage: 10,
+          spacePercentage: 5,
+          uniformity: 'uniform2',
+          respCocina: 'cocina1',
+          plane: '',
+          menu: '',
+          dniList: '',
+          sendTo: 'dest1',
+          comments: 'Evento de presentación de producto. Necesitan buena iluminación y sonido.'
+        },
+        {
+          id: '1720000000002',
+          serviceNumber: 'OS-2024-002',
+          startDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+          endDate: new Date(Date.now() + 11 * 24 * 60 * 60 * 1000).toISOString(),
+          client: 'Particulares - Boda J&M',
+          pax: 80,
+          status: 'Borrador',
+          space: 'Restaurante El Mirador',
+          deliveryLocations: ['Salón Mirador'],
+          contact: 'Javier Martín',
+          phone: '655443322',
+          finalClient: '',
+          commercial: 'com2',
+          spaceContact: 'Elena Soler',
+          spacePhone: '677889900',
+          respMetre: 'metre2',
+          agencyPercentage: 0,
+          spacePercentage: 0,
+          uniformity: 'uniform1',
+          respCocina: 'cocina2',
+          plane: '',
+          menu: '',
+          dniList: '',
+          sendTo: '',
+          comments: 'Boda íntima. Menú vegetariano para 10 invitados.'
+        },
+      ];
+      localStorage.setItem('serviceOrders', JSON.stringify(dummyOS));
+      
+      const dummyMaterialOrders = [
+        {
+          id: '1', osId: '1720000000001', type: 'Almacén',
+          items: [
+            {...CATERING_ITEMS.find(i=> i.itemCode === 'TBL01')!, quantity: 20},
+            {...CATERING_ITEMS.find(i=> i.itemCode === 'CHR01')!, quantity: 150}
+          ],
+          days: 3, total: (20*10 + 150*1.5)*3, contractNumber: 'OS-2024-001',
+          status: 'Asignado',
+          deliveryDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+          deliverySpace: 'Finca La Reunión', deliveryLocation: 'Salón Principal'
+        },
+         {
+          id: '2', osId: '1720000000001', type: 'Almacén',
+          items: [
+            {...CATERING_ITEMS.find(i=> i.itemCode === 'PLT01')!, quantity: 150},
+            {...CATERING_ITEMS.find(i=> i.itemCode === 'PLT02')!, quantity: 150},
+            {...CATERING_ITEMS.find(i=> i.itemCode === 'CUT01')!, quantity: 150},
+          ],
+          days: 3, total: (150*0.5 + 150*0.4 + 150*0.75)*3, contractNumber: 'OS-2024-001',
+          status: 'En preparación',
+          deliveryDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+          deliverySpace: 'Finca La Reunión', deliveryLocation: 'Cocina Trasera'
+        },
+        {
+          id: '3', osId: '1720000000001', type: 'Bodega',
+          items: [
+            {...CATERING_ITEMS.find(i=> i.itemCode === 'GLS01')!, quantity: 200},
+            {...CATERING_ITEMS.find(i=> i.itemCode === 'GLS02')!, quantity: 200},
+          ],
+          days: 3, total: (200 * 0.4 + 200 * 0.3)*3, contractNumber: 'OS-2024-001',
+          status: 'Listo',
+          deliveryDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+          deliverySpace: 'Finca La Reunión', deliveryLocation: 'Salón Principal'
+        }
+      ];
+      localStorage.setItem('materialOrders', JSON.stringify(dummyMaterialOrders));
+      setServiceOrders(dummyOS);
+      toast({ title: 'Datos de prueba cargados', description: 'Se han cargado órdenes de servicio y pedidos de ejemplo.' });
+    } else {
+      setServiceOrders(JSON.parse(storedOrders));
+    }
   }, []);
 
   const handleDelete = () => {
     if (!orderToDelete) return;
 
+    // Also delete associated material orders
+    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]');
+    const updatedMaterialOrders = allMaterialOrders.filter((mo: any) => mo.osId !== orderToDelete);
+    localStorage.setItem('materialOrders', JSON.stringify(updatedMaterialOrders));
+
     const updatedOrders = serviceOrders.filter(os => os.id !== orderToDelete);
     localStorage.setItem('serviceOrders', JSON.stringify(updatedOrders));
     setServiceOrders(updatedOrders);
-    toast({ title: 'Orden eliminada', description: 'La orden de servicio ha sido eliminada con éxito.' });
+    toast({ title: 'Orden eliminada', description: 'La orden de servicio y sus pedidos asociados han sido eliminados.' });
     setOrderToDelete(null);
   };
 
@@ -92,7 +200,7 @@ export default function PesPage() {
             <TableBody>
               {serviceOrders.length > 0 ? (
                 serviceOrders.map(os => (
-                  <TableRow key={os.id}>
+                  <TableRow key={os.id} onClick={() => router.push(`/os?id=${os.id}`)} className="cursor-pointer">
                     <TableCell className="font-medium">{os.serviceNumber}</TableCell>
                     <TableCell>{os.client}</TableCell>
                     <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
@@ -103,7 +211,7 @@ export default function PesPage() {
                         {os.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
@@ -142,7 +250,7 @@ export default function PesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente la orden de servicio.
+              Esta acción no se puede deshacer. Esto eliminará permanentemente la orden de servicio y todos sus pedidos de material asociados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -36,6 +36,4 @@ export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate'> & {
     id: string;
     startDate: string; 
     endDate: string;
-    deliveryLocations: string[];
-    status: 'Borrador' | 'Confirmado' | 'Finalizado';
 };
