@@ -66,7 +66,7 @@ export const osFormSchema = z.object({
   menu: z.string().optional().default(''),
   dniList: z.string().optional().default(''),
   sendTo: z.string().optional().default(''),
-  comments: zstring().optional().default(''),
+  comments: z.string().optional().default(''),
   deliveryLocations: z.array(z.string()).optional().default([]),
   status: z.enum(['Borrador', 'Confirmado', 'Finalizado']).default('Borrador'),
 });
