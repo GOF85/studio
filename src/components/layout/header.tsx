@@ -1,6 +1,12 @@
 import Link from 'next/link';
-import { UtensilsCrossed, FileText, ClipboardList, Database } from 'lucide-react';
+import { UtensilsCrossed, FileText, ClipboardList, Database, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export function Header() {
   return (
@@ -19,18 +25,28 @@ export function Header() {
               Previsión de Servicios
             </Link>
           </Button>
-           <Button variant="ghost" asChild>
-            <Link href="/bd">
-              <Database className="mr-2" />
-              Bases de Datos
-            </Link>
-          </Button>
           <Button variant="outline" asChild>
             <Link href="/os">
               <FileText className="mr-2" />
               Nueva Orden de Servicio
             </Link>
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="h-6 w-6" />
+                <span className="sr-only">Abrir menú</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href="/bd">
+                  <Database className="mr-2" />
+                  Bases de Datos
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
       </div>
     </header>
