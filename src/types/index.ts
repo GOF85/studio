@@ -15,7 +15,7 @@ export type OrderItem = CateringItem & {
 };
 
 export type MaterialOrderStatus = 'Asignado' | 'En preparación' | 'Listo';
-export type MaterialOrderType = 'Almacén' | 'Bodega';
+export type MaterialOrderType = 'Almacén' | 'Bodega' | 'Bio';
 
 export type MaterialOrder = {
   id: string;

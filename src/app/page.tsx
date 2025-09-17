@@ -17,7 +17,7 @@ export default function Home() {
   const searchParams = useSearchParams();
   
   const osId = searchParams.get('osId');
-  const orderType = searchParams.get('type') as 'Almacén' | 'Bodega' | null;
+  const orderType = searchParams.get('type') as 'Almacén' | 'Bodega' | 'Bio' | null;
   const editOrderId = searchParams.get('orderId');
 
   useEffect(() => {
@@ -169,7 +169,11 @@ export default function Home() {
     
     setOrderItems([]);
     
-    const modulePath = orderType === 'Almacén' ? 'almacen' : 'bodega';
+    let modulePath = '';
+    if (orderType === 'Almacén') modulePath = 'almacen';
+    else if (orderType === 'Bodega') modulePath = 'bodega';
+    else if (orderType === 'Bio') modulePath = 'bio';
+
     const destination = `/${modulePath}?osId=${osId}`;
     router.push(destination);
   };
@@ -230,5 +234,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
