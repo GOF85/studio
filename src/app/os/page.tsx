@@ -233,7 +233,7 @@ export default function OsPage() {
           </div>
         </div>
 
-        <div className={cn("grid gap-8 transition-[grid-template-columns] duration-300", isSidebarCollapsed ? "lg:grid-cols-[80px_1fr]" : "lg:grid-cols-[280px_1fr]")}>
+        <div className={cn("grid gap-8 transition-[grid-template-columns] duration-300", isSidebarCollapsed ? "lg:grid-cols-[80px_1fr]" : "lg:grid-cols-[140px_1fr]")}>
           <aside className="lg:sticky top-24 self-start flex flex-col">
             <div className={cn("flex items-center justify-between mb-4", isSidebarCollapsed && 'justify-center')}>
               {!isSidebarCollapsed && <h2 className="text-lg font-semibold">Módulos</h2>}
