@@ -107,12 +107,32 @@ export default function Home() {
     setOrderItems((prevItems) => prevItems.filter((item) => item.itemCode !== itemCode));
   };
 
+  const handleAddLocation = (newLocation: string) => {
+    if (!serviceOrder) return;
+    
+    const updatedOS = {
+        ...serviceOrder,
+        deliveryLocations: [...(serviceOrder.deliveryLocations || []), newLocation]
+    };
+    
+    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    const osIndex = allServiceOrders.findIndex(os => os.id === serviceOrder.id);
+    
+    if (osIndex !== -1) {
+        allServiceOrders[osIndex] = updatedOS;
+        localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
+        setServiceOrder(updatedOS);
+        toast({ title: 'Localización añadida', description: `Se ha guardado "${newLocation}" en la Orden de Servicio.`})
+    }
+  }
+
   const handleSubmitOrder = (finalOrder: {
     items: OrderItem[];
     days: number;
     total: number;
     contractNumber: string;
     deliveryDate?: string;
+    deliverySpace?: string;
     deliveryLocation?: string;
   }) => {
     if (!osId || !orderType) {
@@ -149,8 +169,7 @@ export default function Home() {
     
     setOrderItems([]);
     
-    // Redirect back to the module page
-    const modulePath = orderType.toLowerCase();
+    const modulePath = orderType === 'Almacén' ? 'almacen' : 'bodega';
     const destination = `/${modulePath}?osId=${osId}`;
     router.push(destination);
   };
@@ -198,6 +217,7 @@ export default function Home() {
               onClearOrder={handleClearOrder}
               isEditing={!!editOrderId}
               serviceOrder={serviceOrder}
+              onAddLocation={handleAddLocation}
             />
           </div>
         </div>
@@ -210,3 +230,5 @@ export default function Home() {
     </div>
   );
 }
+
+    

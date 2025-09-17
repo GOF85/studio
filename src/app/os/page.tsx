@@ -65,6 +65,7 @@ export const osFormSchema = z.object({
   dniList: z.string().optional().default(''),
   sendTo: z.string().optional().default(''),
   comments: z.string().optional().default(''),
+  deliveryLocations: z.array(z.string()).optional().default([]),
 });
 
 export type OsFormValues = z.infer<typeof osFormSchema>;
@@ -72,7 +73,7 @@ export type OsFormValues = z.infer<typeof osFormSchema>;
 const defaultValues: Partial<OsFormValues> = {
   serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', pax: 0,
   space: '', spaceContact: '', spacePhone: '', respMetre: '', agencyPercentage: 0, spacePercentage: 0,
-  uniformity: '', respCocina: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '',
+  uniformity: '', respCocina: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', deliveryLocations: []
 };
 
 export default function OsPage() {
@@ -105,6 +106,7 @@ export default function OsPage() {
             ...currentOS,
             startDate: new Date(currentOS.startDate),
             endDate: new Date(currentOS.endDate),
+            deliveryLocations: currentOS.deliveryLocations || [],
         }
         form.reset(values);
         
@@ -133,7 +135,7 @@ export default function OsPage() {
     if (osId) { // Update existing
       const osIndex = allOS.findIndex(os => os.id === osId);
       if (osIndex !== -1) {
-        allOS[osIndex] = { ...allOS[osIndex], ...data, order: null }; // 'order' is deprecated
+        allOS[osIndex] = { ...allOS[osIndex], ...data, order: null };
         message = 'Orden de Servicio actualizada correctamente.';
       }
     } else { // Create new
@@ -141,7 +143,7 @@ export default function OsPage() {
       const newOS: ServiceOrder = {
         id: newId,
         ...data,
-        order: null, // 'order' is deprecated
+        order: null, 
         status: 'Borrador',
       };
       allOS.push(newOS);
@@ -156,7 +158,6 @@ export default function OsPage() {
         description: message,
       });
       setIsLoading(false);
-      // Redirect to the same OS page to reflect changes and avoid data loss on refresh
       if (newId) {
           router.push(`/os?id=${newId}`);
       } else {
@@ -471,3 +472,5 @@ export default function OsPage() {
     </TooltipProvider>
   );
 }
+
+    

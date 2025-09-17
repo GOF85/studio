@@ -2,11 +2,11 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
-import { ShoppingCart, Trash2, Minus, Plus, Calendar as CalendarIcon } from 'lucide-react';
+import { ShoppingCart, Trash2, Minus, Plus, Calendar as CalendarIcon, FilePlus } from 'lucide-react';
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
 
-import type { OrderItem, CateringItem, ServiceOrder } from '@/types';
+import type { OrderItem, ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,31 +24,44 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
+
 
 interface OrderSummaryProps {
   items: OrderItem[];
   onUpdateQuantity: (itemCode: string, quantity: number) => void;
   onRemoveItem: (itemCode: string) => void;
-  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber: string, deliveryDate?: string, deliveryLocation?: string }) => void;
+  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber: string, deliveryDate?: string, deliverySpace?: string, deliveryLocation?: string }) => void;
   onClearOrder: () => void;
   isEditing?: boolean;
   serviceOrder: ServiceOrder | null;
+  onAddLocation: (newLocation: string) => void;
 }
 
-export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false, serviceOrder }: OrderSummaryProps) {
+export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false, serviceOrder, onAddLocation }: OrderSummaryProps) {
   const [rentalDays, setRentalDays] = useState(1);
   const [isReviewOpen, setReviewOpen] = useState(false);
   const [contractNumber, setContractNumber] = useState('');
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
+  const [deliverySpace, setDeliverySpace] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
+  const [isAddingLocation, setIsAddingLocation] = useState(false);
+  const [newLocation, setNewLocation] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
     if (serviceOrder) {
       setContractNumber(serviceOrder.serviceNumber || '');
-      setDeliveryLocation(serviceOrder.space || '');
+      setDeliverySpace(serviceOrder.space || '');
       if (serviceOrder.startDate) {
         setDeliveryDate(new Date(serviceOrder.startDate));
       }
@@ -62,6 +75,15 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const itemsTotal = subtotal * rentalDays;
   const total = itemsTotal;
 
+  const handleAddNewLocation = () => {
+    if (newLocation.trim()) {
+      onAddLocation(newLocation.trim());
+      setDeliveryLocation(newLocation.trim());
+      setNewLocation('');
+      setIsAddingLocation(false);
+    }
+  }
+
   const handleSubmit = () => {
     if (!contractNumber) {
         toast({ variant: 'destructive', title: 'Error', description: 'El Nº de Contrato (Nº de Servicio de la OS) es obligatorio.' });
@@ -73,6 +95,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
       total,
       contractNumber,
       deliveryDate: deliveryDate ? format(deliveryDate, "yyyy-MM-dd") : undefined,
+      deliverySpace,
       deliveryLocation,
     });
     setReviewOpen(false);
@@ -211,8 +234,24 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                   </Popover>
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="delivery-location-dialog">Lugar de Entrega</Label>
-                    <Input id="delivery-location-dialog" value={deliveryLocation} onChange={(e) => setDeliveryLocation(e.target.value)} placeholder="Introduce el lugar de entrega" />
+                    <Label htmlFor="delivery-space-dialog">Lugar de Entrega</Label>
+                    <Input id="delivery-space-dialog" value={deliverySpace} readOnly placeholder="Espacio definido en la OS" />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="delivery-location-dialog">Localización</Label>
+                     <div className="flex items-center gap-2">
+                        <Select value={deliveryLocation} onValueChange={setDeliveryLocation}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecciona una localización..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {serviceOrder?.deliveryLocations?.map(loc => (
+                                    <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Button variant="outline" size="icon" onClick={() => setIsAddingLocation(true)}><FilePlus className="h-4 w-4" /></Button>
+                    </div>
                 </div>
             </div>
             <DialogFooter>
@@ -226,6 +265,29 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
           </DialogContent>
         </Dialog>
       </CardFooter>
+      <AlertDialog open={isAddingLocation} onOpenChange={setIsAddingLocation}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Añadir Nueva Localización</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Esta localización se guardará en la Orden de Servicio para futuros pedidos.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="py-4">
+                 <Input 
+                    placeholder="Ej. Salón principal, Cocina, Barra..."
+                    value={newLocation}
+                    onChange={(e) => setNewLocation(e.target.value)}
+                />
+            </div>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleAddNewLocation}>Añadir</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
+
+    

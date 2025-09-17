@@ -27,6 +27,7 @@ export type MaterialOrder = {
   contractNumber: string;
   status: MaterialOrderStatus;
   deliveryDate?: string;
+  deliverySpace?: string;
   deliveryLocation?: string;
 };
 
@@ -35,6 +36,7 @@ export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate'> & {
     id: string;
     startDate: string; 
     endDate: string;
+    deliveryLocations: string[];
     // The 'order' property is deprecated in favor of materialOrders stored separately.
     // It's kept for now for backwards compatibility but shouldn't be used for new logic.
     order: {
@@ -44,3 +46,5 @@ export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate'> & {
     } | null;
     status: 'Borrador' | 'Confirmado' | 'Finalizado';
 };
+
+    

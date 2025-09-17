@@ -195,6 +195,7 @@ export default function AlmacenPage() {
                             <TableHead>Nº Contrato</TableHead>
                             <TableHead>Fecha Entrega</TableHead>
                             <TableHead>Lugar Entrega</TableHead>
+                            <TableHead>Localización</TableHead>
                             <TableHead>Artículos</TableHead>
                             <TableHead>Importe Total</TableHead>
                             <TableHead>Estado</TableHead>
@@ -207,6 +208,7 @@ export default function AlmacenPage() {
                             <TableRow key={order.id}>
                                 <TableCell className="font-medium">{order.contractNumber}</TableCell>
                                 <TableCell>{order.deliveryDate ? format(new Date(order.deliveryDate), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                                <TableCell>{order.deliverySpace || 'N/A'}</TableCell>
                                 <TableCell>{order.deliveryLocation || 'N/A'}</TableCell>
                                 <TableCell>{order.items.length}</TableCell>
                                 <TableCell>{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
@@ -239,7 +241,7 @@ export default function AlmacenPage() {
                             ))
                         ) : (
                             <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">
+                            <TableCell colSpan={8} className="h-24 text-center">
                                 No hay pedidos de almacén para esta Orden de Servicio.
                             </TableCell>
                             </TableRow>
@@ -273,3 +275,5 @@ export default function AlmacenPage() {
     </>
   );
 }
+
+    
