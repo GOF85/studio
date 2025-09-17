@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine } from 'lucide-react';
 
-import type { OrderItem, ServiceOrder } from '@/types';
+import type { OrderItem, ServiceOrder, MaterialOrder } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -45,58 +45,62 @@ export const osFormSchema = z.object({
   serviceNumber: z.string().min(1, 'El Nº de Servicio es obligatorio'),
   startDate: z.date({ required_error: 'La fecha de inicio es obligatoria.' }),
   client: z.string().min(1, 'El cliente es obligatorio.'),
-  contact: z.string().default(''),
-  phone: z.string().default(''),
-  finalClient: z.string().default(''),
-  commercial: z.string().default(''),
+  contact: z.string().optional().default(''),
+  phone: z.string().optional().default(''),
+  finalClient: z.string().optional().default(''),
+  commercial: z.string().optional().default(''),
   pax: z.coerce.number().optional().default(0),
   endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
-  space: z.string().default(''),
-  spaceContact: z.string().default(''),
-  spacePhone: z.string().default(''),
-  respMetre: z.string().default(''),
+  space: z.string().optional().default(''),
+  spaceContact: z.string().optional().default(''),
+  spacePhone: z.string().optional().default(''),
+  respMetre: z.string().optional().default(''),
   agencyPercentage: z.coerce.number().optional().default(0),
   spacePercentage: z.coerce.number().optional().default(0),
-  uniformity: z.string().default(''),
-  respCocina: z.string().default(''),
-  plane: z.string().default(''),
-  menu: z.string().default(''),
-  dniList: z.string().default(''),
-  sendTo: z.string().default(''),
-  comments: z.string().default(''),
-  contractNumber: z.string().default(''),
+  uniformity: z.string().optional().default(''),
+  respCocina: z.string().optional().default(''),
+  plane: z.string().optional().default(''),
+  menu: z.string().optional().default(''),
+  dniList: z.string().optional().default(''),
+  sendTo: z.string().optional().default(''),
+  comments: z.string().optional().default(''),
+  contractNumber: z.string().optional().default(''),
 });
 
 export type OsFormValues = z.infer<typeof osFormSchema>;
+
+const defaultValues: Partial<OsFormValues> = {
+  serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', pax: 0,
+  space: '', spaceContact: '', spacePhone: '', respMetre: '', agencyPercentage: 0, spacePercentage: 0,
+  uniformity: '', respCocina: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', contractNumber: '',
+};
 
 export default function OsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const osId = searchParams.get('id');
 
-  const [order, setOrder] = useState<{ items: OrderItem[]; total: number; days: number, contractNumber?: string } | null>(null);
+  const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
+  const [totalAmount, setTotalAmount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<OsFormValues>({
     resolver: zodResolver(osFormSchema),
-    defaultValues: {
-      serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', pax: 0,
-      space: '', spaceContact: '', spacePhone: '', respMetre: '', agencyPercentage: 0, spacePercentage: 0,
-      uniformity: '', respCocina: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', contractNumber: '',
-    },
+    defaultValues,
   });
 
   useEffect(() => {
     // This code runs only on the client
-    let currentOS: ServiceOrder | null = null;
     const allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-
+    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    
+    let currentOS: ServiceOrder | null = null;
+    
     if (osId) { // Editing existing OS
       currentOS = allOS.find(os => os.id === osId) || null;
       if (currentOS) {
-        // Coerce string dates back to Date objects
         const values = {
             ...currentOS,
             startDate: new Date(currentOS.startDate),
@@ -104,29 +108,16 @@ export default function OsPage() {
         }
         form.reset(values);
         
-        // If there's a new order in localStorage, it overrides the existing one.
-        const savedOrder = localStorage.getItem(`currentOrder_${osId}`);
-        if (savedOrder) {
-            const parsedOrder = JSON.parse(savedOrder);
-            setOrder(parsedOrder);
-            form.setValue('contractNumber', parsedOrder.contractNumber || '');
-            localStorage.removeItem(`currentOrder_${osId}`);
-        } else {
-            setOrder(currentOS.order);
-            form.setValue('contractNumber', currentOS.order?.contractNumber || '');
-        }
+        const relatedMaterialOrders = allMaterialOrders.filter(mo => mo.osId === osId);
+        setMaterialOrders(relatedMaterialOrders);
+        const total = relatedMaterialOrders.reduce((sum, order) => sum + order.total, 0);
+        setTotalAmount(total);
+
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
         router.push('/pes');
       }
     } else { // Creating new OS
-        const savedOrder = localStorage.getItem('currentOrder_new');
-        if (savedOrder) {
-          const parsedOrder = JSON.parse(savedOrder);
-          setOrder(parsedOrder);
-          form.setValue('contractNumber', parsedOrder.contractNumber || '');
-          localStorage.removeItem('currentOrder_new');
-        }
         const currentServiceNumber = `${new Date().getFullYear()}-${allOS.length + 1}`;
         form.setValue('serviceNumber', currentServiceNumber);
     }
@@ -139,12 +130,10 @@ export default function OsPage() {
     let message = '';
     let newId = osId;
     
-    const finalOrder = order ? { ...order, contractNumber: data.contractNumber } : null;
-
     if (osId) { // Update existing
       const osIndex = allOS.findIndex(os => os.id === osId);
       if (osIndex !== -1) {
-        allOS[osIndex] = { ...allOS[osIndex], ...data, order: finalOrder };
+        allOS[osIndex] = { ...allOS[osIndex], ...data, order: null }; // 'order' is deprecated
         message = 'Orden de Servicio actualizada correctamente.';
       }
     } else { // Create new
@@ -152,7 +141,7 @@ export default function OsPage() {
       const newOS: ServiceOrder = {
         id: newId,
         ...data,
-        order: finalOrder,
+        order: null, // 'order' is deprecated
         status: 'Borrador',
       };
       allOS.push(newOS);
@@ -174,25 +163,6 @@ export default function OsPage() {
           router.push('/pes');
       }
     }, 1000)
-  }
-
-  const handleEditOrder = () => {
-    // Save current form state to avoid data loss
-    const currentValues = form.getValues();
-    const osDataToSave: Partial<ServiceOrder> = {
-      ...currentValues,
-      id: osId || undefined,
-      startDate: currentValues.startDate ? currentValues.startDate.toISOString() : new Date().toISOString(),
-      endDate: currentValues.endDate ? currentValues.endDate.toISOString() : new Date().toISOString(),
-      order: order,
-    };
-    
-    const storageKey = osId ? `os_temp_${osId}` : 'os_temp_new';
-    localStorage.setItem(storageKey, JSON.stringify(osDataToSave));
-
-    // Redirect to home to edit/create the material order
-    const redirectUrl = osId ? `/?editOS=${osId}` : '/?newOS=true';
-    router.push(redirectUrl);
   }
 
   return (
@@ -218,8 +188,8 @@ export default function OsPage() {
             <nav className={cn("space-y-2", isSidebarCollapsed && 'flex flex-col items-center')}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button asChild variant="ghost" className={cn("w-full flex items-center justify-between p-3 rounded-md bg-secondary text-secondary-foreground transition-colors", isSidebarCollapsed && 'w-auto justify-center')}>
-                     <Link href={osId ? `/?editOS=${osId}` : '/?newOS=true'} onClick={handleEditOrder}>
+                  <Button asChild variant="ghost" className={cn("w-full flex items-center justify-between p-3 rounded-md hover:bg-secondary/80 transition-colors", isSidebarCollapsed && 'w-auto justify-center')} disabled={!osId}>
+                     <Link href={osId ? `/almacen?osId=${osId}` : '#'}>
                         <div className="flex items-center gap-3">
                           <Warehouse className="h-5 w-5 flex-shrink-0" />
                           {!isSidebarCollapsed && <span className="font-medium">Almacén</span>}
@@ -232,8 +202,8 @@ export default function OsPage() {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                   <Button asChild variant="ghost" className={cn("w-full flex items-center justify-between p-3 rounded-md hover:bg-secondary/80 transition-colors", isSidebarCollapsed && 'w-auto justify-center')}>
-                     <Link href={osId ? `/?editOS=${osId}` : '/?newOS=true'} onClick={handleEditOrder}>
+                   <Button asChild variant="ghost" className={cn("w-full flex items-center justify-between p-3 rounded-md hover:bg-secondary/80 transition-colors", isSidebarCollapsed && 'w-auto justify-center')} disabled={!osId}>
+                     <Link href={osId ? `/bodega?osId=${osId}` : '#'}>
                         <div className="flex items-center gap-3">
                           <Wine className="h-5 w-5 flex-shrink-0" />
                           {!isSidebarCollapsed && <span className="font-medium">Bodega</span>}
@@ -406,7 +376,7 @@ export default function OsPage() {
                       </FormItem>
                     )} />
                     <div className="flex items-end">
-                        <p className="font-bold text-lg">NETA: <span>{(order?.total ?? 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></p>
+                        <p className="font-bold text-lg">NETA: <span>{(totalAmount).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></p>
                     </div>
                      <FormField control={form.control} name="plane" render={({ field }) => (
                       <FormItem>
@@ -456,58 +426,45 @@ export default function OsPage() {
                 <Card>
                     <CardHeader>
                         <div className="flex justify-between items-center">
-                            <CardTitle>Briefing del Evento (Pedido de Material)</CardTitle>
-                             <Button type="button" variant="outline" onClick={handleEditOrder}>
-                                {order && order.items.length > 0 ? 'Editar Pedido' : 'Crear Pedido'}
-                            </Button>
+                            <CardTitle>Briefing del Evento (Pedidos de Material)</CardTitle>
                         </div>
                     </CardHeader>
                     <CardContent>
-                        {order && order.items.length > 0 ? (
+                        {materialOrders.length > 0 ? (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
                                     <thead className="text-xs uppercase bg-muted/50">
                                         <tr>
-                                            <th scope="col" className="px-6 py-3">Descripción</th>
-                                            <th scope="col" className="px-6 py-3">Uds</th>
-                                            <th scope="col" className="px-6 py-3">Precio</th>
+                                            <th scope="col" className="px-6 py-3">Tipo</th>
+                                            <th scope="col" className="px-6 py-3">Nº Contrato</th>
+                                            <th scope="col" className="px-6 py-3">Artículos</th>
+                                            <th scope="col" className="px-6 py-3">Días</th>
                                             <th scope="col" className="px-6 py-3">Importe</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {order.items.map(item => (
-                                            <tr key={item.itemCode} className="border-b">
-                                                <td className="px-6 py-4 font-medium">{item.description}</td>
-                                                <td className="px-6 py-4">{item.quantity}</td>
-                                                <td className="px-6 py-4">{item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                                                <td className="px-6 py-4">{(item.price * item.quantity).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                                        {materialOrders.map(order => (
+                                            <tr key={order.id} className="border-b">
+                                                <td className="px-6 py-4 font-medium">{order.type}</td>
+                                                <td className="px-6 py-4">{order.contractNumber}</td>
+                                                <td className="px-6 py-4">{order.items.length}</td>
+                                                <td className="px-6 py-4">{order.days}</td>
+                                                <td className="px-6 py-4">{(order.total).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                     <tfoot>
-                                        <tr className="font-semibold">
-                                            <td colSpan={2}></td>
-                                            <td className="px-6 py-3 text-right">Nº Contrato:</td>
-                                            <td className="px-6 py-3">{form.getValues('contractNumber')}</td>
-                                        </tr>
-                                        <tr className="font-semibold">
-                                            <td colSpan={2}></td>
-                                            <td className="px-6 py-3 text-right">Días de alquiler:</td>
-                                            <td className="px-6 py-3">{order.days}</td>
-                                        </tr>
                                         <tr className="font-semibold text-lg">
-                                            <td colSpan={2}></td>
-                                            <td className="px-6 py-3 text-right">Total Pedido:</td>
-                                            <td className="px-6 py-3">{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                                            <td colSpan={3}></td>
+                                            <td className="px-6 py-3 text-right">Total Pedidos:</td>
+                                            <td className="px-6 py-3">{totalAmount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
                                         </tr>
                                     </tfoot>
                                 </table>
                             </div>
-
                         ) : (
                             <div className="text-center py-8 text-muted-foreground">
-                                <p>No hay ningún pedido de material asociado.</p>
-                                <Button type="button" variant="link" onClick={handleEditOrder}>Crear un nuevo pedido</Button>
+                                <p>No hay ningún pedido de material asociado. Crea uno desde los módulos de Almacén o Bodega.</p>
                             </div>
                         )}
                     </CardContent>

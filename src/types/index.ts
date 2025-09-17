@@ -14,15 +14,32 @@ export type OrderItem = CateringItem & {
   quantity: number;
 };
 
+export type MaterialOrderStatus = 'Asignado' | 'En preparación' | 'Listo';
+export type MaterialOrderType = 'Almacén' | 'Bodega';
+
+export type MaterialOrder = {
+  id: string;
+  osId: string;
+  type: MaterialOrderType;
+  items: OrderItem[];
+  days: number;
+  total: number;
+  contractNumber?: string;
+  status: MaterialOrderStatus;
+};
+
 // We need to allow string dates because they come from localStorage
 export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate'> & {
     id: string;
     startDate: string; 
     endDate: string;
+    // The 'order' property is deprecated in favor of materialOrders stored separately.
+    // It's kept for now for backwards compatibility but shouldn't be used for new logic.
     order: {
         items: OrderItem[];
         total: number;
         days: number;
+        contractNumber?: string;
     } | null;
     status: 'Borrador' | 'Confirmado' | 'Finalizado';
 };

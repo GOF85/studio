@@ -25,15 +25,16 @@ interface OrderSummaryProps {
   items: OrderItem[];
   onUpdateQuantity: (itemCode: string, quantity: number) => void;
   onRemoveItem: (itemCode: string) => void;
-  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number }) => void;
+  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber?: string }) => void;
   onClearOrder: () => void;
-  onAddSuggestedItem: (item: CateringItem, quantity: number) => void;
+  onAddSuggestedItem?: (item: CateringItem, quantity: number) => void;
   isEditing?: boolean;
 }
 
 export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false }: OrderSummaryProps) {
   const [rentalDays, setRentalDays] = useState(1);
   const [isReviewOpen, setReviewOpen] = useState(false);
+  const [contractNumber, setContractNumber] = useState('');
 
   const subtotal = useMemo(() => {
     return items.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -43,10 +44,16 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const total = itemsTotal;
 
   const handleSubmit = () => {
+    if (!contractNumber) {
+        // A simple alert for now, could be a toast or form validation
+        alert('Por favor, introduce el número de contrato.');
+        return;
+    }
     onSubmitOrder({
       items,
       days: rentalDays,
       total,
+      contractNumber,
     });
     setReviewOpen(false);
   };
@@ -129,14 +136,14 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
         <Dialog open={isReviewOpen} onOpenChange={setReviewOpen}>
           <DialogTrigger asChild>
             <Button className="w-full" size="lg" disabled={items.length === 0}>
-              {isEditing ? 'Actualizar Pedido en OS' : 'Añadir Pedido a OS'}
+              {isEditing ? 'Actualizar Pedido' : 'Guardar Pedido'}
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>{isEditing ? 'Actualizar Pedido' : 'Crear Orden de Servicio'}</DialogTitle>
+              <DialogTitle>{isEditing ? 'Actualizar Pedido de Material' : 'Guardar Pedido de Material'}</DialogTitle>
               <DialogDescription>
-                Se guardará tu pedido de material y serás redirigido a la Orden de Servicio.
+                Revisa los detalles y confirma para guardar el pedido en la Orden de Servicio.
               </DialogDescription>
             </DialogHeader>
              <div className="space-y-4 py-4">
@@ -154,6 +161,11 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                     <div className="flex justify-between"><span>Días de alquiler:</span> <span>x{rentalDays}</span></div>
                     <div className="flex justify-between font-bold text-base pt-2"><span>Total Pedido:</span> <span>{total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></div>
                 </div>
+                 <Separator />
+                  <div className="space-y-2">
+                    <Label htmlFor="contract-number-dialog">Número de Contrato</Label>
+                    <Input id="contract-number-dialog" value={contractNumber} onChange={(e) => setContractNumber(e.target.value)} placeholder="Introduce el nº de contrato" />
+                </div>
             </div>
             <DialogFooter>
               <DialogClose asChild>
@@ -161,7 +173,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                   Cancelar
                 </Button>
               </DialogClose>
-              <Button type="button" onClick={handleSubmit}>Confirmar y Continuar</Button>
+              <Button type="button" onClick={handleSubmit}>Confirmar y Guardar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

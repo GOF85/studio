@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { OrderItem, CateringItem, ServiceOrder } from '@/types';
+import type { OrderItem, CateringItem, MaterialOrder, ServiceOrder } from '@/types';
 import { CATERING_ITEMS } from '@/lib/data';
 import { Header } from '@/components/layout/header';
 import { ItemCatalog } from '@/components/catalog/item-catalog';
@@ -14,18 +14,21 @@ export default function Home() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const editOSId = searchParams.get('editOS');
+  
+  const osId = searchParams.get('osId');
+  const orderType = searchParams.get('type') as 'Almacén' | 'Bodega' | null;
+  const editOrderId = searchParams.get('orderId');
 
   useEffect(() => {
     // This effect runs only on the client
-    const allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    if (editOSId) {
-        const osToEdit = allOS.find(os => os.id === editOSId);
-        if (osToEdit?.order) {
-            setOrderItems(osToEdit.order.items);
-        }
+    if (editOrderId) {
+      const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+      const orderToEdit = allMaterialOrders.find(o => o.id === editOrderId);
+      if (orderToEdit) {
+        setOrderItems(orderToEdit.items);
+      }
     }
-  }, [editOSId]);
+  }, [editOrderId]);
 
   const handleAddItem = (item: CateringItem, quantity: number) => {
     if (quantity <= 0) return;
@@ -101,18 +104,44 @@ export default function Home() {
     items: OrderItem[];
     days: number;
     total: number;
+    contractNumber?: string;
   }) => {
-    // Store order in localStorage to pass it to the OS page
-    localStorage.setItem('currentOrder', JSON.stringify(finalOrder));
+    if (!osId || !orderType) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Falta información de la Orden de Servicio.' });
+        return;
+    }
 
-    toast({
-      title: 'Pedido guardado',
-      description: `Tu pedido está listo para ser usado en una Orden de Servicio.`,
-    });
+    let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    
+    if (editOrderId) {
+      // Update existing material order
+      const orderIndex = allMaterialOrders.findIndex(o => o.id === editOrderId);
+      if (orderIndex !== -1) {
+        allMaterialOrders[orderIndex] = {
+          ...allMaterialOrders[orderIndex],
+          ...finalOrder,
+        };
+        toast({ title: 'Pedido de material actualizado' });
+      }
+    } else {
+      // Create new material order
+      const newMaterialOrder: MaterialOrder = {
+        id: Date.now().toString(),
+        osId,
+        type: orderType,
+        status: 'Asignado',
+        ...finalOrder,
+      };
+      allMaterialOrders.push(newMaterialOrder);
+      toast({ title: 'Pedido de material creado' });
+    }
+
+    localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
+    
     setOrderItems([]);
     
-    // Redirect to the correct OS page (editing or new)
-    const destination = editOSId ? `/os?id=${editOSId}` : '/os';
+    // Redirect back to the module page
+    const destination = `/${orderType.toLowerCase()}?osId=${osId}`;
     router.push(destination);
   };
 
@@ -123,6 +152,22 @@ export default function Home() {
       description: 'Se han eliminado todos los artículos de tu pedido.',
     });
   };
+
+  if (!osId || !orderType) {
+    return (
+        <div className="flex flex-col min-h-screen">
+            <Header />
+            <main className="flex-grow container mx-auto px-4 py-8 flex items-center justify-center">
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold">Acceso no válido</h1>
+                    <p className="text-muted-foreground">
+                        Para crear un pedido de material, accede desde una Orden de Servicio.
+                    </p>
+                </div>
+            </main>
+        </div>
+    )
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -141,8 +186,7 @@ export default function Home() {
               onRemoveItem={handleRemoveItem}
               onSubmitOrder={handleSubmitOrder}
               onClearOrder={handleClearOrder}
-              onAddSuggestedItem={handleAddItem}
-              isEditing={!!editOSId}
+              isEditing={!!editOrderId}
             />
           </div>
         </div>
