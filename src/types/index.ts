@@ -116,6 +116,7 @@ export type ComercialBriefingItem = {
     fecha: string;
     horaInicio: string;
     horaFin: string;
+    conGastronomia: boolean;
     descripcion: string;
     comentarios: string;
     sala: string;

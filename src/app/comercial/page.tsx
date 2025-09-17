@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, ArrowLeft, Briefcase, Save, Pencil, X } from 'lucide-react';
+import { PlusCircle, Trash2, ArrowLeft, Briefcase, Save, Pencil, X, Check } from 'lucide-react';
 import { format, differenceInMinutes, parse } from 'date-fns';
 
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem } from '@/types';
@@ -33,12 +33,16 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+
 
 const briefingItemSchema = z.object({
   id: z.string(),
   fecha: z.string().min(1, "La fecha es obligatoria"),
   horaInicio: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   horaFin: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+  conGastronomia: z.boolean().default(false),
   descripcion: z.string().min(1, "La descripción es obligatoria"),
   comentarios: z.string().optional(),
   sala: z.string().optional(),
@@ -136,6 +140,7 @@ export default function ComercialPage() {
         fecha: item?.fecha || (serviceOrder?.startDate ? format(new Date(serviceOrder.startDate), 'yyyy-MM-dd') : ''),
         horaInicio: item?.horaInicio || '09:00',
         horaFin: item?.horaFin || '10:00',
+        conGastronomia: item?.conGastronomia || false,
         descripcion: item?.descripcion || '',
         comentarios: item?.comentarios || '',
         sala: item?.sala || '',
@@ -164,28 +169,56 @@ export default function ComercialPage() {
             <Button><PlusCircle className="mr-2" /> Nuevo Hito</Button>
           )}
         </DialogTrigger>
-        <DialogContent className="sm:max-w-4xl">
+        <DialogContent className="sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>{item ? 'Editar' : 'Nuevo'} Hito del Briefing</DialogTitle>
           </DialogHeader>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 py-4">
-            <Input type="date" {...form.register('fecha')} />
-            <Input type="time" {...form.register('horaInicio')} />
-            <Input type="time" {...form.register('horaFin')} />
-            <Input placeholder="Sala" {...form.register('sala')} />
-            <Input placeholder="Nº Asistentes" type="number" {...form.register('asistentes')} />
-            <Input placeholder="Precio Unitario" type="number" step="0.01" {...form.register('precioUnitario')} />
-            <Input placeholder="Bebidas" {...form.register('bebidas')} />
-            <Input placeholder="Material Bebida" {...form.register('matBebida')} />
-            <Input placeholder="Material Gastro" {...form.register('materialGastro')} />
-            <Input placeholder="Mantelería" {...form.register('manteleria')} />
-            <Textarea placeholder="Descripción" {...form.register('descripcion')} className="lg:col-span-2" />
-            <Textarea placeholder="Comentarios" {...form.register('comentarios')} className="lg:col-span-2" />
-            <DialogFooter className="lg:col-span-4">
-               <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
-               <Button type="submit"><Save className="mr-2" /> Guardar</Button>
-            </DialogFooter>
-          </form>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Input type="date" {...form.register('fecha')} />
+                <Input type="time" {...form.register('horaInicio')} />
+                <Input type="time" {...form.register('horaFin')} />
+                <Input placeholder="Sala" {...form.register('sala')} />
+                <Input placeholder="Nº Asistentes" type="number" {...form.register('asistentes')} />
+                <Input placeholder="Precio Unitario" type="number" step="0.01" {...form.register('precioUnitario')} />
+              </div>
+              <FormField
+                control={form.control}
+                name="conGastronomia"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Con gastronomía
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Textarea placeholder="Descripción" {...form.register('descripcion')} />
+                <Textarea placeholder="Comentarios" {...form.register('comentarios')} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Input placeholder="Bebidas" {...form.register('bebidas')} />
+                <Input placeholder="Material Bebida" {...form.register('matBebida')} />
+                <Input placeholder="Material Gastro" {...form.register('materialGastro')} />
+                <Input placeholder="Mantelería" {...form.register('manteleria')} />
+              </div>
+
+              <DialogFooter>
+                 <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
+                 <Button type="submit"><Save className="mr-2" /> Guardar</Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     )
@@ -222,6 +255,7 @@ export default function ComercialPage() {
                     <TableHead>Inicio</TableHead>
                     <TableHead>Fin</TableHead>
                     <TableHead>Duración</TableHead>
+                    <TableHead>Gastro</TableHead>
                     <TableHead>Descripción</TableHead>
                     <TableHead>Comentarios</TableHead>
                     <TableHead>Sala</TableHead>
@@ -243,6 +277,7 @@ export default function ComercialPage() {
                         <TableCell>{item.horaInicio}</TableCell>
                         <TableCell>{item.horaFin}</TableCell>
                         <TableCell>{calculateDuration(item.horaInicio, item.horaFin)}</TableCell>
+                        <TableCell>{item.conGastronomia && <Check className="h-4 w-4" />}</TableCell>
                         <TableCell className="min-w-[200px]">{item.descripcion}</TableCell>
                         <TableCell className="min-w-[200px]">{item.comentarios}</TableCell>
                         <TableCell>{item.sala}</TableCell>
@@ -263,7 +298,7 @@ export default function ComercialPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={15} className="h-24 text-center">
+                      <TableCell colSpan={16} className="h-24 text-center">
                         No hay hitos en el briefing. Añade uno para empezar.
                       </TableCell>
                     </TableRow>
