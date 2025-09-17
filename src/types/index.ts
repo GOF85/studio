@@ -46,3 +46,44 @@ export type Personal = {
     telefono: string;
     mail: string;
 }
+
+export type Espacio = {
+    id: string;
+    espacio: string;
+    escaparateMICE: string;
+    carpetaDRIVE: string;
+    calle: string;
+    nombreContacto1: string;
+    telefonoContacto1: string;
+    emailContacto1: string;
+    canonEspacioPorcentaje: number;
+    canonEspacioFijo: number;
+    canonMcPorcentaje: number;
+    canonMcFijo: number;
+    comisionAlquilerMcPorcentaje: number;
+    precioOrientativoAlquiler: string;
+    horaLimiteCierre: string;
+    aforoCocktail: number;
+    aforoBanquete: number;
+    auditorio: string;
+    aforoAuditorio: number;
+    zonaExterior: string;
+    capacidadesPorSala: string;
+    numeroDeSalas: number;
+    tipoDeEspacio: string;
+    tipoDeEventos: string;
+    ciudad: string;
+    directorio: string;
+    descripcion: string;
+    comentariosVarios: string;
+    equipoAudiovisuales: string;
+    cocina: string;
+    accesibilidadAsistentes: string;
+    pantalla: string;
+    plato: string;
+    accesoVehiculos: string;
+    aparcamiento: string;
+    conexionWifi: string;
+    homologacion: string;
+    comentariosMarketing: string;
+};
