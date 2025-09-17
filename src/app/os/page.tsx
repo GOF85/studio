@@ -280,231 +280,259 @@ export default function OsPage() {
                   <CardHeader>
                     <CardTitle>Datos del Servicio</CardTitle>
                   </CardHeader>
-                  <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <FormField control={form.control} name="serviceNumber" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nº Servicio</FormLabel>
-                        <FormControl><Input {...field} readOnly={!!osId} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="startDate" render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Fecha Inicio</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                  {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige una fecha</span>}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
-                            </PopoverContent>
-                          </Popover>
+                  <CardContent className="space-y-6">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <FormField control={form.control} name="serviceNumber" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nº Servicio</FormLabel>
+                          <FormControl><Input {...field} readOnly={!!osId} /></FormControl>
                           <FormMessage />
                         </FormItem>
-                    )} />
-                    <FormField control={form.control} name="endDate" render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Fecha Fin</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                  {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige una fecha</span>}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
+                      )} />
+                      <FormField control={form.control} name="startDate" render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>Fecha Inicio</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                    {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige una fecha</span>}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                      )} />
+                      <FormField control={form.control} name="endDate" render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>Fecha Fin</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                    {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige una fecha</span>}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                      )} />
+                       <FormField control={form.control} name="pax" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>PAX</FormLabel>
+                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
                         </FormItem>
-                    )} />
-                    <FormField control={form.control} name="client" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cliente</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="contact" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contacto</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="phone" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Teléfono</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="finalClient" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cliente Final</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="pax" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>PAX</FormLabel>
-                        <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="commercial" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Comercial</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            <SelectItem value="com1">Comercial 1</SelectItem>
-                            <SelectItem value="com2">Comercial 2</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="space" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Espacio</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="spaceContact" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contacto Espacio</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="spacePhone" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tlf. Espacio</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="respMetre" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Resp. Metre</FormLabel>
-                         <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            <SelectItem value="metre1">Metre 1</SelectItem>
-                            <SelectItem value="metre2">Metre 2</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="respCocina" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Resp. Cocina</FormLabel>
-                         <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            <SelectItem value="cocina1">Cocinero 1</SelectItem>
-                            <SelectItem value="cocina2">Cocinero 2</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="uniformity" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Uniformidad</FormLabel>
-                         <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            <SelectItem value="uniform1">Uniforme 1</SelectItem>
-                            <SelectItem value="uniform2">Uniforme 2</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="status" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Estado</FormLabel>
-                         <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            <SelectItem value="Borrador">Borrador</SelectItem>
-                            <SelectItem value="Confirmado">Confirmado</SelectItem>
-                            <SelectItem value="Finalizado">Finalizado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )} />
-                     <FormField control={form.control} name="plane" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Plano</FormLabel>
-                        <FormControl><Input placeholder="Enlazar aquí..." {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                     <FormField control={form.control} name="menu" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>P. de Menú</FormLabel>
-                        <FormControl><Input placeholder="Enlazar aquí..." {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="dniList" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Listado DNI</FormLabel>
-                        <FormControl><Input placeholder="Enlazar aquí..." {...field} /></FormControl>
-                      </FormItem>
-                    )} />
-                     <FormField control={form.control} name="sendTo" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Enviar A</FormLabel>
-                         <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            <SelectItem value="dest1">Destinatario 1</SelectItem>
-                            <SelectItem value="dest2">Destinatario 2</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormItem>
-                    )} />
-                    <FormField control={form.control} name="comments" render={({ field }) => (
-                        <FormItem className="md:col-span-2 lg:col-span-3">
-                            <FormLabel>Comentarios</FormLabel>
-                            <FormControl><Textarea rows={4} {...field} /></FormControl>
+                      )} />
+                      <FormField control={form.control} name="commercial" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Comercial</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                            <SelectContent>
+                              <SelectItem value="com1">Comercial 1</SelectItem>
+                              <SelectItem value="com2">Comercial 2</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </FormItem>
-                    )} />
-
-                    <div className="md:col-span-2 lg:col-span-3">
-                      <Accordion type="single" collapsible className="w-full">
-                        <AccordionItem value="item-1">
-                          <AccordionTrigger>
-                            <h3 className="text-lg font-semibold">Financiero</h3>
-                          </AccordionTrigger>
-                          <AccordionContent>
-                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
-                              <FormField control={form.control} name="facturacion" render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Facturación</FormLabel>
-                                  <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl>
-                                </FormItem>
-                              )} />
-                              <FormField control={form.control} name="agencyPercentage" render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>% Agencia</FormLabel>
-                                  <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
-                                </FormItem>
-                              )} />
-                              <FormField control={form.control} name="spacePercentage" render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>% Espacio</FormLabel>
-                                  <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
-                                </FormItem>
-                              )} />
-                              <FinancialCalculator />
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
+                      )} />
+                       <FormField control={form.control} name="status" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Estado</FormLabel>
+                           <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                            <SelectContent>
+                              <SelectItem value="Borrador">Borrador</SelectItem>
+                              <SelectItem value="Confirmado">Confirmado</SelectItem>
+                              <SelectItem value="Finalizado">Finalizado</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} />
                     </div>
+
+                    <Accordion type="multiple" defaultValue={['cliente']} className="w-full">
+                      <AccordionItem value="cliente">
+                        <AccordionTrigger><h3 className="text-lg font-semibold">Cliente</h3></AccordionTrigger>
+                        <AccordionContent>
+                          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+                            <FormField control={form.control} name="client" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Cliente</FormLabel>
+                                <FormControl><Input {...field} /></FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )} />
+                            <FormField control={form.control} name="contact" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Contacto</FormLabel>
+                                <FormControl><Input {...field} /></FormControl>
+                              </FormItem>
+                            )} />
+                            <FormField control={form.control} name="phone" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Teléfono</FormLabel>
+                                <FormControl><Input {...field} /></FormControl>
+                              </FormItem>
+                            )} />
+                            <FormField control={form.control} name="finalClient" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Cliente Final</FormLabel>
+                                <FormControl><Input {...field} /></FormControl>
+                              </FormItem>
+                            )} />
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="espacio">
+                        <AccordionTrigger><h3 className="text-lg font-semibold">Espacio</h3></AccordionTrigger>
+                        <AccordionContent>
+                          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+                            <FormField control={form.control} name="space" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Espacio</FormLabel>
+                                <FormControl><Input {...field} /></FormControl>
+                              </FormItem>
+                            )} />
+                            <FormField control={form.control} name="spaceContact" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Contacto Espacio</FormLabel>
+                                <FormControl><Input {...field} /></FormControl>
+                              </FormItem>
+                            )} />
+                            <FormField control={form.control} name="spacePhone" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Tlf. Espacio</FormLabel>
+                                <FormControl><Input {...field} /></FormControl>
+                              </FormItem>
+                            )} />
+                             <FormField control={form.control} name="plane" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Plano</FormLabel>
+                                <FormControl><Input placeholder="Enlazar aquí..." {...field} /></FormControl>
+                              </FormItem>
+                            )} />
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                      
+                       <AccordionItem value="responsables">
+                        <AccordionTrigger><h3 className="text-lg font-semibold">Responsables</h3></AccordionTrigger>
+                        <AccordionContent>
+                           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+                              <FormField control={form.control} name="respMetre" render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Resp. Metre</FormLabel>
+                                   <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="metre1">Metre 1</SelectItem>
+                                      <SelectItem value="metre2">Metre 2</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </FormItem>
+                              )} />
+                              <FormField control={form.control} name="respCocina" render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Resp. Cocina</FormLabel>
+                                   <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="cocina1">Cocinero 1</SelectItem>
+                                      <SelectItem value="cocina2">Cocinero 2</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </FormItem>
+                              )} />
+                           </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="item-1">
+                        <AccordionTrigger>
+                          <h3 className="text-lg font-semibold">Financiero</h3>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+                            <FormField control={form.control} name="facturacion" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Facturación</FormLabel>
+                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl>
+                              </FormItem>
+                            )} />
+                            <FormField control={form.control} name="agencyPercentage" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>% Agencia</FormLabel>
+                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                              </FormItem>
+                            )} />
+                            <FormField control={form.control} name="spacePercentage" render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>% Espacio</FormLabel>
+                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                              </FormItem>
+                            )} />
+                            <FinancialCalculator />
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                    
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t">
+                       <FormField control={form.control} name="uniformity" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Uniformidad</FormLabel>
+                           <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                            <SelectContent>
+                              <SelectItem value="uniform1">Uniforme 1</SelectItem>
+                              <SelectItem value="uniform2">Uniforme 2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} />
+                       <FormField control={form.control} name="menu" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>P. de Menú</FormLabel>
+                          <FormControl><Input placeholder="Enlazar aquí..." {...field} /></FormControl>
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="dniList" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Listado DNI</FormLabel>
+                          <FormControl><Input placeholder="Enlazar aquí..." {...field} /></FormControl>
+                        </FormItem>
+                      )} />
+                       <FormField control={form.control} name="sendTo" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Enviar A</FormLabel>
+                           <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                            <SelectContent>
+                              <SelectItem value="dest1">Destinatario 1</SelectItem>
+                              <SelectItem value="dest2">Destinatario 2</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="comments" render={({ field }) => (
+                          <FormItem className="md:col-span-2 lg:col-span-3">
+                              <FormLabel>Comentarios</FormLabel>
+                              <FormControl><Textarea rows={4} {...field} /></FormControl>
+                          </FormItem>
+                      )} />
+                    </div>
+
                   </CardContent>
                 </Card>
 
