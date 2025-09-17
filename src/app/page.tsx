@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { OrderItem, CateringItem } from '@/types';
 import { CATERING_ITEMS } from '@/lib/data';
 import { Header } from '@/components/layout/header';
@@ -11,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function Home() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleAddItem = (item: CateringItem, quantity: number) => {
     if (quantity <= 0) return;
@@ -21,8 +23,8 @@ export default function Home() {
         const newQuantity = existingItem.quantity + quantity;
         if (newQuantity > item.stock) {
           toast({
-            variant: "destructive",
-            title: "Stock insuficiente",
+            variant: 'destructive',
+            title: 'Stock insuficiente',
             description: `No puedes añadir más de ${item.stock} unidades de ${item.description}.`,
           });
           return prevItems.map((i) =>
@@ -35,8 +37,8 @@ export default function Home() {
       } else {
         if (quantity > item.stock) {
           toast({
-            variant: "destructive",
-            title: "Stock insuficiente",
+            variant: 'destructive',
+            title: 'Stock insuficiente',
             description: `No puedes añadir más de ${item.stock} unidades de ${item.description}.`,
           });
           return [...prevItems, { ...item, quantity: item.stock }];
@@ -45,13 +47,13 @@ export default function Home() {
       }
     });
     toast({
-      title: "Artículo añadido",
+      title: 'Artículo añadido',
       description: `${quantity} x ${item.description} añadido(s) al pedido.`,
     });
   };
 
   const handleUpdateQuantity = (itemCode: string, quantity: number) => {
-    const itemData = CATERING_ITEMS.find(i => i.itemCode === itemCode);
+    const itemData = CATERING_ITEMS.find((i) => i.itemCode === itemCode);
     if (!itemData) return;
 
     if (quantity <= 0) {
@@ -61,8 +63,8 @@ export default function Home() {
 
     if (quantity > itemData.stock) {
       toast({
-        variant: "destructive",
-        title: "Stock insuficiente",
+        variant: 'destructive',
+        title: 'Stock insuficiente',
         description: `Solo hay ${itemData.stock} unidades disponibles de ${itemData.description}.`,
       });
       setOrderItems((prevItems) =>
@@ -72,11 +74,9 @@ export default function Home() {
       );
       return;
     }
-    
+
     setOrderItems((prevItems) =>
-      prevItems.map((item) =>
-        item.itemCode === itemCode ? { ...item, quantity } : item
-      )
+      prevItems.map((item) => (item.itemCode === itemCode ? { ...item, quantity } : item))
     );
   };
 
@@ -84,18 +84,26 @@ export default function Home() {
     setOrderItems((prevItems) => prevItems.filter((item) => item.itemCode !== itemCode));
   };
 
-  const handleSubmitOrder = (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber: string }) => {
-    console.log('Pedido Enviado:', finalOrder);
+  const handleSubmitOrder = (finalOrder: {
+    items: OrderItem[];
+    days: number;
+    total: number;
+    contractNumber: string;
+  }) => {
+    // Store order in localStorage to pass it to the OS page
+    localStorage.setItem('currentOrder', JSON.stringify(finalOrder));
+
     toast({
-      title: '¡Pedido enviado con éxito!',
-      description: `Tu solicitud de alquiler para el contrato ${finalOrder.contractNumber} ha sido procesada.`,
+      title: 'Pedido guardado',
+      description: `Tu pedido ${finalOrder.contractNumber} está listo para ser usado en una Orden de Servicio.`,
     });
     setOrderItems([]);
+    router.push('/os');
   };
 
   const handleClearOrder = () => {
     setOrderItems([]);
-     toast({
+    toast({
       title: 'Pedido vaciado',
       description: 'Se han eliminado todos los artículos de tu pedido.',
     });
@@ -106,7 +114,11 @@ export default function Home() {
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-[1fr_400px] lg:gap-8">
-          <ItemCatalog items={CATERING_ITEMS} onAddItem={handleAddItem} orderItems={orderItems} />
+          <ItemCatalog
+            items={CATERING_ITEMS}
+            onAddItem={handleAddItem}
+            orderItems={orderItems}
+          />
           <div className="mt-8 lg:mt-0">
             <OrderSummary
               items={orderItems}
