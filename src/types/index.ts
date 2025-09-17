@@ -100,3 +100,12 @@ export type Precio = {
     precioAlquilerUd: number;
     imagen: string; // url
 };
+
+export type Gastronomia = {
+    id: string;
+    referencia: string;
+    categoria: string;
+    imagenRef: string; // url
+    imagenEmpl: string; // url
+    precio: number;
+}

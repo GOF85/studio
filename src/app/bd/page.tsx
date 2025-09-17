@@ -28,6 +28,7 @@ export default function BdPage() {
     { id: '1', name: 'Personal', description: 'Gestión de empleados y contactos.', itemCount: 0, path: '/personal' },
     { id: '2', name: 'Espacios', description: 'Gestión de espacios para eventos.', itemCount: 0, path: '/espacios' },
     { id: '3', name: 'Precios', description: 'Gestión de precios de productos.', itemCount: 0, path: '/precios' },
+    { id: '4', name: 'Gastronomía', description: 'Gestión de platos y menús.', itemCount: 0, path: '/gastronomia' },
   ]);
 
   return (
