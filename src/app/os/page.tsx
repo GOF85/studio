@@ -42,6 +42,17 @@ import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
 
 export const osFormSchema = z.object({
   serviceNumber: z.string().min(1, 'El Nº de Servicio es obligatorio'),
@@ -138,12 +149,39 @@ export default function OsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [accordionDefaultValue, setAccordionDefaultValue] = useState<string[] | undefined>(undefined);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<OsFormValues>({
     resolver: zodResolver(osFormSchema),
     defaultValues,
   });
+
+  const { formState: { isDirty } } = form;
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isDirty]);
+
+
+  const handleBackToList = () => {
+    if (isDirty) {
+      setShowExitConfirm(true);
+    } else {
+      router.push('/pes');
+    }
+  };
+
 
   useEffect(() => {
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
@@ -219,6 +257,7 @@ export default function OsPage() {
         description: message,
       });
       setIsLoading(false);
+      form.reset(form.getValues()); // Mark form as not dirty
       if (newId && !osId) { 
           router.push(`/os?id=${newId}`);
       } else {
@@ -249,7 +288,7 @@ export default function OsPage() {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-headline font-bold">{osId ? 'Editar' : 'Nueva'} Orden de Servicio</h1>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push('/pes')}>Volver al listado</Button>
+            <Button variant="outline" onClick={handleBackToList}>Volver al listado</Button>
             <Button type="submit" form="os-form" disabled={isLoading}>
               {isLoading ? <Loader2 className="animate-spin" /> : <FileDown />}
               <span className="ml-2">{osId ? 'Guardar Cambios' : 'Guardar OS'}</span>
@@ -631,6 +670,25 @@ export default function OsPage() {
           </main>
         </div>
       </div>
+      <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Descartar cambios?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tienes cambios sin guardar. ¿Estás seguro de que quieres salir y descartarlos?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => router.push('/pes')}
+            >
+              Descartar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TooltipProvider>
   );
 }
