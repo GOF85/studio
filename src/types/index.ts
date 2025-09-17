@@ -110,3 +110,22 @@ export type Gastronomia = {
     precio: number;
     gramaje: number;
 }
+
+export type ComercialBriefingItem = {
+    id: string;
+    fecha: string;
+    horaInicio: string;
+    horaFin: string;
+    descripcion: string;
+    comentarios: string;
+    sala: string;
+    asistentes: number;
+    precioUnitario: number;
+    bebidas: string;
+    matBebida: string;
+};
+
+export type ComercialBriefing = {
+    osId: string;
+    items: ComercialBriefingItem[];
+};

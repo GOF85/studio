@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase } from 'lucide-react';
 
 import type { OrderItem, ServiceOrder, MaterialOrder } from '@/types';
 import { cn } from '@/lib/utils';
@@ -340,6 +340,20 @@ export default function OsPage() {
               </Button>
             </div>
             <nav className={cn("space-y-2", isSidebarCollapsed && 'flex flex-col items-center')}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button asChild variant="ghost" className={cn("w-full flex items-center justify-between p-3 rounded-md hover:bg-secondary/80 transition-colors", isSidebarCollapsed && 'w-auto justify-center')} disabled={!osId}>
+                     <Link href={osId ? `/comercial?osId=${osId}` : '#'}>
+                        <div className="flex items-center gap-3">
+                          <Briefcase className="h-5 w-5 flex-shrink-0" />
+                          {!isSidebarCollapsed && <span className="font-medium">Comercial</span>}
+                        </div>
+                        {!isSidebarCollapsed && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+                      </Link>
+                  </Button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Comercial</TooltipContent>}
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button asChild variant="ghost" className={cn("w-full flex items-center justify-between p-3 rounded-md hover:bg-secondary/80 transition-colors", isSidebarCollapsed && 'w-auto justify-center')} disabled={!osId}>
