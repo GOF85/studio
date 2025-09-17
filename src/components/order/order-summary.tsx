@@ -2,14 +2,17 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
-import { ShoppingCart, Trash2, Minus, Plus } from 'lucide-react';
+import { ShoppingCart, Trash2, Minus, Plus, Calendar as CalendarIcon } from 'lucide-react';
+import { format } from "date-fns";
 
-import type { OrderItem, CateringItem } from '@/types';
+import type { OrderItem, CateringItem, ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Dialog,
   DialogContent,
@@ -21,29 +24,36 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface OrderSummaryProps {
   items: OrderItem[];
   onUpdateQuantity: (itemCode: string, quantity: number) => void;
   onRemoveItem: (itemCode: string) => void;
-  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber?: string }) => void;
+  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber?: string, deliveryDate?: string, deliveryLocation?: string }) => void;
   onClearOrder: () => void;
   onAddSuggestedItem?: (item: CateringItem, quantity: number) => void;
   isEditing?: boolean;
-  contractNumber?: string;
+  serviceOrder: ServiceOrder | null;
 }
 
-export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false, contractNumber: initialContractNumber }: OrderSummaryProps) {
+export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false, serviceOrder }: OrderSummaryProps) {
   const [rentalDays, setRentalDays] = useState(1);
   const [isReviewOpen, setReviewOpen] = useState(false);
-  const [contractNumber, setContractNumber] = useState(initialContractNumber || '');
+  const [contractNumber, setContractNumber] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
+  const [deliveryLocation, setDeliveryLocation] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
-    if (initialContractNumber) {
-      setContractNumber(initialContractNumber);
+    if (serviceOrder) {
+      setContractNumber(serviceOrder.contractNumber || '');
+      setDeliveryLocation(serviceOrder.space || '');
+      if (serviceOrder.startDate) {
+        setDeliveryDate(new Date(serviceOrder.startDate));
+      }
     }
-  }, [initialContractNumber]);
+  }, [serviceOrder]);
 
   const subtotal = useMemo(() => {
     return items.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -62,6 +72,8 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
       days: rentalDays,
       total,
       contractNumber,
+      deliveryDate: deliveryDate ? format(deliveryDate, "yyyy-MM-dd") : undefined,
+      deliveryLocation,
     });
     setReviewOpen(false);
   };
@@ -173,6 +185,33 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                   <div className="space-y-2">
                     <Label htmlFor="contract-number-dialog">Número de Contrato</Label>
                     <Input id="contract-number-dialog" value={contractNumber} onChange={(e) => setContractNumber(e.target.value)} placeholder="Introduce el nº de contrato" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="delivery-date-dialog">Fecha de Entrega</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="delivery-date-dialog"
+                        variant={"outline"}
+                        className={cn("w-full justify-start text-left font-normal", !deliveryDate && "text-muted-foreground")}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {deliveryDate ? format(deliveryDate, "PPP") : <span>Elige una fecha</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={deliveryDate}
+                        onSelect={setDeliveryDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="delivery-location-dialog">Lugar de Entrega</Label>
+                    <Input id="delivery-location-dialog" value={deliveryLocation} onChange={(e) => setDeliveryLocation(e.target.value)} placeholder="Introduce el lugar de entrega" />
                 </div>
             </div>
             <DialogFooter>

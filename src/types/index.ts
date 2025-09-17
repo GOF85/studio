@@ -26,6 +26,8 @@ export type MaterialOrder = {
   total: number;
   contractNumber?: string;
   status: MaterialOrderStatus;
+  deliveryDate?: string;
+  deliveryLocation?: string;
 };
 
 // We need to allow string dates because they come from localStorage

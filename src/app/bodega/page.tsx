@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { format } from 'date-fns';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -192,6 +193,8 @@ export default function BodegaPage() {
                         <TableHeader>
                         <TableRow>
                             <TableHead>Nº Contrato</TableHead>
+                            <TableHead>Fecha Entrega</TableHead>
+                            <TableHead>Lugar Entrega</TableHead>
                             <TableHead>Artículos</TableHead>
                             <TableHead>Importe Total</TableHead>
                             <TableHead>Estado</TableHead>
@@ -203,6 +206,8 @@ export default function BodegaPage() {
                             materialOrders.map(order => (
                             <TableRow key={order.id}>
                                 <TableCell className="font-medium">{order.contractNumber}</TableCell>
+                                <TableCell>{order.deliveryDate ? format(new Date(order.deliveryDate), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                                <TableCell>{order.deliveryLocation || 'N/A'}</TableCell>
                                 <TableCell>{order.items.length}</TableCell>
                                 <TableCell>{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                                 <TableCell>
@@ -234,7 +239,7 @@ export default function BodegaPage() {
                             ))
                         ) : (
                             <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center">
+                            <TableCell colSpan={7} className="h-24 text-center">
                                 No hay pedidos de bodega para esta Orden de Servicio.
                             </TableCell>
                             </TableRow>

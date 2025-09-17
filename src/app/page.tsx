@@ -112,6 +112,8 @@ export default function Home() {
     days: number;
     total: number;
     contractNumber?: string;
+    deliveryDate?: string;
+    deliveryLocation?: string;
   }) => {
     if (!osId || !orderType) {
         toast({ variant: 'destructive', title: 'Error', description: 'Falta información de la Orden de Servicio.' });
@@ -194,7 +196,7 @@ export default function Home() {
               onSubmitOrder={handleSubmitOrder}
               onClearOrder={handleClearOrder}
               isEditing={!!editOrderId}
-              contractNumber={serviceOrder?.contractNumber}
+              serviceOrder={serviceOrder}
             />
           </div>
         </div>
