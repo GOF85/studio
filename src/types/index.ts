@@ -123,6 +123,8 @@ export type ComercialBriefingItem = {
     precioUnitario: number;
     bebidas: string;
     matBebida: string;
+    materialGastro: string;
+    manteleria: string;
 };
 
 export type ComercialBriefing = {

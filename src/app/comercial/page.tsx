@@ -46,6 +46,8 @@ const briefingItemSchema = z.object({
   precioUnitario: z.coerce.number().min(0),
   bebidas: z.string().optional(),
   matBebida: z.string().optional(),
+  materialGastro: z.string().optional(),
+  manteleria: z.string().optional(),
 });
 
 type BriefingItemFormValues = z.infer<typeof briefingItemSchema>;
@@ -141,6 +143,8 @@ export default function ComercialPage() {
         precioUnitario: item?.precioUnitario || 0,
         bebidas: item?.bebidas || '',
         matBebida: item?.matBebida || '',
+        materialGastro: item?.materialGastro || '',
+        manteleria: item?.manteleria || '',
       }
     });
     
@@ -173,8 +177,10 @@ export default function ComercialPage() {
             <Input placeholder="Precio Unitario" type="number" step="0.01" {...form.register('precioUnitario')} />
             <Input placeholder="Bebidas" {...form.register('bebidas')} />
             <Input placeholder="Material Bebida" {...form.register('matBebida')} />
-            <Textarea placeholder="Descripción" {...form.register('descripcion')} className="lg:col-span-4" />
-            <Textarea placeholder="Comentarios" {...form.register('comentarios')} className="lg:col-span-4" />
+            <Input placeholder="Material Gastro" {...form.register('materialGastro')} />
+            <Input placeholder="Mantelería" {...form.register('manteleria')} />
+            <Textarea placeholder="Descripción" {...form.register('descripcion')} className="lg:col-span-2" />
+            <Textarea placeholder="Comentarios" {...form.register('comentarios')} className="lg:col-span-2" />
             <DialogFooter className="lg:col-span-4">
                <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
                <Button type="submit"><Save className="mr-2" /> Guardar</Button>
@@ -224,6 +230,8 @@ export default function ComercialPage() {
                     <TableHead>Importe</TableHead>
                     <TableHead>Bebidas</TableHead>
                     <TableHead>Mat. Bebida</TableHead>
+                    <TableHead>Mat. Gastro</TableHead>
+                    <TableHead>Mantelería</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -243,6 +251,8 @@ export default function ComercialPage() {
                         <TableCell>{(item.asistentes * item.precioUnitario).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                         <TableCell>{item.bebidas}</TableCell>
                         <TableCell>{item.matBebida}</TableCell>
+                        <TableCell>{item.materialGastro}</TableCell>
+                        <TableCell>{item.manteleria}</TableCell>
                         <TableCell className="text-right">
                           <BriefingItemDialog item={item} onSave={handleSaveItem} />
                           <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem(item.id)}>
@@ -253,7 +263,7 @@ export default function ComercialPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={13} className="h-24 text-center">
+                      <TableCell colSpan={15} className="h-24 text-center">
                         No hay hitos en el briefing. Añade uno para empezar.
                       </TableCell>
                     </TableRow>
