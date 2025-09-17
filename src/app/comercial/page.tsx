@@ -3,13 +3,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PlusCircle, Trash2, ArrowLeft, Briefcase, Save, Pencil, X, Check } from 'lucide-react';
 import { format, differenceInMinutes, parse } from 'date-fns';
 
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import { osFormSchema, OsFormValues } from '@/app/os/page';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +37,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 
-
 const briefingItemSchema = z.object({
   id: z.string(),
   fecha: z.string().min(1, "La fecha es obligatoria"),
@@ -56,6 +56,39 @@ const briefingItemSchema = z.object({
 
 type BriefingItemFormValues = z.infer<typeof briefingItemSchema>;
 
+const financialSchema = osFormSchema.pick({
+    facturacion: true,
+    agencyPercentage: true,
+    spacePercentage: true,
+});
+
+type FinancialFormValues = z.infer<typeof financialSchema>;
+
+function FinancialCalculator() {
+  const facturacion = useWatch({ name: 'facturacion' });
+  const agencyPercentage = useWatch({ name: 'agencyPercentage' });
+  const spacePercentage = useWatch({ name: 'spacePercentage' });
+
+  const facturacionNeta = useMemo(() => {
+    const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
+    return (facturacion || 0) * (1 - totalPercentage / 100);
+  }, [facturacion, agencyPercentage, spacePercentage]);
+
+  return (
+    <FormItem>
+      <FormLabel>Facturación Neta</FormLabel>
+      <FormControl>
+        <Input
+          readOnly
+          value={facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+          className="font-bold text-primary"
+        />
+      </FormControl>
+    </FormItem>
+  );
+}
+
+
 export default function ComercialPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
@@ -67,12 +100,28 @@ export default function ComercialPage() {
   const osId = searchParams.get('osId');
   const { toast } = useToast();
 
+  const financialForm = useForm<FinancialFormValues>({
+    resolver: zodResolver(financialSchema),
+    defaultValues: {
+        facturacion: 0,
+        agencyPercentage: 0,
+        spacePercentage: 0,
+    }
+  });
+
   useEffect(() => {
     setIsMounted(true);
     if (osId) {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allServiceOrders.find(os => os.id === osId);
       setServiceOrder(currentOS || null);
+      if (currentOS) {
+        financialForm.reset({
+            facturacion: currentOS.facturacion,
+            agencyPercentage: currentOS.agencyPercentage,
+            spacePercentage: currentOS.spacePercentage
+        });
+      }
 
       const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
       const currentBriefing = allBriefings.find(b => b.osId === osId);
@@ -81,7 +130,7 @@ export default function ComercialPage() {
       toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
       router.push('/pes');
     }
-  }, [osId, router, toast]);
+  }, [osId, router, toast, financialForm]);
 
   const saveBriefing = (newBriefing: ComercialBriefing) => {
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
@@ -94,6 +143,19 @@ export default function ComercialPage() {
     localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
     setBriefing(newBriefing);
   };
+  
+  const handleSaveFinancials = (data: FinancialFormValues) => {
+    if (!serviceOrder) return;
+    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    const index = allServiceOrders.findIndex(os => os.id === osId);
+    if (index !== -1) {
+        allServiceOrders[index] = { ...allServiceOrders[index], ...data };
+        localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
+        setServiceOrder(allServiceOrders[index]);
+        toast({ title: 'Datos financieros actualizados' });
+    }
+  };
+
 
   const handleSaveItem = (data: BriefingItemFormValues) => {
     if (!briefing) return;
@@ -176,12 +238,12 @@ export default function ComercialPage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Input type="date" {...form.register('fecha')} />
-                <Input type="time" {...form.register('horaInicio')} />
-                <Input type="time" {...form.register('horaFin')} />
-                <Input placeholder="Sala" {...form.register('sala')} />
-                <Input placeholder="Nº Asistentes" type="number" {...form.register('asistentes')} />
-                <Input placeholder="Precio Unitario" type="number" step="0.01" {...form.register('precioUnitario')} />
+                <FormField control={form.control} name="fecha" render={({field}) => <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="horaInicio" render={({field}) => <FormItem><FormLabel>Hora Inicio</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="horaFin" render={({field}) => <FormItem><FormLabel>Hora Fin</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="sala" render={({field}) => <FormItem><FormLabel>Sala</FormLabel><FormControl><Input placeholder="Sala" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="asistentes" render={({field}) => <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input placeholder="Nº Asistentes" type="number" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="precioUnitario" render={({field}) => <FormItem><FormLabel>Precio Unitario</FormLabel><FormControl><Input placeholder="Precio Unitario" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
               </div>
               <FormField
                 control={form.control}
@@ -203,14 +265,14 @@ export default function ComercialPage() {
                 )}
               />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Textarea placeholder="Descripción" {...form.register('descripcion')} />
-                <Textarea placeholder="Comentarios" {...form.register('comentarios')} />
+                <FormField control={form.control} name="descripcion" render={({field}) => <FormItem><FormLabel>Descripción</FormLabel><FormControl><Textarea placeholder="Descripción" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="comentarios" render={({field}) => <FormItem><FormLabel>Comentarios</FormLabel><FormControl><Textarea placeholder="Comentarios" {...field} /></FormControl></FormItem> } />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Input placeholder="Bebidas" {...form.register('bebidas')} />
-                <Input placeholder="Material Bebida" {...form.register('matBebida')} />
-                <Input placeholder="Material Gastro" {...form.register('materialGastro')} />
-                <Input placeholder="Mantelería" {...form.register('manteleria')} />
+                 <FormField control={form.control} name="bebidas" render={({field}) => <FormItem><FormLabel>Bebidas</FormLabel><FormControl><Input placeholder="Bebidas" {...field} /></FormControl></FormItem> } />
+                 <FormField control={form.control} name="matBebida" render={({field}) => <FormItem><FormLabel>Material Bebida</FormLabel><FormControl><Input placeholder="Material Bebida" {...field} /></FormControl></FormItem> } />
+                 <FormField control={form.control} name="materialGastro" render={({field}) => <FormItem><FormLabel>Material Gastro</FormLabel><FormControl><Input placeholder="Material Gastro" {...field} /></FormControl></FormItem> } />
+                 <FormField control={form.control} name="manteleria" render={({field}) => <FormItem><FormLabel>Mantelería</FormLabel><FormControl><Input placeholder="Mantelería" {...field} /></FormControl></FormItem> } />
               </div>
 
               <DialogFooter>
@@ -243,6 +305,42 @@ export default function ComercialPage() {
           </div>
           <BriefingItemDialog item={null} onSave={handleSaveItem} />
         </div>
+        
+        <FormProvider {...financialForm}>
+            <form onSubmit={financialForm.handleSubmit(handleSaveFinancials)}>
+                <Card className="mb-8">
+                    <CardHeader>
+                        <div className="flex justify-between items-center">
+                            <CardTitle>Información Financiera</CardTitle>
+                            <Button size="sm" type="submit"><Save className="mr-2 h-4 w-4"/> Guardar Cambios</Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <FormField control={financialForm.control} name="facturacion" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Facturación</FormLabel>
+                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl>
+                                </FormItem>
+                            )} />
+                            <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>% Agencia</FormLabel>
+                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                                </FormItem>
+                            )} />
+                            <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>% Espacio</FormLabel>
+                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                                </FormItem>
+                            )} />
+                            <FinancialCalculator />
+                        </div>
+                    </CardContent>
+                </Card>
+            </form>
+        </FormProvider>
 
         <Card>
           <CardHeader><CardTitle>Briefing del Contrato</CardTitle></CardHeader>
@@ -277,7 +375,7 @@ export default function ComercialPage() {
                         <TableCell>{item.horaInicio}</TableCell>
                         <TableCell>{item.horaFin}</TableCell>
                         <TableCell>{calculateDuration(item.horaInicio, item.horaFin)}</TableCell>
-                        <TableCell>{item.conGastronomia && <Check className="h-4 w-4" />}</TableCell>
+                        <TableCell>{item.conGastronomia ? <Check className="h-4 w-4" /> : null}</TableCell>
                         <TableCell className="min-w-[200px]">{item.descripcion}</TableCell>
                         <TableCell className="min-w-[200px]">{item.comentarios}</TableCell>
                         <TableCell>{item.sala}</TableCell>

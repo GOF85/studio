@@ -95,30 +95,6 @@ const defaultValues: Partial<OsFormValues> = {
   status: 'Borrador',
 };
 
-function FinancialCalculator() {
-  const facturacion = useWatch({ name: 'facturacion' });
-  const agencyPercentage = useWatch({ name: 'agencyPercentage' });
-  const spacePercentage = useWatch({ name: 'spacePercentage' });
-
-  const facturacionNeta = useMemo(() => {
-    const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
-    return (facturacion || 0) * (1 - totalPercentage / 100);
-  }, [facturacion, agencyPercentage, spacePercentage]);
-
-  return (
-    <FormItem>
-      <FormLabel>Facturación Neta</FormLabel>
-      <FormControl>
-        <Input
-          readOnly
-          value={facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-          className="font-bold text-primary"
-        />
-      </FormControl>
-    </FormItem>
-  );
-}
-
 const ClienteTitle = () => {
   const client = useWatch({ name: 'client' });
   return (
@@ -174,7 +150,6 @@ export default function OsPage() {
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [totalAmount, setTotalAmount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [accordionDefaultValue, setAccordionDefaultValue] = useState<string[] | undefined>(undefined);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [isSubmittingFromDialog, setIsSubmittingFromDialog] = useState(false);
@@ -238,7 +213,7 @@ export default function OsPage() {
       }
     } else { // Creating new OS
       form.reset(defaultValues);
-      setAccordionDefaultValue(['cliente', 'espacio', 'responsables', 'financiero']); // Expand for new
+      setAccordionDefaultValue(['cliente', 'espacio', 'responsables']); // Expand for new
     }
   }, [osId, form, router, toast]);
 
@@ -331,71 +306,34 @@ export default function OsPage() {
           </div>
         </div>
 
-        <div className={cn("grid gap-8 transition-[grid-template-columns] duration-300", isSidebarCollapsed ? "lg:grid-cols-[80px_1fr]" : "lg:grid-cols-[160px_1fr]")}>
+        <div className="grid lg:grid-cols-[200px_1fr] gap-8">
           <aside className="lg:sticky top-24 self-start flex flex-col">
-            <div className={cn("flex items-center justify-between mb-4", isSidebarCollapsed && 'justify-center')}>
-              {!isSidebarCollapsed && <h2 className="text-lg font-semibold">Módulos</h2>}
-              <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
-                <PanelLeft className={cn("transition-transform", isSidebarCollapsed && "rotate-180")} />
+            <h2 className="text-lg font-semibold mb-4 px-3">Módulos</h2>
+            <nav className="space-y-2">
+              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+                  <Link href={osId ? `/comercial?osId=${osId}` : '#'}>
+                    <Briefcase className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium">Comercial</span>
+                  </Link>
               </Button>
-            </div>
-            <nav className={cn("space-y-2", isSidebarCollapsed && 'flex flex-col items-center')}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button asChild variant="ghost" className={cn("w-full flex items-center justify-between p-3 rounded-md hover:bg-secondary/80 transition-colors", isSidebarCollapsed && 'w-auto justify-center')} disabled={!osId}>
-                     <Link href={osId ? `/comercial?osId=${osId}` : '#'}>
-                        <div className="flex items-center gap-3">
-                          <Briefcase className="h-5 w-5 flex-shrink-0" />
-                          {!isSidebarCollapsed && <span className="font-medium">Comercial</span>}
-                        </div>
-                        {!isSidebarCollapsed && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
-                      </Link>
-                  </Button>
-                </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Comercial</TooltipContent>}
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button asChild variant="ghost" className={cn("w-full flex items-center justify-between p-3 rounded-md hover:bg-secondary/80 transition-colors", isSidebarCollapsed && 'w-auto justify-center')} disabled={!osId}>
-                     <Link href={osId ? `/almacen?osId=${osId}` : '#'}>
-                        <div className="flex items-center gap-3">
-                          <Warehouse className="h-5 w-5 flex-shrink-0" />
-                          {!isSidebarCollapsed && <span className="font-medium">Almacén</span>}
-                        </div>
-                        {!isSidebarCollapsed && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
-                      </Link>
-                  </Button>
-                </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Almacén</TooltipContent>}
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                   <Button asChild variant="ghost" className={cn("w-full flex items-center justify-between p-3 rounded-md hover:bg-secondary/80 transition-colors", isSidebarCollapsed && 'w-auto justify-center')} disabled={!osId}>
-                     <Link href={osId ? `/bodega?osId=${osId}` : '#'}>
-                        <div className="flex items-center gap-3">
-                          <Wine className="h-5 w-5 flex-shrink-0" />
-                          {!isSidebarCollapsed && <span className="font-medium">Bodega</span>}
-                        </div>
-                        {!isSidebarCollapsed && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
-                      </Link>
-                  </Button>
-                </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Bodega</TooltipContent>}
-              </Tooltip>
-               <Tooltip>
-                <TooltipTrigger asChild>
-                   <Button asChild variant="ghost" className={cn("w-full flex items-center justify-between p-3 rounded-md hover:bg-secondary/80 transition-colors", isSidebarCollapsed && 'w-auto justify-center')} disabled={!osId}>
-                     <Link href={osId ? `/bio?osId=${osId}` : '#'}>
-                        <div className="flex items-center gap-3">
-                          <Leaf className="h-5 w-5 flex-shrink-0" />
-                          {!isSidebarCollapsed && <span className="font-medium">Bio</span>}
-                        </div>
-                        {!isSidebarCollapsed && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
-                      </Link>
-                  </Button>
-                </TooltipTrigger>
-                {isSidebarCollapsed && <TooltipContent side="right">Bio</TooltipContent>}
-              </Tooltip>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+                  <Link href={osId ? `/almacen?osId=${osId}` : '#'}>
+                    <Warehouse className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium">Almacén</span>
+                  </Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+                  <Link href={osId ? `/bodega?osId=${osId}` : '#'}>
+                    <Wine className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium">Bodega</span>
+                  </Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+                  <Link href={osId ? `/bio?osId=${osId}` : '#'}>
+                    <Leaf className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium">Bio</span>
+                  </Link>
+              </Button>
             </nav>
           </aside>
           
@@ -592,35 +530,6 @@ export default function OsPage() {
                                 <FormItem><FormLabel>Tlf. Resp. Comercial</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
                                )} />
                            </div>
-                        </AccordionContent>
-                      </AccordionItem>
-
-                      <AccordionItem value="financiero">
-                        <AccordionTrigger>
-                          <h3 className="text-lg font-semibold">Financiero</h3>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
-                            <FormField control={form.control} name="facturacion" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Facturación</FormLabel>
-                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl>
-                              </FormItem>
-                            )} />
-                            <FormField control={form.control} name="agencyPercentage" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>% Agencia</FormLabel>
-                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
-                              </FormItem>
-                            )} />
-                            <FormField control={form.control} name="spacePercentage" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>% Espacio</FormLabel>
-                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
-                              </FormItem>
-                            )} />
-                            <FinancialCalculator />
-                          </div>
                         </AccordionContent>
                       </AccordionItem>
                     </Accordion>}
