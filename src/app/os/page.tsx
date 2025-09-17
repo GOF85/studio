@@ -51,17 +51,20 @@ export const osFormSchema = z.object({
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
   commercial: z.string().optional().default(''),
+  commercialPhone: z.string().optional().default(''),
   pax: z.coerce.number().optional().default(0),
   endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
   space: z.string().optional().default(''),
   spaceContact: z.string().optional().default(''),
   spacePhone: z.string().optional().default(''),
   respMetre: z.string().optional().default(''),
+  respMetrePhone: z.string().optional().default(''),
+  respCocina: z.string().optional().default(''),
+  respCocinaPhone: z.string().optional().default(''),
   agencyPercentage: z.coerce.number().optional().default(0),
   spacePercentage: z.coerce.number().optional().default(0),
   facturacion: z.coerce.number().optional().default(0),
   uniformity: z.string().optional().default(''),
-  respCocina: z.string().optional().default(''),
   plane: z.string().optional().default(''),
   menu: z.string().optional().default(''),
   dniList: z.string().optional().default(''),
@@ -74,9 +77,10 @@ export const osFormSchema = z.object({
 export type OsFormValues = z.infer<typeof osFormSchema>;
 
 const defaultValues: Partial<OsFormValues> = {
-  serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', pax: 0,
-  space: '', spaceContact: '', spacePhone: '', respMetre: '', agencyPercentage: 0, spacePercentage: 0, facturacion: 0,
-  uniformity: '', respCocina: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', deliveryLocations: [],
+  serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', commercialPhone: '', pax: 0,
+  space: '', spaceContact: '', spacePhone: '', respMetre: '', respMetrePhone: '', respCocina: '', respCocinaPhone: '',
+  agencyPercentage: 0, spacePercentage: 0, facturacion: 0,
+  uniformity: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', deliveryLocations: [],
   status: 'Borrador',
 };
 
@@ -104,14 +108,25 @@ function FinancialCalculator() {
   );
 }
 
-const SectionTitle = ({ title, fieldName }: { title: string, fieldName: keyof OsFormValues }) => {
-    const fieldValue = useWatch({ name: fieldName });
-    return (
-        <h3 className="text-lg font-semibold">
-            {title} {fieldValue && <span className="text-primary font-medium">- "{fieldValue}"</span>}
-        </h3>
-    )
-}
+const ClienteTitle = () => {
+  const client = useWatch({ name: 'client' });
+  const title = `Cliente ${client ? `- ${client}` : ''}`;
+  return <h3 className="text-lg font-semibold">{title}</h3>;
+};
+
+const EspacioTitle = () => {
+    const space = useWatch({ name: 'space' });
+    const title = `Espacio ${space ? `- ${space}` : ''}`;
+    return <h3 className="text-lg font-semibold">{title}</h3>;
+};
+
+const ResponsablesTitle = () => {
+    const metre = useWatch({ name: 'respMetre' });
+    const cocina = useWatch({ name: 'respCocina' });
+    let details = [metre, cocina].filter(Boolean).join(' - ');
+    const title = `Responsables ${details ? `- ${details}` : ''}`;
+    return <h3 className="text-lg font-semibold">{title}</h3>;
+};
 
 export default function OsPage() {
   const router = useRouter();
@@ -122,6 +137,7 @@ export default function OsPage() {
   const [totalAmount, setTotalAmount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [accordionDefaultValue, setAccordionDefaultValue] = useState<string[] | undefined>(undefined);
   const { toast } = useToast();
 
   const form = useForm<OsFormValues>({
@@ -130,10 +146,10 @@ export default function OsPage() {
   });
 
   useEffect(() => {
-    // This code runs only on the client
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     
-    if (osId) { // Editing existing OS
+    if (osId) {
+      setAccordionDefaultValue([]); // Collapse for existing
       const allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allOS.find(os => os.id === osId) || null;
       if (currentOS) {
@@ -156,6 +172,7 @@ export default function OsPage() {
       }
     } else { // Creating new OS
       form.reset(defaultValues);
+      setAccordionDefaultValue(['cliente', 'espacio', 'responsables', 'financiero']); // Expand for new
     }
   }, [osId, form, router, toast]);
 
@@ -173,7 +190,6 @@ export default function OsPage() {
         message = 'Orden de Servicio actualizada correctamente.';
       }
     } else { // Create new
-      // Check for duplicate service number
       const existingOS = allOS.find(os => os.serviceNumber === data.serviceNumber);
       if (existingOS) {
         toast({
@@ -203,17 +219,16 @@ export default function OsPage() {
         description: message,
       });
       setIsLoading(false);
-      if (newId && !osId) { // only push if it was a new creation
+      if (newId && !osId) { 
           router.push(`/os?id=${newId}`);
       } else {
-        // Force re-render to reflect changes
         router.replace(`/os?id=${newId}&t=${Date.now()}`);
       }
     }, 1000)
   }
 
   const handleEditMaterialOrder = (order: MaterialOrder) => {
-    const modulePath = order.type.toLowerCase();
+    const modulePath = order.type === 'Almacén' ? 'almacen' : 'bodega';
     router.push(`/?osId=${osId}&type=${order.type}&orderId=${order.id}`);
   }
 
@@ -357,11 +372,9 @@ export default function OsPage() {
                       )} />
                     </div>
 
-                    <Accordion type="multiple" defaultValue={['cliente']} className="w-full">
+                   {accordionDefaultValue && <Accordion type="multiple" defaultValue={accordionDefaultValue} className="w-full">
                       <AccordionItem value="cliente">
-                        <AccordionTrigger>
-                           <SectionTitle title="Cliente" fieldName="client" />
-                        </AccordionTrigger>
+                        <AccordionTrigger><ClienteTitle /></AccordionTrigger>
                         <AccordionContent>
                           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
                             <FormField control={form.control} name="client" render={({ field }) => (
@@ -394,9 +407,7 @@ export default function OsPage() {
                       </AccordionItem>
 
                       <AccordionItem value="espacio">
-                        <AccordionTrigger>
-                            <SectionTitle title="Espacio" fieldName="space" />
-                        </AccordionTrigger>
+                        <AccordionTrigger><EspacioTitle /></AccordionTrigger>
                         <AccordionContent>
                           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
                             <FormField control={form.control} name="space" render={({ field }) => (
@@ -428,9 +439,7 @@ export default function OsPage() {
                       </AccordionItem>
                       
                        <AccordionItem value="responsables">
-                        <AccordionTrigger>
-                            <SectionTitle title="Responsables" fieldName="respMetre" />
-                        </AccordionTrigger>
+                        <AccordionTrigger><ResponsablesTitle /></AccordionTrigger>
                         <AccordionContent>
                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
                               <FormField control={form.control} name="respMetre" render={({ field }) => (
@@ -445,6 +454,10 @@ export default function OsPage() {
                                   </Select>
                                 </FormItem>
                               )} />
+                               <FormField control={form.control} name="respMetrePhone" render={({ field }) => (
+                                <FormItem><FormLabel>Tlf. Resp. Metre</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                               )} />
+                               <div></div>
                               <FormField control={form.control} name="respCocina" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Resp. Cocina</FormLabel>
@@ -457,6 +470,10 @@ export default function OsPage() {
                                   </Select>
                                 </FormItem>
                               )} />
+                               <FormField control={form.control} name="respCocinaPhone" render={({ field }) => (
+                                <FormItem><FormLabel>Tlf. Resp. Cocina</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                               )} />
+                               <div></div>
                               <FormField control={form.control} name="commercial" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Resp. Comercial</FormLabel>
@@ -469,11 +486,14 @@ export default function OsPage() {
                                     </Select>
                                 </FormItem>
                                 )} />
+                               <FormField control={form.control} name="commercialPhone" render={({ field }) => (
+                                <FormItem><FormLabel>Tlf. Resp. Comercial</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                               )} />
                            </div>
                         </AccordionContent>
                       </AccordionItem>
 
-                      <AccordionItem value="item-1">
+                      <AccordionItem value="financiero">
                         <AccordionTrigger>
                           <h3 className="text-lg font-semibold">Financiero</h3>
                         </AccordionTrigger>
@@ -501,7 +521,7 @@ export default function OsPage() {
                           </div>
                         </AccordionContent>
                       </AccordionItem>
-                    </Accordion>
+                    </Accordion>}
                     
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t">
                        <FormField control={form.control} name="uniformity" render={({ field }) => (
