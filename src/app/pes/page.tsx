@@ -69,6 +69,7 @@ export default function PesPage() {
           respMetre: 'metre1',
           agencyPercentage: 10,
           spacePercentage: 5,
+          facturacion: 25000,
           uniformity: 'uniform2',
           respCocina: 'cocina1',
           plane: '',
@@ -96,6 +97,7 @@ export default function PesPage() {
           respMetre: 'metre2',
           agencyPercentage: 0,
           spacePercentage: 0,
+          facturacion: 8000,
           uniformity: 'uniform1',
           respCocina: 'cocina2',
           plane: '',
@@ -149,7 +151,7 @@ export default function PesPage() {
     } else {
       setServiceOrders(JSON.parse(storedOrders));
     }
-  }, []);
+  }, [toast]);
 
   const handleDelete = () => {
     if (!orderToDelete) return;

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -41,6 +41,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export const osFormSchema = z.object({
   serviceNumber: z.string().min(1, 'El Nº de Servicio es obligatorio'),
@@ -58,6 +59,7 @@ export const osFormSchema = z.object({
   respMetre: z.string().optional().default(''),
   agencyPercentage: z.coerce.number().optional().default(0),
   spacePercentage: z.coerce.number().optional().default(0),
+  facturacion: z.coerce.number().optional().default(0),
   uniformity: z.string().optional().default(''),
   respCocina: z.string().optional().default(''),
   plane: z.string().optional().default(''),
@@ -73,10 +75,34 @@ export type OsFormValues = z.infer<typeof osFormSchema>;
 
 const defaultValues: Partial<OsFormValues> = {
   serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', pax: 0,
-  space: '', spaceContact: '', spacePhone: '', respMetre: '', agencyPercentage: 0, spacePercentage: 0,
+  space: '', spaceContact: '', spacePhone: '', respMetre: '', agencyPercentage: 0, spacePercentage: 0, facturacion: 0,
   uniformity: '', respCocina: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', deliveryLocations: [],
   status: 'Borrador',
 };
+
+function FinancialCalculator() {
+  const facturacion = useWatch({ name: 'facturacion' });
+  const agencyPercentage = useWatch({ name: 'agencyPercentage' });
+  const spacePercentage = useWatch({ name: 'spacePercentage' });
+
+  const facturacionNeta = useMemo(() => {
+    const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
+    return (facturacion || 0) * (1 - totalPercentage / 100);
+  }, [facturacion, agencyPercentage, spacePercentage]);
+
+  return (
+    <FormItem>
+      <FormLabel>Facturación Neta</FormLabel>
+      <FormControl>
+        <Input
+          readOnly
+          value={facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+          className="font-bold text-primary"
+        />
+      </FormControl>
+    </FormItem>
+  );
+}
 
 export default function OsPage() {
   const router = useRouter();
@@ -397,18 +423,6 @@ export default function OsPage() {
                         </Select>
                       </FormItem>
                     )} />
-                     <FormField control={form.control} name="agencyPercentage" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>% Agencia</FormLabel>
-                        <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
-                      </FormItem>
-                    )} />
-                     <FormField control={form.control} name="spacePercentage" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>% Espacio</FormLabel>
-                        <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
-                      </FormItem>
-                    )} />
                     <FormField control={form.control} name="status" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Estado</FormLabel>
@@ -458,6 +472,39 @@ export default function OsPage() {
                             <FormControl><Textarea rows={4} {...field} /></FormControl>
                         </FormItem>
                     )} />
+
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="item-1">
+                          <AccordionTrigger>
+                            <h3 className="text-lg font-semibold">Financiero</h3>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+                              <FormField control={form.control} name="facturacion" render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Facturación</FormLabel>
+                                  <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl>
+                                </FormItem>
+                              )} />
+                              <FormField control={form.control} name="agencyPercentage" render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>% Agencia</FormLabel>
+                                  <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                                </FormItem>
+                              )} />
+                              <FormField control={form.control} name="spacePercentage" render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>% Espacio</FormLabel>
+                                  <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                                </FormItem>
+                              )} />
+                              <FinancialCalculator />
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                    </div>
                   </CardContent>
                 </Card>
 
