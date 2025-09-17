@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft } from 'lucide-react';
-import type { MaterialOrder, ServiceOrder } from '@/types';
+import type { MaterialOrder, ServiceOrder, OrderItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +34,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+type ItemWithOrderInfo = OrderItem & {
+  orderContract: string;
+  orderStatus: MaterialOrder['status'];
+};
 
 const statusVariant: { [key in MaterialOrder['status']]: 'default' | 'secondary' | 'outline' } = {
   Asignado: 'secondary',
@@ -68,12 +74,32 @@ export default function AlmacenPage() {
     }
   }, [osId, router, toast]);
 
+  const allItemsByStatus = useMemo(() => {
+    const items: { [key in MaterialOrder['status']]: ItemWithOrderInfo[] } = {
+      Asignado: [],
+      'En preparación': [],
+      Listo: [],
+    };
+    materialOrders.forEach(order => {
+      order.items.forEach(item => {
+        items[order.status].push({
+          ...item,
+          orderContract: order.contractNumber || 'N/A',
+          orderStatus: order.status,
+        });
+      });
+    });
+    return items;
+  }, [materialOrders]);
+
   const handleDelete = () => {
     if (!orderToDelete) return;
 
-    const updatedOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]').filter((o: MaterialOrder) => o.id !== orderToDelete);
+    let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
     localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
     setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Almacén'));
+    
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
   };
@@ -110,6 +136,53 @@ export default function AlmacenPage() {
             </Link>
           </Button>
         </div>
+
+        <Card className="mb-8">
+            <CardHeader><CardTitle>Artículos Totales del Módulo</CardTitle></CardHeader>
+            <CardContent>
+                <Tabs defaultValue="Asignado">
+                    <TabsList>
+                        <TabsTrigger value="Asignado">Asignado ({allItemsByStatus['Asignado'].length})</TabsTrigger>
+                        <TabsTrigger value="En preparación">En preparación ({allItemsByStatus['En preparación'].length})</TabsTrigger>
+                        <TabsTrigger value="Listo">Listo ({allItemsByStatus['Listo'].length})</TabsTrigger>
+                    </TabsList>
+                    {(Object.keys(allItemsByStatus) as Array<MaterialOrder['status']>).map(status => (
+                        <TabsContent key={status} value={status}>
+                             <div className="border rounded-lg mt-4">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Artículo</TableHead>
+                                            <TableHead>Cód.</TableHead>
+                                            <TableHead>Cantidad</TableHead>
+                                            <TableHead>Nº Contrato</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {allItemsByStatus[status].length > 0 ? (
+                                            allItemsByStatus[status].map(item => (
+                                                <TableRow key={`${item.itemCode}-${item.orderContract}`}>
+                                                    <TableCell className="font-medium">{item.description}</TableCell>
+                                                    <TableCell>{item.itemCode}</TableCell>
+                                                    <TableCell>{item.quantity}</TableCell>
+                                                    <TableCell>{item.orderContract}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={4} className="h-24 text-center">
+                                                    No hay artículos en estado "{status}".
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </TabsContent>
+                    ))}
+                </Tabs>
+            </CardContent>
+        </Card>
 
         <Card>
             <CardHeader><CardTitle>Pedidos Realizados</CardTitle></CardHeader>
