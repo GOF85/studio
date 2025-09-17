@@ -19,9 +19,6 @@ export function Header() {
               Orden de Servicio
             </Link>
           </Button>
-          <p className="text-sm text-muted-foreground hidden sm:block">
-            Soluciones para tus eventos
-          </p>
         </nav>
       </div>
     </header>
