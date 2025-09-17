@@ -121,22 +121,49 @@ function FinancialCalculator() {
 
 const ClienteTitle = () => {
   const client = useWatch({ name: 'client' });
-  const title = `Cliente ${client ? `- ${client}` : ''}`;
-  return <h3 className="text-lg font-semibold">{title}</h3>;
+  return (
+    <h3 className="text-lg font-semibold">
+      Cliente
+      {client && (
+        <>
+          {' - '}
+          <span className="text-primary">{client}</span>
+        </>
+      )}
+    </h3>
+  );
 };
 
 const EspacioTitle = () => {
     const space = useWatch({ name: 'space' });
-    const title = `Espacio ${space ? `- ${space}` : ''}`;
-    return <h3 className="text-lg font-semibold">{title}</h3>;
+    return (
+      <h3 className="text-lg font-semibold">
+        Espacio
+        {space && (
+          <>
+            {' - '}
+            <span className="text-primary">{space}</span>
+          </>
+        )}
+      </h3>
+    );
 };
 
 const ResponsablesTitle = () => {
     const metre = useWatch({ name: 'respMetre' });
     const cocina = useWatch({ name: 'respCocina' });
     let details = [metre, cocina].filter(Boolean).join(' - ');
-    const title = `Responsables ${details ? `- ${details}` : ''}`;
-    return <h3 className="text-lg font-semibold">{title}</h3>;
+    return (
+        <h3 className="text-lg font-semibold">
+          Responsables
+          {details && (
+            <>
+              {' - '}
+              <span className="text-primary">{details}</span>
+            </>
+          )}
+        </h3>
+      );
 };
 
 export default function OsPage() {
