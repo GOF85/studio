@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp } from 'lucide-react';
@@ -23,10 +23,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function PersonalPage() {
   const [personal, setPersonal] = useState<Personal[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
+
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -65,6 +70,24 @@ export default function PersonalPage() {
     }
   }, [toast]);
   
+  const departments = useMemo(() => {
+    if (!personal) return ['all'];
+    const allDepartments = personal.map(p => p.departamento);
+    return ['all', ...Array.from(new Set(allDepartments))];
+  }, [personal]);
+
+  const filteredPersonal = useMemo(() => {
+    return personal.filter(p => {
+      const matchesDepartment = selectedDepartment === 'all' || p.departamento === selectedDepartment;
+      const matchesSearch = searchTerm.trim() === '' ||
+        p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.mail.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesDepartment && matchesSearch;
+    });
+  }, [personal, searchTerm, selectedDepartment]);
+
+
   const handleExportCSV = () => {
     if (personal.length === 0) {
       toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay personal para exportar.' });
@@ -130,7 +153,7 @@ export default function PersonalPage() {
     <>
       <Header />
       <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-headline font-bold">Gestión de Personal</h1>
           <div className="flex gap-2">
             <input
@@ -157,6 +180,28 @@ export default function PersonalPage() {
           </div>
         </div>
 
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <Input 
+            placeholder="Buscar por nombre, categoría, mail..."
+            className="flex-grow"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+            <SelectTrigger className="w-full md:w-[240px]">
+              <SelectValue placeholder="Filtrar por departamento" />
+            </SelectTrigger>
+            <SelectContent>
+              {departments.map(dep => (
+                <SelectItem key={dep} value={dep}>
+                  {dep === 'all' ? 'Todos los departamentos' : dep}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
@@ -170,8 +215,8 @@ export default function PersonalPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {personal.length > 0 ? (
-                personal.map(p => (
+              {filteredPersonal.length > 0 ? (
+                filteredPersonal.map(p => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nombre}</TableCell>
                     <TableCell>{p.departamento}</TableCell>
@@ -203,7 +248,7 @@ export default function PersonalPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center">
-                    No hay personal registrado.
+                    No se encontraron empleados que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>
               )}
