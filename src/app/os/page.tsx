@@ -64,7 +64,6 @@ export const osFormSchema = z.object({
   dniList: z.string().optional().default(''),
   sendTo: z.string().optional().default(''),
   comments: z.string().optional().default(''),
-  contractNumber: z.string().optional().default(''),
 });
 
 export type OsFormValues = z.infer<typeof osFormSchema>;
@@ -72,7 +71,7 @@ export type OsFormValues = z.infer<typeof osFormSchema>;
 const defaultValues: Partial<OsFormValues> = {
   serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', pax: 0,
   space: '', spaceContact: '', spacePhone: '', respMetre: '', agencyPercentage: 0, spacePercentage: 0,
-  uniformity: '', respCocina: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', contractNumber: '',
+  uniformity: '', respCocina: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '',
 };
 
 export default function OsPage() {
@@ -406,12 +405,6 @@ export default function OsPage() {
                             <SelectItem value="dest2">Destinatario 2</SelectItem>
                           </SelectContent>
                         </Select>
-                      </FormItem>
-                    )} />
-                     <FormField control={form.control} name="contractNumber" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nº Contrato</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="comments" render={({ field }) => (

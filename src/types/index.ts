@@ -41,7 +41,6 @@ export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate'> & {
         items: OrderItem[];
         total: number;
         days: number;
-        contractNumber?: string;
     } | null;
     status: 'Borrador' | 'Confirmado' | 'Finalizado';
 };
