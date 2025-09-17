@@ -37,3 +37,12 @@ export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate'> & {
     startDate: string; 
     endDate: string;
 };
+
+export type Personal = {
+    id: string;
+    nombre: string;
+    departamento: string;
+    categoria: string;
+    telefono: string;
+    mail: string;
+}

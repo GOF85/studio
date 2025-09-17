@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,18 +12,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Database, PlusCircle } from 'lucide-react';
+import { Database, PlusCircle, ArrowRight } from 'lucide-react';
 
 // Placeholder type
 type DatabaseEntry = {
   id: string;
   name: string;
-  type: string;
+  description: string;
   itemCount: number;
+  path: string;
 };
 
 export default function BdPage() {
-  const [databases, setDatabases] = useState<DatabaseEntry[]>([]);
+  const [databases, setDatabases] = useState<DatabaseEntry[]>([
+    { id: '1', name: 'Personal', description: 'Gestión de empleados y contactos.', itemCount: 0, path: '/personal' }
+  ]);
 
   return (
     <>
@@ -44,17 +48,34 @@ export default function BdPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Nº de Artículos</TableHead>
+                <TableHead>Descripción</TableHead>
+                <TableHead>Nº de Registros</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-                <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
-                    Aún no hay bases de datos configuradas.
-                  </TableCell>
-                </TableRow>
+                {databases.length > 0 ? (
+                  databases.map(db => (
+                    <TableRow key={db.id}>
+                      <TableCell className="font-medium">{db.name}</TableCell>
+                      <TableCell>{db.description}</TableCell>
+                      <TableCell>{db.itemCount}</TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild variant="ghost" size="sm">
+                          <Link href={db.path}>
+                            Gestionar <ArrowRight className="ml-2" />
+                          </Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      Aún no hay bases de datos configuradas.
+                    </TableCell>
+                  </TableRow>
+                )}
             </TableBody>
           </Table>
         </div>
