@@ -101,7 +101,7 @@ export type Precio = {
     imagen: string; // url
 };
 
-export type Gastronomia = {
+export type GastronomiaDBItem = {
     id: string;
     referencia: string;
     categoria: string;
@@ -131,4 +131,11 @@ export type ComercialBriefingItem = {
 export type ComercialBriefing = {
     osId: string;
     items: ComercialBriefingItem[];
+};
+
+export type GastronomyOrderStatus = 'Pendiente' | 'En preparación' | 'Incidencia' | 'Listo';
+
+export type GastronomyOrder = ComercialBriefingItem & {
+    osId: string;
+    status: GastronomyOrderStatus;
 };

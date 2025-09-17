@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils } from 'lucide-react';
 
 import type { OrderItem, ServiceOrder, MaterialOrder } from '@/types';
 import { cn } from '@/lib/utils';
@@ -314,6 +314,12 @@ export default function OsPage() {
                   <Link href={osId ? `/comercial?osId=${osId}` : '#'}>
                     <Briefcase className="mr-3 h-5 w-5 flex-shrink-0" />
                     <span className="font-medium">Comercial</span>
+                  </Link>
+              </Button>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+                  <Link href={osId ? `/gastronomia?osId=${osId}` : '#'}>
+                    <Utensils className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium">Gastronomía</span>
                   </Link>
               </Button>
                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Utensils } from 'lucide-react';
-import type { Gastronomia } from '@/types';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { format } from 'date-fns';
+import { Utensils, ArrowLeft, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, GastronomyOrderStatus } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -16,293 +16,188 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
-import Papa from 'papaparse';
-import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 
-const CSV_HEADERS = ["id", "referencia", "categoria", "imagenRef", "imagenEmpl", "precio", "gramaje"];
+const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
+  Pendiente: 'secondary',
+  'En preparación': 'outline',
+  Listo: 'default',
+  Incidencia: 'destructive',
+};
+
+const statusOptions: GastronomyOrderStatus[] = ['Pendiente', 'En preparación', 'Listo', 'Incidencia'];
 
 export default function GastronomiaPage() {
-  const [gastronomia, setGastronomia] = useState<Gastronomia[]>([]);
+  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+  const [gastronomyOrders, setGastronomyOrders] = useState<GastronomyOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-
+  
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const osId = searchParams.get('osId');
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadAndSyncOrders = useCallback(() => {
+    if (!osId) return;
+
+    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+    const currentBriefing = allBriefings.find(b => b.osId === osId);
+    const briefingItemsWithGastro = currentBriefing?.items.filter(item => item.conGastronomia) || [];
+    
+    let allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+    let osGastroOrders = allGastroOrders.filter(order => order.osId === osId);
+
+    let needsUpdate = false;
+    
+    // Sync: Add new orders from briefing, update existing ones
+    const syncedOrders = briefingItemsWithGastro.map(briefingItem => {
+        const existingOrder = osGastroOrders.find(o => o.id === briefingItem.id);
+        if (existingOrder) {
+            // Update if data differs, but keep status
+            if (JSON.stringify({ ...existingOrder, status: null }) !== JSON.stringify({ ...briefingItem, osId, status: null })) {
+                needsUpdate = true;
+                return { ...briefingItem, osId, status: existingOrder.status };
+            }
+            return existingOrder;
+        } else {
+            // Add new order
+            needsUpdate = true;
+            return { ...briefingItem, osId, status: 'Pendiente' as GastronomyOrderStatus };
+        }
+    });
+
+    // Sync: Remove orders that are no longer in the briefing
+    const briefingItemIds = new Set(briefingItemsWithGastro.map(i => i.id));
+    const finalOrders = syncedOrders.filter(order => briefingItemIds.has(order.id));
+    if (osGastroOrders.length !== finalOrders.length) {
+        needsUpdate = true;
+    }
+
+    const otherOsGastroOrders = allGastroOrders.filter(order => order.osId !== osId);
+    
+    if (needsUpdate) {
+        localStorage.setItem('gastronomyOrders', JSON.stringify([...otherOsGastroOrders, ...finalOrders]));
+        setGastronomyOrders(finalOrders);
+        toast({ title: "Sincronizado", description: "Los pedidos de gastronomía se han actualizado desde el briefing comercial." });
+    } else {
+        setGastronomyOrders(osGastroOrders);
+    }
+
+  }, [osId, toast]);
 
   useEffect(() => {
     setIsMounted(true);
-    let storedData = localStorage.getItem('gastronomia');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: Gastronomia[] = [
-        {
-          id: '1',
-          referencia: 'Solomillo de ternera',
-          categoria: 'Carnes',
-          imagenRef: 'https://picsum.photos/seed/solomillo-ref/100',
-          imagenEmpl: 'https://picsum.photos/seed/solomillo-empl/100',
-          precio: 28.50,
-          gramaje: 250,
-        },
-        {
-          id: '2',
-          referencia: 'Tarta de queso',
-          categoria: 'Postres',
-          imagenRef: 'https://picsum.photos/seed/tarta-ref/100',
-          imagenEmpl: 'https://picsum.photos/seed/tarta-empl/100',
-          precio: 8.00,
-          gramaje: 150,
-        },
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('gastronomia', storedData);
-      setGastronomia(dummyData);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se han cargado platos de ejemplo.',
-      });
+    if (osId) {
+      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+      const currentOS = allServiceOrders.find(os => os.id === osId);
+      setServiceOrder(currentOS || null);
+      loadAndSyncOrders();
     } else {
-      setGastronomia(JSON.parse(storedData));
+      toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
+      router.push('/pes');
     }
-  }, [toast]);
+  }, [osId, router, toast, loadAndSyncOrders]);
+
+  const handleStatusChange = (orderId: string, newStatus: GastronomyOrderStatus) => {
+    const updatedOrders = gastronomyOrders.map(order => 
+      order.id === orderId ? { ...order, status: newStatus } : order
+    );
+    setGastronomyOrders(updatedOrders);
+    
+    const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+    const otherOsOrders = allGastroOrders.filter(o => o.osId !== osId);
+    localStorage.setItem('gastronomyOrders', JSON.stringify([...otherOsOrders, ...updatedOrders]));
+
+    toast({ title: 'Estado actualizado' });
+  };
   
-  const categories = useMemo(() => {
-    if (!gastronomia) return ['all'];
-    const allCats = gastronomia.map(g => g.categoria);
-    return ['all', ...Array.from(new Set(allCats))];
-  }, [gastronomia]);
-
-  const filteredItems = useMemo(() => {
-    return gastronomia.filter(item => {
-      const matchesCategory = selectedCategory === 'all' || item.categoria === selectedCategory;
-      const matchesSearch = searchTerm.trim() === '' ||
-        item.referencia.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesCategory && matchesSearch;
-    });
-  }, [gastronomia, searchTerm, selectedCategory]);
-
-
-  const handleExportCSV = () => {
-    if (gastronomia.length === 0) {
-      toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay platos para exportar.' });
-      return;
-    }
-    const csv = Papa.unparse(gastronomia);
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'gastronomia.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast({ title: 'Exportación completada', description: 'El archivo gastronomia.csv se ha descargado.' });
-  };
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    Papa.parse<Gastronomia>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const headers = results.meta.fields || [];
-        const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
-
-        if (!hasAllHeaders) {
-            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
-            return;
-        }
-        
-        const importedData = results.data.map(item => ({
-            ...item,
-            precio: Number(item.precio) || 0,
-            gramaje: Number(item.gramaje) || 0,
-        }));
-        
-        localStorage.setItem('gastronomia', JSON.stringify(importedData));
-        setGastronomia(importedData);
-        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
-      },
-      error: (error) => {
-        toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
-      }
-    });
-    if(event.target) {
-        event.target.value = '';
-    }
-  };
-
-  const handleDelete = () => {
-    if (!itemToDelete) return;
-    const updatedData = gastronomia.filter(e => e.id !== itemToDelete);
-    localStorage.setItem('gastronomia', JSON.stringify(updatedData));
-    setGastronomia(updatedData);
-    toast({ title: 'Plato eliminado', description: 'El registro se ha eliminado correctamente.' });
-    setItemToDelete(null);
-  };
-
-  if (!isMounted) {
-    return null;
+  if (!isMounted || !serviceOrder) {
+    return null; // or a loading skeleton
   }
 
   return (
     <>
       <Header />
       <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Utensils />Gestión de Gastronomía</h1>
-          <div className="flex gap-2">
-            <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".csv"
-                onChange={handleImportCSV}
-            />
-            <Button variant="outline" onClick={handleImportClick}>
-              <FileUp className="mr-2" />
-              Importar CSV
+        <div className="flex items-center justify-between mb-8">
+            <div>
+                <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
+                    <ArrowLeft className="mr-2" />
+                    Volver a la OS
+                </Button>
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Utensils />Módulo de Gastronomía</h1>
+                <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
+            </div>
+            <Button onClick={loadAndSyncOrders}>
+                Sincronizar con Briefing
             </Button>
-            <Button variant="outline" onClick={handleExportCSV}>
-              <FileDown className="mr-2" />
-              Exportar CSV
-            </Button>
-            <Button asChild>
-              <Link href="/gastronomia/nuevo">
-                <PlusCircle className="mr-2" />
-                Nuevo Plato
-              </Link>
-            </Button>
-          </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <Input 
-            placeholder="Buscar por referencia..."
-            className="flex-grow"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-full md:w-[240px]">
-              <SelectValue placeholder="Filtrar por categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las categorías</SelectItem>
-              {categories.map(cat => (
-                cat !== 'all' && <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-
-        <div className="border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Referencia</TableHead>
-                <TableHead>Categoría</TableHead>
-                <TableHead>Imágenes</TableHead>
-                <TableHead>Precio</TableHead>
-                <TableHead>Gramaje</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredItems.length > 0 ? (
-                filteredItems.map(item => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.referencia}</TableCell>
-                    <TableCell>{item.categoria}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        {item.imagenRef && <Image src={item.imagenRef} alt={`Ref ${item.referencia}`} width={40} height={40} className="rounded-md object-cover"/>}
-                        {item.imagenEmpl && <Image src={item.imagenEmpl} alt={`Empl ${item.referencia}`} width={40} height={40} className="rounded-md object-cover"/>}
-                      </div>
-                    </TableCell>
-                    <TableCell>{item.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                    <TableCell>{item.gramaje ? `${item.gramaje} g` : 'N/A'}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Abrir menú</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => router.push(`/gastronomia/${item.id}`)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => setItemToDelete(item.id)}>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Eliminar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
-                    No se encontraron platos que coincidan con la búsqueda.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+        <Card>
+            <CardHeader><CardTitle>Pedidos de Gastronomía Generados</CardTitle></CardHeader>
+            <CardContent>
+                 <div className="border rounded-lg overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Hora</TableHead>
+                            <TableHead>Descripción</TableHead>
+                            <TableHead>Sala</TableHead>
+                            <TableHead>Asistentes</TableHead>
+                            <TableHead>Bebidas</TableHead>
+                            <TableHead>Mat. Bebida</TableHead>
+                            <TableHead>Mat. Gastro</TableHead>
+                            <TableHead>Mantelería</TableHead>
+                            <TableHead>Comentarios</TableHead>
+                            <TableHead>Estado</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {gastronomyOrders.length > 0 ? (
+                            gastronomyOrders.map(order => (
+                            <TableRow key={order.id}>
+                                <TableCell>{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
+                                <TableCell>{order.horaInicio}</TableCell>
+                                <TableCell className="min-w-[200px] font-medium">{order.descripcion}</TableCell>
+                                <TableCell>{order.sala}</TableCell>
+                                <TableCell>{order.asistentes}</TableCell>
+                                <TableCell>{order.bebidas}</TableCell>
+                                <TableCell>{order.matBebida}</TableCell>
+                                <TableCell>{order.materialGastro}</TableCell>
+                                <TableCell>{order.manteleria}</TableCell>
+                                <TableCell className="min-w-[200px]">{order.comentarios}</TableCell>
+                                <TableCell>
+                                    <Select value={order.status} onValueChange={(value: GastronomyOrderStatus) => handleStatusChange(order.id, value)}>
+                                        <SelectTrigger className="w-[150px]">
+                                            <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {statusOptions.map(status => (
+                                                <SelectItem key={status} value={status}>
+                                                    <Badge variant={statusVariant[status]}>{status}</Badge>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </TableCell>
+                            </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                            <TableCell colSpan={11} className="h-24 text-center">
+                                No hay pedidos de gastronomía. Activa la opción "Con gastronomía" en los hitos del briefing comercial.
+                            </TableCell>
+                            </TableRow>
+                        )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
       </main>
-
-      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente el registro del plato.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
-              onClick={handleDelete}
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }
