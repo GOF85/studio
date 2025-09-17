@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -49,6 +50,7 @@ export function ItemCard({ item, onAddItem }: ItemCardProps) {
             {item.stock > 0 ? `${item.stock} disponibles` : "Agotado"}
           </Badge>
         </div>
+         <Badge variant="outline" className="mt-2">{item.category}</Badge>
       </CardContent>
       <CardFooter className="p-4 pt-0 bg-secondary/30">
         <div className="flex w-full items-center gap-2">

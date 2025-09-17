@@ -5,6 +5,7 @@ export type CateringItem = {
   stock: number; // available stock
   imageUrl: string;
   imageHint: string;
+  category: string;
 };
 
 export type OrderItem = CateringItem & {
