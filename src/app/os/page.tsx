@@ -78,10 +78,27 @@ export default function OsPage() {
   const form = useForm<OsFormValues>({
     resolver: zodResolver(osFormSchema),
     defaultValues: {
+      serviceNumber: '',
+      client: '',
+      contact: '',
+      phone: '',
+      finalClient: '',
+      commercial: '',
       pax: 0,
+      space: '',
+      spaceContact: '',
+      spacePhone: '',
+      respMetre: '',
       agencyPercentage: 0,
-      spacePercentage: 0
-    }
+      spacePercentage: 0,
+      uniformity: '',
+      respCocina: '',
+      plane: '',
+      menu: '',
+      dniList: '',
+      sendTo: '',
+      comments: '',
+    },
   });
 
   useEffect(() => {
@@ -93,11 +110,10 @@ export default function OsPage() {
       form.setValue('serviceNumber', parsedOrder.contractNumber);
        // We don't want to clear it, so the user can refresh
        // localStorage.removeItem('currentOrder');
+    } else {
+        const currentServiceNumber = (new Date()).getFullYear() + '-';
+        form.setValue('serviceNumber', currentServiceNumber);
     }
-
-    const currentServiceNumber = (new Date()).getFullYear() + '-';
-    form.setValue('serviceNumber', currentServiceNumber);
-
   }, [form]);
 
   function onSubmit(data: OsFormValues) {
