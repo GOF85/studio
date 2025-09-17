@@ -94,13 +94,11 @@ export default function OsPage() {
 
   useEffect(() => {
     // This code runs only on the client
-    const allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     
-    let currentOS: ServiceOrder | null = null;
-    
     if (osId) { // Editing existing OS
-      currentOS = allOS.find(os => os.id === osId) || null;
+      const allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+      const currentOS = allOS.find(os => os.id === osId) || null;
       if (currentOS) {
         const values = {
             ...currentOS,
@@ -120,8 +118,7 @@ export default function OsPage() {
         router.push('/pes');
       }
     } else { // Creating new OS
-        const currentServiceNumber = `${new Date().getFullYear()}-${allOS.length + 1}`;
-        form.setValue('serviceNumber', currentServiceNumber);
+      form.reset(defaultValues);
     }
   }, [osId, form, router, toast]);
 
@@ -135,15 +132,25 @@ export default function OsPage() {
     if (osId) { // Update existing
       const osIndex = allOS.findIndex(os => os.id === osId);
       if (osIndex !== -1) {
-        allOS[osIndex] = { ...allOS[osIndex], ...data, order: null };
+        allOS[osIndex] = { ...allOS[osIndex], ...data };
         message = 'Orden de Servicio actualizada correctamente.';
       }
     } else { // Create new
+      // Check for duplicate service number
+      const existingOS = allOS.find(os => os.serviceNumber === data.serviceNumber);
+      if (existingOS) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Ya existe una Orden de Servicio con este número.',
+        });
+        setIsLoading(false);
+        return;
+      }
       newId = Date.now().toString();
       const newOS: ServiceOrder = {
         id: newId,
         ...data,
-        order: null, 
         status: 'Borrador',
       };
       allOS.push(newOS);
@@ -229,7 +236,8 @@ export default function OsPage() {
                     <FormField control={form.control} name="serviceNumber" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Nº Servicio</FormLabel>
-                        <FormControl><Input {...field} readOnly /></FormControl>
+                        <FormControl><Input {...field} readOnly={!!osId} /></FormControl>
+                        <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="startDate" render={({ field }) => (
@@ -248,6 +256,7 @@ export default function OsPage() {
                               <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
                             </PopoverContent>
                           </Popover>
+                          <FormMessage />
                         </FormItem>
                     )} />
                     <FormField control={form.control} name="endDate" render={({ field }) => (
@@ -266,12 +275,14 @@ export default function OsPage() {
                               <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
                             </PopoverContent>
                           </Popover>
+                          <FormMessage />
                         </FormItem>
                     )} />
                     <FormField control={form.control} name="client" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Cliente</FormLabel>
                         <FormControl><Input {...field} /></FormControl>
+                        <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="contact" render={({ field }) => (
@@ -472,5 +483,3 @@ export default function OsPage() {
     </TooltipProvider>
   );
 }
-
-    
