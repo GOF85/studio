@@ -21,6 +21,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
@@ -33,6 +43,8 @@ export default function EspaciosPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('all');
+  const [espacioToDelete, setEspacioToDelete] = useState<string | null>(null);
+
 
   const router = useRouter();
   const { toast } = useToast();
@@ -178,6 +190,14 @@ export default function EspaciosPage() {
     }
   };
 
+  const handleDelete = () => {
+    if (!espacioToDelete) return;
+    const updatedEspacios = espacios.filter(e => e.id !== espacioToDelete);
+    localStorage.setItem('espacios', JSON.stringify(updatedEspacios));
+    setEspacios(updatedEspacios);
+    toast({ title: 'Espacio eliminado', description: 'El registro se ha eliminado correctamente.' });
+    setEspacioToDelete(null);
+  };
 
   if (!isMounted) {
     return null;
@@ -206,7 +226,7 @@ export default function EspaciosPage() {
               Exportar CSV
             </Button>
             <Button asChild>
-              <Link href="#">
+              <Link href="/espacios/nuevo">
                 <PlusCircle className="mr-2" />
                 Nuevo Espacio
               </Link>
@@ -266,11 +286,11 @@ export default function EspaciosPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => {}}>
+                          <DropdownMenuItem onClick={() => router.push(`/espacios/${e.id}`)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => {}}>
+                          <DropdownMenuItem className="text-destructive" onClick={() => setEspacioToDelete(e.id)}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Eliminar
                           </DropdownMenuItem>
@@ -290,6 +310,26 @@ export default function EspaciosPage() {
           </Table>
         </div>
       </main>
+
+      <AlertDialog open={!!espacioToDelete} onOpenChange={(open) => !open && setEspacioToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Esto eliminará permanentemente el registro del espacio.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setEspacioToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDelete}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
