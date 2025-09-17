@@ -87,3 +87,16 @@ export type Espacio = {
     homologacion: string;
     comentariosMarketing: string;
 };
+
+export const PRECIO_CATEGORIAS = ['BODEGA', 'BIO', 'ALMACEN', 'UNIFORMIDAD', 'OTROS'] as const;
+export type PrecioCategoria = typeof PRECIO_CATEGORIAS[number];
+
+export type Precio = {
+    id: string;
+    producto: string;
+    categoria: PrecioCategoria;
+    loc: string; // localización
+    precioUd: number;
+    precioAlquilerUd: number;
+    imagen: string; // url
+};

@@ -27,6 +27,7 @@ export default function BdPage() {
   const [databases, setDatabases] = useState<DatabaseEntry[]>([
     { id: '1', name: 'Personal', description: 'Gestión de empleados y contactos.', itemCount: 0, path: '/personal' },
     { id: '2', name: 'Espacios', description: 'Gestión de espacios para eventos.', itemCount: 0, path: '/espacios' },
+    { id: '3', name: 'Precios', description: 'Gestión de precios de productos.', itemCount: 0, path: '/precios' },
   ]);
 
   return (
