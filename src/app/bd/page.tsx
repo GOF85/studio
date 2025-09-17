@@ -1,0 +1,64 @@
+'use client';
+
+import { useState } from 'react';
+import { Header } from '@/components/layout/header';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Database, PlusCircle } from 'lucide-react';
+
+// Placeholder type
+type DatabaseEntry = {
+  id: string;
+  name: string;
+  type: string;
+  itemCount: number;
+};
+
+export default function BdPage() {
+  const [databases, setDatabases] = useState<DatabaseEntry[]>([]);
+
+  return (
+    <>
+      <Header />
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <Database className="h-8 w-8" />
+            <h1 className="text-3xl font-headline font-bold">Gestión de Bases de Datos</h1>
+          </div>
+          <Button disabled>
+            <PlusCircle className="mr-2" />
+            Nueva Base de Datos
+          </Button>
+        </div>
+
+        <div className="border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Nº de Artículos</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+                <TableRow>
+                  <TableCell colSpan={4} className="h-24 text-center">
+                    Aún no hay bases de datos configuradas.
+                  </TableCell>
+                </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      </main>
+    </>
+  );
+}

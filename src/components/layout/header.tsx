@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { UtensilsCrossed, FileText, ClipboardList } from 'lucide-react';
+import { UtensilsCrossed, FileText, ClipboardList, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function Header() {
@@ -17,6 +17,12 @@ export function Header() {
             <Link href="/pes">
               <ClipboardList className="mr-2" />
               Previsión de Servicios
+            </Link>
+          </Button>
+           <Button variant="ghost" asChild>
+            <Link href="/bd">
+              <Database className="mr-2" />
+              Bases de Datos
             </Link>
           </Button>
           <Button variant="outline" asChild>
