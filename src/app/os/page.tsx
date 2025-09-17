@@ -6,7 +6,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft } from 'lucide-react';
 
 import type { OrderItem } from '@/types';
 import { cn } from '@/lib/utils';
@@ -38,6 +38,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 const osFormSchema = z.object({
   serviceNumber: z.string().default(''),
@@ -73,6 +74,7 @@ type OsFormValues = z.infer<typeof osFormSchema>;
 export default function OsPage() {
   const [order, setOrder] = useState<{ items: OrderItem[]; contractNumber: string, total: number, days: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<OsFormValues>({
@@ -108,8 +110,6 @@ export default function OsPage() {
       const parsedOrder = JSON.parse(savedOrder);
       setOrder(parsedOrder);
       form.setValue('serviceNumber', parsedOrder.contractNumber);
-       // We don't want to clear it, so the user can refresh
-       // localStorage.removeItem('currentOrder');
     } else {
         const currentServiceNumber = (new Date()).getFullYear() + '-';
         form.setValue('serviceNumber', currentServiceNumber);
@@ -130,7 +130,7 @@ export default function OsPage() {
   }
 
   return (
-    <>
+    <TooltipProvider>
       <Header />
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
@@ -141,17 +141,27 @@ export default function OsPage() {
           </Button>
         </div>
 
-        <div className="grid lg:grid-cols-[300px_1fr] gap-12">
-          <aside className="lg:sticky top-24 self-start">
-            <h2 className="text-lg font-semibold mb-4">Módulos de la Orden</h2>
-            <nav className="space-y-2">
-              <Link href="#" className="flex items-center justify-between p-3 rounded-md bg-secondary text-secondary-foreground transition-colors">
-                <div className="flex items-center gap-3">
-                  <Warehouse className="h-5 w-5" />
-                  <span className="font-medium">Almacén</span>
-                </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              </Link>
+        <div className={cn("grid gap-8 transition-[grid-template-columns] duration-300", isSidebarCollapsed ? "lg:grid-cols-[80px_1fr]" : "lg:grid-cols-[280px_1fr]")}>
+          <aside className="lg:sticky top-24 self-start flex flex-col">
+            <div className={cn("flex items-center justify-between mb-4", isSidebarCollapsed && 'justify-center')}>
+              {!isSidebarCollapsed && <h2 className="text-lg font-semibold">Módulos</h2>}
+              <Button variant="ghost" size="icon" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
+                <PanelLeft className={cn("transition-transform", isSidebarCollapsed && "rotate-180")} />
+              </Button>
+            </div>
+            <nav className={cn("space-y-2", isSidebarCollapsed && 'flex flex-col items-center')}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="#" className={cn("flex items-center justify-between p-3 rounded-md bg-secondary text-secondary-foreground transition-colors", isSidebarCollapsed && 'w-auto justify-center')}>
+                    <div className="flex items-center gap-3">
+                      <Warehouse className="h-5 w-5 flex-shrink-0" />
+                      {!isSidebarCollapsed && <span className="font-medium">Almacén</span>}
+                    </div>
+                    {!isSidebarCollapsed && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+                  </Link>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Almacén</TooltipContent>}
+              </Tooltip>
             </nav>
           </aside>
           
@@ -237,7 +247,7 @@ export default function OsPage() {
                     <FormField control={form.control} name="pax" render={({ field }) => (
                       <FormItem>
                         <FormLabel>PAX</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
+                        <FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={field.onChange} /></FormControl>
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="commercial" render={({ field }) => (
@@ -315,13 +325,13 @@ export default function OsPage() {
                      <FormField control={form.control} name="agencyPercentage" render={({ field }) => (
                       <FormItem>
                         <FormLabel>% Agencia</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
+                        <FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={field.onChange} /></FormControl>
                       </FormItem>
                     )} />
                      <FormField control={form.control} name="spacePercentage" render={({ field }) => (
                       <FormItem>
                         <FormLabel>% Espacio</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
+                        <FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={field.onChange} /></FormControl>
                       </FormItem>
                     )} />
                     <div className="flex items-end">
@@ -419,6 +429,6 @@ export default function OsPage() {
           </main>
         </div>
       </div>
-    </>
+    </TooltipProvider>
   );
 }
