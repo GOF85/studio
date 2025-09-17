@@ -24,7 +24,7 @@ export type MaterialOrder = {
   items: OrderItem[];
   days: number;
   total: number;
-  contractNumber?: string;
+  contractNumber: string;
   status: MaterialOrderStatus;
   deliveryDate?: string;
   deliveryLocation?: string;

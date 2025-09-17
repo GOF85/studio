@@ -111,7 +111,7 @@ export default function Home() {
     items: OrderItem[];
     days: number;
     total: number;
-    contractNumber?: string;
+    contractNumber: string;
     deliveryDate?: string;
     deliveryLocation?: string;
   }) => {

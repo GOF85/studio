@@ -31,7 +31,7 @@ interface OrderSummaryProps {
   items: OrderItem[];
   onUpdateQuantity: (itemCode: string, quantity: number) => void;
   onRemoveItem: (itemCode: string) => void;
-  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber?: string, deliveryDate?: string, deliveryLocation?: string }) => void;
+  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber: string, deliveryDate?: string, deliveryLocation?: string }) => void;
   onClearOrder: () => void;
   isEditing?: boolean;
   serviceOrder: ServiceOrder | null;
@@ -64,7 +64,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
 
   const handleSubmit = () => {
     if (!contractNumber) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Por favor, introduce el número de contrato.' });
+        toast({ variant: 'destructive', title: 'Error', description: 'El Nº de Contrato (Nº de Servicio de la OS) es obligatorio.' });
         return;
     }
     onSubmitOrder({
@@ -184,7 +184,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                  <Separator />
                   <div className="space-y-2">
                     <Label htmlFor="contract-number-dialog">Número de Contrato</Label>
-                    <Input id="contract-number-dialog" value={contractNumber} onChange={(e) => setContractNumber(e.target.value)} placeholder="Introduce el nº de contrato" />
+                    <Input id="contract-number-dialog" value={contractNumber} onChange={(e) => setContractNumber(e.target.value)} placeholder="Nº de Servicio de la OS" readOnly />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="delivery-date-dialog">Fecha de Entrega</Label>
