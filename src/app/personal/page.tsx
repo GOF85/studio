@@ -33,11 +33,37 @@ export default function PersonalPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    const storedPersonal = localStorage.getItem('personal');
-    if (storedPersonal) {
+    let storedPersonal = localStorage.getItem('personal');
+    if (!storedPersonal || JSON.parse(storedPersonal).length === 0) {
+      const dummyPersonal: Personal[] = [
+        {
+          id: '1',
+          nombre: 'Juan Pérez',
+          departamento: 'Operaciones',
+          categoria: 'Metre',
+          telefono: '600111222',
+          mail: 'juan.perez@example.com',
+        },
+        {
+          id: '2',
+          nombre: 'Ana López',
+          departamento: 'Cocina',
+          categoria: 'Cocinero/a',
+          telefono: '600333444',
+          mail: 'ana.lopez@example.com',
+        },
+      ];
+      storedPersonal = JSON.stringify(dummyPersonal);
+      localStorage.setItem('personal', storedPersonal);
+      setPersonal(dummyPersonal);
+      toast({
+        title: 'Datos de prueba cargados',
+        description: 'Se ha cargado personal de ejemplo.',
+      });
+    } else {
       setPersonal(JSON.parse(storedPersonal));
     }
-  }, []);
+  }, [toast]);
   
   const handleExportCSV = () => {
     if (personal.length === 0) {
