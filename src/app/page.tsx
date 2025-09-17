@@ -88,16 +88,16 @@ export default function Home() {
     items: OrderItem[];
     days: number;
     total: number;
-    contractNumber: string;
   }) => {
     // Store order in localStorage to pass it to the OS page
     localStorage.setItem('currentOrder', JSON.stringify(finalOrder));
 
     toast({
       title: 'Pedido guardado',
-      description: `Tu pedido ${finalOrder.contractNumber} está listo para ser usado en una Orden de Servicio.`,
+      description: `Tu pedido está listo para ser usado en una nueva Orden de Servicio.`,
     });
     setOrderItems([]);
+    // Redirect to create a new OS
     router.push('/os');
   };
 

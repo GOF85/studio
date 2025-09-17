@@ -25,7 +25,7 @@ interface OrderSummaryProps {
   items: OrderItem[];
   onUpdateQuantity: (itemCode: string, quantity: number) => void;
   onRemoveItem: (itemCode: string) => void;
-  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber: string }) => void;
+  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number }) => void;
   onClearOrder: () => void;
   onAddSuggestedItem: (item: CateringItem, quantity: number) => void;
 }
@@ -33,7 +33,6 @@ interface OrderSummaryProps {
 export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder }: OrderSummaryProps) {
   const [rentalDays, setRentalDays] = useState(1);
   const [isReviewOpen, setReviewOpen] = useState(false);
-  const [contractNumber, setContractNumber] = useState('');
 
   const subtotal = useMemo(() => {
     return items.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -47,10 +46,8 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
       items,
       days: rentalDays,
       total,
-      contractNumber,
     });
     setReviewOpen(false);
-    setContractNumber('');
   };
   
   return (
@@ -131,27 +128,17 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
         <Dialog open={isReviewOpen} onOpenChange={setReviewOpen}>
           <DialogTrigger asChild>
             <Button className="w-full" size="lg" disabled={items.length === 0}>
-              Revisar y Enviar
+              Crear Orden de Servicio
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Revisión del Pedido</DialogTitle>
+              <DialogTitle>Crear Orden de Servicio</DialogTitle>
               <DialogDescription>
-                Por favor, confirma los detalles de tu solicitud de alquiler.
+                Se guardará tu pedido de material y serás redirigido para crear una nueva Orden de Servicio.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="contract-number">Número de Contrato</Label>
-                  <Input 
-                    id="contract-number" 
-                    placeholder="Ej. C-12345" 
-                    value={contractNumber}
-                    onChange={(e) => setContractNumber(e.target.value)}
-                  />
-                </div>
-                <Separator />
+             <div className="space-y-4 py-4">
                 <ul className="space-y-2 max-h-48 overflow-y-auto">
                     {items.map(item => (
                         <li key={item.itemCode} className="flex justify-between items-center text-sm">
@@ -164,7 +151,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                 <div className="space-y-1 text-sm">
                     <div className="flex justify-between"><span>Subtotal:</span> <span>{subtotal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></div>
                     <div className="flex justify-between"><span>Días de alquiler:</span> <span>x{rentalDays}</span></div>
-                    <div className="flex justify-between font-bold text-base pt-2"><span>Total Final:</span> <span>{total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></div>
+                    <div className="flex justify-between font-bold text-base pt-2"><span>Total Pedido:</span> <span>{total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></div>
                 </div>
             </div>
             <DialogFooter>
@@ -173,7 +160,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                   Cancelar
                 </Button>
               </DialogClose>
-              <Button type="button" onClick={handleSubmit} disabled={!contractNumber.trim()}>Confirmar y Enviar Pedido</Button>
+              <Button type="button" onClick={handleSubmit}>Confirmar y Continuar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

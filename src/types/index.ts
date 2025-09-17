@@ -1,3 +1,5 @@
+import type { OsFormValues } from "@/app/os/page";
+
 export type CateringItem = {
   itemCode: string;
   description: string;
@@ -10,4 +12,14 @@ export type CateringItem = {
 
 export type OrderItem = CateringItem & {
   quantity: number;
+};
+
+export type ServiceOrder = OsFormValues & {
+    id: string;
+    order: {
+        items: OrderItem[];
+        total: number;
+        days: number;
+    } | null;
+    status: 'Borrador' | 'Confirmado' | 'Finalizado';
 };

@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft } from 'lucide-react';
 
-import type { OrderItem } from '@/types';
+import type { OrderItem, ServiceOrder } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -40,26 +41,22 @@ import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
-const osFormSchema = z.object({
-  serviceNumber: z.string().default(''),
-  startDate: z.date({
-    required_error: 'La fecha de inicio es obligatoria.',
-  }),
+export const osFormSchema = z.object({
+  serviceNumber: z.string().min(1, 'El Nº de Servicio es obligatorio'),
+  startDate: z.date({ required_error: 'La fecha de inicio es obligatoria.' }),
   client: z.string().min(1, 'El cliente es obligatorio.'),
   contact: z.string().default(''),
   phone: z.string().default(''),
   finalClient: z.string().default(''),
   commercial: z.string().default(''),
-  pax: z.coerce.number().optional(),
-  endDate: z.date({
-    required_error: 'La fecha de fin es obligatoria.',
-  }),
+  pax: z.coerce.number().optional().default(0),
+  endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
   space: z.string().default(''),
   spaceContact: z.string().default(''),
   spacePhone: z.string().default(''),
   respMetre: z.string().default(''),
-  agencyPercentage: z.coerce.number().optional(),
-  spacePercentage: z.coerce.number().optional(),
+  agencyPercentage: z.coerce.number().optional().default(0),
+  spacePercentage: z.coerce.number().optional().default(0),
   uniformity: z.string().default(''),
   respCocina: z.string().default(''),
   plane: z.string().default(''),
@@ -69,10 +66,14 @@ const osFormSchema = z.object({
   comments: z.string().default(''),
 });
 
-type OsFormValues = z.infer<typeof osFormSchema>;
+export type OsFormValues = z.infer<typeof osFormSchema>;
 
 export default function OsPage() {
-  const [order, setOrder] = useState<{ items: OrderItem[]; contractNumber: string, total: number, days: number } | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const osId = searchParams.get('id');
+
+  const [order, setOrder] = useState<{ items: OrderItem[]; total: number; days: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { toast } = useToast();
@@ -80,53 +81,77 @@ export default function OsPage() {
   const form = useForm<OsFormValues>({
     resolver: zodResolver(osFormSchema),
     defaultValues: {
-      serviceNumber: '',
-      client: '',
-      contact: '',
-      phone: '',
-      finalClient: '',
-      commercial: '',
-      pax: 0,
-      space: '',
-      spaceContact: '',
-      spacePhone: '',
-      respMetre: '',
-      agencyPercentage: 0,
-      spacePercentage: 0,
-      uniformity: '',
-      respCocina: '',
-      plane: '',
-      menu: '',
-      dniList: '',
-      sendTo: '',
-      comments: '',
+      serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', pax: 0,
+      space: '', spaceContact: '', spacePhone: '', respMetre: '', agencyPercentage: 0, spacePercentage: 0,
+      uniformity: '', respCocina: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '',
     },
   });
 
   useEffect(() => {
     // This code runs only on the client
-    const savedOrder = localStorage.getItem('currentOrder');
-    if (savedOrder) {
-      const parsedOrder = JSON.parse(savedOrder);
-      setOrder(parsedOrder);
-      form.setValue('serviceNumber', parsedOrder.contractNumber);
-    } else {
-        const currentServiceNumber = (new Date()).getFullYear() + '-';
+    let currentOS: ServiceOrder | null = null;
+    const allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+
+    if (osId) { // Editing existing OS
+      currentOS = allOS.find(os => os.id === osId) || null;
+      if (currentOS) {
+        // Coerce string dates back to Date objects
+        const values = {
+            ...currentOS,
+            startDate: new Date(currentOS.startDate),
+            endDate: new Date(currentOS.endDate),
+        }
+        form.reset(values);
+        setOrder(currentOS.order);
+      } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
+        router.push('/pes');
+      }
+    } else { // Creating new OS
+        const savedOrder = localStorage.getItem('currentOrder');
+        if (savedOrder) {
+          const parsedOrder = JSON.parse(savedOrder);
+          setOrder(parsedOrder);
+          localStorage.removeItem('currentOrder');
+        }
+        const currentServiceNumber = `${new Date().getFullYear()}-${allOS.length + 1}`;
         form.setValue('serviceNumber', currentServiceNumber);
     }
-  }, [form]);
+  }, [osId, form, router, toast]);
 
   function onSubmit(data: OsFormValues) {
     setIsLoading(true);
-    console.log({ ...data, order });
+
+    let allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    let message = '';
+
+    if (osId) { // Update existing
+      const osIndex = allOS.findIndex(os => os.id === osId);
+      if (osIndex !== -1) {
+        allOS[osIndex] = { ...allOS[osIndex], ...data, order };
+        message = 'Orden de Servicio actualizada correctamente.';
+      }
+    } else { // Create new
+      const newOS: ServiceOrder = {
+        id: Date.now().toString(),
+        ...data,
+        order,
+        status: 'Borrador',
+      };
+      allOS.push(newOS);
+      message = 'Orden de Servicio creada correctamente.';
+    }
+
+    localStorage.setItem('serviceOrders', JSON.stringify(allOS));
     
     setTimeout(() => {
       toast({
-        title: 'Orden de Servicio Generada',
-        description: 'Se ha simulado la generación de la OS. Revisa la consola.',
+        title: 'Operación Exitosa',
+        description: message,
       });
       setIsLoading(false);
-    }, 1500)
+      router.push('/pes');
+    }, 1000)
   }
 
   return (
@@ -134,10 +159,10 @@ export default function OsPage() {
       <Header />
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-headline font-bold">Orden de Servicio de Evento</h1>
+          <h1 className="text-3xl font-headline font-bold">{osId ? 'Editar' : 'Nueva'} Orden de Servicio</h1>
           <Button type="submit" form="os-form" disabled={isLoading}>
             {isLoading ? <Loader2 className="animate-spin" /> : <FileDown />}
-            <span className="ml-2">Generar OS</span>
+            <span className="ml-2">{osId ? 'Guardar Cambios' : 'Guardar OS'}</span>
           </Button>
         </div>
 
@@ -173,7 +198,6 @@ export default function OsPage() {
                     <CardTitle>Datos del Servicio</CardTitle>
                   </CardHeader>
                   <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {/* Row 1 */}
                     <FormField control={form.control} name="serviceNumber" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Nº Servicio</FormLabel>
@@ -216,8 +240,6 @@ export default function OsPage() {
                           </Popover>
                         </FormItem>
                     )} />
-                    
-                    {/* Row 2 */}
                     <FormField control={form.control} name="client" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Cliente</FormLabel>
@@ -236,8 +258,6 @@ export default function OsPage() {
                         <FormControl><Input {...field} /></FormControl>
                       </FormItem>
                     )} />
-
-                    {/* Row 3 */}
                     <FormField control={form.control} name="finalClient" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Cliente Final</FormLabel>
@@ -247,13 +267,13 @@ export default function OsPage() {
                     <FormField control={form.control} name="pax" render={({ field }) => (
                       <FormItem>
                         <FormLabel>PAX</FormLabel>
-                        <FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={field.onChange} /></FormControl>
+                        <FormControl><Input type="number" {...field} onChange={field.onChange} /></FormControl>
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="commercial" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Comercial</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                           <SelectContent>
                             <SelectItem value="com1">Comercial 1</SelectItem>
@@ -262,8 +282,6 @@ export default function OsPage() {
                         </Select>
                       </FormItem>
                     )} />
-                                    
-                    {/* Row 4 */}
                     <FormField control={form.control} name="space" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Espacio</FormLabel>
@@ -282,12 +300,10 @@ export default function OsPage() {
                         <FormControl><Input {...field} /></FormControl>
                       </FormItem>
                     )} />
-                    
-                    {/* Row 5 */}
                     <FormField control={form.control} name="respMetre" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Resp. Metre</FormLabel>
-                         <Select onValueChange={field.onChange} defaultValue={field.value}>
+                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                           <SelectContent>
                             <SelectItem value="metre1">Metre 1</SelectItem>
@@ -299,7 +315,7 @@ export default function OsPage() {
                     <FormField control={form.control} name="respCocina" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Resp. Cocina</FormLabel>
-                         <Select onValueChange={field.onChange} defaultValue={field.value}>
+                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                           <SelectContent>
                             <SelectItem value="cocina1">Cocinero 1</SelectItem>
@@ -311,7 +327,7 @@ export default function OsPage() {
                     <FormField control={form.control} name="uniformity" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Uniformidad</FormLabel>
-                         <Select onValueChange={field.onChange} defaultValue={field.value}>
+                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                           <SelectContent>
                             <SelectItem value="uniform1">Uniforme 1</SelectItem>
@@ -320,18 +336,16 @@ export default function OsPage() {
                         </Select>
                       </FormItem>
                     )} />
-                    
-                    {/* Row 6 & 7 */}
                      <FormField control={form.control} name="agencyPercentage" render={({ field }) => (
                       <FormItem>
                         <FormLabel>% Agencia</FormLabel>
-                        <FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={field.onChange} /></FormControl>
+                        <FormControl><Input type="number" {...field} onChange={field.onChange} /></FormControl>
                       </FormItem>
                     )} />
                      <FormField control={form.control} name="spacePercentage" render={({ field }) => (
                       <FormItem>
                         <FormLabel>% Espacio</FormLabel>
-                        <FormControl><Input type="number" {...field} value={field.value ?? ''} onChange={field.onChange} /></FormControl>
+                        <FormControl><Input type="number" {...field} onChange={field.onChange} /></FormControl>
                       </FormItem>
                     )} />
                     <div className="flex items-end">
@@ -358,7 +372,7 @@ export default function OsPage() {
                      <FormField control={form.control} name="sendTo" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Enviar A</FormLabel>
-                         <Select onValueChange={field.onChange} defaultValue={field.value}>
+                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                           <SelectContent>
                             <SelectItem value="dest1">Destinatario 1</SelectItem>
@@ -418,9 +432,10 @@ export default function OsPage() {
                             </div>
 
                         ) : (
-                            <p className="text-muted-foreground text-center py-8">
-                                No hay ningún pedido de material asociado. Ve a la página principal para crear uno.
-                            </p>
+                            <div className="text-center py-8 text-muted-foreground">
+                                <p>No hay ningún pedido de material asociado.</p>
+                                <Button variant="link" asChild><Link href="/">Crear un nuevo pedido</Link></Button>
+                            </div>
                         )}
                     </CardContent>
                 </Card>
