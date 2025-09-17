@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -21,6 +22,12 @@ export default function Home() {
 
   useEffect(() => {
     // This effect runs only on the client
+    if (osId) {
+      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+      const currentOS = allServiceOrders.find(os => os.id === osId);
+      setServiceOrder(currentOS || null);
+    }
+    
     if (editOrderId) {
       const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
       const orderToEdit = allMaterialOrders.find(o => o.id === editOrderId);
@@ -28,7 +35,7 @@ export default function Home() {
         setOrderItems(orderToEdit.items);
       }
     }
-  }, [editOrderId]);
+  }, [editOrderId, osId]);
 
   const handleAddItem = (item: CateringItem, quantity: number) => {
     if (quantity <= 0) return;
@@ -187,6 +194,7 @@ export default function Home() {
               onSubmitOrder={handleSubmitOrder}
               onClearOrder={handleClearOrder}
               isEditing={!!editOrderId}
+              contractNumber={serviceOrder?.contractNumber}
             />
           </div>
         </div>

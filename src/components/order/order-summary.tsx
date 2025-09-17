@@ -20,6 +20,7 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface OrderSummaryProps {
   items: OrderItem[];
@@ -29,12 +30,20 @@ interface OrderSummaryProps {
   onClearOrder: () => void;
   onAddSuggestedItem?: (item: CateringItem, quantity: number) => void;
   isEditing?: boolean;
+  contractNumber?: string;
 }
 
-export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false }: OrderSummaryProps) {
+export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false, contractNumber: initialContractNumber }: OrderSummaryProps) {
   const [rentalDays, setRentalDays] = useState(1);
   const [isReviewOpen, setReviewOpen] = useState(false);
-  const [contractNumber, setContractNumber] = useState('');
+  const [contractNumber, setContractNumber] = useState(initialContractNumber || '');
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (initialContractNumber) {
+      setContractNumber(initialContractNumber);
+    }
+  }, [initialContractNumber]);
 
   const subtotal = useMemo(() => {
     return items.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -45,8 +54,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
 
   const handleSubmit = () => {
     if (!contractNumber) {
-        // A simple alert for now, could be a toast or form validation
-        alert('Por favor, introduce el número de contrato.');
+        toast({ variant: 'destructive', title: 'Error', description: 'Por favor, introduce el número de contrato.' });
         return;
     }
     onSubmitOrder({
