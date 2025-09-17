@@ -150,6 +150,7 @@ export default function OsPage() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [accordionDefaultValue, setAccordionDefaultValue] = useState<string[] | undefined>(undefined);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [isSubmittingFromDialog, setIsSubmittingFromDialog] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<OsFormValues>({
@@ -260,6 +261,8 @@ export default function OsPage() {
       form.reset(form.getValues()); // Mark form as not dirty
       if (newId && !osId) { 
           router.push(`/os?id=${newId}`);
+      } else if (isSubmittingFromDialog) {
+          router.push('/pes');
       } else {
         router.replace(`/os?id=${newId}&t=${Date.now()}`);
       }
@@ -280,6 +283,11 @@ export default function OsPage() {
      setTotalAmount(total);
      toast({ title: 'Pedido de material eliminado' });
   }
+  
+  const handleSaveFromDialog = async () => {
+    setIsSubmittingFromDialog(true);
+    await form.handleSubmit(onSubmit)();
+  };
 
   return (
     <TooltipProvider>
@@ -673,19 +681,19 @@ export default function OsPage() {
       <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Descartar cambios?</AlertDialogTitle>
+            <AlertDialogTitle>Tienes cambios sin guardar</AlertDialogTitle>
             <AlertDialogDescription>
-              Tienes cambios sin guardar. ¿Estás seguro de que quieres salir y descartarlos?
+              ¿Qué quieres hacer con los cambios que has realizado?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="sm:justify-between">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => router.push('/pes')}
-            >
-              Descartar
-            </AlertDialogAction>
+            <div className="flex flex-col-reverse sm:flex-row gap-2">
+                <Button variant="destructive" className="bg-orange-500 hover:bg-orange-600" onClick={() => router.push('/pes')}>Descartar</Button>
+                <Button onClick={handleSaveFromDialog} disabled={isLoading}>
+                {isLoading && isSubmittingFromDialog ? <Loader2 className="animate-spin" /> : 'Guardar Cambios'}
+                </Button>
+            </div>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
