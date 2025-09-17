@@ -104,6 +104,15 @@ function FinancialCalculator() {
   );
 }
 
+const SectionTitle = ({ title, fieldName }: { title: string, fieldName: keyof OsFormValues }) => {
+    const fieldValue = useWatch({ name: fieldName });
+    return (
+        <h3 className="text-lg font-semibold">
+            {title} {fieldValue && <span className="text-primary font-medium">- "{fieldValue}"</span>}
+        </h3>
+    )
+}
+
 export default function OsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -112,7 +121,7 @@ export default function OsPage() {
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [totalAmount, setTotalAmount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const { toast } = useToast();
 
   const form = useForm<OsFormValues>({
@@ -204,7 +213,7 @@ export default function OsPage() {
   }
 
   const handleEditMaterialOrder = (order: MaterialOrder) => {
-    const modulePath = order.type === 'Almacén' ? 'almacen' : 'bodega';
+    const modulePath = order.type.toLowerCase();
     router.push(`/?osId=${osId}&type=${order.type}&orderId=${order.id}`);
   }
 
@@ -233,7 +242,7 @@ export default function OsPage() {
           </div>
         </div>
 
-        <div className={cn("grid gap-8 transition-[grid-template-columns] duration-300", isSidebarCollapsed ? "lg:grid-cols-[80px_1fr]" : "lg:grid-cols-[140px_1fr]")}>
+        <div className={cn("grid gap-8 transition-[grid-template-columns] duration-300", isSidebarCollapsed ? "lg:grid-cols-[80px_1fr]" : "lg:grid-cols-[160px_1fr]")}>
           <aside className="lg:sticky top-24 self-start flex flex-col">
             <div className={cn("flex items-center justify-between mb-4", isSidebarCollapsed && 'justify-center')}>
               {!isSidebarCollapsed && <h2 className="text-lg font-semibold">Módulos</h2>}
@@ -350,7 +359,9 @@ export default function OsPage() {
 
                     <Accordion type="multiple" defaultValue={['cliente']} className="w-full">
                       <AccordionItem value="cliente">
-                        <AccordionTrigger><h3 className="text-lg font-semibold">Cliente</h3></AccordionTrigger>
+                        <AccordionTrigger>
+                           <SectionTitle title="Cliente" fieldName="client" />
+                        </AccordionTrigger>
                         <AccordionContent>
                           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
                             <FormField control={form.control} name="client" render={({ field }) => (
@@ -383,7 +394,9 @@ export default function OsPage() {
                       </AccordionItem>
 
                       <AccordionItem value="espacio">
-                        <AccordionTrigger><h3 className="text-lg font-semibold">Espacio</h3></AccordionTrigger>
+                        <AccordionTrigger>
+                            <SectionTitle title="Espacio" fieldName="space" />
+                        </AccordionTrigger>
                         <AccordionContent>
                           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
                             <FormField control={form.control} name="space" render={({ field }) => (
@@ -415,7 +428,9 @@ export default function OsPage() {
                       </AccordionItem>
                       
                        <AccordionItem value="responsables">
-                        <AccordionTrigger><h3 className="text-lg font-semibold">Responsables</h3></AccordionTrigger>
+                        <AccordionTrigger>
+                            <SectionTitle title="Responsables" fieldName="respMetre" />
+                        </AccordionTrigger>
                         <AccordionContent>
                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
                               <FormField control={form.control} name="respMetre" render={({ field }) => (
