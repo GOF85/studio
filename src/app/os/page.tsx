@@ -66,7 +66,7 @@ export const osFormSchema = z.object({
   menu: z.string().optional().default(''),
   dniList: z.string().optional().default(''),
   sendTo: z.string().optional().default(''),
-  comments: z.string().optional().default(''),
+  comments: zstring().optional().default(''),
   deliveryLocations: z.array(z.string()).optional().default([]),
   status: z.enum(['Borrador', 'Confirmado', 'Finalizado']).default('Borrador'),
 });
@@ -333,18 +333,6 @@ export default function OsPage() {
                           <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
                         </FormItem>
                       )} />
-                      <FormField control={form.control} name="commercial" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Comercial</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                            <SelectContent>
-                              <SelectItem value="com1">Comercial 1</SelectItem>
-                              <SelectItem value="com2">Comercial 2</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormItem>
-                      )} />
                        <FormField control={form.control} name="status" render={({ field }) => (
                         <FormItem>
                           <FormLabel>Estado</FormLabel>
@@ -454,6 +442,18 @@ export default function OsPage() {
                                   </Select>
                                 </FormItem>
                               )} />
+                              <FormField control={form.control} name="commercial" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Resp. Comercial</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                        <SelectItem value="com1">Comercial 1</SelectItem>
+                                        <SelectItem value="com2">Comercial 2</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </FormItem>
+                                )} />
                            </div>
                         </AccordionContent>
                       </AccordionItem>
