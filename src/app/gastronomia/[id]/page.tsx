@@ -22,6 +22,7 @@ export const gastronomiaFormSchema = z.object({
   imagenRef: z.string().url('Debe ser una URL válida').or(z.literal('')),
   imagenEmpl: z.string().url('Debe ser una URL válida').or(z.literal('')),
   precio: z.coerce.number().min(0, 'El precio debe ser positivo'),
+  gramaje: z.coerce.number().min(0, 'El gramaje debe ser positivo').optional().default(0),
 });
 
 type GastronomiaFormValues = z.infer<typeof gastronomiaFormSchema>;
@@ -32,6 +33,7 @@ const defaultValues: Partial<GastronomiaFormValues> = {
     imagenRef: '',
     imagenEmpl: '',
     precio: 0,
+    gramaje: 0,
 };
 
 export default function GastronomiaFormPage() {
@@ -72,7 +74,7 @@ export default function GastronomiaFormPage() {
     if (isEditing) {
       const index = allItems.findIndex(p => p.id === id);
       if (index !== -1) {
-        allItems[index] = data;
+        allItems[index] = data as Gastronomia;
         message = 'Plato actualizado correctamente.';
       }
     } else {
@@ -82,7 +84,7 @@ export default function GastronomiaFormPage() {
             setIsLoading(false);
             return;
         }
-      allItems.push(data);
+      allItems.push(data as Gastronomia);
       message = 'Plato creado correctamente.';
     }
 
@@ -128,6 +130,9 @@ export default function GastronomiaFormPage() {
                 )} />
                 <FormField control={form.control} name="precio" render={({ field }) => (
                     <FormItem><FormLabel>Precio</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="gramaje" render={({ field }) => (
+                    <FormItem><FormLabel>Gramaje (g)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="imagenRef" render={({ field }) => (
                     <FormItem><FormLabel>URL de Imagen (Referencia)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>

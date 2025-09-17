@@ -108,4 +108,5 @@ export type Gastronomia = {
     imagenRef: string; // url
     imagenEmpl: string; // url
     precio: number;
+    gramaje: number;
 }

@@ -37,7 +37,7 @@ import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const CSV_HEADERS = ["id", "referencia", "categoria", "imagenRef", "imagenEmpl", "precio"];
+const CSV_HEADERS = ["id", "referencia", "categoria", "imagenRef", "imagenEmpl", "precio", "gramaje"];
 
 export default function GastronomiaPage() {
   const [gastronomia, setGastronomia] = useState<Gastronomia[]>([]);
@@ -62,6 +62,7 @@ export default function GastronomiaPage() {
           imagenRef: 'https://picsum.photos/seed/solomillo-ref/100',
           imagenEmpl: 'https://picsum.photos/seed/solomillo-empl/100',
           precio: 28.50,
+          gramaje: 250,
         },
         {
           id: '2',
@@ -70,6 +71,7 @@ export default function GastronomiaPage() {
           imagenRef: 'https://picsum.photos/seed/tarta-ref/100',
           imagenEmpl: 'https://picsum.photos/seed/tarta-empl/100',
           precio: 8.00,
+          gramaje: 150,
         },
       ];
       storedData = JSON.stringify(dummyData);
@@ -141,6 +143,7 @@ export default function GastronomiaPage() {
         const importedData = results.data.map(item => ({
             ...item,
             precio: Number(item.precio) || 0,
+            gramaje: Number(item.gramaje) || 0,
         }));
         
         localStorage.setItem('gastronomia', JSON.stringify(importedData));
@@ -229,6 +232,7 @@ export default function GastronomiaPage() {
                 <TableHead>Categoría</TableHead>
                 <TableHead>Imágenes</TableHead>
                 <TableHead>Precio</TableHead>
+                <TableHead>Gramaje</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -245,6 +249,7 @@ export default function GastronomiaPage() {
                       </div>
                     </TableCell>
                     <TableCell>{item.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell>{item.gramaje ? `${item.gramaje} g` : 'N/A'}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -269,7 +274,7 @@ export default function GastronomiaPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No se encontraron platos que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>
