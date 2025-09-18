@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import type { ServiceOrder } from '@/types';
@@ -45,7 +45,7 @@ export default function PesPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState('all');
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const router = useRouter();
   const { toast } = useToast();
 
@@ -61,6 +61,7 @@ export default function PesPage() {
           startDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
           endDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
           client: 'Empresa Innovadora S.L.',
+          tipoCliente: 'Empresa',
           pax: 150,
           status: 'Confirmado',
           space: 'Finca La Reunión',
@@ -68,18 +69,33 @@ export default function PesPage() {
           contact: 'Ana Torres',
           phone: '611223344',
           finalClient: 'Tech Conference 2024',
-          commercial: 'com1',
-          commercialPhone: '612345678',
+          comercial: 'com1',
+          comercialAsiste: true,
+          comercialPhone: '612345678',
+          comercialMail: 'comercial1@example.com',
+          rrhhAsiste: false,
+          respRRHH: '',
+          respRRHHPhone: '',
+          respRRHHMail: '',
           spaceContact: 'Luis García',
           spacePhone: '699887766',
+          spaceMail: 'luis.garcia@example.com',
           respMetre: 'metre1',
           respMetrePhone: '622334455',
+          respMetreMail: 'metre1@example.com',
+          respPase: 'pase1',
+          respPasePhone: '655555555',
+          respPaseMail: 'pase1@example.com',
+          respCocinaPase: 'cocinapase1',
+          respCocinaPasePhone: '655555556',
+          respCocinaPaseMail: 'cocinapase1@example.com',
           agencyPercentage: 10,
           spacePercentage: 5,
           facturacion: 25000,
           uniformity: 'uniform2',
-          respCocina: 'cocina1',
-          respCocinaPhone: '633445566',
+          respCocinaCPR: 'cocinacpr1',
+          respCocinaCPRPhone: '633445566',
+          respCocinaCPRMail: 'cocinacpr1@example.com',
           plane: '',
           menu: '',
           dniList: '',
@@ -92,6 +108,7 @@ export default function PesPage() {
           startDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
           endDate: new Date(Date.now() + 11 * 24 * 60 * 60 * 1000).toISOString(),
           client: 'Particulares - Boda J&M',
+          tipoCliente: 'Particular',
           pax: 80,
           status: 'Borrador',
           space: 'Restaurante El Mirador',
@@ -99,18 +116,33 @@ export default function PesPage() {
           contact: 'Javier Martín',
           phone: '655443322',
           finalClient: '',
-          commercial: 'com2',
-          commercialPhone: '612345679',
+          comercial: 'com2',
+          comercialAsiste: false,
+          comercialPhone: '612345679',
+          comercialMail: 'comercial2@example.com',
+          rrhhAsiste: true,
+          respRRHH: 'rrhh1',
+          respRRHHPhone: '699999999',
+          respRRHHMail: 'rrhh1@example.com',
           spaceContact: 'Elena Soler',
           spacePhone: '677889900',
+          spaceMail: 'elena.soler@example.com',
           respMetre: 'metre2',
           respMetrePhone: '644556677',
+          respMetreMail: 'metre2@example.com',
+          respPase: 'pase2',
+          respPasePhone: '655555557',
+          respPaseMail: 'pase2@example.com',
+          respCocinaPase: 'cocinapase2',
+          respCocinaPasePhone: '655555558',
+          respCocinaPaseMail: 'cocinapase2@example.com',
           agencyPercentage: 0,
           spacePercentage: 0,
           facturacion: 8000,
           uniformity: 'uniform1',
-          respCocina: 'cocina2',
-          respCocinaPhone: '655667788',
+          respCocinaCPR: 'cocinacpr2',
+          respCocinaCPRPhone: '655667788',
+          respCocinaCPRMail: 'cocinacpr2@example.com',
           plane: '',
           menu: '',
           dniList: '',
@@ -178,22 +210,25 @@ export default function PesPage() {
     return Array.from(months).sort().reverse();
   }, [serviceOrders]);
   
-  const filteredOrders = useMemo(() => {
-    return serviceOrders.filter(os => {
-        const searchMatch = os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        let monthMatch = true;
-        if (selectedMonth !== 'all') {
-          try {
-            const osMonth = format(new Date(os.startDate), 'yyyy-MM');
-            monthMatch = osMonth === selectedMonth;
-          } catch (e) {
-            monthMatch = false;
-          }
+  const filteredAndSortedOrders = useMemo(() => {
+    const filtered = serviceOrders.filter(os => {
+      const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      let monthMatch = true;
+      if (selectedMonth !== 'all') {
+        try {
+          const osMonth = format(new Date(os.startDate), 'yyyy-MM');
+          monthMatch = osMonth === selectedMonth;
+        } catch (e) {
+          monthMatch = false;
         }
-        
-        return searchMatch && monthMatch;
+      }
+      
+      return searchMatch && monthMatch;
     });
+
+    return filtered.sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime());
+
   }, [serviceOrders, searchTerm, selectedMonth]);
 
   const handleDelete = () => {
@@ -265,8 +300,8 @@ export default function PesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.length > 0 ? (
-                filteredOrders.map(os => (
+              {filteredAndSortedOrders.length > 0 ? (
+                filteredAndSortedOrders.map(os => (
                   <TableRow key={os.id} onClick={() => router.push(`/os?id=${os.id}`)} className="cursor-pointer">
                     <TableCell className="font-medium">{os.serviceNumber}</TableCell>
                     <TableCell>{os.client}</TableCell>
