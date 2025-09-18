@@ -147,3 +147,8 @@ export type AlquilerDBItem = {
     precioReposicion: number;
     imagen: string; // url
 };
+
+export type TipoServicio = {
+    id: string;
+    servicio: string;
+}
