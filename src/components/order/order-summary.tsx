@@ -264,19 +264,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="delivery-location-dialog">Localización</Label>
-                     <div className="flex items-center gap-2">
-                        <Select value={deliveryLocation} onValueChange={setDeliveryLocation}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecciona una localización..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {serviceOrder?.deliveryLocations?.map(loc => (
-                                    <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Button variant="outline" size="icon" onClick={() => setIsAddingLocation(true)}><FilePlus className="h-4 w-4" /></Button>
-                    </div>
+                    <Input id="delivery-location-dialog" value={deliveryLocation} onChange={(e) => setDeliveryLocation(e.target.value)} placeholder="Ej: Salón, Cocina..." />
                 </div>
             </div>
             <DialogFooter>

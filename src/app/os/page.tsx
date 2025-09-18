@@ -103,7 +103,6 @@ export const osFormSchema = z.object({
   dniList: z.string().optional().default(''),
   sendTo: z.string().optional().default(''),
   comments: z.string().optional().default(''),
-  deliveryLocations: z.array(z.string()).optional().default([]),
   status: z.enum(['Borrador', 'Confirmado', 'Finalizado']).default('Borrador'),
 });
 
@@ -119,7 +118,7 @@ const defaultValues: Partial<OsFormValues> = {
   comercialAsiste: false, comercial: '', comercialPhone: '', comercialMail: '',
   rrhhAsiste: false, respRRHH: '', respRRHHPhone: '', respRRHHMail: '',
   agencyPercentage: 0, spacePercentage: 0, facturacion: 0,
-  uniformity: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', deliveryLocations: [],
+  uniformity: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '',
   status: 'Borrador', tipoCliente: 'Empresa',
 };
 
@@ -253,7 +252,6 @@ export default function OsPage() {
             ...currentOS,
             startDate: new Date(currentOS.startDate),
             endDate: new Date(currentOS.endDate),
-            deliveryLocations: currentOS.deliveryLocations || [],
         }
         form.reset(values);
         
