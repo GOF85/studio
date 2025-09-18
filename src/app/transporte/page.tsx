@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, Truck, Phone } from 'lucide-react';
-import type { TransporteOrder, ServiceOrder } from '@/types';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, Truck, Phone, Building } from 'lucide-react';
+import type { TransporteOrder, ServiceOrder, Espacio } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,6 +46,7 @@ const statusVariant: { [key in TransporteOrder['status']]: 'default' | 'secondar
 
 export default function TransportePage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+  const [spaceAddress, setSpaceAddress] = useState<string>('');
   const [transporteOrders, setTransporteOrders] = useState<TransporteOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
@@ -60,6 +61,12 @@ export default function TransportePage() {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allServiceOrders.find(os => os.id === osId);
       setServiceOrder(currentOS || null);
+
+      if (currentOS?.space) {
+        const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
+        const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
+        setSpaceAddress(currentSpace?.calle || '');
+      }
 
       const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
       const relatedOrders = allTransporteOrders.filter(order => order.osId === osId);
@@ -104,6 +111,11 @@ export default function TransportePage() {
                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Truck />Módulo de Transporte</h1>
                 <div className="text-muted-foreground mt-2 space-y-1">
                     <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
+                    {serviceOrder.space && (
+                        <p className="flex items-center gap-2">
+                            <Building className="h-3 w-3" /> {serviceOrder.space} {spaceAddress && `(${spaceAddress})`}
+                        </p>
+                    )}
                     {serviceOrder.respMetre && (
                         <p className="flex items-center gap-2">
                             Resp. Metre: {serviceOrder.respMetre} 
