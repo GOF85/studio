@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -82,29 +83,11 @@ export default function PedidosPage() {
       const existingItem = prevItems.find((i) => i.itemCode === item.itemCode);
       if (existingItem) {
         const newQuantity = existingItem.quantity + quantity;
-        if (newQuantity > item.stock) {
-          toast({
-            variant: 'destructive',
-            title: 'Stock insuficiente',
-            description: `No puedes añadir más de ${item.stock} unidades de ${item.description}.`,
-          });
-          return prevItems.map((i) =>
-            i.itemCode === item.itemCode ? { ...i, quantity: item.stock } : i
-          );
-        }
         return prevItems.map((i) =>
           i.itemCode === item.itemCode ? { ...i, quantity: newQuantity } : i
         );
       } else {
-        if (quantity > item.stock) {
-          toast({
-            variant: 'destructive',
-            title: 'Stock insuficiente',
-            description: `No puedes añadir más de ${item.stock} unidades de ${item.description}.`,
-          });
-          return [...prevItems, { ...item, quantity: item.stock }];
-        }
-        return [...prevItems, { ...item, quantity }];
+        return [...prevItems, { ...(item as CateringItem), quantity }];
       }
     });
     toast({
@@ -119,20 +102,6 @@ export default function PedidosPage() {
 
     if (quantity <= 0) {
       handleRemoveItem(itemCode);
-      return;
-    }
-
-    if (quantity > itemData.stock) {
-      toast({
-        variant: 'destructive',
-        title: 'Stock insuficiente',
-        description: `Solo hay ${itemData.stock} unidades disponibles de ${itemData.description}.`,
-      });
-      setOrderItems((prevItems) =>
-        prevItems.map((item) =>
-          item.itemCode === itemCode ? { ...item, quantity: itemData.stock } : item
-        )
-      );
       return;
     }
 

@@ -58,9 +58,6 @@ export function ItemListItem({ item, onAddItem }: ItemListItemProps) {
           {item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
           <span className="text-sm font-normal text-muted-foreground">/día</span>
         </p>
-         <Badge variant={item.stock > 0 ? "secondary" : "destructive"}>
-            {item.stock > 0 ? `${item.stock} disponibles` : "Agotado"}
-          </Badge>
       </div>
       <div className="flex items-center gap-2 w-48">
         <Input
@@ -69,14 +66,11 @@ export function ItemListItem({ item, onAddItem }: ItemListItemProps) {
           value={quantity}
           onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
           min="1"
-          max={item.stock}
           className="w-20 text-center"
-          disabled={item.stock === 0}
         />
         <Button
           className="flex-grow"
           onClick={handleAddClick}
-          disabled={item.stock === 0 || quantity > item.stock}
           aria-label={`Añadir ${item.description} al pedido`}
         >
           <Plus className="mr-2 h-4 w-4" /> Añadir
