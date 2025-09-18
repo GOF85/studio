@@ -95,7 +95,7 @@ export default function PersonalPage() {
       const matchesSearch = searchTerm.trim() === '' ||
         p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.mail.toLowerCase().includes(searchTerm.toLowerCase());
+        (p.mail || '').toLowerCase().includes(searchTerm.toLowerCase());
       return matchesDepartment && matchesSearch;
     });
   }, [personal, searchTerm, selectedDepartment]);
@@ -128,7 +128,7 @@ export default function PersonalPage() {
     if (!file) {
       return;
     }
-    Papa.parse<Personal>(file, {
+    Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
@@ -140,7 +140,15 @@ export default function PersonalPage() {
             return;
         }
         
-        const importedData = results.data;
+        const importedData: Personal[] = results.data.map(item => ({
+            id: item.id || Date.now().toString() + Math.random(),
+            nombre: item.nombre || '',
+            departamento: item.departamento || '',
+            categoria: item.categoria || '',
+            telefono: item.telefono || '',
+            mail: item.mail || '',
+        }));
+
         localStorage.setItem('personal', JSON.stringify(importedData));
         setPersonal(importedData);
         toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });

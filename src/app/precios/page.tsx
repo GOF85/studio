@@ -118,12 +118,22 @@ export default function PreciosPage() {
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
+  
+  const parseCurrency = (value: string | number) => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+        const cleaned = value.replace(/[€\s]/g, '').replace(',', '.');
+        const number = parseFloat(cleaned);
+        return isNaN(number) ? 0 : number;
+    }
+    return 0;
+  };
 
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    Papa.parse<Precio>(file, {
+    Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
@@ -135,10 +145,14 @@ export default function PreciosPage() {
             return;
         }
         
-        const importedData = results.data.map(item => ({
-            ...item,
-            precioUd: Number(item.precioUd) || 0,
-            precioAlquilerUd: Number(item.precioAlquilerUd) || 0,
+        const importedData: Precio[] = results.data.map(item => ({
+            id: item.id || Date.now().toString() + Math.random(),
+            producto: item.producto || '',
+            categoria: PRECIO_CATEGORIAS.includes(item.categoria) ? item.categoria : PRECIO_CATEGORIAS[0],
+            loc: item.loc || '',
+            precioUd: parseCurrency(item.precioUd),
+            precioAlquilerUd: parseCurrency(item.precioAlquilerUd),
+            imagen: item.imagen || '',
         }));
         
         localStorage.setItem('precios', JSON.stringify(importedData));

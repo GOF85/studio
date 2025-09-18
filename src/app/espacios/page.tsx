@@ -120,7 +120,7 @@ export default function EspaciosPage() {
       const matchesSearch = searchTerm.trim() === '' ||
         e.espacio.toLowerCase().includes(searchTerm.toLowerCase()) ||
         e.tipoDeEspacio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        e.emailContacto1.toLowerCase().includes(searchTerm.toLowerCase());
+        (e.emailContacto1 || '').toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCity && matchesSearch;
     });
   }, [espacios, searchTerm, selectedCity]);
@@ -148,11 +148,21 @@ export default function EspaciosPage() {
     fileInputRef.current?.click();
   };
 
+  const parseCurrency = (value: string | number) => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+        const cleaned = value.replace(/[€\s]/g, '').replace(',', '.');
+        const number = parseFloat(cleaned);
+        return isNaN(number) ? 0 : number;
+    }
+    return 0;
+  };
+
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    Papa.parse<Espacio>(file, {
+    Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
@@ -164,17 +174,45 @@ export default function EspaciosPage() {
             return;
         }
         
-        const importedData = results.data.map(item => ({
-            ...item,
-            canonEspacioPorcentaje: Number(item.canonEspacioPorcentaje) || 0,
-            canonEspacioFijo: Number(item.canonEspacioFijo) || 0,
-            canonMcPorcentaje: Number(item.canonMcPorcentaje) || 0,
-            canonMcFijo: Number(item.canonMcFijo) || 0,
-            comisionAlquilerMcPorcentaje: Number(item.comisionAlquilerMcPorcentaje) || 0,
+        const importedData: Espacio[] = results.data.map(item => ({
+            id: item.id || Date.now().toString() + Math.random(),
+            espacio: item.espacio || '',
+            escaparateMICE: item.escaparateMICE || '',
+            carpetaDRIVE: item.carpetaDRIVE || '',
+            calle: item.calle || '',
+            nombreContacto1: item.nombreContacto1 || '',
+            telefonoContacto1: item.telefonoContacto1 || '',
+            emailContacto1: item.emailContacto1 || '',
+            canonEspacioPorcentaje: parseCurrency(item.canonEspacioPorcentaje),
+            canonEspacioFijo: parseCurrency(item.canonEspacioFijo),
+            canonMcPorcentaje: parseCurrency(item.canonMcPorcentaje),
+            canonMcFijo: parseCurrency(item.canonMcFijo),
+            comisionAlquilerMcPorcentaje: parseCurrency(item.comisionAlquilerMcPorcentaje),
+            precioOrientativoAlquiler: item.precioOrientativoAlquiler || '',
+            horaLimiteCierre: item.horaLimiteCierre || '',
             aforoCocktail: Number(item.aforoCocktail) || 0,
             aforoBanquete: Number(item.aforoBanquete) || 0,
+            auditorio: item.auditorio || '',
             aforoAuditorio: Number(item.aforoAuditorio) || 0,
+            zonaExterior: item.zonaExterior || '',
+            capacidadesPorSala: item.capacidadesPorSala || '',
             numeroDeSalas: Number(item.numeroDeSalas) || 0,
+            tipoDeEspacio: item.tipoDeEspacio || '',
+            tipoDeEventos: item.tipoDeEventos || '',
+            ciudad: item.ciudad || '',
+            directorio: item.directorio || '',
+            descripcion: item.descripcion || '',
+            comentariosVarios: item.comentariosVarios || '',
+            equipoAudiovisuales: item.equipoAudiovisuales || '',
+            cocina: item.cocina || '',
+            accesibilidadAsistentes: item.accesibilidadAsistentes || '',
+            pantalla: item.pantalla || '',
+            plato: item.plato || '',
+            accesoVehiculos: item.accesoVehiculos || '',
+            aparcamiento: item.aparcamiento || '',
+            conexionWifi: item.conexionWifi || '',
+            homologacion: item.homologacion || '',
+            comentariosMarketing: item.comentariosMarketing || '',
         }));
         
         localStorage.setItem('espacios', JSON.stringify(importedData));

@@ -105,12 +105,22 @@ export default function AlquilerDBPage() {
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
+  
+  const parseCurrency = (value: string | number) => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+        const cleaned = value.replace(/[€\s]/g, '').replace(',', '.');
+        const number = parseFloat(cleaned);
+        return isNaN(number) ? 0 : number;
+    }
+    return 0;
+  };
 
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    Papa.parse<AlquilerDBItem>(file, {
+    Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
@@ -122,10 +132,11 @@ export default function AlquilerDBPage() {
             return;
         }
         
-        const importedData = results.data.map(item => ({
-            ...item,
-            precioAlquiler: Number(item.precioAlquiler) || 0,
-            precioReposicion: Number(item.precioReposicion) || 0,
+        const importedData: AlquilerDBItem[] = results.data.map(item => ({
+            id: item.id || Date.now().toString() + Math.random(),
+            concepto: item.concepto || '',
+            precioAlquiler: parseCurrency(item.precioAlquiler),
+            precioReposicion: parseCurrency(item.precioReposicion),
         }));
         
         localStorage.setItem('alquilerDB', JSON.stringify(importedData));

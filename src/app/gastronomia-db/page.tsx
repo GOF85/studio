@@ -123,12 +123,22 @@ export default function GastronomiaDBPage() {
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
+  
+  const parseCurrency = (value: string | number) => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+        const cleaned = value.replace(/[€\s]/g, '').replace(',', '.');
+        const number = parseFloat(cleaned);
+        return isNaN(number) ? 0 : number;
+    }
+    return 0;
+  };
 
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    Papa.parse<GastronomiaDBItem>(file, {
+    Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
@@ -140,9 +150,13 @@ export default function GastronomiaDBPage() {
             return;
         }
         
-        const importedData = results.data.map(item => ({
-            ...item,
-            precio: Number(item.precio) || 0,
+        const importedData: GastronomiaDBItem[] = results.data.map(item => ({
+            id: item.id || Date.now().toString() + Math.random(),
+            referencia: item.referencia || '',
+            categoria: item.categoria || '',
+            imagenRef: item.imagenRef || '',
+            imagenEmpl: item.imagenEmpl || '',
+            precio: parseCurrency(item.precio),
             gramaje: Number(item.gramaje) || 0,
         }));
         
