@@ -152,7 +152,7 @@ export default function GastronomiaDBPage() {
         }
         
         const importedData: GastronomiaDBItem[] = results.data.map(item => ({
-            id: item.id || Date.now().toString() + Math.random(),
+            id: item.id || Date.now().toString() + Math.random().toString(),
             referencia: item.referencia || '',
             categoria: item.categoria || '',
             imagenRef: item.imagenRef || '',
@@ -322,3 +322,4 @@ export default function GastronomiaDBPage() {
     </>
   );
 }
+
