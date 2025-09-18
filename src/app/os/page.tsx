@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -66,7 +67,7 @@ export const osFormSchema = z.object({
   finalClient: z.string().optional().default(''),
   commercial: z.string().optional().default(''),
   commercialPhone: z.string().optional().default(''),
-  commercialMail: z.string().optional().default(''),
+  commercialMail: z.string().email().optional().or(z.literal('')),
   pax: z.coerce.number().optional().default(0),
   endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
   space: z.string().optional().default(''),
@@ -74,16 +75,16 @@ export const osFormSchema = z.object({
   spacePhone: z.string().optional().default(''),
   respMetre: z.string().optional().default(''),
   respMetrePhone: z.string().optional().default(''),
-  respMetreMail: z.string().optional().default(''),
+  respMetreMail: z.string().email().optional().or(z.literal('')),
   respCocina: z.string().optional().default(''),
   respCocinaPhone: z.string().optional().default(''),
-  respCocinaMail: z.string().optional().default(''),
+  respCocinaMail: z.string().email().optional().or(z.literal('')),
   respPase: z.string().optional().default(''),
   respPasePhone: z.string().optional().default(''),
-  respPaseMail: z.string().optional().default(''),
+  respPaseMail: z.string().email().optional().or(z.literal('')),
   respCocinaPase: z.string().optional().default(''),
   respCocinaPasePhone: z.string().optional().default(''),
-  respCocinaPaseMail: z.string().optional().default(''),
+  respCocinaPaseMail: z.string().email().optional().or(z.literal('')),
   agencyPercentage: z.coerce.number().optional().default(0),
   spacePercentage: z.coerce.number().optional().default(0),
   facturacion: z.coerce.number().optional().default(0),
@@ -223,6 +224,7 @@ export default function OsPage() {
       const currentOS = allOS.find(os => os.id === osId) || null;
       if (currentOS) {
         const values = {
+            ...defaultValues, // Ensure all keys are present
             ...currentOS,
             startDate: new Date(currentOS.startDate),
             endDate: new Date(currentOS.endDate),
@@ -746,5 +748,7 @@ export default function OsPage() {
     </TooltipProvider>
   );
 }
+
+    
 
     
