@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
@@ -35,11 +35,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { CATERING_ITEMS } from '@/lib/data';
+import { Input } from '@/components/ui/input';
 
 export default function PesPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const router = useRouter();
   const { toast } = useToast();
 
@@ -159,6 +161,12 @@ export default function PesPage() {
     }
   }, [toast]);
 
+  const filteredOrders = useMemo(() => {
+    return serviceOrders.filter(os =>
+      os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [serviceOrders, searchTerm]);
+
   const handleDelete = () => {
     if (!orderToDelete) return;
 
@@ -192,6 +200,15 @@ export default function PesPage() {
           </Button>
         </div>
 
+        <div className="mb-6">
+          <Input
+            placeholder="Buscar por Nº Servicio..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
+
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
@@ -206,8 +223,8 @@ export default function PesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {serviceOrders.length > 0 ? (
-                serviceOrders.map(os => (
+              {filteredOrders.length > 0 ? (
+                filteredOrders.map(os => (
                   <TableRow key={os.id} onClick={() => router.push(`/os?id=${os.id}`)} className="cursor-pointer">
                     <TableCell className="font-medium">{os.serviceNumber}</TableCell>
                     <TableCell>{os.client}</TableCell>
@@ -244,7 +261,7 @@ export default function PesPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center">
-                    No hay órdenes de servicio.
+                    No hay órdenes de servicio que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>
               )}
