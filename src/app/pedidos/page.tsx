@@ -90,10 +90,6 @@ export default function PedidosPage() {
         return [...prevItems, { ...(item as CateringItem), quantity }];
       }
     });
-    toast({
-      title: 'Artículo añadido',
-      description: `${quantity} x ${item.description} añadido(s) al pedido.`,
-    });
   };
 
   const handleUpdateQuantity = (itemCode: string, quantity: number) => {
