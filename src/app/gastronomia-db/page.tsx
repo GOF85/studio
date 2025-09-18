@@ -85,7 +85,7 @@ export default function GastronomiaDBPage() {
       setGastronomia(JSON.parse(storedData));
     }
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const categories = useMemo(() => {
     if (!gastronomia) return [];
@@ -322,4 +322,5 @@ export default function GastronomiaDBPage() {
     </>
   );
 }
+
 
