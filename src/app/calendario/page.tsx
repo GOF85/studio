@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   format,
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
-  getDay,
   isSameMonth,
   isSameDay,
   add,
@@ -15,20 +16,30 @@ import {
   endOfWeek,
 } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
-import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users } from 'lucide-react';
+import type { ServiceOrder, ComercialBriefing } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 type CalendarEvent = {
   date: Date;
+  osId: string;
   serviceNumber: string;
   serviceType: string;
   space: string;
+  finalClient: string;
+  pax: number;
 };
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -37,6 +48,7 @@ export default function CalendarioServiciosPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const serviceOrders: ServiceOrder[] = JSON.parse(localStorage.getItem('serviceOrders') || '[]');
@@ -50,9 +62,12 @@ export default function CalendarioServiciosPage() {
         briefing.items.forEach(item => {
           allEvents.push({
             date: new Date(item.fecha),
+            osId: serviceOrder.id,
             serviceNumber: serviceOrder.serviceNumber,
             serviceType: item.descripcion,
             space: serviceOrder.space || 'N/A',
+            finalClient: serviceOrder.finalClient || '',
+            pax: item.asistentes,
           });
         });
       }
@@ -65,26 +80,20 @@ export default function CalendarioServiciosPage() {
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   
-  // Adjust start of week to Monday (iso week)
   const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
   const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
 
   const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
 
   const eventsByDay = useMemo(() => {
-    const grouped: { [key: string]: { serviceNumber: string; serviceType: string; space: string }[] } = {};
+    const grouped: { [key: string]: CalendarEvent[] } = {};
     events.forEach(event => {
       const dayKey = format(event.date, 'yyyy-MM-dd');
       if (!grouped[dayKey]) {
         grouped[dayKey] = [];
       }
-      // Evitar duplicados por día y número de servicio
-      if (!grouped[dayKey].some(e => e.serviceNumber === event.serviceNumber)) {
-        grouped[dayKey].push({
-          serviceNumber: event.serviceNumber,
-          serviceType: event.serviceType,
-          space: event.space
-        });
+      if (!grouped[dayKey].some(e => e.osId === event.osId && e.serviceType === event.serviceType)) {
+        grouped[dayKey].push(event);
       }
     });
     return grouped;
@@ -98,7 +107,7 @@ export default function CalendarioServiciosPage() {
   }
 
   return (
-    <>
+    <TooltipProvider delayDuration={100}>
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
@@ -129,7 +138,7 @@ export default function CalendarioServiciosPage() {
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-7 grid-rows-5">
+          <div className="grid grid-cols-7 auto-rows-fr">
             {calendarDays.map((day) => {
               const dayKey = format(day, 'yyyy-MM-dd');
               const dayEvents = eventsByDay[dayKey] || [];
@@ -149,21 +158,50 @@ export default function CalendarioServiciosPage() {
                     {format(day, 'd')}
                   </span>
                   <div className="flex-grow overflow-y-auto mt-1 space-y-1">
-                    <TooltipProvider delayDuration={100}>
-                      {dayEvents.map(event => (
-                        <Tooltip key={event.serviceNumber}>
+                      {dayEvents.slice(0, 3).map(event => (
+                        <Tooltip key={`${event.osId}-${event.serviceType}`}>
                           <TooltipTrigger asChild>
-                            <Badge variant="secondary" className="w-full justify-start truncate cursor-default">
-                              {event.serviceNumber}
-                            </Badge>
+                            <Link href={`/os?id=${event.osId}`}>
+                                <Badge variant="secondary" className="w-full justify-start truncate cursor-pointer">
+                                {event.serviceNumber}
+                                </Badge>
+                            </Link>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="font-bold">{event.serviceType}</p>
-                            <p>Espacio: {event.space}</p>
+                            <p>Espacio: {event.space}{event.finalClient && ` - ${event.finalClient}`}</p>
+                            <p className="flex items-center gap-1"><Users className="h-3 w-3"/>{event.pax} pax</p>
                           </TooltipContent>
                         </Tooltip>
                       ))}
-                    </TooltipProvider>
+                      {dayEvents.length > 3 && (
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="link" size="sm" className="p-0 h-auto text-xs">
+                                ... (+{dayEvents.length - 3} más)
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Servicios del {format(day, 'dd/MM/yyyy')}</DialogTitle>
+                                </DialogHeader>
+                                <ul className="space-y-3 py-4">
+                                    {dayEvents.map(event => (
+                                         <li key={`${event.osId}-${event.serviceType}`} className="flex items-center justify-between">
+                                            <div>
+                                                <Link href={`/os?id=${event.osId}`} className="font-semibold text-primary hover:underline">{event.serviceNumber} - {event.serviceType}</Link>
+                                                <p className="text-sm text-muted-foreground">{event.space}{event.finalClient && ` - ${event.finalClient}`}</p>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                                <Users className="h-4 w-4"/>
+                                                {event.pax}
+                                            </div>
+                                         </li>
+                                    ))}
+                                </ul>
+                            </DialogContent>
+                        </Dialog>
+                      )}
                   </div>
                 </div>
               );
@@ -171,6 +209,6 @@ export default function CalendarioServiciosPage() {
           </div>
         </div>
       </main>
-    </>
+    </TooltipProvider>
   );
 }
