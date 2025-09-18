@@ -36,6 +36,7 @@ import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 
 const CSV_HEADERS = ["id", "concepto", "precioAlquiler", "precioReposicion", "imagen"];
 
@@ -44,6 +45,7 @@ export default function AlquilerDBPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -165,6 +167,13 @@ export default function AlquilerDBPage() {
     toast({ title: 'Artículo eliminado', description: 'El registro se ha eliminado correctamente.' });
     setItemToDelete(null);
   };
+  
+  const handleClearDatabase = () => {
+    localStorage.removeItem('alquilerDB');
+    setItems([]);
+    toast({ title: 'Base de datos eliminada', description: 'Todos los registros de alquiler han sido eliminados.' });
+    setShowClearConfirm(false);
+  }
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Base de Datos de Alquiler..." />;
@@ -177,20 +186,9 @@ export default function AlquilerDBPage() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Truck />Base de Datos de Alquiler</h1>
           <div className="flex gap-2">
-            <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".csv"
-                onChange={handleImportCSV}
-            />
-            <Button variant="outline" onClick={handleImportClick}>
-              <FileUp className="mr-2" />
-              Importar CSV
-            </Button>
-            <Button variant="outline" onClick={handleExportCSV}>
-              <FileDown className="mr-2" />
-              Exportar CSV
+            <Button variant="destructive" onClick={() => setShowClearConfirm(true)}>
+              <Trash2 className="mr-2" />
+              Vaciar Base de Datos
             </Button>
             <Button asChild>
               <Link href="/alquiler-db/nuevo">
@@ -200,6 +198,26 @@ export default function AlquilerDBPage() {
             </Button>
           </div>
         </div>
+        
+        <Card className="mb-6">
+          <CardContent className="pt-6 flex flex-col md:flex-row gap-4">
+             <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".csv"
+                onChange={handleImportCSV}
+            />
+            <Button variant="outline" className="w-full md:w-auto" onClick={handleImportClick}>
+              <FileUp className="mr-2" />
+              Importar CSV
+            </Button>
+            <Button variant="outline" className="w-full md:w-auto" onClick={handleExportCSV}>
+              <FileDown className="mr-2" />
+              Exportar CSV
+            </Button>
+          </CardContent>
+        </Card>
 
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
@@ -280,6 +298,26 @@ export default function AlquilerDBPage() {
               onClick={handleDelete}
             >
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vaciar Base de Datos de Alquiler</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro? Esta acción no se puede deshacer. Se eliminarán TODOS los registros de alquiler permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleClearDatabase}
+            >
+              Sí, vaciar base de datos
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

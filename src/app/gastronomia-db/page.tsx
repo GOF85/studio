@@ -37,6 +37,7 @@ import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 
 const CSV_HEADERS = ["id", "referencia", "categoria", "imagenRef", "imagenEmpl", "precio", "gramaje"];
 
@@ -46,6 +47,7 @@ export default function GastronomiaDBPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -85,7 +87,7 @@ export default function GastronomiaDBPage() {
       setGastronomia(JSON.parse(storedData));
     }
     setIsMounted(true);
-  }, []);
+  }, [toast]);
   
   const categories = useMemo(() => {
     if (!gastronomia) return [];
@@ -183,6 +185,13 @@ export default function GastronomiaDBPage() {
     setItemToDelete(null);
   };
 
+  const handleClearDatabase = () => {
+    localStorage.removeItem('gastronomiaDB');
+    setGastronomia([]);
+    toast({ title: 'Base de datos eliminada', description: 'Todos los registros de gastronomía han sido eliminados.' });
+    setShowClearConfirm(false);
+  }
+
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Base de Datos de Gastronomía..." />;
   }
@@ -194,20 +203,9 @@ export default function GastronomiaDBPage() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Utensils />Base de Datos de Gastronomía</h1>
           <div className="flex gap-2">
-            <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".csv"
-                onChange={handleImportCSV}
-            />
-            <Button variant="outline" onClick={handleImportClick}>
-              <FileUp className="mr-2" />
-              Importar CSV
-            </Button>
-            <Button variant="outline" onClick={handleExportCSV}>
-              <FileDown className="mr-2" />
-              Exportar CSV
+            <Button variant="destructive" onClick={() => setShowClearConfirm(true)}>
+              <Trash2 className="mr-2" />
+              Vaciar Base de Datos
             </Button>
             <Button asChild>
               <Link href="/gastronomia-db/nuevo">
@@ -217,6 +215,26 @@ export default function GastronomiaDBPage() {
             </Button>
           </div>
         </div>
+        
+        <Card className="mb-6">
+          <CardContent className="pt-6 flex flex-col md:flex-row gap-4">
+             <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".csv"
+                onChange={handleImportCSV}
+            />
+            <Button variant="outline" className="w-full md:w-auto" onClick={handleImportClick}>
+              <FileUp className="mr-2" />
+              Importar CSV
+            </Button>
+            <Button variant="outline" className="w-full md:w-auto" onClick={handleExportCSV}>
+              <FileDown className="mr-2" />
+              Exportar CSV
+            </Button>
+          </CardContent>
+        </Card>
 
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
@@ -319,8 +337,26 @@ export default function GastronomiaDBPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vaciar Base de Datos de Gastronomía</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro? Esta acción no se puede deshacer. Se eliminarán TODOS los registros de gastronomía permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleClearDatabase}
+            >
+              Sí, vaciar base de datos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
-
-

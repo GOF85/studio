@@ -36,6 +36,7 @@ import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 
 const CSV_HEADERS = [ "id", "espacio", "escaparateMICE", "carpetaDRIVE", "calle", "nombreContacto1", "telefonoContacto1", "emailContacto1", "canonEspacioPorcentaje", "canonEspacioFijo", "canonMcPorcentaje", "canonMcFijo", "comisionAlquilerMcPorcentaje", "precioOrientativoAlquiler", "horaLimiteCierre", "aforoCocktail", "aforoBanquete", "auditorio", "aforoAuditorio", "zonaExterior", "capacidadesPorSala", "numeroDeSalas", "tipoDeEspacio", "tipoDeEventos", "ciudad", "directorio", "descripcion", "comentariosVarios", "equipoAudiovisuales", "cocina", "accesibilidadAsistentes", "pantalla", "plato", "accesoVehiculos", "aparcamiento", "conexionWifi", "homologacion", "comentariosMarketing"];
 
@@ -45,6 +46,7 @@ export default function EspaciosPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('all');
   const [espacioToDelete, setEspacioToDelete] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
 
   const router = useRouter();
@@ -237,6 +239,13 @@ export default function EspaciosPage() {
     toast({ title: 'Espacio eliminado', description: 'El registro se ha eliminado correctamente.' });
     setEspacioToDelete(null);
   };
+  
+  const handleClearDatabase = () => {
+    localStorage.removeItem('espacios');
+    setEspacios([]);
+    toast({ title: 'Base de datos eliminada', description: 'Todos los registros de espacios han sido eliminados.' });
+    setShowClearConfirm(false);
+  }
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Gestión de Espacios..." />;
@@ -249,20 +258,9 @@ export default function EspaciosPage() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Building />Gestión de Espacios</h1>
           <div className="flex gap-2">
-            <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".csv"
-                onChange={handleImportCSV}
-            />
-            <Button variant="outline" onClick={handleImportClick}>
-              <FileUp className="mr-2" />
-              Importar CSV
-            </Button>
-            <Button variant="outline" onClick={handleExportCSV}>
-              <FileDown className="mr-2" />
-              Exportar CSV
+             <Button variant="destructive" onClick={() => setShowClearConfirm(true)}>
+              <Trash2 className="mr-2" />
+              Vaciar Base de Datos
             </Button>
             <Button asChild>
               <Link href="/espacios/nuevo">
@@ -272,6 +270,26 @@ export default function EspaciosPage() {
             </Button>
           </div>
         </div>
+
+        <Card className="mb-6">
+          <CardContent className="pt-6 flex flex-col md:flex-row gap-4">
+             <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".csv"
+                onChange={handleImportCSV}
+            />
+            <Button variant="outline" className="w-full md:w-auto" onClick={handleImportClick}>
+              <FileUp className="mr-2" />
+              Importar CSV
+            </Button>
+            <Button variant="outline" className="w-full md:w-auto" onClick={handleExportCSV}>
+              <FileDown className="mr-2" />
+              Exportar CSV
+            </Button>
+          </CardContent>
+        </Card>
 
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
@@ -365,6 +383,26 @@ export default function EspaciosPage() {
               onClick={handleDelete}
             >
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vaciar Base de Datos de Espacios</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro? Esta acción no se puede deshacer. Se eliminarán TODOS los registros de espacios permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleClearDatabase}
+            >
+              Sí, vaciar base de datos
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
