@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import type { ServiceOrder } from '@/types';
@@ -39,6 +39,7 @@ import { CATERING_ITEMS } from '@/lib/data';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function PesPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
@@ -46,6 +47,7 @@ export default function PesPage() {
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [showPastEvents, setShowPastEvents] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -211,8 +213,9 @@ export default function PesPage() {
   }, [serviceOrders]);
   
   const filteredAndSortedOrders = useMemo(() => {
+    const today = startOfToday();
     const filtered = serviceOrders.filter(os => {
-      const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || os.client.toLowerCase().includes(searchTerm.toLowerCase());
       
       let monthMatch = true;
       if (selectedMonth !== 'all') {
@@ -224,12 +227,21 @@ export default function PesPage() {
         }
       }
       
-      return searchMatch && monthMatch;
+      let pastEventMatch = true;
+      if (!showPastEvents) {
+          try {
+              pastEventMatch = !isBefore(new Date(os.endDate), today);
+          } catch (e) {
+              pastEventMatch = true; // if date is invalid, better to show it
+          }
+      }
+
+      return searchMatch && monthMatch && pastEventMatch;
     });
 
     return filtered.sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime());
 
-  }, [serviceOrders, searchTerm, selectedMonth]);
+  }, [serviceOrders, searchTerm, selectedMonth, showPastEvents]);
 
   const handleDelete = () => {
     if (!orderToDelete) return;
@@ -264,15 +276,15 @@ export default function PesPage() {
           </Button>
         </div>
 
-        <div className="flex gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <Input
-            placeholder="Buscar por Nº Servicio..."
+            placeholder="Buscar por Nº Servicio o Cliente..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm"
           />
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[240px]">
+            <SelectTrigger className="w-full sm:w-[240px]">
               <SelectValue placeholder="Filtrar por mes" />
             </SelectTrigger>
             <SelectContent>
@@ -284,6 +296,12 @@ export default function PesPage() {
               ))}
             </SelectContent>
           </Select>
+           <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+                <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
+                <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Mostrar eventos finalizados
+                </label>
+            </div>
         </div>
 
         <div className="border rounded-lg">
