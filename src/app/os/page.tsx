@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -65,6 +66,7 @@ export const osFormSchema = z.object({
   finalClient: z.string().optional().default(''),
   commercial: z.string().optional().default(''),
   commercialPhone: z.string().optional().default(''),
+  commercialMail: z.string().optional().default(''),
   pax: z.coerce.number().optional().default(0),
   endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
   space: z.string().optional().default(''),
@@ -72,12 +74,16 @@ export const osFormSchema = z.object({
   spacePhone: z.string().optional().default(''),
   respMetre: z.string().optional().default(''),
   respMetrePhone: z.string().optional().default(''),
+  respMetreMail: z.string().optional().default(''),
   respCocina: z.string().optional().default(''),
   respCocinaPhone: z.string().optional().default(''),
+  respCocinaMail: z.string().optional().default(''),
   respPase: z.string().optional().default(''),
   respPasePhone: z.string().optional().default(''),
-  respCocinaCPR: z.string().optional().default(''),
-  respCocinaCPRPhone: z.string().optional().default(''),
+  respPaseMail: z.string().optional().default(''),
+  respCocinaPase: z.string().optional().default(''),
+  respCocinaPasePhone: z.string().optional().default(''),
+  respCocinaPaseMail: z.string().optional().default(''),
   agencyPercentage: z.coerce.number().optional().default(0),
   spacePercentage: z.coerce.number().optional().default(0),
   facturacion: z.coerce.number().optional().default(0),
@@ -94,9 +100,9 @@ export const osFormSchema = z.object({
 export type OsFormValues = z.infer<typeof osFormSchema>;
 
 const defaultValues: Partial<OsFormValues> = {
-  serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', commercialPhone: '', pax: 0,
-  space: '', spaceContact: '', spacePhone: '', respMetre: '', respMetrePhone: '', respCocina: '', respCocinaPhone: '',
-  respPase: '', respPasePhone: '', respCocinaCPR: '', respCocinaCPRPhone: '',
+  serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', commercialPhone: '', commercialMail: '', pax: 0,
+  space: '', spaceContact: '', spacePhone: '', respMetre: '', respMetrePhone: '', respMetreMail: '', respCocina: '', respCocinaPhone: '', respCocinaMail: '',
+  respPase: '', respPasePhone: '', respPaseMail: '', respCocinaPase: '', respCocinaPasePhone: '', respCocinaPaseMail: '',
   agencyPercentage: 0, spacePercentage: 0, facturacion: 0,
   uniformity: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', deliveryLocations: [],
   status: 'Borrador',
@@ -134,8 +140,8 @@ const EspacioTitle = () => {
 
 const ResponsablesTitle = () => {
     const metre = useWatch({ name: 'respMetre' });
-    const cocina = useWatch({ name: 'respCocina' });
-    let details = [metre, cocina].filter(Boolean).join(' - ');
+    const pase = useWatch({ name: 'respPase' });
+    let details = [metre, pase].filter(Boolean).join(' - ');
     return (
         <h3 className="text-lg font-semibold">
           Responsables
@@ -167,6 +173,7 @@ export default function OsPage() {
   const personalSala = useMemo(() => personal.filter(p => p.departamento === 'SALA'), [personal]);
   const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR'), [personal]);
   const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'COMERCIAL'), [personal]);
+  const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA'), [personal]);
 
   const form = useForm<OsFormValues>({
     resolver: zodResolver(osFormSchema),
@@ -175,9 +182,10 @@ export default function OsPage() {
 
   const { formState: { isDirty }, setValue } = form;
   
-  const handlePersonalChange = (name: string, phoneField: keyof OsFormValues) => {
+  const handlePersonalChange = (name: string, phoneField: keyof OsFormValues, mailField: keyof OsFormValues) => {
     const person = personal.find(p => p.nombre === name);
     setValue(phoneField, person?.telefono || '', { shouldDirty: true });
+    setValue(mailField, person?.mail || '', { shouldDirty: true });
   }
 
   useEffect(() => {
@@ -517,11 +525,11 @@ export default function OsPage() {
                        <AccordionItem value="responsables">
                         <AccordionTrigger><ResponsablesTitle /></AccordionTrigger>
                         <AccordionContent>
-                           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+                           <div className="grid md:grid-cols-3 gap-6 pt-4">
                               <FormField control={form.control} name="respMetre" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Resp. Metre</FormLabel>
-                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respMetrePhone'); }} value={field.value}>
+                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respMetrePhone', 'respMetreMail'); }} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                     <SelectContent>
                                       {personalSala.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
@@ -532,14 +540,16 @@ export default function OsPage() {
                                <FormField control={form.control} name="respMetrePhone" render={({ field }) => (
                                 <FormItem><FormLabel>Tlf. Resp. Metre</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                )} />
-                               <div></div>
+                               <FormField control={form.control} name="respMetreMail" render={({ field }) => (
+                                <FormItem><FormLabel>Mail Resp. Metre</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                               )} />
                               <FormField control={form.control} name="respCocina" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Resp. Cocina</FormLabel>
-                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respCocinaPhone'); }} value={field.value}>
+                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respCocinaPhone', 'respCocinaMail'); }} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                     <SelectContent>
-                                      {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
+                                      {personalCocina.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
                                     </SelectContent>
                                   </Select>
                                 </FormItem>
@@ -547,11 +557,13 @@ export default function OsPage() {
                                <FormField control={form.control} name="respCocinaPhone" render={({ field }) => (
                                 <FormItem><FormLabel>Tlf. Resp. Cocina</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                )} />
-                               <div></div>
+                               <FormField control={form.control} name="respCocinaMail" render={({ field }) => (
+                                <FormItem><FormLabel>Mail Resp. Cocina</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                               )} />
                               <FormField control={form.control} name="respPase" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Resp. Pase</FormLabel>
-                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respPasePhone'); }} value={field.value}>
+                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respPasePhone', 'respPaseMail'); }} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                     <SelectContent>
                                       {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
@@ -562,11 +574,13 @@ export default function OsPage() {
                                <FormField control={form.control} name="respPasePhone" render={({ field }) => (
                                 <FormItem><FormLabel>Tlf. Resp. Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                )} />
-                               <div></div>
-                              <FormField control={form.control} name="respCocinaCPR" render={({ field }) => (
+                               <FormField control={form.control} name="respPaseMail" render={({ field }) => (
+                                <FormItem><FormLabel>Mail Resp. Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                               )} />
+                              <FormField control={form.control} name="respCocinaPase" render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Resp. Cocina CPR</FormLabel>
-                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respCocinaCPRPhone'); }} value={field.value}>
+                                  <FormLabel>Resp. Cocina Pase</FormLabel>
+                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respCocinaPasePhone', 'respCocinaPaseMail'); }} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                     <SelectContent>
                                       {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
@@ -574,14 +588,16 @@ export default function OsPage() {
                                   </Select>
                                 </FormItem>
                               )} />
-                               <FormField control={form.control} name="respCocinaCPRPhone" render={({ field }) => (
-                                <FormItem><FormLabel>Tlf. Resp. Cocina CPR</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                               <FormField control={form.control} name="respCocinaPasePhone" render={({ field }) => (
+                                <FormItem><FormLabel>Tlf. Resp. Cocina Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                )} />
-                               <div></div>
+                               <FormField control={form.control} name="respCocinaPaseMail" render={({ field }) => (
+                                <FormItem><FormLabel>Mail Resp. Cocina Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                               )} />
                               <FormField control={form.control} name="commercial" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Resp. Comercial</FormLabel>
-                                    <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'commercialPhone'); }} value={field.value}>
+                                    <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'commercialPhone', 'commercialMail'); }} value={field.value}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                         <SelectContent>
                                         {personalComercial.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
@@ -591,6 +607,9 @@ export default function OsPage() {
                                 )} />
                                <FormField control={form.control} name="commercialPhone" render={({ field }) => (
                                 <FormItem><FormLabel>Tlf. Resp. Comercial</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                               )} />
+                               <FormField control={form.control} name="commercialMail" render={({ field }) => (
+                                <FormItem><FormLabel>Mail Resp. Comercial</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                )} />
                            </div>
                         </AccordionContent>
@@ -727,3 +746,5 @@ export default function OsPage() {
     </TooltipProvider>
   );
 }
+
+    
