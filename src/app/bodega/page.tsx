@@ -155,9 +155,7 @@ export default function BodegaPage() {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Artículo</TableHead>
-                                            <TableHead>Cód.</TableHead>
                                             <TableHead>Cantidad</TableHead>
-                                            <TableHead>Nº Contrato</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -165,14 +163,12 @@ export default function BodegaPage() {
                                             allItemsByStatus[status].map(item => (
                                                 <TableRow key={`${item.itemCode}-${item.orderContract}`}>
                                                     <TableCell className="font-medium">{item.description}</TableCell>
-                                                    <TableCell>{item.itemCode}</TableCell>
                                                     <TableCell>{item.quantity}</TableCell>
-                                                    <TableCell>{item.orderContract}</TableCell>
                                                 </TableRow>
                                             ))
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan={4} className="h-24 text-center">
+                                                <TableCell colSpan={2} className="h-24 text-center">
                                                     No hay artículos en estado "{status}".
                                                 </TableCell>
                                             </TableRow>
