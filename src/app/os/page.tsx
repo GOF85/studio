@@ -42,6 +42,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
+import { useLoadingStore } from '@/hooks/use-loading-store';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
@@ -151,7 +152,7 @@ export default function OsPage() {
 
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [totalAmount, setTotalAmount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const { isLoading, setIsLoading } = useLoadingStore();
   const [accordionDefaultValue, setAccordionDefaultValue] = useState<string[] | undefined>(undefined);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [isSubmittingFromDialog, setIsSubmittingFromDialog] = useState(false);

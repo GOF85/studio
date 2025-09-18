@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
+import { useLoadingStore } from '@/hooks/use-loading-store';
 
 export const alquilerFormSchema = z.object({
   id: z.string(),
@@ -36,7 +37,7 @@ export default function AlquilerFormPage() {
   const id = params.id as string;
   const isEditing = id !== 'nuevo';
 
-  const [isLoading, setIsLoading] = useState(false);
+  const { isLoading, setIsLoading } = useLoadingStore();
   const { toast } = useToast();
 
   const form = useForm<AlquilerFormValues>({

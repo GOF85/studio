@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
+import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export const espacioFormSchema = z.object({
@@ -77,7 +78,7 @@ export default function EspacioFormPage() {
   const id = params.id as string;
   const isEditing = id !== 'nuevo';
 
-  const [isLoading, setIsLoading] = useState(false);
+  const { isLoading, setIsLoading } = useLoadingStore();
   const { toast } = useToast();
 
   const form = useForm<EspacioFormValues>({
