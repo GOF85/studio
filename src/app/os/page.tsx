@@ -56,6 +56,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
 
 
 export const osFormSchema = z.object({
@@ -66,9 +68,10 @@ export const osFormSchema = z.object({
   contact: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
-  commercial: z.string().optional().default(''),
-  commercialPhone: z.string().optional().default(''),
-  commercialMail: z.string().email().optional().or(z.literal('')),
+  comercial: z.string().optional().default(''),
+  comercialPhone: z.string().optional().default(''),
+  comercialMail: z.string().email().optional().or(z.literal('')),
+  comercialAsiste: z.boolean().optional().default(false),
   pax: z.coerce.number().optional().default(0),
   endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
   space: z.string().optional().default(''),
@@ -102,7 +105,7 @@ export const osFormSchema = z.object({
 export type OsFormValues = z.infer<typeof osFormSchema>;
 
 const defaultValues: Partial<OsFormValues> = {
-  serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', commercialPhone: '', commercialMail: '', pax: 0,
+  serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', commercialPhone: '', commercialMail: '', commercialAsiste: false, pax: 0,
   space: '', spaceContact: '', spacePhone: '', respMetre: '', respMetrePhone: '', respMetreMail: '', respCocinaCPR: '', respCocinaCPRPhone: '', respCocinaCPRMail: '',
   respPase: '', respPasePhone: '', respPaseMail: '', respCocinaPase: '', respCocinaPasePhone: '', respCocinaPaseMail: '',
   agencyPercentage: 0, spacePercentage: 0, facturacion: 0,
@@ -613,8 +616,27 @@ export default function OsPage() {
                                <FormField control={form.control} name="respCocinaCPRMail" render={({ field }) => (
                                 <FormItem><FormLabel>Mail Resp. Cocina CPR</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                )} />
-
-                              <FormField control={form.control} name="commercial" render={({ field }) => (
+                            </div>
+                            <Separator className="my-4" />
+                            <div className="grid md:grid-cols-3 gap-6 pt-4">
+                                <FormField
+                                    control={form.control}
+                                    name="comercialAsiste"
+                                    render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-start gap-3 rounded-lg border p-3 col-span-3">
+                                        <FormControl>
+                                        <Checkbox
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                        </FormControl>
+                                        <FormLabel className="!m-0 text-base">
+                                            Comercial asiste al evento
+                                        </FormLabel>
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField control={form.control} name="commercial" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Resp. Comercial</FormLabel>
                                     <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'commercialPhone', 'commercialMail'); }} value={field.value}>
@@ -625,13 +647,14 @@ export default function OsPage() {
                                     </Select>
                                 </FormItem>
                                 )} />
-                               <FormField control={form.control} name="commercialPhone" render={({ field }) => (
+                                <FormField control={form.control} name="commercialPhone" render={({ field }) => (
                                 <FormItem><FormLabel>Tlf. Resp. Comercial</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                               )} />
-                               <FormField control={form.control} name="commercialMail" render={({ field }) => (
+                                )} />
+                                <FormField control={form.control} name="commercialMail" render={({ field }) => (
                                 <FormItem><FormLabel>Mail Resp. Comercial</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                               )} />
+                                )} />
                            </div>
+                           <Separator className="my-4" />
                         </AccordionContent>
                       </AccordionItem>
                     </Accordion>}
@@ -770,3 +793,4 @@ export default function OsPage() {
     
 
     
+
