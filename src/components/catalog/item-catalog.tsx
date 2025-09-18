@@ -12,9 +12,10 @@ interface ItemCatalogProps {
   items: CateringItem[];
   orderItems: OrderItem[];
   onAddItem: (item: CateringItem, quantity: number) => void;
+  orderType: string | null;
 }
 
-export function ItemCatalog({ items, onAddItem, orderItems }: ItemCatalogProps) {
+export function ItemCatalog({ items, onAddItem, orderItems, orderType }: ItemCatalogProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
@@ -32,7 +33,7 @@ export function ItemCatalog({ items, onAddItem, orderItems }: ItemCatalogProps) 
     <section>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
         <h2 className="text-3xl font-headline font-bold tracking-tight">Catálogo de Artículos</h2>
-        <AssistantDialog onAddSuggestedItem={onAddItem} />
+        {orderType !== 'Alquiler' && <AssistantDialog onAddSuggestedItem={onAddItem} />}
       </div>
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <Input 

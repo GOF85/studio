@@ -29,6 +29,7 @@ export default function BdPage() {
     { id: '2', name: 'Espacios', description: 'Gestión de espacios para eventos.', itemCount: 0, path: '/espacios' },
     { id: '3', name: 'Precios', description: 'Gestión de precios de productos.', itemCount: 0, path: '/precios' },
     { id: '4', name: 'Gastronomía (Platos)', description: 'Gestión de platos y menús.', itemCount: 0, path: '/gastronomia-db' },
+    { id: '5', name: 'Alquiler', description: 'Gestión de artículos de alquiler a proveedores.', itemCount: 0, path: '/alquiler-db' },
   ]);
 
   return (

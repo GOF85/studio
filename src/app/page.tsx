@@ -2,22 +2,25 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { OrderItem, CateringItem, MaterialOrder, ServiceOrder } from '@/types';
+import type { OrderItem, CateringItem, MaterialOrder, ServiceOrder, AlquilerDBItem } from '@/types';
 import { CATERING_ITEMS } from '@/lib/data';
 import { Header } from '@/components/layout/header';
 import { ItemCatalog } from '@/components/catalog/item-catalog';
 import { OrderSummary } from '@/components/order/order-summary';
 import { useToast } from '@/hooks/use-toast';
 
+type CatalogSourceItem = CateringItem | (Omit<AlquilerDBItem, 'precioReposicion' | 'precioAlquiler'> & { price: number; description: string; stock: number; itemCode: string; imageUrl: string; imageHint: string; category: string });
+
 export default function Home() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+  const [catalogItems, setCatalogItems] = useState<CateringItem[]>([]);
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   
   const osId = searchParams.get('osId');
-  const orderType = searchParams.get('type') as 'Almacén' | 'Bodega' | 'Bio' | null;
+  const orderType = searchParams.get('type') as 'Almacén' | 'Bodega' | 'Bio' | 'Alquiler' | null;
   const editOrderId = searchParams.get('orderId');
 
   useEffect(() => {
@@ -27,6 +30,22 @@ export default function Home() {
       const currentOS = allServiceOrders.find(os => os.id === osId);
       setServiceOrder(currentOS || null);
     }
+
+    if (orderType === 'Alquiler') {
+      const storedAlquilerItems = JSON.parse(localStorage.getItem('alquilerDB') || '[]') as AlquilerDBItem[];
+      const mappedItems: CateringItem[] = storedAlquilerItems.map(item => ({
+        itemCode: item.id,
+        description: item.concepto,
+        price: item.precioAlquiler,
+        stock: 999, // Assume infinite stock for rentals
+        imageUrl: `https://picsum.photos/seed/${item.id}/400/300`, // Placeholder image
+        imageHint: 'rental item',
+        category: 'Alquiler',
+      }));
+      setCatalogItems(mappedItems);
+    } else {
+      setCatalogItems(CATERING_ITEMS);
+    }
     
     if (editOrderId) {
       const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
@@ -35,9 +54,9 @@ export default function Home() {
         setOrderItems(orderToEdit.items);
       }
     }
-  }, [editOrderId, osId]);
+  }, [editOrderId, osId, orderType]);
 
-  const handleAddItem = (item: CateringItem, quantity: number) => {
+  const handleAddItem = (item: CatalogSourceItem, quantity: number) => {
     if (quantity <= 0) return;
 
     setOrderItems((prevItems) => {
@@ -76,7 +95,7 @@ export default function Home() {
   };
 
   const handleUpdateQuantity = (itemCode: string, quantity: number) => {
-    const itemData = CATERING_ITEMS.find((i) => i.itemCode === itemCode);
+    const itemData = catalogItems.find((i) => i.itemCode === itemCode);
     if (!itemData) return;
 
     if (quantity <= 0) {
@@ -173,6 +192,7 @@ export default function Home() {
     if (orderType === 'Almacén') modulePath = 'almacen';
     else if (orderType === 'Bodega') modulePath = 'bodega';
     else if (orderType === 'Bio') modulePath = 'bio';
+    else if (orderType === 'Alquiler') modulePath = 'alquiler';
 
     const destination = `/${modulePath}?osId=${osId}`;
     router.push(destination);
@@ -208,9 +228,10 @@ export default function Home() {
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-[1fr_400px] lg:gap-8">
           <ItemCatalog
-            items={CATERING_ITEMS}
+            items={catalogItems}
             onAddItem={handleAddItem}
             orderItems={orderItems}
+            orderType={orderType}
           />
           <div className="mt-8 lg:mt-0">
             <OrderSummary

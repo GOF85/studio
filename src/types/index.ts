@@ -15,7 +15,7 @@ export type OrderItem = CateringItem & {
 };
 
 export type MaterialOrderStatus = 'Asignado' | 'En preparación' | 'Listo';
-export type MaterialOrderType = 'Almacén' | 'Bodega' | 'Bio';
+export type MaterialOrderType = 'Almacén' | 'Bodega' | 'Bio' | 'Alquiler';
 
 export type MaterialOrder = {
   id: string;
@@ -138,4 +138,11 @@ export type GastronomyOrderStatus = 'Pendiente' | 'En preparación' | 'Incidenci
 export type GastronomyOrder = ComercialBriefingItem & {
     osId: string;
     status: GastronomyOrderStatus;
+};
+
+export type AlquilerDBItem = {
+    id: string;
+    concepto: string;
+    precioAlquiler: number;
+    precioReposicion: number;
 };
