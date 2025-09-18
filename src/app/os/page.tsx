@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck } from 'lucide-react';
 
-import type { OrderItem, ServiceOrder, MaterialOrder } from '@/types';
+import type { OrderItem, ServiceOrder, MaterialOrder, Personal } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -74,6 +74,10 @@ export const osFormSchema = z.object({
   respMetrePhone: z.string().optional().default(''),
   respCocina: z.string().optional().default(''),
   respCocinaPhone: z.string().optional().default(''),
+  respPase: z.string().optional().default(''),
+  respPasePhone: z.string().optional().default(''),
+  respCocinaCPR: z.string().optional().default(''),
+  respCocinaCPRPhone: z.string().optional().default(''),
   agencyPercentage: z.coerce.number().optional().default(0),
   spacePercentage: z.coerce.number().optional().default(0),
   facturacion: z.coerce.number().optional().default(0),
@@ -92,6 +96,7 @@ export type OsFormValues = z.infer<typeof osFormSchema>;
 const defaultValues: Partial<OsFormValues> = {
   serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', commercialPhone: '', pax: 0,
   space: '', spaceContact: '', spacePhone: '', respMetre: '', respMetrePhone: '', respCocina: '', respCocinaPhone: '',
+  respPase: '', respPasePhone: '', respCocinaCPR: '', respCocinaCPRPhone: '',
   agencyPercentage: 0, spacePercentage: 0, facturacion: 0,
   uniformity: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', deliveryLocations: [],
   status: 'Borrador',
@@ -158,12 +163,22 @@ export default function OsPage() {
   const [isSubmittingFromDialog, setIsSubmittingFromDialog] = useState(false);
   const { toast } = useToast();
 
+  const [personal, setPersonal] = useState<Personal[]>([]);
+  const personalSala = useMemo(() => personal.filter(p => p.departamento === 'SALA'), [personal]);
+  const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR'), [personal]);
+  const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'COMERCIAL'), [personal]);
+
   const form = useForm<OsFormValues>({
     resolver: zodResolver(osFormSchema),
     defaultValues,
   });
 
-  const { formState: { isDirty } } = form;
+  const { formState: { isDirty }, setValue } = form;
+  
+  const handlePersonalChange = (name: string, phoneField: keyof OsFormValues) => {
+    const person = personal.find(p => p.nombre === name);
+    setValue(phoneField, person?.telefono || '', { shouldDirty: true });
+  }
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -191,6 +206,8 @@ export default function OsPage() {
 
   useEffect(() => {
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+    setPersonal(allPersonal);
     
     if (osId) {
       setAccordionDefaultValue([]); // Collapse for existing
@@ -504,49 +521,76 @@ export default function OsPage() {
                               <FormField control={form.control} name="respMetre" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Resp. Metre</FormLabel>
-                                   <Select onValueChange={field.onChange} value={field.value}>
+                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respMetrePhone'); }} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                     <SelectContent>
-                                      <SelectItem value="metre1">Metre 1</SelectItem>
-                                      <SelectItem value="metre2">Metre 2</SelectItem>
+                                      {personalSala.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
                                     </SelectContent>
                                   </Select>
                                 </FormItem>
                               )} />
                                <FormField control={form.control} name="respMetrePhone" render={({ field }) => (
-                                <FormItem><FormLabel>Tlf. Resp. Metre</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                                <FormItem><FormLabel>Tlf. Resp. Metre</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                )} />
                                <div></div>
                               <FormField control={form.control} name="respCocina" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Resp. Cocina</FormLabel>
-                                   <Select onValueChange={field.onChange} value={field.value}>
+                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respCocinaPhone'); }} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                     <SelectContent>
-                                      <SelectItem value="cocina1">Cocinero 1</SelectItem>
-                                      <SelectItem value="cocina2">Cocinero 2</SelectItem>
+                                      {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
                                     </SelectContent>
                                   </Select>
                                 </FormItem>
                               )} />
                                <FormField control={form.control} name="respCocinaPhone" render={({ field }) => (
-                                <FormItem><FormLabel>Tlf. Resp. Cocina</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                                <FormItem><FormLabel>Tlf. Resp. Cocina</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                               )} />
+                               <div></div>
+                              <FormField control={form.control} name="respPase" render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Resp. Pase</FormLabel>
+                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respPasePhone'); }} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                      {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                </FormItem>
+                              )} />
+                               <FormField control={form.control} name="respPasePhone" render={({ field }) => (
+                                <FormItem><FormLabel>Tlf. Resp. Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                               )} />
+                               <div></div>
+                              <FormField control={form.control} name="respCocinaCPR" render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Resp. Cocina CPR</FormLabel>
+                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respCocinaCPRPhone'); }} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                      {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                </FormItem>
+                              )} />
+                               <FormField control={form.control} name="respCocinaCPRPhone" render={({ field }) => (
+                                <FormItem><FormLabel>Tlf. Resp. Cocina CPR</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                )} />
                                <div></div>
                               <FormField control={form.control} name="commercial" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Resp. Comercial</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
+                                    <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'commercialPhone'); }} value={field.value}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                         <SelectContent>
-                                        <SelectItem value="com1">Comercial 1</SelectItem>
-                                        <SelectItem value="com2">Comercial 2</SelectItem>
+                                        {personalComercial.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </FormItem>
                                 )} />
                                <FormField control={form.control} name="commercialPhone" render={({ field }) => (
-                                <FormItem><FormLabel>Tlf. Resp. Comercial</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                                <FormItem><FormLabel>Tlf. Resp. Comercial</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                )} />
                            </div>
                         </AccordionContent>
