@@ -48,12 +48,19 @@ type EventsByDay = {
     }
 };
 
+type DayDetails = {
+    day: Date;
+    osEvents: { [osId: string]: CalendarEvent[] };
+} | null;
+
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 export default function CalendarioServiciosPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [dayDetails, setDayDetails] = useState<DayDetails>(null);
+
 
   useEffect(() => {
     const serviceOrders: ServiceOrder[] = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
@@ -152,6 +159,7 @@ export default function CalendarioServiciosPage() {
               const osIds = Object.keys(dayOsEvents);
               const isCurrentMonth = isSameMonth(day, currentDate);
               const isToday = isSameDay(day, new Date());
+              const totalEventsCount = osIds.reduce((sum, osId) => sum + dayOsEvents[osId].length, 0);
 
               return (
                 <div
@@ -166,7 +174,7 @@ export default function CalendarioServiciosPage() {
                     {format(day, 'd')}
                   </span>
                   <div className="flex-grow overflow-y-auto mt-1 space-y-1">
-                      {osIds.map(osId => {
+                      {osIds.slice(0, 3).map(osId => {
                          const osEvents = dayOsEvents[osId];
                          const firstEvent = osEvents[0];
                          return (
@@ -195,6 +203,11 @@ export default function CalendarioServiciosPage() {
                           </Tooltip>
                          )
                       })}
+                      {osIds.length > 3 && (
+                         <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => setDayDetails({ day, osEvents: dayOsEvents })}>
+                            ... y {osIds.length - 3} más
+                        </Button>
+                      )}
                   </div>
                 </div>
               );
@@ -202,6 +215,26 @@ export default function CalendarioServiciosPage() {
           </div>
         </div>
       </main>
+
+       <Dialog open={!!dayDetails} onOpenChange={(open) => !open && setDayDetails(null)}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Servicios para el {dayDetails?.day ? format(dayDetails.day, 'PPP', { locale: es }) : ''}</DialogTitle>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    {dayDetails && Object.values(dayDetails.osEvents).flat().map((event, index) => (
+                         <Link key={`${event.osId}-${index}`} href={`/os?id=${event.osId}`} className="block p-3 hover:bg-muted rounded-md">
+                            <p className="font-bold text-primary">{event.serviceNumber}</p>
+                            <p>{event.space}{event.finalClient && ` - ${event.finalClient}`}</p>
+                            <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4">
+                                <span className="flex items-center gap-1.5"><Clock className="h-3 w-3"/>{event.horaInicio} - {event.serviceType}</span>
+                                <span className="flex items-center gap-1"><Users className="h-3 w-3"/>{event.pax} pax</span>
+                            </div>
+                        </Link>
+                    ))}
+                </div>
+            </DialogContent>
+        </Dialog>
     </TooltipProvider>
   );
 }
