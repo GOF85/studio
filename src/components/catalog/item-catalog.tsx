@@ -58,11 +58,11 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType }: ItemCat
       <div className="border rounded-lg overflow-hidden">
         {filteredItems.length > 0 ? (
           <div className="divide-y">
-            {filteredItems.map((item) => {
+            {filteredItems.map((item, index) => {
               const orderedItem = orderItems.find(oi => oi.itemCode === item.itemCode);
               const availableStock = item.stock - (orderedItem?.quantity || 0);
               return (
-                <ItemListItem key={item.itemCode} item={{...item, stock: availableStock}} onAddItem={(quantity) => onAddItem(item, quantity)} />
+                <ItemListItem key={`${item.itemCode}-${index}`} item={{...item, stock: availableStock}} onAddItem={(quantity) => onAddItem(item, quantity)} />
               )
             })}
           </div>
