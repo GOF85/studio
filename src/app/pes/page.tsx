@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import type { ServiceOrder } from '@/types';
 import { Header } from '@/components/layout/header';
@@ -37,12 +38,14 @@ import {
 import { CATERING_ITEMS } from '@/lib/data';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function PesPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('all');
   const router = useRouter();
   const { toast } = useToast();
 
@@ -162,11 +165,36 @@ export default function PesPage() {
     setIsMounted(true);
   }, [toast]);
 
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    serviceOrders.forEach(os => {
+      try {
+        const month = format(new Date(os.startDate), 'yyyy-MM');
+        months.add(month);
+      } catch (e) {
+        console.error(`Invalid start date for OS ${os.serviceNumber}: ${os.startDate}`);
+      }
+    });
+    return Array.from(months).sort().reverse();
+  }, [serviceOrders]);
+  
   const filteredOrders = useMemo(() => {
-    return serviceOrders.filter(os =>
-      os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [serviceOrders, searchTerm]);
+    return serviceOrders.filter(os => {
+        const searchMatch = os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        let monthMatch = true;
+        if (selectedMonth !== 'all') {
+          try {
+            const osMonth = format(new Date(os.startDate), 'yyyy-MM');
+            monthMatch = osMonth === selectedMonth;
+          } catch (e) {
+            monthMatch = false;
+          }
+        }
+        
+        return searchMatch && monthMatch;
+    });
+  }, [serviceOrders, searchTerm, selectedMonth]);
 
   const handleDelete = () => {
     if (!orderToDelete) return;
@@ -201,13 +229,26 @@ export default function PesPage() {
           </Button>
         </div>
 
-        <div className="mb-6">
+        <div className="flex gap-4 mb-6">
           <Input
             placeholder="Buscar por Nº Servicio..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm"
           />
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-[240px]">
+              <SelectValue placeholder="Filtrar por mes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los meses</SelectItem>
+              {availableMonths.map(month => (
+                <SelectItem key={month} value={month}>
+                  {format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="border rounded-lg">
