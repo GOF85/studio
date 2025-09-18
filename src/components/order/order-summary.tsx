@@ -300,5 +300,3 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
     </Card>
   );
 }
-
-    
