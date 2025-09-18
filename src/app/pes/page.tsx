@@ -53,7 +53,7 @@ export default function PesPage() {
       // Create dummy data if no orders exist
       const dummyOS: ServiceOrder[] = [
         {
-          id: '1720000000001',
+          id: `${Date.now()}-1`,
           serviceNumber: 'OS-2024-001',
           startDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
           endDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
@@ -84,7 +84,7 @@ export default function PesPage() {
           comments: 'Evento de presentación de producto. Necesitan buena iluminación y sonido.'
         },
         {
-          id: '1720000000002',
+          id: `${Date.now()}-2`,
           serviceNumber: 'OS-2024-002',
           startDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
           endDate: new Date(Date.now() + 11 * 24 * 60 * 60 * 1000).toISOString(),
@@ -119,7 +119,7 @@ export default function PesPage() {
       
       const dummyMaterialOrders = [
         {
-          id: '1', osId: '1720000000001', type: 'Almacén',
+          id: `${Date.now()}-A`, osId: `${Date.now()}-1`, type: 'Almacén',
           items: [
             {...CATERING_ITEMS.find(i=> i.itemCode === 'TBL01')!, quantity: 20},
             {...CATERING_ITEMS.find(i=> i.itemCode === 'CHR01')!, quantity: 150}
@@ -130,7 +130,7 @@ export default function PesPage() {
           deliverySpace: 'Finca La Reunión', deliveryLocation: 'Salón Principal'
         },
          {
-          id: '2', osId: '1720000000001', type: 'Almacén',
+          id: `${Date.now()}-B`, osId: `${Date.now()}-1`, type: 'Almacén',
           items: [
             {...CATERING_ITEMS.find(i=> i.itemCode === 'PLT01')!, quantity: 150},
             {...CATERING_ITEMS.find(i=> i.itemCode === 'PLT02')!, quantity: 150},
@@ -142,7 +142,7 @@ export default function PesPage() {
           deliverySpace: 'Finca La Reunión', deliveryLocation: 'Cocina Trasera'
         },
         {
-          id: '3', osId: '1720000000001', type: 'Bodega',
+          id: `${Date.now()}-C`, osId: `${Date.now()}-1`, type: 'Bodega',
           items: [
             {...CATERING_ITEMS.find(i=> i.itemCode === 'GLS01')!, quantity: 200},
             {...CATERING_ITEMS.find(i=> i.itemCode === 'GLS02')!, quantity: 200},
