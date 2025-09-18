@@ -58,7 +58,7 @@ export default function GastronomiaDBPage() {
     if (!storedData || JSON.parse(storedData).length === 0) {
       const dummyData: GastronomiaDBItem[] = [
         {
-          id: '1',
+          id: `1-${Date.now()}-${Math.random()}`,
           referencia: 'Solomillo de ternera',
           categoria: 'Carnes',
           imagenRef: 'https://picsum.photos/seed/solomillo-ref/100',
@@ -67,7 +67,7 @@ export default function GastronomiaDBPage() {
           gramaje: 250,
         },
         {
-          id: '2',
+          id: `2-${Date.now()}-${Math.random()}`,
           referencia: 'Tarta de queso',
           categoria: 'Postres',
           imagenRef: 'https://picsum.photos/seed/tarta-ref/100',
@@ -152,16 +152,27 @@ export default function GastronomiaDBPage() {
             toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
             return;
         }
+
+        const currentItems = JSON.parse(localStorage.getItem('gastronomiaDB') || '[]') as GastronomiaDBItem[];
+        const existingIds = new Set(currentItems.map(item => item.id));
         
-        const importedData: GastronomiaDBItem[] = results.data.map(item => ({
-            id: item.id || Date.now().toString() + Math.random().toString(),
-            referencia: item.referencia || '',
-            categoria: item.categoria || '',
-            imagenRef: item.imagenRef || '',
-            imagenEmpl: item.imagenEmpl || '',
-            precio: parseCurrency(item.precio),
-            gramaje: Number(item.gramaje) || 0,
-        }));
+        const importedData: GastronomiaDBItem[] = results.data.map(item => {
+            let id = item.id;
+            if (!id || existingIds.has(id)) {
+                id = `${Date.now()}-${Math.random()}`;
+            }
+            existingIds.add(id);
+
+            return {
+              id,
+              referencia: item.referencia || '',
+              categoria: item.categoria || '',
+              imagenRef: item.imagenRef || '',
+              imagenEmpl: item.imagenEmpl || '',
+              precio: parseCurrency(item.precio),
+              gramaje: Number(item.gramaje) || 0,
+            };
+        });
         
         localStorage.setItem('gastronomiaDB', JSON.stringify(importedData));
         setGastronomia(importedData);
