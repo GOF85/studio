@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck } from 'lucide-react';
 
-import type { OrderItem, ServiceOrder, MaterialOrder, Personal } from '@/types';
+import type { OrderItem, ServiceOrder, MaterialOrder, Personal, Espacio } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -68,15 +68,12 @@ export const osFormSchema = z.object({
   contact: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
-  comercial: z.string().optional().default(''),
-  comercialPhone: z.string().optional().default(''),
-  comercialMail: z.string().email().optional().or(z.literal('')),
-  comercialAsiste: z.boolean().optional().default(false),
   pax: z.coerce.number().optional().default(0),
   endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
   space: z.string().optional().default(''),
   spaceContact: z.string().optional().default(''),
   spacePhone: z.string().optional().default(''),
+  spaceMail: z.string().email().optional().or(z.literal('')),
   respMetre: z.string().optional().default(''),
   respMetrePhone: z.string().optional().default(''),
   respMetreMail: z.string().email().optional().or(z.literal('')),
@@ -89,6 +86,10 @@ export const osFormSchema = z.object({
   respCocinaPase: z.string().optional().default(''),
   respCocinaPasePhone: z.string().optional().default(''),
   respCocinaPaseMail: z.string().email().optional().or(z.literal('')),
+  comercialAsiste: z.boolean().optional().default(false),
+  comercial: z.string().optional().default(''),
+  comercialPhone: z.string().optional().default(''),
+  comercialMail: z.string().email().optional().or(z.literal('')),
   rrhhAsiste: z.boolean().optional().default(false),
   respRRHH: z.string().optional().default(''),
   respRRHHPhone: z.string().optional().default(''),
@@ -109,9 +110,13 @@ export const osFormSchema = z.object({
 export type OsFormValues = z.infer<typeof osFormSchema>;
 
 const defaultValues: Partial<OsFormValues> = {
-  serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', comercial: '', comercialPhone: '', comercialMail: '', comercialAsiste: false, pax: 0,
-  space: '', spaceContact: '', spacePhone: '', respMetre: '', respMetrePhone: '', respMetreMail: '', respCocinaCPR: '', respCocinaCPRPhone: '', respCocinaCPRMail: '',
-  respPase: '', respPasePhone: '', respPaseMail: '', respCocinaPase: '', respCocinaPasePhone: '', respCocinaPaseMail: '',
+  serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', pax: 0,
+  space: '', spaceContact: '', spacePhone: '', spaceMail: '',
+  respMetre: '', respMetrePhone: '', respMetreMail: '', 
+  respPase: '', respPasePhone: '', respPaseMail: '',
+  respCocinaPase: '', respCocinaPasePhone: '', respCocinaPaseMail: '',
+  respCocinaCPR: '', respCocinaCPRPhone: '', respCocinaCPRMail: '',
+  comercialAsiste: false, comercial: '', comercialPhone: '', comercialMail: '',
   rrhhAsiste: false, respRRHH: '', respRRHHPhone: '', respRRHHMail: '',
   agencyPercentage: 0, spacePercentage: 0, facturacion: 0,
   uniformity: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', deliveryLocations: [],
@@ -180,6 +185,7 @@ export default function OsPage() {
   const { toast } = useToast();
 
   const [personal, setPersonal] = useState<Personal[]>([]);
+  const [espacios, setEspacios] = useState<Espacio[]>([]);
   const personalSala = useMemo(() => personal.filter(p => p.departamento === 'SALA'), [personal]);
   const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR'), [personal]);
   const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'COMERCIAL'), [personal]);
@@ -197,6 +203,13 @@ export default function OsPage() {
     const person = personal.find(p => p.nombre === name);
     setValue(phoneField, person?.telefono || '', { shouldDirty: true });
     setValue(mailField, person?.mail || '', { shouldDirty: true });
+  }
+
+  const handleEspacioChange = (name: string) => {
+    const espacio = espacios.find(e => e.espacio === name);
+    setValue('spaceContact', espacio?.nombreContacto1 || '', { shouldDirty: true });
+    setValue('spacePhone', espacio?.telefonoContacto1 || '', { shouldDirty: true });
+    setValue('spaceMail', espacio?.emailContacto1 || '', { shouldDirty: true });
   }
 
   useEffect(() => {
@@ -226,7 +239,9 @@ export default function OsPage() {
   useEffect(() => {
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+    const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
     setPersonal(allPersonal);
+    setEspacios(allEspacios);
     
     if (osId) {
       setAccordionDefaultValue([]); // Collapse for existing
@@ -483,7 +498,7 @@ export default function OsPage() {
                             <FormField control={form.control} name="tipoCliente" render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Tipo Cliente</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                     <SelectContent>
                                         <SelectItem value="Empresa">Empresa</SelectItem>
@@ -518,24 +533,35 @@ export default function OsPage() {
                       <AccordionItem value="espacio">
                         <AccordionTrigger><EspacioTitle /></AccordionTrigger>
                         <AccordionContent>
-                          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+                          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
                             <FormField control={form.control} name="space" render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Espacio</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
+                                <Select onValueChange={(value) => { field.onChange(value); handleEspacioChange(value); }} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                      {espacios.map(e => <SelectItem key={e.id} value={e.espacio}>{e.espacio}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
                               </FormItem>
                             )} />
                             <FormField control={form.control} name="spaceContact" render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Contacto Espacio</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
+                                <FormControl><Input {...field} readOnly /></FormControl>
                               </FormItem>
                             )} />
                             <FormField control={form.control} name="spacePhone" render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Tlf. Espacio</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
+                                <FormControl><Input {...field} readOnly /></FormControl>
                               </FormItem>
+                            )} />
+                            <FormField control={form.control} name="spaceMail" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Email Espacio</FormLabel>
+                                    <FormControl><Input {...field} readOnly /></FormControl>
+                                </FormItem>
                             )} />
                              <FormField control={form.control} name="plane" render={({ field }) => (
                               <FormItem>
