@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Users } from 'lucide-react';
 import type { Personal } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -21,16 +21,29 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const CSV_HEADERS = ["id", "nombre", "departamento", "categoria", "telefono", "mail"];
 
 export default function PersonalPage() {
   const [personal, setPersonal] = useState<Personal[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [personToDelete, setPersonToDelete] = useState<string | null>(null);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -93,8 +106,7 @@ export default function PersonalPage() {
       toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay personal para exportar.' });
       return;
     }
-    const csv = Papa.unparse(personal);
-    // Add BOM for Excel compatibility with UTF-8
+    const csv = Papa.unparse(personal, { header: true });
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -120,12 +132,11 @@ export default function PersonalPage() {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const requiredFields = ['id', 'nombre', 'departamento', 'categoria', 'telefono', 'mail'];
         const headers = results.meta.fields || [];
-        const hasAllHeaders = requiredFields.every(field => headers.includes(field));
+        const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
 
         if (!hasAllHeaders) {
-            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas: ${requiredFields.join(', ')}`});
+            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
             return;
         }
         
@@ -138,15 +149,22 @@ export default function PersonalPage() {
         toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
       }
     });
-    // Reset file input
     if(event.target) {
         event.target.value = '';
     }
   };
 
+  const handleDelete = () => {
+    if (!personToDelete) return;
+    const updatedData = personal.filter(e => e.id !== personToDelete);
+    localStorage.setItem('personal', JSON.stringify(updatedData));
+    setPersonal(updatedData);
+    toast({ title: 'Empleado eliminado', description: 'El registro se ha eliminado correctamente.' });
+    setPersonToDelete(null);
+  };
 
   if (!isMounted) {
-    return null; // or a loading skeleton
+    return null;
   }
 
   return (
@@ -154,7 +172,7 @@ export default function PersonalPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold">Gestión de Personal</h1>
+          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal</h1>
           <div className="flex gap-2">
             <input
                 type="file"
@@ -172,7 +190,7 @@ export default function PersonalPage() {
               Exportar CSV
             </Button>
             <Button asChild>
-              <Link href="#">
+              <Link href="/personal/nuevo">
                 <PlusCircle className="mr-2" />
                 Nuevo Empleado
               </Link>
@@ -232,11 +250,11 @@ export default function PersonalPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => {}}>
+                          <DropdownMenuItem onClick={() => router.push(`/personal/${p.id}`)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => {}}>
+                          <DropdownMenuItem className="text-destructive" onClick={() => setPersonToDelete(p.id)}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Eliminar
                           </DropdownMenuItem>
@@ -256,6 +274,26 @@ export default function PersonalPage() {
           </Table>
         </div>
       </main>
+
+       <AlertDialog open={!!personToDelete} onOpenChange={(open) => !open && setPersonToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Esto eliminará permanentemente el registro del empleado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPersonToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDelete}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
