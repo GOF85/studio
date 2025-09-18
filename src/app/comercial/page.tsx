@@ -71,9 +71,13 @@ function FinancialCalculator({ totalBriefing, onNetChange }: { totalBriefing: nu
   const facturacionNeta = useMemo(() => {
     const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
     const net = totalBriefing * (1 - totalPercentage / 100);
-    onNetChange(net);
     return net;
-  }, [totalBriefing, agencyPercentage, spacePercentage, onNetChange]);
+  }, [totalBriefing, agencyPercentage, spacePercentage]);
+
+  useEffect(() => {
+    onNetChange(facturacionNeta);
+  }, [facturacionNeta, onNetChange]);
+
 
   return (
     <FormItem>
