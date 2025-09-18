@@ -99,6 +99,7 @@ export default function ComercialPage() {
   const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [editingItem, setEditingItem] = useState<ComercialBriefingItem | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
   const [facturacionNeta, setFacturacionNeta] = useState(0);
 
@@ -201,6 +202,15 @@ export default function ComercialPage() {
     }
   };
 
+  const handleRowClick = (item: ComercialBriefingItem) => {
+    setEditingItem(item);
+    setIsDialogOpen(true);
+  };
+
+  const handleNewClick = () => {
+    setEditingItem(null);
+    setIsDialogOpen(true);
+  };
 
   const handleSaveItem = (data: BriefingItemFormValues) => {
     if (!briefing) return;
@@ -238,8 +248,7 @@ export default function ComercialPage() {
     }
   };
 
-  const BriefingItemDialog = ({ item, onSave }: { item: Partial<ComercialBriefingItem> | null, onSave: (data: BriefingItemFormValues) => boolean }) => {
-    const [open, setOpen] = useState(false);
+  const BriefingItemDialog = ({ open, onOpenChange, item, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, item: Partial<ComercialBriefingItem> | null, onSave: (data: BriefingItemFormValues) => boolean }) => {
     const form = useForm<BriefingItemFormValues>({
       resolver: zodResolver(briefingItemSchema),
       defaultValues: {
@@ -259,6 +268,26 @@ export default function ComercialPage() {
         manteleria: item?.manteleria || '',
       }
     });
+    
+    useEffect(() => {
+        form.reset({
+            id: item?.id || '',
+            fecha: item?.fecha || (serviceOrder?.startDate ? format(new Date(serviceOrder.startDate), 'yyyy-MM-dd') : ''),
+            horaInicio: item?.horaInicio || '09:00',
+            horaFin: item?.horaFin || '10:00',
+            conGastronomia: item?.conGastronomia || false,
+            descripcion: item?.descripcion || '',
+            comentarios: item?.comentarios || '',
+            sala: item?.sala || '',
+            asistentes: item?.asistentes || serviceOrder?.pax || 0,
+            precioUnitario: item?.precioUnitario || 0,
+            bebidas: item?.bebidas || '',
+            matBebida: item?.matBebida || '',
+            materialGastro: item?.materialGastro || '',
+            manteleria: item?.manteleria || '',
+        })
+    }, [item, serviceOrder, form])
+
 
     const asistentes = form.watch('asistentes');
     const precioUnitario = form.watch('precioUnitario');
@@ -266,20 +295,13 @@ export default function ComercialPage() {
     
     const onSubmit = (data: BriefingItemFormValues) => {
       if (onSave(data)) {
-        setOpen(false);
+        onOpenChange(false);
         form.reset();
       }
     };
 
     return (
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          {item ? (
-            <Button variant="ghost" size="icon" onClick={() => setEditingItem(item as ComercialBriefingItem)}><Pencil className="h-4 w-4" /></Button>
-          ) : (
-            <Button><PlusCircle className="mr-2" /> Nuevo Hito</Button>
-          )}
-        </DialogTrigger>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>{item ? 'Editar' : 'Nuevo'} Hito del Briefing</DialogTitle>
@@ -369,7 +391,7 @@ export default function ComercialPage() {
             <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Briefcase />Módulo Comercial</h1>
             <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
           </div>
-          <BriefingItemDialog item={null} onSave={handleSaveItem} />
+          <Button onClick={handleNewClick}><PlusCircle className="mr-2" /> Nuevo Hito</Button>
         </div>
         
         <FormProvider {...financialForm}>
@@ -418,45 +440,44 @@ export default function ComercialPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Inicio</TableHead>
-                    <TableHead>Fin</TableHead>
-                    <TableHead>Duración</TableHead>
-                    <TableHead>Gastro</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead>Comentarios</TableHead>
-                    <TableHead>Sala</TableHead>
-                    <TableHead>Asistentes</TableHead>
-                    <TableHead>P.Unitario</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Bebidas</TableHead>
-                    <TableHead>Mat. Bebida</TableHead>
-                    <TableHead>Mat. Gastro</TableHead>
-                    <TableHead>Mantelería</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
+                    <TableHead className="py-2 px-3">Fecha</TableHead>
+                    <TableHead className="py-2 px-3">Inicio</TableHead>
+                    <TableHead className="py-2 px-3">Fin</TableHead>
+                    <TableHead className="py-2 px-3">Duración</TableHead>
+                    <TableHead className="py-2 px-3">Gastro</TableHead>
+                    <TableHead className="py-2 px-3">Descripción</TableHead>
+                    <TableHead className="py-2 px-3">Comentarios</TableHead>
+                    <TableHead className="py-2 px-3">Sala</TableHead>
+                    <TableHead className="py-2 px-3">Asistentes</TableHead>
+                    <TableHead className="py-2 px-3">P.Unitario</TableHead>
+                    <TableHead className="py-2 px-3">Total</TableHead>
+                    <TableHead className="py-2 px-3">Bebidas</TableHead>
+                    <TableHead className="py-2 px-3">Mat. Bebida</TableHead>
+                    <TableHead className="py-2 px-3">Mat. Gastro</TableHead>
+                    <TableHead className="py-2 px-3">Mantelería</TableHead>
+                    <TableHead className="py-2 px-3 text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {sortedBriefingItems.length > 0 ? (
                     sortedBriefingItems.map(item => (
-                      <TableRow key={item.id}>
-                        <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
-                        <TableCell>{item.horaInicio}</TableCell>
-                        <TableCell>{item.horaFin}</TableCell>
-                        <TableCell>{calculateDuration(item.horaInicio, item.horaFin)}</TableCell>
-                        <TableCell>{item.conGastronomia ? <Check className="h-4 w-4" /> : null}</TableCell>
-                        <TableCell className="min-w-[200px]">{item.descripcion}</TableCell>
-                        <TableCell className="min-w-[200px]">{item.comentarios}</TableCell>
-                        <TableCell>{item.sala}</TableCell>
-                        <TableCell>{item.asistentes}</TableCell>
-                        <TableCell>{item.precioUnitario.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                        <TableCell>{(item.asistentes * item.precioUnitario).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                        <TableCell>{item.bebidas}</TableCell>
-                        <TableCell>{item.matBebida}</TableCell>
-                        <TableCell>{item.materialGastro}</TableCell>
-                        <TableCell>{item.manteleria}</TableCell>
-                        <TableCell className="text-right">
-                          <BriefingItemDialog item={item} onSave={handleSaveItem} />
+                      <TableRow key={item.id} onClick={() => handleRowClick(item)} className="cursor-pointer">
+                        <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell className="py-2 px-3">{item.horaInicio}</TableCell>
+                        <TableCell className="py-2 px-3">{item.horaFin}</TableCell>
+                        <TableCell className="py-2 px-3">{calculateDuration(item.horaInicio, item.horaFin)}</TableCell>
+                        <TableCell className="py-2 px-3">{item.conGastronomia ? <Check className="h-4 w-4" /> : null}</TableCell>
+                        <TableCell className="py-2 px-3 min-w-[200px]">{item.descripcion}</TableCell>
+                        <TableCell className="py-2 px-3 min-w-[200px]">{item.comentarios}</TableCell>
+                        <TableCell className="py-2 px-3">{item.sala}</TableCell>
+                        <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
+                        <TableCell className="py-2 px-3">{item.precioUnitario.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                        <TableCell className="py-2 px-3">{(item.asistentes * item.precioUnitario).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                        <TableCell className="py-2 px-3">{item.bebidas}</TableCell>
+                        <TableCell className="py-2 px-3">{item.matBebida}</TableCell>
+                        <TableCell className="py-2 px-3">{item.materialGastro}</TableCell>
+                        <TableCell className="py-2 px-3">{item.manteleria}</TableCell>
+                        <TableCell className="py-2 px-3 text-right" onClick={(e) => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem(item.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -476,6 +497,7 @@ export default function ComercialPage() {
           </CardContent>
         </Card>
       </main>
+      <BriefingItemDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} item={editingItem} onSave={handleSaveItem} />
     </>
   );
 }
