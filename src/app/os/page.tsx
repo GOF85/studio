@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -306,7 +307,7 @@ export default function OsPage() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[125px_1fr] gap-8">
+        <div className="grid lg:grid-cols-[150px_1fr] gap-8">
           <aside className="lg:sticky top-24 self-start flex flex-col">
             <h2 className="text-lg font-semibold mb-4 px-3">Módulos</h2>
             <nav className="space-y-2">
