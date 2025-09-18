@@ -47,6 +47,15 @@ interface OrderSummaryProps {
   onAddLocation: (newLocation: string) => void;
 }
 
+function isValidHttpUrl(string: string) {
+  try {
+    const url = new URL(string);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch (_) {
+    return false;
+  }
+}
+
 export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false, serviceOrder, onAddLocation }: OrderSummaryProps) {
   const [rentalDays, setRentalDays] = useState(1);
   const [isReviewOpen, setReviewOpen] = useState(false);
@@ -122,10 +131,12 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
         ) : (
           <div className="max-h-[400px] overflow-y-auto pr-2 -mr-2">
             <ul className="space-y-4">
-              {items.map((item) => (
+              {items.map((item) => {
+                const imageUrl = isValidHttpUrl(item.imageUrl) ? item.imageUrl : `https://picsum.photos/seed/${item.itemCode}/400/300`;
+                return (
                 <li key={item.itemCode} className="flex items-center gap-4">
                    <div className="relative w-16 h-16 rounded-md overflow-hidden flex-shrink-0">
-                    <Image src={item.imageUrl} alt={item.description} fill className="object-cover" data-ai-hint={item.imageHint}/>
+                    <Image src={imageUrl} alt={item.description} fill className="object-cover" data-ai-hint={item.imageHint}/>
                   </div>
                   <div className="flex-grow">
                     <p className="font-medium leading-tight">{item.description}</p>
@@ -137,7 +148,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                     <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.itemCode, item.quantity + 1)}><Plus className="h-4 w-4" /></Button>
                   </div>
                 </li>
-              ))}
+              )})}
             </ul>
           </div>
         )}
