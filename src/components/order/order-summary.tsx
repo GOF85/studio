@@ -36,7 +36,13 @@ import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { ScrollArea } from '../ui/scroll-area';
 
-
+export type ExistingOrderData = {
+    days: number;
+    contractNumber: string;
+    deliveryDate?: string;
+    deliverySpace?: string;
+    deliveryLocation?: string;
+}
 interface OrderSummaryProps {
   items: OrderItem[];
   onUpdateQuantity: (itemCode: string, quantity: number) => void;
@@ -46,6 +52,7 @@ interface OrderSummaryProps {
   isEditing?: boolean;
   serviceOrder: ServiceOrder | null;
   onAddLocation: (newLocation: string) => void;
+  existingOrderData?: ExistingOrderData | null;
 }
 
 function isValidHttpUrl(string: string) {
@@ -57,7 +64,7 @@ function isValidHttpUrl(string: string) {
   }
 }
 
-export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false, serviceOrder, onAddLocation }: OrderSummaryProps) {
+export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false, serviceOrder, onAddLocation, existingOrderData }: OrderSummaryProps) {
   const [rentalDays, setRentalDays] = useState(1);
   const [isReviewOpen, setReviewOpen] = useState(false);
   const [contractNumber, setContractNumber] = useState('');
@@ -69,14 +76,20 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const { toast } = useToast();
 
   useEffect(() => {
-    if (serviceOrder) {
+    if (isEditing && existingOrderData) {
+        setRentalDays(existingOrderData.days || 1);
+        setContractNumber(existingOrderData.contractNumber || '');
+        setDeliveryDate(existingOrderData.deliveryDate ? new Date(existingOrderData.deliveryDate) : new Date());
+        setDeliverySpace(existingOrderData.deliverySpace || '');
+        setDeliveryLocation(existingOrderData.deliveryLocation || '');
+    } else if (serviceOrder) {
       setContractNumber(serviceOrder.serviceNumber || '');
       setDeliverySpace(serviceOrder.space || '');
       if (serviceOrder.startDate) {
         setDeliveryDate(new Date(serviceOrder.startDate));
       }
     }
-  }, [serviceOrder]);
+  }, [serviceOrder, isEditing, existingOrderData]);
 
   const subtotal = useMemo(() => {
     return items.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -113,7 +126,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   
   return (
     <Card className="sticky top-24 h-[calc(100vh-7rem)] flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex-grow-0 flex-shrink-0 flex flex-row items-center justify-between">
         <CardTitle className="text-xl font-headline">Tu Pedido</CardTitle>
         {items.length > 0 && (
           <Button variant="ghost" size="sm" onClick={onClearOrder} aria-label="Vaciar pedido">
@@ -122,7 +135,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
           </Button>
         )}
       </CardHeader>
-      <ScrollArea className="flex-grow">
+      <div className="flex-grow overflow-y-auto">
         <CardContent>
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10">
@@ -153,9 +166,9 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
               </ul>
           )}
         </CardContent>
-      </ScrollArea>
+      </div>
       {items.length > 0 && (
-          <div className="p-6 pt-0">
+          <div className="flex-grow-0 flex-shrink-0 p-6 pt-0">
             <Separator className="my-4" />
             <div className="space-y-4">
               <div className="flex items-center gap-4">
@@ -187,7 +200,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
             </div>
           </div>
         )}
-      <CardFooter>
+      <CardFooter className="flex-grow-0 flex-shrink-0">
         <Dialog open={isReviewOpen} onOpenChange={setReviewOpen}>
           <DialogTrigger asChild>
             <Button className="w-full" size="lg" disabled={items.length === 0}>

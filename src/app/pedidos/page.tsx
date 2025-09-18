@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import type { OrderItem, CateringItem, MaterialOrder, ServiceOrder, AlquilerDBItem, Precio } from '@/types';
 import { Header } from '@/components/layout/header';
 import { ItemCatalog } from '@/components/catalog/item-catalog';
-import { OrderSummary } from '@/components/order/order-summary';
+import { OrderSummary, type ExistingOrderData } from '@/components/order/order-summary';
 import { useToast } from '@/hooks/use-toast';
 
 type CatalogSourceItem = CateringItem | (Omit<AlquilerDBItem, 'precioReposicion' | 'precioAlquiler' | 'imagen'> & { price: number; description: string; stock: number; itemCode: string; imageUrl: string; imageHint: string; category: string });
@@ -15,6 +15,7 @@ export default function PedidosPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [catalogItems, setCatalogItems] = useState<CateringItem[]>([]);
+  const [existingOrderData, setExistingOrderData] = useState<ExistingOrderData | null>(null);
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -72,6 +73,13 @@ export default function PedidosPage() {
       const orderToEdit = allMaterialOrders.find(o => o.id === editOrderId);
       if (orderToEdit) {
         setOrderItems(orderToEdit.items);
+        setExistingOrderData({
+            days: orderToEdit.days,
+            contractNumber: orderToEdit.contractNumber,
+            deliveryDate: orderToEdit.deliveryDate,
+            deliverySpace: orderToEdit.deliverySpace,
+            deliveryLocation: orderToEdit.deliveryLocation,
+        });
       }
     }
   }, [editOrderId, osId, orderType]);
@@ -227,6 +235,7 @@ export default function PedidosPage() {
               isEditing={!!editOrderId}
               serviceOrder={serviceOrder}
               onAddLocation={handleAddLocation}
+              existingOrderData={existingOrderData}
             />
           </div>
         </div>
