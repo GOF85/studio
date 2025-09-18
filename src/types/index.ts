@@ -165,4 +165,27 @@ export type TipoServicio = {
     servicio: string;
 }
 
+export type ProveedorTransporte = {
+    id: string;
+    nombreProveedor: string;
+    tipoTransporte: string;
+    precio: number;
+}
+
+export type TransporteOrder = {
+    id: string;
+    osId: string;
+    fecha: string;
+    proveedorId: string;
+    proveedorNombre: string;
+    tipoTransporte: string;
+    precio: number;
+    lugarRecogida: string;
+    horaRecogida: string;
+    lugarEntrega: string;
+    horaEntrega: string;
+    observaciones: string;
+    status: 'Pendiente' | 'Confirmado' | 'En Ruta' | 'Finalizado';
+}
     
+

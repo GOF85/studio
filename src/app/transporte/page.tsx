@@ -1,0 +1,217 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, Truck, Phone } from 'lucide-react';
+import type { TransporteOrder, ServiceOrder } from '@/types';
+import { Header } from '@/components/layout/header';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { format } from 'date-fns';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+
+const statusVariant: { [key in TransporteOrder['status']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
+  Pendiente: 'secondary',
+  Confirmado: 'default',
+  'En Ruta': 'outline',
+  Finalizado: 'outline',
+};
+
+export default function TransportePage() {
+  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+  const [transporteOrders, setTransporteOrders] = useState<TransporteOrder[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const osId = searchParams.get('osId');
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (osId) {
+      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+      const currentOS = allServiceOrders.find(os => os.id === osId);
+      setServiceOrder(currentOS || null);
+
+      const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
+      const relatedOrders = allTransporteOrders.filter(order => order.osId === osId);
+      setTransporteOrders(relatedOrders);
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
+        router.push('/pes');
+    }
+    setIsMounted(true);
+  }, [osId, router, toast]);
+
+  const totalAmount = useMemo(() => {
+    return transporteOrders.reduce((sum, order) => sum + order.precio, 0);
+  }, [transporteOrders]);
+
+  const handleDelete = () => {
+    if (!orderToDelete) return;
+
+    let allOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
+    const updatedOrders = allOrders.filter((o: TransporteOrder) => o.id !== orderToDelete);
+    localStorage.setItem('transporteOrders', JSON.stringify(updatedOrders));
+    setTransporteOrders(updatedOrders.filter((o: TransporteOrder) => o.osId === osId));
+    
+    toast({ title: 'Pedido de transporte eliminado' });
+    setOrderToDelete(null);
+  };
+  
+  if (!isMounted || !serviceOrder) {
+    return <LoadingSkeleton title="Cargando Módulo de Transporte..." />;
+  }
+
+  return (
+    <>
+      <Header />
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex items-start justify-between mb-8">
+            <div>
+                <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
+                    <ArrowLeft className="mr-2" />
+                    Volver a la OS
+                </Button>
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Truck />Módulo de Transporte</h1>
+                <div className="text-muted-foreground mt-2 space-y-1">
+                    <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
+                    {serviceOrder.respMetre && (
+                        <p className="flex items-center gap-2">
+                            Resp. Metre: {serviceOrder.respMetre} 
+                            {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
+                        </p>
+                    )}
+                </div>
+            </div>
+          <Button asChild>
+            <Link href={`/transporte/pedido?osId=${osId}`}>
+              <PlusCircle className="mr-2" />
+              Nuevo Pedido de Transporte
+            </Link>
+          </Button>
+        </div>
+
+        <Card>
+            <CardHeader><CardTitle>Pedidos de Transporte Realizados</CardTitle></CardHeader>
+            <CardContent>
+                 <div className="border rounded-lg">
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Proveedor</TableHead>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead>Recogida</TableHead>
+                            <TableHead>Entrega</TableHead>
+                            <TableHead>Importe</TableHead>
+                            <TableHead>Estado</TableHead>
+                            <TableHead className="text-right">Acciones</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {transporteOrders.length > 0 ? (
+                            transporteOrders.map(order => (
+                            <TableRow key={order.id}>
+                                <TableCell className="font-medium">{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
+                                <TableCell>{order.proveedorNombre}</TableCell>
+                                <TableCell>{order.tipoTransporte}</TableCell>
+                                <TableCell>{order.lugarRecogida} a las {order.horaRecogida}</TableCell>
+                                <TableCell>{order.lugarEntrega} a las {order.horaEntrega}</TableCell>
+                                <TableCell>{order.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                                <TableCell>
+                                <Badge variant={statusVariant[order.status]}>
+                                    {order.status}
+                                </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                        <span className="sr-only">Abrir menú</span>
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => router.push(`/transporte/pedido?osId=${osId}&orderId=${order.id}`)}>
+                                        <Pencil className="mr-2 h-4 w-4" />
+                                        Editar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="text-destructive" onClick={() => setOrderToDelete(order.id)}>
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Eliminar
+                                    </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                            <TableCell colSpan={8} className="h-24 text-center">
+                                No hay pedidos de transporte para esta Orden de Servicio.
+                            </TableCell>
+                            </TableRow>
+                        )}
+                        </TableBody>
+                    </Table>
+                </div>
+                {transporteOrders.length > 0 && (
+                    <div className="flex justify-end mt-4 text-xl font-bold">
+                        Importe Total: {totalAmount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+      </main>
+
+      <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Esto eliminará permanentemente el pedido de transporte.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDelete}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}

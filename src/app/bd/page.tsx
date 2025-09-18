@@ -31,6 +31,7 @@ export default function BdPage() {
     { id: '4', name: 'Gastronomía (Platos)', description: 'Gestión de platos y menús.', itemCount: 0, path: '/gastronomia-db' },
     { id: '5', name: 'Alquiler', description: 'Gestión de artículos de alquiler a proveedores.', itemCount: 0, path: '/alquiler-db' },
     { id: '6', name: 'Tipo Servicio', description: 'Gestión de los tipos de servicio.', itemCount: 0, path: '/tipo-servicio' },
+    { id: '7', name: 'Proveedores de Transporte', description: 'Gestión de proveedores de transporte.', itemCount: 0, path: '/proveedores-transporte' },
   ]);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -42,6 +43,7 @@ export default function BdPage() {
     const gastronomia = JSON.parse(localStorage.getItem('gastronomiaDB') || '[]').length;
     const alquiler = JSON.parse(localStorage.getItem('alquilerDB') || '[]').length;
     const tipoServicio = JSON.parse(localStorage.getItem('tipoServicio') || '[]').length;
+    const proveedoresTransporte = JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]').length;
     
     setDatabases(prev => prev.map(db => {
       if (db.id === '1') return { ...db, itemCount: personal };
@@ -50,6 +52,7 @@ export default function BdPage() {
       if (db.id === '4') return { ...db, itemCount: gastronomia };
       if (db.id === '5') return { ...db, itemCount: alquiler };
       if (db.id === '6') return { ...db, itemCount: tipoServicio };
+      if (db.id === '7') return { ...db, itemCount: proveedoresTransporte };
       return db;
     }));
   }, []);
