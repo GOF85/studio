@@ -309,6 +309,7 @@ export default function PesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nº Servicio</TableHead>
+                <TableHead>Espacio</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Fecha Inicio</TableHead>
                 <TableHead>Fecha Fin</TableHead>
@@ -322,6 +323,7 @@ export default function PesPage() {
                 filteredAndSortedOrders.map(os => (
                   <TableRow key={os.id} onClick={() => router.push(`/os?id=${os.id}`)} className="cursor-pointer">
                     <TableCell className="font-medium">{os.serviceNumber}</TableCell>
+                    <TableCell>{os.space}</TableCell>
                     <TableCell>{os.client}</TableCell>
                     <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
                     <TableCell>{format(new Date(os.endDate), 'dd/MM/yyyy')}</TableCell>
@@ -355,7 +357,7 @@ export default function PesPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={8} className="h-24 text-center">
                     No hay órdenes de servicio que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>
