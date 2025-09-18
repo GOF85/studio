@@ -88,8 +88,8 @@ export default function GastronomiaDBPage() {
   }, [toast]);
   
   const categories = useMemo(() => {
-    if (!gastronomia) return ['all'];
-    const allCats = gastronomia.map(g => g.categoria);
+    if (!gastronomia) return [];
+    const allCats = gastronomia.map(g => g.categoria).filter(Boolean); // Filter out empty strings
     return ['all', ...Array.from(new Set(allCats))];
   }, [gastronomia]);
 
@@ -230,9 +230,10 @@ export default function GastronomiaDBPage() {
               <SelectValue placeholder="Filtrar por categoría" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas las categorías</SelectItem>
               {categories.map(cat => (
-                cat !== 'all' && <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                <SelectItem key={cat} value={cat}>
+                  {cat === 'all' ? 'Todas las categorías' : cat}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
