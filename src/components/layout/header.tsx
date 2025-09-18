@@ -1,11 +1,12 @@
 import Link from 'next/link';
-import { UtensilsCrossed, FileText, ClipboardList, Database, Menu, Calendar } from 'lucide-react';
+import { UtensilsCrossed, FileText, ClipboardList, Database, Menu, Calendar, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 
 export function Header() {
@@ -43,6 +44,13 @@ export function Header() {
                 <Link href="/bd">
                   <Database className="mr-2" />
                   Bases de Datos
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/bd/borrar" className="text-destructive focus:text-destructive">
+                  <Trash2 className="mr-2" />
+                  Borrar Bases de Datos
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>

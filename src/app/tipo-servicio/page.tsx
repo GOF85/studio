@@ -35,7 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 
 const CSV_HEADERS = ["id", "servicio"];
 
@@ -44,7 +44,6 @@ export default function TipoServicioPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -156,13 +155,6 @@ export default function TipoServicioPage() {
     setItemToDelete(null);
   };
   
-  const handleClearDatabase = () => {
-    localStorage.removeItem('tipoServicio');
-    setItems([]);
-    toast({ title: 'Base de datos eliminada', description: 'Todos los registros de tipos de servicio han sido eliminados.' });
-    setShowClearConfirm(false);
-  }
-
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Tipos de Servicio..." />;
   }
@@ -174,10 +166,6 @@ export default function TipoServicioPage() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><List />Base de Datos de Tipos de Servicio</h1>
           <div className="flex gap-2">
-            <Button variant="destructive" onClick={() => setShowClearConfirm(true)}>
-              <Trash2 className="mr-2" />
-              Vaciar Base de Datos
-            </Button>
             <Button asChild>
               <Link href="/tipo-servicio/nuevo">
                 <PlusCircle className="mr-2" />
@@ -188,7 +176,10 @@ export default function TipoServicioPage() {
         </div>
         
         <Card className="mb-6">
-          <CardContent className="pt-6 flex flex-col md:flex-row gap-4">
+          <CardHeader>
+            <h2 className="text-xl font-semibold">Importar y Exportar</h2>
+          </CardHeader>
+          <CardContent className="flex flex-col md:flex-row gap-4">
              <input
                 type="file"
                 ref={fileInputRef}
@@ -278,26 +269,6 @@ export default function TipoServicioPage() {
               onClick={handleDelete}
             >
               Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      
-      <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Vaciar Base de Datos de Tipos de Servicio</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Estás seguro? Esta acción no se puede deshacer. Se eliminarán TODOS los registros de tipos de servicio permanentemente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
-              onClick={handleClearDatabase}
-            >
-              Sí, vaciar base de datos
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
