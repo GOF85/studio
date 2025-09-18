@@ -15,7 +15,7 @@ import {
   endOfWeek,
 } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, Clock } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ type CalendarEvent = {
   osId: string;
   serviceNumber: string;
   serviceType: string;
+  horaInicio: string;
   space: string;
   finalClient: string;
   pax: number;
@@ -55,7 +56,7 @@ export default function CalendarioServiciosPage() {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    const serviceOrders: ServiceOrder[] = JSON.parse(localStorage.getItem('serviceOrders') || '[]');
+    const serviceOrders: ServiceOrder[] = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const briefings: ComercialBriefing[] = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     
     const allEvents: CalendarEvent[] = [];
@@ -69,6 +70,7 @@ export default function CalendarioServiciosPage() {
             osId: serviceOrder.id,
             serviceNumber: serviceOrder.serviceNumber,
             serviceType: item.descripcion,
+            horaInicio: item.horaInicio,
             space: serviceOrder.space || 'N/A',
             finalClient: serviceOrder.finalClient || '',
             pax: item.asistentes,
@@ -181,8 +183,8 @@ export default function CalendarioServiciosPage() {
                                         <p className="font-bold">{firstEvent.space}{firstEvent.finalClient && ` - ${firstEvent.finalClient}`}</p>
                                         {osEvents.slice(0, 3).map((event, index) => (
                                             <div key={index} className="text-sm">
-                                                <p className="font-medium">{event.serviceType}</p>
-                                                <p className="flex items-center gap-1 text-muted-foreground"><Users className="h-3 w-3"/>{event.pax} pax</p>
+                                                <p className="font-medium flex items-center gap-1.5"><Clock className="h-3 w-3"/>{event.horaInicio} - {event.serviceType}</p>
+                                                <p className="flex items-center gap-1 text-muted-foreground pl-5"><Users className="h-3 w-3"/>{event.pax} pax</p>
                                             </div>
                                         ))}
                                         {osEvents.length > 3 && (
