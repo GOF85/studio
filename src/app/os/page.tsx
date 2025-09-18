@@ -62,6 +62,7 @@ export const osFormSchema = z.object({
   serviceNumber: z.string().min(1, 'El Nº de Servicio es obligatorio'),
   startDate: z.date({ required_error: 'La fecha de inicio es obligatoria.' }),
   client: z.string().min(1, 'El cliente es obligatorio.'),
+  tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
   contact: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
@@ -106,7 +107,7 @@ const defaultValues: Partial<OsFormValues> = {
   respPase: '', respPasePhone: '', respPaseMail: '', respCocinaPase: '', respCocinaPasePhone: '', respCocinaPaseMail: '',
   agencyPercentage: 0, spacePercentage: 0, facturacion: 0,
   uniformity: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', deliveryLocations: [],
-  status: 'Borrador',
+  status: 'Borrador', tipoCliente: 'Empresa',
 };
 
 const ClienteTitle = () => {
@@ -469,6 +470,19 @@ export default function OsPage() {
                                 <FormControl><Input {...field} /></FormControl>
                                 <FormMessage />
                               </FormItem>
+                            )} />
+                            <FormField control={form.control} name="tipoCliente" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Tipo Cliente</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="Empresa">Empresa</SelectItem>
+                                        <SelectItem value="Agencia">Agencia</SelectItem>
+                                        <SelectItem value="Particular">Particular</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                </FormItem>
                             )} />
                             <FormField control={form.control} name="contact" render={({ field }) => (
                               <FormItem>
