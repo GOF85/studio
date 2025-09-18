@@ -551,7 +551,7 @@ export default function OsPage() {
                                    <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respCocinaPhone', 'respCocinaMail'); }} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                     <SelectContent>
-                                      {personalCocina.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
+                                      {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
                                     </SelectContent>
                                   </Select>
                                 </FormItem>
