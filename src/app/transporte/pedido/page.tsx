@@ -146,6 +146,21 @@ export default function PedidoTransportePage() {
     return <LoadingSkeleton title="Cargando Pedido de Transporte..." />;
   }
 
+  const deliveryLocations = useMemo(() => {
+    const locations = new Set<string>();
+    if (serviceOrder?.deliveryLocations) {
+      serviceOrder.deliveryLocations.forEach(loc => locations.add(loc));
+    }
+    if (serviceOrder?.space) {
+        const spaceData = (JSON.parse(localStorage.getItem('espacios') || '[]') as any[]).find(e => e.espacio === serviceOrder.space);
+        if (spaceData?.calle) {
+            locations.add(spaceData.calle);
+        }
+    }
+    locations.add('Avda. de la Industria, 38, 28108 Alcobendas, Madrid');
+    return Array.from(locations);
+  }, [serviceOrder]);
+
   return (
     <>
       <Header />
@@ -212,7 +227,12 @@ export default function PedidoTransportePage() {
                             <FormField control={form.control} name="lugarRecogida" render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Lugar de Recogida</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar o escribir..." /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            {deliveryLocations.map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
                                 <FormMessage />
                                 </FormItem>
                             )} />
@@ -226,7 +246,12 @@ export default function PedidoTransportePage() {
                              <FormField control={form.control} name="lugarEntrega" render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Lugar de Entrega</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
+                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar o escribir..." /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {deliveryLocations.map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
                                 <FormMessage />
                                 </FormItem>
                             )} />
