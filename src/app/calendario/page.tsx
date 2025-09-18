@@ -182,7 +182,7 @@ export default function CalendarioServiciosPage() {
                                     <div className="space-y-2">
                                         <p className="font-bold">{firstEvent.space}{firstEvent.finalClient && ` - ${firstEvent.finalClient}`}</p>
                                         {osEvents.slice(0, 3).map((event, index) => (
-                                            <div key={index} className="text-sm">
+                                            <div key={`${event.osId}-${index}`} className="text-sm">
                                                 <p className="font-medium flex items-center gap-1.5"><Clock className="h-3 w-3"/>{event.horaInicio} - {event.serviceType}</p>
                                                 <p className="flex items-center gap-1 text-muted-foreground pl-5"><Users className="h-3 w-3"/>{event.pax} pax</p>
                                             </div>
