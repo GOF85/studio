@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { Utensils, ArrowLeft, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
-import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, GastronomyOrderStatus } from '@/types';
+import { Utensils, ArrowLeft } from 'lucide-react';
+import type { ServiceOrder, ComercialBriefing, GastronomyOrder, GastronomyOrderStatus } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +17,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
@@ -27,8 +26,6 @@ const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' |
   Listo: 'default',
   Incidencia: 'destructive',
 };
-
-const statusOptions: GastronomyOrderStatus[] = ['Pendiente', 'En preparación', 'Listo', 'Incidencia'];
 
 export default function GastronomiaPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
@@ -59,7 +56,7 @@ export default function GastronomiaPage() {
             // Update if data differs, but keep status
             if (JSON.stringify({ ...existingOrder, status: null }) !== JSON.stringify({ ...briefingItem, osId, status: null })) {
                 needsUpdate = true;
-                return { ...briefingItem, osId, status: existingOrder.status };
+                return { ...existingOrder, ...briefingItem, osId };
             }
             return existingOrder;
         } else {
@@ -79,7 +76,8 @@ export default function GastronomiaPage() {
     const otherOsGastroOrders = allGastroOrders.filter(order => order.osId !== osId);
     
     if (needsUpdate) {
-        localStorage.setItem('gastronomyOrders', JSON.stringify([...otherOsGastroOrders, ...finalOrders]));
+        const updatedAllOrders = [...otherOsGastroOrders, ...finalOrders];
+        localStorage.setItem('gastronomyOrders', JSON.stringify(updatedAllOrders));
         setGastronomyOrders(finalOrders);
         toast({ title: "Sincronizado", description: "Los pedidos de gastronomía se han actualizado desde el briefing comercial." });
     } else {
@@ -100,19 +98,6 @@ export default function GastronomiaPage() {
     }
     setIsMounted(true);
   }, [osId, router, toast, loadAndSyncOrders]);
-
-  const handleStatusChange = (orderId: string, newStatus: GastronomyOrderStatus) => {
-    const updatedOrders = gastronomyOrders.map(order => 
-      order.id === orderId ? { ...order, status: newStatus } : order
-    );
-    setGastronomyOrders(updatedOrders);
-    
-    const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-    const otherOsOrders = allGastroOrders.filter(o => o.osId !== osId);
-    localStorage.setItem('gastronomyOrders', JSON.stringify([...otherOsOrders, ...updatedOrders]));
-
-    toast({ title: 'Estado actualizado' });
-  };
   
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Gastronomía..." />;
@@ -146,12 +131,7 @@ export default function GastronomiaPage() {
                             <TableHead>Fecha</TableHead>
                             <TableHead>Hora</TableHead>
                             <TableHead>Descripción</TableHead>
-                            <TableHead>Sala</TableHead>
                             <TableHead>Asistentes</TableHead>
-                            <TableHead>Bebidas</TableHead>
-                            <TableHead>Mat. Bebida</TableHead>
-                            <TableHead>Mat. Gastro</TableHead>
-                            <TableHead>Mantelería</TableHead>
                             <TableHead>Comentarios</TableHead>
                             <TableHead>Estado</TableHead>
                         </TableRow>
@@ -159,36 +139,20 @@ export default function GastronomiaPage() {
                         <TableBody>
                         {gastronomyOrders.length > 0 ? (
                             gastronomyOrders.map(order => (
-                            <TableRow key={order.id}>
+                            <TableRow key={order.id} onClick={() => router.push(`/gastronomia/pedido?osId=${osId}&briefingItemId=${order.id}`)} className="cursor-pointer">
                                 <TableCell>{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
                                 <TableCell>{order.horaInicio}</TableCell>
                                 <TableCell className="min-w-[200px] font-medium">{order.descripcion}</TableCell>
-                                <TableCell>{order.sala}</TableCell>
                                 <TableCell>{order.asistentes}</TableCell>
-                                <TableCell>{order.bebidas}</TableCell>
-                                <TableCell>{order.matBebida}</TableCell>
-                                <TableCell>{order.materialGastro}</TableCell>
-                                <TableCell>{order.manteleria}</TableCell>
                                 <TableCell className="min-w-[200px]">{order.comentarios}</TableCell>
                                 <TableCell>
-                                    <Select value={order.status} onValueChange={(value: GastronomyOrderStatus) => handleStatusChange(order.id, value)}>
-                                        <SelectTrigger className="w-[150px]">
-                                            <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {statusOptions.map(status => (
-                                                <SelectItem key={status} value={status}>
-                                                    <Badge variant={statusVariant[status]}>{status}</Badge>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
                                 </TableCell>
                             </TableRow>
                             ))
                         ) : (
                             <TableRow>
-                            <TableCell colSpan={11} className="h-24 text-center">
+                            <TableCell colSpan={6} className="h-24 text-center">
                                 No hay pedidos de gastronomía. Activa la opción "Con gastronomía" en los hitos del briefing comercial.
                             </TableCell>
                             </TableRow>

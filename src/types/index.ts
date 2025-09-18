@@ -135,9 +135,19 @@ export type ComercialBriefing = {
 
 export type GastronomyOrderStatus = 'Pendiente' | 'En preparación' | 'Incidencia' | 'Listo';
 
-export type GastronomyOrder = ComercialBriefingItem & {
+export type GastronomyOrderItem = {
+    id: string; // from GastronomiaDBItem
+    referencia: string;
+    categoria: string;
+    precio: number;
+    gramaje: number;
+    quantity: number;
+}
+export type GastronomyOrder = Omit<ComercialBriefingItem, 'precioUnitario' | 'conGastronomia'> & {
     osId: string;
     status: GastronomyOrderStatus;
+    items?: GastronomyOrderItem[]; // The actual food items ordered
+    total?: number;
 };
 
 export type AlquilerDBItem = {
