@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { PlusCircle, Trash2, ArrowLeft, Briefcase, Save, Pencil, X, Check } from 'lucide-react';
 import { format, differenceInMinutes, parse } from 'date-fns';
 
-import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, TipoServicio } from '@/types';
 import { osFormSchema, OsFormValues } from '@/app/os/page';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const briefingItemSchema = z.object({
   id: z.string(),
@@ -94,6 +95,7 @@ export default function ComercialPage() {
   const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [editingItem, setEditingItem] = useState<ComercialBriefingItem | null>(null);
+  const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -111,6 +113,11 @@ export default function ComercialPage() {
 
   useEffect(() => {
     setIsMounted(true);
+    const storedTipos = localStorage.getItem('tipoServicio');
+    if (storedTipos) {
+      setTiposServicio(JSON.parse(storedTipos));
+    }
+
     if (osId) {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allServiceOrders.find(os => os.id === osId);
@@ -214,6 +221,10 @@ export default function ComercialPage() {
         manteleria: item?.manteleria || '',
       }
     });
+
+    const asistentes = form.watch('asistentes');
+    const precioUnitario = form.watch('precioUnitario');
+    const total = useMemo(() => asistentes * precioUnitario, [asistentes, precioUnitario]);
     
     const onSubmit = (data: BriefingItemFormValues) => {
       if (onSave(data)) {
@@ -244,28 +255,45 @@ export default function ComercialPage() {
                 <FormField control={form.control} name="sala" render={({field}) => <FormItem><FormLabel>Sala</FormLabel><FormControl><Input placeholder="Sala" {...field} /></FormControl></FormItem> } />
                 <FormField control={form.control} name="asistentes" render={({field}) => <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input placeholder="Nº Asistentes" type="number" {...field} /></FormControl></FormItem> } />
                 <FormField control={form.control} name="precioUnitario" render={({field}) => <FormItem><FormLabel>Precio Unitario</FormLabel><FormControl><Input placeholder="Precio Unitario" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
+                <FormItem>
+                  <FormLabel>Total</FormLabel>
+                  <FormControl>
+                    <Input readOnly value={total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} />
+                  </FormControl>
+                </FormItem>
               </div>
-              <FormField
-                control={form.control}
-                name="conGastronomia"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        Con gastronomía
-                      </FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                <FormField control={form.control} name="descripcion" render={({field}) => (
+                    <FormItem><FormLabel>Descripción</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un tipo de servicio" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                {tiposServicio.map(tipo => <SelectItem key={tipo.id} value={tipo.servicio}>{tipo.servicio}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </FormItem> 
+                )} />
+                <FormField
+                    control={form.control}
+                    name="conGastronomia"
+                    render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-10">
+                        <FormControl>
+                        <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                        />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                        <FormLabel>
+                            Con gastronomía
+                        </FormLabel>
+                        </div>
+                    </FormItem>
+                    )}
+                />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField control={form.control} name="descripcion" render={({field}) => <FormItem><FormLabel>Descripción</FormLabel><FormControl><Textarea placeholder="Descripción" {...field} /></FormControl></FormItem> } />
                 <FormField control={form.control} name="comentarios" render={({field}) => <FormItem><FormLabel>Comentarios</FormLabel><FormControl><Textarea placeholder="Comentarios" {...field} /></FormControl></FormItem> } />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -359,7 +387,7 @@ export default function ComercialPage() {
                     <TableHead>Sala</TableHead>
                     <TableHead>Asistentes</TableHead>
                     <TableHead>P.Unitario</TableHead>
-                    <TableHead>Importe</TableHead>
+                    <TableHead>Total</TableHead>
                     <TableHead>Bebidas</TableHead>
                     <TableHead>Mat. Bebida</TableHead>
                     <TableHead>Mat. Gastro</TableHead>
