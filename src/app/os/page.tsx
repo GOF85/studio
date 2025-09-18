@@ -89,6 +89,10 @@ export const osFormSchema = z.object({
   respCocinaPase: z.string().optional().default(''),
   respCocinaPasePhone: z.string().optional().default(''),
   respCocinaPaseMail: z.string().email().optional().or(z.literal('')),
+  rrhhAsiste: z.boolean().optional().default(false),
+  respRRHH: z.string().optional().default(''),
+  respRRHHPhone: z.string().optional().default(''),
+  respRRHHMail: z.string().email().optional().or(z.literal('')),
   agencyPercentage: z.coerce.number().optional().default(0),
   spacePercentage: z.coerce.number().optional().default(0),
   facturacion: z.coerce.number().optional().default(0),
@@ -105,9 +109,10 @@ export const osFormSchema = z.object({
 export type OsFormValues = z.infer<typeof osFormSchema>;
 
 const defaultValues: Partial<OsFormValues> = {
-  serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', commercialPhone: '', commercialMail: '', commercialAsiste: false, pax: 0,
+  serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', comercial: '', comercialPhone: '', comercialMail: '', comercialAsiste: false, pax: 0,
   space: '', spaceContact: '', spacePhone: '', respMetre: '', respMetrePhone: '', respMetreMail: '', respCocinaCPR: '', respCocinaCPRPhone: '', respCocinaCPRMail: '',
   respPase: '', respPasePhone: '', respPaseMail: '', respCocinaPase: '', respCocinaPasePhone: '', respCocinaPaseMail: '',
+  rrhhAsiste: false, respRRHH: '', respRRHHPhone: '', respRRHHMail: '',
   agencyPercentage: 0, spacePercentage: 0, facturacion: 0,
   uniformity: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', deliveryLocations: [],
   status: 'Borrador', tipoCliente: 'Empresa',
@@ -179,6 +184,7 @@ export default function OsPage() {
   const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR'), [personal]);
   const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'COMERCIAL'), [personal]);
   const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA'), [personal]);
+  const personalRRHH = useMemo(() => personal.filter(p => p.departamento === 'RRHH'), [personal]);
 
   const form = useForm<OsFormValues>({
     resolver: zodResolver(osFormSchema),
@@ -636,10 +642,10 @@ export default function OsPage() {
                                     </FormItem>
                                     )}
                                 />
-                                <FormField control={form.control} name="commercial" render={({ field }) => (
+                                <FormField control={form.control} name="comercial" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Resp. Comercial</FormLabel>
-                                    <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'commercialPhone', 'commercialMail'); }} value={field.value}>
+                                    <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'comercialPhone', 'comercialMail'); }} value={field.value}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                         <SelectContent>
                                         {personalComercial.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
@@ -647,14 +653,50 @@ export default function OsPage() {
                                     </Select>
                                 </FormItem>
                                 )} />
-                                <FormField control={form.control} name="commercialPhone" render={({ field }) => (
+                                <FormField control={form.control} name="comercialPhone" render={({ field }) => (
                                 <FormItem><FormLabel>Tlf. Resp. Comercial</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                 )} />
-                                <FormField control={form.control} name="commercialMail" render={({ field }) => (
+                                <FormField control={form.control} name="comercialMail" render={({ field }) => (
                                 <FormItem><FormLabel>Mail Resp. Comercial</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                 )} />
                            </div>
                            <Separator className="my-4" />
+                           <div className="grid md:grid-cols-3 gap-6 pt-4">
+                                <FormField
+                                    control={form.control}
+                                    name="rrhhAsiste"
+                                    render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-start gap-3 rounded-lg border p-3 col-span-3">
+                                        <FormControl>
+                                        <Checkbox
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                        </FormControl>
+                                        <FormLabel className="!m-0 text-base">
+                                            RRHH asiste al evento
+                                        </FormLabel>
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField control={form.control} name="respRRHH" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Resp. RRHH</FormLabel>
+                                    <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respRRHHPhone', 'respRRHHMail'); }} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                        {personalRRHH.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </FormItem>
+                                )} />
+                                <FormField control={form.control} name="respRRHHPhone" render={({ field }) => (
+                                <FormItem><FormLabel>Tlf. Resp. RRHH</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                                )} />
+                                <FormField control={form.control} name="respRRHHMail" render={({ field }) => (
+                                <FormItem><FormLabel>Mail Resp. RRHH</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                                )} />
+                           </div>
                         </AccordionContent>
                       </AccordionItem>
                     </Accordion>}
@@ -793,4 +835,3 @@ export default function OsPage() {
     
 
     
-
