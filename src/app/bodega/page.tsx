@@ -111,7 +111,7 @@ export default function BodegaPage() {
       toast({ variant: 'destructive', title: 'No permitido', description: 'Solo se pueden editar pedidos en estado "Asignado".'});
       return;
     }
-    router.push(`/?osId=${osId}&type=Bodega&orderId=${order.id}`);
+    router.push(`/pedidos?osId=${osId}&type=Bodega&orderId=${order.id}`);
   }
 
   if (!isMounted || !serviceOrder) {
@@ -132,7 +132,7 @@ export default function BodegaPage() {
                 <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
             </div>
           <Button asChild>
-            <Link href={`/?osId=${osId}&type=Bodega`}>
+            <Link href={`/pedidos?osId=${osId}&type=Bodega`}>
               <PlusCircle className="mr-2" />
               Nuevo Pedido de Bodega
             </Link>

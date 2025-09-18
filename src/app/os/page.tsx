@@ -276,8 +276,7 @@ export default function OsPage() {
   }
 
   const handleEditMaterialOrder = (order: MaterialOrder) => {
-    const modulePath = order.type === 'Almacén' ? 'almacen' : 'bodega';
-    router.push(`/?osId=${osId}&type=${order.type}&orderId=${order.id}`);
+    router.push(`/pedidos?osId=${osId}&type=${order.type}&orderId=${order.id}`);
   }
 
   const handleDeleteMaterialOrder = (orderId: string) => {

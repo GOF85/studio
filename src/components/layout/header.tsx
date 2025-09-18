@@ -31,12 +31,6 @@ export function Header() {
               Calendario
             </Link>
           </Button>
-          <Button variant="outline" asChild>
-            <Link href="/os">
-              <FileText className="mr-2" />
-              Nueva Orden de Servicio
-            </Link>
-          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">

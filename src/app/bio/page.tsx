@@ -111,7 +111,7 @@ export default function BioPage() {
       toast({ variant: 'destructive', title: 'No permitido', description: 'Solo se pueden editar pedidos en estado "Asignado".'});
       return;
     }
-    router.push(`/?osId=${osId}&type=Bio&orderId=${order.id}`);
+    router.push(`/pedidos?osId=${osId}&type=Bio&orderId=${order.id}`);
   }
 
   if (!isMounted || !serviceOrder) {
@@ -132,7 +132,7 @@ export default function BioPage() {
                 <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
             </div>
           <Button asChild>
-            <Link href={`/?osId=${osId}&type=Bio`}>
+            <Link href={`/pedidos?osId=${osId}&type=Bio`}>
               <PlusCircle className="mr-2" />
               Nuevo Pedido de Bio
             </Link>
