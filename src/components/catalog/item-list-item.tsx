@@ -15,6 +15,16 @@ interface ItemListItemProps {
   onAddItem: (quantity: number) => void;
 }
 
+function isValidHttpUrl(string: string) {
+  let url;
+  try {
+    url = new URL(string);
+  } catch (_) {
+    return false;  
+  }
+  return url.protocol === "http:" || url.protocol === "https:";
+}
+
 export function ItemListItem({ item, onAddItem }: ItemListItemProps) {
   const [quantity, setQuantity] = useState(1);
 
@@ -24,11 +34,13 @@ export function ItemListItem({ item, onAddItem }: ItemListItemProps) {
     }
   };
 
+  const imageUrl = isValidHttpUrl(item.imageUrl) ? item.imageUrl : `https://picsum.photos/seed/${item.itemCode}/400/300`;
+
   return (
     <div className="flex items-center gap-4 p-4 border-b transition-colors hover:bg-secondary/50">
       <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md">
         <Image
-          src={item.imageUrl}
+          src={imageUrl}
           alt={item.description}
           fill
           className="object-cover"
