@@ -34,6 +34,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
+import { ScrollArea } from '../ui/scroll-area';
 
 
 interface OrderSummaryProps {
@@ -111,7 +112,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   };
   
   return (
-    <Card className="sticky top-24">
+    <Card className="sticky top-24 h-[calc(100vh-7rem)] flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-xl font-headline">Tu Pedido</CardTitle>
         {items.length > 0 && (
@@ -121,39 +122,40 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
           </Button>
         )}
       </CardHeader>
-      <CardContent>
-        {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10">
-            <ShoppingCart className="h-12 w-12 mb-4" />
-            <p className="font-medium">Tu cesta está vacía</p>
-            <p className="text-sm">Añade artículos desde el catálogo para empezar.</p>
-          </div>
-        ) : (
-          <div className="max-h-[400px] overflow-y-auto pr-2 -mr-2">
-            <ul className="space-y-4">
-              {items.map((item) => {
-                const imageUrl = isValidHttpUrl(item.imageUrl) ? item.imageUrl : `https://picsum.photos/seed/${item.itemCode}/400/300`;
-                return (
-                <li key={item.itemCode} className="flex items-center gap-4">
-                   <div className="relative w-16 h-16 rounded-md overflow-hidden flex-shrink-0">
-                    <Image src={imageUrl} alt={item.description} fill className="object-cover" data-ai-hint={item.imageHint}/>
-                  </div>
-                  <div className="flex-grow">
-                    <p className="font-medium leading-tight">{item.description}</p>
-                    <p className="text-sm text-muted-foreground">{item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/día</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                     <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.itemCode, item.quantity - 1)}><Minus className="h-4 w-4" /></Button>
-                    <Input type="number" value={item.quantity} onChange={(e) => onUpdateQuantity(item.itemCode, parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
-                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.itemCode, item.quantity + 1)}><Plus className="h-4 w-4" /></Button>
-                  </div>
-                </li>
-              )})}
-            </ul>
-          </div>
-        )}
-        {items.length > 0 && (
-          <>
+      <ScrollArea className="flex-grow">
+        <CardContent>
+          {items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10">
+              <ShoppingCart className="h-12 w-12 mb-4" />
+              <p className="font-medium">Tu cesta está vacía</p>
+              <p className="text-sm">Añade artículos desde el catálogo para empezar.</p>
+            </div>
+          ) : (
+              <ul className="space-y-4">
+                {items.map((item) => {
+                  const imageUrl = isValidHttpUrl(item.imageUrl) ? item.imageUrl : `https://picsum.photos/seed/${item.itemCode}/400/300`;
+                  return (
+                  <li key={item.itemCode} className="flex items-center gap-4">
+                    <div className="relative w-16 h-16 rounded-md overflow-hidden flex-shrink-0">
+                      <Image src={imageUrl} alt={item.description} fill className="object-cover" data-ai-hint={item.imageHint}/>
+                    </div>
+                    <div className="flex-grow">
+                      <p className="font-medium leading-tight">{item.description}</p>
+                      <p className="text-sm text-muted-foreground">{item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}/día</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.itemCode, item.quantity - 1)}><Minus className="h-4 w-4" /></Button>
+                      <Input type="number" value={item.quantity} onChange={(e) => onUpdateQuantity(item.itemCode, parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.itemCode, item.quantity + 1)}><Plus className="h-4 w-4" /></Button>
+                    </div>
+                  </li>
+                )})}
+              </ul>
+          )}
+        </CardContent>
+      </ScrollArea>
+      {items.length > 0 && (
+          <div className="p-6 pt-0">
             <Separator className="my-4" />
             <div className="space-y-4">
               <div className="flex items-center gap-4">
@@ -178,14 +180,13 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                 <span>Días de alquiler:</span>
                 <span>x{rentalDays}</span>
               </div>
-               <div className="flex justify-between font-bold text-lg pt-2">
+              <div className="flex justify-between font-bold text-lg pt-2">
                 <span>Total:</span>
                 <span>{total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
               </div>
             </div>
-          </>
+          </div>
         )}
-      </CardContent>
       <CardFooter>
         <Dialog open={isReviewOpen} onOpenChange={setReviewOpen}>
           <DialogTrigger asChild>
