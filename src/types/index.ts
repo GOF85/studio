@@ -145,4 +145,5 @@ export type AlquilerDBItem = {
     concepto: string;
     precioAlquiler: number;
     precioReposicion: number;
+    imagen: string; // url
 };

@@ -21,6 +21,7 @@ export const alquilerFormSchema = z.object({
   concepto: z.string().min(1, 'El concepto es obligatorio'),
   precioAlquiler: z.coerce.number().min(0, 'El precio debe ser positivo'),
   precioReposicion: z.coerce.number().min(0, 'El precio de reposición debe ser positivo'),
+  imagen: z.string().url('Debe ser una URL válida').or(z.literal('')),
 });
 
 type AlquilerFormValues = z.infer<typeof alquilerFormSchema>;
@@ -29,6 +30,7 @@ const defaultValues: Partial<AlquilerFormValues> = {
     concepto: '',
     precioAlquiler: 0,
     precioReposicion: 0,
+    imagen: '',
 };
 
 export default function AlquilerFormPage() {
@@ -118,14 +120,18 @@ export default function AlquilerFormPage() {
               </CardHeader>
               <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <FormField control={form.control} name="concepto" render={({ field }) => (
-                    <FormItem className="lg:col-span-2"><FormLabel>Concepto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Concepto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <div></div>
-                <FormField control={form.control} name="precioAlquiler" render={({ field }) => (
+                <div></div>
+                 <FormField control={form.control} name="precioAlquiler" render={({ field }) => (
                     <FormItem><FormLabel>Precio Alquiler</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="precioReposicion" render={({ field }) => (
                     <FormItem><FormLabel>Precio Reposición</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormMessage>
+                )} />
+                 <FormField control={form.control} name="imagen" render={({ field }) => (
+                    <FormItem><FormLabel>URL de Imagen</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
               </CardContent>
             </Card>

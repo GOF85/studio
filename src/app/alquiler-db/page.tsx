@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Truck } from 'lucide-react';
 import type { AlquilerDBItem } from '@/types';
@@ -35,7 +36,7 @@ import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
 
-const CSV_HEADERS = ["id", "concepto", "precioAlquiler", "precioReposicion"];
+const CSV_HEADERS = ["id", "concepto", "precioAlquiler", "precioReposicion", "imagen"];
 
 export default function AlquilerDBPage() {
   const [items, setItems] = useState<AlquilerDBItem[]>([]);
@@ -57,12 +58,14 @@ export default function AlquilerDBPage() {
           concepto: 'Equipo de Sonido 2000W',
           precioAlquiler: 150.00,
           precioReposicion: 2000.00,
+          imagen: 'https://picsum.photos/seed/sound-system/100'
         },
         {
           id: '2',
           concepto: 'Proyector FullHD 5000 lumens',
           precioAlquiler: 120.00,
           precioReposicion: 1500.00,
+          imagen: 'https://picsum.photos/seed/projector/100'
         },
       ];
       storedData = JSON.stringify(dummyData);
@@ -137,6 +140,7 @@ export default function AlquilerDBPage() {
             concepto: item.concepto || '',
             precioAlquiler: parseCurrency(item.precioAlquiler),
             precioReposicion: parseCurrency(item.precioReposicion),
+            imagen: item.imagen || '',
         }));
         
         localStorage.setItem('alquilerDB', JSON.stringify(importedData));
@@ -210,6 +214,7 @@ export default function AlquilerDBPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Concepto</TableHead>
+                <TableHead>Imagen</TableHead>
                 <TableHead>Precio Alquiler</TableHead>
                 <TableHead>Precio Reposición</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
@@ -220,6 +225,9 @@ export default function AlquilerDBPage() {
                 filteredItems.map(item => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.concepto}</TableCell>
+                    <TableCell>
+                      {item.imagen && <Image src={item.imagen} alt={item.concepto} width={40} height={40} className="rounded-md object-cover"/>}
+                    </TableCell>
                     <TableCell>{item.precioAlquiler.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                     <TableCell>{item.precioReposicion.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                     <TableCell className="text-right">
@@ -246,7 +254,7 @@ export default function AlquilerDBPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     No se encontraron artículos que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>

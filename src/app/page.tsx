@@ -9,7 +9,7 @@ import { ItemCatalog } from '@/components/catalog/item-catalog';
 import { OrderSummary } from '@/components/order/order-summary';
 import { useToast } from '@/hooks/use-toast';
 
-type CatalogSourceItem = CateringItem | (Omit<AlquilerDBItem, 'precioReposicion' | 'precioAlquiler'> & { price: number; description: string; stock: number; itemCode: string; imageUrl: string; imageHint: string; category: string });
+type CatalogSourceItem = CateringItem | (Omit<AlquilerDBItem, 'precioReposicion' | 'precioAlquiler' | 'imagen'> & { price: number; description: string; stock: number; itemCode: string; imageUrl: string; imageHint: string; category: string });
 
 export default function Home() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -38,7 +38,7 @@ export default function Home() {
         description: item.concepto,
         price: item.precioAlquiler,
         stock: 999, // Assume infinite stock for rentals
-        imageUrl: `https://picsum.photos/seed/${item.id}/400/300`, // Placeholder image
+        imageUrl: item.imagen || `https://picsum.photos/seed/${item.id}/400/300`, // Use stored image or placeholder
         imageHint: 'rental item',
         category: 'Alquiler',
       }));
