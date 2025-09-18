@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, useWatch, FormProvider } from 'react-hook-form';
@@ -58,22 +58,22 @@ const briefingItemSchema = z.object({
 type BriefingItemFormValues = z.infer<typeof briefingItemSchema>;
 
 const financialSchema = osFormSchema.pick({
-    facturacion: true,
     agencyPercentage: true,
     spacePercentage: true,
 });
 
 type FinancialFormValues = z.infer<typeof financialSchema>;
 
-function FinancialCalculator() {
-  const facturacion = useWatch({ name: 'facturacion' });
+function FinancialCalculator({ totalBriefing, onNetChange }: { totalBriefing: number, onNetChange: (net:number) => void }) {
   const agencyPercentage = useWatch({ name: 'agencyPercentage' });
   const spacePercentage = useWatch({ name: 'spacePercentage' });
 
   const facturacionNeta = useMemo(() => {
     const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
-    return (facturacion || 0) * (1 - totalPercentage / 100);
-  }, [facturacion, agencyPercentage, spacePercentage]);
+    const net = totalBriefing * (1 - totalPercentage / 100);
+    onNetChange(net);
+    return net;
+  }, [totalBriefing, agencyPercentage, spacePercentage, onNetChange]);
 
   return (
     <FormItem>
@@ -96,20 +96,36 @@ export default function ComercialPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [editingItem, setEditingItem] = useState<ComercialBriefingItem | null>(null);
   const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
+  const [facturacionNeta, setFacturacionNeta] = useState(0);
 
   const router = useRouter();
   const searchParams = useSearchParams();
   const osId = searchParams.get('osId');
   const { toast } = useToast();
 
+  const totalBriefing = useMemo(() => {
+    return briefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario), 0) || 0;
+  }, [briefing]);
+
   const financialForm = useForm<FinancialFormValues>({
     resolver: zodResolver(financialSchema),
     defaultValues: {
-        facturacion: 0,
         agencyPercentage: 0,
         spacePercentage: 0,
     }
   });
+
+   const saveFinancials = useCallback((data: { facturacion: number, agencyPercentage: number, spacePercentage: number }) => {
+    if (!serviceOrder) return;
+    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    const index = allServiceOrders.findIndex(os => os.id === osId);
+    if (index !== -1) {
+        allServiceOrders[index] = { ...allServiceOrders[index], ...data };
+        localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
+        setServiceOrder(allServiceOrders[index]);
+    }
+  }, [serviceOrder, osId]);
+
 
   useEffect(() => {
     setIsMounted(true);
@@ -124,7 +140,6 @@ export default function ComercialPage() {
       setServiceOrder(currentOS || null);
       if (currentOS) {
         financialForm.reset({
-            facturacion: currentOS.facturacion,
             agencyPercentage: currentOS.agencyPercentage,
             spacePercentage: currentOS.spacePercentage
         });
@@ -138,6 +153,25 @@ export default function ComercialPage() {
       router.push('/pes');
     }
   }, [osId, router, toast, financialForm]);
+
+   useEffect(() => {
+    if (serviceOrder && totalBriefing !== serviceOrder.facturacion) {
+      saveFinancials({
+        facturacion: totalBriefing,
+        agencyPercentage: serviceOrder.agencyPercentage,
+        spacePercentage: serviceOrder.spacePercentage
+      });
+    }
+  }, [totalBriefing, serviceOrder, saveFinancials]);
+
+  const sortedBriefingItems = useMemo(() => {
+    if (!briefing?.items) return [];
+    return [...briefing.items].sort((a, b) => {
+      const dateComparison = a.fecha.localeCompare(b.fecha);
+      if (dateComparison !== 0) return dateComparison;
+      return a.horaInicio.localeCompare(b.horaInicio);
+    });
+  }, [briefing]);
 
   const saveBriefing = (newBriefing: ComercialBriefing) => {
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
@@ -335,22 +369,25 @@ export default function ComercialPage() {
         </div>
         
         <FormProvider {...financialForm}>
-            <form onSubmit={financialForm.handleSubmit(handleSaveFinancials)}>
+            <form onChange={() => financialForm.handleSubmit(handleSaveFinancials)()}>
                 <Card className="mb-8">
                     <CardHeader>
                         <div className="flex justify-between items-center">
                             <CardTitle>Información Financiera</CardTitle>
-                            <Button size="sm" type="submit"><Save className="mr-2 h-4 w-4"/> Guardar Cambios</Button>
                         </div>
                     </CardHeader>
                     <CardContent>
                         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <FormField control={financialForm.control} name="facturacion" render={({ field }) => (
-                                <FormItem>
+                           <FormItem>
                                 <FormLabel>Facturación</FormLabel>
-                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl>
-                                </FormItem>
-                            )} />
+                                <FormControl>
+                                    <Input 
+                                        type="text" 
+                                        readOnly
+                                        value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} 
+                                    />
+                                </FormControl>
+                            </FormItem>
                             <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>% Agencia</FormLabel>
@@ -363,7 +400,7 @@ export default function ComercialPage() {
                                 <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
                                 </FormItem>
                             )} />
-                            <FinancialCalculator />
+                            <FinancialCalculator totalBriefing={totalBriefing} onNetChange={setFacturacionNeta}/>
                         </div>
                     </CardContent>
                 </Card>
@@ -396,8 +433,8 @@ export default function ComercialPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {briefing?.items.length > 0 ? (
-                    briefing.items.map(item => (
+                  {sortedBriefingItems.length > 0 ? (
+                    sortedBriefingItems.map(item => (
                       <TableRow key={item.id}>
                         <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
                         <TableCell>{item.horaInicio}</TableCell>
