@@ -76,9 +76,9 @@ export const osFormSchema = z.object({
   respMetre: z.string().optional().default(''),
   respMetrePhone: z.string().optional().default(''),
   respMetreMail: z.string().email().optional().or(z.literal('')),
-  respCocina: z.string().optional().default(''),
-  respCocinaPhone: z.string().optional().default(''),
-  respCocinaMail: z.string().email().optional().or(z.literal('')),
+  respCocinaCPR: z.string().optional().default(''),
+  respCocinaCPRPhone: z.string().optional().default(''),
+  respCocinaCPRMail: z.string().email().optional().or(z.literal('')),
   respPase: z.string().optional().default(''),
   respPasePhone: z.string().optional().default(''),
   respPaseMail: z.string().email().optional().or(z.literal('')),
@@ -102,7 +102,7 @@ export type OsFormValues = z.infer<typeof osFormSchema>;
 
 const defaultValues: Partial<OsFormValues> = {
   serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', commercial: '', commercialPhone: '', commercialMail: '', pax: 0,
-  space: '', spaceContact: '', spacePhone: '', respMetre: '', respMetrePhone: '', respMetreMail: '', respCocina: '', respCocinaPhone: '', respCocinaMail: '',
+  space: '', spaceContact: '', spacePhone: '', respMetre: '', respMetrePhone: '', respMetreMail: '', respCocinaCPR: '', respCocinaCPRPhone: '', respCocinaCPRMail: '',
   respPase: '', respPasePhone: '', respPaseMail: '', respCocinaPase: '', respCocinaPasePhone: '', respCocinaPaseMail: '',
   agencyPercentage: 0, spacePercentage: 0, facturacion: 0,
   uniformity: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '', deliveryLocations: [],
@@ -545,23 +545,7 @@ export default function OsPage() {
                                <FormField control={form.control} name="respMetreMail" render={({ field }) => (
                                 <FormItem><FormLabel>Mail Resp. Metre</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                )} />
-                              <FormField control={form.control} name="respCocina" render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Resp. Cocina</FormLabel>
-                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respCocinaPhone', 'respCocinaMail'); }} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                      {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
-                                    </SelectContent>
-                                  </Select>
-                                </FormItem>
-                              )} />
-                               <FormField control={form.control} name="respCocinaPhone" render={({ field }) => (
-                                <FormItem><FormLabel>Tlf. Resp. Cocina</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                               )} />
-                               <FormField control={form.control} name="respCocinaMail" render={({ field }) => (
-                                <FormItem><FormLabel>Mail Resp. Cocina</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                               )} />
+
                               <FormField control={form.control} name="respPase" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Resp. Pase</FormLabel>
@@ -579,6 +563,7 @@ export default function OsPage() {
                                <FormField control={form.control} name="respPaseMail" render={({ field }) => (
                                 <FormItem><FormLabel>Mail Resp. Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                )} />
+
                               <FormField control={form.control} name="respCocinaPase" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Resp. Cocina Pase</FormLabel>
@@ -596,6 +581,25 @@ export default function OsPage() {
                                <FormField control={form.control} name="respCocinaPaseMail" render={({ field }) => (
                                 <FormItem><FormLabel>Mail Resp. Cocina Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                )} />
+                                
+                              <FormField control={form.control} name="respCocinaCPR" render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Resp. Cocina CPR</FormLabel>
+                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respCocinaCPRPhone', 'respCocinaCPRMail'); }} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                      {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
+                                    </SelectContent>
+                                  </Select>
+                                </FormItem>
+                              )} />
+                               <FormField control={form.control} name="respCocinaCPRPhone" render={({ field }) => (
+                                <FormItem><FormLabel>Tlf. Resp. Cocina CPR</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                               )} />
+                               <FormField control={form.control} name="respCocinaCPRMail" render={({ field }) => (
+                                <FormItem><FormLabel>Mail Resp. Cocina CPR</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                               )} />
+
                               <FormField control={form.control} name="commercial" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Resp. Comercial</FormLabel>
