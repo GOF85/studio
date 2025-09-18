@@ -37,6 +37,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 const briefingItemSchema = z.object({
   id: z.string(),
@@ -133,7 +134,6 @@ export default function ComercialPage() {
 
 
   useEffect(() => {
-    setIsMounted(true);
     const storedTipos = localStorage.getItem('tipoServicio');
     if (storedTipos) {
       setTiposServicio(JSON.parse(storedTipos));
@@ -157,6 +157,7 @@ export default function ComercialPage() {
       toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
       router.push('/pes');
     }
+    setIsMounted(true);
   }, [osId, router, toast, financialForm]);
 
    useEffect(() => {
@@ -375,7 +376,7 @@ export default function ComercialPage() {
   }
 
   if (!isMounted || !serviceOrder) {
-    return null; // or a loading skeleton
+    return <LoadingSkeleton title="Cargando Módulo Comercial..." />;
   }
 
   return (

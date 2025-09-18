@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -55,6 +53,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 
 export const osFormSchema = z.object({
@@ -150,6 +149,7 @@ export default function OsPage() {
   const searchParams = useSearchParams();
   const osId = searchParams.get('id');
 
+  const [isMounted, setIsMounted] = useState(false);
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [totalAmount, setTotalAmount] = useState(0);
   const { isLoading, setIsLoading } = useLoadingStore();
@@ -218,6 +218,7 @@ export default function OsPage() {
       form.reset(defaultValues);
       setAccordionDefaultValue(['cliente', 'espacio', 'responsables']); // Expand for new
     }
+    setIsMounted(true);
   }, [osId, form, router, toast]);
 
   function onSubmit(data: OsFormValues) {
@@ -293,6 +294,10 @@ export default function OsPage() {
     setIsSubmittingFromDialog(true);
     await form.handleSubmit(onSubmit)();
   };
+  
+  if (!isMounted) {
+    return <LoadingSkeleton title={osId ? 'Editando Orden de Servicio...' : 'Creando Orden de Servicio...'} />;
+  }
 
   return (
     <TooltipProvider>

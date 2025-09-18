@@ -36,6 +36,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -60,7 +61,6 @@ export default function BodegaPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    setIsMounted(true);
     if (osId) {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allServiceOrders.find(os => os.id === osId);
@@ -73,6 +73,7 @@ export default function BodegaPage() {
         toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
         router.push('/pes');
     }
+    setIsMounted(true);
   }, [osId, router, toast]);
 
   const allItemsByStatus = useMemo(() => {
@@ -114,7 +115,7 @@ export default function BodegaPage() {
   }
 
   if (!isMounted || !serviceOrder) {
-    return null; // or a loading skeleton
+    return <LoadingSkeleton title="Cargando Módulo de Bodega..." />;
   }
 
   return (
@@ -275,5 +276,3 @@ export default function BodegaPage() {
     </>
   );
 }
-
-    

@@ -36,6 +36,7 @@ import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 const CSV_HEADERS = ["id", "referencia", "categoria", "imagenRef", "imagenEmpl", "precio", "gramaje"];
 
@@ -51,7 +52,6 @@ export default function GastronomiaDBPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setIsMounted(true);
     let storedData = localStorage.getItem('gastronomiaDB');
     if (!storedData || JSON.parse(storedData).length === 0) {
       const dummyData: GastronomiaDBItem[] = [
@@ -84,6 +84,7 @@ export default function GastronomiaDBPage() {
     } else {
       setGastronomia(JSON.parse(storedData));
     }
+    setIsMounted(true);
   }, [toast]);
   
   const categories = useMemo(() => {
@@ -183,7 +184,7 @@ export default function GastronomiaDBPage() {
   };
 
   if (!isMounted) {
-    return null;
+    return <LoadingSkeleton title="Cargando Base de Datos de Gastronomía..." />;
   }
 
   return (

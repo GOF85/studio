@@ -19,6 +19,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   Pendiente: 'secondary',
@@ -88,7 +89,6 @@ export default function GastronomiaPage() {
   }, [osId, toast]);
 
   useEffect(() => {
-    setIsMounted(true);
     if (osId) {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allServiceOrders.find(os => os.id === osId);
@@ -98,6 +98,7 @@ export default function GastronomiaPage() {
       toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
       router.push('/pes');
     }
+    setIsMounted(true);
   }, [osId, router, toast, loadAndSyncOrders]);
 
   const handleStatusChange = (orderId: string, newStatus: GastronomyOrderStatus) => {
@@ -114,7 +115,7 @@ export default function GastronomiaPage() {
   };
   
   if (!isMounted || !serviceOrder) {
-    return null; // or a loading skeleton
+    return <LoadingSkeleton title="Cargando Módulo de Gastronomía..." />;
   }
 
   return (

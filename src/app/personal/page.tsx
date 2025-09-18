@@ -35,6 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 const CSV_HEADERS = ["id", "nombre", "departamento", "categoria", "telefono", "mail"];
 
@@ -50,7 +51,6 @@ export default function PersonalPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setIsMounted(true);
     let storedPersonal = localStorage.getItem('personal');
     if (!storedPersonal || JSON.parse(storedPersonal).length === 0) {
       const dummyPersonal: Personal[] = [
@@ -81,6 +81,7 @@ export default function PersonalPage() {
     } else {
       setPersonal(JSON.parse(storedPersonal));
     }
+    setIsMounted(true);
   }, [toast]);
   
   const departments = useMemo(() => {
@@ -172,7 +173,7 @@ export default function PersonalPage() {
   };
 
   if (!isMounted) {
-    return null;
+    return <LoadingSkeleton title="Cargando Gestión de Personal..." />;
   }
 
   return (

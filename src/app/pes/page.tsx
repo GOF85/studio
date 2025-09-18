@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { CATERING_ITEMS } from '@/lib/data';
 import { Input } from '@/components/ui/input';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 export default function PesPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
@@ -46,7 +47,6 @@ export default function PesPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    setIsMounted(true);
     const storedOrders = localStorage.getItem('serviceOrders');
     
     if (!storedOrders || JSON.parse(storedOrders).length === 0) {
@@ -159,6 +159,7 @@ export default function PesPage() {
     } else {
       setServiceOrders(JSON.parse(storedOrders));
     }
+    setIsMounted(true);
   }, [toast]);
 
   const filteredOrders = useMemo(() => {
@@ -183,7 +184,7 @@ export default function PesPage() {
   };
 
   if (!isMounted) {
-    return null; // or a loading skeleton
+    return <LoadingSkeleton title="Cargando Previsión de Servicios..." />;
   }
 
   return (

@@ -35,6 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 const CSV_HEADERS = [ "id", "espacio", "escaparateMICE", "carpetaDRIVE", "calle", "nombreContacto1", "telefonoContacto1", "emailContacto1", "canonEspacioPorcentaje", "canonEspacioFijo", "canonMcPorcentaje", "canonMcFijo", "comisionAlquilerMcPorcentaje", "precioOrientativoAlquiler", "horaLimiteCierre", "aforoCocktail", "aforoBanquete", "auditorio", "aforoAuditorio", "zonaExterior", "capacidadesPorSala", "numeroDeSalas", "tipoDeEspacio", "tipoDeEventos", "ciudad", "directorio", "descripcion", "comentariosVarios", "equipoAudiovisuales", "cocina", "accesibilidadAsistentes", "pantalla", "plato", "accesoVehiculos", "aparcamiento", "conexionWifi", "homologacion", "comentariosMarketing"];
 
@@ -51,7 +52,6 @@ export default function EspaciosPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setIsMounted(true);
     let storedEspacios = localStorage.getItem('espacios');
     if (!storedEspacios || JSON.parse(storedEspacios).length === 0) {
       const dummyEspacios: Espacio[] = [
@@ -106,6 +106,7 @@ export default function EspaciosPage() {
     } else {
       setEspacios(JSON.parse(storedEspacios));
     }
+    setIsMounted(true);
   }, [toast]);
   
   const cities = useMemo(() => {
@@ -238,7 +239,7 @@ export default function EspaciosPage() {
   };
 
   if (!isMounted) {
-    return null;
+    return <LoadingSkeleton title="Cargando Gestión de Espacios..." />;
   }
 
   return (

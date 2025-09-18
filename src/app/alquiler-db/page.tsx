@@ -35,6 +35,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 const CSV_HEADERS = ["id", "concepto", "precioAlquiler", "precioReposicion", "imagen"];
 
@@ -49,7 +50,6 @@ export default function AlquilerDBPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setIsMounted(true);
     let storedData = localStorage.getItem('alquilerDB');
     if (!storedData || JSON.parse(storedData).length === 0) {
       const dummyData: AlquilerDBItem[] = [
@@ -78,6 +78,7 @@ export default function AlquilerDBPage() {
     } else {
       setItems(JSON.parse(storedData));
     }
+    setIsMounted(true);
   }, [toast]);
   
   const filteredItems = useMemo(() => {
@@ -166,7 +167,7 @@ export default function AlquilerDBPage() {
   };
 
   if (!isMounted) {
-    return null;
+    return <LoadingSkeleton title="Cargando Base de Datos de Alquiler..." />;
   }
 
   return (

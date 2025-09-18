@@ -34,6 +34,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 const CSV_HEADERS = ["id", "servicio"];
 
@@ -48,7 +49,6 @@ export default function TipoServicioPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setIsMounted(true);
     let storedData = localStorage.getItem('tipoServicio');
     if (!storedData || JSON.parse(storedData).length === 0) {
       const dummyData: TipoServicio[] = [
@@ -79,6 +79,7 @@ export default function TipoServicioPage() {
     } else {
       setItems(JSON.parse(storedData));
     }
+    setIsMounted(true);
   }, [toast]);
   
   const filteredItems = useMemo(() => {
@@ -154,7 +155,7 @@ export default function TipoServicioPage() {
   };
 
   if (!isMounted) {
-    return null;
+    return <LoadingSkeleton title="Cargando Tipos de Servicio..." />;
   }
 
   return (

@@ -36,6 +36,7 @@ import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 const CSV_HEADERS = ["id", "producto", "categoria", "loc", "precioUd", "precioAlquilerUd", "imagen"];
 
@@ -51,7 +52,6 @@ export default function PreciosPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setIsMounted(true);
     let storedPrecios = localStorage.getItem('precios');
     if (!storedPrecios || JSON.parse(storedPrecios).length === 0) {
       const dummyPrecios: Precio[] = [
@@ -84,6 +84,7 @@ export default function PreciosPage() {
     } else {
       setPrecios(JSON.parse(storedPrecios));
     }
+    setIsMounted(true);
   }, [toast]);
   
   const filteredPrecios = useMemo(() => {
@@ -178,7 +179,7 @@ export default function PreciosPage() {
   };
 
   if (!isMounted) {
-    return null;
+    return <LoadingSkeleton title="Cargando Gestión de Precios..." />;
   }
 
   return (
