@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { OrderItem, CateringItem, MaterialOrder, ServiceOrder, AlquilerDBItem } from '@/types';
-import { CATERING_ITEMS } from '@/lib/data';
+import type { OrderItem, CateringItem, MaterialOrder, ServiceOrder, AlquilerDBItem, Precio } from '@/types';
 import { Header } from '@/components/layout/header';
 import { ItemCatalog } from '@/components/catalog/item-catalog';
 import { OrderSummary } from '@/components/order/order-summary';
@@ -30,10 +29,13 @@ export default function Home() {
       const currentOS = allServiceOrders.find(os => os.id === osId);
       setServiceOrder(currentOS || null);
     }
+    
+    const allPrecios = JSON.parse(localStorage.getItem('precios') || '[]') as Precio[];
+    let itemsToLoad: CateringItem[] = [];
 
     if (orderType === 'Alquiler') {
       const storedAlquilerItems = JSON.parse(localStorage.getItem('alquilerDB') || '[]') as AlquilerDBItem[];
-      const mappedItems: CateringItem[] = storedAlquilerItems.map(item => ({
+      itemsToLoad = storedAlquilerItems.map(item => ({
         itemCode: item.id,
         description: item.concepto,
         price: item.precioAlquiler,
@@ -42,10 +44,27 @@ export default function Home() {
         imageHint: 'rental item',
         category: 'Alquiler',
       }));
-      setCatalogItems(mappedItems);
-    } else {
-      setCatalogItems(CATERING_ITEMS);
+    } else if (orderType) {
+        const categoryMap = {
+            'Almacén': 'ALMACEN',
+            'Bodega': 'BODEGA',
+            'Bio': 'BIO',
+        }
+        const filterCategory = categoryMap[orderType];
+        
+        itemsToLoad = allPrecios
+            .filter(p => p.categoria === filterCategory)
+            .map(p => ({
+                itemCode: p.id,
+                description: p.producto,
+                price: p.precioAlquilerUd,
+                stock: 999, // Assuming infinite stock from external providers
+                imageUrl: p.imagen || `https://picsum.photos/seed/${p.id}/400/300`,
+                imageHint: p.producto.toLowerCase(),
+                category: p.categoria,
+            }));
     }
+    setCatalogItems(itemsToLoad);
     
     if (editOrderId) {
       const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
