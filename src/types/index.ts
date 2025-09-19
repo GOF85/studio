@@ -239,3 +239,17 @@ export type AtipicoOrder = {
     precio: number;
     status: 'Pendiente' | 'Aprobado' | 'Rechazado';
 };
+
+export type PersonalMiceOrder = {
+    id: string;
+    osId: string;
+    centroCoste: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
+    nombre: string;
+    dni: string;
+    tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
+    horaEntrada: string;
+    horaSalida: string;
+    precioHora: number;
+    horaEntradaReal: string;
+    horaSalidaReal: string;
+};
