@@ -65,18 +65,18 @@ export function Combobox({ options, value, onChange, placeholder, searchPlacehol
           />
           <CommandList>
             <CommandEmpty>
-                {query.length > 0 ? (
-                    <CommandItem
-                        onSelect={() => {
-                            onChange(query);
-                            setOpen(false);
-                        }}
-                    >
-                    Añadir "{query}"
-                    </CommandItem>
-                ) : (
-                    emptyPlaceholder || "No se encontraron resultados."
-                )}
+              <div
+                className="cursor-pointer px-2 py-1.5 text-sm"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  if (query) {
+                    onChange(query);
+                    setOpen(false);
+                  }
+                }}
+              >
+                {query ? `Añadir "${query}"` : (emptyPlaceholder || "No se encontraron resultados.")}
+              </div>
             </CommandEmpty>
             <CommandGroup>
               {filteredOptions.map((option) => (
