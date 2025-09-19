@@ -120,6 +120,7 @@ export default function CtaExplotacionPage() {
     }, 0);
 
     const decoracionTotal = getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId));
+    const costePruebaTotal = pruebaMenu?.costePruebaMenu || 0;
 
 
     const newCostes = [
@@ -134,7 +135,7 @@ export default function CtaExplotacionPage() {
       { label: 'Atípicos', presupuesto: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)), cierre: 0 },
       { label: 'Personal MICE', presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: personalMiceRealCost },
       { label: 'Personal Externo', presupuesto: calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)), cierre: personalExternoCierre },
-      { label: 'Coste Prueba de Menu', presupuesto: pruebaMenu?.costePruebaMenu || 0, cierre: pruebaMenu?.costePruebaMenu || 0 },
+      { label: 'Coste Prueba de Menu', presupuesto: costePruebaTotal, cierre: costePruebaTotal },
     ];
     setCostes(newCostes);
   }, [osId]);
@@ -216,9 +217,8 @@ export default function CtaExplotacionPage() {
 
         <div className="grid lg:grid-cols-3 gap-8 mt-8">
           <Card className="lg:col-span-2">
-            <CardHeader>
+            <CardHeader className="py-4">
               <CardTitle>Análisis de Costes</CardTitle>
-              <CardDescription>Presupuesto inicial vs. cierre y objetivos.</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
