@@ -83,13 +83,11 @@ export default function PersonalMicePage() {
     defaultValues: { personal: [] },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, control, setValue } = useFieldArray({
     control: form.control,
     name: "personal",
   });
   
-  const { setValue, control } = form;
-
  const handlePersonalChange = useCallback((index: number, name: string) => {
     const person = personalDB.find(p => p.nombre.toLowerCase() === name.toLowerCase());
     if (person) {
@@ -119,14 +117,13 @@ export default function PersonalMicePage() {
     return { totalPlanned: totals.planned, totalReal: totals.real };
   }, [watchedFields]);
 
-
-  const loadData = useCallback(() => {
+  useEffect(() => {
     if (!osId) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
         router.push('/pes');
         return;
     }
-
+    
     try {
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const currentOS = allServiceOrders.find(os => os.id === osId);
@@ -154,10 +151,6 @@ export default function PersonalMicePage() {
         setIsMounted(true);
     }
   }, [osId, router, toast, form]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
 
  const onSubmit = (data: PersonalMiceFormValues) => {
@@ -235,10 +228,6 @@ export default function PersonalMicePage() {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                     <Button type="button" onClick={addRow}>
-                        <PlusCircle className="mr-2" />
-                        Añadir Personal
-                    </Button>
                     <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
                         {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                         <span className="ml-2">Guardar Cambios</span>
@@ -283,8 +272,12 @@ export default function PersonalMicePage() {
             </Accordion>
 
             <Card>
-                <CardHeader>
+                <CardHeader className="flex-row items-center justify-between">
                     <CardTitle>Personal Asignado</CardTitle>
+                    <Button type="button" onClick={addRow}>
+                        <PlusCircle className="mr-2" />
+                        Añadir Personal
+                    </Button>
                 </CardHeader>
                 <CardContent>
                     <div className="border rounded-lg overflow-x-auto">
