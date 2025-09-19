@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2, X } from 'lucide-react';
+import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2 } from 'lucide-react';
 import type { PersonalMiceOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem, Personal } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { differenceInMinutes, parse, format } from 'date-fns';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -27,6 +27,7 @@ import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
+import { Separator } from '@/components/ui/separator';
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
@@ -63,41 +64,6 @@ const formSchema = z.object({
 })
 
 type PersonalMiceFormValues = z.infer<typeof formSchema>;
-
-const RowCalculations = ({ control, index }: { control: Control<PersonalMiceFormValues>, index: number }) => {
-    const row = useWatch({
-        control,
-        name: `personal.${index}`
-    });
-
-    const plannedHours = calculateHours(row.horaEntrada, row.horaSalida);
-    const realHours = calculateHours(row.horaEntradaReal, row.horaSalidaReal);
-    const plannedTotal = plannedHours * row.precioHora;
-    const realTotal = realHours * row.precioHora;
-
-    return (
-        <>
-            <TableCell>{plannedHours.toFixed(2)}h</TableCell>
-            <TableCell>{formatCurrency(plannedTotal)}</TableCell>
-            <TableCell>
-                <FormField
-                    control={control}
-                    name={`personal.${index}.horaEntradaReal`}
-                    render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-28"/></FormControl></FormItem>}
-                />
-            </TableCell>
-            <TableCell>
-                 <FormField
-                    control={control}
-                    name={`personal.${index}.horaSalidaReal`}
-                    render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-28"/></FormControl></FormItem>}
-                />
-            </TableCell>
-            <TableCell>{realHours.toFixed(2)}h</TableCell>
-            <TableCell>{formatCurrency(realTotal)}</TableCell>
-        </>
-    )
-}
 
 export default function PersonalMicePage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
@@ -136,13 +102,23 @@ export default function PersonalMicePage() {
   }, [personalDB, setValue]);
   
   const watchedFields = useWatch({ control: form.control, name: 'personal' });
-  const totalAmount = useMemo(() => {
-    if (!watchedFields) return 0;
-    return watchedFields.reduce((sum, order) => {
-        const hours = calculateHours(order.horaEntrada, order.horaSalida);
-        return sum + (hours * (order.precioHora || 0));
-    }, 0);
+
+  const { totalPlanned, totalReal } = useMemo(() => {
+    if (!watchedFields) return { totalPlanned: 0, totalReal: 0 };
+    
+    const totals = watchedFields.reduce((acc, order) => {
+        const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
+        acc.planned += plannedHours * (order.precioHora || 0);
+        
+        const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
+        acc.real += realHours * (order.precioHora || 0);
+        
+        return acc;
+    }, { planned: 0, real: 0 });
+
+    return { totalPlanned: totals.planned, totalReal: totals.real };
   }, [watchedFields]);
+
 
   const loadData = useCallback(() => {
     if (!osId) {
@@ -307,26 +283,33 @@ export default function PersonalMicePage() {
             </Accordion>
 
             <Card>
-                <CardHeader><CardTitle>Personal Asignado</CardTitle></CardHeader>
+                <CardHeader>
+                    <CardTitle>Personal Asignado</CardTitle>
+                </CardHeader>
                 <CardContent>
                     <div className="border rounded-lg overflow-x-auto">
                         <Table>
                             <TableHeader>
-                            <TableRow>
-                                <TableHead>Centro Coste</TableHead>
-                                <TableHead>Nombre</TableHead>
-                                <TableHead>Tipo Servicio</TableHead>
-                                <TableHead>H. Entrada</TableHead>
-                                <TableHead>H. Salida</TableHead>
-                                <TableHead>€/Hora</TableHead>
-                                <TableHead>Horas Plan.</TableHead>
-                                <TableHead>Total Plan.</TableHead>
-                                <TableHead>H. Entrada Real</TableHead>
-                                <TableHead>H. Salida Real</TableHead>
-                                <TableHead>Horas Real</TableHead>
-                                <TableHead>Total Real</TableHead>
-                                <TableHead className="text-right">Acción</TableHead>
-                            </TableRow>
+                                <TableRow>
+                                    <TableHead>Centro Coste</TableHead>
+                                    <TableHead>Nombre</TableHead>
+                                    <TableHead>Tipo Servicio</TableHead>
+                                    <TableHead colSpan={3} className="text-center border-l border-r">Planificado</TableHead>
+                                    <TableHead colSpan={3} className="text-center border-l border-r">Real</TableHead>
+                                    <TableHead className="text-right">Acción</TableHead>
+                                </TableRow>
+                                <TableRow>
+                                    <TableHead></TableHead>
+                                    <TableHead></TableHead>
+                                    <TableHead></TableHead>
+                                    <TableHead className="border-l">H. Entrada</TableHead>
+                                    <TableHead>H. Salida</TableHead>
+                                    <TableHead className="border-r">€/Hora</TableHead>
+                                    <TableHead className="border-l">H. Entrada Real</TableHead>
+                                    <TableHead>H. Salida Real</TableHead>
+                                    <TableHead className="border-r"></TableHead>
+                                    <TableHead></TableHead>
+                                </TableRow>
                             </TableHeader>
                             <TableBody>
                             {fields.length > 0 ? (
@@ -376,28 +359,42 @@ export default function PersonalMicePage() {
                                                 )}
                                             />
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="border-l">
                                             <FormField
                                                 control={control}
                                                 name={`personal.${index}.horaEntrada`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-28" /></FormControl></FormItem>}
+                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24" /></FormControl></FormItem>}
                                             />
                                         </TableCell>
                                         <TableCell>
                                             <FormField
                                                 control={control}
                                                 name={`personal.${index}.horaSalida`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-28" /></FormControl></FormItem>}
+                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24" /></FormControl></FormItem>}
                                             />
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="border-r">
                                              <FormField
                                                 control={control}
                                                 name={`personal.${index}.precioHora`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-24"/></FormControl></FormItem>}
+                                                render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20"/></FormControl></FormItem>}
                                             />
                                         </TableCell>
-                                        <RowCalculations control={control} index={index} />
+                                         <TableCell className="border-l">
+                                            <FormField
+                                                control={control}
+                                                name={`personal.${index}.horaEntradaReal`}
+                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24"/></FormControl></FormItem>}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <FormField
+                                                control={control}
+                                                name={`personal.${index}.horaSalidaReal`}
+                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24"/></FormControl></FormItem>}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="border-r"></TableCell>
                                         <TableCell className="text-right">
                                             <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
                                                 <Trash2 className="h-4 w-4" />
@@ -407,7 +404,7 @@ export default function PersonalMicePage() {
                                 ))
                             ) : (
                                 <TableRow>
-                                <TableCell colSpan={13} className="h-24 text-center">
+                                <TableCell colSpan={10} className="h-24 text-center">
                                     No hay personal asignado. Haz clic en "Añadir Personal" para empezar.
                                 </TableCell>
                                 </TableRow>
@@ -415,12 +412,31 @@ export default function PersonalMicePage() {
                             </TableBody>
                         </Table>
                     </div>
-                    {fields.length > 0 && (
-                        <div className="flex justify-end mt-4 text-xl font-bold">
-                            Coste Total Planificado: {formatCurrency(totalAmount)}
-                        </div>
-                    )}
                 </CardContent>
+                {fields.length > 0 && (
+                    <CardFooter>
+                         <Card className="w-full md:w-1/2 ml-auto">
+                            <CardHeader><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Planificado:</span>
+                                    <span className="font-bold">{formatCurrency(totalPlanned)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Real:</span>
+                                    <span className="font-bold">{formatCurrency(totalReal)}</span>
+                                </div>
+                                <Separator className="my-2" />
+                                 <div className="flex justify-between font-bold text-base">
+                                    <span>Desviación:</span>
+                                    <span className={totalReal - totalPlanned > 0 ? 'text-destructive' : 'text-green-600'}>
+                                        {formatCurrency(totalReal - totalPlanned)}
+                                    </span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </CardFooter>
+                )}
             </Card>
         </form>
        </FormProvider>
