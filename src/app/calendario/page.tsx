@@ -40,6 +40,7 @@ type CalendarEvent = {
   space: string;
   finalClient: string;
   pax: number;
+  status: ServiceOrder['status'];
 };
 
 type EventsByDay = {
@@ -54,6 +55,12 @@ type DayDetails = {
 } | null;
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
+  Borrador: 'secondary',
+  Pendiente: 'destructive',
+  Confirmado: 'default',
+};
 
 export default function CalendarioServiciosPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -81,6 +88,7 @@ export default function CalendarioServiciosPage() {
             space: serviceOrder.space || 'N/A',
             finalClient: serviceOrder.finalClient || '',
             pax: item.asistentes,
+            status: serviceOrder.status,
           });
         });
       }
@@ -159,7 +167,6 @@ export default function CalendarioServiciosPage() {
               const osIds = Object.keys(dayOsEvents);
               const isCurrentMonth = isSameMonth(day, currentDate);
               const isToday = isSameDay(day, new Date());
-              const totalEventsCount = osIds.reduce((sum, osId) => sum + dayOsEvents[osId].length, 0);
 
               return (
                 <div
@@ -181,7 +188,7 @@ export default function CalendarioServiciosPage() {
                             <Tooltip key={osId}>
                                 <TooltipTrigger asChild>
                                 <Link href={`/os?id=${osId}`}>
-                                    <Badge variant="secondary" className="w-full justify-start truncate cursor-pointer">
+                                    <Badge variant={statusVariant[firstEvent.status]} className="w-full justify-start truncate cursor-pointer">
                                     {firstEvent.serviceNumber}
                                     </Badge>
                                 </Link>
