@@ -27,11 +27,12 @@ type CostRow = {
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 const formatPercentage = (value: number) => `${(value * 100).toFixed(2)}%`;
 
-const calculateHours = (start?: string, end?: string) => {
+const calculateHours = (start?: string, end?: string): number => {
     if (!start || !end) return 0;
     try {
         const startTime = new Date(`1970-01-01T${start}:00`);
         const endTime = new Date(`1970-01-01T${end}:00`);
+        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
         const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
         return diff > 0 ? diff : 0;
     } catch (e) {
@@ -87,25 +88,28 @@ export default function CtaExplotacionPage() {
 
     const storedPlantillas = JSON.parse(localStorage.getItem('objetivosGastoPlantillas') || '[]') as ObjetivosGasto[];
     
-    let appliedObjetivos: ObjetivosGasto = storedPlantillas.length > 0 
-        ? storedPlantillas[0]
-        : { name: 'Por defecto', id: 'default', gastronomia: 0, bodega: 0, consumibles: 0, hielo: 0, almacen: 0, alquiler: 0, transporte: 0,
-            decoracion: 0, atipicos: 0, personalMice: 0, personalExterno: 0, costePruebaMenu: 0 };
-    
+    let appliedObjetivos: ObjetivosGasto;
     const plantillaGuardadaId = currentOS?.objetivoGastoId;
+    
+    const defaultObjetivos: ObjetivosGasto = { name: 'Por defecto', id: 'default', gastronomia: 0, bodega: 0, consumibles: 0, hielo: 0, almacen: 0, alquiler: 0, transporte: 0,
+            decoracion: 0, atipicos: 0, personalMice: 0, personalExterno: 0, costePruebaMenu: 0 };
+
     if (plantillaGuardadaId) {
         const plantilla = storedPlantillas.find(p => p.id === plantillaGuardadaId);
-        if (plantilla) {
-            appliedObjetivos = plantilla;
-        }
-    } else if (storedPlantillas.length > 0 && currentOS) {
+        appliedObjetivos = plantilla || (storedPlantillas.length > 0 ? storedPlantillas[0] : defaultObjetivos);
+    } else if (storedPlantillas.length > 0) {
         appliedObjetivos = storedPlantillas[0];
-        const osIndex = allServiceOrders.findIndex(os => os.id === osId);
-        if (osIndex !== -1) {
-          allServiceOrders[osIndex] = { ...allServiceOrders[osIndex], objetivoGastoId: storedPlantillas[0].id };
-          localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
+        if (currentOS) {
+            const osIndex = allServiceOrders.findIndex(os => os.id === osId);
+            if (osIndex !== -1) {
+              allServiceOrders[osIndex] = { ...allServiceOrders[osIndex], objetivoGastoId: storedPlantillas[0].id };
+              localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
+            }
         }
+    } else {
+        appliedObjetivos = defaultObjetivos;
     }
+
 
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const currentBriefing = allBriefings.find(b => b.osId === osId);
@@ -279,7 +283,7 @@ export default function CtaExplotacionPage() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8 mt-8">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-8">
             <Card>
                 <CardHeader>
                     <div className="flex justify-between items-center">
@@ -291,24 +295,24 @@ export default function CtaExplotacionPage() {
                 <Table>
                     <TableHeader>
                     <TableRow>
-                        <TableHead>Partida</TableHead>
-                        <TableHead className="text-right">Presupuesto</TableHead>
-                        <TableHead className="text-right">% s/ Fact.</TableHead>
-                        <TableHead className="text-right">Cierre</TableHead>
-                        <TableHead className="text-right">Objetivo MC</TableHead>
-                        <TableHead className="text-right">Desv. €</TableHead>
-                        <TableHead className="text-right">Desv. %</TableHead>
+                        <TableHead className="py-2 px-3">Partida</TableHead>
+                        <TableHead className="py-2 px-3 text-right">Presupuesto</TableHead>
+                        <TableHead className="py-2 px-3 text-right">% s/ Fact.</TableHead>
+                        <TableHead className="py-2 px-3 text-right">Cierre</TableHead>
+                        <TableHead className="py-2 px-3 text-right">Objetivo MC</TableHead>
+                        <TableHead className="py-2 px-3 text-right">Desv. €</TableHead>
+                        <TableHead className="py-2 px-3 text-right">Desv. %</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
                     <TableRow className="font-bold bg-muted/50">
-                        <TableCell>Facturación Neta</TableCell>
-                        <TableCell className="text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
-                        <TableCell className="text-right text-primary">{formatPercentage(1)}</TableCell>
-                        <TableCell className="text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
-                        <TableCell className="text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
-                        <TableCell></TableCell>
-                        <TableCell></TableCell>
+                        <TableCell className="py-1 px-3">Facturación Neta</TableCell>
+                        <TableCell className="py-1 px-3 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
+                        <TableCell className="py-1 px-3 text-right text-primary">{formatPercentage(1)}</TableCell>
+                        <TableCell className="py-1 px-3 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
+                        <TableCell className="py-1 px-3 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
+                        <TableCell className="py-1 px-3"></TableCell>
+                        <TableCell className="py-1 px-3"></TableCell>
                     </TableRow>
                     {processedCostes.map(row => {
                         const cierreActual = cierreInputs[row.label] ?? row.cierre;
@@ -318,17 +322,17 @@ export default function CtaExplotacionPage() {
                         const isCierreReadOnly = ['Personal Externo', 'Personal MICE', 'Coste Prueba de Menu'].includes(row.label);
                         return (
                             <TableRow key={row.label}>
-                                <TableCell>{row.label}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(row.presupuesto)}</TableCell>
-                                <TableCell className={cn("text-right", pctSFact > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFact)}</TableCell>
-                                <TableCell className="text-right">
-                                    <Input type="number" step="0.01" value={cierreInputs[row.label] ?? 0} onChange={(e) => handleCierreInputChange(row.label, e.target.value)} className="h-8 text-right bg-secondary/30 w-24" readOnly={isCierreReadOnly}/>
+                                <TableCell className="py-1 px-3">{row.label}</TableCell>
+                                <TableCell className="py-1 px-3 text-right">{formatCurrency(row.presupuesto)}</TableCell>
+                                <TableCell className={cn("py-1 px-3 text-right", pctSFact > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFact)}</TableCell>
+                                <TableCell className="py-1 px-3 text-right">
+                                    <Input type="number" step="0.01" value={cierreInputs[row.label] ?? 0} onChange={(e) => handleCierreInputChange(row.label, e.target.value)} className="h-7 text-right bg-secondary/30 w-24" readOnly={isCierreReadOnly}/>
                                 </TableCell>
-                                <TableCell className="text-right">{formatCurrency(row.objetivo)}</TableCell>
-                                <TableCell className={cn("text-right", desviacion < 0 && "text-destructive", desviacion > 0 && "text-green-600")}>
+                                <TableCell className="py-1 px-3 text-right">{formatCurrency(row.objetivo)}</TableCell>
+                                <TableCell className={cn("py-1 px-3 text-right", desviacion < 0 && "text-destructive", desviacion > 0 && "text-green-600")}>
                                     {formatCurrency(desviacion)}
                                 </TableCell>
-                                <TableCell className={cn("text-right", desviacionPct < 0 && "text-destructive", desviacionPct > 0 && "text-green-600")}>
+                                <TableCell className={cn("py-1 px-3 text-right", desviacionPct < 0 && "text-destructive", desviacionPct > 0 && "text-green-600")}>
                                     {formatPercentage(desviacionPct)}
                                 </TableCell>
                             </TableRow>
@@ -341,6 +345,54 @@ export default function CtaExplotacionPage() {
           </div>
 
           <div className="space-y-8">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><TrendingUp/>Análisis de Rentabilidad</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Concepto</TableHead>
+                                <TableHead className="text-right">Presupuesto</TableHead>
+                                <TableHead className="text-right">Cierre</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                             <TableRow>
+                                <TableCell className="font-medium">Facturación Neta</TableCell>
+                                <TableCell className="text-right">{formatCurrency(facturacionNeta)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(facturacionNeta)}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                                <TableCell className="font-medium">Total Costes</TableCell>
+                                <TableCell className="text-right">{formatCurrency(totals.totalPresupuesto)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(totals.totalCierre)}</TableCell>
+                            </TableRow>
+                             <TableRow className="font-bold bg-muted/30">
+                                <TableCell>Rentabilidad</TableCell>
+                                <TableCell className={cn("text-right", rentabilidadPresupuesto > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPresupuesto)}</TableCell>
+                                <TableCell className={cn("text-right", rentabilidadCierre > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadCierre)}</TableCell>
+                            </TableRow>
+                             <TableRow>
+                                <TableCell className="font-medium">Repercusión HQ (25%)</TableCell>
+                                <TableCell className="text-right">{formatCurrency(repercusionHQPresupuesto)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(repercusionHQCierre)}</TableCell>
+                            </TableRow>
+                             <TableRow className="font-bold bg-muted/30">
+                                <TableCell>Rentabilidad Post-HQ</TableCell>
+                                <TableCell className={cn("text-right", rentabilidadPostHQPresupuesto > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQPresupuesto)}</TableCell>
+                                <TableCell className={cn("text-right", rentabilidadPostHQCierre > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQCierre)}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                                <TableCell className="font-medium">Ingresos / Asistente</TableCell>
+                                <TableCell className="text-right">{formatCurrency(ingresosAsistente)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(ingresosAsistente)}</TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
             <Card>
               <CardHeader className="py-2 pb-2">
                 <CardTitle className="flex items-center gap-2 text-lg"><Target /> Objetivos de Gasto</CardTitle>
@@ -370,70 +422,6 @@ export default function CtaExplotacionPage() {
               </CardContent>
             </Card>
           </div>
-        </div>
-        <div className="grid lg:grid-cols-2 gap-8 mt-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><TrendingUp/>Análisis s/ Presupuesto</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <div className="flex justify-between items-center text-sm">
-                        <span>Facturación Neta</span>
-                        <span>{formatCurrency(facturacionNeta)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                        <span>Total Costes Presupuestados</span>
-                        <span>{formatCurrency(totals.totalPresupuesto)}</span>
-                    </div>
-                     <div className="flex justify-between items-center text-lg font-bold">
-                        <span>Rentabilidad</span>
-                        <span className={cn(rentabilidadPresupuesto > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPresupuesto)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                        <span>Ingresos / Asistente</span>
-                        <span>{formatCurrency(ingresosAsistente)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                        <span>Repercusión HQ (25%)</span>
-                        <span>{formatCurrency(repercusionHQPresupuesto)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-lg font-bold">
-                        <span>Rentabilidad Post-HQ</span>
-                        <span className={cn(rentabilidadPostHQPresupuesto > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQPresupuesto)}</span>
-                    </div>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><TrendingDown/>Análisis s/ Cierre</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <div className="flex justify-between items-center text-sm">
-                        <span>Facturación Neta</span>
-                        <span>{formatCurrency(facturacionNeta)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                        <span>Total Costes de Cierre</span>
-                        <span>{formatCurrency(totals.totalCierre)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-lg font-bold">
-                        <span>Rentabilidad</span>
-                        <span className={cn(rentabilidadCierre > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadCierre)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                        <span>Ingresos / Asistente</span>
-                        <span>{formatCurrency(ingresosAsistente)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                        <span>Repercusión HQ (25%)</span>
-                        <span>{formatCurrency(repercusionHQCierre)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-lg font-bold">
-                        <span>Rentabilidad Post-HQ</span>
-                        <span className={cn(rentabilidadPostHQCierre > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQCierre)}</span>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
       </main>
     </>
