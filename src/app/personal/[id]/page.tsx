@@ -75,16 +75,18 @@ export default function PersonalFormPage() {
     let allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     let message = '';
     
-    const finalData = {
+    const finalData: Personal = {
         ...data,
         precioHora: data.precioHora || 0,
         dni: data.dni || '',
+        mail: data.mail || '',
+        telefono: data.telefono || '',
     };
 
     if (isEditing) {
       const index = allPersonal.findIndex(p => p.id === id);
       if (index !== -1) {
-        allPersonal[index] = finalData as Personal;
+        allPersonal[index] = finalData;
         message = 'Empleado actualizado correctamente.';
       }
     } else {
@@ -94,7 +96,7 @@ export default function PersonalFormPage() {
             setIsLoading(false);
             return;
         }
-      allPersonal.push(finalData as Personal);
+      allPersonal.push(finalData);
       message = 'Empleado creado correctamente.';
     }
 

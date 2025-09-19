@@ -129,6 +129,16 @@ export default function PersonalPage() {
     fileInputRef.current?.click();
   };
 
+  const parseCurrency = (value: string | number) => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+        const cleaned = value.replace(/[€\s]/g, '').replace(',', '.');
+        const number = parseFloat(cleaned);
+        return isNaN(number) ? 0 : number;
+    }
+    return 0;
+  };
+
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -154,7 +164,7 @@ export default function PersonalPage() {
             telefono: item.telefono || '',
             mail: item.mail || '',
             dni: item.dni || '',
-            precioHora: Number(item.precioHora) || 0,
+            precioHora: parseCurrency(item.precioHora),
         }));
 
         localStorage.setItem('personal', JSON.stringify(importedData));
@@ -266,7 +276,7 @@ export default function PersonalPage() {
                     <TableCell>{p.categoria}</TableCell>
                     <TableCell>{p.telefono}</TableCell>
                     <TableCell>{p.mail}</TableCell>
-                    <TableCell>{p.precioHora.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell>{(p.precioHora || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
