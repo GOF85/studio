@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
+import { useForm, useFieldArray, FormProvider, useWatch, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2 } from 'lucide-react';
@@ -64,7 +64,7 @@ const formSchema = z.object({
 
 type PersonalMiceFormValues = z.infer<typeof formSchema>;
 
-const RowCalculations = ({ control, index }: { control: any, index: number }) => {
+const RowCalculations = ({ control, index }: { control: Control<PersonalMiceFormValues>, index: number }) => {
     const row = useWatch({
         control,
         name: `personal.${index}`
@@ -122,7 +122,7 @@ export default function PersonalMicePage() {
     name: "personal",
   });
 
-  const handlePersonalChange = (index: number, name: string) => {
+  const handlePersonalChange = useCallback((index: number, name: string) => {
     const person = personalDB.find(p => p.nombre.toLowerCase() === name.toLowerCase());
     if (person) {
       setValue(`personal.${index}.nombre`, person.nombre);
@@ -131,7 +131,7 @@ export default function PersonalMicePage() {
     } else {
        setValue(`personal.${index}.nombre`, name);
     }
-  }
+  }, [personalDB, setValue]);
   
   const watchedFields = useWatch({ control: form.control, name: 'personal' });
   const totalAmount = useMemo(() => {
@@ -169,7 +169,7 @@ export default function PersonalMicePage() {
         router.push('/pes');
     }
     setIsMounted(true);
-  }, [osId, router, toast, form]);
+  }, [osId, router, toast, form.reset]);
 
  const onSubmit = (data: PersonalMiceFormValues) => {
     setIsLoading(true);
@@ -237,6 +237,12 @@ export default function PersonalMicePage() {
                         <Building className="h-3 w-3" /> {serviceOrder.space} {spaceAddress && `(${spaceAddress})`}
                         </p>
                     )}
+                    {serviceOrder.respMetre && (
+                        <p className="flex items-center gap-2">
+                            Resp. Metre: {serviceOrder.respMetre} 
+                            {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
+                        </p>
+                    )}
                     </div>
                 </div>
                 <div className="flex gap-2">
@@ -251,8 +257,7 @@ export default function PersonalMicePage() {
                 </div>
             </div>
             
-            {briefingItems.length > 0 && (
-            <Accordion type="single" collapsible className="w-full mb-8" >
+             <Accordion type="single" collapsible className="w-full mb-8" >
                 <AccordionItem value="item-1">
                 <Card>
                     <AccordionTrigger className="p-6">
@@ -263,21 +268,23 @@ export default function PersonalMicePage() {
                         <Table>
                         <TableHeader>
                             <TableRow>
-                            <TableHead className="py-2">Fecha</TableHead>
-                            <TableHead className="py-2">Descripción</TableHead>
-                            <TableHead className="py-2">Asistentes</TableHead>
-                            <TableHead className="py-2">Duración</TableHead>
+                            <TableHead className="py-2 px-3">Fecha</TableHead>
+                            <TableHead className="py-2 px-3">Descripción</TableHead>
+                            <TableHead className="py-2 px-3">Asistentes</TableHead>
+                            <TableHead className="py-2 px-3">Duración</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {briefingItems.map(item => (
+                            {briefingItems.length > 0 ? briefingItems.map(item => (
                             <TableRow key={item.id}>
-                                <TableCell className="py-2">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
-                                <TableCell className="py-2">{item.descripcion}</TableCell>
-                                <TableCell className="py-2">{item.asistentes}</TableCell>
-                                <TableCell className="py-2">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
+                                <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
+                                <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
+                                <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
+                                <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
                             </TableRow>
-                            ))}
+                            )) : (
+                                <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                            )}
                         </TableBody>
                         </Table>
                     </CardContent>
@@ -285,7 +292,6 @@ export default function PersonalMicePage() {
                 </Card>
                 </AccordionItem>
             </Accordion>
-            )}
 
             <Card>
                 <CardHeader><CardTitle>Personal Asignado</CardTitle></CardHeader>
@@ -380,7 +386,7 @@ export default function PersonalMicePage() {
                                         </TableCell>
                                         <RowCalculations control={form.control} index={index} />
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
+                                            <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </TableCell>
