@@ -89,6 +89,7 @@ export default function PersonalMicePage() {
   });
   
  const handlePersonalChange = useCallback((index: number, name: string) => {
+    if (!name) return;
     const person = personalDB.find(p => p.nombre.toLowerCase() === name.toLowerCase());
     if (person) {
       setValue(`personal.${index}.nombre`, person.nombre);
@@ -117,7 +118,7 @@ export default function PersonalMicePage() {
     return { totalPlanned: totals.planned, totalReal: totals.real };
   }, [watchedFields]);
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     if (!osId) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
         router.push('/pes');
@@ -151,6 +152,10 @@ export default function PersonalMicePage() {
         setIsMounted(true);
     }
   }, [osId, router, toast, form]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
 
  const onSubmit = (data: PersonalMiceFormValues) => {
