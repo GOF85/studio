@@ -31,12 +31,17 @@ interface ComboboxProps {
     placeholder?: string;
     searchPlaceholder?: string;
     emptyPlaceholder?: string;
-    canCreate?: boolean;
 }
 
-export function Combobox({ options, value, onChange, placeholder, searchPlaceholder, emptyPlaceholder, canCreate = true }: ComboboxProps) {
-  const [open, setOpen] = React.useState(false)
+export function Combobox({ options, value, onChange, placeholder, searchPlaceholder, emptyPlaceholder }: ComboboxProps) {
+  const [open, setOpen] = React.useState(false);
   const selectedOption = options.find((option) => option.value === value);
+  const [inputValue, setInputValue] = React.useState(selectedOption?.label || "");
+  
+  React.useEffect(() => {
+    const selected = options.find((option) => option.value === value);
+    setInputValue(selected?.label || "");
+  }, [value, options]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -54,18 +59,27 @@ export function Combobox({ options, value, onChange, placeholder, searchPlacehol
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
-            <CommandInput placeholder={searchPlaceholder || "Buscar..."} />
+        <Command filter={(value, search) => {
+          const option = options.find(o => o.value === value);
+          if (option?.label.toLowerCase().includes(search.toLowerCase())) return 1;
+          return 0;
+        }}>
+            <CommandInput 
+                placeholder={searchPlaceholder || "Buscar..."}
+                value={inputValue}
+                onValueChange={setInputValue}
+                onBlur={() => setOpen(false)}
+            />
             <CommandList>
                 <CommandEmpty>{emptyPlaceholder || "No se encontraron resultados."}</CommandEmpty>
                 <CommandGroup>
                     {options.map((option) => (
                         <CommandItem
                             key={option.value}
-                            value={option.label}
-                            onSelect={(currentLabel) => {
-                                const selectedValue = options.find(o => o.label.toLowerCase() === currentLabel.toLowerCase())?.value || '';
-                                onChange(selectedValue === value ? "" : selectedValue)
+                            value={option.value} // Use value here for cmdk
+                            onSelect={(currentValue) => {
+                                const newValue = currentValue === value ? "" : currentValue;
+                                onChange(newValue)
                                 setOpen(false)
                             }}
                         >
