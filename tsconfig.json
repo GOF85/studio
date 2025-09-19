@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@/dnd/*": ["components/dnd/*"]
     },
     "types": ["node", "@types/papaparse", "@types/nprogress"]
   },
