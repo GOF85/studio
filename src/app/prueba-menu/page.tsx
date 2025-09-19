@@ -18,6 +18,8 @@ import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
+import Link from 'next/link';
+
 
 const pruebaMenuItemSchema = z.object({
   id: z.string(),
@@ -117,22 +119,17 @@ export default function PruebaMenuPage() {
     });
   };
 
-  const handlePrint = () => window.print();
-
   const renderSection = (mainCategory: 'BODEGA' | 'GASTRONOMÍA') => {
     const sectionItems = fields.map((field, index) => ({ field, index })).filter(({ field }) => field.mainCategory === mainCategory);
 
     return (
-      <Card className="printable-card">
-        <CardHeader className="flex-row items-center justify-between py-4 no-print">
+      <Card>
+        <CardHeader className="flex-row items-center justify-between py-4">
           <CardTitle>{mainCategory.charAt(0) + mainCategory.slice(1).toLowerCase()}</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" type="button" variant="outline" onClick={() => addRow(mainCategory, 'header')}>+ Subcategoría</Button>
             <Button size="sm" type="button" onClick={() => addRow(mainCategory, 'item')}>+ Referencia</Button>
           </div>
-        </CardHeader>
-         <CardHeader className="hidden print:block py-4">
-            <CardTitle>{mainCategory.charAt(0) + mainCategory.slice(1).toLowerCase()}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="border rounded-lg">
@@ -141,7 +138,7 @@ export default function PruebaMenuPage() {
                 <TableRow>
                   <TableHead className="p-2">Referencias</TableHead>
                   <TableHead className="p-2 border-l">Observaciones</TableHead>
-                  <TableHead className="w-12 p-2 no-print"></TableHead>
+                  <TableHead className="w-12 p-2"></TableHead>
                 </TableRow>
               </TableHeader>
                 <TableBody>
@@ -154,12 +151,7 @@ export default function PruebaMenuPage() {
                             render={({ field: formField }) => (
                                 <FormItem>
                                 <FormControl>
-                                    <div>
-                                        <div className="digital-observations">
-                                            <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
-                                        </div>
-                                        <div className="hidden print:block h-6">{formField.value}</div>
-                                    </div>
+                                    <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
                                 </FormControl>
                                 </FormItem>
                             )}
@@ -172,21 +164,13 @@ export default function PruebaMenuPage() {
                             render={({ field: formField }) => (
                                 <FormItem>
                                 <FormControl>
-                                    <div>
-                                        <div className="digital-observations">
-                                            <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
-                                        </div>
-                                        <div className="hidden print:block space-y-2 py-1">
-                                            <div className="h-px border-b border-dashed border-gray-400"></div>
-                                            <div className="h-px border-b border-dashed border-gray-400"></div>
-                                        </div>
-                                    </div>
+                                    <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
                                 </FormControl>
                                 </FormItem>
                             )}
                             />
                         </TableCell>
-                        <TableCell className={cn("py-1 px-2 no-print", field.type === 'header' && "bg-muted/50")}>
+                        <TableCell className={cn("py-1 px-2", field.type === 'header' && "bg-muted/50")}>
                             <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}>
                             <Trash2 className="h-4 w-4" />
                             </Button>
@@ -213,9 +197,9 @@ export default function PruebaMenuPage() {
 
   return (
     <>
-      <Header className="no-print" />
+      <Header />
       <main className="container mx-auto px-4 py-8">
-        <div className="flex items-start justify-between mb-8 no-print">
+        <div className="flex items-start justify-between mb-8">
           <div>
             <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
               <ArrowLeft className="mr-2" />
@@ -227,9 +211,11 @@ export default function PruebaMenuPage() {
             </h1>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" type="button" onClick={handlePrint}>
-              <Printer className="mr-2" />
-              Imprimir / Guardar PDF
+            <Button variant="outline" asChild>
+                <Link href={`/prueba-menu/informe?osId=${osId}`} target="_blank">
+                    <Printer className="mr-2" />
+                    Generar Informe
+                </Link>
             </Button>
             <Button form="prueba-menu-form" type="submit" disabled={!formState.isDirty}>
               <Save className="mr-2" />
@@ -239,66 +225,59 @@ export default function PruebaMenuPage() {
         </div>
 
         <Form {...form}>
-            <div className="printable-area">
-                <form id="prueba-menu-form" onSubmit={handleSubmit(onSubmit)}>
-                <div className="grid md:grid-cols-2 gap-6 mb-8">
-                    <Card className="p-0">
-                    <CardHeader className="py-2 px-4">
-                        <CardTitle className="text-base">Datos del Servicio</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-x-4 gap-y-0 text-sm p-4 pt-0">
-                        <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
-                        <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
-                        <div><strong>Cliente:</strong> {serviceOrder.client}</div>
-                        <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
-                    </CardContent>
-                    </Card>
-                    <Card className="p-0">
-                    <CardHeader className="py-2 px-4">
-                        <CardTitle className="text-base">Datos del Evento</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-x-4 gap-y-0 text-sm p-4 pt-0">
-                        <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
-                        <div><strong>Nº PAX:</strong> {serviceOrder.pax}</div>
-                        <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
-                    </CardContent>
-                    </Card>
-                </div>
-                
-                <div className="space-y-6">
-                    {renderSection('BODEGA')}
-                    {renderSection('GASTRONOMÍA')}
-                </div>
-
-                <Card className="mt-6">
-                    <CardHeader className="py-4">
-                    <CardTitle>Observaciones Generales</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                    <div className="digital-observations">
-                        <FormField
-                        control={control}
-                        name="observacionesGenerales"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormControl>
-                                <Textarea
-                                placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
-                                rows={4}
-                                {...field}
-                                />
-                            </FormControl>
-                            </FormItem>
-                        )}
-                        />
-                    </div>
-                    <div className="hidden print:block space-y-2 py-1 border rounded-md p-4 min-h-[120px]">
-                        {form.getValues('observacionesGenerales')}
-                    </div>
-                    </CardContent>
+            <form id="prueba-menu-form" onSubmit={handleSubmit(onSubmit)}>
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+                <Card className="p-0">
+                <CardHeader className="py-2 px-4">
+                    <CardTitle className="text-base">Datos del Servicio</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-x-4 gap-y-0 text-sm p-4 pt-0">
+                    <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
+                    <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
+                    <div><strong>Cliente:</strong> {serviceOrder.client}</div>
+                    <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
+                </CardContent>
                 </Card>
-                </form>
+                <Card className="p-0">
+                <CardHeader className="py-2 px-4">
+                    <CardTitle className="text-base">Datos del Evento</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-x-4 gap-y-0 text-sm p-4 pt-0">
+                    <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
+                    <div><strong>Nº PAX:</strong> {serviceOrder.pax}</div>
+                    <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
+                </CardContent>
+                </Card>
             </div>
+            
+            <div className="space-y-6">
+                {renderSection('BODEGA')}
+                {renderSection('GASTRONOMÍA')}
+            </div>
+
+            <Card className="mt-6">
+                <CardHeader className="py-4">
+                <CardTitle>Observaciones Generales</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                    <FormField
+                    control={control}
+                    name="observacionesGenerales"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormControl>
+                            <Textarea
+                            placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
+                            rows={4}
+                            {...field}
+                            />
+                        </FormControl>
+                        </FormItem>
+                    )}
+                    />
+                </CardContent>
+            </Card>
+            </form>
         </Form>
       </main>
     </>

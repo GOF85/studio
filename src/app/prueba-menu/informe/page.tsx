@@ -1,0 +1,160 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { ArrowLeft, Printer, UtensilsCrossed, ClipboardCheck } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { useToast } from '@/hooks/use-toast';
+import { ServiceOrder, PruebaMenuData, ComercialBriefingItem, PruebaMenuItem } from '@/types';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+
+export default function InformePruebaMenuPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const osId = searchParams.get('osId');
+  const { toast } = useToast();
+
+  const [isMounted, setIsMounted] = useState(false);
+  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
+  const [menuTestData, setMenuTestData] = useState<PruebaMenuData | null>(null);
+
+  const loadAllData = useCallback(() => {
+    if (!osId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
+      router.push('/pes');
+      return;
+    }
+
+    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    const currentOS = allServiceOrders.find(os => os.id === osId);
+    setServiceOrder(currentOS || null);
+
+    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as any[];
+    const currentBriefing = allBriefings.find(b => b.osId === osId);
+    setBriefingItems(currentBriefing?.items || []);
+
+    const allMenuTests = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as PruebaMenuData[];
+    const currentMenuTest = allMenuTests.find(mt => mt.osId === osId);
+    setMenuTestData(currentMenuTest || { osId, items: [], observacionesGenerales: '' });
+
+    setIsMounted(true);
+  }, [osId, router, toast]);
+
+  useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
+  
+  if (!isMounted || !serviceOrder) {
+    return <LoadingSkeleton title="Generando Informe..." />;
+  }
+
+  const handlePrint = () => window.print();
+
+  const renderSection = (mainCategory: 'BODEGA' | 'GASTRONOMÍA') => {
+    if (!menuTestData) return null;
+    const sectionItems = menuTestData.items.filter(item => item.mainCategory === mainCategory);
+
+    return (
+      <section className="mb-6">
+        <h4 className="text-lg font-bold mb-2 pb-1 border-b-2 border-gray-300">{mainCategory}</h4>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-1/3">Referencia</TableHead>
+              <TableHead>Observaciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sectionItems.length > 0 ? sectionItems.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell className={cn("font-medium", item.type === 'header' && "bg-gray-100 font-bold")}>
+                  {item.referencia}
+                </TableCell>
+                <TableCell className="border-l">
+                  <div className="space-y-3 py-1">
+                    <div className="h-px border-b border-dashed border-gray-400"></div>
+                    <div className="h-px border-b border-dashed border-gray-400"></div>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )) : (
+              <TableRow>
+                <TableCell colSpan={2} className="h-24 text-center text-gray-500">
+                  No hay elementos en esta sección.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </section>
+    );
+  };
+
+
+  return (
+    <>
+      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 no-print">
+        <div className="container flex h-16 items-center">
+            <div className='flex-1'>
+                 <Button variant="ghost" size="sm" onClick={() => router.back()} className="mb-2">
+                    <ArrowLeft className="mr-2" />
+                    Volver
+                </Button>
+            </div>
+          <div className="flex flex-1 items-center justify-end space-x-2">
+            <Button onClick={handlePrint}><Printer className="mr-2" /> Imprimir / Guardar PDF</Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8 bg-background">
+        <div className="printable-area max-w-4xl mx-auto bg-white p-8 md:p-12 shadow-lg rounded-lg border md:my-8">
+          <header className="flex justify-between items-start mb-8">
+            <div>
+              <h1 className="text-2xl font-bold text-primary flex items-center gap-3"><ClipboardCheck/> Prueba de Menú</h1>
+              <p className="text-lg font-semibold">{serviceOrder.serviceNumber} - {serviceOrder.client}</p>
+            </div>
+            <div className="flex items-center gap-3 text-primary">
+              <UtensilsCrossed className="h-8 w-8" />
+              <h2 className="text-2xl font-headline font-bold">CateringStock</h2>
+            </div>
+          </header>
+
+          <section className="mb-6">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm border p-4 rounded-md">
+              <div><strong>Nº PAX:</strong> {serviceOrder.pax}</div>
+              <div><strong>Fecha Evento:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
+              <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
+            </div>
+          </section>
+
+          <Separator className="my-6" />
+
+          {renderSection('BODEGA')}
+          {renderSection('GASTRONOMÍA')}
+
+          <section className="mt-6">
+             <h4 className="text-lg font-bold mb-2 pb-1 border-b-2 border-gray-300">Observaciones Generales</h4>
+             <div className="border rounded-lg p-2 min-h-[150px] space-y-4">
+                <div className="h-px border-b border-dashed border-gray-400"></div>
+                <div className="h-px border-b border-dashed border-gray-400"></div>
+                <div className="h-px border-b border-dashed border-gray-400"></div>
+                <div className="h-px border-b border-dashed border-gray-400"></div>
+             </div>
+          </section>
+
+          <footer className="text-center text-xs text-gray-500 pt-8 border-t mt-8">
+            Informe generado el {format(new Date(), "dd 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
+          </footer>
+        </div>
+      </main>
+    </>
+  );
+}
