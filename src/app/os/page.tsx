@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign } from 'lucide-react';
 
 import type { OrderItem, ServiceOrder, MaterialOrder, Personal, Espacio } from '@/types';
 import { cn } from '@/lib/utils';
@@ -361,10 +361,16 @@ export default function OsPage() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[150px_1fr] gap-8">
+        <div className="grid lg:grid-cols-[180px_1fr] gap-8">
           <aside className="lg:sticky top-24 self-start flex flex-col">
             <h2 className="text-lg font-semibold mb-4 px-3">Módulos</h2>
-            <nav className="space-y-2">
+            <nav className="space-y-1">
+              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+                  <Link href={osId ? `/cta-explotacion?osId=${osId}` : '#'}>
+                    <DollarSign className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium">Cta. Explotación</span>
+                  </Link>
+              </Button>
               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
                   <Link href={osId ? `/comercial?osId=${osId}` : '#'}>
                     <Briefcase className="mr-3 h-5 w-5 flex-shrink-0" />

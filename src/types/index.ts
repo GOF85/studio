@@ -213,3 +213,13 @@ export type HieloOrder = {
     observaciones: string;
     status: 'Pendiente' | 'Confirmado' | 'En reparto' | 'Entregado';
 }
+
+export type CtaExplotacionObjetivos = {
+    gastronomia: number;
+    bodega: number;
+    consumibles: number;
+    hielo: number;
+    almacen: number;
+    alquiler: number;
+    transporte: number;
+};
