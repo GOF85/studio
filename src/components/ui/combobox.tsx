@@ -43,7 +43,7 @@ export function Combobox({ options, value, onChange, placeholder, searchPlacehol
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between font-normal"
+          className="w-full justify-between font-normal h-9"
         >
           <span className="truncate">
             {value
@@ -63,12 +63,9 @@ export function Combobox({ options, value, onChange, placeholder, searchPlacehol
                 <CommandItem
                   key={option.value}
                   value={option.label}
-                  onSelect={(currentValue) => {
-                    // Find the option that matches the label from cmdk
-                    const selectedOption = options.find(opt => opt.label.toLowerCase() === currentValue.toLowerCase());
-                    if (selectedOption) {
-                      onChange(selectedOption.value === value ? "" : selectedOption.value)
-                    }
+                  onSelect={(currentLabel) => {
+                    const selectedValue = options.find(opt => opt.label.toLowerCase() === currentLabel.toLowerCase())?.value
+                    onChange(selectedValue === value ? "" : selectedValue || '')
                     setOpen(false)
                   }}
                 >

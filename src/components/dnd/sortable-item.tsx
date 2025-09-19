@@ -26,10 +26,19 @@ export function SortableItem({ id, children }: SortableItemProps) {
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 1 : 'auto',
   };
+  
+  // Pass listeners to a specific drag handle
+  const childrenWithDragHandle = React.Children.map(children, (child) => {
+    if (React.isValidElement(child) && typeof child.type !== 'string') {
+        // @ts-ignore
+        return React.cloneElement(child, { dragHandleProps: { ...attributes, ...listeners } });
+    }
+    return child;
+  });
 
   return (
-    <TableRow ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      {children}
+    <TableRow ref={setNodeRef} style={style}>
+      {childrenWithDragHandle}
     </TableRow>
   );
 }

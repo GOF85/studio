@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -7,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2, GripVertical } from 'lucide-react';
+import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2, GripVertical, Calendar as CalendarIcon } from 'lucide-react';
 import type { PersonalExternoOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem, ProveedorPersonal } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -23,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { differenceInMinutes, parse, format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -54,6 +54,9 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { SortableItem } from '@/components/dnd/sortable-item';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -80,7 +83,7 @@ const personalExternoSchema = z.object({
   categoria: z.string().min(1, 'La categoría es obligatoria'),
   cantidad: z.coerce.number().min(1, 'La cantidad debe ser mayor que 0'),
   precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
-  fecha: z.string(),
+  fecha: z.date({ required_error: "La fecha es obligatoria."}),
   horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   centroCoste: z.enum(centroCosteOptions),
@@ -174,7 +177,7 @@ export default function PersonalExternoPage() {
         setBriefingItems(currentBriefing?.items || []);
 
         const allOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
-        const relatedOrders = allOrders.filter(order => order.osId === osId);
+        const relatedOrders = allOrders.filter(order => order.osId === osId).map(o => ({...o, fecha: new Date(o.fecha)}));
         form.reset({ personal: relatedOrders });
 
         const dbProveedores = JSON.parse(localStorage.getItem('proveedoresPersonal') || '[]') as ProveedorPersonal[];
@@ -202,7 +205,11 @@ export default function PersonalExternoPage() {
     const allOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
     const otherOsOrders = allOrders.filter(o => o.osId !== osId);
     
-    const currentOsOrders: PersonalExternoOrder[] = data.personal.map(p => ({ ...p, osId }));
+    const currentOsOrders: PersonalExternoOrder[] = data.personal.map(p => ({ 
+        ...p,
+        osId,
+        fecha: format(p.fecha, 'yyyy-MM-dd'),
+     }));
 
     const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
     localStorage.setItem('personalExternoOrders', JSON.stringify(updatedAllOrders));
@@ -223,7 +230,7 @@ export default function PersonalExternoPage() {
         categoria: '',
         cantidad: 1,
         precioHora: 0,
-        fecha: serviceOrder.startDate,
+        fecha: new Date(serviceOrder.startDate),
         horaEntrada: '09:00',
         horaSalida: '17:00',
         centroCoste: 'SALA',
@@ -352,36 +359,60 @@ export default function PersonalExternoPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-12 px-2 py-2"></TableHead>
+                                        <TableHead className="w-10 px-1 py-2"></TableHead>
+                                        <TableHead className="px-2 py-2">Fecha</TableHead>
                                         <TableHead className="px-2 py-2">Centro Coste</TableHead>
-                                        <TableHead className="px-2 py-2">Proveedor - Categoría</TableHead>
-                                        <TableHead className="px-2 py-2">Cantidad</TableHead>
+                                        <TableHead className="px-2 py-2 min-w-48">Proveedor - Categoría</TableHead>
+                                        <TableHead className="px-1 py-2 text-center">Cant.</TableHead>
                                         <TableHead className="px-2 py-2">Tipo Servicio</TableHead>
                                         <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
                                         <TableHead colSpan={2} className="text-center border-r px-2 py-2">Real</TableHead>
                                         <TableHead className="text-right px-2 py-2">Acción</TableHead>
                                     </TableRow>
                                     <TableRow>
+                                        <TableHead className="px-1 py-2"></TableHead>
                                         <TableHead className="px-2 py-2"></TableHead>
                                         <TableHead className="px-2 py-2"></TableHead>
                                         <TableHead className="px-2 py-2"></TableHead>
+                                        <TableHead className="px-1 py-2"></TableHead>
                                         <TableHead className="px-2 py-2"></TableHead>
-                                        <TableHead className="px-2 py-2"></TableHead>
-                                        <TableHead className="border-l px-2 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
-                                        <TableHead className="px-2 py-2 bg-muted/30 w-24">H. Salida</TableHead>
-                                        <TableHead className="border-r px-2 py-2 bg-muted/30 w-20">€/Hora</TableHead>
-                                        <TableHead className="w-24">H. Entrada</TableHead>
-                                        <TableHead className="border-r w-24">H. Salida</TableHead>
+                                        <TableHead className="border-l px-1 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
+                                        <TableHead className="px-1 py-2 bg-muted/30 w-24">H. Salida</TableHead>
+                                        <TableHead className="border-r px-1 py-2 bg-muted/30 w-20">€/Hora</TableHead>
+                                        <TableHead className="px-1 py-2 w-24">H. Entrada</TableHead>
+                                        <TableHead className="border-r px-1 py-2 w-24">H. Salida</TableHead>
                                         <TableHead className="px-2 py-2"></TableHead>
                                     </TableRow>
                                 </TableHeader>
+                                
                                 <SortableContext items={fields} strategy={verticalListSortingStrategy}>
                                     <TableBody>
                                     {fields.length > 0 ? (
                                         fields.map((field, index) => (
                                            <SortableItem key={field.id} id={field.id}>
-                                                <TableCell className="px-2 py-1 align-middle">
-                                                    <GripVertical className="h-5 w-5 text-muted-foreground" />
+                                                 <TableCell className="px-1 py-1 align-middle">
+                                                    <Button variant="ghost" size="icon" className="cursor-grab h-9 w-9" {...field.dragHandleProps}>
+                                                        <GripVertical className="h-5 w-5 text-muted-foreground" />
+                                                    </Button>
+                                                </TableCell>
+                                                <TableCell className="px-2 py-1">
+                                                    <FormField control={control} name={`personal.${index}.fecha`} render={({ field }) => (
+                                                        <FormItem>
+                                                            <Popover>
+                                                                <PopoverTrigger asChild>
+                                                                    <FormControl>
+                                                                        <Button variant={"outline"} className={cn("w-32 h-9 pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                                            {field.value ? format(field.value, "dd/MM/yy") : <span>Elige</span>}
+                                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                        </Button>
+                                                                    </FormControl>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-auto p-0" align="start">
+                                                                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        </FormItem>
+                                                    )} />
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1">
                                                     <FormField
@@ -413,11 +444,11 @@ export default function PersonalExternoPage() {
                                                         )}
                                                     />
                                                 </TableCell>
-                                                <TableCell className="px-2 py-1">
+                                                <TableCell className="px-1 py-1">
                                                       <FormField
                                                         control={control}
                                                         name={`personal.${index}.cantidad`}
-                                                        render={({ field }) => <FormItem><FormControl><Input type="number" min="1" {...field} className="w-20 h-9"/></FormControl></FormItem>}
+                                                        render={({ field }) => <FormItem><FormControl><Input type="number" min="1" {...field} className="w-16 h-9 text-center"/></FormControl></FormItem>}
                                                     />
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1">
@@ -434,35 +465,35 @@ export default function PersonalExternoPage() {
                                                         )}
                                                     />
                                                 </TableCell>
-                                                <TableCell className="border-l px-2 py-1 bg-muted/30">
+                                                <TableCell className="border-l px-1 py-1 bg-muted/30">
                                                     <FormField
                                                         control={control}
                                                         name={`personal.${index}.horaEntrada`}
                                                         render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
                                                     />
                                                 </TableCell>
-                                                <TableCell className="px-2 py-1 bg-muted/30">
+                                                <TableCell className="px-1 py-1 bg-muted/30">
                                                     <FormField
                                                         control={control}
                                                         name={`personal.${index}.horaSalida`}
                                                         render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
                                                     />
                                                 </TableCell>
-                                                <TableCell className="border-r px-2 py-1 bg-muted/30">
+                                                <TableCell className="border-r px-1 py-1 bg-muted/30">
                                                     <FormField
                                                         control={control}
                                                         name={`personal.${index}.precioHora`}
                                                         render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20 h-9" readOnly /></FormControl></FormItem>}
                                                     />
                                                 </TableCell>
-                                                <TableCell className="px-2 py-1">
+                                                <TableCell className="px-1 py-1">
                                                     <FormField
                                                         control={control}
                                                         name={`personal.${index}.horaEntradaReal`}
                                                         render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
                                                     />
                                                 </TableCell>
-                                                <TableCell className="border-r px-2 py-1">
+                                                <TableCell className="border-r px-1 py-1">
                                                     <FormField
                                                         control={control}
                                                         name={`personal.${index}.horaSalidaReal`}
@@ -478,7 +509,7 @@ export default function PersonalExternoPage() {
                                         ))
                                     ) : (
                                         <TableRow>
-                                        <TableCell colSpan={11} className="h-24 text-center">
+                                        <TableCell colSpan={12} className="h-24 text-center">
                                             No hay personal asignado. Haz clic en "Añadir Personal" para empezar.
                                         </TableCell>
                                         </TableRow>

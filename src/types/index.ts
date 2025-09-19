@@ -276,4 +276,6 @@ export type PersonalExternoOrder = {
     centroCoste: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
     tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
     observaciones: string;
+    horaEntradaReal?: string;
+    horaSalidaReal?: string;
 };
