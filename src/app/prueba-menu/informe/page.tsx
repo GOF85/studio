@@ -52,11 +52,12 @@ export default function InformePruebaMenuPage() {
     loadAllData();
   }, [loadAllData]);
   
+  const handlePrint = () => window.print();
+
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Generando Informe..." />;
   }
 
-  const handlePrint = () => window.print();
 
   const renderSection = (mainCategory: 'BODEGA' | 'GASTRONOMÍA') => {
     if (!menuTestData) return null;
@@ -101,9 +102,9 @@ export default function InformePruebaMenuPage() {
 
   return (
     <>
-      <Header className="no-print" />
-      <main className="container mx-auto px-4 py-8 bg-background">
-        <div className="flex items-center justify-between mb-8 no-print">
+      <div className="no-print">
+        <Header/>
+        <div className="container mx-auto px-4 pt-8 flex items-center justify-between">
             <div>
                 <Button variant="ghost" size="sm" onClick={() => router.push(`/prueba-menu?osId=${osId}`)} className="mb-2">
                     <ArrowLeft className="mr-2" />
@@ -113,8 +114,9 @@ export default function InformePruebaMenuPage() {
             </div>
             <Button onClick={handlePrint}><Printer className="mr-2" /> Imprimir / Guardar PDF</Button>
         </div>
-
-
+      </div>
+      
+      <main className="container mx-auto px-4 py-8 bg-background">
         <div className="printable-area max-w-4xl mx-auto bg-white p-8 md:p-12 shadow-lg rounded-lg border md:my-8">
           <header className="flex justify-between items-start mb-8">
             <div>
