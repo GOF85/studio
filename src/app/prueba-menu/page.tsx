@@ -136,15 +136,15 @@ export default function PruebaMenuPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="p-2">Referencias</TableHead>
-                  <TableHead className="p-2 border-l">Observaciones</TableHead>
+                  <TableHead className="p-2 border-r">Referencias</TableHead>
+                  <TableHead className="p-2">Observaciones</TableHead>
                   <TableHead className="w-12 p-2"></TableHead>
                 </TableRow>
               </TableHeader>
                 <TableBody>
                 {sectionItems.length > 0 ? sectionItems.map(({ field, index }) => (
                     <TableRow key={field.id}>
-                        <TableCell className={cn("py-1 px-2 font-medium", field.type === 'header' && "bg-muted/50 font-bold")}>
+                        <TableCell className={cn("py-1 px-2 font-medium border-r", field.type === 'header' && "bg-muted/50 font-bold")}>
                             <FormField
                             control={control}
                             name={`items.${index}.referencia`}
@@ -157,8 +157,8 @@ export default function PruebaMenuPage() {
                             )}
                             />
                         </TableCell>
-                        <TableCell className={cn("py-1 px-2 border-l", field.type === 'header' && "bg-muted/50")}>
-                            <FormField
+                        <TableCell className={cn("py-1 px-2", field.type === 'header' && "bg-muted/50")}>
+                             <FormField
                             control={control}
                             name={`items.${index}.observaciones`}
                             render={({ field: formField }) => (

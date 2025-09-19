@@ -8,7 +8,7 @@ import { ArrowLeft, Printer, UtensilsCrossed, ClipboardCheck } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { ServiceOrder, PruebaMenuData, ComercialBriefingItem, PruebaMenuItem } from '@/types';
+import { ServiceOrder, PruebaMenuData, ComercialBriefingItem, PruebaMenuItem, ComercialBriefing } from '@/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -36,7 +36,7 @@ export default function InformePruebaMenuPage() {
     const currentOS = allServiceOrders.find(os => os.id === osId);
     setServiceOrder(currentOS || null);
 
-    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as any[];
+    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const currentBriefing = allBriefings.find(b => b.osId === osId);
     setBriefingItems(currentBriefing?.items || []);
 
@@ -103,7 +103,7 @@ export default function InformePruebaMenuPage() {
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 no-print">
         <div className="container flex h-16 items-center">
             <div className='flex-1'>
-                 <Button variant="ghost" size="sm" onClick={() => router.back()} className="mb-2">
+                 <Button variant="ghost" size="sm" onClick={() => window.close()} className="mb-2">
                     <ArrowLeft className="mr-2" />
                     Volver
                 </Button>
