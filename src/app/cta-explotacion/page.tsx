@@ -177,6 +177,7 @@ export default function CtaExplotacionPage() {
                     <TableHead className="text-right">Cierre</TableHead>
                     <TableHead className="text-right">Objetivo MC</TableHead>
                     <TableHead className="text-right">Desv. (Obj-Pres)</TableHead>
+                    <TableHead className="text-right">Desv. % (Obj-Pres)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -187,10 +188,12 @@ export default function CtaExplotacionPage() {
                     <TableCell className="text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
                     <TableCell className="text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
                     <TableCell></TableCell>
+                    <TableCell></TableCell>
                   </TableRow>
                   {processedCostes.map(row => {
                     const pctSFact = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
                     const desviacion = row.objetivo - row.presupuesto;
+                    const desviacionPct = row.presupuesto > 0 ? desviacion / row.presupuesto : 0;
                     return (
                         <TableRow key={row.label}>
                             <TableCell>{row.label}</TableCell>
@@ -202,6 +205,9 @@ export default function CtaExplotacionPage() {
                             <TableCell className="text-right">{formatCurrency(row.objetivo)}</TableCell>
                             <TableCell className={cn("text-right", desviacion < 0 && "text-destructive", desviacion > 0 && "text-green-600")}>
                                 {formatCurrency(desviacion)}
+                            </TableCell>
+                             <TableCell className={cn("text-right", desviacionPct < 0 && "text-destructive", desviacionPct > 0 && "text-green-600")}>
+                                {formatPercentage(desviacionPct)}
                             </TableCell>
                         </TableRow>
                     );
