@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, DollarSign, Target, TrendingDown, TrendingUp } from 'lucide-react';
+import { ArrowLeft, DollarSign, Target, Settings } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,9 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { ServiceOrder, ComercialBriefing, GastronomyOrder, MaterialOrder, TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExternoOrder, PruebaMenuData, CtaExplotacionObjetivos, PersonalExternoAjuste } from '@/types';
+import { ServiceOrder, ComercialBriefing, GastronomyOrder, MaterialOrder, TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExternoOrder, PruebaMenuData, CtaExplotacionObjetivos, PersonalExternoAjuste, ObjetivosGasto } from '@/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Link from 'next/link';
 
 type CostRow = {
   label: string;
@@ -45,19 +47,10 @@ export default function CtaExplotacionPage() {
 
   const [isMounted, setIsMounted] = useState(false);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+  const [objetivosPlantillas, setObjetivosPlantillas] = useState<ObjetivosGasto[]>([]);
   const [objetivos, setObjetivos] = useState<CtaExplotacionObjetivos>({
-    gastronomia: 0,
-    bodega: 0,
-    consumibles: 0,
-    hielo: 0,
-    almacen: 0,
-    alquiler: 0,
-    transporte: 0,
-    decoracion: 0,
-    atipicos: 0,
-    personalMice: 0,
-    personalExterno: 0,
-    costePruebaMenu: 0,
+    gastronomia: 0, bodega: 0, consumibles: 0, hielo: 0, almacen: 0, alquiler: 0, transporte: 0,
+    decoracion: 0, atipicos: 0, personalMice: 0, personalExterno: 0, costePruebaMenu: 0,
   });
   
   const [costes, setCostes] = useState<Omit<CostRow, 'objetivo' | 'objetivo_pct'>[]>([]);
@@ -70,9 +63,14 @@ export default function CtaExplotacionPage() {
     const currentOS = allServiceOrders.find(os => os.id === osId);
     setServiceOrder(currentOS || null);
 
-    const allObjectives = JSON.parse(localStorage.getItem('ctaExplotacionObjetivos') || '{}') as {[key: string]: CtaExplotacionObjetivos};
-    if (allObjectives[osId]) {
-      setObjetivos(allObjectives[osId]);
+    const storedPlantillas = JSON.parse(localStorage.getItem('objetivosGastoPlantillas') || '[]') as ObjetivosGasto[];
+    setObjetivosPlantillas(storedPlantillas);
+    
+    if (currentOS?.objetivoGastoId) {
+        const plantilla = storedPlantillas.find(p => p.id === currentOS.objetivoGastoId);
+        if (plantilla) {
+            setObjetivos(plantilla);
+        }
     }
 
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
@@ -150,14 +148,21 @@ export default function CtaExplotacionPage() {
     setIsMounted(true);
   }, [osId, router, toast, loadData]);
 
-  const handleObjetivoChange = (key: keyof CtaExplotacionObjetivos, value: string) => {
-    const numericValue = parseFloat(value) || 0;
-    const newObjetivos = { ...objetivos, [key]: numericValue };
-    setObjetivos(newObjetivos);
-    
-    const allObjectives = JSON.parse(localStorage.getItem('ctaExplotacionObjetivos') || '{}');
-    allObjectives[osId!] = newObjetivos;
-    localStorage.setItem('ctaExplotacionObjetivos', JSON.stringify(allObjectives));
+  const handleObjetivoChange = (plantillaId: string) => {
+    if (!osId || !serviceOrder) return;
+    const plantilla = objetivosPlantillas.find(p => p.id === plantillaId);
+    if(plantilla) {
+        setObjetivos(plantilla);
+
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const osIndex = allServiceOrders.findIndex(os => os.id === osId);
+        if (osIndex !== -1) {
+            allServiceOrders[osIndex] = { ...allServiceOrders[osIndex], objetivoGastoId: plantillaId };
+            localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
+            setServiceOrder(allServiceOrders[osIndex]);
+            toast({ title: 'Plantilla aplicada', description: `Se ha aplicado la plantilla "${plantilla.name}".`});
+        }
+    }
   };
   
   const handleCierreChange = (label: string, value: string) => {
@@ -275,24 +280,20 @@ export default function CtaExplotacionPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Target /> Objetivos de Gasto</CardTitle>
-                <CardDescription>Define el % máximo de gasto por partida.</CardDescription>
+                <CardDescription>Selecciona una plantilla de objetivos para este evento.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {Object.keys(objetivos).map(key => (
-                  <div key={key} className="flex items-center justify-between">
-                    <label htmlFor={`obj-${key}`} className="capitalize text-sm font-medium">{key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}</label>
-                    <div className="flex items-center gap-2">
-                        <Input 
-                            id={`obj-${key}`} 
-                            type="number" 
-                            className="w-20 h-8 text-right" 
-                            value={objetivos[key as keyof CtaExplotacionObjetivos]}
-                            onChange={(e) => handleObjetivoChange(key as keyof CtaExplotacionObjetivos, e.target.value)}
-                        />
-                        <span>%</span>
-                    </div>
-                  </div>
-                ))}
+                 <Select onValueChange={handleObjetivoChange} value={serviceOrder.objetivoGastoId}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar plantilla..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {objetivosPlantillas.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                 <Button variant="outline" size="sm" className="w-full" asChild>
+                    <Link href="/objetivos-gasto"><Settings className="mr-2"/>Gestionar plantillas</Link>
+                </Button>
               </CardContent>
             </Card>
 

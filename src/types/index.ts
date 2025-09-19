@@ -39,6 +39,7 @@ export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate'> & {
     startDate: string; 
     endDate: string;
     deliveryLocations?: string[];
+    objetivoGastoId?: string;
 };
 
 export type Personal = {
@@ -232,6 +233,11 @@ export type CtaExplotacionObjetivos = {
     costePruebaMenu: number;
 };
 
+export type ObjetivosGasto = CtaExplotacionObjetivos & {
+    id: string;
+    name: string;
+}
+
 export type AtipicoDBItem = {
     id: string;
     concepto: string;
@@ -322,4 +328,3 @@ export type PruebaMenuData = {
     observacionesGenerales?: string;
     costePruebaMenu?: number;
 }
-

@@ -1,6 +1,5 @@
-
 import Link from 'next/link';
-import { UtensilsCrossed, FileText, ClipboardList, Database, Menu, Calendar, Trash2, Flower2 } from 'lucide-react';
+import { UtensilsCrossed, FileText, ClipboardList, Database, Menu, Calendar, Trash2, Flower2, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -45,6 +44,12 @@ export function Header() {
                 <Link href="/bd">
                   <Database className="mr-2" />
                   Bases de Datos
+                </Link>
+              </DropdownMenuItem>
+               <DropdownMenuItem asChild>
+                <Link href="/objetivos-gasto">
+                  <Target className="mr-2" />
+                  Objetivos de Gasto
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
