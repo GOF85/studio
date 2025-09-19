@@ -35,7 +35,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { CATERING_ITEMS } from '@/lib/data';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -147,44 +146,6 @@ export default function PesPage() {
         },
       ];
       localStorage.setItem('serviceOrders', JSON.stringify(dummyOS));
-      
-      const dummyMaterialOrders = [
-        {
-          id: `${Date.now()}-A`, osId: `${Date.now()}-1`, type: 'Almacén',
-          items: [
-            {...CATERING_ITEMS.find(i=> i.itemCode === 'TBL01')!, quantity: 20},
-            {...CATERING_ITEMS.find(i=> i.itemCode === 'CHR01')!, quantity: 150}
-          ],
-          days: 3, total: (20*10 + 150*1.5)*3, contractNumber: 'OS-2024-001',
-          status: 'Asignado',
-          deliveryDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-          deliverySpace: 'Finca La Reunión', deliveryLocation: 'Salón Principal'
-        },
-         {
-          id: `${Date.now()}-B`, osId: `${Date.now()}-1`, type: 'Almacén',
-          items: [
-            {...CATERING_ITEMS.find(i=> i.itemCode === 'PLT01')!, quantity: 150},
-            {...CATERING_ITEMS.find(i=> i.itemCode === 'PLT02')!, quantity: 150},
-            {...CATERING_ITEMS.find(i=> i.itemCode === 'CUT01')!, quantity: 150},
-          ],
-          days: 3, total: (150*0.5 + 150*0.4 + 150*0.75)*3, contractNumber: 'OS-2024-001',
-          status: 'En preparación',
-          deliveryDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-          deliverySpace: 'Finca La Reunión', deliveryLocation: 'Cocina Trasera'
-        },
-        {
-          id: `${Date.now()}-C`, osId: `${Date.now()}-1`, type: 'Bodega',
-          items: [
-            {...CATERING_ITEMS.find(i=> i.itemCode === 'GLS01')!, quantity: 200},
-            {...CATERING_ITEMS.find(i=> i.itemCode === 'GLS02')!, quantity: 200},
-          ],
-          days: 3, total: (200 * 0.4 + 200 * 0.3)*3, contractNumber: 'OS-2024-001',
-          status: 'Listo',
-          deliveryDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-          deliverySpace: 'Finca La Reunión', deliveryLocation: 'Salón Principal'
-        }
-      ];
-      localStorage.setItem('materialOrders', JSON.stringify(dummyMaterialOrders));
       setServiceOrders(dummyOS);
       toast({ title: 'Datos de prueba cargados', description: 'Se han cargado órdenes de servicio y pedidos de ejemplo.' });
     } else {
@@ -347,7 +308,7 @@ export default function PesPage() {
                               <h4 className="font-bold">{os.finalClient || os.client}</h4>
                               {osBriefingItems.map(item => (
                                 <div key={item.id} className="text-sm">
-                                  <p className="font-medium flex items-center gap-1.5"><Clock className="h-3 w-3"/>{item.horaInicio} - {item.descripcion}</p>
+                                  <p className="font-medium flex items-center gap-1.5"><Clock className="h-3 w-3"/>{format(new Date(item.fecha), 'dd/MM/yy')} {item.horaInicio} - {item.descripcion}</p>
                                   <p className="flex items-center gap-1 text-muted-foreground pl-5"><Users className="h-3 w-3"/>{item.asistentes} asistentes</p>
                                 </div>
                               ))}
