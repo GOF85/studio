@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, parseISO, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
-import type { ServiceOrder } from '@/types';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Clock, Users } from 'lucide-react';
+import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,9 +40,11 @@ import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function PesPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
+  const [briefings, setBriefings] = useState<ComercialBriefing[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -188,6 +190,8 @@ export default function PesPage() {
     } else {
       setServiceOrders(JSON.parse(storedOrders));
     }
+    const storedBriefings = localStorage.getItem('comercialBriefings');
+    setBriefings(storedBriefings ? JSON.parse(storedBriefings) : []);
     setIsMounted(true);
   }, [toast]);
 
@@ -203,6 +207,15 @@ export default function PesPage() {
     });
     return Array.from(months).sort().reverse();
   }, [serviceOrders]);
+
+  const briefingsMap = useMemo(() => {
+    const map = new Map<string, ComercialBriefingItem[]>();
+    briefings.forEach(briefing => {
+      const sortedItems = [...briefing.items].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
+      map.set(briefing.osId, sortedItems);
+    });
+    return map;
+  }, [briefings]);
   
   const filteredAndSortedOrders = useMemo(() => {
     const today = startOfToday();
@@ -262,7 +275,7 @@ export default function PesPage() {
   }
 
   return (
-    <>
+    <TooltipProvider>
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
@@ -319,9 +332,30 @@ export default function PesPage() {
             </TableHeader>
             <TableBody>
               {filteredAndSortedOrders.length > 0 ? (
-                filteredAndSortedOrders.map(os => (
+                filteredAndSortedOrders.map(os => {
+                  const osBriefingItems = briefingsMap.get(os.id);
+                  return (
                   <TableRow key={os.id} onClick={() => router.push(`/os?id=${os.id}`)} className="cursor-pointer">
-                    <TableCell className="font-medium">{os.serviceNumber}</TableCell>
+                    <TableCell className="font-medium">
+                       <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>{os.serviceNumber}</span>
+                        </TooltipTrigger>
+                        {osBriefingItems && osBriefingItems.length > 0 && (
+                          <TooltipContent>
+                            <div className="space-y-2 p-2 max-w-xs">
+                              <h4 className="font-bold">{os.finalClient || os.client}</h4>
+                              {osBriefingItems.map(item => (
+                                <div key={item.id} className="text-sm">
+                                  <p className="font-medium flex items-center gap-1.5"><Clock className="h-3 w-3"/>{item.horaInicio} - {item.descripcion}</p>
+                                  <p className="flex items-center gap-1 text-muted-foreground pl-5"><Users className="h-3 w-3"/>{item.asistentes} asistentes</p>
+                                </div>
+                              ))}
+                            </div>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TableCell>
                     <TableCell>{os.space}</TableCell>
                     <TableCell>{os.client}</TableCell>
                     <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
@@ -353,7 +387,7 @@ export default function PesPage() {
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))
+                )})
               ) : (
                 <TableRow>
                   <TableCell colSpan={8} className="h-24 text-center">
@@ -385,6 +419,6 @@ export default function PesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </TooltipProvider>
   );
 }
