@@ -64,7 +64,7 @@ export default function PesPage() {
           endDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
           client: 'Empresa Innovadora S.L.',
           tipoCliente: 'Empresa',
-          pax: 150,
+          asistentes: 150,
           status: 'Confirmado',
           space: 'Finca La Reunión',
           spaceAddress: 'Calle Falsa 123',
@@ -107,7 +107,7 @@ export default function PesPage() {
           endDate: new Date(Date.now() + 11 * 24 * 60 * 60 * 1000).toISOString(),
           client: 'Particulares - Boda J&M',
           tipoCliente: 'Particular',
-          pax: 80,
+          asistentes: 80,
           status: 'Borrador',
           space: 'Restaurante El Mirador',
           spaceAddress: 'Avenida del Sol 45',
@@ -312,7 +312,7 @@ export default function PesPage() {
                 <TableHead>Cliente</TableHead>
                 <TableHead>Fecha Inicio</TableHead>
                 <TableHead>Fecha Fin</TableHead>
-                <TableHead>PAX</TableHead>
+                <TableHead>Asistentes</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
@@ -326,7 +326,7 @@ export default function PesPage() {
                     <TableCell>{os.client}</TableCell>
                     <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
                     <TableCell>{format(new Date(os.endDate), 'dd/MM/yyyy')}</TableCell>
-                    <TableCell>{os.pax}</TableCell>
+                    <TableCell>{os.asistentes}</TableCell>
                     <TableCell>
                       <Badge variant={statusVariant[os.status]}>
                         {os.status}

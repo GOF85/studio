@@ -133,7 +133,7 @@ export default function InformePage() {
               <div><strong className="font-medium">Fecha Inicio:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
               <div><strong className="font-medium">Fecha Fin:</strong> {format(new Date(serviceOrder.endDate), 'dd/MM/yyyy')}</div>
               <div><strong className="font-medium">Cliente:</strong> {serviceOrder.client}</div>
-              <div><strong className="font-medium">PAX:</strong> {serviceOrder.pax}</div>
+              <div><strong className="font-medium">Asistentes:</strong> {serviceOrder.asistentes}</div>
               <div><strong className="font-medium">Estado:</strong> {serviceOrder.status}</div>
               <div className="col-span-3"><strong className="font-medium">Espacio:</strong> {serviceOrder.space} ({serviceOrder.spaceAddress})</div>
             </div>
@@ -163,7 +163,7 @@ export default function InformePage() {
                             <TableHead>Fecha</TableHead>
                             <TableHead>Servicio</TableHead>
                             <TableHead>Sala</TableHead>
-                            <TableHead>Asist.</TableHead>
+                            <TableHead>Asistentes</TableHead>
                             <TableHead className="text-right">Total</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -228,8 +228,8 @@ export default function InformePage() {
                   </div>
                    <div className="border rounded-lg p-4 space-y-3 text-sm">
                      <div className="flex justify-between">
-                      <span className="text-muted-foreground">Ingresos / Pax:</span>
-                      <span className="font-medium">{serviceOrder.pax > 0 ? formatCurrency(facturacionNeta / serviceOrder.pax) : 'N/A'}</span>
+                      <span className="text-muted-foreground">Ingresos / Asistente:</span>
+                      <span className="font-medium">{serviceOrder.asistentes > 0 ? formatCurrency(facturacionNeta / serviceOrder.asistentes) : 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Repercusión HQ (25%):</span>

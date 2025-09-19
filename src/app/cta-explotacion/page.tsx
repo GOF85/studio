@@ -137,7 +137,7 @@ export default function CtaExplotacionPage() {
   }, [processedCostes]);
 
   const rentabilidad = facturacionNeta - totals.totalPresupuesto;
-  const ingresosPax = serviceOrder?.pax ? facturacionNeta / serviceOrder.pax : 0;
+  const ingresosAsistente = serviceOrder?.asistentes ? facturacionNeta / serviceOrder.asistentes : 0;
   const repercusionHQ = rentabilidad * 0.25;
   const rentabilidadPostHQ = rentabilidad - repercusionHQ;
 
@@ -250,8 +250,8 @@ export default function CtaExplotacionPage() {
                         <span className={cn(rentabilidad > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidad)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                        <span>Ingresos / Pax</span>
-                        <span>{formatCurrency(ingresosPax)}</span>
+                        <span>Ingresos / Asistente</span>
+                        <span>{formatCurrency(ingresosAsistente)}</span>
                     </div>
                      <div className="flex justify-between items-center">
                         <span>Repercusión HQ (25%)</span>

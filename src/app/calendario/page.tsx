@@ -39,7 +39,7 @@ type CalendarEvent = {
   horaInicio: string;
   space: string;
   finalClient: string;
-  pax: number;
+  asistentes: number;
   status: ServiceOrder['status'];
 };
 
@@ -87,7 +87,7 @@ export default function CalendarioServiciosPage() {
             horaInicio: item.horaInicio,
             space: serviceOrder.space || 'N/A',
             finalClient: serviceOrder.finalClient || '',
-            pax: item.asistentes,
+            asistentes: item.asistentes,
             status: serviceOrder.status,
           });
         });
@@ -199,7 +199,7 @@ export default function CalendarioServiciosPage() {
                                         {osEvents.slice(0, 3).map((event, index) => (
                                             <div key={`${event.osId}-${index}`} className="text-sm">
                                                 <p className="font-medium flex items-center gap-1.5"><Clock className="h-3 w-3"/>{event.horaInicio} - {event.serviceType}</p>
-                                                <p className="flex items-center gap-1 text-muted-foreground pl-5"><Users className="h-3 w-3"/>{event.pax} pax</p>
+                                                <p className="flex items-center gap-1 text-muted-foreground pl-5"><Users className="h-3 w-3"/>{event.asistentes} asistentes</p>
                                             </div>
                                         ))}
                                         {osEvents.length > 3 && (
@@ -235,7 +235,7 @@ export default function CalendarioServiciosPage() {
                             <p>{event.space}{event.finalClient && ` - ${event.finalClient}`}</p>
                             <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4">
                                 <span className="flex items-center gap-1.5"><Clock className="h-3 w-3"/>{event.horaInicio} - {event.serviceType}</span>
-                                <span className="flex items-center gap-1"><Users className="h-3 w-3"/>{event.pax} pax</span>
+                                <span className="flex items-center gap-1"><Users className="h-3 w-3"/>{event.asistentes} asistentes</span>
                             </div>
                         </Link>
                     ))}

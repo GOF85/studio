@@ -69,7 +69,7 @@ export const osFormSchema = z.object({
   contact: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
-  pax: z.coerce.number().optional().default(0),
+  asistentes: z.coerce.number().optional().default(0),
   endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
   space: z.string().optional().default(''),
   spaceAddress: z.string().optional().default(''),
@@ -107,7 +107,7 @@ export const osFormSchema = z.object({
 export type OsFormValues = z.infer<typeof osFormSchema>;
 
 const defaultValues: Partial<OsFormValues> = {
-  serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', pax: 0,
+  serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', asistentes: 0,
   space: '', spaceAddress: '', spaceContact: '', spacePhone: '', spaceMail: '',
   respMetre: '', respMetrePhone: '', respMetreMail: '', 
   respPase: '', respPasePhone: '', respPaseMail: '',
@@ -510,9 +510,9 @@ export default function OsPage() {
                             <FormMessage />
                           </FormItem>
                       )} />
-                       <FormField control={form.control} name="pax" render={({ field }) => (
+                       <FormField control={form.control} name="asistentes" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>PAX</FormLabel>
+                          <FormLabel>Asistentes</FormLabel>
                           <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
                         </FormItem>
                       )} />

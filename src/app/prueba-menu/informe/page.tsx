@@ -131,7 +131,7 @@ export default function InformePruebaMenuPage() {
 
           <section className="mb-4">
             <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm border p-3 rounded-md">
-              <div><strong>Nº PAX:</strong> {serviceOrder.pax}</div>
+              <div><strong>Nº Asistentes:</strong> {serviceOrder.asistentes}</div>
               <div><strong>Fecha Evento:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
               <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
             </div>
