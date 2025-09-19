@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, Save, Trash2, PlusCircle, GripVertical, ClipboardCheck, Printer } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Printer } from 'lucide-react';
 import type { ServiceOrder, PruebaMenuData, PruebaMenuItem, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -15,13 +15,9 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { SortableItem } from '@/components/dnd/sortable-item';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
-import { CSS } from '@dnd-kit/utilities';
 
 const pruebaMenuItemSchema = z.object({
   id: z.string(),
@@ -37,73 +33,6 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
-
-const SortableTableRow = ({ field, index, control, remove }: { field: any, index: number, control: any, remove: (index: number) => void }) => {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-    } = useSortable({id: field.id});
-    
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
-
-    return (
-        <TableRow ref={setNodeRef} style={style}>
-            <TableCell className="py-1 px-2 align-middle no-print cursor-grab" {...attributes} {...listeners}>
-                <GripVertical className="h-5 w-5 text-muted-foreground" />
-            </TableCell>
-            <TableCell className={cn("py-1 px-2 font-medium", field.type === 'header' && "bg-muted/50 font-bold")}>
-                <FormField
-                control={control}
-                name={`items.${index}.referencia`}
-                render={({ field: formField }) => (
-                    <FormItem>
-                    <FormControl>
-                        <div>
-                            <div className="digital-observations">
-                                <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
-                            </div>
-                            <div className="hidden print:block h-6">{formField.value}</div>
-                        </div>
-                    </FormControl>
-                    </FormItem>
-                )}
-                />
-            </TableCell>
-            <TableCell className={cn("py-1 px-2 border-l", field.type === 'header' && "bg-muted/50")}>
-                <FormField
-                control={control}
-                name={`items.${index}.observaciones`}
-                render={({ field: formField }) => (
-                    <FormItem>
-                    <FormControl>
-                        <div>
-                        <div className="digital-observations">
-                            <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
-                        </div>
-                        <div className="hidden print:block space-y-2 py-1">
-                            <div className="h-px border-b border-dashed border-gray-400"></div>
-                            <div className="h-px border-b border-dashed border-gray-400"></div>
-                        </div>
-                        </div>
-                    </FormControl>
-                    </FormItem>
-                )}
-                />
-            </TableCell>
-            <TableCell className={cn("py-1 px-2 no-print", field.type === 'header' && "bg-muted/50")}>
-                <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}>
-                <Trash2 className="h-4 w-4" />
-                </Button>
-            </TableCell>
-        </TableRow>
-    )
-}
 
 export default function PruebaMenuPage() {
   const router = useRouter();
@@ -187,20 +116,6 @@ export default function PruebaMenuPage() {
       observaciones: '',
     });
   };
-  
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldIndex = fields.findIndex((item) => item.id === active.id);
-      const newIndex = fields.findIndex((item) => item.id === over.id);
-      move(oldIndex, newIndex);
-    }
-  }
 
   const handlePrint = () => window.print();
 
@@ -224,27 +139,67 @@ export default function PruebaMenuPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12 p-2 no-print"></TableHead>
                   <TableHead className="p-2">Referencias</TableHead>
                   <TableHead className="p-2 border-l">Observaciones</TableHead>
                   <TableHead className="w-12 p-2 no-print"></TableHead>
                 </TableRow>
               </TableHeader>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                        <TableBody>
-                        {sectionItems.length > 0 ? sectionItems.map(({ field, index }) => (
-                           <SortableTableRow key={field.id} field={field} index={index} control={control} remove={remove} />
-                        )) : (
-                        <TableRow>
-                            <TableCell colSpan={4} className="h-24 text-center">
-                            Añade una referencia o subcategoría para empezar.
-                            </TableCell>
-                        </TableRow>
-                        )}
-                        </TableBody>
-                    </SortableContext>
-                </DndContext>
+                <TableBody>
+                {sectionItems.length > 0 ? sectionItems.map(({ field, index }) => (
+                    <TableRow key={field.id}>
+                        <TableCell className={cn("py-1 px-2 font-medium", field.type === 'header' && "bg-muted/50 font-bold")}>
+                            <FormField
+                            control={control}
+                            name={`items.${index}.referencia`}
+                            render={({ field: formField }) => (
+                                <FormItem>
+                                <FormControl>
+                                    <div>
+                                        <div className="digital-observations">
+                                            <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
+                                        </div>
+                                        <div className="hidden print:block h-6">{formField.value}</div>
+                                    </div>
+                                </FormControl>
+                                </FormItem>
+                            )}
+                            />
+                        </TableCell>
+                        <TableCell className={cn("py-1 px-2 border-l", field.type === 'header' && "bg-muted/50")}>
+                            <FormField
+                            control={control}
+                            name={`items.${index}.observaciones`}
+                            render={({ field: formField }) => (
+                                <FormItem>
+                                <FormControl>
+                                    <div>
+                                        <div className="digital-observations">
+                                            <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
+                                        </div>
+                                        <div className="hidden print:block space-y-2 py-1">
+                                            <div className="h-px border-b border-dashed border-gray-400"></div>
+                                            <div className="h-px border-b border-dashed border-gray-400"></div>
+                                        </div>
+                                    </div>
+                                </FormControl>
+                                </FormItem>
+                            )}
+                            />
+                        </TableCell>
+                        <TableCell className={cn("py-1 px-2 no-print", field.type === 'header' && "bg-muted/50")}>
+                            <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}>
+                            <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </TableCell>
+                    </TableRow>
+                )) : (
+                <TableRow>
+                    <TableCell colSpan={3} className="h-24 text-center">
+                    Añade una referencia o subcategoría para empezar.
+                    </TableCell>
+                </TableRow>
+                )}
+                </TableBody>
             </Table>
           </div>
         </CardContent>
@@ -338,7 +293,7 @@ export default function PruebaMenuPage() {
                     />
                   </div>
                    <div className="hidden print:block space-y-2 py-1 border rounded-md p-4 min-h-[120px]">
-                      {/* Placeholder for handwritten notes */}
+                      {form.getValues('observacionesGenerales')}
                    </div>
                 </CardContent>
               </Card>
