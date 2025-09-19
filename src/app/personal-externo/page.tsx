@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -347,33 +348,33 @@ export default function PersonalExternoPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="border rounded-lg overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-12 px-2 py-2"></TableHead>
-                                    <TableHead className="px-2 py-2">Centro Coste</TableHead>
-                                    <TableHead className="px-2 py-2">Proveedor - Categoría</TableHead>
-                                    <TableHead className="px-2 py-2">Cantidad</TableHead>
-                                    <TableHead className="px-2 py-2">Tipo Servicio</TableHead>
-                                    <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
-                                    <TableHead colSpan={2} className="text-center border-r px-2 py-2">Real</TableHead>
-                                    <TableHead className="text-right px-2 py-2">Acción</TableHead>
-                                </TableRow>
-                                <TableRow>
-                                    <TableHead className="px-2 py-2"></TableHead>
-                                    <TableHead className="px-2 py-2"></TableHead>
-                                    <TableHead className="px-2 py-2"></TableHead>
-                                    <TableHead className="px-2 py-2"></TableHead>
-                                    <TableHead className="px-2 py-2"></TableHead>
-                                    <TableHead className="border-l px-2 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
-                                    <TableHead className="px-2 py-2 bg-muted/30 w-24">H. Salida</TableHead>
-                                    <TableHead className="border-r px-2 py-2 bg-muted/30 w-20">€/Hora</TableHead>
-                                    <TableHead className="w-24">H. Entrada</TableHead>
-                                    <TableHead className="border-r w-24">H. Salida</TableHead>
-                                    <TableHead className="px-2 py-2"></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-12 px-2 py-2"></TableHead>
+                                        <TableHead className="px-2 py-2">Centro Coste</TableHead>
+                                        <TableHead className="px-2 py-2">Proveedor - Categoría</TableHead>
+                                        <TableHead className="px-2 py-2">Cantidad</TableHead>
+                                        <TableHead className="px-2 py-2">Tipo Servicio</TableHead>
+                                        <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
+                                        <TableHead colSpan={2} className="text-center border-r px-2 py-2">Real</TableHead>
+                                        <TableHead className="text-right px-2 py-2">Acción</TableHead>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableHead className="px-2 py-2"></TableHead>
+                                        <TableHead className="px-2 py-2"></TableHead>
+                                        <TableHead className="px-2 py-2"></TableHead>
+                                        <TableHead className="px-2 py-2"></TableHead>
+                                        <TableHead className="px-2 py-2"></TableHead>
+                                        <TableHead className="border-l px-2 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
+                                        <TableHead className="px-2 py-2 bg-muted/30 w-24">H. Salida</TableHead>
+                                        <TableHead className="border-r px-2 py-2 bg-muted/30 w-20">€/Hora</TableHead>
+                                        <TableHead className="w-24">H. Entrada</TableHead>
+                                        <TableHead className="border-r w-24">H. Salida</TableHead>
+                                        <TableHead className="px-2 py-2"></TableHead>
+                                    </TableRow>
+                                </TableHeader>
                                 <SortableContext items={fields} strategy={verticalListSortingStrategy}>
                                     <TableBody>
                                     {fields.length > 0 ? (
@@ -484,8 +485,8 @@ export default function PersonalExternoPage() {
                                     )}
                                     </TableBody>
                                 </SortableContext>
-                            </DndContext>
-                        </Table>
+                            </Table>
+                        </DndContext>
                     </div>
                 </CardContent>
                 {fields.length > 0 && (
@@ -540,3 +541,5 @@ export default function PersonalExternoPage() {
     </>
   );
 }
+
+    
