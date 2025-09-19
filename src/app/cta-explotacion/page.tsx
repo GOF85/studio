@@ -87,10 +87,10 @@ export default function CtaExplotacionPage() {
 
     const storedPlantillas = JSON.parse(localStorage.getItem('objetivosGastoPlantillas') || '[]') as ObjetivosGasto[];
     
-    let appliedObjetivos: ObjetivosGasto = {
-        name: 'Por defecto', id: 'default', gastronomia: 0, bodega: 0, consumibles: 0, hielo: 0, almacen: 0, alquiler: 0, transporte: 0,
-        decoracion: 0, atipicos: 0, personalMice: 0, personalExterno: 0, costePruebaMenu: 0,
-    };
+    let appliedObjetivos: ObjetivosGasto = storedPlantillas.length > 0 
+        ? storedPlantillas[0]
+        : { name: 'Por defecto', id: 'default', gastronomia: 0, bodega: 0, consumibles: 0, hielo: 0, almacen: 0, alquiler: 0, transporte: 0,
+            decoracion: 0, atipicos: 0, personalMice: 0, personalExterno: 0, costePruebaMenu: 0 };
     
     const plantillaGuardadaId = currentOS?.objetivoGastoId;
     if (plantillaGuardadaId) {
@@ -98,14 +98,12 @@ export default function CtaExplotacionPage() {
         if (plantilla) {
             appliedObjetivos = plantilla;
         }
-    } else if (storedPlantillas.length > 0) {
+    } else if (storedPlantillas.length > 0 && currentOS) {
         appliedObjetivos = storedPlantillas[0];
-        if (currentOS) {
-          const osIndex = allServiceOrders.findIndex(os => os.id === osId);
-          if (osIndex !== -1) {
-            allServiceOrders[osIndex] = { ...allServiceOrders[osIndex], objetivoGastoId: storedPlantillas[0].id };
-            localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
-          }
+        const osIndex = allServiceOrders.findIndex(os => os.id === osId);
+        if (osIndex !== -1) {
+          allServiceOrders[osIndex] = { ...allServiceOrders[osIndex], objetivoGastoId: storedPlantillas[0].id };
+          localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
         }
     }
 
@@ -220,14 +218,14 @@ export default function CtaExplotacionPage() {
   const processedCostes: CostRow[] = useMemo(() => {
     if (!ctaData) return [];
     return ctaData.costes.map(coste => {
-        const keyMap: {[key: string]: keyof CtaExplotacionObjetivos} = {
+        const keyMap: {[key: string]: keyof Omit<ObjetivosGasto, 'id' | 'name'>} = {
             'Gastronomía': 'gastronomia', 'Bodega': 'bodega', 'Consumibles (Bio)': 'consumibles', 'Hielo': 'hielo',
             'Almacén': 'almacen', 'Alquiler material': 'alquiler', 'Transporte': 'transporte', 'Decoración': 'decoracion',
             'Atípicos': 'atipicos', 'Personal MICE': 'personalMice', 'Personal Externo': 'personalExterno',
             'Coste Prueba de Menu': 'costePruebaMenu'
         }
         const objKey = keyMap[coste.label];
-        const objetivo_pct = (objKey && (ctaData.objetivos as any)[objKey] / 100) || 0;
+        const objetivo_pct = (objKey && ctaData.objetivos?.[objKey] / 100) || 0;
         return {
             ...coste,
             objetivo: ctaData.facturacionNeta * objetivo_pct,
@@ -239,10 +237,10 @@ export default function CtaExplotacionPage() {
   const totals = useMemo(() => {
     if (!processedCostes) return { totalPresupuesto: 0, totalCierre: 0, totalObjetivo: 0 };
     const totalPresupuesto = processedCostes.reduce((sum, row) => sum + row.presupuesto, 0);
-    const totalCierre = processedCostes.reduce((sum, row) => sum + row.cierre, 0);
+    const totalCierre = processedCostes.reduce((sum, row) => sum + (cierreInputs[row.label] ?? row.cierre), 0);
     const totalObjetivo = processedCostes.reduce((sum, row) => sum + row.objetivo, 0);
     return { totalPresupuesto, totalCierre, totalObjetivo };
-  }, [processedCostes]);
+  }, [processedCostes, cierreInputs]);
 
   if (!ctaData) {
     return <LoadingSkeleton title="Cargando Cuenta de Explotación..." />;
@@ -313,9 +311,10 @@ export default function CtaExplotacionPage() {
                         <TableCell></TableCell>
                     </TableRow>
                     {processedCostes.map(row => {
-                        const pctSFact = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
-                        const desviacion = row.objetivo - row.presupuesto;
-                        const desviacionPct = row.presupuesto > 0 ? desviacion / row.presupuesto : 0;
+                        const cierreActual = cierreInputs[row.label] ?? row.cierre;
+                        const pctSFact = facturacionNeta > 0 ? cierreActual / facturacionNeta : 0;
+                        const desviacion = row.objetivo - cierreActual;
+                        const desviacionPct = row.objetivo > 0 ? desviacion / row.objetivo : 0;
                         const isCierreReadOnly = ['Personal Externo', 'Personal MICE', 'Coste Prueba de Menu'].includes(row.label);
                         return (
                             <TableRow key={row.label}>
@@ -343,7 +342,7 @@ export default function CtaExplotacionPage() {
 
           <div className="space-y-8">
             <Card>
-              <CardHeader className="py-2">
+              <CardHeader className="py-2 pb-2">
                 <CardTitle className="flex items-center gap-2 text-lg"><Target /> Objetivos de Gasto</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 pt-4">
