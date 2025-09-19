@@ -242,6 +242,22 @@ export type AtipicoOrder = {
     status: 'Pendiente' | 'Aprobado' | 'Rechazado';
 };
 
+export type DecoracionDBItem = {
+    id: string;
+    concepto: string;
+    precio: number;
+};
+
+export type DecoracionOrder = {
+    id: string;
+    osId: string;
+    fecha: string;
+    concepto: string;
+    observaciones: string;
+    precio: number;
+    status: 'Pendiente' | 'Aprobado' | 'Rechazado';
+};
+
 export type PersonalMiceOrder = {
     id: string;
     osId: string;

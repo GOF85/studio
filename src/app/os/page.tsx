@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2 } from 'lucide-react';
 
 import type { OrderItem, ServiceOrder, MaterialOrder, Personal, Espacio } from '@/types';
 import { cn } from '@/lib/utils';
@@ -393,6 +393,12 @@ export default function OsPage() {
                   <Link href={osId ? `/transporte?osId=${osId}` : '#'}>
                     <Truck className="mr-3 h-5 w-5 flex-shrink-0" />
                     <span className="font-medium">Transporte</span>
+                  </Link>
+              </Button>
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+                  <Link href={osId ? `/decoracion?osId=${osId}` : '#'}>
+                    <Flower2 className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium">Decoración</span>
                   </Link>
               </Button>
                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
