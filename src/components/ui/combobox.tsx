@@ -34,14 +34,7 @@ interface ComboboxProps {
 }
 
 export function Combobox({ options, value, onChange, placeholder, searchPlaceholder, emptyPlaceholder }: ComboboxProps) {
-  const [open, setOpen] = React.useState(false);
-  const selectedOption = options.find((option) => option.value === value);
-  const [inputValue, setInputValue] = React.useState(selectedOption?.label || "");
-  
-  React.useEffect(() => {
-    const selected = options.find((option) => option.value === value);
-    setInputValue(selected?.label || "");
-  }, [value, options]);
+  const [open, setOpen] = React.useState(false)
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -50,50 +43,42 @@ export function Combobox({ options, value, onChange, placeholder, searchPlacehol
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between font-normal text-left h-9"
+          className="w-full justify-between font-normal"
         >
           <span className="truncate">
-            {selectedOption?.label || placeholder || "Seleccionar..."}
+            {value
+              ? options.find((option) => option.value === value)?.label
+              : placeholder || "Seleccionar..."}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command filter={(value, search) => {
-          const option = options.find(o => o.value === value);
-          if (option?.label.toLowerCase().includes(search.toLowerCase())) return 1;
-          return 0;
-        }}>
-            <CommandInput 
-                placeholder={searchPlaceholder || "Buscar..."}
-                value={inputValue}
-                onValueChange={setInputValue}
-                onBlur={() => setOpen(false)}
-            />
-            <CommandList>
-                <CommandEmpty>{emptyPlaceholder || "No se encontraron resultados."}</CommandEmpty>
-                <CommandGroup>
-                    {options.map((option) => (
-                        <CommandItem
-                            key={option.value}
-                            value={option.value} // Use value here for cmdk
-                            onSelect={(currentValue) => {
-                                const newValue = currentValue === value ? "" : currentValue;
-                                onChange(newValue)
-                                setOpen(false)
-                            }}
-                        >
-                            <Check
-                                className={cn(
-                                    "mr-2 h-4 w-4",
-                                    value === option.value ? "opacity-100" : "opacity-0"
-                                )}
-                            />
-                            {option.label}
-                        </CommandItem>
-                    ))}
-                </CommandGroup>
-            </CommandList>
+        <Command>
+          <CommandInput placeholder={searchPlaceholder || "Buscar..."} />
+          <CommandList>
+            <CommandEmpty>{emptyPlaceholder || "No se encontraron resultados."}</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.label}
+                  onSelect={() => {
+                    onChange(option.value === value ? "" : option.value)
+                    setOpen(false)
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === option.value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {option.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
