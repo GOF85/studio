@@ -162,7 +162,7 @@ export default function PruebaMenuPage() {
                   <TableHead className="w-12 p-2 no-print"></TableHead>
                 </TableRow>
               </TableHeader>
-               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={fields} strategy={verticalListSortingStrategy}>
                   <TableBody>
                     {sectionItems.length > 0 ? sectionItems.map(({ field, index }) => (
@@ -181,12 +181,12 @@ export default function PruebaMenuPage() {
                                 render={({ field: formField }) => (
                                   <FormItem>
                                     <FormControl>
-                                      <>
+                                      <div>
                                         <div className="digital-observations">
                                           <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
                                         </div>
                                         <div className="hidden print:block h-6">{formField.value}</div>
-                                      </>
+                                      </div>
                                     </FormControl>
                                   </FormItem>
                                 )}
@@ -199,7 +199,7 @@ export default function PruebaMenuPage() {
                                   render={({ field: formField }) => (
                                     <FormItem>
                                       <FormControl>
-                                        <>
+                                        <div>
                                           <div className="digital-observations">
                                             <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
                                           </div>
@@ -207,7 +207,7 @@ export default function PruebaMenuPage() {
                                             <div className="h-px border-b border-dashed border-gray-400"></div>
                                             <div className="h-px border-b border-dashed border-gray-400"></div>
                                           </div>
-                                        </>
+                                        </div>
                                       </FormControl>
                                     </FormItem>
                                   )}
