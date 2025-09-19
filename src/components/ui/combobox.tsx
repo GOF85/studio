@@ -31,12 +31,12 @@ interface ComboboxProps {
     placeholder?: string;
     searchPlaceholder?: string;
     emptyPlaceholder?: string;
+    canCreate?: boolean;
 }
 
-export function Combobox({ options, value, onChange, placeholder, searchPlaceholder, emptyPlaceholder }: ComboboxProps) {
+export function Combobox({ options, value, onChange, placeholder, searchPlaceholder, emptyPlaceholder, canCreate = true }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
-  
-  const selectedOptionLabel = options.find((option) => option.value === value)?.label;
+  const selectedOption = options.find((option) => option.value === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -48,7 +48,7 @@ export function Combobox({ options, value, onChange, placeholder, searchPlacehol
           className="w-full justify-between font-normal text-left h-9"
         >
           <span className="truncate">
-            {selectedOptionLabel || placeholder || "Seleccionar..."}
+            {selectedOption?.label || placeholder || "Seleccionar..."}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -60,23 +60,23 @@ export function Combobox({ options, value, onChange, placeholder, searchPlacehol
                 <CommandEmpty>{emptyPlaceholder || "No se encontraron resultados."}</CommandEmpty>
                 <CommandGroup>
                     {options.map((option) => (
-                    <CommandItem
-                        key={option.value}
-                        value={option.label}
-                        onSelect={(currentLabel) => {
-                            const selectedValue = options.find(o => o.label.toLowerCase() === currentLabel.toLowerCase())?.value || '';
-                            onChange(selectedValue === value ? "" : selectedValue)
-                            setOpen(false)
-                        }}
-                    >
-                        <Check
-                        className={cn(
-                            "mr-2 h-4 w-4",
-                            value === option.value ? "opacity-100" : "opacity-0"
-                        )}
-                        />
-                        {option.label}
-                    </CommandItem>
+                        <CommandItem
+                            key={option.value}
+                            value={option.label}
+                            onSelect={(currentLabel) => {
+                                const selectedValue = options.find(o => o.label.toLowerCase() === currentLabel.toLowerCase())?.value || '';
+                                onChange(selectedValue === value ? "" : selectedValue)
+                                setOpen(false)
+                            }}
+                        >
+                            <Check
+                                className={cn(
+                                    "mr-2 h-4 w-4",
+                                    value === option.value ? "opacity-100" : "opacity-0"
+                                )}
+                            />
+                            {option.label}
+                        </CommandItem>
                     ))}
                 </CommandGroup>
             </CommandList>
