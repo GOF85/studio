@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { ServiceOrder, ComercialBriefing, GastronomyOrder, MaterialOrder, TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExternoOrder, PruebaMenuData, CtaExplotacionObjetivos } from '@/types';
+import { ServiceOrder, ComercialBriefing, GastronomyOrder, MaterialOrder, TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExternoOrder, PruebaMenuData, CtaExplotacionObjetivos, PersonalExternoAjuste } from '@/types';
 
 type CostRow = {
   label: string;
@@ -24,6 +24,18 @@ type CostRow = {
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 const formatPercentage = (value: number) => `${(value * 100).toFixed(2)}%`;
+
+const calculateHours = (start?: string, end?: string) => {
+    if (!start || !end) return 0;
+    try {
+        const startTime = new Date(`1970-01-01T${start}:00`);
+        const endTime = new Date(`1970-01-01T${end}:00`);
+        const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+        return diff > 0 ? diff : 0;
+    } catch (e) {
+        return 0;
+    }
+}
 
 export default function CtaExplotacionPage() {
   const router = useRouter();
@@ -79,13 +91,6 @@ export default function CtaExplotacionPage() {
             return sum + (hours * order.precioHora * quantity);
         }, 0);
     }
-    const calculateHours = (start?: string, end?: string) => {
-        if (!start || !end) return 0;
-        const startTime = new Date(`1970-01-01T${start}:00`);
-        const endTime = new Date(`1970-01-01T${end}:00`);
-        const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-        return diff > 0 ? diff : 0;
-    }
     
     const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
@@ -97,6 +102,18 @@ export default function CtaExplotacionPage() {
     const allPersonalExternoOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
     const allPruebasMenu = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as PruebaMenuData[];
     const pruebaMenu = allPruebasMenu.find(p => p.osId === osId);
+    
+    const allPersonalExternoAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
+    const personalExternoAjustes = allPersonalExternoAjustes[osId] || [];
+
+    const personalExternoRealCost = (allPersonalExternoOrders.filter(o => o.osId === osId)).reduce((acc, order) => {
+      const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
+      return acc + realHours * (order.precioHora || 0) * (order.cantidad || 1);
+    }, 0);
+    
+    const personalExternoTotalAjustes = personalExternoAjustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
+    const personalExternoCierre = personalExternoRealCost + personalExternoTotalAjustes;
+
 
     const newCostes = [
       { label: 'Gastronomía', presupuesto: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)), cierre: 0 },
@@ -109,7 +126,7 @@ export default function CtaExplotacionPage() {
       { label: 'Decoración', presupuesto: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)), cierre: 0 },
       { label: 'Atípicos', presupuesto: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)), cierre: 0 },
       { label: 'Personal MICE', presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: 0 },
-      { label: 'Personal Externo', presupuesto: calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)), cierre: 0 },
+      { label: 'Personal Externo', presupuesto: calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)), cierre: personalExternoCierre },
       { label: 'Coste Prueba de Menu', presupuesto: pruebaMenu?.costePruebaMenu || 0, cierre: 0 },
     ];
     setCostes(newCostes);
@@ -223,13 +240,14 @@ export default function CtaExplotacionPage() {
                     const pctSFact = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
                     const desviacion = row.objetivo - row.presupuesto;
                     const desviacionPct = row.presupuesto > 0 ? desviacion / row.presupuesto : 0;
+                    const isPersonalExterno = row.label === 'Personal Externo';
                     return (
                         <TableRow key={row.label}>
                             <TableCell>{row.label}</TableCell>
                             <TableCell className="text-right">{formatCurrency(row.presupuesto)}</TableCell>
                             <TableCell className={cn("text-right", pctSFact > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFact)}</TableCell>
                             <TableCell className="text-right">
-                                <Input type="number" step="0.01" value={row.cierre} onChange={(e) => handleCierreChange(row.label, e.target.value)} className="h-8 text-right bg-secondary/30" />
+                                <Input type="number" step="0.01" value={row.cierre} onChange={(e) => handleCierreChange(row.label, e.target.value)} className="h-8 text-right bg-secondary/30" readOnly={isPersonalExterno} />
                             </TableCell>
                             <TableCell className="text-right">{formatCurrency(row.objetivo)}</TableCell>
                             <TableCell className={cn("text-right", desviacion < 0 && "text-destructive", desviacion > 0 && "text-green-600")}>
