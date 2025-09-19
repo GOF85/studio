@@ -90,7 +90,7 @@ export default function PersonalMicePage() {
   
   const { setValue, control } = form;
 
-  const handlePersonalChange = useCallback((index: number, name: string) => {
+ const handlePersonalChange = useCallback((index: number, name: string) => {
     const person = personalDB.find(p => p.nombre.toLowerCase() === name.toLowerCase());
     if (person) {
       setValue(`personal.${index}.nombre`, person.nombre);
@@ -291,45 +291,45 @@ export default function PersonalMicePage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Centro Coste</TableHead>
-                                    <TableHead>Nombre</TableHead>
-                                    <TableHead>Tipo Servicio</TableHead>
-                                    <TableHead colSpan={3} className="text-center border-l border-r">Planificado</TableHead>
-                                    <TableHead colSpan={3} className="text-center border-l border-r">Real</TableHead>
-                                    <TableHead className="text-right">Acción</TableHead>
+                                    <TableHead className="px-2 py-2">Centro Coste</TableHead>
+                                    <TableHead className="px-2 py-2">Nombre</TableHead>
+                                    <TableHead className="px-2 py-2">Tipo Servicio</TableHead>
+                                    <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2">Planificado</TableHead>
+                                    <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2">Real</TableHead>
+                                    <TableHead className="text-right px-2 py-2">Acción</TableHead>
                                 </TableRow>
                                 <TableRow>
-                                    <TableHead></TableHead>
-                                    <TableHead></TableHead>
-                                    <TableHead></TableHead>
-                                    <TableHead className="border-l">H. Entrada</TableHead>
-                                    <TableHead>H. Salida</TableHead>
-                                    <TableHead className="border-r">€/Hora</TableHead>
-                                    <TableHead className="border-l">H. Entrada Real</TableHead>
-                                    <TableHead>H. Salida Real</TableHead>
-                                    <TableHead className="border-r"></TableHead>
-                                    <TableHead></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="border-l px-2 py-2">H. Entrada</TableHead>
+                                    <TableHead className="px-2 py-2">H. Salida</TableHead>
+                                    <TableHead className="border-r px-2 py-2">€/Hora</TableHead>
+                                    <TableHead className="border-l px-2 py-2">H. Entrada Real</TableHead>
+                                    <TableHead className="px-2 py-2">H. Salida Real</TableHead>
+                                    <TableHead className="border-r px-2 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                             {fields.length > 0 ? (
                                 fields.map((field, index) => (
                                     <TableRow key={field.id}>
-                                        <TableCell>
+                                        <TableCell className="px-2 py-1">
                                             <FormField
                                                 control={control}
                                                 name={`personal.${index}.centroCoste`}
                                                 render={({ field }) => (
                                                     <FormItem>
                                                         <Select onValueChange={field.onChange} value={field.value}>
-                                                            <FormControl><SelectTrigger className="w-32"><SelectValue /></SelectTrigger></FormControl>
+                                                            <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
                                                             <SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                                                         </Select>
                                                     </FormItem>
                                                 )}
                                             />
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="px-2 py-1">
                                             <FormField
                                                 control={control}
                                                 name={`personal.${index}.nombre`}
@@ -345,58 +345,58 @@ export default function PersonalMicePage() {
                                                 )}
                                             />
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="px-2 py-1">
                                              <FormField
                                                 control={control}
                                                 name={`personal.${index}.tipoServicio`}
                                                 render={({ field }) => (
                                                     <FormItem>
                                                         <Select onValueChange={field.onChange} value={field.value}>
-                                                            <FormControl><SelectTrigger className="w-32"><SelectValue /></SelectTrigger></FormControl>
+                                                            <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
                                                             <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                                                         </Select>
                                                     </FormItem>
                                                 )}
                                             />
                                         </TableCell>
-                                        <TableCell className="border-l">
+                                        <TableCell className="border-l px-2 py-1">
                                             <FormField
                                                 control={control}
                                                 name={`personal.${index}.horaEntrada`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24" /></FormControl></FormItem>}
+                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
                                             />
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="px-2 py-1">
                                             <FormField
                                                 control={control}
                                                 name={`personal.${index}.horaSalida`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24" /></FormControl></FormItem>}
+                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
                                             />
                                         </TableCell>
-                                        <TableCell className="border-r">
+                                        <TableCell className="border-r px-2 py-1">
                                              <FormField
                                                 control={control}
                                                 name={`personal.${index}.precioHora`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20"/></FormControl></FormItem>}
+                                                render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20 h-9"/></FormControl></FormItem>}
                                             />
                                         </TableCell>
-                                         <TableCell className="border-l">
+                                         <TableCell className="border-l px-2 py-1">
                                             <FormField
                                                 control={control}
                                                 name={`personal.${index}.horaEntradaReal`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24"/></FormControl></FormItem>}
+                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
                                             />
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="px-2 py-1">
                                             <FormField
                                                 control={control}
                                                 name={`personal.${index}.horaSalidaReal`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24"/></FormControl></FormItem>}
+                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
                                             />
                                         </TableCell>
-                                        <TableCell className="border-r"></TableCell>
-                                        <TableCell className="text-right">
-                                            <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
+                                        <TableCell className="border-r px-2 py-1"></TableCell>
+                                        <TableCell className="text-right px-2 py-1">
+                                            <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => remove(index)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </TableCell>
