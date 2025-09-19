@@ -195,15 +195,20 @@ export type ProveedorHielo = {
     precio: number;
 }
 
+export type HieloOrderItem = {
+    id: string; // from ProveedorHielo
+    producto: string;
+    precio: number;
+    cantidad: number;
+}
+
 export type HieloOrder = {
     id: string;
     osId: string;
     fecha: string;
     proveedorId: string;
     proveedorNombre: string;
-    producto: string;
-    precio: number;
-    cantidad: number;
+    items: HieloOrderItem[];
     total: number;
     observaciones: string;
     status: 'Pendiente' | 'Confirmado' | 'En reparto' | 'Entregado';

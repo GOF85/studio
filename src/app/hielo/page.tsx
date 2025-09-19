@@ -129,8 +129,7 @@ export default function HieloPage() {
                         <TableRow>
                             <TableHead>Fecha</TableHead>
                             <TableHead>Proveedor</TableHead>
-                            <TableHead>Producto</TableHead>
-                            <TableHead>Cantidad</TableHead>
+                            <TableHead>Nº Artículos</TableHead>
                             <TableHead>Importe</TableHead>
                             <TableHead>Estado</TableHead>
                             <TableHead className="text-right">Acciones</TableHead>
@@ -142,8 +141,7 @@ export default function HieloPage() {
                             <TableRow key={order.id}>
                                 <TableCell className="font-medium">{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
                                 <TableCell>{order.proveedorNombre}</TableCell>
-                                <TableCell>{order.producto}</TableCell>
-                                <TableCell>{order.cantidad}</TableCell>
+                                <TableCell>{order.items.length}</TableCell>
                                 <TableCell>{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                                 <TableCell>
                                 <Badge variant={statusVariant[order.status]}>
@@ -174,7 +172,7 @@ export default function HieloPage() {
                             ))
                         ) : (
                             <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">
+                            <TableCell colSpan={6} className="h-24 text-center">
                                 No hay pedidos de hielo para esta Orden de Servicio.
                             </TableCell>
                             </TableRow>
