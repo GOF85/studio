@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2 } from 'lucide-react';
+import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 import type { PersonalMiceOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem, Personal } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,17 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { Separator } from '@/components/ui/separator';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
@@ -72,7 +83,8 @@ export default function PersonalMicePage() {
   const [isMounted, setIsMounted] = useState(false);
   const [personalDB, setPersonalDB] = useState<Personal[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [rowToDelete, setRowToDelete] = useState<number | null>(null);
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const osId = searchParams.get('osId');
@@ -83,14 +95,15 @@ export default function PersonalMicePage() {
     defaultValues: { personal: [] },
   });
 
-  const { fields, append, remove, control } = useFieldArray({
-    control: form.control,
+  const { control, setValue } = form;
+
+  const { fields, append, remove, swap } = useFieldArray({
+    control,
     name: "personal",
   });
   
  const handlePersonalChange = useCallback((index: number, name: string) => {
     if (!name) return;
-    const { setValue } = form;
     const person = personalDB.find(p => p.nombre.toLowerCase() === name.toLowerCase());
     if (person) {
       setValue(`personal.${index}.nombre`, person.nombre);
@@ -99,11 +112,11 @@ export default function PersonalMicePage() {
     } else {
        setValue(`personal.${index}.nombre`, name);
     }
-  }, [personalDB, form]);
+  }, [personalDB, setValue]);
   
-  const watchedFields = useWatch({ control: form.control, name: 'personal' });
+  const watchedFields = useWatch({ control, name: 'personal' });
 
-  const { totalPlanned, totalReal } = useMemo(() => {
+ const { totalPlanned, totalReal } = useMemo(() => {
     if (!watchedFields) return { totalPlanned: 0, totalReal: 0 };
     
     const totals = watchedFields.reduce((acc, order) => {
@@ -119,8 +132,8 @@ export default function PersonalMicePage() {
     return { totalPlanned: totals.planned, totalReal: totals.real };
   }, [watchedFields]);
 
-  useEffect(() => {
-    if (!osId) {
+  const loadData = useCallback(() => {
+     if (!osId) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
         router.push('/pes');
         return;
@@ -153,6 +166,10 @@ export default function PersonalMicePage() {
         setIsMounted(true);
     }
   }, [osId, router, toast, form]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
 
  const onSubmit = (data: PersonalMiceFormValues) => {
@@ -192,6 +209,14 @@ export default function PersonalMicePage() {
         horaSalidaReal: '',
     });
   }
+  
+  const handleDeleteRow = () => {
+    if (rowToDelete !== null) {
+      remove(rowToDelete);
+      setRowToDelete(null);
+      toast({ title: 'Asignación eliminada' });
+    }
+  };
 
   const personalOptions = useMemo(() => {
     return personalDB.map(p => ({ label: p.nombre, value: p.nombre.toLowerCase() }));
@@ -286,23 +311,24 @@ export default function PersonalMicePage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead className="px-2 py-2 w-16">Mover</TableHead>
                                     <TableHead className="px-2 py-2">Centro Coste</TableHead>
                                     <TableHead className="px-2 py-2">Nombre</TableHead>
                                     <TableHead className="px-2 py-2">Tipo Servicio</TableHead>
-                                    <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2">Planificado</TableHead>
-                                    <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2">Real</TableHead>
+                                    <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
+                                    <TableHead colSpan={2} className="text-center border-r px-2 py-2">Real</TableHead>
                                     <TableHead className="text-right px-2 py-2">Acción</TableHead>
                                 </TableRow>
                                 <TableRow>
                                     <TableHead className="px-2 py-2"></TableHead>
                                     <TableHead className="px-2 py-2"></TableHead>
                                     <TableHead className="px-2 py-2"></TableHead>
-                                    <TableHead className="border-l px-2 py-2">H. Entrada</TableHead>
-                                    <TableHead className="px-2 py-2">H. Salida</TableHead>
-                                    <TableHead className="border-r px-2 py-2">€/Hora</TableHead>
-                                    <TableHead className="border-l px-2 py-2">H. Entrada Real</TableHead>
-                                    <TableHead className="px-2 py-2">H. Salida Real</TableHead>
-                                    <TableHead className="border-r px-2 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="border-l px-2 py-2 bg-muted/30">H. Entrada</TableHead>
+                                    <TableHead className="px-2 py-2 bg-muted/30">H. Salida</TableHead>
+                                    <TableHead className="border-r px-2 py-2 bg-muted/30">€/Hora</TableHead>
+                                    <TableHead>H. Entrada Real</TableHead>
+                                    <TableHead className="border-r">H. Salida Real</TableHead>
                                     <TableHead className="px-2 py-2"></TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -310,6 +336,16 @@ export default function PersonalMicePage() {
                             {fields.length > 0 ? (
                                 fields.map((field, index) => (
                                     <TableRow key={field.id}>
+                                         <TableCell className="px-2 py-1">
+                                            <div className="flex gap-1">
+                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={index === 0} onClick={() => swap(index, index - 1)}>
+                                                    <ArrowUp className="h-4 w-4" />
+                                                </Button>
+                                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={index === fields.length - 1} onClick={() => swap(index, index + 1)}>
+                                                    <ArrowDown className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="px-2 py-1">
                                             <FormField
                                                 control={control}
@@ -324,7 +360,7 @@ export default function PersonalMicePage() {
                                                 )}
                                             />
                                         </TableCell>
-                                        <TableCell className="px-2 py-1">
+                                        <TableCell className="px-2 py-1 min-w-40">
                                             <FormField
                                                 control={control}
                                                 name={`personal.${index}.nombre`}
@@ -354,44 +390,43 @@ export default function PersonalMicePage() {
                                                 )}
                                             />
                                         </TableCell>
-                                        <TableCell className="border-l px-2 py-1">
+                                        <TableCell className="border-l px-2 py-1 bg-muted/30">
                                             <FormField
                                                 control={control}
                                                 name={`personal.${index}.horaEntrada`}
                                                 render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
                                             />
                                         </TableCell>
-                                        <TableCell className="px-2 py-1">
+                                        <TableCell className="px-2 py-1 bg-muted/30">
                                             <FormField
                                                 control={control}
                                                 name={`personal.${index}.horaSalida`}
                                                 render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
                                             />
                                         </TableCell>
-                                        <TableCell className="border-r px-2 py-1">
+                                        <TableCell className="border-r px-2 py-1 bg-muted/30">
                                              <FormField
                                                 control={control}
                                                 name={`personal.${index}.precioHora`}
                                                 render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20 h-9"/></FormControl></FormItem>}
                                             />
                                         </TableCell>
-                                         <TableCell className="border-l px-2 py-1">
+                                         <TableCell className="px-2 py-1">
                                             <FormField
                                                 control={control}
                                                 name={`personal.${index}.horaEntradaReal`}
                                                 render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
                                             />
                                         </TableCell>
-                                        <TableCell className="px-2 py-1">
+                                        <TableCell className="border-r px-2 py-1">
                                             <FormField
                                                 control={control}
                                                 name={`personal.${index}.horaSalidaReal`}
                                                 render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
                                             />
                                         </TableCell>
-                                        <TableCell className="border-r px-2 py-1"></TableCell>
                                         <TableCell className="text-right px-2 py-1">
-                                            <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => remove(index)}>
+                                            <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </TableCell>
@@ -435,6 +470,27 @@ export default function PersonalMicePage() {
             </Card>
         </form>
        </FormProvider>
+
+        <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
+            <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se eliminará la asignación de personal de la tabla.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setRowToDelete(null)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90"
+                onClick={handleDeleteRow}
+                >
+                Eliminar
+                </AlertDialogAction>
+            </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
       </main>
     </>
   );
