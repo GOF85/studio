@@ -32,10 +32,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { differenceInMinutes, parse, format } from 'date-fns';
-import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
@@ -142,33 +142,39 @@ export default function PersonalMicePage() {
         </div>
         
         {briefingItems.length > 0 && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Servicios del Evento</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead>Asistentes</TableHead>
-                    <TableHead>Duración</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {briefingItems.map(item => (
-                    <TableRow key={item.id}>
-                      <TableCell className="py-2">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
-                      <TableCell className="py-2">{item.descripcion}</TableCell>
-                      <TableCell className="py-2">{item.asistentes}</TableCell>
-                      <TableCell className="py-2">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <Accordion type="single" collapsible className="w-full mb-8">
+            <AccordionItem value="item-1">
+              <Card>
+                <AccordionTrigger className="p-6">
+                  <h3 className="text-xl font-semibold">Servicios del Evento</h3>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <CardContent className="pt-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="py-2">Fecha</TableHead>
+                          <TableHead className="py-2">Descripción</TableHead>
+                          <TableHead className="py-2">Asistentes</TableHead>
+                          <TableHead className="py-2">Duración</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {briefingItems.map(item => (
+                          <TableRow key={item.id}>
+                            <TableCell className="py-2">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
+                            <TableCell className="py-2">{item.descripcion}</TableCell>
+                            <TableCell className="py-2">{item.asistentes}</TableCell>
+                            <TableCell className="py-2">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </AccordionContent>
+              </Card>
+            </AccordionItem>
+          </Accordion>
         )}
 
         <Card>
