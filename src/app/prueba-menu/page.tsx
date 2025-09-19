@@ -236,35 +236,27 @@ export default function PruebaMenuPage() {
 
         <Form {...form}>
             <form id="prueba-menu-form" onSubmit={handleSubmit(onSubmit)}>
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
-                <Card className="p-0">
-                <CardHeader className="py-2 px-4">
-                    <CardTitle className="text-base">Datos del Servicio</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-x-4 gap-y-0 text-sm p-4 pt-0">
-                    <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
-                    <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
-                    <div><strong>Cliente:</strong> {serviceOrder.client}</div>
-                    <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
-                </CardContent>
+                <Card className="mb-6">
+                    <CardContent className="p-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
+                            <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
+                            <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
+                            <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
+                            <div><strong>Cliente:</strong> {serviceOrder.client}</div>
+                            <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
+                            <h4 className="font-bold col-span-full mb-1 mt-2">Datos del Evento</h4>
+                            <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
+                            <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
+                            <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
+                        </div>
+                    </CardContent>
                 </Card>
-                <Card className="p-0">
-                <CardHeader className="py-2 px-4">
-                    <CardTitle className="text-base">Datos del Evento</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-x-4 gap-y-0 text-sm p-4 pt-0">
-                    <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
-                    <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
-                    <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
-                </CardContent>
-                </Card>
-            </div>
             
             <Card className="mb-6 no-print">
-                <CardHeader className="py-4">
-                    <CardTitle className="flex items-center gap-2"><DollarSign/> Costes Adicionales</CardTitle>
+                <CardHeader className="py-3">
+                    <CardTitle className="text-lg flex items-center gap-2"><DollarSign/> Costes Adicionales</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                     <div className="grid grid-cols-2 gap-6">
                         <FormField
                             control={control}
