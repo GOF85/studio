@@ -188,4 +188,3 @@ export type TransporteOrder = {
     status: 'Pendiente' | 'Confirmado' | 'En Ruta' | 'Finalizado';
 }
     
-

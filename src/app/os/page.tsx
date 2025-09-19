@@ -71,6 +71,7 @@ export const osFormSchema = z.object({
   pax: z.coerce.number().optional().default(0),
   endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
   space: z.string().optional().default(''),
+  spaceAddress: z.string().optional().default(''),
   spaceContact: z.string().optional().default(''),
   spacePhone: z.string().optional().default(''),
   spaceMail: z.string().email().optional().or(z.literal('')),
@@ -110,7 +111,7 @@ export type OsFormValues = z.infer<typeof osFormSchema>;
 
 const defaultValues: Partial<OsFormValues> = {
   serviceNumber: '', client: '', contact: '', phone: '', finalClient: '', pax: 0,
-  space: '', spaceContact: '', spacePhone: '', spaceMail: '',
+  space: '', spaceAddress: '', spaceContact: '', spacePhone: '', spaceMail: '',
   respMetre: '', respMetrePhone: '', respMetreMail: '', 
   respPase: '', respPasePhone: '', respPaseMail: '',
   respCocinaPase: '', respCocinaPasePhone: '', respCocinaPaseMail: '',
@@ -206,6 +207,7 @@ export default function OsPage() {
 
   const handleEspacioChange = (name: string) => {
     const espacio = espacios.find(e => e.espacio === name);
+    setValue('spaceAddress', espacio?.calle || '', { shouldDirty: true });
     setValue('spaceContact', espacio?.nombreContacto1 || '', { shouldDirty: true });
     setValue('spacePhone', espacio?.telefonoContacto1 || '', { shouldDirty: true });
     setValue('spaceMail', espacio?.emailContacto1 || '', { shouldDirty: true });
@@ -538,17 +540,27 @@ export default function OsPage() {
                         <AccordionTrigger><EspacioTitle /></AccordionTrigger>
                         <AccordionContent>
                           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
-                            <FormField control={form.control} name="space" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Espacio</FormLabel>
-                                <Select onValueChange={(value) => { field.onChange(value); handleEspacioChange(value); }} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                      {espacios.map(e => <SelectItem key={e.id} value={e.espacio}>{e.espacio}</SelectItem>)}
-                                    </SelectContent>
-                                  </Select>
-                              </FormItem>
-                            )} />
+                            <div className="lg:col-span-4">
+                                <FormField control={form.control} name="space" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Espacio</FormLabel>
+                                        <Select onValueChange={(value) => { field.onChange(value); handleEspacioChange(value); }} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                            {espacios.map(e => <SelectItem key={e.id} value={e.espacio}>{e.espacio}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </FormItem>
+                                )} />
+                            </div>
+                            <div className="lg:col-span-4">
+                                <FormField control={form.control} name="spaceAddress" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Dirección</FormLabel>
+                                        <FormControl><Input {...field} placeholder="Dirección del espacio" /></FormControl>
+                                    </FormItem>
+                                )} />
+                            </div>
                             <FormField control={form.control} name="spaceContact" render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Contacto Espacio</FormLabel>
