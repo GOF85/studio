@@ -83,13 +83,14 @@ export default function PersonalMicePage() {
     defaultValues: { personal: [] },
   });
 
-  const { fields, append, remove, control, setValue } = useFieldArray({
+  const { fields, append, remove, control } = useFieldArray({
     control: form.control,
     name: "personal",
   });
   
  const handlePersonalChange = useCallback((index: number, name: string) => {
     if (!name) return;
+    const { setValue } = form;
     const person = personalDB.find(p => p.nombre.toLowerCase() === name.toLowerCase());
     if (person) {
       setValue(`personal.${index}.nombre`, person.nombre);
@@ -98,7 +99,7 @@ export default function PersonalMicePage() {
     } else {
        setValue(`personal.${index}.nombre`, name);
     }
-  }, [personalDB, setValue]);
+  }, [personalDB, form]);
   
   const watchedFields = useWatch({ control: form.control, name: 'personal' });
 
@@ -118,7 +119,7 @@ export default function PersonalMicePage() {
     return { totalPlanned: totals.planned, totalReal: totals.real };
   }, [watchedFields]);
 
-  const loadData = useCallback(() => {
+  useEffect(() => {
     if (!osId) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
         router.push('/pes');
@@ -152,10 +153,6 @@ export default function PersonalMicePage() {
         setIsMounted(true);
     }
   }, [osId, router, toast, form]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
 
  const onSubmit = (data: PersonalMiceFormValues) => {
