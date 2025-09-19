@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -163,9 +162,9 @@ export default function PruebaMenuPage() {
                   <TableHead className="w-12 p-2 no-print"></TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                   <SortableContext items={fields} strategy={verticalListSortingStrategy}>
+               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={fields} strategy={verticalListSortingStrategy}>
+                  <TableBody>
                     {sectionItems.length > 0 ? sectionItems.map(({ field, index }) => (
                       <SortableItem key={field.id} id={field.id}>
                         {(listeners, attributes) => (
@@ -182,31 +181,37 @@ export default function PruebaMenuPage() {
                                 render={({ field: formField }) => (
                                   <FormItem>
                                     <FormControl>
-                                      <div className="digital-observations">
-                                        <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
-                                      </div>
-                                      <div className="hidden print:block h-6">{formField.value}</div>
+                                      <>
+                                        <div className="digital-observations">
+                                          <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
+                                        </div>
+                                        <div className="hidden print:block h-6">{formField.value}</div>
+                                      </>
                                     </FormControl>
                                   </FormItem>
                                 )}
                               />
                             </TableCell>
                             <TableCell className={cn("py-1 px-2 border-l", field.type === 'header' && "bg-muted/50")}>
-                               <div className="digital-observations">
                                 <FormField
                                   control={control}
                                   name={`items.${index}.observaciones`}
                                   render={({ field: formField }) => (
                                     <FormItem>
-                                      <FormControl><Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" /></FormControl>
+                                      <FormControl>
+                                        <>
+                                          <div className="digital-observations">
+                                            <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
+                                          </div>
+                                          <div className="hidden print:block space-y-2 py-1">
+                                            <div className="h-px border-b border-dashed border-gray-400"></div>
+                                            <div className="h-px border-b border-dashed border-gray-400"></div>
+                                          </div>
+                                        </>
+                                      </FormControl>
                                     </FormItem>
                                   )}
                                 />
-                               </div>
-                               <div className="hidden print:block space-y-2 py-1">
-                                  <div className="h-px border-b border-dashed border-gray-400"></div>
-                                  <div className="h-px border-b border-dashed border-gray-400"></div>
-                               </div>
                             </TableCell>
                             <TableCell className={cn("py-1 px-2 no-print", field.type === 'header' && "bg-muted/50")}>
                               <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}>
@@ -223,9 +228,9 @@ export default function PruebaMenuPage() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </SortableContext>
-                </DndContext>
-              </TableBody>
+                  </TableBody>
+                </SortableContext>
+              </DndContext>
             </Table>
           </div>
         </CardContent>
