@@ -1,11 +1,13 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { PlusCircle, ArrowLeft, Users, Phone, Building, UserPlus, Trash2 } from 'lucide-react';
-import type { PersonalExternoOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2, GripVertical } from 'lucide-react';
+import type { PersonalExternoOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem, ProveedorPersonal } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +18,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { differenceInMinutes, parse, format } from 'date-fns';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
+import { Separator } from '@/components/ui/separator';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -26,11 +38,22 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { format, differenceInMinutes, parse } from 'date-fns';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { SortableItem } from '@/components/dnd/sortable-item';
+
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
@@ -46,65 +69,198 @@ const calculateHours = (start?: string, end?: string) => {
     }
 }
 
+const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH'] as const;
+const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
+
+const personalExternoSchema = z.object({
+  id: z.string(),
+  osId: z.string(),
+  proveedorId: z.string().min(1, 'El proveedor es obligatorio'),
+  categoria: z.string().min(1, 'La categoría es obligatoria'),
+  cantidad: z.coerce.number().min(1, 'La cantidad debe ser mayor que 0'),
+  precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
+  fecha: z.string(),
+  horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+  horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+  centroCoste: z.enum(centroCosteOptions),
+  tipoServicio: z.enum(tipoServicioOptions),
+  observaciones: z.string().optional().default(''),
+  horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+  horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+});
+
+const formSchema = z.object({
+    personal: z.array(personalExternoSchema)
+})
+
+type PersonalExternoFormValues = z.infer<typeof formSchema>;
+
+
 export default function PersonalExternoPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [spaceAddress, setSpaceAddress] = useState<string>('');
-  const [personalExternoOrders, setPersonalExternoOrders] = useState<PersonalExternoOrder[]>([]);
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [isMounted, setIsMounted] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
-  
+  const [proveedoresDB, setProveedoresDB] = useState<ProveedorPersonal[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [rowToDelete, setRowToDelete] = useState<number | null>(null);
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const osId = searchParams.get('osId');
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (osId) {
-      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allServiceOrders.find(os => os.id === osId);
-      setServiceOrder(currentOS || null);
+  const form = useForm<PersonalExternoFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { personal: [] },
+  });
 
-      if (currentOS?.space) {
-        const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-        const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
-        setSpaceAddress(currentSpace?.calle || '');
-      }
+  const { control, setValue } = form;
 
-      const allOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
-      const relatedOrders = allOrders.filter(order => order.osId === osId);
-      setPersonalExternoOrders(relatedOrders);
+  const { fields, append, remove, move } = useFieldArray({
+    control,
+    name: "personal",
+  });
+  
+ const handleProviderChange = useCallback((index: number, proveedorId: string) => {
+    if (!proveedorId) return;
+    const provider = proveedoresDB.find(p => p.id === proveedorId);
+    if (provider) {
+      setValue(`personal.${index}.proveedorId`, provider.id, { shouldDirty: true });
+      setValue(`personal.${index}.categoria`, provider.categoria, { shouldDirty: true });
+      setValue(`personal.${index}.precioHora`, provider.precioHora || 0, { shouldDirty: true });
+    }
+  }, [proveedoresDB, setValue]);
+  
+  const watchedFields = useWatch({ control, name: 'personal' });
 
-      const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-      const currentBriefing = allBriefings.find(b => b.osId === osId);
-      setBriefingItems(currentBriefing?.items || []);
+ const { totalPlanned, totalReal } = useMemo(() => {
+    if (!watchedFields) return { totalPlanned: 0, totalReal: 0 };
+    
+    const totals = watchedFields.reduce((acc, order) => {
+        const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
+        acc.planned += plannedHours * (order.precioHora || 0) * (order.cantidad || 1);
+        
+        const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
+        acc.real += realHours * (order.precioHora || 0) * (order.cantidad || 1);
+        
+        return acc;
+    }, { planned: 0, real: 0 });
 
-    } else {
+    return { totalPlanned: totals.planned, totalReal: totals.real };
+  }, [watchedFields]);
+
+  const loadData = useCallback(() => {
+     if (!osId) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
         router.push('/pes');
+        return;
     }
-    setIsMounted(true);
-  }, [osId, router, toast]);
-
-  const totalAmount = useMemo(() => {
-    return personalExternoOrders.reduce((sum, order) => {
-        const horas = (new Date(`1970-01-01T${order.horaSalida}`).getTime() - new Date(`1970-01-01T${order.horaEntrada}`).getTime()) / (1000 * 60 * 60);
-        return sum + (order.cantidad * order.precioHora * (horas > 0 ? horas : 0));
-    }, 0);
-  }, [personalExternoOrders]);
-
-  const handleDelete = () => {
-    if (!orderToDelete) return;
-
-    let allOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
-    const updatedOrders = allOrders.filter((o) => o.id !== orderToDelete);
-    localStorage.setItem('personalExternoOrders', JSON.stringify(updatedOrders));
-    setPersonalExternoOrders(updatedOrders.filter((o) => o.osId === osId));
     
-    toast({ title: 'Pedido de personal externo eliminado' });
-    setOrderToDelete(null);
+    try {
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const currentOS = allServiceOrders.find(os => os.id === osId);
+        setServiceOrder(currentOS || null);
+
+        if (currentOS?.space) {
+            const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
+            const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
+            setSpaceAddress(currentSpace?.calle || '');
+        }
+
+        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+        const currentBriefing = allBriefings.find(b => b.osId === osId);
+        setBriefingItems(currentBriefing?.items || []);
+
+        const allOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
+        const relatedOrders = allOrders.filter(order => order.osId === osId);
+        form.reset({ personal: relatedOrders });
+
+        const dbProveedores = JSON.parse(localStorage.getItem('proveedoresPersonal') || '[]') as ProveedorPersonal[];
+        setProveedoresDB(dbProveedores);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos.' });
+    } finally {
+        setIsMounted(true);
+    }
+  }, [osId, router, toast, form]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+
+ const onSubmit = (data: PersonalExternoFormValues) => {
+    setIsLoading(true);
+    if (!osId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
+      setIsLoading(false);
+      return;
+    }
+
+    const allOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
+    const otherOsOrders = allOrders.filter(o => o.osId !== osId);
+    
+    const currentOsOrders: PersonalExternoOrder[] = data.personal.map(p => ({ ...p, osId }));
+
+    const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
+    localStorage.setItem('personalExternoOrders', JSON.stringify(updatedAllOrders));
+
+    setTimeout(() => {
+        toast({ title: 'Personal Externo guardado', description: 'Todos los cambios han sido guardados.' });
+        setIsLoading(false);
+        form.reset(data); // Resets form with new values, marking it as not dirty
+    }, 500);
   };
   
+  const addRow = () => {
+    if (!osId || !serviceOrder) return;
+    append({
+        id: Date.now().toString(),
+        osId: osId,
+        proveedorId: '',
+        categoria: '',
+        cantidad: 1,
+        precioHora: 0,
+        fecha: serviceOrder.startDate,
+        horaEntrada: '09:00',
+        horaSalida: '17:00',
+        centroCoste: 'SALA',
+        tipoServicio: 'Servicio',
+        observaciones: '',
+        horaEntradaReal: '',
+        horaSalidaReal: '',
+    });
+  }
+  
+  const handleDeleteRow = () => {
+    if (rowToDelete !== null) {
+      remove(rowToDelete);
+      setRowToDelete(null);
+      toast({ title: 'Asignación eliminada' });
+    }
+  };
+
+  const providerOptions = useMemo(() => {
+    return proveedoresDB.map(p => ({ label: `${p.nombreProveedor} - ${p.categoria}`, value: p.id }));
+  }, [proveedoresDB]);
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+        const oldIndex = fields.findIndex((item) => item.id === active.id);
+        const newIndex = fields.findIndex((item) => item.id === over.id);
+        move(oldIndex, newIndex);
+    }
+  }
+
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
   }
@@ -113,16 +269,18 @@ export default function PersonalExternoPage() {
     <>
       <Header />
       <main className="container mx-auto px-4 py-8">
-        <div className="flex items-start justify-between mb-8">
-            <div>
-                <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
-                    <ArrowLeft className="mr-2" />
-                    Volver a la OS
-                </Button>
-                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><UserPlus />Módulo de Personal Externo</h1>
-                <div className="text-muted-foreground mt-2 space-y-1">
+       <FormProvider {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+            <div className="flex items-start justify-between mb-8">
+                <div>
+                    <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
+                        <ArrowLeft className="mr-2" />
+                        Volver a la OS
+                    </Button>
+                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Módulo de Personal Externo</h1>
+                    <div className="text-muted-foreground mt-2 space-y-1">
                     <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-                     {serviceOrder.space && (
+                    {serviceOrder.space && (
                         <p className="flex items-center gap-2">
                         <Building className="h-3 w-3" /> {serviceOrder.space} {spaceAddress && `(${spaceAddress})`}
                         </p>
@@ -133,127 +291,252 @@ export default function PersonalExternoPage() {
                             {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
                         </p>
                     )}
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
+                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                        <span className="ml-2">Guardar Cambios</span>
+                    </Button>
                 </div>
             </div>
-          <Button asChild>
-            <Link href={`/personal-externo/pedido?osId=${osId}`}>
-              <PlusCircle className="mr-2" />
-              Nuevo Pedido
-            </Link>
-          </Button>
-        </div>
-
-        <Accordion type="single" collapsible className="w-full mb-8" >
-            <AccordionItem value="item-1">
-            <Card>
-                <AccordionTrigger className="p-6">
-                    <h3 className="text-xl font-semibold">Servicios del Evento</h3>
-                </AccordionTrigger>
-                <AccordionContent>
-                <CardContent className="pt-0">
-                    <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead className="py-2 px-3">Fecha</TableHead>
-                        <TableHead className="py-2 px-3">Descripción</TableHead>
-                        <TableHead className="py-2 px-3">Asistentes</TableHead>
-                        <TableHead className="py-2 px-3">Duración</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {briefingItems.length > 0 ? briefingItems.map(item => (
-                        <TableRow key={item.id}>
-                            <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
-                            <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
-                            <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                            <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
-                        </TableRow>
-                        )) : (
-                            <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
-                        )}
-                    </TableBody>
-                    </Table>
-                </CardContent>
-                </AccordionContent>
-            </Card>
-            </AccordionItem>
-        </Accordion>
-
-        <Card>
-            <CardHeader><CardTitle>Pedidos de Personal Externo</CardTitle></CardHeader>
-            <CardContent>
-                 <div className="border rounded-lg">
-                    <Table>
+            
+             <Accordion type="single" collapsible className="w-full mb-8" >
+                <AccordionItem value="item-1">
+                <Card>
+                    <AccordionTrigger className="p-6">
+                        <h3 className="text-xl font-semibold">Servicios del Evento</h3>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                    <CardContent className="pt-0">
+                        <Table>
                         <TableHeader>
-                        <TableRow>
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Proveedor</TableHead>
-                            <TableHead>Categoría</TableHead>
-                            <TableHead>Cantidad</TableHead>
-                            <TableHead>Horario</TableHead>
-                            <TableHead>Coste Total Est.</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
-                        </TableRow>
+                            <TableRow>
+                            <TableHead className="py-2 px-3">Fecha</TableHead>
+                            <TableHead className="py-2 px-3">Descripción</TableHead>
+                            <TableHead className="py-2 px-3">Asistentes</TableHead>
+                            <TableHead className="py-2 px-3">Duración</TableHead>
+                            </TableRow>
                         </TableHeader>
                         <TableBody>
-                        {personalExternoOrders.length > 0 ? (
-                            personalExternoOrders.map(order => {
-                                const horas = (new Date(`1970-01-01T${order.horaSalida}`).getTime() - new Date(`1970-01-01T${order.horaEntrada}`).getTime()) / (1000 * 60 * 60);
-                                const totalCost = order.cantidad * order.precioHora * (horas > 0 ? horas : 0);
-                                const providerName = JSON.parse(localStorage.getItem('proveedoresPersonal') || '[]').find((p:any) => p.id === order.proveedorId)?.nombreProveedor || 'N/A';
-                                return (
-                                <TableRow key={order.id}>
-                                    <TableCell className="font-medium">{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
-                                    <TableCell>{providerName}</TableCell>
-                                    <TableCell>{order.categoria}</TableCell>
-                                    <TableCell>{order.cantidad}</TableCell>
-                                    <TableCell>{order.horaEntrada} - {order.horaSalida}</TableCell>
-                                    <TableCell>{formatCurrency(totalCost)}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setOrderToDelete(order.id)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            )})
-                        ) : (
-                            <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">
-                                No hay pedidos de personal externo para esta Orden de Servicio.
-                            </TableCell>
+                            {briefingItems.length > 0 ? briefingItems.map(item => (
+                            <TableRow key={item.id}>
+                                <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
+                                <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
+                                <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
+                                <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
                             </TableRow>
-                        )}
+                            )) : (
+                                <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                            )}
                         </TableBody>
-                    </Table>
-                </div>
-                {personalExternoOrders.length > 0 && (
-                    <div className="flex justify-end mt-4 text-xl font-bold">
-                        Importe Total: {formatCurrency(totalAmount)}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-      </main>
+                        </Table>
+                    </CardContent>
+                    </AccordionContent>
+                </Card>
+                </AccordionItem>
+            </Accordion>
 
-      <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente el pedido de personal.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
-              onClick={handleDelete}
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            <Card>
+                <CardHeader className="flex-row items-center justify-between">
+                    <CardTitle>Personal Asignado</CardTitle>
+                    <Button type="button" onClick={addRow}>
+                        <PlusCircle className="mr-2" />
+                        Añadir Personal
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    <div className="border rounded-lg overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-12 px-2 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2">Centro Coste</TableHead>
+                                    <TableHead className="px-2 py-2">Proveedor - Categoría</TableHead>
+                                    <TableHead className="px-2 py-2">Cantidad</TableHead>
+                                    <TableHead className="px-2 py-2">Tipo Servicio</TableHead>
+                                    <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
+                                    <TableHead colSpan={2} className="text-center border-r px-2 py-2">Real</TableHead>
+                                    <TableHead className="text-right px-2 py-2">Acción</TableHead>
+                                </TableRow>
+                                <TableRow>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="border-l px-2 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
+                                    <TableHead className="px-2 py-2 bg-muted/30 w-24">H. Salida</TableHead>
+                                    <TableHead className="border-r px-2 py-2 bg-muted/30 w-20">€/Hora</TableHead>
+                                    <TableHead className="w-24">H. Entrada</TableHead>
+                                    <TableHead className="border-r w-24">H. Salida</TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                <SortableContext items={fields} strategy={verticalListSortingStrategy}>
+                                    <TableBody>
+                                    {fields.length > 0 ? (
+                                        fields.map((field, index) => (
+                                           <SortableItem key={field.id} id={field.id}>
+                                                <TableCell className="px-2 py-1 align-middle">
+                                                    <GripVertical className="h-5 w-5 text-muted-foreground" />
+                                                </TableCell>
+                                                <TableCell className="px-2 py-1">
+                                                    <FormField
+                                                        control={control}
+                                                        name={`personal.${index}.centroCoste`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                                    <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
+                                                                    <SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                                                                </Select>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="px-2 py-1 min-w-48">
+                                                     <FormField
+                                                        control={control}
+                                                        name={`personal.${index}.proveedorId`}
+                                                        render={({ field }) => (
+                                                        <FormItem>
+                                                            <Combobox
+                                                                options={providerOptions}
+                                                                value={field.value}
+                                                                onChange={(value) => handleProviderChange(index, value)}
+                                                                placeholder="Proveedor..."
+                                                            />
+                                                        </FormItem>
+                                                        )}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="px-2 py-1">
+                                                      <FormField
+                                                        control={control}
+                                                        name={`personal.${index}.cantidad`}
+                                                        render={({ field }) => <FormItem><FormControl><Input type="number" min="1" {...field} className="w-20 h-9"/></FormControl></FormItem>}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="px-2 py-1">
+                                                    <FormField
+                                                        control={control}
+                                                        name={`personal.${index}.tipoServicio`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                                    <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
+                                                                    <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                                                                </Select>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="border-l px-2 py-1 bg-muted/30">
+                                                    <FormField
+                                                        control={control}
+                                                        name={`personal.${index}.horaEntrada`}
+                                                        render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="px-2 py-1 bg-muted/30">
+                                                    <FormField
+                                                        control={control}
+                                                        name={`personal.${index}.horaSalida`}
+                                                        render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="border-r px-2 py-1 bg-muted/30">
+                                                    <FormField
+                                                        control={control}
+                                                        name={`personal.${index}.precioHora`}
+                                                        render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20 h-9" readOnly /></FormControl></FormItem>}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="px-2 py-1">
+                                                    <FormField
+                                                        control={control}
+                                                        name={`personal.${index}.horaEntradaReal`}
+                                                        render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="border-r px-2 py-1">
+                                                    <FormField
+                                                        control={control}
+                                                        name={`personal.${index}.horaSalidaReal`}
+                                                        render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="text-right px-2 py-1">
+                                                    <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TableCell>
+                                            </SortableItem>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                        <TableCell colSpan={11} className="h-24 text-center">
+                                            No hay personal asignado. Haz clic en "Añadir Personal" para empezar.
+                                        </TableCell>
+                                        </TableRow>
+                                    )}
+                                    </TableBody>
+                                </SortableContext>
+                            </DndContext>
+                        </Table>
+                    </div>
+                </CardContent>
+                {fields.length > 0 && (
+                    <CardFooter>
+                         <Card className="w-full md:w-1/2 ml-auto">
+                            <CardHeader><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Planificado:</span>
+                                    <span className="font-bold">{formatCurrency(totalPlanned)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Real:</span>
+                                    <span className="font-bold">{formatCurrency(totalReal)}</span>
+                                </div>
+                                <Separator className="my-2" />
+                                 <div className="flex justify-between font-bold text-base">
+                                    <span>Desviación:</span>
+                                    <span className={totalReal - totalPlanned > 0 ? 'text-destructive' : 'text-green-600'}>
+                                        {formatCurrency(totalReal - totalPlanned)}
+                                    </span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </CardFooter>
+                )}
+            </Card>
+        </form>
+       </FormProvider>
+
+        <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
+            <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se eliminará la asignación de personal de la tabla.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setRowToDelete(null)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90"
+                onClick={handleDeleteRow}
+                >
+                Eliminar
+                </AlertDialogAction>
+            </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
+      </main>
     </>
   );
 }
