@@ -35,6 +35,9 @@ interface ComboboxProps {
 
 export function Combobox({ options, value, onChange, placeholder, searchPlaceholder, emptyPlaceholder }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
+  const [query, setQuery] = React.useState('');
+
+  const filteredOptions = options.filter(option => option.label.toLowerCase().includes(query.toLowerCase()));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -47,7 +50,7 @@ export function Combobox({ options, value, onChange, placeholder, searchPlacehol
         >
           <span className="truncate">
             {value
-              ? options.find((option) => option.value === value)?.label ?? placeholder
+              ? options.find((option) => option.value === value)?.label ?? value
               : placeholder || "Seleccionar..."}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -55,11 +58,28 @@ export function Combobox({ options, value, onChange, placeholder, searchPlacehol
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command>
-          <CommandInput placeholder={searchPlaceholder || "Buscar..."} />
+          <CommandInput 
+            placeholder={searchPlaceholder || "Buscar..."}
+            value={query}
+            onValueChange={setQuery}
+          />
           <CommandList>
-            <CommandEmpty>{emptyPlaceholder || "No se encontraron resultados."}</CommandEmpty>
+            <CommandEmpty>
+                {query.length > 0 ? (
+                    <CommandItem
+                        onSelect={() => {
+                            onChange(query);
+                            setOpen(false);
+                        }}
+                    >
+                    Añadir "{query}"
+                    </CommandItem>
+                ) : (
+                    emptyPlaceholder || "No se encontraron resultados."
+                )}
+            </CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {filteredOptions.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.label}

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -36,6 +37,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { ScrollArea } from '../ui/scroll-area';
+import { Combobox } from '../ui/combobox';
 
 export type ExistingOrderData = {
     days: number;
@@ -73,8 +75,6 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
   const [deliverySpace, setDeliverySpace] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
-  const [isAddingLocation, setIsAddingLocation] = useState(false);
-  const [newLocation, setNewLocation] = useState('');
   const { toast } = useToast();
 
   const isRental = orderType !== 'Bodega' && orderType !== 'Bio';
@@ -94,6 +94,11 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
       }
     }
   }, [serviceOrder, isEditing, existingOrderData]);
+  
+  const locationOptions = useMemo(() => {
+    return serviceOrder?.deliveryLocations?.map(loc => ({ label: loc, value: loc })) || [];
+  }, [serviceOrder]);
+
 
   const subtotal = useMemo(() => {
     return items.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -102,13 +107,12 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const itemsTotal = subtotal * (isRental ? rentalDays : 1);
   const total = itemsTotal;
 
-  const handleAddNewLocation = () => {
-    if (newLocation.trim()) {
-      onAddLocation(newLocation.trim());
-      setDeliveryLocation(newLocation.trim());
-      setNewLocation('');
-      setIsAddingLocation(false);
+  const handleLocationChange = (value: string) => {
+    const isNew = !locationOptions.some(opt => opt.value === value);
+    if (isNew && value) {
+        onAddLocation(value);
     }
+    setDeliveryLocation(value);
   }
 
   const handleSubmit = () => {
@@ -279,7 +283,13 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="delivery-location-dialog">Localización</Label>
-                    <Input id="delivery-location-dialog" value={deliveryLocation} onChange={(e) => setDeliveryLocation(e.target.value)} placeholder="Ej: Salón, Cocina..." />
+                    <Combobox
+                      options={locationOptions}
+                      value={deliveryLocation}
+                      onChange={handleLocationChange}
+                      placeholder="Busca o crea una localización..."
+                      searchPlaceholder="Buscar localización..."
+                    />
                 </div>
             </div>
             <DialogFooter>
@@ -293,27 +303,6 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
           </DialogContent>
         </Dialog>
       </CardFooter>
-      <AlertDialog open={isAddingLocation} onOpenChange={setIsAddingLocation}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Añadir Nueva Localización</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Esta localización se guardará en la Orden de Servicio para futuros pedidos.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="py-4">
-                 <Input 
-                    placeholder="Ej. Salón principal, Cocina, Barra..."
-                    value={newLocation}
-                    onChange={(e) => setNewLocation(e.target.value)}
-                />
-            </div>
-            <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleAddNewLocation}>Añadir</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Card>
   );
 }

@@ -102,6 +102,7 @@ export const osFormSchema = z.object({
   plane: z.string().optional().default(''),
   comments: z.string().optional().default(''),
   status: z.enum(['Borrador', 'Pendiente', 'Confirmado']).default('Borrador'),
+  deliveryLocations: z.array(z.string()).optional().default([]),
 });
 
 export type OsFormValues = z.infer<typeof osFormSchema>;
@@ -118,6 +119,7 @@ const defaultValues: Partial<OsFormValues> = {
   agencyPercentage: 0, spacePercentage: 0, facturacion: 0,
   plane: '', comments: '',
   status: 'Borrador', tipoCliente: 'Empresa',
+  deliveryLocations: [],
 };
 
 const ClienteTitle = () => {
