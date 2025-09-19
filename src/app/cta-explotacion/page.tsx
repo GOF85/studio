@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, DollarSign, Target, Settings } from 'lucide-react';
+import { ArrowLeft, DollarSign, Target, Settings, TrendingUp, TrendingDown } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,6 +68,15 @@ export default function CtaExplotacionPage() {
     facturacionNeta: number;
   } | null>(null);
 
+  const calculatePersonalTotal = useCallback((orders: {precioHora?: number; horaEntrada: string; horaSalida: string; cantidad?: number}[]) => {
+      return orders.reduce((sum, order) => {
+          const hours = calculateHours(order.horaEntrada, order.horaSalida);
+          const quantity = order.cantidad || 1;
+          const price = order.precioHora || 0; // fallback to 0 if price is undefined
+          return sum + (hours * price * quantity);
+      }, 0);
+  }, []);
+
   const loadData = useCallback(() => {
     if (!osId) return;
 
@@ -77,7 +86,7 @@ export default function CtaExplotacionPage() {
     const storedPlantillas = JSON.parse(localStorage.getItem('objetivosGastoPlantillas') || '[]') as ObjetivosGasto[];
     
     let appliedObjetivos: ObjetivosGasto = {
-        gastronomia: 0, bodega: 0, consumibles: 0, hielo: 0, almacen: 0, alquiler: 0, transporte: 0,
+        name: 'Por defecto', id: 'default', gastronomia: 0, bodega: 0, consumibles: 0, hielo: 0, almacen: 0, alquiler: 0, transporte: 0,
         decoracion: 0, atipicos: 0, personalMice: 0, personalExterno: 0, costePruebaMenu: 0,
     };
     
@@ -87,6 +96,7 @@ export default function CtaExplotacionPage() {
             appliedObjetivos = plantilla;
         }
     } else if (storedPlantillas.length > 0) {
+        // Automatically apply the first available template as default
         appliedObjetivos = storedPlantillas[0];
         if (currentOS) {
           const osIndex = allServiceOrders.findIndex(os => os.id === osId);
@@ -97,6 +107,7 @@ export default function CtaExplotacionPage() {
         }
     }
 
+
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const currentBriefing = allBriefings.find(b => b.osId === osId);
     const totalBriefing = currentBriefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario), 0) || 0;
@@ -104,15 +115,6 @@ export default function CtaExplotacionPage() {
     const netRevenue = totalBriefing * (1 - totalPercentage / 100);
 
     const getModuleTotal = (orders: {total?: number, precio?: number}[]) => orders.reduce((sum, order) => sum + (order.total ?? order.precio ?? 0), 0);
-    
-    const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: string; horaSalida: string; cantidad?: number}[]) => {
-        return orders.reduce((sum, order) => {
-            const hours = calculateHours(order.horaEntrada, order.horaSalida);
-            const quantity = order.cantidad || 1;
-            const price = order.precioHora || 0;
-            return sum + (hours * price * quantity);
-        }, 0);
-    }
     
     const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
@@ -130,7 +132,8 @@ export default function CtaExplotacionPage() {
 
     const personalExternoRealCost = (allPersonalExternoOrders.filter(o => o.osId === osId)).reduce((acc, order) => {
       const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
-      return acc + realHours * (order.precioHora || 0) * (order.cantidad || 1);
+      const price = order.precioHora || 0;
+      return acc + realHours * price * (order.cantidad || 1);
     }, 0);
     
     const personalExternoTotalAjustes = personalExternoAjustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
@@ -138,10 +141,10 @@ export default function CtaExplotacionPage() {
     
     const personalMiceRealCost = (allPersonalMiceOrders.filter(o => o.osId === osId)).reduce((acc, order) => {
         const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
-        return acc + realHours * (order.precioHora || 0);
+        const price = order.precioHora || 0;
+        return acc + realHours * price;
     }, 0);
 
-    const decoracionTotal = getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId));
     const costePruebaTotal = pruebaMenu?.costePruebaMenu || 0;
 
 
@@ -153,7 +156,7 @@ export default function CtaExplotacionPage() {
       { label: 'Almacén', presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Almacén')), cierre: 0 },
       { label: 'Alquiler material', presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Alquiler')), cierre: 0 },
       { label: 'Transporte', presupuesto: getModuleTotal(allTransporteOrders.filter(o => o.osId === osId)), cierre: 0 },
-      { label: 'Decoración', presupuesto: decoracionTotal, cierre: decoracionTotal },
+      { label: 'Decoración', presupuesto: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)), cierre: 0 },
       { label: 'Atípicos', presupuesto: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)), cierre: 0 },
       { label: 'Personal MICE', presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: personalMiceRealCost },
       { label: 'Personal Externo', presupuesto: calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)), cierre: personalExternoCierre },
@@ -167,7 +170,7 @@ export default function CtaExplotacionPage() {
         costes: newCostes,
         facturacionNeta: netRevenue,
     });
-  }, [osId]);
+  }, [osId, router, toast, calculatePersonalTotal]);
 
   useEffect(() => {
     if (osId) {
@@ -179,7 +182,7 @@ export default function CtaExplotacionPage() {
   }, [osId, router, toast, loadData]);
   
   const handleObjetivoChange = (plantillaId: string) => {
-    if (!osId || !ctaData?.serviceOrder || !ctaData) return;
+    if (!osId || !ctaData) return;
     const plantilla = ctaData.objetivosPlantillas.find(p => p.id === plantillaId);
     if(plantilla) {
         setCtaData(prev => prev ? {...prev, objetivos: plantilla} : null);
@@ -226,6 +229,7 @@ export default function CtaExplotacionPage() {
   }, [ctaData]);
   
   const totals = useMemo(() => {
+    if (!processedCostes) return { totalPresupuesto: 0, totalCierre: 0, totalObjetivo: 0 };
     const totalPresupuesto = processedCostes.reduce((sum, row) => sum + row.presupuesto, 0);
     const totalCierre = processedCostes.reduce((sum, row) => sum + row.cierre, 0);
     const totalObjetivo = processedCostes.reduce((sum, row) => sum + row.objetivo, 0);
@@ -238,10 +242,16 @@ export default function CtaExplotacionPage() {
   
   const { serviceOrder, facturacionNeta, objetivos, objetivosPlantillas } = ctaData;
 
-  const rentabilidad = facturacionNeta - totals.totalPresupuesto;
   const ingresosAsistente = serviceOrder?.asistentes ? facturacionNeta / serviceOrder.asistentes : 0;
-  const repercusionHQ = rentabilidad * 0.25;
-  const rentabilidadPostHQ = rentabilidad - repercusionHQ;
+  
+  const rentabilidadPresupuesto = facturacionNeta - totals.totalPresupuesto;
+  const repercusionHQPresupuesto = rentabilidadPresupuesto * 0.25;
+  const rentabilidadPostHQPresupuesto = rentabilidadPresupuesto - repercusionHQPresupuesto;
+  
+  const rentabilidadCierre = facturacionNeta - totals.totalCierre;
+  const repercusionHQCierre = rentabilidadCierre * 0.25;
+  const rentabilidadPostHQCierre = rentabilidadCierre - repercusionHQCierre;
+
 
   if (!serviceOrder) {
     return <LoadingSkeleton title="Cargando Cuenta de Explotación..." />;
@@ -264,65 +274,67 @@ export default function CtaExplotacionPage() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8 mt-8">
-          <Card className="lg:col-span-2">
-            <CardHeader className="py-4">
-              <CardTitle>Análisis de Costes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="py-2 px-3">Partida</TableHead>
-                    <TableHead className="text-right py-2 px-3">Presupuesto</TableHead>
-                    <TableHead className="text-right py-2 px-3">% s/ Fact.</TableHead>
-                    <TableHead className="text-right py-2 px-3">Cierre</TableHead>
-                    <TableHead className="text-right py-2 px-3">Objetivo MC</TableHead>
-                    <TableHead className="text-right py-2 px-3">Desv. €</TableHead>
-                    <TableHead className="text-right py-2 px-3">Desv. %</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow className="font-bold bg-muted/50">
-                    <TableCell className="py-2 px-3">Facturación Neta</TableCell>
-                    <TableCell className="text-right text-primary py-2 px-3">{formatCurrency(facturacionNeta)}</TableCell>
-                    <TableCell className="text-right text-primary py-2 px-3">{formatPercentage(1)}</TableCell>
-                    <TableCell className="text-right text-primary py-2 px-3">{formatCurrency(facturacionNeta)}</TableCell>
-                    <TableCell className="text-right text-primary py-2 px-3">{formatCurrency(facturacionNeta)}</TableCell>
-                    <TableCell className="py-2 px-3"></TableCell>
-                    <TableCell className="py-2 px-3"></TableCell>
-                  </TableRow>
-                  {processedCostes.map(row => {
-                    const pctSFact = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
-                    const desviacion = row.objetivo - row.presupuesto;
-                    const desviacionPct = row.presupuesto > 0 ? desviacion / row.presupuesto : 0;
-                    const isReadOnly = ['Personal Externo', 'Personal MICE', 'Coste Prueba de Menu'].includes(row.label);
-                    return (
-                        <TableRow key={row.label}>
-                            <TableCell className="py-2 px-3">{row.label}</TableCell>
-                            <TableCell className="text-right py-2 px-3">{formatCurrency(row.presupuesto)}</TableCell>
-                            <TableCell className={cn("text-right py-2 px-3", pctSFact > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFact)}</TableCell>
-                            <TableCell className="text-right py-2 px-3">
-                                <Input type="number" step="0.01" value={row.cierre} onChange={(e) => handleCierreChange(row.label, e.target.value)} className="h-8 text-right bg-secondary/30 w-20" readOnly={isReadOnly} />
-                            </TableCell>
-                            <TableCell className="text-right py-2 px-3">{formatCurrency(row.objetivo)}</TableCell>
-                            <TableCell className={cn("text-right py-2 px-3", desviacion < 0 && "text-destructive", desviacion > 0 && "text-green-600")}>
-                                {formatCurrency(desviacion)}
-                            </TableCell>
-                             <TableCell className={cn("text-right py-2 px-3", desviacionPct < 0 && "text-destructive", desviacionPct > 0 && "text-green-600")}>
-                                {formatPercentage(desviacionPct)}
-                             </TableCell>
-                        </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <div className="lg:col-span-2">
+            <Card>
+                <CardHeader>
+                <CardTitle>Análisis de Costes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead>Partida</TableHead>
+                        <TableHead className="text-right">Presupuesto</TableHead>
+                        <TableHead className="text-right">% s/ Fact.</TableHead>
+                        <TableHead className="text-right">Cierre</TableHead>
+                        <TableHead className="text-right">Objetivo MC</TableHead>
+                        <TableHead className="text-right">Desv. €</TableHead>
+                        <TableHead className="text-right">Desv. %</TableHead>
+                    </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                    <TableRow className="font-bold bg-muted/50">
+                        <TableCell>Facturación Neta</TableCell>
+                        <TableCell className="text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
+                        <TableCell className="text-right text-primary">{formatPercentage(1)}</TableCell>
+                        <TableCell className="text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
+                        <TableCell className="text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                    </TableRow>
+                    {processedCostes.map(row => {
+                        const pctSFact = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
+                        const desviacion = row.objetivo - row.presupuesto;
+                        const desviacionPct = row.presupuesto > 0 ? desviacion / row.presupuesto : 0;
+                        const isCierreReadOnly = ['Personal Externo', 'Personal MICE', 'Coste Prueba de Menu'].includes(row.label);
+                        return (
+                            <TableRow key={row.label}>
+                                <TableCell>{row.label}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(row.presupuesto)}</TableCell>
+                                <TableCell className={cn("text-right", pctSFact > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFact)}</TableCell>
+                                <TableCell className="text-right">
+                                    <Input type="number" step="0.01" value={row.cierre} onChange={(e) => handleCierreChange(row.label, e.target.value)} className="h-8 text-right bg-secondary/30 w-24" readOnly={isCierreReadOnly}/>
+                                </TableCell>
+                                <TableCell className="text-right">{formatCurrency(row.objetivo)}</TableCell>
+                                <TableCell className={cn("text-right", desviacion < 0 && "text-destructive", desviacion > 0 && "text-green-600")}>
+                                    {formatCurrency(desviacion)}
+                                </TableCell>
+                                <TableCell className={cn("text-right", desviacionPct < 0 && "text-destructive", desviacionPct > 0 && "text-green-600")}>
+                                    {formatPercentage(desviacionPct)}
+                                </TableCell>
+                            </TableRow>
+                        );
+                    })}
+                    </TableBody>
+                </Table>
+                </CardContent>
+            </Card>
+          </div>
 
           <div className="space-y-8">
             <Card>
-              <CardHeader className="pb-2 py-4">
-                <CardTitle className="flex items-center gap-2"><Target /> Objetivos de Gasto</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg"><Target /> Objetivos de Gasto</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                  <Select onValueChange={handleObjetivoChange} value={serviceOrder.objetivoGastoId}>
@@ -333,42 +345,86 @@ export default function CtaExplotacionPage() {
                         {objetivosPlantillas.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
-                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-muted-foreground p-3 border rounded-md">
+                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground p-3 border rounded-md">
                     {Object.keys(labels).map((key) => {
                         const objKey = key as keyof typeof labels;
+                        const value = (objetivos as any)[objKey];
+                        if (value === undefined || value === null) return null;
                         return (
                             <div key={key} className="flex justify-between">
                                 <span className="font-medium">{labels[objKey]}:</span>
-                                <span>{((objetivos as any)[objKey] || 0).toFixed(2)}%</span>
+                                <span>{(value || 0).toFixed(2)}%</span>
                             </div>
                         )
                     })}
                 </div>
               </CardContent>
             </Card>
-
+          </div>
+        </div>
+        <div className="grid lg:grid-cols-2 gap-8 mt-8">
             <Card>
-                <CardHeader><CardTitle>Análisis de Rentabilidad</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex justify-between items-center text-lg font-bold">
-                        <span>Rentabilidad</span>
-                        <span className={cn(rentabilidad > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidad)}</span>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><TrendingUp/>Análisis s/ Presupuesto</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <div className="flex justify-between items-center text-sm">
+                        <span>Facturación Neta</span>
+                        <span>{formatCurrency(facturacionNeta)}</span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center text-sm">
+                        <span>Total Costes Presupuestados</span>
+                        <span>{formatCurrency(totals.totalPresupuesto)}</span>
+                    </div>
+                     <div className="flex justify-between items-center text-lg font-bold">
+                        <span>Rentabilidad</span>
+                        <span className={cn(rentabilidadPresupuesto > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPresupuesto)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
                         <span>Ingresos / Asistente</span>
                         <span>{formatCurrency(ingresosAsistente)}</span>
                     </div>
-                     <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center text-sm">
                         <span>Repercusión HQ (25%)</span>
-                        <span>{formatCurrency(repercusionHQ)}</span>
+                        <span>{formatCurrency(repercusionHQPresupuesto)}</span>
                     </div>
-                     <div className="flex justify-between items-center text-lg font-bold">
+                    <div className="flex justify-between items-center text-lg font-bold">
                         <span>Rentabilidad Post-HQ</span>
-                        <span className={cn(rentabilidadPostHQ > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQ)}</span>
+                        <span className={cn(rentabilidadPostHQPresupuesto > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQPresupuesto)}</span>
                     </div>
                 </CardContent>
             </Card>
-          </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><TrendingDown/>Análisis s/ Cierre</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <div className="flex justify-between items-center text-sm">
+                        <span>Facturación Neta</span>
+                        <span>{formatCurrency(facturacionNeta)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                        <span>Total Costes de Cierre</span>
+                        <span>{formatCurrency(totals.totalCierre)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-lg font-bold">
+                        <span>Rentabilidad</span>
+                        <span className={cn(rentabilidadCierre > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadCierre)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                        <span>Ingresos / Asistente</span>
+                        <span>{formatCurrency(ingresosAsistente)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                        <span>Repercusión HQ (25%)</span>
+                        <span>{formatCurrency(repercusionHQCierre)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-lg font-bold">
+                        <span>Rentabilidad Post-HQ</span>
+                        <span className={cn(rentabilidadPostHQCierre > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQCierre)}</span>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
       </main>
     </>
