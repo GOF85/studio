@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, DollarSign, Target, Settings, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, DollarSign, Target, Settings, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +39,15 @@ const calculateHours = (start?: string, end?: string) => {
     }
 }
 
+const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: string; horaSalida: string; cantidad?: number}[]) => {
+    return orders.reduce((sum, order) => {
+        const hours = calculateHours(order.horaEntrada, order.horaSalida);
+        const quantity = order.cantidad || 1;
+        const price = order.precioHora || 0;
+        return sum + (hours * price * quantity);
+    }, 0);
+};
+
 const labels: Record<keyof Omit<ObjetivosGasto, 'id' | 'name'>, string> = {
     gastronomia: 'Gastronomía',
     bodega: 'Bodega',
@@ -68,14 +77,7 @@ export default function CtaExplotacionPage() {
     facturacionNeta: number;
   } | null>(null);
 
-  const calculatePersonalTotal = useCallback((orders: {precioHora?: number; horaEntrada: string; horaSalida: string; cantidad?: number}[]) => {
-      return orders.reduce((sum, order) => {
-          const hours = calculateHours(order.horaEntrada, order.horaSalida);
-          const quantity = order.cantidad || 1;
-          const price = order.precioHora || 0; // fallback to 0 if price is undefined
-          return sum + (hours * price * quantity);
-      }, 0);
-  }, []);
+  const [cierreInputs, setCierreInputs] = useState<Record<string, number>>({});
 
   const loadData = useCallback(() => {
     if (!osId) return;
@@ -90,13 +92,13 @@ export default function CtaExplotacionPage() {
         decoracion: 0, atipicos: 0, personalMice: 0, personalExterno: 0, costePruebaMenu: 0,
     };
     
-    if (currentOS?.objetivoGastoId) {
-        const plantilla = storedPlantillas.find(p => p.id === currentOS.objetivoGastoId);
+    const plantillaGuardadaId = currentOS?.objetivoGastoId;
+    if (plantillaGuardadaId) {
+        const plantilla = storedPlantillas.find(p => p.id === plantillaGuardadaId);
         if (plantilla) {
             appliedObjetivos = plantilla;
         }
     } else if (storedPlantillas.length > 0) {
-        // Automatically apply the first available template as default
         appliedObjetivos = storedPlantillas[0];
         if (currentOS) {
           const osIndex = allServiceOrders.findIndex(os => os.id === osId);
@@ -106,7 +108,6 @@ export default function CtaExplotacionPage() {
           }
         }
     }
-
 
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const currentBriefing = allBriefings.find(b => b.osId === osId);
@@ -147,7 +148,6 @@ export default function CtaExplotacionPage() {
 
     const costePruebaTotal = pruebaMenu?.costePruebaMenu || 0;
 
-
     const newCostes = [
       { label: 'Gastronomía', presupuesto: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)), cierre: 0 },
       { label: 'Bodega', presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Bodega')), cierre: 0 },
@@ -163,6 +163,9 @@ export default function CtaExplotacionPage() {
       { label: 'Coste Prueba de Menu', presupuesto: costePruebaTotal, cierre: costePruebaTotal },
     ];
     
+    const initialCierres = Object.fromEntries(newCostes.map(c => [c.label, c.cierre]));
+    setCierreInputs(initialCierres);
+
     setCtaData({
         serviceOrder: currentOS,
         objetivosPlantillas: storedPlantillas,
@@ -170,7 +173,7 @@ export default function CtaExplotacionPage() {
         costes: newCostes,
         facturacionNeta: netRevenue,
     });
-  }, [osId, router, toast, calculatePersonalTotal]);
+  }, [osId, router, toast]);
 
   useEffect(() => {
     if (osId) {
@@ -198,16 +201,21 @@ export default function CtaExplotacionPage() {
     }
   };
   
-  const handleCierreChange = (label: string, value: string) => {
+  const handleCierreInputChange = (label: string, value: string) => {
      const numericValue = parseFloat(value) || 0;
-     setCtaData(prev => {
-         if (!prev) return null;
-         return {
-             ...prev,
-             costes: prev.costes.map(c => c.label === label ? {...c, cierre: numericValue} : c)
-         }
-     });
+     setCierreInputs(prev => ({...prev, [label]: numericValue}));
   }
+
+  const handleRecalculate = () => {
+    if (!ctaData) return;
+    const updatedCostes = ctaData.costes.map(c => ({
+        ...c,
+        cierre: cierreInputs[c.label] ?? c.cierre
+    }));
+
+    setCtaData(prev => prev ? {...prev, costes: updatedCostes} : null);
+    toast({ title: "Totales actualizados", description: "Los cálculos de rentabilidad han sido actualizados."});
+  };
   
   const processedCostes: CostRow[] = useMemo(() => {
     if (!ctaData) return [];
@@ -219,7 +227,7 @@ export default function CtaExplotacionPage() {
             'Coste Prueba de Menu': 'costePruebaMenu'
         }
         const objKey = keyMap[coste.label];
-        const objetivo_pct = (objKey && ctaData.objetivos[objKey] / 100) || 0;
+        const objetivo_pct = (objKey && (ctaData.objetivos as any)[objKey] / 100) || 0;
         return {
             ...coste,
             objetivo: ctaData.facturacionNeta * objetivo_pct,
@@ -252,7 +260,6 @@ export default function CtaExplotacionPage() {
   const repercusionHQCierre = rentabilidadCierre * 0.25;
   const rentabilidadPostHQCierre = rentabilidadCierre - repercusionHQCierre;
 
-
   if (!serviceOrder) {
     return <LoadingSkeleton title="Cargando Cuenta de Explotación..." />;
   }
@@ -277,7 +284,10 @@ export default function CtaExplotacionPage() {
           <div className="lg:col-span-2">
             <Card>
                 <CardHeader>
-                <CardTitle>Análisis de Costes</CardTitle>
+                    <div className="flex justify-between items-center">
+                        <CardTitle>Análisis de Costes</CardTitle>
+                        <Button onClick={handleRecalculate}><RefreshCw className="mr-2 h-4 w-4"/>Actualizar Totales</Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
                 <Table>
@@ -313,7 +323,7 @@ export default function CtaExplotacionPage() {
                                 <TableCell className="text-right">{formatCurrency(row.presupuesto)}</TableCell>
                                 <TableCell className={cn("text-right", pctSFact > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFact)}</TableCell>
                                 <TableCell className="text-right">
-                                    <Input type="number" step="0.01" value={row.cierre} onChange={(e) => handleCierreChange(row.label, e.target.value)} className="h-8 text-right bg-secondary/30 w-24" readOnly={isCierreReadOnly}/>
+                                    <Input type="number" step="0.01" value={cierreInputs[row.label] ?? 0} onChange={(e) => handleCierreInputChange(row.label, e.target.value)} className="h-8 text-right bg-secondary/30 w-24" readOnly={isCierreReadOnly}/>
                                 </TableCell>
                                 <TableCell className="text-right">{formatCurrency(row.objetivo)}</TableCell>
                                 <TableCell className={cn("text-right", desviacion < 0 && "text-destructive", desviacion > 0 && "text-green-600")}>
@@ -333,10 +343,10 @@ export default function CtaExplotacionPage() {
 
           <div className="space-y-8">
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="py-2">
                 <CardTitle className="flex items-center gap-2 text-lg"><Target /> Objetivos de Gasto</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 pt-4">
                  <Select onValueChange={handleObjetivoChange} value={serviceOrder.objetivoGastoId}>
                     <SelectTrigger>
                         <SelectValue placeholder="Seleccionar plantilla..." />
