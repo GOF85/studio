@@ -389,12 +389,7 @@ export default function OsPage() {
                     <span className="font-medium">Alquiler</span>
                   </Link>
               </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
-                  <Link href={osId ? `/transporte?osId=${osId}` : '#'}>
-                    <Truck className="mr-3 h-5 w-5 flex-shrink-0" />
-                    <span className="font-medium">Transporte</span>
-                  </Link>
-              </Button>
+               
                 <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
                   <Link href={osId ? `/decoracion?osId=${osId}` : '#'}>
                     <Flower2 className="mr-3 h-5 w-5 flex-shrink-0" />
@@ -417,6 +412,12 @@ export default function OsPage() {
                   <Link href={osId ? `/personal-externo?osId=${osId}` : '#'}>
                     <UserPlus className="mr-3 h-5 w-5 flex-shrink-0" />
                     <span className="font-medium">Personal Externo</span>
+                  </Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+                  <Link href={osId ? `/transporte?osId=${osId}` : '#'}>
+                    <Truck className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium">Transporte</span>
                   </Link>
               </Button>
               <Separator />
