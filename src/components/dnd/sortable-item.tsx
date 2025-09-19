@@ -7,10 +7,7 @@ import { TableRow } from '@/components/ui/table';
 
 interface SortableItemProps {
   id: string;
-  children: (
-    listeners: ReturnType<typeof useSortable>['listeners'],
-    attributes: ReturnType<typeof useSortable>['attributes']
-  ) => React.ReactNode;
+  children: React.ReactElement;
 }
 
 export function SortableItem({ id, children }: SortableItemProps) {
@@ -32,8 +29,11 @@ export function SortableItem({ id, children }: SortableItemProps) {
   };
 
   return (
-    <TableRow ref={setNodeRef} style={style}>
-      {children(listeners, attributes)}
-    </TableRow>
+     React.cloneElement(children, {
+      ref: setNodeRef,
+      style,
+      ...attributes,
+      ...listeners,
+    })
   );
 }

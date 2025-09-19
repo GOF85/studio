@@ -163,16 +163,13 @@ export default function PruebaMenuPage() {
                 </TableRow>
               </TableHeader>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={fields} strategy={verticalListSortingStrategy}>
-                  <TableBody>
+                <TableBody>
+                  <SortableContext items={fields} strategy={verticalListSortingStrategy}>
                     {sectionItems.length > 0 ? sectionItems.map(({ field, index }) => (
-                      <SortableItem key={field.id} id={field.id}>
-                        {(listeners, attributes) => (
-                          <>
-                            <TableCell className="py-1 px-2 align-middle no-print">
-                                <Button variant="ghost" size="icon" className="cursor-grab h-9 w-9" {...attributes} {...listeners}>
-                                  <GripVertical className="h-5 w-5 text-muted-foreground" />
-                                </Button>
+                       <SortableItem key={field.id} id={field.id}>
+                         <TableRow>
+                            <TableCell className="py-1 px-2 align-middle no-print cursor-grab">
+                                <GripVertical className="h-5 w-5 text-muted-foreground" />
                             </TableCell>
                             <TableCell className={cn("py-1 px-2 font-medium", field.type === 'header' && "bg-muted/50 font-bold")}>
                               <FormField
@@ -181,12 +178,12 @@ export default function PruebaMenuPage() {
                                 render={({ field: formField }) => (
                                   <FormItem>
                                     <FormControl>
-                                      <div>
-                                        <div className="digital-observations">
-                                          <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
+                                       <div>
+                                          <div className="digital-observations">
+                                            <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
+                                          </div>
+                                          <div className="hidden print:block h-6">{formField.value}</div>
                                         </div>
-                                        <div className="hidden print:block h-6">{formField.value}</div>
-                                      </div>
                                     </FormControl>
                                   </FormItem>
                                 )}
@@ -199,7 +196,7 @@ export default function PruebaMenuPage() {
                                   render={({ field: formField }) => (
                                     <FormItem>
                                       <FormControl>
-                                        <div>
+                                         <div>
                                           <div className="digital-observations">
                                             <Input {...formField} className="border-none h-auto p-0 bg-transparent focus-visible:ring-0" />
                                           </div>
@@ -218,9 +215,8 @@ export default function PruebaMenuPage() {
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </TableCell>
-                          </>
-                        )}
-                      </SortableItem>
+                          </TableRow>
+                       </SortableItem>
                     )) : (
                       <TableRow>
                         <TableCell colSpan={4} className="h-24 text-center">
@@ -228,8 +224,8 @@ export default function PruebaMenuPage() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </TableBody>
-                </SortableContext>
+                  </SortableContext>
+                </TableBody>
               </DndContext>
             </Table>
           </div>
