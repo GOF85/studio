@@ -112,7 +112,7 @@ export default function EspaciosPage() {
   
   const cities = useMemo(() => {
     if (!espacios) return ['all'];
-    const allCities = espacios.map(e => e.ciudad);
+    const allCities = espacios.map(e => e.ciudad).filter(Boolean); // Filter out empty strings
     return ['all', ...Array.from(new Set(allCities))];
   }, [espacios]);
 
