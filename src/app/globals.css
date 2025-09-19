@@ -124,3 +124,16 @@
     -moz-appearance: textfield;
   }
 }
+
+@media print {
+  .no-print {
+    display: none;
+  }
+  body {
+    background-color: white;
+  }
+  .printable-area {
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
