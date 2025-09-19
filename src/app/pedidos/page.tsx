@@ -59,7 +59,7 @@ export default function PedidosPage() {
             .map(p => ({
                 itemCode: p.id,
                 description: p.producto,
-                price: p.precioAlquilerUd,
+                price: orderType === 'Bodega' ? p.precioUd : p.precioAlquilerUd,
                 stock: 999, // Assuming infinite stock from external providers
                 imageUrl: p.imagen || `https://picsum.photos/seed/${p.id}/400/300`,
                 imageHint: p.producto.toLowerCase(),
@@ -236,6 +236,7 @@ export default function PedidosPage() {
               serviceOrder={serviceOrder}
               onAddLocation={handleAddLocation}
               existingOrderData={existingOrderData}
+              orderType={orderType}
             />
           </div>
         </div>

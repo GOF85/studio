@@ -62,7 +62,7 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType }: ItemCat
               const orderedItem = orderItems.find(oi => oi.itemCode === item.itemCode);
               const availableStock = item.stock - (orderedItem?.quantity || 0);
               return (
-                <ItemListItem key={`${item.itemCode}-${index}`} item={{...item, stock: availableStock}} onAddItem={(quantity) => onAddItem(item, quantity)} />
+                <ItemListItem key={`${item.itemCode}-${index}`} item={{...item, stock: availableStock}} onAddItem={(quantity) => onAddItem(item, quantity)} orderType={orderType} />
               )
             })}
           </div>

@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 interface ItemListItemProps {
   item: CateringItem;
   onAddItem: (quantity: number) => void;
+  orderType?: string | null;
 }
 
 function isValidHttpUrl(string: string) {
@@ -25,7 +26,7 @@ function isValidHttpUrl(string: string) {
   return url.protocol === "http:" || url.protocol === "https:";
 }
 
-export function ItemListItem({ item, onAddItem }: ItemListItemProps) {
+export function ItemListItem({ item, onAddItem, orderType }: ItemListItemProps) {
   const [quantity, setQuantity] = useState(1);
 
   const handleAddClick = () => {
@@ -56,7 +57,7 @@ export function ItemListItem({ item, onAddItem }: ItemListItemProps) {
       <div className="flex flex-col items-end gap-1">
         <p className="text-base font-semibold text-primary">
           {item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-          <span className="text-xs font-normal text-muted-foreground">/día</span>
+          {orderType !== 'Bodega' && <span className="text-xs font-normal text-muted-foreground">/día</span>}
         </p>
       </div>
       <div className="flex items-center gap-2 w-40">
