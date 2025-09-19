@@ -765,61 +765,6 @@ export default function OsPage() {
                   </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <div className="flex justify-between items-center">
-                            <CardTitle>Briefing del Evento (Pedidos de Material)</CardTitle>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        {materialOrders.length > 0 ? (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="text-xs uppercase bg-muted/50">
-                                        <tr>
-                                            <th scope="col" className="px-6 py-3">Tipo</th>
-                                            <th scope="col" className="px-6 py-3">Nº Contrato</th>
-                                            <th scope="col" className="px-6 py-3">Artículos</th>
-                                            <th scope="col" className="px-6 py-3">Días</th>
-                                            <th scope="col" className="px-6 py-3">Importe</th>
-                                            <th scope="col" className="px-6 py-3 text-right">Acciones</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {materialOrders.map(order => (
-                                            <tr key={order.id} className="border-b">
-                                                <td className="px-6 py-4 font-medium">{order.type}</td>
-                                                <td className="px-6 py-4">{order.contractNumber}</td>
-                                                <td className="px-6 py-4">{order.items.length}</td>
-                                                <td className="px-6 py-4">{order.days}</td>
-                                                <td className="px-6 py-4">{(order.total).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                                                <td className="px-6 py-4 text-right">
-                                                  <Button variant="ghost" size="icon" onClick={() => handleEditMaterialOrder(order)} disabled={order.status !== 'Asignado'}>
-                                                    <FilePenLine className="h-4 w-4" />
-                                                  </Button>
-                                                  <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteMaterialOrder(order.id)} disabled={order.status !== 'Asignado'}>
-                                                    <Trash2 className="h-4 w-4" />
-                                                  </Button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr className="font-semibold text-lg">
-                                            <td colSpan={4}></td>
-                                            <td className="px-6 py-3 text-right">Total Pedidos:</td>
-                                            <td className="px-6 py-3" colSpan={2}>{totalAmount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        ) : (
-                            <div className="text-center py-8 text-muted-foreground">
-                                <p>No hay ningún pedido de material asociado. Crea uno desde los módulos de Almacén o Bodega.</p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
               </form>
             </FormProvider>
           </main>
