@@ -141,7 +141,7 @@ export default function HieloPage() {
                             <TableRow key={order.id}>
                                 <TableCell className="font-medium">{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
                                 <TableCell>{order.proveedorNombre}</TableCell>
-                                <TableCell>{order.items.length}</TableCell>
+                                <TableCell>{order.items?.length || 0}</TableCell>
                                 <TableCell>{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                                 <TableCell>
                                 <Badge variant={statusVariant[order.status]}>
