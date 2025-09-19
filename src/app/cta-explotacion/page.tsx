@@ -277,8 +277,8 @@ export default function CtaExplotacionPage() {
                     <TableHead className="text-right py-2 px-3">% s/ Fact.</TableHead>
                     <TableHead className="text-right py-2 px-3">Cierre</TableHead>
                     <TableHead className="text-right py-2 px-3">Objetivo MC</TableHead>
-                    <TableHead className="text-right py-2 px-3">Desv. (Obj-Pres)</TableHead>
-                    <TableHead className="text-right py-2 px-3">Desv. % (Obj-Pres)</TableHead>
+                    <TableHead className="text-right py-2 px-3">Desv. €</TableHead>
+                    <TableHead className="text-right py-2 px-3">Desv. %</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -295,14 +295,14 @@ export default function CtaExplotacionPage() {
                     const pctSFact = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
                     const desviacion = row.objetivo - row.presupuesto;
                     const desviacionPct = row.presupuesto > 0 ? desviacion / row.presupuesto : 0;
-                    const isReadOnly = ['Personal Externo', 'Personal MICE', 'Coste Prueba de Menu', 'Decoración'].includes(row.label);
+                    const isReadOnly = ['Personal Externo', 'Personal MICE', 'Coste Prueba de Menu'].includes(row.label);
                     return (
                         <TableRow key={row.label}>
                             <TableCell className="py-2 px-3">{row.label}</TableCell>
                             <TableCell className="text-right py-2 px-3">{formatCurrency(row.presupuesto)}</TableCell>
                             <TableCell className={cn("text-right py-2 px-3", pctSFact > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFact)}</TableCell>
                             <TableCell className="text-right py-2 px-3">
-                                <Input type="number" step="0.01" value={row.cierre} onChange={(e) => handleCierreChange(row.label, e.target.value)} className="h-8 text-right bg-secondary/30" readOnly={isReadOnly} />
+                                <Input type="number" step="0.01" value={row.cierre} onChange={(e) => handleCierreChange(row.label, e.target.value)} className="h-8 text-right bg-secondary/30 w-20" readOnly={isReadOnly} />
                             </TableCell>
                             <TableCell className="text-right py-2 px-3">{formatCurrency(row.objetivo)}</TableCell>
                             <TableCell className={cn("text-right py-2 px-3", desviacion < 0 && "text-destructive", desviacion > 0 && "text-green-600")}>
@@ -321,7 +321,7 @@ export default function CtaExplotacionPage() {
 
           <div className="space-y-8">
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-2 py-4">
                 <CardTitle className="flex items-center gap-2"><Target /> Objetivos de Gasto</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
