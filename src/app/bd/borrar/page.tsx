@@ -17,7 +17,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Trash2 } from 'lucide-react';
 
-type DatabaseKey = 'personal' | 'espacios' | 'precios' | 'gastronomiaDB' | 'alquilerDB' | 'tipoServicio' | 'proveedoresTransporte';
+type DatabaseKey = 'personal' | 'espacios' | 'precios' | 'gastronomiaDB' | 'alquilerDB' | 'tipoServicio' | 'proveedoresTransporte' | 'proveedorHielo';
 
 const DATABASES: { key: DatabaseKey; name: string; description: string }[] = [
     { key: 'personal', name: 'Personal', description: 'Contiene todos los empleados y contactos.' },
@@ -27,6 +27,7 @@ const DATABASES: { key: DatabaseKey; name: string; description: string }[] = [
     { key: 'alquilerDB', name: 'Alquiler', description: 'Contiene los artículos de alquiler de proveedores.' },
     { key: 'tipoServicio', name: 'Tipo Servicio', description: 'Contiene los diferentes tipos de servicio para los eventos.' },
     { key: 'proveedoresTransporte', name: 'Proveedores de Transporte', description: 'Contiene los proveedores de transporte.' },
+    { key: 'proveedorHielo', name: 'Proveedores de Hielo', description: 'Contiene los proveedores de hielo.' },
 ];
 
 export default function BorrarBdPage() {

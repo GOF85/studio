@@ -188,3 +188,23 @@ export type TransporteOrder = {
     status: 'Pendiente' | 'Confirmado' | 'En Ruta' | 'Finalizado';
 }
     
+export type ProveedorHielo = {
+    id: string;
+    nombreProveedor: string;
+    producto: string;
+    precio: number;
+}
+
+export type HieloOrder = {
+    id: string;
+    osId: string;
+    fecha: string;
+    proveedorId: string;
+    proveedorNombre: string;
+    producto: string;
+    precio: number;
+    cantidad: number;
+    total: number;
+    observaciones: string;
+    status: 'Pendiente' | 'Confirmado' | 'En reparto' | 'Entregado';
+}
