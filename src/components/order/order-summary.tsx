@@ -77,6 +77,8 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const [newLocation, setNewLocation] = useState('');
   const { toast } = useToast();
 
+  const isRental = orderType !== 'Bodega' && orderType !== 'Bio';
+
   useEffect(() => {
     if (isEditing && existingOrderData) {
         setRentalDays(existingOrderData.days || 1);
@@ -97,7 +99,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
     return items.reduce((acc, item) => acc + item.price * item.quantity, 0);
   }, [items]);
 
-  const itemsTotal = subtotal * (orderType === 'Bodega' ? 1 : rentalDays);
+  const itemsTotal = subtotal * (isRental ? rentalDays : 1);
   const total = itemsTotal;
 
   const handleAddNewLocation = () => {
@@ -116,7 +118,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
     }
     onSubmitOrder({
       items,
-      days: orderType === 'Bodega' ? 1 : rentalDays,
+      days: isRental ? rentalDays : 1,
       total,
       contractNumber,
       deliveryDate: deliveryDate ? format(deliveryDate, "yyyy-MM-dd") : undefined,
@@ -158,7 +160,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                       <p className="font-medium leading-tight">{item.description}</p>
                       <p className="text-sm text-muted-foreground">
                         {item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                        {orderType !== 'Bodega' && '/día'}
+                        {isRental && '/día'}
                         </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -175,7 +177,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
       {items.length > 0 && (
           <div className="flex-grow-0 flex-shrink-0 p-6 pt-0">
             <Separator className="my-4" />
-            {orderType !== 'Bodega' && (
+            {isRental && (
               <>
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
@@ -198,7 +200,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                 <span>Subtotal ({items.length} artículos):</span>
                 <span>{subtotal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
               </div>
-              {orderType !== 'Bodega' &&
+              {isRental &&
                 <div className="flex justify-between">
                   <span>Días de alquiler:</span>
                   <span>x{rentalDays}</span>
@@ -237,7 +239,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                 <Separator />
                 <div className="space-y-1 text-sm">
                     <div className="flex justify-between"><span>Subtotal:</span> <span>{subtotal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></div>
-                    {orderType !== 'Bodega' && 
+                    {isRental && 
                       <div className="flex justify-between"><span>Días de alquiler:</span> <span>x{rentalDays}</span></div>
                     }
                     <div className="flex justify-between font-bold text-base pt-2"><span>Total Pedido:</span> <span>{total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></div>

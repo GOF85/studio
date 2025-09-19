@@ -57,7 +57,7 @@ export function ItemListItem({ item, onAddItem, orderType }: ItemListItemProps) 
       <div className="flex flex-col items-end gap-1">
         <p className="text-base font-semibold text-primary">
           {item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-          {orderType !== 'Bodega' && <span className="text-xs font-normal text-muted-foreground">/día</span>}
+          {(orderType !== 'Bodega' && orderType !== 'Bio') && <span className="text-xs font-normal text-muted-foreground">/día</span>}
         </p>
       </div>
       <div className="flex items-center gap-2 w-40">
