@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, Users, Phone, Building } from 'lucide-react';
-import type { PersonalMiceOrder, ServiceOrder } from '@/types';
+import type { PersonalMiceOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,9 +32,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { differenceInMinutes, parse } from 'date-fns';
+import { differenceInMinutes, parse, format } from 'date-fns';
+import { Separator } from '@/components/ui/separator';
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
@@ -53,6 +54,8 @@ const calculateHours = (start: string, end: string) => {
 export default function PersonalMicePage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [personalMiceOrders, setPersonalMiceOrders] = useState<PersonalMiceOrder[]>([]);
+  const [spaceAddress, setSpaceAddress] = useState<string>('');
+  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   
@@ -66,6 +69,16 @@ export default function PersonalMicePage() {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allServiceOrders.find(os => os.id === osId);
       setServiceOrder(currentOS || null);
+
+      if (currentOS?.space) {
+        const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
+        const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
+        setSpaceAddress(currentSpace?.calle || '');
+      }
+
+      const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+      const currentBriefing = allBriefings.find(b => b.osId === osId);
+      setBriefingItems(currentBriefing?.items || []);
 
       const allOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
       const relatedOrders = allOrders.filter(order => order.osId === osId);
@@ -111,7 +124,14 @@ export default function PersonalMicePage() {
                     Volver a la OS
                 </Button>
                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Módulo de Personal MICE</h1>
-                <p className="text-muted-foreground mt-2">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
+                <div className="text-muted-foreground mt-2 space-y-1">
+                  <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
+                  {serviceOrder.space && (
+                    <p className="flex items-center gap-2">
+                      <Building className="h-3 w-3" /> {serviceOrder.space} {spaceAddress && `(${spaceAddress})`}
+                    </p>
+                  )}
+                </div>
             </div>
           <Button asChild>
             <Link href={`/personal-mice/asignacion?osId=${osId}`}>
@@ -120,6 +140,35 @@ export default function PersonalMicePage() {
             </Link>
           </Button>
         </div>
+        
+        {briefingItems.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Servicios del Evento</CardTitle>
+              <CardDescription>Resumen de los servicios planificados en el briefing comercial.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Descripción</TableHead>
+                    <TableHead>Asistentes</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {briefingItems.map(item => (
+                    <TableRow key={item.id}>
+                      <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}-{item.horaFin}</TableCell>
+                      <TableCell>{item.descripcion}</TableCell>
+                      <TableCell>{item.asistentes}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
             <CardHeader><CardTitle>Personal Asignado</CardTitle></CardHeader>
