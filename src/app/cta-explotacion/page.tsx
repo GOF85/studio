@@ -60,40 +60,39 @@ export default function CtaExplotacionPage() {
   const osId = searchParams.get('osId');
   const { toast } = useToast();
 
-  const [isMounted, setIsMounted] = useState(false);
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [objetivosPlantillas, setObjetivosPlantillas] = useState<ObjetivosGasto[]>([]);
-  const [objetivos, setObjetivos] = useState<CtaExplotacionObjetivos>({
-    gastronomia: 0, bodega: 0, consumibles: 0, hielo: 0, almacen: 0, alquiler: 0, transporte: 0,
-    decoracion: 0, atipicos: 0, personalMice: 0, personalExterno: 0, costePruebaMenu: 0,
-  });
-  
-  const [costes, setCostes] = useState<Omit<CostRow, 'objetivo' | 'objetivo_pct'>[]>([]);
-  const [facturacionNeta, setFacturacionNeta] = useState(0);
+  const [ctaData, setCtaData] = useState<{
+    serviceOrder: ServiceOrder | null;
+    objetivosPlantillas: ObjetivosGasto[];
+    objetivos: CtaExplotacionObjetivos;
+    costes: Omit<CostRow, 'objetivo' | 'objetivo_pct'>[];
+    facturacionNeta: number;
+  } | null>(null);
 
   const loadData = useCallback(() => {
     if (!osId) return;
 
     const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
-    setServiceOrder(currentOS || null);
+    const currentOS = allServiceOrders.find(os => os.id === osId) || null;
 
     const storedPlantillas = JSON.parse(localStorage.getItem('objetivosGastoPlantillas') || '[]') as ObjetivosGasto[];
-    setObjetivosPlantillas(storedPlantillas);
+    
+    let appliedObjetivos: ObjetivosGasto = {
+        gastronomia: 0, bodega: 0, consumibles: 0, hielo: 0, almacen: 0, alquiler: 0, transporte: 0,
+        decoracion: 0, atipicos: 0, personalMice: 0, personalExterno: 0, costePruebaMenu: 0,
+    };
     
     if (currentOS?.objetivoGastoId) {
         const plantilla = storedPlantillas.find(p => p.id === currentOS.objetivoGastoId);
         if (plantilla) {
-            setObjetivos(plantilla);
+            appliedObjetivos = plantilla;
         }
     } else if (storedPlantillas.length > 0) {
-        setObjetivos(storedPlantillas[0]);
+        appliedObjetivos = storedPlantillas[0];
         if (currentOS) {
           const osIndex = allServiceOrders.findIndex(os => os.id === osId);
           if (osIndex !== -1) {
             allServiceOrders[osIndex] = { ...allServiceOrders[osIndex], objetivoGastoId: storedPlantillas[0].id };
             localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
-            setServiceOrder(allServiceOrders[osIndex]);
           }
         }
     }
@@ -103,7 +102,6 @@ export default function CtaExplotacionPage() {
     const totalBriefing = currentBriefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario), 0) || 0;
     const totalPercentage = (currentOS?.agencyPercentage || 0) + (currentOS?.spacePercentage || 0);
     const netRevenue = totalBriefing * (1 - totalPercentage / 100);
-    setFacturacionNeta(netRevenue);
 
     const getModuleTotal = (orders: {total?: number, precio?: number}[]) => orders.reduce((sum, order) => sum + (order.total ?? order.precio ?? 0), 0);
     
@@ -161,7 +159,14 @@ export default function CtaExplotacionPage() {
       { label: 'Personal Externo', presupuesto: calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)), cierre: personalExternoCierre },
       { label: 'Coste Prueba de Menu', presupuesto: costePruebaTotal, cierre: costePruebaTotal },
     ];
-    setCostes(newCostes);
+    
+    setCtaData({
+        serviceOrder: currentOS,
+        objetivosPlantillas: storedPlantillas,
+        objetivos: appliedObjetivos,
+        costes: newCostes,
+        facturacionNeta: netRevenue,
+    });
   }, [osId]);
 
   useEffect(() => {
@@ -171,21 +176,20 @@ export default function CtaExplotacionPage() {
       toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
       router.push('/pes');
     }
-    setIsMounted(true);
   }, [osId, router, toast, loadData]);
-
+  
   const handleObjetivoChange = (plantillaId: string) => {
-    if (!osId || !serviceOrder) return;
-    const plantilla = objetivosPlantillas.find(p => p.id === plantillaId);
+    if (!osId || !ctaData?.serviceOrder || !ctaData) return;
+    const plantilla = ctaData.objetivosPlantillas.find(p => p.id === plantillaId);
     if(plantilla) {
-        setObjetivos(plantilla);
+        setCtaData(prev => prev ? {...prev, objetivos: plantilla} : null);
 
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const osIndex = allServiceOrders.findIndex(os => os.id === osId);
         if (osIndex !== -1) {
             allServiceOrders[osIndex] = { ...allServiceOrders[osIndex], objetivoGastoId: plantillaId };
             localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
-            setServiceOrder(allServiceOrders[osIndex]);
+            setCtaData(prev => prev ? {...prev, serviceOrder: allServiceOrders[osIndex]} : null);
             toast({ title: 'Plantilla aplicada', description: `Se ha aplicado la plantilla "${plantilla.name}".`});
         }
     }
@@ -193,11 +197,18 @@ export default function CtaExplotacionPage() {
   
   const handleCierreChange = (label: string, value: string) => {
      const numericValue = parseFloat(value) || 0;
-     setCostes(prevCostes => prevCostes.map(c => c.label === label ? {...c, cierre: numericValue} : c));
+     setCtaData(prev => {
+         if (!prev) return null;
+         return {
+             ...prev,
+             costes: prev.costes.map(c => c.label === label ? {...c, cierre: numericValue} : c)
+         }
+     });
   }
   
   const processedCostes: CostRow[] = useMemo(() => {
-    return costes.map(coste => {
+    if (!ctaData) return [];
+    return ctaData.costes.map(coste => {
         const keyMap: {[key: string]: keyof CtaExplotacionObjetivos} = {
             'Gastronomía': 'gastronomia', 'Bodega': 'bodega', 'Consumibles (Bio)': 'consumibles', 'Hielo': 'hielo',
             'Almacén': 'almacen', 'Alquiler material': 'alquiler', 'Transporte': 'transporte', 'Decoración': 'decoracion',
@@ -205,14 +216,14 @@ export default function CtaExplotacionPage() {
             'Coste Prueba de Menu': 'costePruebaMenu'
         }
         const objKey = keyMap[coste.label];
-        const objetivo_pct = (objKey && objetivos[objKey] / 100) || 0;
+        const objetivo_pct = (objKey && ctaData.objetivos[objKey] / 100) || 0;
         return {
             ...coste,
-            objetivo: facturacionNeta * objetivo_pct,
+            objetivo: ctaData.facturacionNeta * objetivo_pct,
             objetivo_pct: objetivo_pct,
         }
     });
-  }, [costes, objetivos, facturacionNeta]);
+  }, [ctaData]);
   
   const totals = useMemo(() => {
     const totalPresupuesto = processedCostes.reduce((sum, row) => sum + row.presupuesto, 0);
@@ -221,12 +232,18 @@ export default function CtaExplotacionPage() {
     return { totalPresupuesto, totalCierre, totalObjetivo };
   }, [processedCostes]);
 
+  if (!ctaData) {
+    return <LoadingSkeleton title="Cargando Cuenta de Explotación..." />;
+  }
+  
+  const { serviceOrder, facturacionNeta, objetivos, objetivosPlantillas } = ctaData;
+
   const rentabilidad = facturacionNeta - totals.totalPresupuesto;
   const ingresosAsistente = serviceOrder?.asistentes ? facturacionNeta / serviceOrder.asistentes : 0;
   const repercusionHQ = rentabilidad * 0.25;
   const rentabilidadPostHQ = rentabilidad - repercusionHQ;
 
-  if (!isMounted || !serviceOrder) {
+  if (!serviceOrder) {
     return <LoadingSkeleton title="Cargando Cuenta de Explotación..." />;
   }
 
@@ -304,9 +321,8 @@ export default function CtaExplotacionPage() {
 
           <div className="space-y-8">
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2"><Target /> Objetivos de Gasto</CardTitle>
-                <CardDescription>Selecciona una plantilla de objetivos para este evento.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                  <Select onValueChange={handleObjetivoChange} value={serviceOrder.objetivoGastoId}>
@@ -323,7 +339,7 @@ export default function CtaExplotacionPage() {
                         return (
                             <div key={key} className="flex justify-between">
                                 <span className="font-medium">{labels[objKey]}:</span>
-                                <span>{(objetivos[objKey] || 0).toFixed(2)}%</span>
+                                <span>{((objetivos as any)[objKey] || 0).toFixed(2)}%</span>
                             </div>
                         )
                     })}
