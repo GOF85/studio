@@ -1,5 +1,6 @@
 
 
+
 import type { OsFormValues } from "@/app/os/page";
 
 export type CateringItem = {
@@ -34,10 +35,11 @@ export type MaterialOrder = {
 };
 
 // We need to allow string dates because they come from localStorage
-export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate'> & {
+export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate' | 'asistentes'> & {
     id: string;
     startDate: string; 
     endDate: string;
+    asistentes: number;
     deliveryLocations?: string[];
 };
 
@@ -259,9 +261,8 @@ export type DecoracionOrder = {
     osId: string;
     fecha: string;
     concepto: string;
-    observaciones: string;
+    observaciones?: string;
     precio: number;
-    status: 'Pendiente' | 'Aprobado' | 'Rechazado';
 };
 
 export type PersonalMiceOrder = {

@@ -12,9 +12,8 @@ import { ArrowLeft, Save, Flower2, Calendar as CalendarIcon, Loader2, X } from '
 import type { ServiceOrder, DecoracionDBItem, DecoracionOrder } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -24,15 +23,13 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { cn } from '@/lib/utils';
 import { Combobox } from '@/components/ui/combobox';
 
-const statusOptions: DecoracionOrder['status'][] = ['Pendiente', 'Aprobado', 'Rechazado'];
 
 const decoracionOrderSchema = z.object({
   id: z.string(),
   fecha: z.date({ required_error: 'La fecha es obligatoria.' }),
   concepto: z.string().min(1, 'El concepto es obligatorio'),
-  observaciones: z.string().optional(),
   precio: z.coerce.number().min(0.01, 'El precio debe ser mayor que cero'),
-  status: z.enum(statusOptions).default('Pendiente'),
+  observaciones: z.string().optional(),
 });
 
 type DecoracionOrderFormValues = z.infer<typeof decoracionOrderSchema>;
@@ -78,7 +75,6 @@ export default function PedidoDecoracionPage() {
       form.reset({
         id: Date.now().toString(),
         fecha: currentOS?.startDate ? new Date(currentOS.startDate) : new Date(),
-        status: 'Pendiente',
         precio: 0,
         concepto: '',
         observaciones: '',
@@ -224,25 +220,17 @@ export default function PedidoDecoracionPage() {
                                 </FormItem>
                             )} />
                         </div>
-                        <FormField control={form.control} name="observaciones" render={({ field }) => (
-                            <FormItem>
+                        
+                    </CardContent>
+                    <CardFooter>
+                         <FormField control={form.control} name="observaciones" render={({ field }) => (
+                            <FormItem className="w-full">
                             <FormLabel>Observaciones</FormLabel>
                             <FormControl><Textarea {...field} rows={4} /></FormControl>
                             <FormMessage />
                             </FormItem>
                         )} />
-                        <FormField control={form.control} name="status" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Estado</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger className="w-[180px]"><SelectValue placeholder="Estado..." /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        {statusOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </FormItem>
-                        )} />
-                    </CardContent>
+                    </CardFooter>
                 </Card>
             </form>
         </Form>

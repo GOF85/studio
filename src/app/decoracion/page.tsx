@@ -22,7 +22,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -38,11 +37,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
-const statusVariant: { [key in DecoracionOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
-  Pendiente: 'secondary',
-  Aprobado: 'default',
-  Rechazado: 'destructive',
-};
 
 export default function DecoracionPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
@@ -122,7 +116,6 @@ export default function DecoracionPage() {
                             <TableHead>Fecha</TableHead>
                             <TableHead>Concepto</TableHead>
                             <TableHead>Importe</TableHead>
-                            <TableHead>Estado</TableHead>
                             <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                         </TableHeader>
@@ -133,11 +126,6 @@ export default function DecoracionPage() {
                                 <TableCell className="font-medium">{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
                                 <TableCell>{order.concepto}</TableCell>
                                 <TableCell>{order.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                                <TableCell>
-                                <Badge variant={statusVariant[order.status]}>
-                                    {order.status}
-                                </Badge>
-                                </TableCell>
                                 <TableCell className="text-right">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -162,7 +150,7 @@ export default function DecoracionPage() {
                             ))
                         ) : (
                             <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center">
+                            <TableCell colSpan={4} className="h-24 text-center">
                                 No hay gastos de decoración para esta Orden de Servicio.
                             </TableCell>
                             </TableRow>
