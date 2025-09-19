@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2 } from 'lucide-react';
+import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2, X } from 'lucide-react';
 import type { PersonalMiceOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem, Personal } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -117,7 +117,7 @@ export default function PersonalMicePage() {
     defaultValues: { personal: [] },
   });
 
-  const { fields, append, remove, setValue } = useFieldArray({
+  const { fields, append, remove, setValue, control } = useFieldArray({
     control: form.control,
     name: "personal",
   });
@@ -143,33 +143,39 @@ export default function PersonalMicePage() {
   }, [watchedFields]);
 
   useEffect(() => {
-    if (osId) {
-      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allServiceOrders.find(os => os.id === osId);
-      setServiceOrder(currentOS || null);
-
-      if (currentOS?.space) {
-        const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-        const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
-        setSpaceAddress(currentSpace?.calle || '');
-      }
-
-      const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-      const currentBriefing = allBriefings.find(b => b.osId === osId);
-      setBriefingItems(currentBriefing?.items || []);
-
-      const allOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
-      const relatedOrders = allOrders.filter(order => order.osId === osId);
-      form.reset({ personal: relatedOrders });
-
-      const dbPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
-      setPersonalDB(dbPersonal);
-    } else {
+    if (!osId) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
         router.push('/pes');
+        return;
     }
-    setIsMounted(true);
-  }, [osId, router, toast, form.reset]);
+
+    try {
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const currentOS = allServiceOrders.find(os => os.id === osId);
+        setServiceOrder(currentOS || null);
+
+        if (currentOS?.space) {
+            const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
+            const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
+            setSpaceAddress(currentSpace?.calle || '');
+        }
+
+        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+        const currentBriefing = allBriefings.find(b => b.osId === osId);
+        setBriefingItems(currentBriefing?.items || []);
+
+        const allOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
+        const relatedOrders = allOrders.filter(order => order.osId === osId);
+        form.reset({ personal: relatedOrders });
+
+        const dbPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+        setPersonalDB(dbPersonal);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos.' });
+    } finally {
+        setIsMounted(true);
+    }
+  }, [osId, router, toast, form]);
 
  const onSubmit = (data: PersonalMiceFormValues) => {
     setIsLoading(true);
@@ -321,7 +327,7 @@ export default function PersonalMicePage() {
                                     <TableRow key={field.id}>
                                         <TableCell>
                                             <FormField
-                                                control={form.control}
+                                                control={control}
                                                 name={`personal.${index}.centroCoste`}
                                                 render={({ field }) => (
                                                     <FormItem>
@@ -335,7 +341,7 @@ export default function PersonalMicePage() {
                                         </TableCell>
                                         <TableCell>
                                             <FormField
-                                                control={form.control}
+                                                control={control}
                                                 name={`personal.${index}.nombre`}
                                                 render={({ field }) => (
                                                 <FormItem>
@@ -351,7 +357,7 @@ export default function PersonalMicePage() {
                                         </TableCell>
                                         <TableCell>
                                              <FormField
-                                                control={form.control}
+                                                control={control}
                                                 name={`personal.${index}.tipoServicio`}
                                                 render={({ field }) => (
                                                     <FormItem>
@@ -365,26 +371,26 @@ export default function PersonalMicePage() {
                                         </TableCell>
                                         <TableCell>
                                             <FormField
-                                                control={form.control}
+                                                control={control}
                                                 name={`personal.${index}.horaEntrada`}
                                                 render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-28" /></FormControl></FormItem>}
                                             />
                                         </TableCell>
                                         <TableCell>
                                             <FormField
-                                                control={form.control}
+                                                control={control}
                                                 name={`personal.${index}.horaSalida`}
                                                 render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-28" /></FormControl></FormItem>}
                                             />
                                         </TableCell>
                                         <TableCell>
                                              <FormField
-                                                control={form.control}
+                                                control={control}
                                                 name={`personal.${index}.precioHora`}
                                                 render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-24"/></FormControl></FormItem>}
                                             />
                                         </TableCell>
-                                        <RowCalculations control={form.control} index={index} />
+                                        <RowCalculations control={control} index={index} />
                                         <TableCell className="text-right">
                                             <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
                                                 <Trash2 className="h-4 w-4" />
