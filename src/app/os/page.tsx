@@ -10,9 +10,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2 } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck } from 'lucide-react';
 
-import type { OrderItem, ServiceOrder, MaterialOrder, Personal, Espacio } from '@/types';
+import type { OrderItem, ServiceOrder, MaterialOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -181,6 +181,12 @@ export default function OsPage() {
 
   const [personal, setPersonal] = useState<Personal[]>([]);
   const [espacios, setEspacios] = useState<Espacio[]>([]);
+  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
+
+  const hasPruebaDeMenu = useMemo(() => {
+    return briefingItems.some(item => item.descripcion.toLowerCase() === 'prueba de menu');
+  }, [briefingItems]);
+
   const personalSala = useMemo(() => personal.filter(p => p.departamento === 'SALA' && p.nombre), [personal]);
   const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR' && p.nombre), [personal]);
   const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'COMERCIAL' && p.nombre), [personal]);
@@ -253,6 +259,10 @@ export default function OsPage() {
             endDate: new Date(currentOS.endDate),
         }
         form.reset(values);
+
+        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+        const currentBriefing = allBriefings.find(b => b.osId === osId);
+        setBriefingItems(currentBriefing?.items || []);
         
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
@@ -353,6 +363,14 @@ export default function OsPage() {
                     <span className="font-medium">Comercial</span>
                   </Link>
               </Button>
+               {hasPruebaDeMenu && (
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+                  <Link href={osId ? `/prueba-menu?osId=${osId}` : '#'}>
+                    <ClipboardCheck className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium">Prueba de Menú</span>
+                  </Link>
+                </Button>
+               )}
                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
                   <Link href={osId ? `/gastronomia?osId=${osId}` : '#'}>
                     <Utensils className="mr-3 h-5 w-5 flex-shrink-0" />

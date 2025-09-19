@@ -295,3 +295,16 @@ export type PersonalExternoOrder = {
     horaEntradaReal?: string;
     horaSalidaReal?: string;
 };
+
+export type PruebaMenuItem = {
+    id: string;
+    type: 'header' | 'item';
+    referencia: string;
+    observaciones: string;
+    mainCategory: 'BODEGA' | 'GASTRONOMÍA';
+};
+
+export type PruebaMenuData = {
+    osId: string;
+    items: PruebaMenuItem[];
+}
