@@ -39,6 +39,21 @@ const calculateHours = (start?: string, end?: string) => {
     }
 }
 
+const labels: Record<keyof Omit<ObjetivosGasto, 'id' | 'name'>, string> = {
+    gastronomia: 'Gastronomía',
+    bodega: 'Bodega',
+    consumibles: 'Consumibles (Bio)',
+    hielo: 'Hielo',
+    almacen: 'Almacén',
+    alquiler: 'Alquiler material',
+    transporte: 'Transporte',
+    decoracion: 'Decoración',
+    atipicos: 'Atípicos',
+    personalMice: 'Personal MICE',
+    personalExterno: 'Personal Externo',
+    costePruebaMenu: 'Coste Prueba de Menu',
+}
+
 export default function CtaExplotacionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -71,6 +86,16 @@ export default function CtaExplotacionPage() {
         if (plantilla) {
             setObjetivos(plantilla);
         }
+    } else if (storedPlantillas.length > 0) {
+        setObjetivos(storedPlantillas[0]);
+        if (currentOS) {
+          const osIndex = allServiceOrders.findIndex(os => os.id === osId);
+          if (osIndex !== -1) {
+            allServiceOrders[osIndex] = { ...allServiceOrders[osIndex], objetivoGastoId: storedPlantillas[0].id };
+            localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
+            setServiceOrder(allServiceOrders[osIndex]);
+          }
+        }
     }
 
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
@@ -82,11 +107,12 @@ export default function CtaExplotacionPage() {
 
     const getModuleTotal = (orders: {total?: number, precio?: number}[]) => orders.reduce((sum, order) => sum + (order.total ?? order.precio ?? 0), 0);
     
-    const calculatePersonalTotal = (orders: {precioHora: number; horaEntrada: string; horaSalida: string; cantidad?: number}[]) => {
+    const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: string; horaSalida: string; cantidad?: number}[]) => {
         return orders.reduce((sum, order) => {
             const hours = calculateHours(order.horaEntrada, order.horaSalida);
             const quantity = order.cantidad || 1;
-            return sum + (hours * order.precioHora * quantity);
+            const price = order.precioHora || 0;
+            return sum + (hours * price * quantity);
         }, 0);
     }
     
@@ -291,9 +317,17 @@ export default function CtaExplotacionPage() {
                         {objetivosPlantillas.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
-                 <Button variant="outline" size="sm" className="w-full" asChild>
-                    <Link href="/objetivos-gasto"><Settings className="mr-2"/>Gestionar plantillas</Link>
-                </Button>
+                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-muted-foreground p-3 border rounded-md">
+                    {Object.keys(labels).map((key) => {
+                        const objKey = key as keyof typeof labels;
+                        return (
+                            <div key={key} className="flex justify-between">
+                                <span className="font-medium">{labels[objKey]}:</span>
+                                <span>{(objetivos[objKey] || 0).toFixed(2)}%</span>
+                            </div>
+                        )
+                    })}
+                </div>
               </CardContent>
             </Card>
 
