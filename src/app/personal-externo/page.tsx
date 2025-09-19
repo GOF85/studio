@@ -250,8 +250,11 @@ export default function PersonalExternoPage() {
   };
 
   const providerOptions = useMemo(() => {
-    return proveedoresDB.map(p => ({ label: `${p.nombreProveedor} - ${p.categoria}`, value: p.id }));
-  }, [proveedoresDB]);
+    return proveedoresDB
+        .filter(p => p.nombreProveedor) // Filter out items with empty or null provider names
+        .map(p => ({ label: `${p.nombreProveedor} - ${p.categoria}`, value: p.id }));
+}, [proveedoresDB]);
+
   
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -355,169 +358,168 @@ export default function PersonalExternoPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="border rounded-lg overflow-x-auto">
-                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-10 px-1 py-2"></TableHead>
-                                        <TableHead className="px-2 py-2">Fecha</TableHead>
-                                        <TableHead className="px-2 py-2">Centro Coste</TableHead>
-                                        <TableHead className="px-2 py-2 min-w-48">Proveedor - Categoría</TableHead>
-                                        <TableHead className="px-1 py-2 text-center">Cant.</TableHead>
-                                        <TableHead className="px-2 py-2">Tipo Servicio</TableHead>
-                                        <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
-                                        <TableHead colSpan={2} className="text-center border-r px-2 py-2">Real</TableHead>
-                                        <TableHead className="text-right px-2 py-2">Acción</TableHead>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableHead className="px-1 py-2"></TableHead>
-                                        <TableHead className="px-2 py-2"></TableHead>
-                                        <TableHead className="px-2 py-2"></TableHead>
-                                        <TableHead className="px-2 py-2"></TableHead>
-                                        <TableHead className="px-1 py-2"></TableHead>
-                                        <TableHead className="px-2 py-2"></TableHead>
-                                        <TableHead className="border-l px-1 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
-                                        <TableHead className="px-1 py-2 bg-muted/30 w-24">H. Salida</TableHead>
-                                        <TableHead className="border-r px-1 py-2 bg-muted/30 w-20">€/Hora</TableHead>
-                                        <TableHead className="px-1 py-2 w-24">H. Entrada</TableHead>
-                                        <TableHead className="border-r px-1 py-2 w-24">H. Salida</TableHead>
-                                        <TableHead className="px-2 py-2"></TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-10 px-1 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2">Fecha</TableHead>
+                                    <TableHead className="px-2 py-2">Centro Coste</TableHead>
+                                    <TableHead className="px-2 py-2 min-w-48">Proveedor - Categoría</TableHead>
+                                    <TableHead className="px-1 py-2 text-center">Cant.</TableHead>
+                                    <TableHead className="px-2 py-2">Tipo Servicio</TableHead>
+                                    <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
+                                    <TableHead colSpan={2} className="text-center border-r px-2 py-2">Real</TableHead>
+                                    <TableHead className="text-right px-2 py-2">Acción</TableHead>
+                                </TableRow>
+                                <TableRow>
+                                    <TableHead className="px-1 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="px-1 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="border-l px-1 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
+                                    <TableHead className="px-1 py-2 bg-muted/30 w-24">H. Salida</TableHead>
+                                    <TableHead className="border-r px-1 py-2 bg-muted/30 w-20">€/Hora</TableHead>
+                                    <TableHead className="px-1 py-2 w-24">H. Entrada</TableHead>
+                                    <TableHead className="border-r px-1 py-2 w-24">H. Salida</TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                 <SortableContext items={fields} strategy={verticalListSortingStrategy}>
-                                    <TableBody>
-                                    {fields.length > 0 ? (
-                                        fields.map((field, index) => (
-                                           <SortableItem key={field.id} id={field.id}>
-                                                 <TableCell className="px-1 py-1 align-middle">
-                                                    <Button variant="ghost" size="icon" className="cursor-grab h-9 w-9" {...field.dragHandleProps}>
-                                                        <GripVertical className="h-5 w-5 text-muted-foreground" />
-                                                    </Button>
-                                                </TableCell>
-                                                <TableCell className="px-2 py-1">
-                                                    <FormField control={control} name={`personal.${index}.fecha`} render={({ field }) => (
+                                <TableBody>
+                                {fields.length > 0 ? (
+                                    fields.map((field, index) => (
+                                       <SortableItem key={field.id} id={field.id}>
+                                             <TableCell className="px-1 py-1 align-middle">
+                                                <Button variant="ghost" size="icon" className="cursor-grab h-9 w-9" {...attributes} {...listeners}>
+                                                    <GripVertical className="h-5 w-5 text-muted-foreground" />
+                                                </Button>
+                                            </TableCell>
+                                            <TableCell className="px-2 py-1">
+                                                <FormField control={control} name={`personal.${index}.fecha`} render={({ field }) => (
+                                                    <FormItem>
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <FormControl>
+                                                                    <Button variant={"outline"} className={cn("w-32 h-9 pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                                        {field.value ? format(field.value, "dd/MM/yy") : <span>Elige</span>}
+                                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                    </Button>
+                                                                </FormControl>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-auto p-0" align="start">
+                                                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    </FormItem>
+                                                )} />
+                                            </TableCell>
+                                            <TableCell className="px-2 py-1">
+                                                <FormField
+                                                    control={control}
+                                                    name={`personal.${index}.centroCoste`}
+                                                    render={({ field }) => (
                                                         <FormItem>
-                                                            <Popover>
-                                                                <PopoverTrigger asChild>
-                                                                    <FormControl>
-                                                                        <Button variant={"outline"} className={cn("w-32 h-9 pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                                            {field.value ? format(field.value, "dd/MM/yy") : <span>Elige</span>}
-                                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                                        </Button>
-                                                                    </FormControl>
-                                                                </PopoverTrigger>
-                                                                <PopoverContent className="w-auto p-0" align="start">
-                                                                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
-                                                                </PopoverContent>
-                                                            </Popover>
+                                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                                <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
+                                                                <SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                                                            </Select>
                                                         </FormItem>
-                                                    )} />
-                                                </TableCell>
-                                                <TableCell className="px-2 py-1">
-                                                    <FormField
-                                                        control={control}
-                                                        name={`personal.${index}.centroCoste`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <Select onValueChange={field.onChange} value={field.value}>
-                                                                    <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
-                                                                    <SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                                                                </Select>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="px-2 py-1 min-w-48">
-                                                     <FormField
-                                                        control={control}
-                                                        name={`personal.${index}.proveedorId`}
-                                                        render={({ field }) => (
+                                                    )}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="px-2 py-1 min-w-48">
+                                                 <FormField
+                                                    control={control}
+                                                    name={`personal.${index}.proveedorId`}
+                                                    render={({ field }) => (
+                                                    <FormItem>
+                                                        <Combobox
+                                                            options={providerOptions}
+                                                            value={field.value}
+                                                            onChange={(value) => handleProviderChange(index, value)}
+                                                            placeholder="Proveedor..."
+                                                        />
+                                                    </FormItem>
+                                                    )}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="px-1 py-1">
+                                                  <FormField
+                                                    control={control}
+                                                    name={`personal.${index}.cantidad`}
+                                                    render={({ field }) => <FormItem><FormControl><Input type="number" min="1" {...field} className="w-16 h-9 text-center"/></FormControl></FormItem>}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="px-2 py-1">
+                                                <FormField
+                                                    control={control}
+                                                    name={`personal.${index}.tipoServicio`}
+                                                    render={({ field }) => (
                                                         <FormItem>
-                                                            <Combobox
-                                                                options={providerOptions}
-                                                                value={field.value}
-                                                                onChange={(value) => handleProviderChange(index, value)}
-                                                                placeholder="Proveedor..."
-                                                            />
+                                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                                <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
+                                                                <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                                                            </Select>
                                                         </FormItem>
-                                                        )}
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="px-1 py-1">
-                                                      <FormField
-                                                        control={control}
-                                                        name={`personal.${index}.cantidad`}
-                                                        render={({ field }) => <FormItem><FormControl><Input type="number" min="1" {...field} className="w-16 h-9 text-center"/></FormControl></FormItem>}
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="px-2 py-1">
-                                                    <FormField
-                                                        control={control}
-                                                        name={`personal.${index}.tipoServicio`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <Select onValueChange={field.onChange} value={field.value}>
-                                                                    <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
-                                                                    <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                                                                </Select>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="border-l px-1 py-1 bg-muted/30">
-                                                    <FormField
-                                                        control={control}
-                                                        name={`personal.${index}.horaEntrada`}
-                                                        render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="px-1 py-1 bg-muted/30">
-                                                    <FormField
-                                                        control={control}
-                                                        name={`personal.${index}.horaSalida`}
-                                                        render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="border-r px-1 py-1 bg-muted/30">
-                                                    <FormField
-                                                        control={control}
-                                                        name={`personal.${index}.precioHora`}
-                                                        render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20 h-9" readOnly /></FormControl></FormItem>}
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="px-1 py-1">
-                                                    <FormField
-                                                        control={control}
-                                                        name={`personal.${index}.horaEntradaReal`}
-                                                        render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="border-r px-1 py-1">
-                                                    <FormField
-                                                        control={control}
-                                                        name={`personal.${index}.horaSalidaReal`}
-                                                        render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="text-right px-2 py-1">
-                                                    <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </TableCell>
-                                            </SortableItem>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                        <TableCell colSpan={12} className="h-24 text-center">
-                                            No hay personal asignado. Haz clic en "Añadir Personal" para empezar.
-                                        </TableCell>
-                                        </TableRow>
-                                    )}
-                                    </TableBody>
+                                                    )}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="border-l px-1 py-1 bg-muted/30">
+                                                <FormField
+                                                    control={control}
+                                                    name={`personal.${index}.horaEntrada`}
+                                                    render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="px-1 py-1 bg-muted/30">
+                                                <FormField
+                                                    control={control}
+                                                    name={`personal.${index}.horaSalida`}
+                                                    render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="border-r px-1 py-1 bg-muted/30">
+                                                <FormField
+                                                    control={control}
+                                                    name={`personal.${index}.precioHora`}
+                                                    render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20 h-9" readOnly /></FormControl></FormItem>}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="px-1 py-1">
+                                                <FormField
+                                                    control={control}
+                                                    name={`personal.${index}.horaEntradaReal`}
+                                                    render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="border-r px-1 py-1">
+                                                <FormField
+                                                    control={control}
+                                                    name={`personal.${index}.horaSalidaReal`}
+                                                    render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-right px-2 py-1">
+                                                <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </SortableItem>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                    <TableCell colSpan={12} className="h-24 text-center">
+                                        No hay personal asignado. Haz clic en "Añadir Personal" para empezar.
+                                    </TableCell>
+                                    </TableRow>
+                                )}
+                                </TableBody>
                                 </SortableContext>
-                            </Table>
-                        </DndContext>
+                            </DndContext>
+                        </Table>
                     </div>
                 </CardContent>
                 {fields.length > 0 && (
@@ -572,5 +574,3 @@ export default function PersonalExternoPage() {
     </>
   );
 }
-
-    
