@@ -255,3 +255,25 @@ export type PersonalMiceOrder = {
     horaEntradaReal: string;
     horaSalidaReal: string;
 };
+
+export type ProveedorPersonal = {
+    id: string;
+    nombreProveedor: string;
+    categoria: string;
+    precioHora: number;
+};
+
+export type PersonalExternoOrder = {
+    id: string;
+    osId: string;
+    proveedorId: string;
+    categoria: string;
+    cantidad: number;
+    precioHora: number;
+    fecha: string;
+    horaEntrada: string;
+    horaSalida: string;
+    centroCoste: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
+    tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
+    observaciones: string;
+};

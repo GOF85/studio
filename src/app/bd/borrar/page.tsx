@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -17,7 +18,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Trash2 } from 'lucide-react';
 
-type DatabaseKey = 'personal' | 'espacios' | 'precios' | 'gastronomiaDB' | 'alquilerDB' | 'tipoServicio' | 'proveedoresTransporte' | 'proveedorHielo' | 'atipicosDB' | 'personalMiceOrders';
+type DatabaseKey = 'personal' | 'espacios' | 'precios' | 'gastronomiaDB' | 'alquilerDB' | 'tipoServicio' | 'proveedoresTransporte' | 'proveedorHielo' | 'atipicosDB' | 'personalMiceOrders' | 'proveedoresPersonal';
 
 const DATABASES: { key: DatabaseKey; name: string; description: string }[] = [
     { key: 'personal', name: 'Personal', description: 'Contiene todos los empleados y contactos.' },
@@ -30,6 +31,7 @@ const DATABASES: { key: DatabaseKey; name: string; description: string }[] = [
     { key: 'proveedorHielo', name: 'Proveedores de Hielo', description: 'Contiene los proveedores de hielo.' },
     { key: 'atipicosDB', name: 'Atípicos (Gastos Varios)', description: 'Contiene los conceptos de gastos varios.' },
     { key: 'personalMiceOrders', name: 'Personal MICE', description: 'Contiene todas las asignaciones de personal MICE.' },
+    { key: 'proveedoresPersonal', name: 'Proveedores de Personal', description: 'Contiene las categorías y precios del personal externo.' },
 ];
 
 export default function BorrarBdPage() {

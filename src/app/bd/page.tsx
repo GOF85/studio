@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Database, PlusCircle, ArrowRight, Users } from 'lucide-react';
+import { Database, PlusCircle, ArrowRight, Users, UserPlus } from 'lucide-react';
 
 // Placeholder type
 type DatabaseEntry = {
@@ -35,6 +36,7 @@ export default function BdPage() {
     { id: '8', name: 'Proveedores de Hielo', description: 'Gestión de proveedores de hielo.', itemCount: 0, path: '/proveedor-hielo' },
     { id: '9', name: 'Atípicos (Gastos Varios)', description: 'Gestión de conceptos de gastos varios.', itemCount: 0, path: '/atipicos-db' },
     { id: '10', name: 'Personal MICE', description: 'Gestión de personal para eventos.', itemCount: 0, path: '/personal-mice' },
+    { id: '11', name: 'Proveedores de Personal', description: 'Gestión de proveedores de personal externo.', itemCount: 0, path: '/proveedores-personal' },
   ]);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -50,6 +52,7 @@ export default function BdPage() {
     const proveedorHielo = JSON.parse(localStorage.getItem('proveedorHielo') || '[]').length;
     const atipicos = JSON.parse(localStorage.getItem('atipicosDB') || '[]').length;
     const personalMice = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]').length;
+    const proveedoresPersonal = JSON.parse(localStorage.getItem('proveedoresPersonal') || '[]').length;
     
     setDatabases(prev => prev.map(db => {
       if (db.id === '1') return { ...db, itemCount: personal };
@@ -62,6 +65,7 @@ export default function BdPage() {
       if (db.id === '8') return { ...db, itemCount: proveedorHielo };
       if (db.id === '9') return { ...db, itemCount: atipicos };
       if (db.id === '10') return { ...db, itemCount: personalMice };
+      if (db.id === '11') return { ...db, itemCount: proveedoresPersonal };
       return db;
     }));
   }, []);
