@@ -58,6 +58,7 @@ import {
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
+import { Combobox } from '@/components/ui/combobox';
 
 
 export const osFormSchema = z.object({
@@ -186,6 +187,7 @@ export default function OsPage() {
   const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA' && p.nombre), [personal]);
   const personalRRHH = useMemo(() => personal.filter(p => p.departamento === 'RRHH' && p.nombre), [personal]);
   const validEspacios = useMemo(() => espacios.filter(e => e.espacio), [espacios]);
+  const espacioOptions = useMemo(() => validEspacios.map(e => ({label: e.espacio, value: e.espacio})), [validEspacios]);
 
 
   const form = useForm<OsFormValues>({
@@ -236,8 +238,8 @@ export default function OsPage() {
   useEffect(() => {
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-    setPersonal(allPersonal);
-    setEspacios(allEspacios);
+    setPersonal(allPersonal.filter(p => p.nombre));
+    setEspacios(allEspacios.filter(e => e.espacio));
     
     if (osId) {
       setAccordionDefaultValue([]); // Collapse for existing
@@ -562,12 +564,13 @@ export default function OsPage() {
                             <FormField control={form.control} name="space" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Espacio</FormLabel>
-                                    <Select onValueChange={(value) => { field.onChange(value); handleEspacioChange(value); }} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                        {validEspacios.map(e => <SelectItem key={e.id} value={e.espacio}>{e.espacio}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
+                                    <Combobox
+                                        options={espacioOptions}
+                                        value={field.value}
+                                        onChange={(value) => { field.onChange(value); handleEspacioChange(value); }}
+                                        placeholder="Busca o selecciona un espacio..."
+                                    />
+                                    <FormMessage />
                                 </FormItem>
                             )} />
                              <FormField control={form.control} name="spaceAddress" render={({ field }) => (
