@@ -67,7 +67,7 @@ export default function PesPage() {
           pax: 150,
           status: 'Confirmado',
           space: 'Finca La Reunión',
-          deliveryLocations: ['Salón Principal', 'Cocina Trasera'],
+          spaceAddress: 'Calle Falsa 123',
           contact: 'Ana Torres',
           phone: '611223344',
           finalClient: 'Tech Conference 2024',
@@ -94,14 +94,10 @@ export default function PesPage() {
           agencyPercentage: 10,
           spacePercentage: 5,
           facturacion: 25000,
-          uniformity: 'uniform2',
           respCocinaCPR: 'cocinacpr1',
           respCocinaCPRPhone: '633445566',
           respCocinaCPRMail: 'cocinacpr1@example.com',
           plane: '',
-          menu: '',
-          dniList: '',
-          sendTo: 'dest1',
           comments: 'Evento de presentación de producto. Necesitan buena iluminación y sonido.'
         },
         {
@@ -114,7 +110,7 @@ export default function PesPage() {
           pax: 80,
           status: 'Borrador',
           space: 'Restaurante El Mirador',
-          deliveryLocations: ['Salón Mirador'],
+          spaceAddress: 'Avenida del Sol 45',
           contact: 'Javier Martín',
           phone: '655443322',
           finalClient: '',
@@ -141,14 +137,10 @@ export default function PesPage() {
           agencyPercentage: 0,
           spacePercentage: 0,
           facturacion: 8000,
-          uniformity: 'uniform1',
           respCocinaCPR: 'cocinacpr2',
           respCocinaCPRPhone: '655667788',
           respCocinaCPRMail: 'cocinacpr2@example.com',
           plane: '',
-          menu: '',
-          dniList: '',
-          sendTo: '',
           comments: 'Boda íntima. Menú vegetariano para 10 invitados.'
         },
       ];
@@ -257,6 +249,13 @@ export default function PesPage() {
     toast({ title: 'Orden eliminada', description: 'La orden de servicio y sus pedidos asociados han sido eliminados.' });
     setOrderToDelete(null);
   };
+  
+  const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
+    Borrador: 'secondary',
+    Pendiente: 'destructive',
+    Confirmado: 'default',
+  };
+
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Previsión de Servicios..." />;
@@ -329,7 +328,7 @@ export default function PesPage() {
                     <TableCell>{format(new Date(os.endDate), 'dd/MM/yyyy')}</TableCell>
                     <TableCell>{os.pax}</TableCell>
                     <TableCell>
-                      <Badge variant={os.status === 'Confirmado' ? 'default' : 'secondary'}>
+                      <Badge variant={statusVariant[os.status]}>
                         {os.status}
                       </Badge>
                     </TableCell>

@@ -100,7 +100,7 @@ export const osFormSchema = z.object({
   facturacion: z.coerce.number().optional().default(0),
   plane: z.string().optional().default(''),
   comments: z.string().optional().default(''),
-  status: z.enum(['Borrador', 'Confirmado', 'Finalizado']).default('Borrador'),
+  status: z.enum(['Borrador', 'Pendiente', 'Confirmado']).default('Borrador'),
 });
 
 export type OsFormValues = z.infer<typeof osFormSchema>;
@@ -483,8 +483,8 @@ export default function OsPage() {
                             <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                             <SelectContent>
                               <SelectItem value="Borrador">Borrador</SelectItem>
+                              <SelectItem value="Pendiente">Pendiente</SelectItem>
                               <SelectItem value="Confirmado">Confirmado</SelectItem>
-                              <SelectItem value="Finalizado">Finalizado</SelectItem>
                             </SelectContent>
                           </Select>
                         </FormItem>
