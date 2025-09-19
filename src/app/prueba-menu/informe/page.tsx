@@ -102,9 +102,9 @@ export default function InformePruebaMenuPage() {
 
   return (
     <>
-      <div className="no-print">
-        <Header/>
-         <div className="container mx-auto px-4 pt-8 flex items-center justify-between">
+      <Header className="no-print" />
+      <main className="container mx-auto px-4 py-8 bg-background">
+        <div className="flex items-center justify-between mb-8 no-print">
             <div>
                 <Button variant="ghost" size="sm" onClick={() => router.push(`/prueba-menu?osId=${osId}`)}>
                     <ArrowLeft className="mr-2" />
@@ -113,9 +113,7 @@ export default function InformePruebaMenuPage() {
             </div>
             <Button onClick={handlePrint}><Printer className="mr-2" /> Imprimir / Guardar PDF</Button>
         </div>
-      </div>
       
-      <main className="container mx-auto px-4 py-4 bg-background">
         <div className="printable-area max-w-4xl mx-auto bg-white p-8 shadow-lg rounded-lg border my-4">
           <header className="flex justify-between items-start mb-6">
             <div>
