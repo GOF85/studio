@@ -363,7 +363,7 @@ export default function PersonalMicePage() {
                                     <TableHead className="px-2 py-2"></TableHead>
                                 </TableRow>
                             </TableHeader>
-                             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                 <SortableContext items={fields} strategy={verticalListSortingStrategy}>
                                     <TableBody>
                                     {fields.length > 0 ? (
