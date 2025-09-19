@@ -307,4 +307,5 @@ export type PruebaMenuItem = {
 export type PruebaMenuData = {
     osId: string;
     items: PruebaMenuItem[];
+    observacionesGenerales?: string;
 }

@@ -10,16 +10,17 @@ import { ArrowLeft, Save, Trash2, PlusCircle, GripVertical, ClipboardCheck } fro
 import type { ServiceOrder, PruebaMenuData, PruebaMenuItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableItem } from '@/components/dnd/sortable-item';
 import { cn } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
 
 const pruebaMenuItemSchema = z.object({
   id: z.string(),
@@ -31,6 +32,7 @@ const pruebaMenuItemSchema = z.object({
 
 const formSchema = z.object({
   items: z.array(pruebaMenuItemSchema),
+  observacionesGenerales: z.string().optional().default(''),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -46,7 +48,7 @@ export default function PruebaMenuPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { items: [] },
+    defaultValues: { items: [], observacionesGenerales: '' },
   });
 
   const { control, handleSubmit, formState } = form;
@@ -69,7 +71,10 @@ export default function PruebaMenuPage() {
     const allMenuTests = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as PruebaMenuData[];
     const currentMenuTest = allMenuTests.find(mt => mt.osId === osId);
     if (currentMenuTest) {
-      form.reset({ items: currentMenuTest.items });
+      form.reset({ 
+        items: currentMenuTest.items,
+        observacionesGenerales: currentMenuTest.observacionesGenerales || '',
+       });
     }
 
     setIsMounted(true);
@@ -85,7 +90,7 @@ export default function PruebaMenuPage() {
     let allMenuTests = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as PruebaMenuData[];
     const index = allMenuTests.findIndex(mt => mt.osId === osId);
 
-    const newMenuData: PruebaMenuData = { osId, items: data.items };
+    const newMenuData: PruebaMenuData = { osId, items: data.items, observacionesGenerales: data.observacionesGenerales };
 
     if (index > -1) {
       allMenuTests[index] = newMenuData;
@@ -150,10 +155,12 @@ export default function PruebaMenuPage() {
                   <TableBody>
                     {sectionItems.length > 0 ? sectionItems.map(({ field, index }) => (
                       <SortableItem key={field.id} id={field.id}>
-                        {(listeners, attributes, dragHandleProps) => (
+                        {(listeners, attributes) => (
                           <>
-                            <TableCell className="py-1" {...dragHandleProps}>
-                              <GripVertical className="h-5 w-5 text-muted-foreground" />
+                            <TableCell className="py-1">
+                                <Button variant="ghost" size="icon" className="cursor-grab h-9 w-9" {...attributes} {...listeners}>
+                                  <GripVertical className="h-5 w-5 text-muted-foreground" />
+                                </Button>
                             </TableCell>
                             <TableCell className={cn("py-1 font-medium", field.type === 'header' && "bg-muted/50 font-bold")}>
                               <FormField
@@ -247,6 +254,29 @@ export default function PruebaMenuPage() {
                 {renderSection('BODEGA')}
                 {renderSection('GASTRONOMÍA')}
             </div>
+
+             <Card className="mt-8">
+              <CardHeader>
+                <CardTitle>Observaciones Generales</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FormField
+                  control={control}
+                  name="observacionesGenerales"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
+                          rows={4}
+                          {...field}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
           </form>
         </Form>
       </main>
