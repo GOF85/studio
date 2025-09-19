@@ -7,7 +7,7 @@ import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2 } from 'lucide-react';
-import type { PersonalExternoOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem, ProveedorPersonal } from '@/types';
+import type { PersonalExternoOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem, ProveedorPersonal, PersonalExternoAjuste } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -92,6 +92,7 @@ export default function PersonalExternoPage() {
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [proveedoresDB, setProveedoresDB] = useState<ProveedorPersonal[]>([]);
+  const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
 
@@ -124,21 +125,21 @@ export default function PersonalExternoPage() {
   
   const watchedFields = useWatch({ control, name: 'personal' });
 
- const { totalPlanned, totalReal } = useMemo(() => {
-    if (!watchedFields) return { totalPlanned: 0, totalReal: 0 };
-    
-    const totals = watchedFields.reduce((acc, order) => {
-        const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
-        acc.planned += plannedHours * (order.precioHora || 0) * (order.cantidad || 1);
-        
-        const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
-        acc.real += realHours * (order.precioHora || 0) * (order.cantidad || 1);
-        
-        return acc;
-    }, { planned: 0, real: 0 });
+ const { totalPlanned, totalReal, totalAjustes, finalTotalReal } = useMemo(() => {
+    const planned = watchedFields?.reduce((acc, order) => {
+      const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
+      return acc + plannedHours * (order.precioHora || 0) * (order.cantidad || 1);
+    }, 0) || 0;
 
-    return { totalPlanned: totals.planned, totalReal: totals.real };
-  }, [watchedFields]);
+    const real = watchedFields?.reduce((acc, order) => {
+      const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
+      return acc + realHours * (order.precioHora || 0) * (order.cantidad || 1);
+    }, 0) || 0;
+    
+    const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
+
+    return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj };
+  }, [watchedFields, ajustes]);
 
   const loadData = useCallback(() => {
      if (!osId) {
@@ -165,6 +166,9 @@ export default function PersonalExternoPage() {
         const allOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
         const relatedOrders = allOrders.filter(order => order.osId === osId).map(o => ({...o, fecha: new Date(o.fecha)}));
         form.reset({ personal: relatedOrders });
+        
+        const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
+        setAjustes(storedAjustes[osId] || []);
 
         const dbProveedores = JSON.parse(localStorage.getItem('proveedoresPersonal') || '[]') as ProveedorPersonal[];
         setProveedoresDB(dbProveedores);
@@ -233,6 +237,36 @@ export default function PersonalExternoPage() {
       setRowToDelete(null);
       toast({ title: 'Asignación eliminada' });
     }
+  };
+  
+  const saveAjustes = (newAjustes: PersonalExternoAjuste[]) => {
+      if (!osId) return;
+      const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
+      allAjustes[osId] = newAjustes;
+      localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
+  }
+
+  const addAjusteRow = () => {
+      const newAjustes = [...ajustes, { id: Date.now().toString(), concepto: '', ajuste: 0 }];
+      setAjustes(newAjustes);
+      saveAjustes(newAjustes);
+  };
+
+  const updateAjuste = (index: number, field: 'concepto' | 'ajuste', value: string | number) => {
+      const newAjustes = [...ajustes];
+      if (field === 'ajuste') {
+          newAjustes[index][field] = parseFloat(value as string) || 0;
+      } else {
+          newAjustes[index][field] = value as string;
+      }
+      setAjustes(newAjustes);
+      saveAjustes(newAjustes);
+  };
+
+  const removeAjusteRow = (index: number) => {
+      const newAjustes = ajustes.filter((_, i) => i !== index);
+      setAjustes(newAjustes);
+      saveAjustes(newAjustes);
   };
 
   const providerOptions = useMemo(() => {
@@ -481,8 +515,42 @@ export default function PersonalExternoPage() {
                     </div>
                 </CardContent>
                 {fields.length > 0 && (
-                    <CardFooter>
-                         <Card className="w-full md:w-1/2 ml-auto">
+                    <CardFooter className="grid grid-cols-2 gap-8">
+                       <Card>
+                            <CardHeader className="flex-row items-center justify-between pb-2">
+                                <CardTitle className="text-lg">Ajuste de Costes</CardTitle>
+                                <Button size="sm" type="button" variant="outline" onClick={addAjusteRow}><PlusCircle className="mr-2"/>Añadir Ajuste</Button>
+                            </CardHeader>
+                            <CardContent>
+                               <div className="space-y-2">
+                                  {ajustes.map((ajuste, index) => (
+                                    <div key={ajuste.id} className="flex gap-2 items-center">
+                                        <Input 
+                                            placeholder="Concepto" 
+                                            value={ajuste.concepto} 
+                                            onChange={(e) => updateAjuste(index, 'concepto', e.target.value)}
+                                            className="h-9"
+                                        />
+                                        <Input 
+                                            type="number"
+                                            step="0.01"
+                                            placeholder="Ajuste"
+                                            value={ajuste.ajuste}
+                                            onChange={(e) => updateAjuste(index, 'ajuste', e.target.value)}
+                                            className="w-32 h-9"
+                                        />
+                                        <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => removeAjusteRow(index)}><Trash2 className="h-4 w-4"/></Button>
+                                    </div>
+                                  ))}
+                                  {ajustes.length > 0 && <Separator />}
+                                  <div className="flex justify-between font-bold">
+                                      <span>Total Ajustes:</span>
+                                      <span>{formatCurrency(totalAjustes)}</span>
+                                  </div>
+                               </div>
+                            </CardContent>
+                        </Card>
+                         <Card>
                             <CardHeader><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
                             <CardContent className="space-y-2 text-sm">
                                 <div className="flex justify-between">
@@ -490,14 +558,25 @@ export default function PersonalExternoPage() {
                                     <span className="font-bold">{formatCurrency(totalPlanned)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Coste Total Real:</span>
+                                    <span className="text-muted-foreground">Coste Total Real (Horas):</span>
                                     <span className="font-bold">{formatCurrency(totalReal)}</span>
+                                </div>
+                                 <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Ajustes:</span>
+                                    <span className="font-bold">{formatCurrency(totalAjustes)}</span>
+                                </div>
+                                <Separator className="my-2" />
+                                <div className="flex justify-between font-bold text-base">
+                                    <span>Coste Total Real (con Ajustes):</span>
+                                    <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
+                                        {formatCurrency(finalTotalReal)}
+                                    </span>
                                 </div>
                                 <Separator className="my-2" />
                                  <div className="flex justify-between font-bold text-base">
-                                    <span>Desviación:</span>
-                                    <span className={totalReal - totalPlanned > 0 ? 'text-destructive' : 'text-green-600'}>
-                                        {formatCurrency(totalReal - totalPlanned)}
+                                    <span>Desviación (Plan vs Real):</span>
+                                    <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
+                                        {formatCurrency(finalTotalReal - totalPlanned)}
                                     </span>
                                 </div>
                             </CardContent>

@@ -1,6 +1,5 @@
 
 
-
 import type { OsFormValues } from "@/app/os/page";
 
 export type CateringItem = {
@@ -35,11 +34,10 @@ export type MaterialOrder = {
 };
 
 // We need to allow string dates because they come from localStorage
-export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate' | 'asistentes'> & {
+export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate'> & {
     id: string;
     startDate: string; 
     endDate: string;
-    asistentes: number;
     deliveryLocations?: string[];
 };
 
@@ -286,6 +284,12 @@ export type ProveedorPersonal = {
     precioHora: number;
 };
 
+export type PersonalExternoAjuste = {
+    id: string;
+    concepto: string;
+    ajuste: number;
+}
+
 export type PersonalExternoOrder = {
     id: string;
     osId: string;
@@ -301,6 +305,7 @@ export type PersonalExternoOrder = {
     observaciones: string;
     horaEntradaReal?: string;
     horaSalidaReal?: string;
+    ajustes?: PersonalExternoAjuste[];
 };
 
 export type PruebaMenuItem = {
@@ -317,3 +322,4 @@ export type PruebaMenuData = {
     observacionesGenerales?: string;
     costePruebaMenu?: number;
 }
+
