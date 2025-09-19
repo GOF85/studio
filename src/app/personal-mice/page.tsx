@@ -142,7 +142,7 @@ export default function PersonalMicePage() {
     }, 0);
   }, [watchedFields]);
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     if (!osId) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
         router.push('/pes');
@@ -176,6 +176,11 @@ export default function PersonalMicePage() {
         setIsMounted(true);
     }
   }, [osId, router, toast, form]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
 
  const onSubmit = (data: PersonalMiceFormValues) => {
     setIsLoading(true);
