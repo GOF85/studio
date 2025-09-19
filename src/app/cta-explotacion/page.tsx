@@ -132,7 +132,7 @@ export default function CtaExplotacionPage() {
       { label: 'Atípicos', presupuesto: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)), cierre: 0 },
       { label: 'Personal MICE', presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: personalMiceRealCost },
       { label: 'Personal Externo', presupuesto: calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)), cierre: personalExternoCierre },
-      { label: 'Coste Prueba de Menu', presupuesto: pruebaMenu?.costePruebaMenu || 0, cierre: 0 },
+      { label: 'Coste Prueba de Menu', presupuesto: pruebaMenu?.costePruebaMenu || 0, cierre: pruebaMenu?.costePruebaMenu || 0 },
     ];
     setCostes(newCostes);
   }, [osId]);
@@ -245,7 +245,7 @@ export default function CtaExplotacionPage() {
                     const pctSFact = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
                     const desviacion = row.objetivo - row.presupuesto;
                     const desviacionPct = row.presupuesto > 0 ? desviacion / row.presupuesto : 0;
-                    const isReadOnly = row.label === 'Personal Externo' || row.label === 'Personal MICE';
+                    const isReadOnly = row.label === 'Personal Externo' || row.label === 'Personal MICE' || row.label === 'Coste Prueba de Menu';
                     return (
                         <TableRow key={row.label}>
                             <TableCell>{row.label}</TableCell>
