@@ -113,6 +113,11 @@ export default function CtaExplotacionPage() {
     
     const personalExternoTotalAjustes = personalExternoAjustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
     const personalExternoCierre = personalExternoRealCost + personalExternoTotalAjustes;
+    
+    const personalMiceRealCost = (allPersonalMiceOrders.filter(o => o.osId === osId)).reduce((acc, order) => {
+        const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
+        return acc + realHours * (order.precioHora || 0);
+    }, 0);
 
 
     const newCostes = [
@@ -125,7 +130,7 @@ export default function CtaExplotacionPage() {
       { label: 'Transporte', presupuesto: getModuleTotal(allTransporteOrders.filter(o => o.osId === osId)), cierre: 0 },
       { label: 'Decoración', presupuesto: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)), cierre: 0 },
       { label: 'Atípicos', presupuesto: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)), cierre: 0 },
-      { label: 'Personal MICE', presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: 0 },
+      { label: 'Personal MICE', presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: personalMiceRealCost },
       { label: 'Personal Externo', presupuesto: calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)), cierre: personalExternoCierre },
       { label: 'Coste Prueba de Menu', presupuesto: pruebaMenu?.costePruebaMenu || 0, cierre: 0 },
     ];
@@ -240,14 +245,14 @@ export default function CtaExplotacionPage() {
                     const pctSFact = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
                     const desviacion = row.objetivo - row.presupuesto;
                     const desviacionPct = row.presupuesto > 0 ? desviacion / row.presupuesto : 0;
-                    const isPersonalExterno = row.label === 'Personal Externo';
+                    const isReadOnly = row.label === 'Personal Externo' || row.label === 'Personal MICE';
                     return (
                         <TableRow key={row.label}>
                             <TableCell>{row.label}</TableCell>
                             <TableCell className="text-right">{formatCurrency(row.presupuesto)}</TableCell>
                             <TableCell className={cn("text-right", pctSFact > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFact)}</TableCell>
                             <TableCell className="text-right">
-                                <Input type="number" step="0.01" value={row.cierre} onChange={(e) => handleCierreChange(row.label, e.target.value)} className="h-8 text-right bg-secondary/30" readOnly={isPersonalExterno} />
+                                <Input type="number" step="0.01" value={row.cierre} onChange={(e) => handleCierreChange(row.label, e.target.value)} className="h-8 text-right bg-secondary/30" readOnly={isReadOnly} />
                             </TableCell>
                             <TableCell className="text-right">{formatCurrency(row.objetivo)}</TableCell>
                             <TableCell className={cn("text-right", desviacion < 0 && "text-destructive", desviacion > 0 && "text-green-600")}>
