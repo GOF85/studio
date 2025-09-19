@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { PlusCircle, ArrowLeft, Users, Phone, Building, UserPlus, Trash2 } from 'lucide-react';
-import type { PersonalExternoOrder, ServiceOrder, Espacio } from '@/types';
+import type { PersonalExternoOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,14 +29,28 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { format } from 'date-fns';
+import { format, differenceInMinutes, parse } from 'date-fns';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+
+const calculateHours = (start?: string, end?: string) => {
+    if (!start || !end) return 0;
+    try {
+        const startTime = parse(start, 'HH:mm', new Date());
+        const endTime = parse(end, 'HH:mm', new Date());
+        const diff = differenceInMinutes(endTime, startTime);
+        return diff > 0 ? diff / 60 : 0;
+    } catch (e) {
+        return 0;
+    }
+}
 
 export default function PersonalExternoPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [spaceAddress, setSpaceAddress] = useState<string>('');
   const [personalExternoOrders, setPersonalExternoOrders] = useState<PersonalExternoOrder[]>([]);
+  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   
@@ -60,6 +74,11 @@ export default function PersonalExternoPage() {
       const allOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
       const relatedOrders = allOrders.filter(order => order.osId === osId);
       setPersonalExternoOrders(relatedOrders);
+
+      const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+      const currentBriefing = allBriefings.find(b => b.osId === osId);
+      setBriefingItems(currentBriefing?.items || []);
+
     } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
         router.push('/pes');
@@ -103,6 +122,17 @@ export default function PersonalExternoPage() {
                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><UserPlus />Módulo de Personal Externo</h1>
                 <div className="text-muted-foreground mt-2 space-y-1">
                     <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
+                     {serviceOrder.space && (
+                        <p className="flex items-center gap-2">
+                        <Building className="h-3 w-3" /> {serviceOrder.space} {spaceAddress && `(${spaceAddress})`}
+                        </p>
+                    )}
+                    {serviceOrder.respMetre && (
+                        <p className="flex items-center gap-2">
+                            Resp. Metre: {serviceOrder.respMetre} 
+                            {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
+                        </p>
+                    )}
                 </div>
             </div>
           <Button asChild>
@@ -112,6 +142,42 @@ export default function PersonalExternoPage() {
             </Link>
           </Button>
         </div>
+
+        <Accordion type="single" collapsible className="w-full mb-8" >
+            <AccordionItem value="item-1">
+            <Card>
+                <AccordionTrigger className="p-6">
+                    <h3 className="text-xl font-semibold">Servicios del Evento</h3>
+                </AccordionTrigger>
+                <AccordionContent>
+                <CardContent className="pt-0">
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead className="py-2 px-3">Fecha</TableHead>
+                        <TableHead className="py-2 px-3">Descripción</TableHead>
+                        <TableHead className="py-2 px-3">Asistentes</TableHead>
+                        <TableHead className="py-2 px-3">Duración</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {briefingItems.length > 0 ? briefingItems.map(item => (
+                        <TableRow key={item.id}>
+                            <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
+                            <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
+                            <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
+                            <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
+                        </TableRow>
+                        )) : (
+                            <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                        )}
+                    </TableBody>
+                    </Table>
+                </CardContent>
+                </AccordionContent>
+            </Card>
+            </AccordionItem>
+        </Accordion>
 
         <Card>
             <CardHeader><CardTitle>Pedidos de Personal Externo</CardTitle></CardHeader>
