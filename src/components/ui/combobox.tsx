@@ -47,7 +47,7 @@ export function Combobox({ options, value, onChange, placeholder, searchPlacehol
         >
           <span className="truncate">
             {value
-              ? options.find((option) => option.value === value)?.label
+              ? options.find((option) => option.value === value)?.label ?? placeholder
               : placeholder || "Seleccionar..."}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -63,8 +63,12 @@ export function Combobox({ options, value, onChange, placeholder, searchPlacehol
                 <CommandItem
                   key={option.value}
                   value={option.label}
-                  onSelect={() => {
-                    onChange(option.value === value ? "" : option.value)
+                  onSelect={(currentValue) => {
+                    // Find the option that matches the label from cmdk
+                    const selectedOption = options.find(opt => opt.label.toLowerCase() === currentValue.toLowerCase());
+                    if (selectedOption) {
+                      onChange(selectedOption.value === value ? "" : selectedOption.value)
+                    }
                     setOpen(false)
                   }}
                 >
