@@ -98,11 +98,7 @@ export const osFormSchema = z.object({
   agencyPercentage: z.coerce.number().optional().default(0),
   spacePercentage: z.coerce.number().optional().default(0),
   facturacion: z.coerce.number().optional().default(0),
-  uniformity: z.string().optional().default(''),
   plane: z.string().optional().default(''),
-  menu: z.string().optional().default(''),
-  dniList: z.string().optional().default(''),
-  sendTo: z.string().optional().default(''),
   comments: z.string().optional().default(''),
   status: z.enum(['Borrador', 'Confirmado', 'Finalizado']).default('Borrador'),
 });
@@ -119,7 +115,7 @@ const defaultValues: Partial<OsFormValues> = {
   comercialAsiste: false, comercial: '', comercialPhone: '', comercialMail: '',
   rrhhAsiste: false, respRRHH: '', respRRHHPhone: '', respRRHHMail: '',
   agencyPercentage: 0, spacePercentage: 0, facturacion: 0,
-  uniformity: '', plane: '', menu: '', dniList: '', sendTo: '', comments: '',
+  plane: '', comments: '',
   status: 'Borrador', tipoCliente: 'Empresa',
 };
 
@@ -746,42 +742,6 @@ export default function OsPage() {
                     </Accordion>}
                     
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t">
-                       <FormField control={form.control} name="uniformity" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Uniformidad</FormLabel>
-                           <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                            <SelectContent>
-                              <SelectItem value="uniform1">Uniforme 1</SelectItem>
-                              <SelectItem value="uniform2">Uniforme 2</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormItem>
-                      )} />
-                       <FormField control={form.control} name="menu" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>P. de Menú</FormLabel>
-                          <FormControl><Input placeholder="Enlazar aquí..." {...field} /></FormControl>
-                        </FormItem>
-                      )} />
-                      <FormField control={form.control} name="dniList" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Listado DNI</FormLabel>
-                          <FormControl><Input placeholder="Enlazar aquí..." {...field} /></FormControl>
-                        </FormItem>
-                      )} />
-                       <FormField control={form.control} name="sendTo" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Enviar A</FormLabel>
-                           <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                            <SelectContent>
-                              <SelectItem value="dest1">Destinatario 1</SelectItem>
-                              <SelectItem value="dest2">Destinatario 2</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormItem>
-                      )} />
                       <FormField control={form.control} name="comments" render={({ field }) => (
                           <FormItem className="md:col-span-2 lg:col-span-3">
                               <FormLabel>Comentarios</FormLabel>
