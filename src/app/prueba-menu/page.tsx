@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Printer } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Printer, DollarSign } from 'lucide-react';
 import type { ServiceOrder, PruebaMenuData, PruebaMenuItem, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
@@ -32,6 +32,7 @@ const pruebaMenuItemSchema = z.object({
 const formSchema = z.object({
   items: z.array(pruebaMenuItemSchema),
   observacionesGenerales: z.string().optional().default(''),
+  costePruebaMenu: z.coerce.number().optional().default(0),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -45,10 +46,11 @@ export default function PruebaMenuPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
+  const [asistentesPrueba, setAsistentesPrueba] = useState(0);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { items: [], observacionesGenerales: '' },
+    defaultValues: { items: [], observacionesGenerales: '', costePruebaMenu: 0 },
   });
 
   const { control, handleSubmit, formState } = form;
@@ -72,6 +74,8 @@ export default function PruebaMenuPage() {
     const currentBriefing = allBriefings.find(b => b.osId === osId);
     if (currentBriefing) {
         setBriefingItems(currentBriefing.items);
+        const pruebaMenuHito = currentBriefing.items.find(item => item.descripcion.toLowerCase() === 'prueba de menu');
+        setAsistentesPrueba(pruebaMenuHito?.asistentes || 0);
     }
 
     const allMenuTests = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as PruebaMenuData[];
@@ -80,6 +84,7 @@ export default function PruebaMenuPage() {
       form.reset({ 
         items: currentMenuTest.items,
         observacionesGenerales: currentMenuTest.observacionesGenerales || '',
+        costePruebaMenu: currentMenuTest.costePruebaMenu || 0,
        });
     }
 
@@ -96,7 +101,12 @@ export default function PruebaMenuPage() {
     let allMenuTests = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as PruebaMenuData[];
     const index = allMenuTests.findIndex(mt => mt.osId === osId);
 
-    const newMenuData: PruebaMenuData = { osId, items: data.items, observacionesGenerales: data.observacionesGenerales };
+    const newMenuData: PruebaMenuData = { 
+        osId, 
+        items: data.items, 
+        observacionesGenerales: data.observacionesGenerales,
+        costePruebaMenu: data.costePruebaMenu
+    };
 
     if (index > -1) {
       allMenuTests[index] = newMenuData;
@@ -211,11 +221,11 @@ export default function PruebaMenuPage() {
             </h1>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link href={`/prueba-menu/informe?osId=${osId}`}>
-                  <Printer className="mr-2" />
-                  Generar Informe
-              </Link>
+             <Button variant="outline" asChild>
+                <Link href={`/prueba-menu/informe?osId=${osId}`}>
+                    <Printer className="mr-2" />
+                    Informe
+                </Link>
             </Button>
             <Button form="prueba-menu-form" type="submit" disabled={!formState.isDirty}>
               <Save className="mr-2" />
@@ -244,12 +254,36 @@ export default function PruebaMenuPage() {
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-x-4 gap-y-0 text-sm p-4 pt-0">
                     <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
-                    <div><strong>Nº PAX:</strong> {serviceOrder.pax}</div>
+                    <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
                     <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
                 </CardContent>
                 </Card>
             </div>
             
+            <Card className="mb-6 no-print">
+                <CardHeader className="py-4">
+                    <CardTitle className="flex items-center gap-2"><DollarSign/> Costes Adicionales</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-2 gap-6">
+                        <FormField
+                            control={control}
+                            name="costePruebaMenu"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Coste de la prueba de menú</FormLabel>
+                                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                                </FormItem>
+                            )}
+                        />
+                         <FormItem>
+                            <FormLabel>Asistentes a la prueba</FormLabel>
+                            <FormControl><Input value={asistentesPrueba} readOnly /></FormControl>
+                        </FormItem>
+                    </div>
+                </CardContent>
+            </Card>
+
             <div className="space-y-6">
                 {renderSection('BODEGA')}
                 {renderSection('GASTRONOMÍA')}

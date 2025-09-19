@@ -224,6 +224,11 @@ export type CtaExplotacionObjetivos = {
     almacen: number;
     alquiler: number;
     transporte: number;
+    decoracion: number;
+    atipicos: number;
+    personalMice: number;
+    personalExterno: number;
+    costePruebaMenu: number;
 };
 
 export type AtipicoDBItem = {
@@ -308,4 +313,5 @@ export type PruebaMenuData = {
     osId: string;
     items: PruebaMenuItem[];
     observacionesGenerales?: string;
+    costePruebaMenu?: number;
 }

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { ServiceOrder, ComercialBriefing, GastronomyOrder, MaterialOrder, TransporteOrder, HieloOrder, CtaExplotacionObjetivos } from '@/types';
+import { ServiceOrder, ComercialBriefing, GastronomyOrder, MaterialOrder, TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExternoOrder, PruebaMenuData, CtaExplotacionObjetivos } from '@/types';
 
 type CostRow = {
   label: string;
@@ -41,6 +41,11 @@ export default function CtaExplotacionPage() {
     almacen: 0,
     alquiler: 0,
     transporte: 0,
+    decoracion: 0,
+    atipicos: 0,
+    personalMice: 0,
+    personalExterno: 0,
+    costePruebaMenu: 0,
   });
   
   const [costes, setCostes] = useState<Omit<CostRow, 'objetivo' | 'objetivo_pct'>[]>([]);
@@ -53,13 +58,11 @@ export default function CtaExplotacionPage() {
     const currentOS = allServiceOrders.find(os => os.id === osId);
     setServiceOrder(currentOS || null);
 
-    // Load saved objectives
     const allObjectives = JSON.parse(localStorage.getItem('ctaExplotacionObjetivos') || '{}') as {[key: string]: CtaExplotacionObjetivos};
     if (allObjectives[osId]) {
       setObjetivos(allObjectives[osId]);
     }
 
-    // Calculate Net Revenue
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const currentBriefing = allBriefings.find(b => b.osId === osId);
     const totalBriefing = currentBriefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario), 0) || 0;
@@ -67,13 +70,33 @@ export default function CtaExplotacionPage() {
     const netRevenue = totalBriefing * (1 - totalPercentage / 100);
     setFacturacionNeta(netRevenue);
 
-    // Calculate Costs
+    const getModuleTotal = (orders: {total?: number, precio?: number}[]) => orders.reduce((sum, order) => sum + (order.total ?? order.precio ?? 0), 0);
+    
+    const calculatePersonalTotal = (orders: {precioHora: number; horaEntrada: string; horaSalida: string; cantidad?: number}[]) => {
+        return orders.reduce((sum, order) => {
+            const hours = calculateHours(order.horaEntrada, order.horaSalida);
+            const quantity = order.cantidad || 1;
+            return sum + (hours * order.precioHora * quantity);
+        }, 0);
+    }
+    const calculateHours = (start?: string, end?: string) => {
+        if (!start || !end) return 0;
+        const startTime = new Date(`1970-01-01T${start}:00`);
+        const endTime = new Date(`1970-01-01T${end}:00`);
+        const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+        return diff > 0 ? diff : 0;
+    }
+    
     const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
     const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-
-    const getModuleTotal = (orders: {total?: number}[]) => orders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const allDecoracionOrders = JSON.parse(localStorage.getItem('decoracionOrders') || '[]') as DecoracionOrder[];
+    const allAtipicoOrders = JSON.parse(localStorage.getItem('atipicoOrders') || '[]') as AtipicoOrder[];
+    const allPersonalMiceOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
+    const allPersonalExternoOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
+    const allPruebasMenu = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as PruebaMenuData[];
+    const pruebaMenu = allPruebasMenu.find(p => p.osId === osId);
 
     const newCostes = [
       { label: 'Gastronomía', presupuesto: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)), cierre: 0 },
@@ -83,6 +106,11 @@ export default function CtaExplotacionPage() {
       { label: 'Almacén', presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Almacén')), cierre: 0 },
       { label: 'Alquiler material', presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Alquiler')), cierre: 0 },
       { label: 'Transporte', presupuesto: getModuleTotal(allTransporteOrders.filter(o => o.osId === osId)), cierre: 0 },
+      { label: 'Decoración', presupuesto: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)), cierre: 0 },
+      { label: 'Atípicos', presupuesto: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)), cierre: 0 },
+      { label: 'Personal MICE', presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: 0 },
+      { label: 'Personal Externo', presupuesto: calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)), cierre: 0 },
+      { label: 'Coste Prueba de Menu', presupuesto: pruebaMenu?.costePruebaMenu || 0, cierre: 0 },
     ];
     setCostes(newCostes);
   }, [osId]);
@@ -102,7 +130,6 @@ export default function CtaExplotacionPage() {
     const newObjetivos = { ...objetivos, [key]: numericValue };
     setObjetivos(newObjetivos);
     
-    // Save to localStorage
     const allObjectives = JSON.parse(localStorage.getItem('ctaExplotacionObjetivos') || '{}');
     allObjectives[osId!] = newObjetivos;
     localStorage.setItem('ctaExplotacionObjetivos', JSON.stringify(allObjectives));
@@ -117,10 +144,12 @@ export default function CtaExplotacionPage() {
     return costes.map(coste => {
         const keyMap: {[key: string]: keyof CtaExplotacionObjetivos} = {
             'Gastronomía': 'gastronomia', 'Bodega': 'bodega', 'Consumibles (Bio)': 'consumibles', 'Hielo': 'hielo',
-            'Almacén': 'almacen', 'Alquiler material': 'alquiler', 'Transporte': 'transporte',
+            'Almacén': 'almacen', 'Alquiler material': 'alquiler', 'Transporte': 'transporte', 'Decoración': 'decoracion',
+            'Atípicos': 'atipicos', 'Personal MICE': 'personalMice', 'Personal Externo': 'personalExterno',
+            'Coste Prueba de Menu': 'costePruebaMenu'
         }
         const objKey = keyMap[coste.label];
-        const objetivo_pct = objetivos[objKey] / 100 || 0;
+        const objetivo_pct = (objKey && objetivos[objKey] / 100) || 0;
         return {
             ...coste,
             objetivo: facturacionNeta * objetivo_pct,
@@ -226,7 +255,7 @@ export default function CtaExplotacionPage() {
               <CardContent className="space-y-3">
                 {Object.keys(objetivos).map(key => (
                   <div key={key} className="flex items-center justify-between">
-                    <label htmlFor={`obj-${key}`} className="capitalize text-sm font-medium">{key.replace(/_/g, ' ')}</label>
+                    <label htmlFor={`obj-${key}`} className="capitalize text-sm font-medium">{key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim()}</label>
                     <div className="flex items-center gap-2">
                         <Input 
                             id={`obj-${key}`} 
