@@ -64,13 +64,13 @@ export default function InformePruebaMenuPage() {
     const sectionItems = menuTestData.items.filter(item => item.mainCategory === mainCategory);
 
     return (
-      <section className="mb-6">
+      <section className="mb-4">
         <h4 className="text-lg font-bold mb-2 pb-1 border-b-2 border-gray-300">{mainCategory}</h4>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-1/3">Referencia</TableHead>
-              <TableHead>Observaciones</TableHead>
+              <TableHead className="w-1/2">Referencia</TableHead>
+              <TableHead className="w-1/2">Observaciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -104,7 +104,7 @@ export default function InformePruebaMenuPage() {
     <>
       <div className="no-print">
         <Header/>
-        <div className="container mx-auto px-4 pt-8 flex items-center justify-between">
+         <div className="container mx-auto px-4 pt-8 flex items-center justify-between">
             <div>
                 <Button variant="ghost" size="sm" onClick={() => router.push(`/prueba-menu?osId=${osId}`)} className="mb-2">
                     <ArrowLeft className="mr-2" />
@@ -116,9 +116,9 @@ export default function InformePruebaMenuPage() {
         </div>
       </div>
       
-      <main className="container mx-auto px-4 py-8 bg-background">
-        <div className="printable-area max-w-4xl mx-auto bg-white p-8 md:p-12 shadow-lg rounded-lg border md:my-8">
-          <header className="flex justify-between items-start mb-8">
+      <main className="container mx-auto px-4 py-4 bg-background">
+        <div className="printable-area max-w-4xl mx-auto bg-white p-8 shadow-lg rounded-lg border my-4">
+          <header className="flex justify-between items-start mb-6">
             <div>
               <h1 className="text-2xl font-bold text-primary flex items-center gap-3"><ClipboardCheck/> Prueba de Menú</h1>
               <p className="text-lg font-semibold">{serviceOrder.serviceNumber} - {serviceOrder.client}</p>
@@ -129,30 +129,29 @@ export default function InformePruebaMenuPage() {
             </div>
           </header>
 
-          <section className="mb-6">
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm border p-4 rounded-md">
+          <section className="mb-4">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm border p-3 rounded-md">
               <div><strong>Nº PAX:</strong> {serviceOrder.pax}</div>
               <div><strong>Fecha Evento:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
               <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
             </div>
           </section>
 
-          <Separator className="my-6" />
+          <Separator className="my-4" />
 
           {renderSection('BODEGA')}
           {renderSection('GASTRONOMÍA')}
 
-          <section className="mt-6">
+          <section className="mt-4">
              <h4 className="text-lg font-bold mb-2 pb-1 border-b-2 border-gray-300">Observaciones Generales</h4>
-             <div className="border rounded-lg p-2 min-h-[150px] space-y-4">
-                <div className="h-px border-b border-dashed border-gray-400"></div>
+             <div className="border rounded-lg p-2 min-h-[120px] space-y-4">
                 <div className="h-px border-b border-dashed border-gray-400"></div>
                 <div className="h-px border-b border-dashed border-gray-400"></div>
                 <div className="h-px border-b border-dashed border-gray-400"></div>
              </div>
           </section>
 
-          <footer className="text-center text-xs text-gray-500 pt-8 border-t mt-8">
+          <footer className="text-center text-xs text-gray-500 pt-6 border-t mt-6">
             Informe generado el {format(new Date(), "dd 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
           </footer>
         </div>
