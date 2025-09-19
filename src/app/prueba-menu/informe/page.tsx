@@ -69,17 +69,17 @@ export default function InformePruebaMenuPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-1/2">Referencia</TableHead>
-              <TableHead className="w-1/2">Observaciones</TableHead>
+              <TableHead className="w-1/2 p-1">Referencia</TableHead>
+              <TableHead className="w-1/2 p-1">Observaciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sectionItems.length > 0 ? sectionItems.map((item) => (
               <TableRow key={item.id}>
-                <TableCell className={cn("font-medium", item.type === 'header' && "bg-gray-100 font-bold")}>
+                <TableCell className={cn("font-medium p-1", item.type === 'header' && "bg-gray-100 font-bold")}>
                   {item.referencia}
                 </TableCell>
-                <TableCell className="border-l">
+                <TableCell className="border-l p-1">
                   <div className="space-y-3 py-1">
                     <div className="h-px border-b border-dashed border-gray-400"></div>
                     <div className="h-px border-b border-dashed border-gray-400"></div>
@@ -106,11 +106,10 @@ export default function InformePruebaMenuPage() {
         <Header/>
          <div className="container mx-auto px-4 pt-8 flex items-center justify-between">
             <div>
-                <Button variant="ghost" size="sm" onClick={() => router.push(`/prueba-menu?osId=${osId}`)} className="mb-2">
+                <Button variant="ghost" size="sm" onClick={() => router.push(`/prueba-menu?osId=${osId}`)}>
                     <ArrowLeft className="mr-2" />
                     Volver
                 </Button>
-                <h1 className="text-3xl font-headline font-bold">Informe de Prueba de Menú</h1>
             </div>
             <Button onClick={handlePrint}><Printer className="mr-2" /> Imprimir / Guardar PDF</Button>
         </div>
