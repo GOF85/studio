@@ -24,6 +24,8 @@ export const personalFormSchema = z.object({
   categoria: z.string().min(1, 'La categoría es obligatoria'),
   telefono: z.string().optional(),
   mail: z.string().email('Debe ser un email válido').or(z.literal('')),
+  dni: z.string().optional(),
+  precioHora: z.coerce.number().min(0, 'El precio debe ser positivo').optional(),
 });
 
 type PersonalFormValues = z.infer<typeof personalFormSchema>;
@@ -34,6 +36,8 @@ const defaultValues: Partial<PersonalFormValues> = {
     categoria: '',
     telefono: '',
     mail: '',
+    dni: '',
+    precioHora: 0,
 };
 
 export default function PersonalFormPage() {
@@ -71,10 +75,16 @@ export default function PersonalFormPage() {
     let allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     let message = '';
     
+    const finalData = {
+        ...data,
+        precioHora: data.precioHora || 0,
+        dni: data.dni || '',
+    };
+
     if (isEditing) {
       const index = allPersonal.findIndex(p => p.id === id);
       if (index !== -1) {
-        allPersonal[index] = data;
+        allPersonal[index] = finalData as Personal;
         message = 'Empleado actualizado correctamente.';
       }
     } else {
@@ -84,7 +94,7 @@ export default function PersonalFormPage() {
             setIsLoading(false);
             return;
         }
-      allPersonal.push(data);
+      allPersonal.push(finalData as Personal);
       message = 'Empleado creado correctamente.';
     }
 
@@ -137,6 +147,12 @@ export default function PersonalFormPage() {
                  <FormField control={form.control} name="mail" render={({ field }) => (
                     <FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
+                 <FormField control={form.control} name="dni" render={({ field }) => (
+                    <FormItem><FormLabel>DNI</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="precioHora" render={({ field }) => (
+                    <FormItem><FormLabel>Precio/Hora</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
               </CardContent>
             </Card>
           </form>
@@ -145,4 +161,3 @@ export default function PersonalFormPage() {
     </>
   );
 }
-

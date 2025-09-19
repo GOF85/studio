@@ -47,6 +47,8 @@ export type Personal = {
     categoria: string;
     telefono: string;
     mail: string;
+    dni: string;
+    precioHora: number;
 }
 
 export type Espacio = {

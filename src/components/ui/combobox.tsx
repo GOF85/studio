@@ -35,6 +35,11 @@ interface ComboboxProps {
 
 export function Combobox({ options, value, onChange, placeholder, searchPlaceholder, emptyPlaceholder }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
+  const [inputValue, setInputValue] = React.useState(value || "");
+
+  React.useEffect(() => {
+    setInputValue(value || "");
+  }, [value]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -43,29 +48,37 @@ export function Combobox({ options, value, onChange, placeholder, searchPlacehol
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className="w-full justify-between font-normal"
         >
           {value
-            ? options.find((option) => option.value.toLowerCase() === value.toLowerCase())?.label
-            : placeholder || "Select option..."}
+            ? options.find((option) => option.value === value.toLowerCase())?.label
+            : placeholder || "Seleccionar..."}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command shouldFilter={false}>
             <CommandInput 
-                placeholder={searchPlaceholder || "Search..."} 
-                onValueChange={(currentValue) => onChange(currentValue)}
+                placeholder={searchPlaceholder || "Buscar..."}
+                value={inputValue} 
+                onValueChange={(currentValue) => {
+                    setInputValue(currentValue)
+                    onChange(currentValue)
+                }}
             />
             <CommandList>
-                <CommandEmpty>{emptyPlaceholder || "No results found."}</CommandEmpty>
+                <CommandEmpty>{emptyPlaceholder || "No se encontraron resultados."}</CommandEmpty>
                 <CommandGroup>
-                    {options.map((option) => (
+                    {options
+                     .filter(option => option.label.toLowerCase().includes(inputValue.toLowerCase()))
+                     .map((option) => (
                     <CommandItem
                         key={option.value}
-                        value={option.value}
-                        onSelect={(currentValue) => {
-                            onChange(currentValue === value ? "" : currentValue)
+                        value={option.label}
+                        onSelect={(currentLabel) => {
+                            const selectedValue = options.find(o => o.label === currentLabel)?.value || '';
+                            onChange(selectedValue.toLowerCase() === value.toLowerCase() ? "" : selectedValue)
+                            setInputValue('');
                             setOpen(false)
                         }}
                     >

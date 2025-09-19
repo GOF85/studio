@@ -117,16 +117,28 @@ export default function PersonalMicePage() {
     defaultValues: { personal: [] },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, setValue } = useFieldArray({
     control: form.control,
     name: "personal",
   });
+
+  const handlePersonalChange = (index: number, name: string) => {
+    const person = personalDB.find(p => p.nombre.toLowerCase() === name.toLowerCase());
+    if (person) {
+      setValue(`personal.${index}.nombre`, person.nombre);
+      setValue(`personal.${index}.dni`, person.dni || '');
+      setValue(`personal.${index}.precioHora`, person.precioHora || 0);
+    } else {
+       setValue(`personal.${index}.nombre`, name);
+    }
+  }
   
   const watchedFields = useWatch({ control: form.control, name: 'personal' });
   const totalAmount = useMemo(() => {
+    if (!watchedFields) return 0;
     return watchedFields.reduce((sum, order) => {
         const hours = calculateHours(order.horaEntrada, order.horaSalida);
-        return sum + (hours * order.precioHora);
+        return sum + (hours * (order.precioHora || 0));
     }, 0);
   }, [watchedFields]);
 
@@ -170,7 +182,7 @@ export default function PersonalMicePage() {
     const allOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
     const otherOsOrders = allOrders.filter(o => o.osId !== osId);
     
-    const currentOsOrders = data.personal.map(p => ({ ...p, osId }));
+    const currentOsOrders: PersonalMiceOrder[] = data.personal.map(p => ({ ...p, osId }));
 
     const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
     localStorage.setItem('personalMiceOrders', JSON.stringify(updatedAllOrders));
@@ -185,7 +197,6 @@ export default function PersonalMicePage() {
   const addRow = () => {
     append({
         id: Date.now().toString(),
-        osId: osId || '',
         centroCoste: 'SALA',
         nombre: '',
         dni: '',
@@ -199,7 +210,7 @@ export default function PersonalMicePage() {
   }
 
   const personalOptions = useMemo(() => {
-    return personalDB.map(p => ({ label: p.nombre, value: p.nombre }));
+    return personalDB.map(p => ({ label: p.nombre, value: p.nombre.toLowerCase() }));
   }, [personalDB]);
   
   if (!isMounted || !serviceOrder) {
@@ -241,7 +252,7 @@ export default function PersonalMicePage() {
             </div>
             
             {briefingItems.length > 0 && (
-            <Accordion type="single" collapsible className="w-full mb-8">
+            <Accordion type="single" collapsible className="w-full mb-8" >
                 <AccordionItem value="item-1">
                 <Card>
                     <AccordionTrigger className="p-6">
@@ -325,7 +336,7 @@ export default function PersonalMicePage() {
                                                     <Combobox
                                                         options={personalOptions}
                                                         value={field.value}
-                                                        onChange={field.onChange}
+                                                        onChange={(value) => handlePersonalChange(index, value)}
                                                         placeholder="Nombre..."
                                                     />
                                                 </FormItem>

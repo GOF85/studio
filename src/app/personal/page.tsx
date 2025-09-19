@@ -38,7 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 
-const CSV_HEADERS = ["id", "nombre", "departamento", "categoria", "telefono", "mail"];
+const CSV_HEADERS = ["id", "nombre", "departamento", "categoria", "telefono", "mail", "dni", "precioHora"];
 
 export default function PersonalPage() {
   const [personal, setPersonal] = useState<Personal[]>([]);
@@ -62,6 +62,8 @@ export default function PersonalPage() {
           categoria: 'Metre',
           telefono: '600111222',
           mail: 'juan.perez@example.com',
+          dni: '12345678A',
+          precioHora: 25,
         },
         {
           id: '2',
@@ -70,6 +72,8 @@ export default function PersonalPage() {
           categoria: 'Cocinero/a',
           telefono: '600333444',
           mail: 'ana.lopez@example.com',
+          dni: '87654321B',
+          precioHora: 22,
         },
       ];
       storedPersonal = JSON.stringify(dummyPersonal);
@@ -149,6 +153,8 @@ export default function PersonalPage() {
             categoria: item.categoria || '',
             telefono: item.telefono || '',
             mail: item.mail || '',
+            dni: item.dni || '',
+            precioHora: Number(item.precioHora) || 0,
         }));
 
         localStorage.setItem('personal', JSON.stringify(importedData));
@@ -247,6 +253,7 @@ export default function PersonalPage() {
                 <TableHead>Categoría</TableHead>
                 <TableHead>Teléfono</TableHead>
                 <TableHead>Mail</TableHead>
+                <TableHead>Precio/Hora</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -259,6 +266,7 @@ export default function PersonalPage() {
                     <TableCell>{p.categoria}</TableCell>
                     <TableCell>{p.telefono}</TableCell>
                     <TableCell>{p.mail}</TableCell>
+                    <TableCell>{p.precioHora.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -283,7 +291,7 @@ export default function PersonalPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     No se encontraron empleados que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>
