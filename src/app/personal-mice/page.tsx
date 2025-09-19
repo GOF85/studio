@@ -117,10 +117,12 @@ export default function PersonalMicePage() {
     defaultValues: { personal: [] },
   });
 
-  const { fields, append, remove, setValue, control } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "personal",
   });
+  
+  const { setValue, control } = form;
 
   const handlePersonalChange = useCallback((index: number, name: string) => {
     const person = personalDB.find(p => p.nombre.toLowerCase() === name.toLowerCase());
