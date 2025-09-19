@@ -221,12 +221,6 @@ export default function PruebaMenuPage() {
             </h1>
           </div>
           <div className="flex gap-2">
-             <Button variant="outline" asChild>
-                <Link href={`/prueba-menu/informe?osId=${osId}`}>
-                    <Printer className="mr-2" />
-                    Informe
-                </Link>
-            </Button>
             <Button form="prueba-menu-form" type="submit" disabled={!formState.isDirty}>
               <Save className="mr-2" />
               Guardar Cambios
@@ -237,42 +231,38 @@ export default function PruebaMenuPage() {
         <Form {...form}>
             <form id="prueba-menu-form" onSubmit={handleSubmit(onSubmit)}>
                 <Card className="mb-6">
-                    <CardContent className="p-4">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
-                            <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
-                            <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
-                            <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
-                            <div><strong>Cliente:</strong> {serviceOrder.client}</div>
-                            <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
-                            <h4 className="font-bold col-span-full mb-1 mt-2">Datos del Evento</h4>
-                            <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
-                            <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
-                            <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
-                        </div>
+                    <CardContent className="p-4 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
+                        <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
+                        <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
+                        <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
+                        <div><strong>Cliente:</strong> {serviceOrder.client}</div>
+                        <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
+                        <h4 className="font-bold col-span-full mb-1 mt-2">Datos del Evento</h4>
+                        <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
+                        <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
+                        <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
                     </CardContent>
                 </Card>
             
             <Card className="mb-6 no-print">
-                <CardHeader className="py-3">
+                <CardHeader className="py-4">
                     <CardTitle className="text-lg flex items-center gap-2"><DollarSign/> Costes Adicionales</CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0">
-                    <div className="grid grid-cols-2 gap-6">
-                        <FormField
-                            control={control}
-                            name="costePruebaMenu"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Coste de la prueba de menú</FormLabel>
-                                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                                </FormItem>
-                            )}
-                        />
-                         <FormItem>
-                            <FormLabel>Asistentes a la prueba</FormLabel>
-                            <FormControl><Input value={asistentesPrueba} readOnly /></FormControl>
-                        </FormItem>
-                    </div>
+                <CardContent className="grid grid-cols-2 gap-6 pt-0">
+                    <FormField
+                        control={control}
+                        name="costePruebaMenu"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Coste de la prueba de menú</FormLabel>
+                                <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                            </FormItem>
+                        )}
+                    />
+                    <FormItem>
+                        <FormLabel>Asistentes a la prueba</FormLabel>
+                        <FormControl><Input value={asistentesPrueba} readOnly /></FormControl>
+                    </FormItem>
                 </CardContent>
             </Card>
 

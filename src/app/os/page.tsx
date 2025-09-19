@@ -446,13 +446,6 @@ export default function OsPage() {
                   </Link>
               </Button>
               <Separator />
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
-                  <Link href={osId ? `/informe?osId=${osId}` : '#'}>
-                    <FileDown className="mr-3 h-5 w-5 flex-shrink-0" />
-                    <span className="font-medium">Informe de Servicio</span>
-                  </Link>
-              </Button>
-              <Separator />
             </nav>
           </aside>
           
