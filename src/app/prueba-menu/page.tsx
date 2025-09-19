@@ -212,10 +212,10 @@ export default function PruebaMenuPage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" asChild>
-                <Link href={`/prueba-menu/informe?osId=${osId}`} target="_blank">
-                    <Printer className="mr-2" />
-                    Generar Informe
-                </Link>
+              <Link href={`/prueba-menu/informe?osId=${osId}`}>
+                  <Printer className="mr-2" />
+                  Generar Informe
+              </Link>
             </Button>
             <Button form="prueba-menu-form" type="submit" disabled={!formState.isDirty}>
               <Save className="mr-2" />
