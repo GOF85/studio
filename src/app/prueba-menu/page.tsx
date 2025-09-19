@@ -7,7 +7,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ArrowLeft, Save, Trash2, PlusCircle, GripVertical, ClipboardCheck } from 'lucide-react';
-import type { ServiceOrder, PruebaMenuData, PruebaMenuItem } from '@/types';
+import type { ServiceOrder, PruebaMenuData, PruebaMenuItem, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -21,6 +21,7 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { SortableItem } from '@/components/dnd/sortable-item';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
+import { format } from 'date-fns';
 
 const pruebaMenuItemSchema = z.object({
   id: z.string(),
@@ -45,6 +46,7 @@ export default function PruebaMenuPage() {
 
   const [isMounted, setIsMounted] = useState(false);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -67,6 +69,12 @@ export default function PruebaMenuPage() {
     const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const currentOS = allServiceOrders.find(os => os.id === osId);
     setServiceOrder(currentOS || null);
+
+    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+    const currentBriefing = allBriefings.find(b => b.osId === osId);
+    if (currentBriefing) {
+        setBriefingItems(currentBriefing.items);
+    }
 
     const allMenuTests = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as PruebaMenuData[];
     const currentMenuTest = allMenuTests.find(mt => mt.osId === osId);
@@ -132,37 +140,37 @@ export default function PruebaMenuPage() {
 
     return (
       <Card>
-        <CardHeader className="flex-row items-center justify-between">
+        <CardHeader className="flex-row items-center justify-between py-4">
           <CardTitle>{mainCategory.charAt(0) + mainCategory.slice(1).toLowerCase()}</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" type="button" variant="outline" onClick={() => addRow(mainCategory, 'header')}>+ Subcategoría</Button>
             <Button size="sm" type="button" onClick={() => addRow(mainCategory, 'item')}>+ Referencia</Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <div className="border rounded-lg">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12"></TableHead>
-                  <TableHead>Referencias</TableHead>
-                  <TableHead>Observaciones</TableHead>
-                  <TableHead className="w-12"></TableHead>
+                  <TableHead className="w-12 p-2"></TableHead>
+                  <TableHead className="p-2">Referencias</TableHead>
+                  <TableHead className="p-2 border-l">Observaciones</TableHead>
+                  <TableHead className="w-12 p-2"></TableHead>
                 </TableRow>
               </TableHeader>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={fields} strategy={verticalListSortingStrategy}>
-                  <TableBody>
+                <TableBody>
+                   <SortableContext items={fields} strategy={verticalListSortingStrategy}>
                     {sectionItems.length > 0 ? sectionItems.map(({ field, index }) => (
                       <SortableItem key={field.id} id={field.id}>
                         {(listeners, attributes) => (
                           <>
-                            <TableCell className="py-1">
+                            <TableCell className="py-1 px-2 align-middle">
                                 <Button variant="ghost" size="icon" className="cursor-grab h-9 w-9" {...attributes} {...listeners}>
                                   <GripVertical className="h-5 w-5 text-muted-foreground" />
                                 </Button>
                             </TableCell>
-                            <TableCell className={cn("py-1 font-medium", field.type === 'header' && "bg-muted/50 font-bold")}>
+                            <TableCell className={cn("py-1 px-2 font-medium", field.type === 'header' && "bg-muted/50 font-bold")}>
                               <FormField
                                 control={control}
                                 name={`items.${index}.referencia`}
@@ -173,7 +181,7 @@ export default function PruebaMenuPage() {
                                 )}
                               />
                             </TableCell>
-                            <TableCell className={cn("py-1", field.type === 'header' && "bg-muted/50")}>
+                            <TableCell className={cn("py-1 px-2 border-l", field.type === 'header' && "bg-muted/50")}>
                               <FormField
                                 control={control}
                                 name={`items.${index}.observaciones`}
@@ -184,7 +192,7 @@ export default function PruebaMenuPage() {
                                 )}
                               />
                             </TableCell>
-                            <TableCell className={cn("py-1", field.type === 'header' && "bg-muted/50")}>
+                            <TableCell className={cn("py-1 px-2", field.type === 'header' && "bg-muted/50")}>
                               <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -199,8 +207,8 @@ export default function PruebaMenuPage() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </TableBody>
-                </SortableContext>
+                  </SortableContext>
+                </TableBody>
               </DndContext>
             </Table>
           </div>
@@ -236,30 +244,40 @@ export default function PruebaMenuPage() {
               </Button>
             </div>
 
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle>Datos del Servicio</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2 text-sm">
-                <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
-                <div><strong>Cliente:</strong> {serviceOrder.client}</div>
-                <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
-                <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
-                <div><strong>Metre:</strong> {serviceOrder.respMetre || '-'}</div>
-                <div><strong>Nº PAX:</strong> {serviceOrder.pax}</div>
-              </CardContent>
-            </Card>
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+              <Card>
+                <CardHeader className="py-4">
+                  <CardTitle>Datos del Servicio</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm pt-0">
+                  <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
+                  <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
+                  <div><strong>Cliente:</strong> {serviceOrder.client}</div>
+                  <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="py-4">
+                  <CardTitle>Datos del Evento</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm pt-0">
+                  <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
+                  <div><strong>Nº PAX:</strong> {serviceOrder.pax}</div>
+                  <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
+                </CardContent>
+              </Card>
+            </div>
             
-            <div className="space-y-8">
+            <div className="space-y-6">
                 {renderSection('BODEGA')}
                 {renderSection('GASTRONOMÍA')}
             </div>
 
-             <Card className="mt-8">
-              <CardHeader>
+             <Card className="mt-6">
+              <CardHeader className="py-4">
                 <CardTitle>Observaciones Generales</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <FormField
                   control={control}
                   name="observacionesGenerales"
@@ -283,3 +301,5 @@ export default function PruebaMenuPage() {
     </>
   );
 }
+
+    
