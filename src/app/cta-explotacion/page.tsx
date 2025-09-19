@@ -119,6 +119,8 @@ export default function CtaExplotacionPage() {
         return acc + realHours * (order.precioHora || 0);
     }, 0);
 
+    const decoracionTotal = getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId));
+
 
     const newCostes = [
       { label: 'Gastronomía', presupuesto: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)), cierre: 0 },
@@ -128,7 +130,7 @@ export default function CtaExplotacionPage() {
       { label: 'Almacén', presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Almacén')), cierre: 0 },
       { label: 'Alquiler material', presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Alquiler')), cierre: 0 },
       { label: 'Transporte', presupuesto: getModuleTotal(allTransporteOrders.filter(o => o.osId === osId)), cierre: 0 },
-      { label: 'Decoración', presupuesto: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)), cierre: 0 },
+      { label: 'Decoración', presupuesto: decoracionTotal, cierre: decoracionTotal },
       { label: 'Atípicos', presupuesto: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)), cierre: 0 },
       { label: 'Personal MICE', presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: personalMiceRealCost },
       { label: 'Personal Externo', presupuesto: calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)), cierre: personalExternoCierre },
@@ -245,7 +247,7 @@ export default function CtaExplotacionPage() {
                     const pctSFact = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
                     const desviacion = row.objetivo - row.presupuesto;
                     const desviacionPct = row.presupuesto > 0 ? desviacion / row.presupuesto : 0;
-                    const isReadOnly = row.label === 'Personal Externo' || row.label === 'Personal MICE' || row.label === 'Coste Prueba de Menu';
+                    const isReadOnly = ['Personal Externo', 'Personal MICE', 'Coste Prueba de Menu', 'Decoración'].includes(row.label);
                     return (
                         <TableRow key={row.label}>
                             <TableCell>{row.label}</TableCell>
