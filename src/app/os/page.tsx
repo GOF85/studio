@@ -172,8 +172,6 @@ export default function OsPage() {
   const osId = searchParams.get('id');
 
   const [isMounted, setIsMounted] = useState(false);
-  const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
-  const [totalAmount, setTotalAmount] = useState(0);
   const { isLoading, setIsLoading } = useLoadingStore();
   const [accordionDefaultValue, setAccordionDefaultValue] = useState<string[] | undefined>(undefined);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -234,7 +232,6 @@ export default function OsPage() {
 
 
   useEffect(() => {
-    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
     setPersonal(allPersonal);
@@ -253,11 +250,6 @@ export default function OsPage() {
         }
         form.reset(values);
         
-        const relatedMaterialOrders = allMaterialOrders.filter(mo => mo.osId === osId);
-        setMaterialOrders(relatedMaterialOrders);
-        const total = relatedMaterialOrders.reduce((sum, order) => sum + order.total, 0);
-        setTotalAmount(total);
-
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
         router.push('/pes');
@@ -322,20 +314,6 @@ export default function OsPage() {
       }
     }, 1000)
   }
-
-  const handleEditMaterialOrder = (order: MaterialOrder) => {
-    router.push(`/pedidos?osId=${osId}&type=${order.type}&orderId=${order.id}`);
-  }
-
-  const handleDeleteMaterialOrder = (orderId: string) => {
-     let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-     const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderId);
-     localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
-     setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId));
-     const total = updatedOrders.filter(o => o.osId === osId).reduce((sum, o) => sum + o.total, 0);
-     setTotalAmount(total);
-     toast({ title: 'Pedido de material eliminado' });
-  }
   
   const handleSaveFromDialog = async () => {
     setIsSubmittingFromDialog(true);
@@ -365,13 +343,7 @@ export default function OsPage() {
           <aside className="lg:sticky top-24 self-start flex flex-col">
             <h2 className="text-lg font-semibold mb-4 px-3">Módulos</h2>
             <nav className="space-y-1">
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
-                  <Link href={osId ? `/cta-explotacion?osId=${osId}` : '#'}>
-                    <DollarSign className="mr-3 h-5 w-5 flex-shrink-0" />
-                    <span className="font-medium">Cta. Explotación</span>
-                  </Link>
-              </Button>
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
                   <Link href={osId ? `/comercial?osId=${osId}` : '#'}>
                     <Briefcase className="mr-3 h-5 w-5 flex-shrink-0" />
                     <span className="font-medium">Comercial</span>
@@ -384,21 +356,27 @@ export default function OsPage() {
                   </Link>
               </Button>
                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
-                  <Link href={osId ? `/almacen?osId=${osId}` : '#'}>
-                    <Warehouse className="mr-3 h-5 w-5 flex-shrink-0" />
-                    <span className="font-medium">Almacén</span>
-                  </Link>
-              </Button>
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
                   <Link href={osId ? `/bodega?osId=${osId}` : '#'}>
                     <Wine className="mr-3 h-5 w-5 flex-shrink-0" />
                     <span className="font-medium">Bodega</span>
+                  </Link>
+              </Button>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+                  <Link href={osId ? `/hielo?osId=${osId}` : '#'}>
+                    <Snowflake className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium">Hielo</span>
                   </Link>
               </Button>
               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
                   <Link href={osId ? `/bio?osId=${osId}` : '#'}>
                     <Leaf className="mr-3 h-5 w-5 flex-shrink-0" />
                     <span className="font-medium">Bio</span>
+                  </Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+                  <Link href={osId ? `/almacen?osId=${osId}` : '#'}>
+                    <Warehouse className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium">Almacén</span>
                   </Link>
               </Button>
                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
@@ -408,17 +386,19 @@ export default function OsPage() {
                   </Link>
               </Button>
                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
-                  <Link href={osId ? `/hielo?osId=${osId}` : '#'}>
-                    <Snowflake className="mr-3 h-5 w-5 flex-shrink-0" />
-                    <span className="font-medium">Hielo</span>
-                  </Link>
-              </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
                   <Link href={osId ? `/transporte?osId=${osId}` : '#'}>
                     <Truck className="mr-3 h-5 w-5 flex-shrink-0" />
                     <span className="font-medium">Transporte</span>
                   </Link>
               </Button>
+              <Separator />
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+                  <Link href={osId ? `/cta-explotacion?osId=${osId}` : '#'}>
+                    <DollarSign className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <span className="font-medium">Cta. Explotación</span>
+                  </Link>
+              </Button>
+              <Separator />
             </nav>
           </aside>
           
@@ -501,7 +481,7 @@ export default function OsPage() {
                       <AccordionItem value="cliente">
                         <AccordionTrigger><ClienteTitle /></AccordionTrigger>
                         <AccordionContent>
-                          <div className="grid grid-cols-3 gap-6 pt-4">
+                           <div className="grid grid-cols-3 gap-6 pt-4">
                             <div className="col-span-2">
                                 <FormField control={form.control} name="client" render={({ field }) => (
                                 <FormItem>
@@ -551,7 +531,7 @@ export default function OsPage() {
                       <AccordionItem value="espacio">
                         <AccordionTrigger><EspacioTitle /></AccordionTrigger>
                         <AccordionContent>
-                          <div className="space-y-6 pt-4">
+                           <div className="space-y-6 pt-4">
                             <FormField control={form.control} name="space" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Espacio</FormLabel>
@@ -573,19 +553,19 @@ export default function OsPage() {
                                 <FormField control={form.control} name="spaceContact" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Contacto Espacio</FormLabel>
-                                    <FormControl><Input {...field} readOnly /></FormControl>
+                                    <FormControl><Input {...field} /></FormControl>
                                 </FormItem>
                                 )} />
                                 <FormField control={form.control} name="spacePhone" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Tlf. Espacio</FormLabel>
-                                    <FormControl><Input {...field} readOnly /></FormControl>
+                                    <FormControl><Input {...field} /></FormControl>
                                 </FormItem>
                                 )} />
                                 <FormField control={form.control} name="spaceMail" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Email Espacio</FormLabel>
-                                        <FormControl><Input {...field} readOnly /></FormControl>
+                                        <FormControl><Input {...field} /></FormControl>
                                     </FormItem>
                                 )} />
                                 <FormField control={form.control} name="plane" render={({ field }) => (
@@ -764,7 +744,6 @@ export default function OsPage() {
 
                   </CardContent>
                 </Card>
-
               </form>
             </FormProvider>
           </main>
