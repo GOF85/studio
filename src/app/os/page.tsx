@@ -493,15 +493,17 @@ export default function OsPage() {
                       <AccordionItem value="cliente">
                         <AccordionTrigger><ClienteTitle /></AccordionTrigger>
                         <AccordionContent>
-                          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
-                            <FormField control={form.control} name="client" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Cliente</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )} />
-                            <FormField control={form.control} name="tipoCliente" render={({ field }) => (
+                          <div className="grid grid-cols-3 gap-6 pt-4">
+                            <div className="col-span-2">
+                                <FormField control={form.control} name="client" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Cliente</FormLabel>
+                                    <FormControl><Input {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )} />
+                            </div>
+                             <FormField control={form.control} name="tipoCliente" render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Tipo Cliente</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -514,6 +516,14 @@ export default function OsPage() {
                                 </Select>
                                 </FormItem>
                             )} />
+                            <div className="col-span-3">
+                                 <FormField control={form.control} name="finalClient" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Cliente Final</FormLabel>
+                                    <FormControl><Input {...field} /></FormControl>
+                                </FormItem>
+                                )} />
+                            </div>
                             <FormField control={form.control} name="contact" render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Contacto</FormLabel>
@@ -526,12 +536,6 @@ export default function OsPage() {
                                 <FormControl><Input {...field} /></FormControl>
                               </FormItem>
                             )} />
-                            <FormField control={form.control} name="finalClient" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Cliente Final</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
-                              </FormItem>
-                            )} />
                           </div>
                         </AccordionContent>
                       </AccordionItem>
@@ -539,52 +543,50 @@ export default function OsPage() {
                       <AccordionItem value="espacio">
                         <AccordionTrigger><EspacioTitle /></AccordionTrigger>
                         <AccordionContent>
-                          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
-                            <div className="lg:col-span-4">
-                                <FormField control={form.control} name="space" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Espacio</FormLabel>
-                                        <Select onValueChange={(value) => { field.onChange(value); handleEspacioChange(value); }} value={field.value}>
-                                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                            <SelectContent>
-                                            {espacios.map(e => <SelectItem key={e.id} value={e.espacio}>{e.espacio}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </FormItem>
-                                )} />
-                            </div>
-                            <div className="lg:col-span-4">
-                                <FormField control={form.control} name="spaceAddress" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Dirección</FormLabel>
-                                        <FormControl><Input {...field} placeholder="Dirección del espacio" /></FormControl>
-                                    </FormItem>
-                                )} />
-                            </div>
-                            <FormField control={form.control} name="spaceContact" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Contacto Espacio</FormLabel>
-                                <FormControl><Input {...field} readOnly /></FormControl>
-                              </FormItem>
-                            )} />
-                            <FormField control={form.control} name="spacePhone" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Tlf. Espacio</FormLabel>
-                                <FormControl><Input {...field} readOnly /></FormControl>
-                              </FormItem>
-                            )} />
-                            <FormField control={form.control} name="spaceMail" render={({ field }) => (
+                          <div className="space-y-6 pt-4">
+                            <FormField control={form.control} name="space" render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Email Espacio</FormLabel>
-                                    <FormControl><Input {...field} readOnly /></FormControl>
+                                    <FormLabel>Espacio</FormLabel>
+                                    <Select onValueChange={(value) => { field.onChange(value); handleEspacioChange(value); }} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                        {espacios.map(e => <SelectItem key={e.id} value={e.espacio}>{e.espacio}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
                                 </FormItem>
                             )} />
-                             <FormField control={form.control} name="plane" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Plano</FormLabel>
-                                <FormControl><Input placeholder="Enlazar aquí..." {...field} /></FormControl>
-                              </FormItem>
+                             <FormField control={form.control} name="spaceAddress" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Dirección</FormLabel>
+                                    <FormControl><Input {...field} placeholder="Dirección del espacio" /></FormControl>
+                                </FormItem>
                             )} />
+                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                <FormField control={form.control} name="spaceContact" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Contacto Espacio</FormLabel>
+                                    <FormControl><Input {...field} readOnly /></FormControl>
+                                </FormItem>
+                                )} />
+                                <FormField control={form.control} name="spacePhone" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Tlf. Espacio</FormLabel>
+                                    <FormControl><Input {...field} readOnly /></FormControl>
+                                </FormItem>
+                                )} />
+                                <FormField control={form.control} name="spaceMail" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Email Espacio</FormLabel>
+                                        <FormControl><Input {...field} readOnly /></FormControl>
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="plane" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Plano</FormLabel>
+                                    <FormControl><Input placeholder="Enlazar aquí..." {...field} /></FormControl>
+                                </FormItem>
+                                )} />
+                            </div>
                           </div>
                         </AccordionContent>
                       </AccordionItem>
