@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { parse, differenceInMinutes } from 'date-fns';
-import { ArrowLeft, Save, Users } from 'lucide-react';
+import { ArrowLeft, Save, Users, X } from 'lucide-react';
 import type { ServiceOrder, PersonalMiceOrder, Personal } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -166,7 +166,13 @@ export default function AsignacionPersonalMicePage() {
                         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />{isEditing ? 'Editar' : 'Nueva'} Asignación de Personal</h1>
                         <p className="text-muted-foreground">Para la OS: {serviceOrder.serviceNumber}</p>
                     </div>
-                    <Button type="submit"><Save className="mr-2" /> Guardar Asignación</Button>
+                     <div className="flex gap-2">
+                        <Button variant="outline" type="button" onClick={() => router.push(`/personal-mice?osId=${osId}`)}>
+                            <X className="mr-2 h-4 w-4" />
+                            Cancelar
+                        </Button>
+                        <Button type="submit"><Save className="mr-2" /> Guardar Asignación</Button>
+                    </div>
                 </div>
                 <div className="grid lg:grid-cols-2 gap-8">
                     <Card>

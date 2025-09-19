@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Save, FilePlus, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, FilePlus, Calendar as CalendarIcon, Loader2, X } from 'lucide-react';
 import type { ServiceOrder, AtipicoDBItem, AtipicoOrder } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -166,10 +166,16 @@ export default function PedidoAtipicoPage() {
                         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><FilePlus />{isEditing ? 'Editar' : 'Nuevo'} Gasto Atípico</h1>
                         <p className="text-muted-foreground">Para la OS: {serviceOrder.serviceNumber}</p>
                     </div>
-                    <Button type="submit" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="animate-spin" /> : <Save className="mr-2" />}
-                        Guardar Gasto
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" type="button" onClick={() => router.push(`/atipicos?osId=${osId}`)}>
+                            <X className="mr-2 h-4 w-4" />
+                            Cancelar
+                        </Button>
+                        <Button type="submit" disabled={isLoading}>
+                            {isLoading ? <Loader2 className="animate-spin" /> : <Save className="mr-2" />}
+                            Guardar Gasto
+                        </Button>
+                    </div>
                 </div>
 
                 <Card>
