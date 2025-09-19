@@ -145,23 +145,24 @@ export default function PersonalMicePage() {
           <Card className="mb-8">
             <CardHeader>
               <CardTitle>Servicios del Evento</CardTitle>
-              <CardDescription>Resumen de los servicios planificados en el briefing comercial.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Fecha</TableHead>
                     <TableHead>Descripción</TableHead>
                     <TableHead>Asistentes</TableHead>
+                    <TableHead>Duración</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {briefingItems.map(item => (
                     <TableRow key={item.id}>
-                      <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}-{item.horaFin}</TableCell>
-                      <TableCell>{item.descripcion}</TableCell>
-                      <TableCell>{item.asistentes}</TableCell>
+                      <TableCell className="py-2">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
+                      <TableCell className="py-2">{item.descripcion}</TableCell>
+                      <TableCell className="py-2">{item.asistentes}</TableCell>
+                      <TableCell className="py-2">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
