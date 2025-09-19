@@ -7,7 +7,7 @@ import { TableRow } from '@/components/ui/table';
 
 interface SortableItemProps {
   id: string;
-  children: React.ReactElement;
+  children: React.ReactNode;
 }
 
 export function SortableItem({ id, children }: SortableItemProps) {
@@ -25,15 +25,12 @@ export function SortableItem({ id, children }: SortableItemProps) {
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 1 : 'auto',
-    position: 'relative', // Ensure zIndex works
+    position: 'relative',
   };
 
   return (
-     React.cloneElement(children, {
-      ref: setNodeRef,
-      style,
-      ...attributes,
-      ...listeners,
-    })
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
+    </div>
   );
 }
