@@ -223,3 +223,19 @@ export type CtaExplotacionObjetivos = {
     alquiler: number;
     transporte: number;
 };
+
+export type AtipicoDBItem = {
+    id: string;
+    concepto: string;
+    precio: number;
+};
+
+export type AtipicoOrder = {
+    id: string;
+    osId: string;
+    fecha: string;
+    concepto: string;
+    observaciones: string;
+    precio: number;
+    status: 'Pendiente' | 'Aprobado' | 'Rechazado';
+};

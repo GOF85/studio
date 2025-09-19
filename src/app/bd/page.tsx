@@ -33,6 +33,7 @@ export default function BdPage() {
     { id: '6', name: 'Tipo Servicio', description: 'Gestión de los tipos de servicio.', itemCount: 0, path: '/tipo-servicio' },
     { id: '7', name: 'Proveedores de Transporte', description: 'Gestión de proveedores de transporte.', itemCount: 0, path: '/proveedores-transporte' },
     { id: '8', name: 'Proveedores de Hielo', description: 'Gestión de proveedores de hielo.', itemCount: 0, path: '/proveedor-hielo' },
+    { id: '9', name: 'Atípicos (Gastos Varios)', description: 'Gestión de conceptos de gastos varios.', itemCount: 0, path: '/atipicos-db' },
   ]);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -46,6 +47,7 @@ export default function BdPage() {
     const tipoServicio = JSON.parse(localStorage.getItem('tipoServicio') || '[]').length;
     const proveedoresTransporte = JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]').length;
     const proveedorHielo = JSON.parse(localStorage.getItem('proveedorHielo') || '[]').length;
+    const atipicos = JSON.parse(localStorage.getItem('atipicosDB') || '[]').length;
     
     setDatabases(prev => prev.map(db => {
       if (db.id === '1') return { ...db, itemCount: personal };
@@ -56,6 +58,7 @@ export default function BdPage() {
       if (db.id === '6') return { ...db, itemCount: tipoServicio };
       if (db.id === '7') return { ...db, itemCount: proveedoresTransporte };
       if (db.id === '8') return { ...db, itemCount: proveedorHielo };
+      if (db.id === '9') return { ...db, itemCount: atipicos };
       return db;
     }));
   }, []);
