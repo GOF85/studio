@@ -127,7 +127,7 @@
 
 @media print {
   .no-print {
-    display: none;
+    display: none !important;
   }
   body {
     background-color: white;
@@ -135,5 +135,14 @@
   .printable-area {
     box-shadow: none !important;
     border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+  .printable-area .handwritten-observations {
+    display: block;
+  }
+  .printable-area .digital-observations {
+    display: none;
   }
 }
