@@ -180,11 +180,13 @@ export default function OsPage() {
 
   const [personal, setPersonal] = useState<Personal[]>([]);
   const [espacios, setEspacios] = useState<Espacio[]>([]);
-  const personalSala = useMemo(() => personal.filter(p => p.departamento === 'SALA'), [personal]);
-  const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR'), [personal]);
-  const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'COMERCIAL'), [personal]);
-  const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA'), [personal]);
-  const personalRRHH = useMemo(() => personal.filter(p => p.departamento === 'RRHH'), [personal]);
+  const personalSala = useMemo(() => personal.filter(p => p.departamento === 'SALA' && p.nombre), [personal]);
+  const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR' && p.nombre), [personal]);
+  const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'COMERCIAL' && p.nombre), [personal]);
+  const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA' && p.nombre), [personal]);
+  const personalRRHH = useMemo(() => personal.filter(p => p.departamento === 'RRHH' && p.nombre), [personal]);
+  const validEspacios = useMemo(() => espacios.filter(e => e.espacio), [espacios]);
+
 
   const form = useForm<OsFormValues>({
     resolver: zodResolver(osFormSchema),
@@ -563,7 +565,7 @@ export default function OsPage() {
                                     <Select onValueChange={(value) => { field.onChange(value); handleEspacioChange(value); }} value={field.value}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                         <SelectContent>
-                                        {espacios.map(e => <SelectItem key={e.id} value={e.espacio}>{e.espacio}</SelectItem>)}
+                                        {validEspacios.map(e => <SelectItem key={e.id} value={e.espacio}>{e.espacio}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </FormItem>
