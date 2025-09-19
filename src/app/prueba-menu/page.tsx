@@ -50,7 +50,7 @@ export default function PruebaMenuPage() {
   });
 
   const { control, handleSubmit, formState } = form;
-  const { fields, append, remove, move } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control,
     name: "items",
   });
@@ -215,32 +215,32 @@ export default function PruebaMenuPage() {
     <>
       <Header className="no-print" />
       <main className="container mx-auto px-4 py-8">
+        <div className="flex items-start justify-between mb-8 no-print">
+          <div>
+            <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
+              <ArrowLeft className="mr-2" />
+              Volver a la OS
+            </Button>
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
+              <ClipboardCheck />
+              Prueba de Menú
+            </h1>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" type="button" onClick={handlePrint}>
+              <Printer className="mr-2" />
+              Imprimir / Guardar PDF
+            </Button>
+            <Button form="prueba-menu-form" type="submit" disabled={!formState.isDirty}>
+              <Save className="mr-2" />
+              Guardar Cambios
+            </Button>
+          </div>
+        </div>
+
         <div className="printable-area">
           <Form {...form}>
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <div className="flex items-start justify-between mb-8 no-print">
-                <div>
-                  <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
-                    <ArrowLeft className="mr-2" />
-                    Volver a la OS
-                  </Button>
-                  <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                    <ClipboardCheck />
-                    Prueba de Menú
-                  </h1>
-                </div>
-                 <div className="flex gap-2">
-                    <Button variant="outline" type="button" onClick={handlePrint}>
-                      <Printer className="mr-2" />
-                      Imprimir / Guardar PDF
-                    </Button>
-                    <Button type="submit" disabled={!formState.isDirty}>
-                      <Save className="mr-2" />
-                      Guardar Cambios
-                    </Button>
-                </div>
-              </div>
-
+            <form id="prueba-menu-form" onSubmit={handleSubmit(onSubmit)}>
               <div className="grid md:grid-cols-2 gap-6 mb-8">
                 <Card className="p-0">
                   <CardHeader className="py-2 px-4">
