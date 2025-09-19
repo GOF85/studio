@@ -7,7 +7,10 @@ import { TableRow } from '@/components/ui/table';
 
 interface SortableItemProps {
   id: string;
-  children: React.ReactNode;
+  children: (
+    listeners: ReturnType<typeof useSortable>['listeners'],
+    attributes: ReturnType<typeof useSortable>['attributes']
+  ) => React.ReactNode;
 }
 
 export function SortableItem({ id, children }: SortableItemProps) {
@@ -20,25 +23,17 @@ export function SortableItem({ id, children }: SortableItemProps) {
     isDragging,
   } = useSortable({ id });
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 1 : 'auto',
+    position: 'relative', // Ensure zIndex works
   };
-  
-  // Pass listeners to a specific drag handle
-  const childrenWithDragHandle = React.Children.map(children, (child) => {
-    if (React.isValidElement(child) && typeof child.type !== 'string') {
-        // @ts-ignore
-        return React.cloneElement(child, { dragHandleProps: { ...attributes, ...listeners } });
-    }
-    return child;
-  });
 
   return (
     <TableRow ref={setNodeRef} style={style}>
-      {childrenWithDragHandle}
+      {children(listeners, attributes)}
     </TableRow>
   );
 }
