@@ -354,19 +354,22 @@ export type IngredienteInterno = {
     alergenos: Alergeno[];
 };
 
-type ComponenteElaboracion = {
-    id: string; // Puede ser ingredienteId o elaboracionId
+export type ComponenteElaboracion = {
+    // Polimórfico: puede ser un ingrediente o una sub-elaboración
+    id: string;
+    tipo: 'ingrediente' | 'elaboracion';
+    componenteId: string; // ID de IngredienteInterno o de Elaboracion
     cantidad: number;
-}
+};
 
 export type Elaboracion = {
     id: string;
     nombre: string;
-    tipo: 'BASE' | 'COMPUESTA';
+    // tipo: 'BASE' | 'COMPUESTA'; // No es necesario si `componentes` es polimórfico
     componentes: ComponenteElaboracion[];
-    produccionTotal: number;
+    produccionTotal: number; // Ej: 1.5 (se producen 1.5 Kilos)
     unidadProduccion: UnidadMedida;
-    costePorUnidad: number; // Calculado
+    costePorUnidad: number; // Calculado: coste total de componentes / produccionTotal
     alergenos: Alergeno[]; // Calculado
     instruccionesPreparacion: string;
     fotosProduccionURLs: string[];
