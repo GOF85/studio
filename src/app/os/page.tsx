@@ -69,7 +69,7 @@ export const osFormSchema = z.object({
   contact: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
-  asistentes: z.coerce.number().optional().default(0),
+  asistentes: z.coerce.number().min(1, 'El número de asistentes es obligatorio.'),
   endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
   space: z.string().optional().default(''),
   spaceAddress: z.string().optional().default(''),
@@ -480,7 +480,17 @@ export default function OsPage() {
                                 </FormControl>
                               </PopoverTrigger>
                               <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
+                                <Calendar 
+                                  mode="single" 
+                                  selected={field.value} 
+                                  onSelect={(date) => {
+                                    field.onChange(date);
+                                    const popoverTrigger = document.getElementById('os-form')?.querySelector('[aria-haspopup="dialog"]');
+                                    if (popoverTrigger) (popoverTrigger as HTMLElement).click();
+                                  }}
+                                  initialFocus 
+                                  locale={es} 
+                                />
                               </PopoverContent>
                             </Popover>
                             <FormMessage />
@@ -499,7 +509,17 @@ export default function OsPage() {
                                 </FormControl>
                               </PopoverTrigger>
                               <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
+                                 <Calendar 
+                                  mode="single" 
+                                  selected={field.value} 
+                                  onSelect={(date) => {
+                                    field.onChange(date);
+                                     const popoverTrigger = document.getElementById('os-form')?.querySelector('[aria-haspopup="dialog"]');
+                                    if (popoverTrigger) (popoverTrigger as HTMLElement).click();
+                                  }}
+                                  initialFocus 
+                                  locale={es} 
+                                />
                               </PopoverContent>
                             </Popover>
                             <FormMessage />
@@ -509,6 +529,7 @@ export default function OsPage() {
                         <FormItem>
                           <FormLabel>Asistentes</FormLabel>
                           <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                          <FormMessage />
                         </FormItem>
                       )} />
                        <FormField control={form.control} name="status" render={({ field }) => (
@@ -821,3 +842,5 @@ export default function OsPage() {
     </TooltipProvider>
   );
 }
+
+    
