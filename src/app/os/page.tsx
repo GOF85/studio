@@ -344,7 +344,7 @@ export default function OsPage() {
     <TooltipProvider>
       <Header />
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-headline font-bold">{osId ? 'Editar' : 'Nueva'} Orden de Servicio</h1>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleBackToList}>Volver al listado</Button>
@@ -357,93 +357,93 @@ export default function OsPage() {
 
         <div className="grid lg:grid-cols-[180px_1fr] gap-8">
           <aside className="lg:sticky top-24 self-start flex flex-col">
-            <h2 className="text-lg font-semibold mb-4 px-3">Módulos</h2>
-            <nav className="space-y-1">
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+            <h2 className="text-base font-semibold mb-2 px-2">Módulos</h2>
+            <nav className="space-y-0.5">
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
                   <Link href={osId ? `/comercial?osId=${osId}` : '#'}>
-                    <Briefcase className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <Briefcase className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="font-medium">Comercial</span>
                   </Link>
               </Button>
                {hasPruebaDeMenu && (
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
                   <Link href={osId ? `/prueba-menu?osId=${osId}` : '#'}>
-                    <ClipboardCheck className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <ClipboardCheck className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="font-medium">Prueba de Menú</span>
                   </Link>
                 </Button>
                )}
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
                   <Link href={osId ? `/gastronomia?osId=${osId}` : '#'}>
-                    <Utensils className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <Utensils className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="font-medium">Gastronomía</span>
                   </Link>
               </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
                   <Link href={osId ? `/bodega?osId=${osId}` : '#'}>
-                    <Wine className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <Wine className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="font-medium">Bodega</span>
                   </Link>
               </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
                   <Link href={osId ? `/hielo?osId=${osId}` : '#'}>
-                    <Snowflake className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <Snowflake className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="font-medium">Hielo</span>
                   </Link>
               </Button>
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
                   <Link href={osId ? `/bio?osId=${osId}` : '#'}>
-                    <Leaf className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <Leaf className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="font-medium">Bio</span>
                   </Link>
               </Button>
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
                   <Link href={osId ? `/almacen?osId=${osId}` : '#'}>
-                    <Warehouse className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <Warehouse className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="font-medium">Almacén</span>
                   </Link>
               </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
                   <Link href={osId ? `/alquiler?osId=${osId}` : '#'}>
-                    <Archive className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <Archive className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="font-medium">Alquiler</span>
                   </Link>
               </Button>
                
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
                   <Link href={osId ? `/decoracion?osId=${osId}` : '#'}>
-                    <Flower2 className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <Flower2 className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="font-medium">Decoración</span>
                   </Link>
               </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
                   <Link href={osId ? `/atipicos?osId=${osId}` : '#'}>
-                    <FilePlus className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <FilePlus className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="font-medium">Atípicos</span>
                   </Link>
               </Button>
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
                   <Link href={osId ? `/personal-mice?osId=${osId}` : '#'}>
-                    <Users className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <Users className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="font-medium">Personal MICE</span>
                   </Link>
               </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
                   <Link href={osId ? `/personal-externo?osId=${osId}` : '#'}>
-                    <UserPlus className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <UserPlus className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="font-medium">Personal Externo</span>
                   </Link>
               </Button>
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
                   <Link href={osId ? `/transporte?osId=${osId}` : '#'}>
-                    <Truck className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <Truck className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="font-medium">Transporte</span>
                   </Link>
               </Button>
-              <Separator />
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-3" disabled={!osId}>
+              <Separator className="my-2" />
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
                   <Link href={osId ? `/cta-explotacion?osId=${osId}` : '#'}>
-                    <DollarSign className="mr-3 h-5 w-5 flex-shrink-0" />
+                    <DollarSign className="mr-2 h-4 w-4 flex-shrink-0" />
                     <span className="font-medium">Cta. Explotación</span>
                   </Link>
               </Button>
@@ -453,13 +453,13 @@ export default function OsPage() {
           
           <main>
             <FormProvider {...form}>
-              <form id="os-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <form id="os-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Datos del Servicio</CardTitle>
+                  <CardHeader className="py-4">
+                    <CardTitle className="text-xl">Datos del Servicio</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <FormField control={form.control} name="serviceNumber" render={({ field }) => (
                         <FormItem>
                           <FormLabel>Nº Servicio</FormLabel>
@@ -539,11 +539,12 @@ export default function OsPage() {
                       )} />
                     </div>
 
-                   {accordionDefaultValue && <Accordion type="multiple" defaultValue={accordionDefaultValue} className="w-full">
-                      <AccordionItem value="cliente">
-                        <AccordionTrigger><ClienteTitle /></AccordionTrigger>
+                   {accordionDefaultValue && <Accordion type="multiple" defaultValue={accordionDefaultValue} className="w-full space-y-3">
+                      <AccordionItem value="cliente" className="border-none">
+                       <Card>
+                        <AccordionTrigger className="p-4"><ClienteTitle /></AccordionTrigger>
                         <AccordionContent>
-                           <div className="grid grid-cols-3 gap-6 pt-4">
+                           <div className="grid grid-cols-3 gap-4 px-4 pb-4">
                             <div className="col-span-2">
                                 <FormField control={form.control} name="client" render={({ field }) => (
                                 <FormItem>
@@ -588,12 +589,14 @@ export default function OsPage() {
                             )} />
                           </div>
                         </AccordionContent>
+                       </Card>
                       </AccordionItem>
 
-                      <AccordionItem value="espacio">
-                        <AccordionTrigger><EspacioTitle /></AccordionTrigger>
+                      <AccordionItem value="espacio" className="border-none">
+                       <Card>
+                        <AccordionTrigger className="p-4"><EspacioTitle /></AccordionTrigger>
                         <AccordionContent>
-                           <div className="space-y-6 pt-4">
+                           <div className="space-y-4 px-4 pb-4">
                             <FormField control={form.control} name="space" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Espacio</FormLabel>
@@ -612,7 +615,7 @@ export default function OsPage() {
                                     <FormControl><Input {...field} placeholder="Dirección del espacio" /></FormControl>
                                 </FormItem>
                             )} />
-                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 <FormField control={form.control} name="spaceContact" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Contacto Espacio</FormLabel>
@@ -640,12 +643,14 @@ export default function OsPage() {
                             </div>
                           </div>
                         </AccordionContent>
+                       </Card>
                       </AccordionItem>
                       
-                       <AccordionItem value="responsables">
-                        <AccordionTrigger><ResponsablesTitle /></AccordionTrigger>
+                       <AccordionItem value="responsables" className="border-none">
+                        <Card>
+                        <AccordionTrigger className="p-4"><ResponsablesTitle /></AccordionTrigger>
                         <AccordionContent>
-                           <div className="grid md:grid-cols-3 gap-6 pt-4">
+                           <div className="grid md:grid-cols-3 gap-4 px-4 pb-4">
                               <FormField control={form.control} name="respMetre" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Resp. Metre</FormLabel>
@@ -718,8 +723,8 @@ export default function OsPage() {
                                 <FormItem><FormLabel>Mail Resp. Cocina CPR</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                )} />
                             </div>
-                            <Separator className="my-4" />
-                            <div className="grid md:grid-cols-3 gap-6 pt-4">
+                            <Separator className="my-3" />
+                            <div className="grid md:grid-cols-3 gap-4 px-4 pb-4">
                                 <FormField
                                     control={form.control}
                                     name="comercialAsiste"
@@ -755,8 +760,8 @@ export default function OsPage() {
                                 <FormItem><FormLabel>Mail Resp. Comercial</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
                                 )} />
                            </div>
-                           <Separator className="my-4" />
-                           <div className="grid md:grid-cols-3 gap-6 pt-4">
+                           <Separator className="my-3" />
+                           <div className="grid md:grid-cols-3 gap-4 px-4 pb-4">
                                 <FormField
                                     control={form.control}
                                     name="rrhhAsiste"
@@ -793,12 +798,13 @@ export default function OsPage() {
                                 )} />
                            </div>
                         </AccordionContent>
-                      </AccordionItem>
+                        </Card>
+                       </AccordionItem>
                     </Accordion>}
                     
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t">
+                    <div className="space-y-4 pt-4 border-t">
                       <FormField control={form.control} name="comments" render={({ field }) => (
-                          <FormItem className="md:col-span-2 lg:col-span-3">
+                          <FormItem>
                               <FormLabel>Comentarios</FormLabel>
                               <FormControl><Textarea rows={4} {...field} /></FormControl>
                           </FormItem>
