@@ -133,11 +133,15 @@ export default function IngredientesERPPage() {
         }
         
         const importedData: IngredienteERP[] = results.data.map(item => {
-            let unidad: UnidadMedida = 'UNIDAD';
+            let unidad: UnidadMedida;
             const itemUnidad = (item.unidad || '').toUpperCase();
-            if (itemUnidad === 'KG') unidad = 'KILO';
-            else if (itemUnidad === 'L') unidad = 'LITRO';
-            else if (itemUnidad === 'UD') unidad = 'UNIDAD';
+            if (itemUnidad === 'KG') {
+                unidad = 'KILO';
+            } else if (itemUnidad === 'L') {
+                unidad = 'LITRO';
+            } else {
+                unidad = 'UNIDAD';
+            }
             
             return {
                 id: item.id || Date.now().toString() + Math.random(),
