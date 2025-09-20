@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 export const ingredienteErpSchema = z.object({
   id: z.string(),
+  IdERP: z.string().optional().default(''),
   nombreProductoERP: z.string().min(1, 'El nombre es obligatorio'),
   referenciaProveedor: z.string().optional().default(''),
   nombreProveedor: z.string().optional().default(''),
@@ -29,6 +30,7 @@ export const ingredienteErpSchema = z.object({
 type IngredienteErpFormValues = z.infer<typeof ingredienteErpSchema>;
 
 const defaultValues: Partial<IngredienteErpFormValues> = {
+    IdERP: '',
     nombreProductoERP: '',
     referenciaProveedor: '',
     nombreProveedor: '',
@@ -125,6 +127,9 @@ export default function IngredienteErpFormPage() {
                 <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <FormField control={form.control} name="nombreProductoERP" render={({ field }) => (
                         <FormItem><FormLabel>Nombre del Producto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                     <FormField control={form.control} name="IdERP" render={({ field }) => (
+                        <FormItem><FormLabel>Id. ERP</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                      <FormField control={form.control} name="nombreProveedor" render={({ field }) => (
                         <FormItem><FormLabel>Nombre del Proveedor</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>

@@ -338,6 +338,7 @@ export type UnidadMedida = 'KILO' | 'LITRO' | 'UNIDAD';
 
 export type IngredienteERP = {
     id: string;
+    IdERP: string;
     nombreProductoERP: string;
     referenciaProveedor: string;
     nombreProveedor: string;

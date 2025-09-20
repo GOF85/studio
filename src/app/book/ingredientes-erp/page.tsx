@@ -37,7 +37,7 @@ import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 
-const CSV_HEADERS = ["id", "nombreProductoERP", "referenciaProveedor", "nombreProveedor", "familiaCategoria", "precio", "unidad"];
+const CSV_HEADERS = ["id", "IdERP", "nombreProductoERP", "referenciaProveedor", "nombreProveedor", "familiaCategoria", "precio", "unidad"];
 
 export default function IngredientesERPPage() {
   const [items, setItems] = useState<IngredienteERP[]>([]);
@@ -53,9 +53,9 @@ export default function IngredientesERPPage() {
     let storedData = localStorage.getItem('ingredientesERP');
     if (!storedData || JSON.parse(storedData).length === 0) {
       const dummyData: IngredienteERP[] = [
-        { id: 'erp-1', nombreProductoERP: 'Harina de Trigo (Saco 25kg)', referenciaProveedor: 'HT25', nombreProveedor: 'Harinas Molineras', familiaCategoria: 'Secos', precio: 15.00, unidad: 'KILO' },
-        { id: 'erp-2', nombreProductoERP: 'Huevo Campero (Caja 30 und)', referenciaProveedor: 'HC30', nombreProveedor: 'Granjas del Sol', familiaCategoria: 'Frescos', precio: 5.50, unidad: 'UNIDAD' },
-        { id: 'erp-3', nombreProductoERP: 'Leche Entera (Litro)', referenciaProveedor: 'LE01', nombreProveedor: 'Lácteos El Prado', familiaCategoria: 'Lácteos', precio: 1.10, unidad: 'LITRO' },
+        { id: 'erp-1', IdERP: 'ERP001', nombreProductoERP: 'Harina de Trigo (Saco 25kg)', referenciaProveedor: 'HT25', nombreProveedor: 'Harinas Molineras', familiaCategoria: 'Secos', precio: 15.00, unidad: 'KILO' },
+        { id: 'erp-2', IdERP: 'ERP002', nombreProductoERP: 'Huevo Campero (Caja 30 und)', referenciaProveedor: 'HC30', nombreProveedor: 'Granjas del Sol', familiaCategoria: 'Frescos', precio: 5.50, unidad: 'UNIDAD' },
+        { id: 'erp-3', IdERP: 'ERP003', nombreProductoERP: 'Leche Entera (Litro)', referenciaProveedor: 'LE01', nombreProveedor: 'Lácteos El Prado', familiaCategoria: 'Lácteos', precio: 1.10, unidad: 'LITRO' },
       ];
       storedData = JSON.stringify(dummyData);
       localStorage.setItem('ingredientesERP', storedData);
@@ -70,7 +70,8 @@ export default function IngredientesERPPage() {
     return items.filter(item => 
       item.nombreProductoERP.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.nombreProveedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.referenciaProveedor.toLowerCase().includes(searchTerm.toLowerCase())
+      item.referenciaProveedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.IdERP.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [items, searchTerm]);
 
@@ -125,6 +126,7 @@ export default function IngredientesERPPage() {
         
         const importedData: IngredienteERP[] = results.data.map(item => ({
             id: item.id || Date.now().toString() + Math.random(),
+            IdERP: item.IdERP || '',
             nombreProductoERP: item.nombreProductoERP || '',
             referenciaProveedor: item.referenciaProveedor || '',
             nombreProveedor: item.nombreProveedor || '',
@@ -200,7 +202,7 @@ export default function IngredientesERPPage() {
 
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
-            placeholder="Buscar por nombre, proveedor o referencia..."
+            placeholder="Buscar por nombre, Id. ERP, proveedor o referencia..."
             className="flex-grow max-w-lg"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -212,6 +214,7 @@ export default function IngredientesERPPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Producto</TableHead>
+                <TableHead>Id. ERP</TableHead>
                 <TableHead>Proveedor</TableHead>
                 <TableHead>Ref. Proveedor</TableHead>
                 <TableHead>Categoría</TableHead>
@@ -225,6 +228,7 @@ export default function IngredientesERPPage() {
                 filteredItems.map(item => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.nombreProductoERP}</TableCell>
+                    <TableCell>{item.IdERP}</TableCell>
                     <TableCell>{item.nombreProveedor}</TableCell>
                     <TableCell>{item.referenciaProveedor}</TableCell>
                     <TableCell>{item.familiaCategoria}</TableCell>
@@ -254,7 +258,7 @@ export default function IngredientesERPPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={8} className="h-24 text-center">
                     No se encontraron ingredientes que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>
