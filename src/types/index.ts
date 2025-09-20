@@ -382,6 +382,24 @@ export type Elaboracion = {
     alergenos?: Alergeno[];
 };
 
+
+export type ElaboracionEnReceta = {
+  id: string; // elab.id
+  elaboracionId: string;
+  nombre: string;
+  cantidad: number; // en la unidad de la elaboración
+  coste: number;
+  gramaje: number;
+  alergenos?: Alergeno[];
+};
+
+export type MenajeEnReceta = {
+  id: string; // menaje.id
+  menajeId: string;
+  descripcion: string;
+  ratio: number; // Ej: 1 (uno por comensal), 0.5 (uno cada dos comensales)
+}
+
 export type Receta = {
     id: string;
     nombre: string;
@@ -392,12 +410,12 @@ export type Receta = {
     estacionalidad: 'INVIERNO' | 'VERANO' | 'MIXTO';
     tipoDieta: 'VEGETARIANO' | 'VEGANO' | 'AMBOS' | 'NINGUNO';
     gramajeTotal: number; // en gramos
-    elaboraciones: { elaboracionId: string; cantidad: number; }[];
-    menajeAsociado: { menajeId: string; ratio: number; }[];
-    instruccionesMiseEnPlace: string;
-    instruccionesRegeneracion: string;
-    instruccionesEmplatado: string;
-    fotosEmplatadoURLs: string[];
+    elaboraciones: ElaboracionEnReceta[];
+    menajeAsociado: MenajeEnReceta[];
+    instruccionesMiseEnPlace?: string;
+    instruccionesRegeneracion?: string;
+    instruccionesEmplatado?: string;
+    fotosEmplatadoURLs?: string[];
     // --- Campos de Coste ---
     porcentajeCosteProduccion: number;
     costeMateriaPrima: number; // Calculado
@@ -405,7 +423,6 @@ export type Receta = {
     alergenos: Alergeno[]; // Calculado
 };
 
-// Placeholder for MenajeDB to avoid breaking changes.
 export type MenajeDB = {
     id: string;
     descripcion: string;

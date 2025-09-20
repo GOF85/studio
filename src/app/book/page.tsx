@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookHeart, ChefHat, Component, PlusCircle, Search, Settings, Package } from 'lucide-react';
+import { BookHeart, ChefHat, Component, PlusCircle, Search } from 'lucide-react';
 import type { Receta } from '@/types';
 import { Input } from '@/components/ui/input';
 
@@ -16,12 +16,19 @@ export default function BookDashboardPage() {
 
   useEffect(() => {
     // Datos de ejemplo para recetas
-    const dummyRecipes: Receta[] = [
-      // { id: '1', nombre: 'Lasaña de Carne a la Boloñesa', categoria: 'Principal', responsableEscandallo: 'Chef Ana', updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
-      // { id: '2', nombre: 'Merluza en Salsa Verde', categoria: 'Pescados', responsableEscandallo: 'Chef Juan', updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
-      // { id: '3', nombre: 'Tarta de Queso Cremosa', categoria: 'Postres', responsableEscandallo: 'Chef Maria', updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) },
-    ];
-    // setRecentRecipes(dummyRecipes.sort((a,b) => b.updatedAt.getTime() - a.updatedAt.getTime()));
+    const dummyRecipes: Receta[] = [];
+    
+    // Cargar recetas reales de localStorage si existen
+    const storedRecipes = localStorage.getItem('recetas');
+    if (storedRecipes) {
+      const allRecipes: Receta[] = JSON.parse(storedRecipes);
+      // Simular 'updatedAt' si no existe, para poder ordenar
+      const recipesWithDate = allRecipes.map(r => ({ ...r, updatedAt: new Date() }));
+      setRecentRecipes(recipesWithDate.sort((a,b) => b.updatedAt.getTime() - a.updatedAt.getTime()).slice(0, 5));
+    } else {
+      setRecentRecipes(dummyRecipes);
+    }
+    
     setIsMounted(true);
   }, []);
 
@@ -38,7 +45,7 @@ export default function BookDashboardPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
                 placeholder="Buscar recetas, elaboraciones o ingredientes..."
-                className="w-full pl-10 h-12 text-lg border rounded-md"
+                className="w-full pl-10 h-12 text-lg"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -93,7 +100,6 @@ export default function BookDashboardPage() {
                                 <Link href={`/book/recetas/${recipe.id}`} className="font-semibold text-primary hover:underline">{recipe.nombre}</Link>
                                 <p className="text-sm text-muted-foreground">
                                     {recipe.categoria} - Modificado por {recipe.responsableEscandallo}
-                                    {/* - {formatDistanceToNow(recipe.updatedAt, { addSuffix: true, locale: es })} */}
                                 </p>
                             </div>
                             <Button asChild variant="secondary" size="sm">

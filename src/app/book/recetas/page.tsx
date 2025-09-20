@@ -32,7 +32,7 @@ export default function RecetasPage() {
   const filteredItems = useMemo(() => {
     return items.filter(item => 
       item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.categoria.toLowerCase().includes(searchTerm.toLowerCase())
+      (item.categoria || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [items, searchTerm]);
 
