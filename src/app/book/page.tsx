@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookHeart, ChefHat, Component, PlusCircle, Search, Settings } from 'lucide-react';
 import type { Receta } from '@/types';
+import { Input } from '@/components/ui/input';
 
 export default function BookDashboardPage() {
   const [recentRecipes, setRecentRecipes] = useState<Receta[]>([]);
