@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -168,7 +169,7 @@ export default function RecetaFormPage() {
     } else {
         form.reset({ id: Date.now().toString(), nombre: '', descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [] });
     }
-  }, [id, isEditing, form, router, toast, calculateElabAlergenos]);
+  }, [id, isEditing, form, calculateElabAlergenos]);
 
   const onAddElab = (elab: ElaboracionConCoste) => {
     appendElab({ id: elab.id, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [] });
