@@ -10,7 +10,7 @@ import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSe
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2 } from 'lucide-react';
-import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, IngredienteERP, Alergeno } from '@/types';
+import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, IngredienteERP, Alergeno, Personal } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -115,6 +115,7 @@ export default function RecetaFormPage() {
   const [dbElaboraciones, setDbElaboraciones] = useState<ElaboracionConCoste[]>([]);
   const [dbMenaje, setDbMenaje] = useState<MenajeDB[]>([]);
   const [dbIngredientes, setDbIngredientes] = useState<Map<string, IngredienteConERP>>(new Map());
+  const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
@@ -155,7 +156,7 @@ export default function RecetaFormPage() {
     return Array.from(elabAlergenos);
   }, []);
 
-  useEffect(() => {
+ useEffect(() => {
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
     const erpMap = new Map(storedErp.map(i => [i.id, i]));
@@ -164,10 +165,13 @@ export default function RecetaFormPage() {
     setDbIngredientes(ingredientesMap);
 
     const elaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    setDbElaboraciones(elaboraciones.map(e => ({...e, alergenos: calculateElabAlergenos(e, ingredientesMap)})));
+    setDbElaboraciones(elaboraciones.map(e => ({...e, costePorUnidad: e.costePorUnidad, alergenos: calculateElabAlergenos(e, ingredientesMap)})));
     
     const menaje = JSON.parse(localStorage.getItem('menajeDB') || '[]') as MenajeDB[];
     setDbMenaje(menaje);
+
+    const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+    setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
 
     if (isEditing) {
       const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
@@ -263,7 +267,30 @@ export default function RecetaFormPage() {
                             <CardContent className="space-y-4 pt-2">
                                 <div className="grid md:grid-cols-2 gap-4">
                                     <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                    <FormField control={form.control} name="responsableEscandallo" render={({ field }) => ( <FormItem><FormLabel>Responsable del Escandallo</FormLabel><FormControl><Input {...field} placeholder="Nombre del cocinero" /></FormControl></FormItem> )} />
+                                    <FormField
+                                        control={form.control}
+                                        name="responsableEscandallo"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                            <FormLabel>Responsable del Escandallo</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Selecciona un responsable..." />
+                                                </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                {personalCPR.map((p) => (
+                                                    <SelectItem key={p.id} value={p.nombre}>
+                                                    {p.nombre}
+                                                    </SelectItem>
+                                                ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
                                 </div>
                                 <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem><FormLabel>Descripción Comercial</FormLabel><FormControl><Textarea {...field} placeholder="Descripción para la carta..." /></FormControl></FormItem> )} />
                                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
