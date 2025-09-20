@@ -38,6 +38,7 @@ export default function BdPage() {
     { id: '12', name: 'Decoración (Gastos Varios)', description: 'Gestión de conceptos de decoración.', itemCount: 0, path: '/decoracion-db' },
     { id: '10', name: 'Personal MICE', description: 'Gestión de personal para eventos.', itemCount: 0, path: '/personal-mice' },
     { id: '11', name: 'Proveedores de Personal', description: 'Gestión de proveedores de personal externo.', itemCount: 0, path: '/proveedores-personal' },
+    { id: '13', name: 'Book: Materia Prima (ERP)', description: 'Gestión de precios y productos de proveedores.', itemCount: 0, path: '/book/ingredientes-erp' },
   ]);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -55,6 +56,7 @@ export default function BdPage() {
     const decoracion = JSON.parse(localStorage.getItem('decoracionDB') || '[]').length;
     const personalMice = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]').length;
     const proveedoresPersonal = JSON.parse(localStorage.getItem('proveedoresPersonal') || '[]').length;
+    const ingredientesERP = JSON.parse(localStorage.getItem('ingredientesERP') || '[]').length;
     
     setDatabases(prev => prev.map(db => {
       if (db.id === '1') return { ...db, itemCount: personal };
@@ -69,6 +71,7 @@ export default function BdPage() {
       if (db.id === '12') return { ...db, itemCount: decoracion };
       if (db.id === '10') return { ...db, itemCount: personalMice };
       if (db.id === '11') return { ...db, itemCount: proveedoresPersonal };
+      if (db.id === '13') return { ...db, itemCount: ingredientesERP };
       return db;
     }));
   }, []);

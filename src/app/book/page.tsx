@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookHeart, ChefHat, Component, PlusCircle, Search, Settings } from 'lucide-react';
+import { BookHeart, ChefHat, Component, PlusCircle, Search, Settings, Package } from 'lucide-react';
 import type { Receta } from '@/types';
+import { Input } from '@/components/ui/input';
 
 export default function BookDashboardPage() {
   const [recentRecipes, setRecentRecipes] = useState<Receta[]>([]);
@@ -14,8 +15,7 @@ export default function BookDashboardPage() {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    // En el futuro, aquí se cargarían las recetas desde localStorage
-    // Por ahora, usamos datos de ejemplo
+    // Datos de ejemplo para recetas
     const dummyRecipes: Receta[] = [
       // { id: '1', nombre: 'Lasaña de Carne a la Boloñesa', categoria: 'Principal', responsableEscandallo: 'Chef Ana', updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
       // { id: '2', nombre: 'Merluza en Salsa Verde', categoria: 'Pescados', responsableEscandallo: 'Chef Juan', updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
@@ -36,7 +36,7 @@ export default function BookDashboardPage() {
 
         <div className="relative mb-8">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <input 
+            <Input
                 placeholder="Buscar recetas, elaboraciones o ingredientes..."
                 className="w-full pl-10 h-12 text-lg border rounded-md"
                 value={searchTerm}
@@ -44,8 +44,8 @@ export default function BookDashboardPage() {
             />
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <Card className="hover:shadow-lg transition-shadow">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <Card className="hover:shadow-lg transition-shadow md:col-span-2">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><PlusCircle /> Nueva Receta</CardTitle>
                 </CardHeader>
@@ -79,36 +79,61 @@ export default function BookDashboardPage() {
                 </CardContent>
             </Card>
         </div>
-
-        <div>
-            <h2 className="text-2xl font-headline font-semibold mb-4">Últimas Recetas Modificadas</h2>
-            <Card>
-                <CardContent className="pt-6">
-                {recentRecipes.length > 0 ? (
-                    <ul className="space-y-4">
-                    {recentRecipes.map((recipe) => (
-                        <li key={recipe.id} className="flex items-center justify-between pb-2 border-b last:border-0">
-                        <div>
-                            <Link href={`/book/recetas/${recipe.id}`} className="font-semibold text-primary hover:underline">{recipe.nombre}</Link>
-                            <p className="text-sm text-muted-foreground">
-                                {recipe.categoria} - Modificado por {recipe.responsableEscandallo}
-                                {/* - {formatDistanceToNow(recipe.updatedAt, { addSuffix: true, locale: es })} */}
-                            </p>
+        
+        <div className="grid md:grid-cols-2 gap-6">
+            <div>
+                <h2 className="text-2xl font-headline font-semibold mb-4">Últimas Recetas Modificadas</h2>
+                <Card>
+                    <CardContent className="pt-6">
+                    {recentRecipes.length > 0 ? (
+                        <ul className="space-y-4">
+                        {recentRecipes.map((recipe) => (
+                            <li key={recipe.id} className="flex items-center justify-between pb-2 border-b last:border-0">
+                            <div>
+                                <Link href={`/book/recetas/${recipe.id}`} className="font-semibold text-primary hover:underline">{recipe.nombre}</Link>
+                                <p className="text-sm text-muted-foreground">
+                                    {recipe.categoria} - Modificado por {recipe.responsableEscandallo}
+                                    {/* - {formatDistanceToNow(recipe.updatedAt, { addSuffix: true, locale: es })} */}
+                                </p>
+                            </div>
+                            <Button asChild variant="secondary" size="sm">
+                                <Link href={`/book/recetas/${recipe.id}`}>Editar</Link>
+                            </Button>
+                            </li>
+                        ))}
+                        </ul>
+                    ) : (
+                        <div className="text-center text-muted-foreground py-10">
+                        <p>Aún no se ha creado ninguna receta.</p>
+                        <p className="text-sm">¡Crea tu primera receta para verla aquí!</p>
                         </div>
-                        <Button asChild variant="secondary" size="sm">
-                             <Link href={`/book/recetas/${recipe.id}`}>Editar</Link>
-                        </Button>
-                        </li>
-                    ))}
-                    </ul>
-                ) : (
-                    <div className="text-center text-muted-foreground py-10">
-                    <p>Aún no se ha creado ninguna receta.</p>
-                    <p className="text-sm">¡Crea tu primera receta para verla aquí!</p>
-                    </div>
-                )}
-                </CardContent>
-            </Card>
+                    )}
+                    </CardContent>
+                </Card>
+            </div>
+            <div>
+                <h2 className="text-2xl font-headline font-semibold mb-4">Bases de Datos</h2>
+                 <div className="space-y-4">
+                    <Card className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-4 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-semibold flex items-center gap-2"><Package />Materia Prima (ERP)</h3>
+                                <p className="text-sm text-muted-foreground">Gestiona la lista de precios y productos de proveedores.</p>
+                            </div>
+                            <Button asChild variant="secondary"><Link href="/book/ingredientes-erp">Gestionar</Link></Button>
+                        </CardContent>
+                    </Card>
+                     <Card className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-4 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-semibold flex items-center gap-2"><ChefHat />Ingredientes Internos</h3>
+                                <p className="text-sm text-muted-foreground">Vincula materia prima y gestiona alérgenos y mermas.</p>
+                            </div>
+                            <Button asChild variant="secondary"><Link href="/book/ingredientes">Gestionar</Link></Button>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </div>
 
       </main>
