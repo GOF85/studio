@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2 } from 'lucide-react';
@@ -173,7 +173,7 @@ export default function RecetaFormPage() {
     } else {
       form.reset({ id: Date.now().toString(), nombre: '', descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [] });
     }
-  }, [id, isEditing, form, calculateElabAlergenos]);
+  }, [id, isEditing, calculateElabAlergenos, form]);
 
   const onAddElab = (elab: ElaboracionConCoste) => {
     appendElab({ id: elab.id, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [] });
@@ -182,6 +182,8 @@ export default function RecetaFormPage() {
   const onAddMenaje = (menaje: MenajeDB) => {
     appendMenaje({ id: menaje.id, menajeId: menaje.id, descripcion: menaje.descripcion, ratio: 1 });
   }
+
+  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
   function handleDragEnd(event: DragEndEvent, type: 'elab' | 'menaje') {
     const { active, over } = event;
@@ -271,7 +273,7 @@ export default function RecetaFormPage() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <DndContext sensors={[]} onDragEnd={(e) => handleDragEnd(e, 'elab')} collisionDetection={closestCenter}>
+                            <DndContext sensors={sensors} onDragEnd={(e) => handleDragEnd(e, 'elab')} collisionDetection={closestCenter}>
                                 <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                                     {elabFields.map((field, index) => (
                                         <SortableItem key={field.id} id={field.id}>
@@ -296,7 +298,7 @@ export default function RecetaFormPage() {
                             <SelectorDialog trigger={<Button type="button" variant="outline" size="sm"><PlusCircle size={16}/>Añadir Menaje</Button>} title="Seleccionar Menaje" items={dbMenaje} columns={[{ key: 'descripcion', header: 'Descripción' }]} onSelect={onAddMenaje} />
                         </CardHeader>
                         <CardContent>
-                            <DndContext sensors={[]} onDragEnd={(e) => handleDragEnd(e, 'menaje')} collisionDetection={closestCenter}>
+                            <DndContext sensors={sensors} onDragEnd={(e) => handleDragEnd(e, 'menaje')} collisionDetection={closestCenter}>
                                 <SortableContext items={menajeFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                                     {menajeFields.map((field, index) => (
                                         <SortableItem key={field.id} id={field.id}>
