@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -136,40 +137,47 @@ export default function RecetaFormPage() {
     return costeMateriaPrima / (watchedPorcentajeCoste / 100);
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
-  const calculateElabAlergenos = useCallback((elaboracion: Elaboracion) => {
+  const calculateElabAlergenos = useCallback((elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteConERP>) => {
     const elabAlergenos = new Set<Alergeno>();
     elaboracion.componentes.forEach(comp => {
         if(comp.tipo === 'ingrediente') {
-            const ingData = dbIngredientes.get(comp.componenteId);
+            const ingData = ingredientesMap.get(comp.componenteId);
             ingData?.alergenos.forEach(a => elabAlergenos.add(a));
         }
         // Recursive call if component is another elaboration (future)
     });
     return Array.from(elabAlergenos);
-}, [dbIngredientes]);
+}, []);
 
-
+  // Load all DB data once on mount
   useEffect(() => {
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
     const erpMap = new Map(storedErp.map(i => [i.id, i]));
     const combined = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
-    setDbIngredientes(new Map(combined.map(i => [i.id, i])));
+    const ingredientesMap = new Map(combined.map(i => [i.id, i]));
+    setDbIngredientes(ingredientesMap);
 
     const elaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    setDbElaboraciones(elaboraciones.map(e => ({...e, alergenos: calculateElabAlergenos(e)})));
+    setDbElaboraciones(elaboraciones.map(e => ({...e, alergenos: calculateElabAlergenos(e, ingredientesMap)})));
     
     const menaje = JSON.parse(localStorage.getItem('menajeDB') || '[]') as MenajeDB[];
     setDbMenaje(menaje);
+  }, [calculateElabAlergenos]);
 
+  // Set form values once DB data is loaded
+  useEffect(() => {
+    if (dbElaboraciones.length === 0) return; // Wait for data
+    
     if (isEditing) {
       const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
       const receta = recetas.find(e => e.id === id);
       if (receta) form.reset(receta);
     } else {
-        form.reset({ id: Date.now().toString(), nombre: '', descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [] });
+      form.reset({ id: Date.now().toString(), nombre: '', descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [] });
     }
-  }, [id, isEditing, form, calculateElabAlergenos]);
+  }, [id, isEditing, dbElaboraciones, form.reset]);
+
 
   const onAddElab = (elab: ElaboracionConCoste) => {
     appendElab({ id: elab.id, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [] });
@@ -318,3 +326,4 @@ export default function RecetaFormPage() {
     </>
   );
 }
+
