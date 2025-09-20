@@ -31,7 +31,6 @@ export default function BookDashboardPage() {
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="mb-6">
             <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><BookHeart size={28}/>Book Gastronómico</h1>
-            <p className="text-muted-foreground text-base">Gestiona el corazón de tu cocina: recetas, costes y escandallos.</p>
         </div>
 
         <div className="relative mb-6">
@@ -44,36 +43,27 @@ export default function BookDashboardPage() {
             />
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <Card className="hover:shadow-lg transition-shadow md:col-span-2">
-                <CardHeader className="py-3">
-                    <CardTitle className="flex items-center gap-2 text-base"><PlusCircle size={18}/> Nueva Receta</CardTitle>
-                </CardHeader>
-                <CardContent className="py-3">
-                    <p className="text-muted-foreground mb-3 text-sm">Crea un plato desde cero, combinando elaboraciones e ingredientes.</p>
-                    <Button asChild className="w-full">
+                <CardContent className="p-4 flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-base font-semibold"><PlusCircle size={18}/> Nueva Receta</CardTitle>
+                    <Button asChild>
                         <Link href="/book/recetas/nueva">Empezar a Crear</Link>
                     </Button>
                 </CardContent>
             </Card>
              <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader className="py-3">
-                    <CardTitle className="flex items-center gap-2 text-base"><Component size={18}/>Elaboraciones</CardTitle>
-                </CardHeader>
-                <CardContent className="py-3">
-                    <p className="text-muted-foreground mb-3 text-sm">Edita tus sub-recetas y sus componentes.</p>
-                     <Button asChild className="w-full" variant="outline">
+                 <CardContent className="p-4 flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-base font-semibold"><Component size={18}/>Elaboraciones</CardTitle>
+                     <Button asChild variant="outline">
                         <Link href="/book/elaboraciones">Gestionar</Link>
                     </Button>
                 </CardContent>
             </Card>
              <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader className="py-3">
-                    <CardTitle className="flex items-center gap-2 text-base"><ChefHat size={18}/>Ingredientes</CardTitle>
-                </CardHeader>
-                <CardContent className="py-3">
-                    <p className="text-muted-foreground mb-3 text-sm">Gestiona alérgenos y mermas.</p>
-                     <Button asChild className="w-full" variant="outline">
+                <CardContent className="p-4 flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-base font-semibold"><ChefHat size={18}/>Ingredientes</CardTitle>
+                     <Button asChild variant="outline">
                         <Link href="/book/ingredientes">Gestionar</Link>
                     </Button>
                 </CardContent>
