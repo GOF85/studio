@@ -62,13 +62,16 @@ function IngredienteSelector({ onSelect }: { onSelect: (ingrediente: Ingrediente
     }, []);
 
     const filtered = useMemo(() => {
-        return ingredientes.filter(i => i.nombreIngrediente.toLowerCase().includes(searchTerm.toLowerCase()));
+        return ingredientes.filter(i => 
+            i.nombreIngrediente.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (i.erp?.IdERP || '').toLowerCase().includes(searchTerm.toLowerCase())
+        );
     }, [ingredientes, searchTerm]);
 
     return (
         <DialogContent className="max-w-2xl">
             <DialogHeader><DialogTitle>Seleccionar Ingrediente</DialogTitle></DialogHeader>
-            <Input placeholder="Buscar ingrediente..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <Input placeholder="Buscar ingrediente o Id. ERP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             <div className="max-h-[60vh] overflow-y-auto border rounded-md">
                 <Table>
                     <TableHeader><TableRow><TableHead>Ingrediente</TableHead><TableHead>Coste / Unidad</TableHead><TableHead></TableHead></TableRow></TableHeader>
