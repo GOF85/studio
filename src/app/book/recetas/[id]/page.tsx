@@ -69,16 +69,32 @@ type IngredienteConERP = IngredienteInterno & { erp?: IngredienteERP };
 
 function SelectorDialog<T extends { id: string; nombre?: string; descripcion?: string; costePorUnidad?: number }>({ trigger, title, items, columns, onSelect }: { trigger: React.ReactNode; title: string; items: T[]; columns: { key: keyof T; header: string }[]; onSelect: (item: T) => void; }) {
     const [open, setOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredItems = useMemo(() => {
+        if (!searchTerm) return items;
+        const term = searchTerm.toLowerCase();
+        return items.filter(item => 
+            (item.nombre || item.descripcion || '').toLowerCase().includes(term)
+        );
+    }, [items, searchTerm]);
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{trigger}</DialogTrigger>
             <DialogContent className="max-w-2xl">
                 <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
+                <Input 
+                    placeholder="Buscar..." 
+                    value={searchTerm} 
+                    onChange={(e) => setSearchTerm(e.target.value)} 
+                    className="my-2"
+                />
                 <div className="max-h-[60vh] overflow-y-auto border rounded-md">
                     <Table>
                         <TableHeader><TableRow>{columns.map(c => <TableHead key={c.key as string}>{c.header}</TableHead>)}<TableHead></TableHead></TableRow></TableHeader>
                         <TableBody>
-                            {items.map(item => (
+                            {filteredItems.map(item => (
                                 <TableRow key={item.id}>
                                     {columns.map(c => <TableCell key={c.key as string}>{
                                         c.key === 'costePorUnidad' && typeof item[c.key] === 'number'
@@ -156,7 +172,7 @@ export default function RecetaFormPage() {
     return Array.from(elabAlergenos);
   }, []);
 
- useEffect(() => {
+  const loadData = useCallback(() => {
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
     const erpMap = new Map(storedErp.map(i => [i.id, i]));
@@ -181,6 +197,11 @@ export default function RecetaFormPage() {
       form.reset({ id: Date.now().toString(), nombre: '', descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [] });
     }
   }, [id, isEditing, calculateElabAlergenos, form]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
 
   const onAddElab = (elab: ElaboracionConCoste) => {
     appendElab({ id: `${elab.id}-${Date.now()}`, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [] });
