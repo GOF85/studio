@@ -75,7 +75,7 @@ function RecetaSelector({ onSelectReceta }: { onSelectReceta: (receta: Receta) =
     setRecetasDB(JSON.parse(storedData));
   }, []);
 
-  const categories = useMemo(() => ['all', ...new Set(recetasDB.map(item => item.categoria))], [recetasDB]);
+  const categories = useMemo(() => ['all', ...new Set(recetasDB.map(item => item.categoria).filter(Boolean))], [recetasDB]);
 
   const filteredItems = useMemo(() => {
     return recetasDB.filter(item => {
@@ -329,8 +329,8 @@ export default function PedidoGastronomiaPage() {
                 </div>
 
                 <Card className="mb-8">
-                    <CardHeader className="py-4">
-                        <CardTitle>Resumen del Servicio</CardTitle>
+                    <CardHeader className="py-3">
+                        <CardTitle className="text-lg">Resumen del Servicio</CardTitle>
                     </CardHeader>
                     <CardContent className="grid md:grid-cols-4 gap-x-4 gap-y-1 text-sm pt-0">
                         <div><span className="font-semibold text-muted-foreground">Fecha: </span>{format(new Date(gastronomyOrder.fecha), 'dd/MM/yyyy')}</div>
@@ -357,38 +357,38 @@ export default function PedidoGastronomiaPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                      <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
-                        <div className="border rounded-lg">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-10"></TableHead>
-                                            <TableHead>Nombre del Plato</TableHead>
-                                            <TableHead>Categoría</TableHead>
-                                            <TableHead>Coste M.P. (Ud.)</TableHead>
-                                            <TableHead>Cantidad</TableHead>
-                                            <TableHead>Subtotal</TableHead>
-                                            <TableHead className="text-right">Acciones</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                                            {fields.length > 0 ? (
-                                                fields.map((field, index) => (
-                                                    <SortableTableRow key={field.key} field={{...field, key: field.key}} index={index} remove={remove} form={form} />
-                                                ))
-                                            ) : (
-                                                <TableRow>
-                                                    <TableCell colSpan={7} className="h-24 text-center">
-                                                    No hay platos en este pedido.
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </SortableContext>
-                                    </TableBody>
-                                </Table>
-                        </div>
-                      </DndContext>
+                      <div className="border rounded-lg">
+                        <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
+                          <Table>
+                              <TableHeader>
+                                  <TableRow>
+                                      <TableHead className="w-10"></TableHead>
+                                      <TableHead>Nombre del Plato</TableHead>
+                                      <TableHead>Categoría</TableHead>
+                                      <TableHead>Coste M.P. (Ud.)</TableHead>
+                                      <TableHead>Cantidad</TableHead>
+                                      <TableHead>Subtotal</TableHead>
+                                      <TableHead className="text-right">Acciones</TableHead>
+                                  </TableRow>
+                              </TableHeader>
+                              <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                                  <TableBody>
+                                      {fields.length > 0 ? (
+                                          fields.map((field, index) => (
+                                              <SortableTableRow key={field.key} field={{...field, key: field.key}} index={index} remove={remove} form={form} />
+                                          ))
+                                      ) : (
+                                          <TableRow>
+                                              <TableCell colSpan={7} className="h-24 text-center">
+                                              No hay platos en este pedido.
+                                              </TableCell>
+                                          </TableRow>
+                                      )}
+                                  </TableBody>
+                              </SortableContext>
+                          </Table>
+                        </DndContext>
+                      </div>
                     </CardContent>
                     {fields.length > 0 && (
                          <CardFooter className="flex justify-end">
