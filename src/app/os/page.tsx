@@ -483,11 +483,7 @@ export default function OsPage() {
                                 <Calendar 
                                   mode="single" 
                                   selected={field.value} 
-                                  onSelect={(date) => {
-                                    field.onChange(date);
-                                    const popoverTrigger = document.getElementById('os-form')?.querySelector('[aria-haspopup="dialog"]');
-                                    if (popoverTrigger) (popoverTrigger as HTMLElement).click();
-                                  }}
+                                  onSelect={field.onChange}
                                   initialFocus 
                                   locale={es} 
                                 />
@@ -512,11 +508,7 @@ export default function OsPage() {
                                  <Calendar 
                                   mode="single" 
                                   selected={field.value} 
-                                  onSelect={(date) => {
-                                    field.onChange(date);
-                                     const popoverTrigger = document.getElementById('os-form')?.querySelector('[aria-haspopup="dialog"]');
-                                    if (popoverTrigger) (popoverTrigger as HTMLElement).click();
-                                  }}
+                                  onSelect={field.onChange}
                                   initialFocus 
                                   locale={es} 
                                 />
