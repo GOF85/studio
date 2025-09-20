@@ -51,13 +51,34 @@ export default function IngredientesPage() {
   const { toast } = useToast();
   
   useEffect(() => {
-    // Cargar datos de prueba o desde localStorage
-    const storedIngredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-    const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
-    
-    const erpMap = new Map(storedErp.map(item => [item.id, item]));
+    // Cargar datos de prueba ERP si no existen
+    let storedErp = localStorage.getItem('ingredientesERP');
+    if (!storedErp || JSON.parse(storedErp).length === 0) {
+      const dummyErp: IngredienteERP[] = [
+        { id: 'erp-1', nombreProductoERP: 'Harina de Trigo (Saco 25kg)', referenciaProveedor: 'HT25', nombreProveedor: 'Harinas Molineras', familiaCategoria: 'Secos', precio: 15.00, unidad: 'KILO' },
+        { id: 'erp-2', nombreProductoERP: 'Huevo Campero (Caja 30 und)', referenciaProveedor: 'HC30', nombreProveedor: 'Granjas del Sol', familiaCategoria: 'Frescos', precio: 5.50, unidad: 'UNIDAD' },
+        { id: 'erp-3', nombreProductoERP: 'Leche Entera (Litro)', referenciaProveedor: 'LE01', nombreProveedor: 'Lácteos El Prado', familiaCategoria: 'Lácteos', precio: 1.10, unidad: 'LITRO' },
+      ];
+      storedErp = JSON.stringify(dummyErp);
+      localStorage.setItem('ingredientesERP', storedErp);
+    }
+    const ingredientesERP = JSON.parse(storedErp) as IngredienteERP[];
+    const erpMap = new Map(ingredientesERP.map(item => [item.id, item]));
 
-    const combinedData = storedIngredientes.map(ing => ({
+    // Cargar datos de prueba de Ingredientes Internos si no existen
+    let storedIngredientes = localStorage.getItem('ingredientesInternos');
+    if (!storedIngredientes || JSON.parse(storedIngredientes).length === 0) {
+        const dummyInternos: IngredienteInterno[] = [
+            { id: 'int-1', nombreIngrediente: 'Harina de Trigo', productoERPlinkId: 'erp-1', mermaPorcentaje: 0, alergenos: ['GLUTEN'] },
+            { id: 'int-2', nombreIngrediente: 'Huevo', productoERPlinkId: 'erp-2', mermaPorcentaje: 5, alergenos: ['HUEVOS'] },
+            { id: 'int-3', nombreIngrediente: 'Leche', productoERPlinkId: 'erp-3', mermaPorcentaje: 0, alergenos: ['LACTEOS'] },
+        ];
+        storedIngredientes = JSON.stringify(dummyInternos);
+        localStorage.setItem('ingredientesInternos', storedIngredientes);
+    }
+    const ingredientesInternos = JSON.parse(storedIngredientes) as IngredienteInterno[];
+    
+    const combinedData = ingredientesInternos.map(ing => ({
         ...ing,
         erp: erpMap.get(ing.productoERPlinkId),
     }));
@@ -74,10 +95,10 @@ export default function IngredientesPage() {
   }, [ingredientes, searchTerm]);
 
   const handleDelete = () => {
-    // Lógica para eliminar el ingrediente
     if (!itemToDelete) return;
     const updatedData = ingredientes.filter(i => i.id !== itemToDelete);
-    localStorage.setItem('ingredientesInternos', JSON.stringify(updatedData));
+    const updatedInternos = updatedData.map(({ erp, ...rest }) => rest);
+    localStorage.setItem('ingredientesInternos', JSON.stringify(updatedInternos));
     setIngredientes(updatedData);
     toast({ title: 'Ingrediente eliminado' });
     setItemToDelete(null);
@@ -156,7 +177,7 @@ export default function IngredientesPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {item.alergenos.length > 0 ? item.alergenos.map(alergeno => (
+                        {item.alergenos?.length > 0 ? item.alergenos.map(alergeno => (
                           <Badge key={alergeno} variant="secondary" className="text-xs">{alergeno}</Badge>
                         )) : '-'}
                       </div>

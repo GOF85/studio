@@ -40,6 +40,7 @@ export default function IngredienteFormPage() {
   
   const [ingredientesERP, setIngredientesERP] = useState<IngredienteERP[]>([]);
   const [erpSearchTerm, setErpSearchTerm] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const form = useForm<IngredienteFormValues>({
     resolver: zodResolver(ingredienteFormSchema),
@@ -152,7 +153,7 @@ export default function IngredienteFormPage() {
                                 <p className="font-bold text-primary text-lg">{selectedErpProduct.precio.toLocaleString('es-ES', {style:'currency', currency: 'EUR'})} / {selectedErpProduct.unidad}</p>
                             </div>
                         ) : (
-                             <Dialog>
+                             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                                 <DialogTrigger asChild>
                                     <Button variant="secondary" className="w-full"><LinkIcon className="mr-2"/>Vincular Producto ERP</Button>
                                 </DialogTrigger>
@@ -178,7 +179,7 @@ export default function IngredienteFormPage() {
                                                         <TableCell>{p.nombreProveedor}</TableCell>
                                                         <TableCell>{p.precio.toLocaleString('es-ES', {style:'currency', currency: 'EUR'})}/{p.unidad}</TableCell>
                                                         <TableCell>
-                                                            <Button size="sm" onClick={() => {form.setValue('productoERPlinkId', p.id); document.querySelector('[data-radix-dialog-content] [aria-label="Close"]')?.dispatchEvent(new MouseEvent('click'))}}>
+                                                            <Button size="sm" onClick={() => {form.setValue('productoERPlinkId', p.id); setIsDialogOpen(false)}}>
                                                                 <Check className="mr-2" />
                                                                 Seleccionar
                                                             </Button>
@@ -214,9 +215,9 @@ export default function IngredienteFormPage() {
                                     checked={field.value?.includes(alergeno)}
                                     onCheckedChange={(checked) => {
                                     return checked
-                                        ? field.onChange([...field.value, alergeno])
+                                        ? field.onChange([...(field.value || []), alergeno])
                                         : field.onChange(
-                                            field.value?.filter(
+                                            (field.value || [])?.filter(
                                             (value) => value !== alergeno
                                             )
                                         )
