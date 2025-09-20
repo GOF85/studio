@@ -203,8 +203,8 @@ export default function ElaboracionFormPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
-          <form id="elaboracion-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-             <div className="flex items-center justify-between mb-8">
+          <form id="elaboracion-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                     <Component className="h-8 w-8" />
                     <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nueva'} Elaboración</h1>
@@ -218,52 +218,42 @@ export default function ElaboracionFormPage() {
                 </div>
             </div>
             
-            <div className="grid lg:grid-cols-3 gap-8 items-start">
-                <Card className="lg:col-span-2">
-                    <CardHeader><CardTitle>Información General</CardTitle></CardHeader>
-                    <CardContent className="space-y-6">
-                        <FormField control={form.control} name="nombre" render={({ field }) => (
-                            <FormItem><FormLabel>Nombre de la Elaboración</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+            <Card>
+                <CardHeader className="flex flex-row justify-between items-start pb-4">
+                    <div>
+                        <CardTitle>Información General</CardTitle>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Coste / {form.watch('unidadProduccion')}</p>
+                        <p className="font-bold text-2xl text-primary">{costePorUnidad.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <FormField control={form.control} name="nombre" render={({ field }) => (
+                        <FormItem><FormLabel>Nombre de la Elaboración</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="produccionTotal" render={({ field }) => (
+                            <FormItem><FormLabel>Producción Total</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField control={form.control} name="produccionTotal" render={({ field }) => (
-                                <FormItem><FormLabel>Producción Total</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                             <FormField control={form.control} name="unidadProduccion" render={({ field }) => (
-                                <FormItem><FormLabel>Unidad</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            {UNIDADES_MEDIDA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                <FormMessage /></FormItem>
-                            )} />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><DollarSign />Costes</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex justify-between items-baseline">
-                            <span className="text-muted-foreground">Coste Total:</span>
-                            <span className="font-bold text-lg">{costeTotal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-                        </div>
-                         <div className="flex justify-between items-baseline">
-                            <span className="text-muted-foreground">Coste / {form.watch('unidadProduccion')}:</span>
-                            <span className="font-bold text-2xl text-primary">{costePorUnidad.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                            <FormField control={form.control} name="unidadProduccion" render={({ field }) => (
+                            <FormItem><FormLabel>Unidad</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {UNIDADES_MEDIDA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            <FormMessage /></FormItem>
+                        )} />
+                    </div>
+                </CardContent>
+            </Card>
             
             <Card>
-                <CardHeader className="flex-row items-center justify-between">
-                    <div className="space-y-1.5"><CardTitle className="flex items-center gap-2"><ChefHat/>Componentes de la Elaboración</CardTitle>
-                    <CardDescription>Añade los ingredientes o sub-elaboraciones que forman parte de esta preparación.</CardDescription></div>
+                <CardHeader className="flex-row items-center justify-between py-4">
+                    <div className="space-y-1.5"><CardTitle className="flex items-center gap-2"><ChefHat/>Componentes</CardTitle>
+                    <CardDescription>Añade los ingredientes que forman parte de esta preparación.</CardDescription></div>
                     <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                         <DialogTrigger asChild>
                              <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Componente</Button>
@@ -274,21 +264,21 @@ export default function ElaboracionFormPage() {
                 <CardContent>
                      <div className="border rounded-lg">
                         <Table>
-                            <TableHeader><TableRow><TableHead>Componente</TableHead><TableHead className="w-40">Cantidad</TableHead><TableHead className="w-40">Unidad</TableHead><TableHead className="w-12"></TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead className="p-3">Componente</TableHead><TableHead className="w-40 p-3">Cantidad</TableHead><TableHead className="w-40 p-3">Unidad</TableHead><TableHead className="w-12 p-3"></TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {fields.length === 0 && <TableRow><TableCell colSpan={4} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
                                 {fields.map((field, index) => (
                                     <TableRow key={field.id}>
-                                        <TableCell className="font-medium">{field.nombre}</TableCell>
-                                        <TableCell>
+                                        <TableCell className="font-medium py-1 px-3">{field.nombre}</TableCell>
+                                        <TableCell className="py-1 px-3">
                                             <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
                                                 <FormItem><FormControl><Input type="number" {...qField} className="h-8" /></FormControl></FormItem>
                                             )} />
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="py-1 px-3">
                                             {ingredientesData.get(field.componenteId)?.erp?.unidad || 'N/A'}
                                         </TableCell>
-                                        <TableCell><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
+                                        <TableCell className="py-1 px-3"><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -298,12 +288,12 @@ export default function ElaboracionFormPage() {
                 </CardContent>
             </Card>
 
-            <div className="grid lg:grid-cols-2 gap-8 items-start">
+            <div className="grid lg:grid-cols-2 gap-6 items-start">
                  <Card>
-                    <CardHeader>
+                    <CardHeader className="py-4">
                         <CardTitle>Instrucciones y Medios</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-6">
+                    <CardContent className="space-y-4">
                         <FormField control={form.control} name="instruccionesPreparacion" render={({ field }) => (
                             <FormItem><FormLabel>Instrucciones de Preparación</FormLabel><FormControl><Textarea {...field} rows={6} /></FormControl><FormMessage /></FormItem>
                         )} />
@@ -322,11 +312,11 @@ export default function ElaboracionFormPage() {
                 </Card>
 
                 <Card>
-                    <CardHeader>
+                    <CardHeader className="py-4">
                         <CardTitle>Datos de Expedición</CardTitle>
                         <CardDescription>Define cómo se empaqueta y conserva esta elaboración.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
+                    <CardContent className="space-y-4">
                        <div className="grid grid-cols-2 gap-4">
                             <FormField control={form.control} name="formatoExpedicion" render={({ field }) => (
                                 <FormItem><FormLabel>Formato Expedición</FormLabel><FormControl><Input {...field} placeholder="Ej: Barqueta 1kg" /></FormControl><FormMessage /></FormItem>
