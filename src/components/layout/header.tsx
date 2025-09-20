@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { UtensilsCrossed, FileText, ClipboardList, Database, Menu, Calendar, Trash2, Flower2, Target } from 'lucide-react';
+import { UtensilsCrossed, FileText, ClipboardList, Database, Menu, Calendar, Trash2, Flower2, Target, BookHeart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -32,6 +32,12 @@ export function Header() {
               Calendario
             </Link>
           </Button>
+           <Button variant="ghost" asChild>
+                <Link href="/book">
+                  <BookHeart className="mr-2" />
+                  Book Gastronómico
+                </Link>
+              </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">

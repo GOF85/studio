@@ -328,3 +328,74 @@ export type PruebaMenuData = {
     observacionesGenerales?: string;
     costePruebaMenu?: number;
 }
+
+// --- BOOK GASTRONOMICO ---
+
+export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS_DE_CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
+export type Alergeno = typeof ALERGENOS[number];
+
+export type UnidadMedida = 'KILO' | 'LITRO' | 'UNIDAD';
+
+export type IngredienteERP = {
+    id: string;
+    nombreProductoERP: string;
+    referenciaProveedor: string;
+    nombreProveedor: string;
+    familiaCategoria: string;
+    precio: number;
+    unidad: UnidadMedida;
+};
+
+export type IngredienteInterno = {
+    id: string;
+    nombreIngrediente: string;
+    productoERPlinkId: string;
+    mermaPorcentaje: number;
+    alergenos: Alergeno[];
+};
+
+type ComponenteElaboracion = {
+    id: string; // Puede ser ingredienteId o elaboracionId
+    cantidad: number;
+}
+
+export type Elaboracion = {
+    id: string;
+    nombre: string;
+    tipo: 'BASE' | 'COMPUESTA';
+    componentes: ComponenteElaboracion[];
+    produccionTotal: number;
+    unidadProduccion: UnidadMedida;
+    costePorUnidad: number; // Calculado
+    alergenos: Alergeno[]; // Calculado
+    instruccionesPreparacion: string;
+    fotosProduccionURLs: string[];
+    videoProduccionURL?: string;
+    // --- Campos de Expedición ---
+    formatoExpedicion: string;
+    ratioExpedicion: number; // Ej: 1.5 (kg por barqueta)
+    tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+};
+
+export type Receta = {
+    id: string;
+    nombre: string;
+    descripcionComercial: string;
+    responsableEscandallo: string;
+    categoria: string;
+    partidaProduccion: 'FRIO' | 'CALIENTE' | 'PASTELERIA' | 'EXPEDICION';
+    estacionalidad: 'INVIERNO' | 'VERANO' | 'MIXTO';
+    tipoDieta: 'VEGETARIANO' | 'VEGANO' | 'AMBOS' | 'NINGUNO';
+    gramajeTotal: number; // en gramos
+    elaboraciones: { elaboracionId: string; cantidad: number; }[];
+    menajeAsociado: { menajeId: string; ratio: number; }[];
+    instruccionesMiseEnPlace: string;
+    instruccionesRegeneracion: string;
+    instruccionesEmplatado: string;
+    fotosEmplatadoURLs: string[];
+    // --- Campos de Coste ---
+    porcentajeCosteProduccion: number;
+    costeMateriaPrima: number; // Calculado
+    precioVentaRecomendado: number; // Calculado
+    alergenos: Alergeno[]; // Calculado
+};
