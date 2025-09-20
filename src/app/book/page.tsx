@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookHeart, ChefHat, Component, PlusCircle, Search, Package } from 'lucide-react';
+import { BookHeart, ChefHat, Component, PlusCircle, Search, Package, GlassWater } from 'lucide-react';
 import type { Receta } from '@/types';
 import { Input } from '@/components/ui/input';
 
@@ -30,8 +30,8 @@ export default function BookDashboardPage() {
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="mb-6">
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><BookHeart size={32}/>Book Gastronómico</h1>
-            <p className="text-muted-foreground">Gestiona el corazón de tu cocina: recetas, costes y escandallos.</p>
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><BookHeart size={28}/>Book Gastronómico</h1>
+            <p className="text-muted-foreground text-base">Gestiona el corazón de tu cocina: recetas, costes y escandallos.</p>
         </div>
 
         <div className="relative mb-6">
@@ -46,33 +46,33 @@ export default function BookDashboardPage() {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card className="hover:shadow-lg transition-shadow md:col-span-2">
-                <CardHeader className="py-4">
-                    <CardTitle className="flex items-center gap-2 text-lg"><PlusCircle /> Nueva Receta</CardTitle>
+                <CardHeader className="py-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><PlusCircle size={18}/> Nueva Receta</CardTitle>
                 </CardHeader>
-                <CardContent className="py-4">
-                    <p className="text-muted-foreground mb-4 text-sm">Crea un plato desde cero, combinando elaboraciones e ingredientes.</p>
+                <CardContent className="py-3">
+                    <p className="text-muted-foreground mb-3 text-sm">Crea un plato desde cero, combinando elaboraciones e ingredientes.</p>
                     <Button asChild className="w-full">
                         <Link href="/book/recetas/nueva">Empezar a Crear</Link>
                     </Button>
                 </CardContent>
             </Card>
              <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader className="py-4">
-                    <CardTitle className="flex items-center gap-2 text-lg"><Component />Elaboraciones</CardTitle>
+                <CardHeader className="py-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><Component size={18}/>Elaboraciones</CardTitle>
                 </CardHeader>
-                <CardContent className="py-4">
-                    <p className="text-muted-foreground mb-4 text-sm">Edita tus sub-recetas y sus componentes.</p>
+                <CardContent className="py-3">
+                    <p className="text-muted-foreground mb-3 text-sm">Edita tus sub-recetas y sus componentes.</p>
                      <Button asChild className="w-full" variant="outline">
                         <Link href="/book/elaboraciones">Gestionar</Link>
                     </Button>
                 </CardContent>
             </Card>
              <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader className="py-4">
-                    <CardTitle className="flex items-center gap-2 text-lg"><ChefHat />Ingredientes</CardTitle>
+                <CardHeader className="py-3">
+                    <CardTitle className="flex items-center gap-2 text-base"><ChefHat size={18}/>Ingredientes</CardTitle>
                 </CardHeader>
-                <CardContent className="py-4">
-                    <p className="text-muted-foreground mb-4 text-sm">Gestiona alérgenos y mermas.</p>
+                <CardContent className="py-3">
+                    <p className="text-muted-foreground mb-3 text-sm">Gestiona alérgenos y mermas.</p>
                      <Button asChild className="w-full" variant="outline">
                         <Link href="/book/ingredientes">Gestionar</Link>
                     </Button>
@@ -82,13 +82,13 @@ export default function BookDashboardPage() {
         
         <div className="grid md:grid-cols-2 gap-6">
             <div>
-                <h2 className="text-2xl font-headline font-semibold mb-4">Últimas Recetas Modificadas</h2>
+                <h2 className="text-xl font-headline font-semibold mb-3">Últimas Recetas Modificadas</h2>
                 <Card>
-                    <CardContent className="p-4">
+                    <CardContent className="p-3">
                     {recentRecipes.length > 0 ? (
-                        <ul className="space-y-3">
+                        <ul className="space-y-2">
                         {recentRecipes.map((recipe) => (
-                            <li key={recipe.id} className="flex items-center justify-between pb-3 border-b last:border-0">
+                            <li key={recipe.id} className="flex items-center justify-between pb-2 border-b last:border-0">
                             <div>
                                 <Link href={`/book/recetas/${recipe.id}`} className="font-semibold text-primary hover:underline">{recipe.nombre}</Link>
                                 <p className="text-sm text-muted-foreground">
@@ -111,10 +111,10 @@ export default function BookDashboardPage() {
                 </Card>
             </div>
             <div>
-                <h2 className="text-2xl font-headline font-semibold mb-4">Bases de Datos</h2>
-                 <div className="space-y-4">
+                <h2 className="text-xl font-headline font-semibold mb-3">Bases de Datos</h2>
+                 <div className="space-y-3">
                     <Card className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-4 flex justify-between items-center">
+                        <CardContent className="p-3 flex justify-between items-center">
                             <div>
                                 <h3 className="font-semibold flex items-center gap-2 text-base"><Package />Materia Prima (ERP)</h3>
                                 <p className="text-sm text-muted-foreground">Precios y productos de proveedores.</p>
@@ -123,7 +123,7 @@ export default function BookDashboardPage() {
                         </CardContent>
                     </Card>
                      <Card className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-4 flex justify-between items-center">
+                        <CardContent className="p-3 flex justify-between items-center">
                             <div>
                                 <h3 className="font-semibold flex items-center gap-2 text-base"><GlassWater />Menaje</h3>
                                 <p className="text-sm text-muted-foreground">Artículos para emplatados y servicio.</p>
