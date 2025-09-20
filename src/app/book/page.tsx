@@ -15,18 +15,11 @@ export default function BookDashboardPage() {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    // Datos de ejemplo para recetas
-    const dummyRecipes: Receta[] = [];
-    
-    // Cargar recetas reales de localStorage si existen
     const storedRecipes = localStorage.getItem('recetas');
     if (storedRecipes) {
       const allRecipes: Receta[] = JSON.parse(storedRecipes);
-      // Simular 'updatedAt' si no existe, para poder ordenar
       const recipesWithDate = allRecipes.map(r => ({ ...r, updatedAt: new Date() }));
       setRecentRecipes(recipesWithDate.sort((a,b) => (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)).slice(0, 5));
-    } else {
-      setRecentRecipes(dummyRecipes);
     }
     
     setIsMounted(true);
@@ -36,16 +29,16 @@ export default function BookDashboardPage() {
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="mb-8">
-            <h1 className="text-4xl font-headline font-bold text-gray-800 flex items-center gap-3"><BookHeart size={36}/>Book Gastronómico</h1>
-            <p className="text-lg text-muted-foreground mt-1">Gestiona el corazón de tu cocina: recetas, costes y escandallos.</p>
+        <div className="mb-6">
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><BookHeart size={32}/>Book Gastronómico</h1>
+            <p className="text-muted-foreground">Gestiona el corazón de tu cocina: recetas, costes y escandallos.</p>
         </div>
 
-        <div className="relative mb-8">
+        <div className="relative mb-6">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
                 placeholder="Buscar recetas, elaboraciones o ingredientes..."
-                className="w-full pl-10 h-12 text-lg"
+                className="w-full pl-10 h-11 text-base"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -53,35 +46,35 @@ export default function BookDashboardPage() {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card className="hover:shadow-lg transition-shadow md:col-span-2">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><PlusCircle /> Nueva Receta</CardTitle>
+                <CardHeader className="py-4">
+                    <CardTitle className="flex items-center gap-2 text-lg"><PlusCircle /> Nueva Receta</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground mb-4">Crea un plato desde cero, combinando elaboraciones e ingredientes.</p>
+                <CardContent className="py-4">
+                    <p className="text-muted-foreground mb-4 text-sm">Crea un plato desde cero, combinando elaboraciones e ingredientes.</p>
                     <Button asChild className="w-full">
                         <Link href="/book/recetas/nueva">Empezar a Crear</Link>
                     </Button>
                 </CardContent>
             </Card>
              <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Component />Gestionar Elaboraciones</CardTitle>
+                <CardHeader className="py-4">
+                    <CardTitle className="flex items-center gap-2 text-lg"><Component />Elaboraciones</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground mb-4">Edita tus sub-recetas, los bloques de construcción de tus platos.</p>
+                <CardContent className="py-4">
+                    <p className="text-muted-foreground mb-4 text-sm">Edita tus sub-recetas y sus componentes.</p>
                      <Button asChild className="w-full" variant="outline">
-                        <Link href="/book/elaboraciones">Ver Todas</Link>
+                        <Link href="/book/elaboraciones">Gestionar</Link>
                     </Button>
                 </CardContent>
             </Card>
              <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><ChefHat />Gestionar Ingredientes</CardTitle>
+                <CardHeader className="py-4">
+                    <CardTitle className="flex items-center gap-2 text-lg"><ChefHat />Ingredientes</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground mb-4">Vincula tu materia prima con el ERP y gestiona los alérgenos.</p>
+                <CardContent className="py-4">
+                    <p className="text-muted-foreground mb-4 text-sm">Gestiona alérgenos y mermas.</p>
                      <Button asChild className="w-full" variant="outline">
-                        <Link href="/book/ingredientes">Ir a Ingredientes</Link>
+                        <Link href="/book/ingredientes">Gestionar</Link>
                     </Button>
                 </CardContent>
             </Card>
@@ -91,15 +84,15 @@ export default function BookDashboardPage() {
             <div>
                 <h2 className="text-2xl font-headline font-semibold mb-4">Últimas Recetas Modificadas</h2>
                 <Card>
-                    <CardContent className="pt-6">
+                    <CardContent className="p-4">
                     {recentRecipes.length > 0 ? (
-                        <ul className="space-y-4">
+                        <ul className="space-y-3">
                         {recentRecipes.map((recipe) => (
-                            <li key={recipe.id} className="flex items-center justify-between pb-2 border-b last:border-0">
+                            <li key={recipe.id} className="flex items-center justify-between pb-3 border-b last:border-0">
                             <div>
                                 <Link href={`/book/recetas/${recipe.id}`} className="font-semibold text-primary hover:underline">{recipe.nombre}</Link>
                                 <p className="text-sm text-muted-foreground">
-                                    {recipe.categoria} - Modificado por {recipe.responsableEscandallo}
+                                    {recipe.categoria} - Por {recipe.responsableEscandallo || 'N/A'}
                                 </p>
                             </div>
                             <Button asChild variant="secondary" size="sm">
@@ -123,8 +116,8 @@ export default function BookDashboardPage() {
                     <Card className="hover:shadow-md transition-shadow">
                         <CardContent className="p-4 flex justify-between items-center">
                             <div>
-                                <h3 className="font-semibold flex items-center gap-2"><Package />Materia Prima (ERP)</h3>
-                                <p className="text-sm text-muted-foreground">Gestiona la lista de precios y productos de proveedores.</p>
+                                <h3 className="font-semibold flex items-center gap-2 text-base"><Package />Materia Prima (ERP)</h3>
+                                <p className="text-sm text-muted-foreground">Precios y productos de proveedores.</p>
                             </div>
                             <Button asChild variant="secondary"><Link href="/book/ingredientes-erp">Gestionar</Link></Button>
                         </CardContent>
@@ -132,10 +125,10 @@ export default function BookDashboardPage() {
                      <Card className="hover:shadow-md transition-shadow">
                         <CardContent className="p-4 flex justify-between items-center">
                             <div>
-                                <h3 className="font-semibold flex items-center gap-2"><ChefHat />Ingredientes Internos</h3>
-                                <p className="text-sm text-muted-foreground">Vincula materia prima y gestiona alérgenos y mermas.</p>
+                                <h3 className="font-semibold flex items-center gap-2 text-base"><GlassWater />Menaje</h3>
+                                <p className="text-sm text-muted-foreground">Artículos para emplatados y servicio.</p>
                             </div>
-                            <Button asChild variant="secondary"><Link href="/book/ingredientes">Gestionar</Link></Button>
+                            <Button asChild variant="secondary"><Link href="/menaje-db">Gestionar</Link></Button>
                         </CardContent>
                     </Card>
                 </div>
