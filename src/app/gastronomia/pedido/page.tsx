@@ -342,8 +342,8 @@ export default function PedidoGastronomiaPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
-                                    <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                                        <TableBody>
+                                    <TableBody>
+                                        <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                                             {fields.length > 0 ? (
                                                 fields.map((field, index) => (
                                                     <SortableTableRow key={field.id} id={field.id}>
@@ -384,8 +384,8 @@ export default function PedidoGastronomiaPage() {
                                                     </TableCell>
                                                 </TableRow>
                                             )}
-                                        </TableBody>
-                                    </SortableContext>
+                                        </SortableContext>
+                                    </TableBody>
                                 </DndContext>
                              </Table>
                         </div>
