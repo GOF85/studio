@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from 'date-fns';
 import { ArrowLeft, Save, Trash2, PlusCircle, Utensils } from 'lucide-react';
-import type { ServiceOrder, GastronomyOrder, GastronomiaDBItem, GastronomyOrderItem, GastronomyOrderStatus } from '@/types';
+import type { ServiceOrder, GastronomyOrder, Receta, GastronomyOrderItem, GastronomyOrderStatus } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,7 +30,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 
@@ -48,43 +47,42 @@ const gastronomyOrderSchema = z.object({
     status: z.enum(statusOptions),
     items: z.array(z.object({
         id: z.string(),
-        referencia: z.string(),
+        nombre: z.string(),
         categoria: z.string(),
-        precio: z.number(),
-        gramaje: z.number(),
+        costeMateriaPrima: z.number(),
         quantity: z.coerce.number().min(1),
     })).default([]),
 });
 
 type GastronomyOrderFormValues = z.infer<typeof gastronomyOrderSchema>;
 
-function PlatoSelector({ onSelectPlato }: { onSelectPlato: (plato: GastronomiaDBItem) => void }) {
-  const [gastronomiaDB, setGastronomiaDB] = useState<GastronomiaDBItem[]>([]);
+function RecetaSelector({ onSelectReceta }: { onSelectReceta: (receta: Receta) => void }) {
+  const [recetasDB, setRecetasDB] = useState<Receta[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
   useEffect(() => {
-    const storedData = localStorage.getItem('gastronomiaDB') || '[]';
-    setGastronomiaDB(JSON.parse(storedData));
+    const storedData = localStorage.getItem('recetas') || '[]';
+    setRecetasDB(JSON.parse(storedData));
   }, []);
 
-  const categories = useMemo(() => ['all', ...new Set(gastronomiaDB.map(item => item.categoria))], [gastronomiaDB]);
+  const categories = useMemo(() => ['all', ...new Set(recetasDB.map(item => item.categoria))], [recetasDB]);
 
   const filteredItems = useMemo(() => {
-    return gastronomiaDB.filter(item => {
+    return recetasDB.filter(item => {
       const matchesCategory = selectedCategory === 'all' || item.categoria === selectedCategory;
-      const matchesSearch = item.referencia.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [gastronomiaDB, searchTerm, selectedCategory]);
+  }, [recetasDB, searchTerm, selectedCategory]);
 
   return (
     <DialogContent className="max-w-4xl">
       <DialogHeader>
-        <DialogTitle>Seleccionar Plato</DialogTitle>
+        <DialogTitle>Seleccionar Receta del Book</DialogTitle>
       </DialogHeader>
       <div className="flex gap-4 my-4">
-        <Input placeholder="Buscar por referencia..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+        <Input placeholder="Buscar por nombre..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
           <SelectTrigger className="w-[240px]"><SelectValue placeholder="Categoría" /></SelectTrigger>
           <SelectContent>
@@ -96,22 +94,19 @@ function PlatoSelector({ onSelectPlato }: { onSelectPlato: (plato: GastronomiaDB
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Referencia</TableHead>
+              <TableHead>Nombre Receta</TableHead>
               <TableHead>Categoría</TableHead>
-              <TableHead>Precio</TableHead>
+              <TableHead>Coste Materia Prima</TableHead>
               <TableHead>Acción</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredItems.map(plato => (
-              <TableRow key={plato.id}>
-                <TableCell className="font-medium flex items-center gap-3">
-                  {plato.imagenRef && <Image src={plato.imagenRef} alt={plato.referencia} width={32} height={32} className="rounded-sm object-cover" />}
-                  {plato.referencia}
-                </TableCell>
-                <TableCell>{plato.categoria}</TableCell>
-                <TableCell>{plato.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                <TableCell><Button size="sm" onClick={() => onSelectPlato(plato)}>Añadir</Button></TableCell>
+            {filteredItems.map(receta => (
+              <TableRow key={receta.id}>
+                <TableCell className="font-medium">{receta.nombre}</TableCell>
+                <TableCell>{receta.categoria}</TableCell>
+                <TableCell>{(receta.costeMateriaPrima || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                <TableCell><Button size="sm" onClick={() => onSelectReceta(receta)}>Añadir</Button></TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -130,7 +125,7 @@ export default function PedidoGastronomiaPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [gastronomyOrder, setGastronomyOrder] = useState<GastronomyOrder | null>(null);
-  const [isPlatoSelectorOpen, setIsPlatoSelectorOpen] = useState(false);
+  const [isRecetaSelectorOpen, setIsRecetaSelectorOpen] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<GastronomyOrderFormValues>({
@@ -163,26 +158,25 @@ export default function PedidoGastronomiaPage() {
     setIsMounted(true);
   }, [osId, briefingItemId, form]);
 
-  const onSelectPlato = (plato: GastronomiaDBItem) => {
-    const existingIndex = fields.findIndex(item => item.id === plato.id);
+  const onSelectReceta = (receta: Receta) => {
+    const existingIndex = fields.findIndex(item => item.id === receta.id);
     if (existingIndex > -1) {
       const existingItem = fields[existingIndex];
       update(existingIndex, { ...existingItem, quantity: existingItem.quantity + 1 });
     } else {
       append({
-        id: plato.id,
-        referencia: plato.referencia,
-        categoria: plato.categoria,
-        precio: plato.precio,
-        gramaje: plato.gramaje,
+        id: receta.id,
+        nombre: receta.nombre,
+        categoria: receta.categoria,
+        costeMateriaPrima: receta.costeMateriaPrima,
         quantity: 1,
       });
     }
-    toast({ title: "Plato añadido", description: `${plato.referencia} ha sido añadido al pedido.` });
+    toast({ title: "Receta añadida", description: `${receta.nombre} ha sido añadida al pedido.` });
   };
   
   const totalPedido = useMemo(() => {
-    return fields.reduce((acc, item) => acc + (item.precio * item.quantity), 0);
+    return fields.reduce((acc, item) => acc + (item.costeMateriaPrima * item.quantity), 0);
   }, [fields]);
 
   const onSubmit = (data: GastronomyOrderFormValues) => {
@@ -267,14 +261,14 @@ export default function PedidoGastronomiaPage() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div >
-                            <CardTitle>Platos del Pedido</CardTitle>
-                            <CardDescription>Añade o modifica los platos para este servicio de gastronomía.</CardDescription>
+                            <CardTitle>Recetas del Pedido</CardTitle>
+                            <CardDescription>Añade o modifica las recetas del Book Gastronómico para este servicio.</CardDescription>
                         </div>
-                         <Dialog open={isPlatoSelectorOpen} onOpenChange={setIsPlatoSelectorOpen}>
+                         <Dialog open={isRecetaSelectorOpen} onOpenChange={setIsRecetaSelectorOpen}>
                             <DialogTrigger asChild>
-                                <Button variant="outline"><PlusCircle className="mr-2"/>Añadir Plato</Button>
+                                <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Receta</Button>
                             </DialogTrigger>
-                            <PlatoSelector onSelectPlato={onSelectPlato} />
+                            <RecetaSelector onSelectReceta={onSelectReceta} />
                         </Dialog>
                     </CardHeader>
                     <CardContent>
@@ -282,9 +276,9 @@ export default function PedidoGastronomiaPage() {
                              <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Referencia</TableHead>
+                                        <TableHead>Nombre de la Receta</TableHead>
                                         <TableHead>Categoría</TableHead>
-                                        <TableHead>Precio Ud.</TableHead>
+                                        <TableHead>Coste M.P. (Ud.)</TableHead>
                                         <TableHead>Cantidad</TableHead>
                                         <TableHead>Subtotal</TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
@@ -294,9 +288,9 @@ export default function PedidoGastronomiaPage() {
                                      {fields.length > 0 ? (
                                         fields.map((field, index) => (
                                             <TableRow key={field.key}>
-                                                <TableCell className="font-medium">{field.referencia}</TableCell>
+                                                <TableCell className="font-medium">{field.nombre}</TableCell>
                                                 <TableCell>{field.categoria}</TableCell>
-                                                <TableCell>{field.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                                                <TableCell>{field.costeMateriaPrima.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                                                 <TableCell>
                                                     <Input 
                                                         type="number" 
@@ -305,9 +299,9 @@ export default function PedidoGastronomiaPage() {
                                                         {...form.register(`items.${index}.quantity`)}
                                                     />
                                                 </TableCell>
-                                                <TableCell>{(field.precio * form.watch(`items.${index}.quantity`)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                                                <TableCell>{(field.costeMateriaPrima * form.watch(`items.${index}.quantity`)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                                                 <TableCell className="text-right">
-                                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
+                                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)} type="button">
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </TableCell>
@@ -316,7 +310,7 @@ export default function PedidoGastronomiaPage() {
                                     ) : (
                                         <TableRow>
                                             <TableCell colSpan={6} className="h-24 text-center">
-                                            No hay platos en este pedido.
+                                            No hay recetas en este pedido.
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -327,7 +321,7 @@ export default function PedidoGastronomiaPage() {
                     {fields.length > 0 && (
                          <CardFooter className="flex justify-end">
                             <div className="text-xl font-bold">
-                                Total Pedido: {totalPedido.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                                Coste Total Pedido: {totalPedido.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                             </div>
                         </CardFooter>
                     )}
