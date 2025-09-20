@@ -5,8 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Save, X, Component, ChefHat, PlusCircle, Trash2 } from 'lucide-react';
-import type { Elaboracion, IngredienteInterno, UnidadMedida } from '@/types';
+import { Loader2, Save, X, Component, ChefHat, PlusCircle, Trash2, DollarSign } from 'lucide-react';
+import type { Elaboracion, IngredienteInterno, UnidadMedida, IngredienteERP } from '@/types';
 import { UNIDADES_MEDIDA } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -43,14 +43,22 @@ const elaboracionFormSchema = z.object({
 });
 
 type ElaboracionFormValues = z.infer<typeof elaboracionFormSchema>;
+type IngredienteConERP = IngredienteInterno & { erp?: IngredienteERP };
 
-function IngredienteSelector({ onSelect }: { onSelect: (ingrediente: IngredienteInterno) => void }) {
-    const [ingredientes, setIngredientes] = useState<IngredienteInterno[]>([]);
+function IngredienteSelector({ onSelect }: { onSelect: (ingrediente: IngredienteConERP) => void }) {
+    const [ingredientes, setIngredientes] = useState<IngredienteConERP[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
-        const stored = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-        setIngredientes(stored);
+        const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+        const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
+        const erpMap = new Map(storedErp.map(i => [i.id, i]));
+        
+        const combined = storedInternos.map(ing => ({
+            ...ing,
+            erp: erpMap.get(ing.productoERPlinkId),
+        }));
+        setIngredientes(combined);
     }, []);
 
     const filtered = useMemo(() => {
@@ -63,11 +71,12 @@ function IngredienteSelector({ onSelect }: { onSelect: (ingrediente: Ingrediente
             <Input placeholder="Buscar ingrediente..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             <div className="max-h-[60vh] overflow-y-auto border rounded-md">
                 <Table>
-                    <TableHeader><TableRow><TableHead>Ingrediente</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Ingrediente</TableHead><TableHead>Coste / Unidad</TableHead><TableHead></TableHead></TableRow></TableHeader>
                     <TableBody>
                         {filtered.map(ing => (
                             <TableRow key={ing.id}>
                                 <TableCell>{ing.nombreIngrediente}</TableCell>
+                                <TableCell>{ing.erp?.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} / {ing.erp?.unidad}</TableCell>
                                 <TableCell className="text-right">
                                     <Button size="sm" type="button" onClick={() => onSelect(ing)}>Añadir</Button>
                                 </TableCell>
@@ -88,6 +97,7 @@ export default function ElaboracionFormPage() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
   const { toast } = useToast();
 
   const form = useForm<ElaboracionFormValues>({
@@ -99,12 +109,23 @@ export default function ElaboracionFormPage() {
     }
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, control } = useFieldArray({
       control: form.control,
       name: 'componentes',
   });
 
+  const watchedComponentes = form.watch('componentes');
+  const watchedProduccionTotal = form.watch('produccionTotal');
+
   useEffect(() => {
+    // Load all data needed for calculations
+    const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+    const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
+    const erpMap = new Map(storedErp.map(i => [i.id, i]));
+    const combined = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
+    setIngredientesData(new Map(combined.map(i => [i.id, i])));
+
+    // Load form data
     if (isEditing) {
       const elaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
       const elab = elaboraciones.find(e => e.id === id);
@@ -120,7 +141,7 @@ export default function ElaboracionFormPage() {
     }
   }, [id, isEditing, form, router, toast]);
 
-  const handleSelectIngrediente = (ingrediente: IngredienteInterno) => {
+  const handleSelectIngrediente = (ingrediente: IngredienteConERP) => {
       append({
           id: `${ingrediente.id}-${Date.now()}`,
           tipo: 'ingrediente',
@@ -130,20 +151,41 @@ export default function ElaboracionFormPage() {
       });
       setIsSelectorOpen(false);
   }
+  
+  const { costeTotal, costePorUnidad } = useMemo(() => {
+    let total = 0;
+    watchedComponentes.forEach(componente => {
+        if (componente.tipo === 'ingrediente') {
+            const data = ingredientesData.get(componente.componenteId);
+            if (data?.erp) {
+                const costeSinMerma = data.erp.precio * componente.cantidad;
+                const costeConMerma = data.mermaPorcentaje > 0 
+                    ? costeSinMerma / (1 - data.mermaPorcentaje / 100)
+                    : costeSinMerma;
+                total += costeConMerma;
+            }
+        }
+    });
+    const porUnidad = watchedProduccionTotal > 0 ? total / watchedProduccionTotal : 0;
+    return { costeTotal: total, costePorUnidad: porUnidad };
+  }, [watchedComponentes, watchedProduccionTotal, ingredientesData]);
+
 
   function onSubmit(data: ElaboracionFormValues) {
     setIsLoading(true);
     let allItems = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     let message = '';
     
+    const dataToSave = { ...data, costePorUnidad };
+
     if (isEditing) {
       const index = allItems.findIndex(p => p.id === id);
       if (index !== -1) {
-        allItems[index] = data;
+        allItems[index] = dataToSave;
         message = 'Elaboración actualizada correctamente.';
       }
     } else {
-      allItems.push(data);
+      allItems.push(dataToSave);
       message = 'Elaboración creada correctamente.';
     }
 
@@ -176,8 +218,8 @@ export default function ElaboracionFormPage() {
                 </div>
             </div>
             
-            <div className="grid lg:grid-cols-2 gap-8 items-start">
-                <Card>
+            <div className="grid lg:grid-cols-3 gap-8 items-start">
+                <Card className="lg:col-span-2">
                     <CardHeader><CardTitle>Información General</CardTitle></CardHeader>
                     <CardContent className="space-y-6">
                         <FormField control={form.control} name="nombre" render={({ field }) => (
@@ -202,6 +244,84 @@ export default function ElaboracionFormPage() {
                 </Card>
 
                  <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><DollarSign />Costes</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground">Coste Total:</span>
+                            <span className="font-bold text-lg">{costeTotal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                        </div>
+                         <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground">Coste / {form.watch('unidadProduccion')}:</span>
+                            <span className="font-bold text-2xl text-primary">{costePorUnidad.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+            
+            <Card>
+                <CardHeader className="flex-row items-center justify-between">
+                    <div className="space-y-1.5"><CardTitle className="flex items-center gap-2"><ChefHat/>Componentes de la Elaboración</CardTitle>
+                    <CardDescription>Añade los ingredientes o sub-elaboraciones que forman parte de esta preparación.</CardDescription></div>
+                    <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
+                        <DialogTrigger asChild>
+                             <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Componente</Button>
+                        </DialogTrigger>
+                        <IngredienteSelector onSelect={handleSelectIngrediente} />
+                    </Dialog>
+                </CardHeader>
+                <CardContent>
+                     <div className="border rounded-lg">
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Componente</TableHead><TableHead className="w-40">Cantidad</TableHead><TableHead className="w-40">Unidad</TableHead><TableHead className="w-12"></TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {fields.length === 0 && <TableRow><TableCell colSpan={4} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
+                                {fields.map((field, index) => (
+                                    <TableRow key={field.id}>
+                                        <TableCell className="font-medium">{field.nombre}</TableCell>
+                                        <TableCell>
+                                            <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
+                                                <FormItem><FormControl><Input type="number" {...qField} className="h-8" /></FormControl></FormItem>
+                                            )} />
+                                        </TableCell>
+                                        <TableCell>
+                                            {ingredientesData.get(field.componenteId)?.erp?.unidad || 'N/A'}
+                                        </TableCell>
+                                        <TableCell><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                     </div>
+                     {form.formState.errors.componentes && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.componentes.message}</p>}
+                </CardContent>
+            </Card>
+
+            <div className="grid lg:grid-cols-2 gap-8 items-start">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Instrucciones y Medios</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <FormField control={form.control} name="instruccionesPreparacion" render={({ field }) => (
+                            <FormItem><FormLabel>Instrucciones de Preparación</FormLabel><FormControl><Textarea {...field} rows={6} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="videoProduccionURL" render={({ field }) => (
+                            <FormItem><FormLabel>URL Vídeo Producción</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormItem>
+                            <FormLabel>Fotos Producción</FormLabel>
+                            <FormControl>
+                                <div className="border-dashed border-2 rounded-md p-4 text-center text-muted-foreground h-24 flex items-center justify-center">
+                                    Carga de imágenes (Próximamente)
+                                </div>
+                            </FormControl>
+                        </FormItem>
+                    </CardContent>
+                </Card>
+
+                <Card>
                     <CardHeader>
                         <CardTitle>Datos de Expedición</CardTitle>
                         <CardDescription>Define cómo se empaqueta y conserva esta elaboración.</CardDescription>
@@ -230,63 +350,6 @@ export default function ElaboracionFormPage() {
                     </CardContent>
                 </Card>
             </div>
-            
-            <Card>
-                <CardHeader className="flex-row items-center justify-between">
-                    <div className="space-y-1.5"><CardTitle className="flex items-center gap-2"><ChefHat/>Componentes de la Elaboración</CardTitle>
-                    <CardDescription>Añade los ingredientes o sub-elaboraciones que forman parte de esta preparación.</CardDescription></div>
-                    <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                        <DialogTrigger asChild>
-                             <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Componente</Button>
-                        </DialogTrigger>
-                        <IngredienteSelector onSelect={handleSelectIngrediente} />
-                    </Dialog>
-                </CardHeader>
-                <CardContent>
-                     <div className="border rounded-lg">
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Componente</TableHead><TableHead className="w-40">Cantidad</TableHead><TableHead className="w-12"></TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {fields.length === 0 && <TableRow><TableCell colSpan={3} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
-                                {fields.map((field, index) => (
-                                    <TableRow key={field.id}>
-                                        <TableCell className="font-medium">{field.nombre}</TableCell>
-                                        <TableCell>
-                                            <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field }) => (
-                                                <FormItem><FormControl><Input type="number" {...field} className="h-8" /></FormControl></FormItem>
-                                            )} />
-                                        </TableCell>
-                                        <TableCell><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                     </div>
-                     {form.formState.errors.componentes && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.componentes.message}</p>}
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader><CardTitle>Instrucciones y Medios</CardTitle></CardHeader>
-                <CardContent className="space-y-6">
-                    <FormField control={form.control} name="instruccionesPreparacion" render={({ field }) => (
-                        <FormItem><FormLabel>Instrucciones de Preparación</FormLabel><FormControl><Textarea {...field} rows={6} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="videoProduccionURL" render={({ field }) => (
-                        <FormItem><FormLabel>URL Vídeo Producción</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                     {/* Placeholder for multi-image upload */}
-                    <FormItem>
-                        <FormLabel>Fotos Producción</FormLabel>
-                        <FormControl>
-                            <div className="border-dashed border-2 rounded-md p-4 text-center text-muted-foreground h-24 flex items-center justify-center">
-                                Carga de imágenes (Próximamente)
-                            </div>
-                        </FormControl>
-                    </FormItem>
-                </CardContent>
-            </Card>
-
           </form>
         </Form>
       </main>
