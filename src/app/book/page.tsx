@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookHeart, ChefHat, Component, PlusCircle, Search, Settings } from 'lucide-react';
 import type { Receta } from '@/types';
-import { Input } from '@/components/ui/input';
 
 export default function BookDashboardPage() {
   const [recentRecipes, setRecentRecipes] = useState<Receta[]>([]);
@@ -37,9 +36,9 @@ export default function BookDashboardPage() {
 
         <div className="relative mb-8">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input 
+            <input 
                 placeholder="Buscar recetas, elaboraciones o ingredientes..."
-                className="w-full pl-10 h-12 text-lg"
+                className="w-full pl-10 h-12 text-lg border rounded-md"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
