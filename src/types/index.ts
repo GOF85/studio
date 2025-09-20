@@ -334,7 +334,8 @@ export type PruebaMenuData = {
 export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS_DE_CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
 export type Alergeno = typeof ALERGENOS[number];
 
-export type UnidadMedida = 'KILO' | 'LITRO' | 'UNIDAD';
+export const UNIDADES_MEDIDA = ['KILO', 'LITRO', 'UNIDAD'] as const;
+export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
 
 export type IngredienteERP = {
     id: string;
@@ -356,29 +357,29 @@ export type IngredienteInterno = {
 };
 
 export type ComponenteElaboracion = {
-    // Polimórfico: puede ser un ingrediente o una sub-elaboración
-    id: string;
+    id: string; // ID único para el componente en la lista (para React)
     tipo: 'ingrediente' | 'elaboracion';
     componenteId: string; // ID de IngredienteInterno o de Elaboracion
+    nombre: string; // Nombre para mostrar en la UI
     cantidad: number;
 };
 
 export type Elaboracion = {
     id: string;
     nombre: string;
-    // tipo: 'BASE' | 'COMPUESTA'; // No es necesario si `componentes` es polimórfico
-    componentes: ComponenteElaboracion[];
-    produccionTotal: number; // Ej: 1.5 (se producen 1.5 Kilos)
+    produccionTotal: number; 
     unidadProduccion: UnidadMedida;
-    costePorUnidad: number; // Calculado: coste total de componentes / produccionTotal
-    alergenos: Alergeno[]; // Calculado
+    componentes: ComponenteElaboracion[];
     instruccionesPreparacion: string;
     fotosProduccionURLs: string[];
     videoProduccionURL?: string;
     // --- Campos de Expedición ---
     formatoExpedicion: string;
-    ratioExpedicion: number; // Ej: 1.5 (kg por barqueta)
+    ratioExpedicion: number;
     tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+    // --- Campos calculados (pueden no estar en el form) ---
+    costePorUnidad?: number; 
+    alergenos?: Alergeno[];
 };
 
 export type Receta = {
@@ -403,3 +404,10 @@ export type Receta = {
     precioVentaRecomendado: number; // Calculado
     alergenos: Alergeno[]; // Calculado
 };
+
+// Placeholder for MenajeDB to avoid breaking changes.
+export type MenajeDB = {
+    id: string;
+    descripcion: string;
+    fotoURL?: string;
+}
