@@ -329,15 +329,17 @@ export default function PedidoGastronomiaPage() {
                 </div>
 
                 <Card className="mb-8">
-                    <CardHeader>
+                    <CardHeader className="py-4">
                         <CardTitle>Resumen del Servicio</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid md:grid-cols-4 gap-4 text-sm">
+                    <CardContent className="grid md:grid-cols-4 gap-x-4 gap-y-1 text-sm pt-0">
                         <div><span className="font-semibold text-muted-foreground">Fecha: </span>{format(new Date(gastronomyOrder.fecha), 'dd/MM/yyyy')}</div>
                         <div><span className="font-semibold text-muted-foreground">Hora: </span>{gastronomyOrder.horaInicio}</div>
                         <div><span className="font-semibold text-muted-foreground">Sala: </span>{gastronomyOrder.sala}</div>
                         <div><span className="font-semibold text-muted-foreground">Asistentes: </span>{gastronomyOrder.asistentes}</div>
-                        <div className="md:col-span-4"><span className="font-semibold text-muted-foreground">Comentarios: </span>{gastronomyOrder.comentarios || 'N/A'}</div>
+                        {gastronomyOrder.comentarios && (
+                            <div className="md:col-span-4"><span className="font-semibold text-muted-foreground">Comentarios: </span>{gastronomyOrder.comentarios}</div>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -348,15 +350,15 @@ export default function PedidoGastronomiaPage() {
                             <Button variant="secondary" type="button" onClick={addSeparator}><PlusCircle className="mr-2"/>+ Separador</Button>
                             <Dialog open={isRecetaSelectorOpen} onOpenChange={setIsRecetaSelectorOpen}>
                                 <DialogTrigger asChild>
-                                    <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Plato</Button>
+                                    <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir plato</Button>
                                 </DialogTrigger>
                                 <RecetaSelector onSelectReceta={onSelectReceta} />
                             </Dialog>
                         </div>
                     </CardHeader>
                     <CardContent>
+                      <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
                         <div className="border rounded-lg">
-                             <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -369,8 +371,8 @@ export default function PedidoGastronomiaPage() {
                                             <TableHead className="text-right">Acciones</TableHead>
                                         </TableRow>
                                     </TableHeader>
-                                    <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                                        <TableBody>
+                                    <TableBody>
+                                        <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                                             {fields.length > 0 ? (
                                                 fields.map((field, index) => (
                                                     <SortableTableRow key={field.key} field={{...field, key: field.key}} index={index} remove={remove} form={form} />
@@ -382,11 +384,11 @@ export default function PedidoGastronomiaPage() {
                                                     </TableCell>
                                                 </TableRow>
                                             )}
-                                        </TableBody>
-                                    </SortableContext>
+                                        </SortableContext>
+                                    </TableBody>
                                 </Table>
-                             </DndContext>
                         </div>
+                      </DndContext>
                     </CardContent>
                     {fields.length > 0 && (
                          <CardFooter className="flex justify-end">
