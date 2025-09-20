@@ -142,11 +142,12 @@ export type ComercialBriefing = {
 export type GastronomyOrderStatus = 'Pendiente' | 'En preparación' | 'Incidencia' | 'Listo';
 
 export type GastronomyOrderItem = {
-    id: string; // from Receta
+    id: string; 
+    type: 'item' | 'separator';
     nombre: string;
-    categoria: string;
-    costeMateriaPrima: number;
-    quantity: number;
+    categoria?: string;
+    costeMateriaPrima?: number;
+    quantity?: number;
 }
 export type GastronomyOrder = Omit<ComercialBriefingItem, 'precioUnitario' | 'conGastronomia'> & {
     osId: string;
