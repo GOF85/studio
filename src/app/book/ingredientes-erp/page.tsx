@@ -37,7 +37,7 @@ import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 
-const CSV_HEADERS = ["id", "IdERP", "nombreProductoERP", "referenciaProveedor", "nombreProveedor", "familiaCategoria", "precio", "unidad"];
+const CSV_REQUIRED_HEADERS = ["id", "nombreProductoERP", "referenciaProveedor", "nombreProveedor", "familiaCategoria", "precio", "unidad"];
 
 export default function IngredientesERPPage() {
   const [items, setItems] = useState<IngredienteERP[]>([]);
@@ -120,15 +120,14 @@ export default function IngredientesERPPage() {
       skipEmptyLines: true,
       complete: (results) => {
         if (results.errors.length > 0) {
-            toast({ variant: 'destructive', title: 'Error de importación', description: `Error en la fila ${results.errors[0].row}: ${results.errors[0].message}` });
-            return;
+            console.warn("Errores menores en el parseo del CSV:", results.errors);
         }
 
         const headers = results.meta.fields || [];
-        const hasRequiredHeaders = CSV_HEADERS.every(field => headers.includes(field));
+        const hasRequiredHeaders = CSV_REQUIRED_HEADERS.every(field => headers.includes(field));
 
         if (!hasRequiredHeaders) {
-            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
+            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener al menos las columnas: ${CSV_REQUIRED_HEADERS.join(', ')}.`});
             return;
         }
         
@@ -149,7 +148,7 @@ export default function IngredientesERPPage() {
                 nombreProductoERP: item.nombreProductoERP || '',
                 referenciaProveedor: item.referenciaProveedor || '',
                 nombreProveedor: item.nombreProveedor || '',
-                familiaCategoria: item.familiaCategoria && item.familiaCategoria !== '-' ? item.familiaCategoria : '',
+                familiaCategoria: (item.familiaCategoria && item.familiaCategoria !== '-') ? item.familiaCategoria : '',
                 precio: parseCurrency(item.precio),
                 unidad,
             };
