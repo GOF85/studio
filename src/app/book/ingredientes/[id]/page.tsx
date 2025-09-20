@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Loader2, Save, X, ChefHat, Link as LinkIcon, Check, CircleX, Trash2 } from 'lucide-react';
 import type { IngredienteInterno, IngredienteERP, Alergeno } from '@/types';
 import { ALERGENOS } from '@/types';
+import * as React from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
