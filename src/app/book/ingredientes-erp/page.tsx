@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Package } from 'lucide-react';
-import type { IngredienteERP } from '@/types';
+import type { IngredienteERP, UnidadMedida } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -119,24 +119,37 @@ export default function IngredientesERPPage() {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const headers = results.meta.fields || [];
-        const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
+        if (results.errors.length > 0) {
+            toast({ variant: 'destructive', title: 'Error de importación', description: `Error en la fila ${results.errors[0].row}: ${results.errors[0].message}` });
+            return;
+        }
 
-        if (!hasAllHeaders) {
+        const headers = results.meta.fields || [];
+        const hasRequiredHeaders = CSV_HEADERS.every(field => headers.includes(field));
+
+        if (!hasRequiredHeaders) {
             toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
             return;
         }
         
-        const importedData: IngredienteERP[] = results.data.map(item => ({
-            id: item.id || Date.now().toString() + Math.random(),
-            IdERP: item.IdERP || '',
-            nombreProductoERP: item.nombreProductoERP || '',
-            referenciaProveedor: item.referenciaProveedor || '',
-            nombreProveedor: item.nombreProveedor || '',
-            familiaCategoria: item.familiaCategoria || '',
-            precio: parseCurrency(item.precio),
-            unidad: ['KILO', 'LITRO', 'UNIDAD'].includes(item.unidad) ? item.unidad : 'UNIDAD',
-        }));
+        const importedData: IngredienteERP[] = results.data.map(item => {
+            let unidad: UnidadMedida = 'UNIDAD';
+            const itemUnidad = (item.unidad || '').toUpperCase();
+            if (itemUnidad === 'KG') unidad = 'KILO';
+            else if (itemUnidad === 'L') unidad = 'LITRO';
+            else if (itemUnidad === 'UD') unidad = 'UNIDAD';
+            
+            return {
+                id: item.id || Date.now().toString() + Math.random(),
+                IdERP: item.IdERP || item.referenciaProveedor || '',
+                nombreProductoERP: item.nombreProductoERP || '',
+                referenciaProveedor: item.referenciaProveedor || '',
+                nombreProveedor: item.nombreProveedor || '',
+                familiaCategoria: item.familiaCategoria && item.familiaCategoria !== '-' ? item.familiaCategoria : '',
+                precio: parseCurrency(item.precio),
+                unidad,
+            };
+        });
         
         localStorage.setItem('ingredientesERP', JSON.stringify(importedData));
         setItems(importedData);
