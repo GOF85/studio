@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookHeart, ChefHat, Component, PlusCircle, Search } from 'lucide-react';
+import { BookHeart, ChefHat, Component, PlusCircle, Search, Package } from 'lucide-react';
 import type { Receta } from '@/types';
 import { Input } from '@/components/ui/input';
 
@@ -24,7 +24,7 @@ export default function BookDashboardPage() {
       const allRecipes: Receta[] = JSON.parse(storedRecipes);
       // Simular 'updatedAt' si no existe, para poder ordenar
       const recipesWithDate = allRecipes.map(r => ({ ...r, updatedAt: new Date() }));
-      setRecentRecipes(recipesWithDate.sort((a,b) => b.updatedAt.getTime() - a.updatedAt.getTime()).slice(0, 5));
+      setRecentRecipes(recipesWithDate.sort((a,b) => (b.updatedAt?.getTime() || 0) - (a.updatedAt?.getTime() || 0)).slice(0, 5));
     } else {
       setRecentRecipes(dummyRecipes);
     }
