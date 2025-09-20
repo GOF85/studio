@@ -125,8 +125,8 @@ function RecetaSelector({ onSelectReceta }: { onSelectReceta: (receta: Receta) =
   );
 }
 
-function SortableTableRow({ id, children }: { id: string, children: React.ReactNode }) {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+function SortableTableRow({ field, index, remove, form }: { field: GastronomyOrderItem & { key: string }, index: number, remove: (index: number) => void, form: any }) {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
@@ -134,12 +134,39 @@ function SortableTableRow({ id, children }: { id: string, children: React.ReactN
 
     return (
         <TableRow ref={setNodeRef} style={style} {...attributes}>
-            <TableCell className="py-1 px-2 w-10">
+             <TableCell className="py-1 px-2 w-10">
                 <Button variant="ghost" size="icon" {...listeners} className="cursor-grab h-8 w-8">
                     <GripVertical className="h-4 w-4 text-muted-foreground"/>
                 </Button>
             </TableCell>
-            {children}
+            {field.type === 'item' ? (
+                <>
+                    <TableCell className="font-medium">{field.nombre}</TableCell>
+                    <TableCell>{field.categoria}</TableCell>
+                    <TableCell>{(field.costeMateriaPrima || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell>
+                        <Input 
+                            type="number" 
+                            min="1" 
+                            className="w-20"
+                            {...form.register(`items.${index}.quantity`)}
+                        />
+                    </TableCell>
+                    <TableCell>{((field.costeMateriaPrima || 0) * (form.watch(`items.${index}.quantity`) || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                </>
+            ) : (
+                <TableCell colSpan={5} className="font-bold bg-muted/50">
+                    <Input 
+                        className="border-none bg-transparent h-auto p-0 text-base"
+                        {...form.register(`items.${index}.nombre`)}
+                    />
+                </TableCell>
+            )}
+            <TableCell className={cn("text-right", field.type === 'separator' && 'bg-muted/50')}>
+                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)} type="button">
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </TableCell>
         </TableRow>
     );
 }
@@ -329,53 +356,24 @@ export default function PedidoGastronomiaPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="border rounded-lg">
-                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-10"></TableHead>
-                                        <TableHead>Nombre del Plato</TableHead>
-                                        <TableHead>Categoría</TableHead>
-                                        <TableHead>Coste M.P. (Ud.)</TableHead>
-                                        <TableHead>Cantidad</TableHead>
-                                        <TableHead>Subtotal</TableHead>
-                                        <TableHead className="text-right">Acciones</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
-                                    <TableBody>
-                                        <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                             <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-10"></TableHead>
+                                            <TableHead>Nombre del Plato</TableHead>
+                                            <TableHead>Categoría</TableHead>
+                                            <TableHead>Coste M.P. (Ud.)</TableHead>
+                                            <TableHead>Cantidad</TableHead>
+                                            <TableHead>Subtotal</TableHead>
+                                            <TableHead className="text-right">Acciones</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                                        <TableBody>
                                             {fields.length > 0 ? (
                                                 fields.map((field, index) => (
-                                                    <SortableTableRow key={field.id} id={field.id}>
-                                                        {field.type === 'item' ? (
-                                                            <>
-                                                                <TableCell className="font-medium">{field.nombre}</TableCell>
-                                                                <TableCell>{field.categoria}</TableCell>
-                                                                <TableCell>{(field.costeMateriaPrima || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                                                                <TableCell>
-                                                                    <Input 
-                                                                        type="number" 
-                                                                        min="1" 
-                                                                        className="w-20"
-                                                                        {...form.register(`items.${index}.quantity`)}
-                                                                    />
-                                                                </TableCell>
-                                                                <TableCell>{((field.costeMateriaPrima || 0) * (form.watch(`items.${index}.quantity`) || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                                                            </>
-                                                        ) : (
-                                                            <TableCell colSpan={5} className="font-bold bg-muted/50">
-                                                                <Input 
-                                                                    className="border-none bg-transparent h-auto p-0 text-base"
-                                                                    {...form.register(`items.${index}.nombre`)}
-                                                                />
-                                                            </TableCell>
-                                                        )}
-                                                        <TableCell className={cn("text-right", field.type === 'separator' && 'bg-muted/50')}>
-                                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)} type="button">
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </TableCell>
-                                                    </SortableTableRow>
+                                                    <SortableTableRow key={field.key} field={{...field, key: field.key}} index={index} remove={remove} form={form} />
                                                 ))
                                             ) : (
                                                 <TableRow>
@@ -384,10 +382,10 @@ export default function PedidoGastronomiaPage() {
                                                     </TableCell>
                                                 </TableRow>
                                             )}
-                                        </SortableContext>
-                                    </TableBody>
-                                </DndContext>
-                             </Table>
+                                        </TableBody>
+                                    </SortableContext>
+                                </Table>
+                             </DndContext>
                         </div>
                     </CardContent>
                     {fields.length > 0 && (
