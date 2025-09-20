@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, ChefHat, Link as LinkIcon } from 'lucide-react';
-import type { IngredienteInterno, IngredienteERP } from '@/types';
+import type { IngredienteInterno, IngredienteERP, Alergeno } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 
 type IngredienteConERP = IngredienteInterno & {
     erp?: IngredienteERP;
+    alergenos: Alergeno[];
 }
 
 export default function IngredientesPage() {
@@ -59,20 +60,30 @@ export default function IngredientesPage() {
     }
     const ingredientesInternos = JSON.parse(storedIngredientes) as IngredienteInterno[];
     
-    const combinedData = ingredientesInternos.map(ing => ({
-        ...ing,
-        erp: erpMap.get(ing.productoERPlinkId),
-    }));
+    const combinedData = ingredientesInternos.map(ing => {
+        const presentes = ing.alergenosPresentes || [];
+        const trazas = ing.alergenosTrazas || [];
+        return {
+            ...ing,
+            erp: erpMap.get(ing.productoERPlinkId),
+            alergenos: [...new Set([...presentes, ...trazas])] as Alergeno[],
+        }
+    });
 
     setIngredientes(combinedData);
     setIsMounted(true);
   }, []);
 
   const filteredItems = useMemo(() => {
-    return ingredientes.filter(item => 
-      item.nombreIngrediente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.erp?.nombreProductoERP.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return ingredientes.filter(item => {
+      const term = searchTerm.toLowerCase();
+      return (
+        item.nombreIngrediente.toLowerCase().includes(term) ||
+        (item.erp?.nombreProductoERP || '').toLowerCase().includes(term) ||
+        (item.erp?.IdERP || '').toLowerCase().includes(term) ||
+        (item.erp?.familiaCategoria || '').toLowerCase().includes(term)
+      );
+    });
   }, [ingredientes, searchTerm]);
 
   if (!isMounted) {
@@ -97,7 +108,7 @@ export default function IngredientesPage() {
         
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
-            placeholder="Buscar por ingrediente interno o producto ERP..."
+            placeholder="Buscar por ingrediente, producto ERP, Id. ERP o categoría..."
             className="flex-grow max-w-lg"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -110,6 +121,8 @@ export default function IngredientesPage() {
               <TableRow>
                 <TableHead>Ingrediente Interno</TableHead>
                 <TableHead>Producto ERP Vinculado</TableHead>
+                <TableHead>Id. ERP</TableHead>
+                <TableHead>Categoría ERP</TableHead>
                 <TableHead>Alérgenos</TableHead>
                 <TableHead>% Merma</TableHead>
               </TableRow>
@@ -132,14 +145,17 @@ export default function IngredientesPage() {
                         <span className="text-destructive text-sm font-semibold">No vinculado</span>
                       )}
                     </TableCell>
+                     <TableCell>{item.erp?.IdERP}</TableCell>
+                     <TableCell>{item.erp?.familiaCategoria}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {item.alergenosPresentes?.length > 0 && item.alergenosPresentes.map(alergeno => (
-                          <Badge key={alergeno} variant="destructive" className="text-xs">{alergeno}</Badge>
-                        ))}
-                        {item.alergenosTrazas?.length > 0 && item.alergenosTrazas.map(alergeno => (
-                          <Badge key={alergeno} variant="outline" className="text-xs">{alergeno} (traza)</Badge>
-                        ))}
+                        {item.alergenos?.length > 0 && item.alergenos.map(alergeno => {
+                           const isPresente = (item.alergenosPresentes || []).includes(alergeno);
+                           const isTraza = (item.alergenosTrazas || []).includes(alergeno);
+                           if (isPresente) return <Badge key={alergeno} variant="destructive" className="text-xs">{alergeno}</Badge>
+                           if (isTraza) return <Badge key={alergeno} variant="outline" className="text-xs">{alergeno} (T)</Badge>
+                           return null;
+                        })}
                       </div>
                     </TableCell>
                     <TableCell>{item.mermaPorcentaje}%</TableCell>
@@ -147,7 +163,7 @@ export default function IngredientesPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No se encontraron ingredientes.
                   </TableCell>
                 </TableRow>

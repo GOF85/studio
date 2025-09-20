@@ -123,8 +123,8 @@ export default function IngredienteFormPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
-          <form id="ingrediente-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-             <div className="flex items-center justify-between mb-6">
+          <form id="ingrediente-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <ChefHat className="h-8 w-8" />
                     <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Ingrediente</h1>
@@ -141,10 +141,10 @@ export default function IngredienteFormPage() {
                 </div>
             </div>
 
-            <div className="grid lg:grid-cols-2 gap-6">
+            <div className="grid lg:grid-cols-2 gap-4 items-start">
                 <Card>
-                    <CardHeader className="py-4"><CardTitle>1. Definición del Ingrediente Interno</CardTitle></CardHeader>
-                    <CardContent className="space-y-4 pt-0">
+                    <CardHeader className="py-3"><CardTitle className="text-lg">1. Definición y Merma</CardTitle></CardHeader>
+                    <CardContent className="space-y-3 pt-0">
                         <FormField control={form.control} name="nombreIngrediente" render={({ field }) => (
                             <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} placeholder="Ej: Harina de Trigo" /></FormControl><FormMessage /></FormItem>
                         )} />
@@ -154,7 +154,7 @@ export default function IngredienteFormPage() {
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="py-4"><CardTitle>2. Vínculo con Materia Prima (ERP)</CardTitle></CardHeader>
+                    <CardHeader className="py-3"><CardTitle className="text-lg">2. Vínculo con Materia Prima (ERP)</CardTitle></CardHeader>
                     <CardContent className="pt-0">
                         {selectedErpProduct ? (
                             <div className="border rounded-md p-3 space-y-1">
@@ -204,33 +204,73 @@ export default function IngredienteFormPage() {
             </div>
             
             <Card>
-                <CardHeader className="py-4"><CardTitle>3. Gestión de Alérgenos</CardTitle></CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-0">
-                    <div>
-                        <h4 className="font-semibold mb-2 text-base">Presente en el ingrediente</h4>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                            {ALERGENOS.map((alergeno) => (
-                                <FormField key={alergeno} control={form.control} name="alergenosPresentes" render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                    <FormControl><Checkbox checked={field.value?.includes(alergeno)} onCheckedChange={(checked) => {return checked ? field.onChange([...(field.value || []), alergeno]) : field.onChange((field.value || [])?.filter(v => v !== alergeno))}} /></FormControl>
-                                    <FormLabel className="font-normal capitalize text-sm">{alergeno.toLowerCase().replace('_', ' ')}</FormLabel>
-                                </FormItem>
-                                )}/>
-                            ))}
-                        </div>
-                    </div>
-                     <div>
-                        <h4 className="font-semibold mb-2 text-base">Puede contener trazas</h4>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                           {ALERGENOS.map((alergeno) => (
-                                <FormField key={alergeno} control={form.control} name="alergenosTrazas" render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                    <FormControl><Checkbox checked={field.value?.includes(alergeno)} onCheckedChange={(checked) => {return checked ? field.onChange([...(field.value || []), alergeno]) : field.onChange((field.value || [])?.filter(v => v !== alergeno))}} /></FormControl>
-                                    <FormLabel className="font-normal capitalize text-sm">{alergeno.toLowerCase().replace('_', ' ')}</FormLabel>
-                                </FormItem>
-                                )}/>
-                            ))}
-                        </div>
+                <CardHeader className="py-3"><CardTitle className="text-lg">3. Gestión de Alérgenos</CardTitle></CardHeader>
+                <CardContent className="pt-0">
+                    <div className="border rounded-md">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-[60%] p-2">Alérgeno</TableHead>
+                                    <TableHead className="text-center p-2">Presente (P)</TableHead>
+                                    <TableHead className="text-center p-2">Traza (T)</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {ALERGENOS.map((alergeno) => (
+                                    <TableRow key={alergeno}>
+                                        <TableCell className="capitalize p-2 font-medium">{alergeno.toLowerCase().replace('_', ' ')}</TableCell>
+                                        <TableCell className="text-center p-2">
+                                            <FormField
+                                                control={form.control}
+                                                name="alergenosPresentes"
+                                                render={({ field }) => (
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={field.value?.includes(alergeno)}
+                                                            onCheckedChange={(checked) => {
+                                                                const newValue = checked
+                                                                    ? [...(field.value || []), alergeno]
+                                                                    : (field.value || []).filter(v => v !== alergeno);
+                                                                field.onChange(newValue);
+                                                                // If present is checked, uncheck trazas
+                                                                if (checked) {
+                                                                    const trazas = form.getValues('alergenosTrazas').filter(t => t !== alergeno);
+                                                                    form.setValue('alergenosTrazas', trazas, { shouldDirty: true });
+                                                                }
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                )}
+                                            />
+                                        </TableCell>
+                                         <TableCell className="text-center p-2">
+                                            <FormField
+                                                control={form.control}
+                                                name="alergenosTrazas"
+                                                render={({ field }) => (
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={field.value?.includes(alergeno)}
+                                                            onCheckedChange={(checked) => {
+                                                                const newValue = checked
+                                                                    ? [...(field.value || []), alergeno]
+                                                                    : (field.value || []).filter(v => v !== alergeno);
+                                                                field.onChange(newValue);
+                                                                // If trazas is checked, uncheck presentes
+                                                                if (checked) {
+                                                                    const presentes = form.getValues('alergenosPresentes').filter(p => p !== alergeno);
+                                                                    form.setValue('alergenosPresentes', presentes, { shouldDirty: true });
+                                                                }
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                )}
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     </div>
                 </CardContent>
             </Card>

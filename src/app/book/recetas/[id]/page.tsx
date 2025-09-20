@@ -166,7 +166,8 @@ export default function RecetaFormPage() {
     elaboracion.componentes.forEach(comp => {
         if(comp.tipo === 'ingrediente') {
             const ingData = ingredientesMap.get(comp.componenteId);
-            ingData?.alergenos.forEach(a => elabAlergenos.add(a));
+            (ingData?.alergenosPresentes || []).forEach(a => elabAlergenos.add(a));
+            (ingData?.alergenosTrazas || []).forEach(a => elabAlergenos.add(a));
         }
     });
     return Array.from(elabAlergenos);
@@ -232,7 +233,7 @@ export default function RecetaFormPage() {
         costeMateriaPrima, 
         gramajeTotal, 
         precioVentaRecomendado, 
-        alergenos: alergenos
+        alergenos,
     };
 
     if (isEditing) {
@@ -263,7 +264,7 @@ export default function RecetaFormPage() {
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
           <form id="receta-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-             <div className="flex items-center justify-between mb-6">
+             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <BookHeart className="h-8 w-8" />
                     <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nueva'} Receta</h1>
@@ -280,13 +281,13 @@ export default function RecetaFormPage() {
                 </div>
             </div>
 
-            <Accordion type="multiple" defaultValue={['item-1']} className="w-full space-y-4">
+            <Accordion type="multiple" defaultValue={['item-1']} className="w-full space-y-3">
                 <AccordionItem value="item-1">
                     <Card>
                         <AccordionTrigger className="p-4"><CardTitle className="text-lg">Información General y Clasificación</CardTitle></AccordionTrigger>
                         <AccordionContent>
-                            <CardContent className="space-y-4 pt-2">
-                                <div className="grid md:grid-cols-2 gap-4">
+                            <CardContent className="space-y-3 pt-2">
+                                <div className="grid md:grid-cols-2 gap-3">
                                     <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
                                     <FormField
                                         control={form.control}
@@ -313,8 +314,8 @@ export default function RecetaFormPage() {
                                         )}
                                     />
                                 </div>
-                                <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem><FormLabel>Descripción Comercial</FormLabel><FormControl><Textarea {...field} placeholder="Descripción para la carta..." /></FormControl></FormItem> )} />
-                                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem><FormLabel>Descripción Comercial</FormLabel><FormControl><Textarea {...field} placeholder="Descripción para la carta..." rows={2} /></FormControl></FormItem> )} />
+                                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
                                     <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem><FormLabel>Categoría</FormLabel><FormControl><Input {...field} placeholder="Ej: Entrante, Pescado..." /></FormControl></FormItem> )} />
                                     <FormField control={form.control} name="partidaProduccion" render={({ field }) => ( <FormItem><FormLabel>Partida de Producción</FormLabel> <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="FRIO">Frío</SelectItem><SelectItem value="CALIENTE">Caliente</SelectItem><SelectItem value="PASTELERIA">Pastelería</SelectItem><SelectItem value="EXPEDICION">Expedición</SelectItem></SelectContent></Select></FormItem> )} />
                                     <FormField control={form.control} name="estacionalidad" render={({ field }) => ( <FormItem><FormLabel>Estacionalidad</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="INVIERNO">Invierno</SelectItem><SelectItem value="VERANO">Verano</SelectItem><SelectItem value="MIXTO">Mixto</SelectItem></SelectContent></Select></FormItem> )} />
@@ -328,7 +329,7 @@ export default function RecetaFormPage() {
                      <Card>
                         <AccordionTrigger className="p-4"><CardTitle className="flex items-center gap-2 text-lg"><Utensils />Elaboraciones</CardTitle></AccordionTrigger>
                         <AccordionContent>
-                        <CardHeader className="pt-2 pb-4 flex-row items-center justify-between">
+                        <CardHeader className="pt-2 pb-3 flex-row items-center justify-between">
                              <CardDescription>Añade los componentes de la receta. Puedes arrastrar y soltar para reordenarlos.</CardDescription>
                             <div className="flex gap-2">
                                 <Button asChild variant="secondary" size="sm" type="button"><Link href="/book/elaboraciones/nuevo" target="_blank"><PlusCircle size={16} /> Crear Nueva</Link></Button>
@@ -358,7 +359,7 @@ export default function RecetaFormPage() {
                      <Card>
                         <AccordionTrigger className="p-4"><CardTitle className="flex items-center gap-2 text-lg"><GlassWater />Menaje Asociado</CardTitle></AccordionTrigger>
                         <AccordionContent>
-                        <CardHeader className="pt-2 pb-4 flex-row items-center justify-between">
+                        <CardHeader className="pt-2 pb-3 flex-row items-center justify-between">
                             <CardDescription>Define el menaje necesario para servir esta receta.</CardDescription>
                             <SelectorDialog trigger={<Button type="button" variant="outline" size="sm"><PlusCircle size={16}/>Añadir Menaje</Button>} title="Seleccionar Menaje" items={dbMenaje} columns={[{ key: 'descripcion', header: 'Descripción' }]} onSelect={onAddMenaje} />
                         </CardHeader>
@@ -385,28 +386,28 @@ export default function RecetaFormPage() {
                      <Card>
                         <AccordionTrigger className="p-4"><CardTitle className="text-lg">Instrucciones de Cocina</CardTitle></AccordionTrigger>
                         <AccordionContent>
-                            <CardContent className="grid md:grid-cols-3 gap-4 pt-2">
-                                <FormField control={form.control} name="instruccionesMiseEnPlace" render={({ field }) => ( <FormItem><FormLabel>Mise en Place</FormLabel><FormControl><Textarea {...field} rows={6}/></FormControl></FormItem> )} />
-                                <FormField control={form.control} name="instruccionesRegeneracion" render={({ field }) => ( <FormItem><FormLabel>Regeneración</FormLabel><FormControl><Textarea {...field} rows={6} /></FormControl></FormItem> )} />
-                                <FormField control={form.control} name="instruccionesEmplatado" render={({ field }) => ( <FormItem><FormLabel>Emplatado</FormLabel><FormControl><Textarea {...field} rows={6} /></FormControl></FormItem> )} />
+                            <CardContent className="grid md:grid-cols-3 gap-3 pt-2">
+                                <FormField control={form.control} name="instruccionesMiseEnPlace" render={({ field }) => ( <FormItem><FormLabel>Mise en Place</FormLabel><FormControl><Textarea {...field} rows={5}/></FormControl></FormItem> )} />
+                                <FormField control={form.control} name="instruccionesRegeneracion" render={({ field }) => ( <FormItem><FormLabel>Regeneración</FormLabel><FormControl><Textarea {...field} rows={5} /></FormControl></FormItem> )} />
+                                <FormField control={form.control} name="instruccionesEmplatado" render={({ field }) => ( <FormItem><FormLabel>Emplatado</FormLabel><FormControl><Textarea {...field} rows={5} /></FormControl></FormItem> )} />
                             </CardContent>
                         </AccordionContent>
                      </Card>
                 </AccordionItem>
                 <AccordionItem value="item-5">
                     <Card>
-                        <AccordionTrigger className="p-4"><CardTitle className="flex items-center gap-2 text-lg"><Percent />Costes y Precios</CardTitle></AccordionTrigger>
+                        <AccordionTrigger className="p-4"><CardTitle className="flex items-center gap-2 text-lg"><Percent />Costes y Alérgenos</CardTitle></AccordionTrigger>
                         <AccordionContent>
-                            <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-                                <FormItem><FormLabel>Gramaje Total (g)</FormLabel><Input readOnly value={gramajeTotal.toFixed(2)} className="font-bold" /></FormItem>
-                                <FormItem><FormLabel>Coste Materia Prima</FormLabel><Input readOnly value={costeMateriaPrima.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="font-bold" /></FormItem>
-                                <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => ( <FormItem><FormLabel>% Coste Producción</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem> )} />
-                                <FormItem><FormLabel>Precio Venta Rec.</FormLabel><Input readOnly value={precioVentaRecomendado.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="font-bold text-primary" /></FormItem>
+                            <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                                <FormItem><FormLabel>Gramaje Total (g)</FormLabel><Input readOnly value={gramajeTotal.toFixed(2)} className="font-bold h-9" /></FormItem>
+                                <FormItem><FormLabel>Coste Materia Prima</FormLabel><Input readOnly value={costeMateriaPrima.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="font-bold h-9" /></FormItem>
+                                <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => ( <FormItem><FormLabel>% Coste Producción</FormLabel><FormControl><Input type="number" {...field} className="h-9" /></FormControl></FormItem> )} />
+                                <FormItem><FormLabel>Precio Venta Rec.</FormLabel><Input readOnly value={precioVentaRecomendado.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="font-bold text-primary h-9" /></FormItem>
                             </CardContent>
                             <CardFooter>
-                                <div className="border rounded-md p-4 w-full bg-muted/30">
+                                <div className="border rounded-md p-3 w-full bg-muted/30">
                                     <h4 className="font-semibold mb-2 flex items-center gap-2"><Sprout/>Alérgenos de la Receta</h4>
-                                    {alergenos.length > 0 ? <div className="flex flex-wrap gap-2">{alergenos.map(a => <Badge key={a} variant="secondary">{a}</Badge>)}</div> : <p className="text-muted-foreground">No se han detectado alérgenos en las elaboraciones.</p>}
+                                    {alergenos.length > 0 ? <div className="flex flex-wrap gap-2">{alergenos.map(a => <Badge key={a} variant="secondary">{a}</Badge>)}</div> : <p className="text-muted-foreground text-sm">No se han detectado alérgenos en las elaboraciones.</p>}
                                 </div>
                             </CardFooter>
                         </AccordionContent>

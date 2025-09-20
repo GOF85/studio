@@ -392,8 +392,7 @@ export type ElaboracionEnReceta = {
   cantidad: number; // en la unidad de la elaboración
   coste: number;
   gramaje: number;
-  alergenosPresentes?: Alergeno[];
-  alergenosTrazas?: Alergeno[];
+  alergenos?: Alergeno[];
 };
 
 export type MenajeEnReceta = {
@@ -423,8 +422,7 @@ export type Receta = {
     porcentajeCosteProduccion: number;
     costeMateriaPrima: number; // Calculado
     precioVentaRecomendado: number; // Calculado
-    alergenosPresentes: Alergeno[]; // Calculado
-    alergenosTrazas: Alergeno[]; // Calculado
+    alergenos: Alergeno[];
 };
 
 export type MenajeDB = {
