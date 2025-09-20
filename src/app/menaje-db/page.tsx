@@ -57,6 +57,9 @@ export default function MenajeDBPage() {
         { id: '1', descripcion: 'Plato Hondo Ø24cm', fotoURL: 'https://picsum.photos/seed/plato-hondo/100' },
         { id: '2', descripcion: 'Plato Llano Ø28cm', fotoURL: 'https://picsum.photos/seed/plato-llano/100' },
         { id: '3', descripcion: 'Copa de Vino 45cl', fotoURL: 'https://picsum.photos/seed/copa-vino/100' },
+        { id: '4', descripcion: 'Copa de Agua 35cl', fotoURL: 'https://picsum.photos/seed/copa-agua/100' },
+        { id: '5', descripcion: 'Tenedor de Postre', fotoURL: 'https://picsum.photos/seed/tenedor-postre/100' },
+        { id: '6', descripcion: 'Cuchillo de Carne', fotoURL: 'https://picsum.photos/seed/cuchillo-carne/100' },
       ];
       storedData = JSON.stringify(dummyData);
       localStorage.setItem('menajeDB', storedData);
