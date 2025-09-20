@@ -132,8 +132,8 @@ export default function IngredienteFormPage() {
             <TableHeader>
                 <TableRow>
                     <TableHead className="w-[60%] p-2">Alérgeno</TableHead>
-                    <TableHead className="text-center p-2">P</TableHead>
-                    <TableHead className="text-center p-2">T</TableHead>
+                    <TableHead className="text-center p-2">Presente</TableHead>
+                    <TableHead className="text-center p-2">Trazas</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -216,76 +216,71 @@ export default function IngredienteFormPage() {
                 </div>
             </div>
 
-            <div className="space-y-4">
-                <Card>
-                    <CardHeader className="py-3"><CardTitle className="text-lg">1. Definición y Merma</CardTitle></CardHeader>
-                    <CardContent className="space-y-3 pt-0">
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <FormField control={form.control} name="nombreIngrediente" render={({ field }) => (
-                                <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} placeholder="Ej: Harina de Trigo" /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <FormField control={form.control} name="mermaPorcentaje" render={({ field }) => (
-                                <FormItem><FormLabel>% de Merma</FormLabel><FormControl><Input type="number" {...field} placeholder="Ej: 10 para un 10%" /></FormControl><FormMessage /></FormItem>
-                            )} />
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="py-3"><CardTitle className="text-lg">2. Vínculo con Materia Prima (ERP)</CardTitle></CardHeader>
-                    <CardContent className="pt-0">
-                        {selectedErpProduct ? (
-                            <div className="border rounded-md p-3 space-y-1">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="font-semibold">{selectedErpProduct.nombreProductoERP}</p>
-                                        <p className="text-sm text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
+            <Card>
+                <CardHeader className="py-3"><CardTitle className="text-lg">Información del Ingrediente</CardTitle></CardHeader>
+                <CardContent className="pt-2">
+                    <div className="grid lg:grid-cols-3 gap-4 items-start">
+                        <FormField control={form.control} name="nombreIngrediente" render={({ field }) => (
+                            <FormItem><FormLabel>Nombre del Ingrediente</FormLabel><FormControl><Input {...field} placeholder="Ej: Harina de Trigo" /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="mermaPorcentaje" render={({ field }) => (
+                            <FormItem><FormLabel>% de Merma</FormLabel><FormControl><Input type="number" {...field} placeholder="Ej: 10 para un 10%" /></FormControl><FormMessage /></FormItem>
+                        )} />
+                         <FormItem>
+                            <FormLabel>Vínculo con Materia Prima (ERP)</FormLabel>
+                            {selectedErpProduct ? (
+                                <div className="border rounded-md p-2 space-y-1">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="font-semibold text-sm leading-tight">{selectedErpProduct.nombreProductoERP}</p>
+                                            <p className="text-xs text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
+                                        </div>
+                                        <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" onClick={() => form.setValue('productoERPlinkId', '')}><CircleX className="mr-1 h-3 w-3"/>Desvincular</Button>
                                     </div>
-                                    <Button variant="outline" size="sm" onClick={() => form.setValue('productoERPlinkId', '')}><CircleX className="mr-2"/>Desvincular</Button>
+                                    <p className="font-bold text-primary text-sm">{selectedErpProduct.precio.toLocaleString('es-ES', {style:'currency', currency: 'EUR'})} / {selectedErpProduct.unidad}</p>
                                 </div>
-                                <p className="font-bold text-primary text-base">{selectedErpProduct.precio.toLocaleString('es-ES', {style:'currency', currency: 'EUR'})} / {selectedErpProduct.unidad}</p>
-                            </div>
-                        ) : (
-                             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button variant="secondary" className="w-full"><LinkIcon className="mr-2"/>Vincular Producto ERP</Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-3xl">
-                                    <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
-                                    <Input placeholder="Buscar por nombre, proveedor, referencia..." value={erpSearchTerm} onChange={e => setErpSearchTerm(e.target.value)} />
-                                    <div className="max-h-[60vh] overflow-y-auto border rounded-md">
-                                        <Table>
-                                            <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Proveedor</TableHead><TableHead>Precio</TableHead><TableHead></TableHead></TableRow></TableHeader>
-                                            <TableBody>
-                                                {ingredientesERP.filter(p => p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase())).map(p => (
-                                                    <TableRow key={p.id}>
-                                                        <TableCell>{p.nombreProductoERP}</TableCell>
-                                                        <TableCell>{p.nombreProveedor}</TableCell>
-                                                        <TableCell>{p.precio.toLocaleString('es-ES', {style:'currency', currency: 'EUR'})}/{p.unidad}</TableCell>
-                                                        <TableCell>
-                                                            <Button size="sm" onClick={() => {form.setValue('productoERPlinkId', p.id); setIsDialogOpen(false)}}>
-                                                                <Check className="mr-2" />
-                                                                Seleccionar
-                                                            </Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </DialogContent>
-                             </Dialog>
-                        )}
-                         <FormMessage className="mt-2 text-red-500">{form.formState.errors.productoERPlinkId?.message}</FormMessage>
-                    </CardContent>
-                </Card>
-            </div>
+                            ) : (
+                                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="secondary" className="w-full h-16 border-dashed border-2"><LinkIcon className="mr-2"/>Vincular Producto ERP</Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-3xl">
+                                        <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
+                                        <Input placeholder="Buscar por nombre, proveedor, referencia..." value={erpSearchTerm} onChange={e => setErpSearchTerm(e.target.value)} />
+                                        <div className="max-h-[60vh] overflow-y-auto border rounded-md">
+                                            <Table>
+                                                <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Proveedor</TableHead><TableHead>Precio</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                                                <TableBody>
+                                                    {ingredientesERP.filter(p => p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase())).map(p => (
+                                                        <TableRow key={p.id}>
+                                                            <TableCell>{p.nombreProductoERP}</TableCell>
+                                                            <TableCell>{p.nombreProveedor}</TableCell>
+                                                            <TableCell>{p.precio.toLocaleString('es-ES', {style:'currency', currency: 'EUR'})}/{p.unidad}</TableCell>
+                                                            <TableCell>
+                                                                <Button size="sm" onClick={() => {form.setValue('productoERPlinkId', p.id, { shouldDirty: true }); setIsDialogOpen(false)}}>
+                                                                    <Check className="mr-2" />
+                                                                    Seleccionar
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
+                            )}
+                            <FormMessage className="mt-2 text-red-500">{form.formState.errors.productoERPlinkId?.message}</FormMessage>
+                        </FormItem>
+                    </div>
+                </CardContent>
+            </Card>
             
             <Card>
                 <CardHeader className="py-3">
-                    <CardTitle className="text-lg">3. Gestión de Alérgenos</CardTitle>
-                    <CardDescription>P: Presente, T: Trazas</CardDescription>
+                    <CardTitle className="text-lg">Gestión de Alérgenos</CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="pt-2">
                     <div className="grid md:grid-cols-2 gap-x-8 gap-y-4">
                         <AlergenosTable alergenosList={alergenosColumns[0]} />
                         <AlergenosTable alergenosList={alergenosColumns[1]} />
