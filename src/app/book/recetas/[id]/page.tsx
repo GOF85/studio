@@ -1,8 +1,7 @@
-
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,6 +26,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const elaboracionEnRecetaSchema = z.object({
     id: z.string(),
@@ -65,7 +65,7 @@ type RecetaFormValues = z.infer<typeof recetaFormSchema>;
 type ElaboracionConCoste = Elaboracion & { costePorUnidad?: number };
 type IngredienteConERP = IngredienteInterno & { erp?: IngredienteERP };
 
-function SelectorDialog<T extends { id: string; nombre?: string; descripcion?: string }>({ trigger, title, items, columns, onSelect }: { trigger: React.ReactNode; title: string; items: T[]; columns: { key: keyof T; header: string }[]; onSelect: (item: T) => void; }) {
+function SelectorDialog<T extends { id: string; nombre?: string; descripcion?: string; costePorUnidad?: number }>({ trigger, title, items, columns, onSelect }: { trigger: React.ReactNode; title: string; items: T[]; columns: { key: keyof T; header: string }[]; onSelect: (item: T) => void; }) {
     const [open, setOpen] = useState(false);
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -78,7 +78,11 @@ function SelectorDialog<T extends { id: string; nombre?: string; descripcion?: s
                         <TableBody>
                             {items.map(item => (
                                 <TableRow key={item.id}>
-                                    {columns.map(c => <TableCell key={c.key as string}>{String(item[c.key])}</TableCell>)}
+                                    {columns.map(c => <TableCell key={c.key as string}>{
+                                        c.key === 'costePorUnidad' && typeof item[c.key] === 'number'
+                                          ? (item[c.key] as number).toLocaleString('es-ES', {style:'currency', currency: 'EUR'})
+                                          : String(item[c.key])
+                                    }</TableCell>)}
                                     <TableCell><Button size="sm" onClick={() => { onSelect(item); setOpen(false); }}>Añadir</Button></TableCell>
                                 </TableRow>
                             ))}
@@ -144,12 +148,10 @@ export default function RecetaFormPage() {
             const ingData = ingredientesMap.get(comp.componenteId);
             ingData?.alergenos.forEach(a => elabAlergenos.add(a));
         }
-        // Recursive call if component is another elaboration (future)
     });
     return Array.from(elabAlergenos);
-}, []);
+  }, []);
 
-  // Load all DB data once on mount
   useEffect(() => {
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
@@ -163,12 +165,7 @@ export default function RecetaFormPage() {
     
     const menaje = JSON.parse(localStorage.getItem('menajeDB') || '[]') as MenajeDB[];
     setDbMenaje(menaje);
-  }, [calculateElabAlergenos]);
 
-  // Set form values once DB data is loaded
-  useEffect(() => {
-    if (dbElaboraciones.length === 0) return; // Wait for data
-    
     if (isEditing) {
       const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
       const receta = recetas.find(e => e.id === id);
@@ -176,8 +173,7 @@ export default function RecetaFormPage() {
     } else {
       form.reset({ id: Date.now().toString(), nombre: '', descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [] });
     }
-  }, [id, isEditing, dbElaboraciones, form.reset]);
-
+  }, [id, isEditing, form, calculateElabAlergenos]);
 
   const onAddElab = (elab: ElaboracionConCoste) => {
     appendElab({ id: elab.id, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [] });
@@ -227,14 +223,14 @@ export default function RecetaFormPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
-          <form id="receta-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form id="receta-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
              <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
                     <BookHeart className="h-8 w-8" />
                     <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nueva'} Receta</h1>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" type="button" onClick={() => router.push('/book')}> <X className="mr-2"/> Cancelar</Button>
+                    <Button variant="outline" type="button" onClick={() => router.push('/book/recetas')}> <X className="mr-2"/> Cancelar</Button>
                     <Button type="submit" disabled={isLoading}>
                     {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                     <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Receta'}</span>
@@ -242,88 +238,115 @@ export default function RecetaFormPage() {
                 </div>
             </div>
 
-            <Card>
-                <CardHeader><CardTitle>Información General</CardTitle></CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="grid md:grid-cols-2 gap-6">
-                        <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="responsableEscandallo" render={({ field }) => ( <FormItem><FormLabel>Responsable del Escandallo</FormLabel><FormControl><Input {...field} placeholder="Nombre del cocinero" /></FormControl></FormItem> )} />
-                    </div>
-                     <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem><FormLabel>Descripción Comercial</FormLabel><FormControl><Textarea {...field} placeholder="Descripción para la carta..." /></FormControl></FormItem> )} />
-                </CardContent>
-            </Card>
-
-             <Card>
-                <CardHeader><CardTitle>Clasificación y Atributos</CardTitle></CardHeader>
-                <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                     <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem><FormLabel>Categoría</FormLabel><FormControl><Input {...field} placeholder="Ej: Entrante, Pescado..." /></FormControl></FormItem> )} />
-                     <FormField control={form.control} name="partidaProduccion" render={({ field }) => ( <FormItem><FormLabel>Partida de Producción</FormLabel> <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="FRIO">Frío</SelectItem><SelectItem value="CALIENTE">Caliente</SelectItem><SelectItem value="PASTELERIA">Pastelería</SelectItem><SelectItem value="EXPEDICION">Expedición</SelectItem></SelectContent></Select></FormItem> )} />
-                     <FormField control={form.control} name="estacionalidad" render={({ field }) => ( <FormItem><FormLabel>Estacionalidad</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="INVIERNO">Invierno</SelectItem><SelectItem value="VERANO">Verano</SelectItem><SelectItem value="MIXTO">Mixto</SelectItem></SelectContent></Select></FormItem> )} />
-                     <FormField control={form.control} name="tipoDieta" render={({ field }) => ( <FormItem><FormLabel>Tipo de Dieta</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="VEGETARIANO">Vegetariano</SelectItem><SelectItem value="VEGANO">Vegano</SelectItem><SelectItem value="AMBOS">Ambos</SelectItem><SelectItem value="NINGUNO">Ninguno</SelectItem></SelectContent></Select></FormItem> )} />
-                </CardContent>
-            </Card>
-            
-            <Card>
-                <CardHeader className="flex-row items-center justify-between">
-                    <div className="space-y-1.5"><CardTitle className="flex items-center gap-2"><Utensils />Elaboraciones</CardTitle><CardDescription>Añade los componentes de la receta. Puedes arrastrar y soltar para reordenarlos.</CardDescription></div>
-                    <SelectorDialog trigger={<Button type="button" variant="outline"><PlusCircle className="mr-2" />Añadir Elaboración</Button>} title="Seleccionar Elaboración" items={dbElaboraciones} columns={[{ key: 'nombre', header: 'Nombre' }, { key: 'costePorUnidad', header: 'Coste/Unidad' }]} onSelect={onAddElab} />
-                </CardHeader>
-                <CardContent>
-                    <DndContext sensors={[]} onDragEnd={(e) => handleDragEnd(e, 'elab')} collisionDetection={closestCenter}>
-                        <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                            {elabFields.map((field, index) => (
-                                <SortableItem key={field.id} id={field.id}>
-                                    <GripVertical className="cursor-grab text-muted-foreground" />
-                                    <span className="font-semibold flex-1">{field.nombre}</span>
-                                    <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (<FormItem className="flex items-center gap-2"><FormLabel>Cantidad:</FormLabel><FormControl><Input type="number" {...qField} className="h-8 w-24" /></FormControl></FormItem>)} />
-                                    <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeElab(index)}><Trash2 className="h-4 w-4" /></Button>
-                                </SortableItem>
-                            ))}
-                        </SortableContext>
-                    </DndContext>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader className="flex-row items-center justify-between">
-                    <div className="space-y-1.5"><CardTitle className="flex items-center gap-2"><GlassWater />Menaje Asociado</CardTitle><CardDescription>Define el menaje necesario para servir esta receta.</CardDescription></div>
-                    <SelectorDialog trigger={<Button type="button" variant="outline"><PlusCircle className="mr-2" />Añadir Menaje</Button>} title="Seleccionar Menaje" items={dbMenaje} columns={[{ key: 'descripcion', header: 'Descripción' }]} onSelect={onAddMenaje} />
-                </CardHeader>
-                <CardContent>
-                    <DndContext sensors={[]} onDragEnd={(e) => handleDragEnd(e, 'menaje')} collisionDetection={closestCenter}>
-                        <SortableContext items={menajeFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                            {menajeFields.map((field, index) => (
-                                <SortableItem key={field.id} id={field.id}>
-                                    <GripVertical className="cursor-grab text-muted-foreground" />
-                                    <span className="font-semibold flex-1">{field.descripcion}</span>
-                                    <FormField control={form.control} name={`menajeAsociado.${index}.ratio`} render={({ field: qField }) => (<FormItem className="flex items-center gap-2"><FormLabel>Ratio:</FormLabel><FormControl><Input type="number" {...qField} className="h-8 w-24" /></FormControl></FormItem>)} />
-                                    <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeMenaje(index)}><Trash2 className="h-4 w-4" /></Button>
-                                </SortableItem>
-                            ))}
-                        </SortableContext>
-                    </DndContext>
-                </CardContent>
-            </Card>
-
-             <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2"><Percent />Costes y Precios</CardTitle></CardHeader>
-                <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <FormItem><FormLabel>Gramaje Total (g)</FormLabel><Input readOnly value={gramajeTotal.toFixed(2)} className="font-bold" /></FormItem>
-                    <FormItem><FormLabel>Coste Materia Prima</FormLabel><Input readOnly value={costeMateriaPrima.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="font-bold" /></FormItem>
-                    <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => ( <FormItem><FormLabel>% Coste Producción</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem> )} />
-                    <FormItem><FormLabel>Precio Venta Rec.</FormLabel><Input readOnly value={precioVentaRecomendado.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="font-bold text-primary" /></FormItem>
-                </CardContent>
-                <CardFooter>
-                     <div className="border rounded-md p-4 w-full bg-muted/30">
-                        <h4 className="font-semibold mb-2 flex items-center gap-2"><Sprout/>Alérgenos de la Receta</h4>
-                        {alergenos.length > 0 ? <div className="flex flex-wrap gap-2">{alergenos.map(a => <Badge key={a} variant="secondary">{a}</Badge>)}</div> : <p className="text-muted-foreground">No se han detectado alérgenos en las elaboraciones.</p>}
-                     </div>
-                </CardFooter>
-            </Card>
+            <Accordion type="multiple" defaultValue={['item-1']} className="w-full space-y-4">
+                <AccordionItem value="item-1">
+                    <Card>
+                        <AccordionTrigger className="p-6"><CardTitle>Información General y Clasificación</CardTitle></AccordionTrigger>
+                        <AccordionContent>
+                            <CardContent className="space-y-6 pt-0">
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={form.control} name="responsableEscandallo" render={({ field }) => ( <FormItem><FormLabel>Responsable del Escandallo</FormLabel><FormControl><Input {...field} placeholder="Nombre del cocinero" /></FormControl></FormItem> )} />
+                                </div>
+                                <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem><FormLabel>Descripción Comercial</FormLabel><FormControl><Textarea {...field} placeholder="Descripción para la carta..." /></FormControl></FormItem> )} />
+                                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem><FormLabel>Categoría</FormLabel><FormControl><Input {...field} placeholder="Ej: Entrante, Pescado..." /></FormControl></FormItem> )} />
+                                    <FormField control={form.control} name="partidaProduccion" render={({ field }) => ( <FormItem><FormLabel>Partida de Producción</FormLabel> <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="FRIO">Frío</SelectItem><SelectItem value="CALIENTE">Caliente</SelectItem><SelectItem value="PASTELERIA">Pastelería</SelectItem><SelectItem value="EXPEDICION">Expedición</SelectItem></SelectContent></Select></FormItem> )} />
+                                    <FormField control={form.control} name="estacionalidad" render={({ field }) => ( <FormItem><FormLabel>Estacionalidad</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="INVIERNO">Invierno</SelectItem><SelectItem value="VERANO">Verano</SelectItem><SelectItem value="MIXTO">Mixto</SelectItem></SelectContent></Select></FormItem> )} />
+                                    <FormField control={form.control} name="tipoDieta" render={({ field }) => ( <FormItem><FormLabel>Tipo de Dieta</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="VEGETARIANO">Vegetariano</SelectItem><SelectItem value="VEGANO">Vegano</SelectItem><SelectItem value="AMBOS">Ambos</SelectItem><SelectItem value="NINGUNO">Ninguno</SelectItem></SelectContent></Select></FormItem> )} />
+                                </div>
+                            </CardContent>
+                        </AccordionContent>
+                    </Card>
+                </AccordionItem>
+                <AccordionItem value="item-2">
+                     <Card>
+                        <AccordionTrigger className="p-6"><CardTitle className="flex items-center gap-2"><Utensils />Elaboraciones</CardTitle></AccordionTrigger>
+                        <AccordionContent>
+                        <CardHeader className="pt-0 flex-row items-center justify-between">
+                             <CardDescription>Añade los componentes de la receta. Puedes arrastrar y soltar para reordenarlos.</CardDescription>
+                            <div className="flex gap-2">
+                                <Button asChild variant="secondary" size="sm" type="button"><Link href="/book/elaboraciones/nuevo" target="_blank"><PlusCircle size={16} /> Crear Nueva</Link></Button>
+                                <SelectorDialog trigger={<Button type="button" variant="outline" size="sm"><PlusCircle size={16} />Añadir Elaboración</Button>} title="Seleccionar Elaboración" items={dbElaboraciones} columns={[{ key: 'nombre', header: 'Nombre' }, { key: 'costePorUnidad', header: 'Coste/Unidad' }]} onSelect={onAddElab} />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <DndContext sensors={[]} onDragEnd={(e) => handleDragEnd(e, 'elab')} collisionDetection={closestCenter}>
+                                <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                                    {elabFields.map((field, index) => (
+                                        <SortableItem key={field.id} id={field.id}>
+                                            <GripVertical className="cursor-grab text-muted-foreground" />
+                                            <span className="font-semibold flex-1">{field.nombre}</span>
+                                            <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (<FormItem className="flex items-center gap-2"><FormLabel>Cantidad:</FormLabel><FormControl><Input type="number" {...qField} className="h-8 w-24" /></FormControl></FormItem>)} />
+                                            <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeElab(index)}><Trash2 className="h-4 w-4" /></Button>
+                                        </SortableItem>
+                                    ))}
+                                </SortableContext>
+                            </DndContext>
+                        </CardContent>
+                        </AccordionContent>
+                     </Card>
+                </AccordionItem>
+                 <AccordionItem value="item-3">
+                     <Card>
+                        <AccordionTrigger className="p-6"><CardTitle className="flex items-center gap-2"><GlassWater />Menaje Asociado</CardTitle></AccordionTrigger>
+                        <AccordionContent>
+                        <CardHeader className="pt-0 flex-row items-center justify-between">
+                            <CardDescription>Define el menaje necesario para servir esta receta.</CardDescription>
+                            <SelectorDialog trigger={<Button type="button" variant="outline" size="sm"><PlusCircle size={16}/>Añadir Menaje</Button>} title="Seleccionar Menaje" items={dbMenaje} columns={[{ key: 'descripcion', header: 'Descripción' }]} onSelect={onAddMenaje} />
+                        </CardHeader>
+                        <CardContent>
+                            <DndContext sensors={[]} onDragEnd={(e) => handleDragEnd(e, 'menaje')} collisionDetection={closestCenter}>
+                                <SortableContext items={menajeFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                                    {menajeFields.map((field, index) => (
+                                        <SortableItem key={field.id} id={field.id}>
+                                            <GripVertical className="cursor-grab text-muted-foreground" />
+                                            <span className="font-semibold flex-1">{field.descripcion}</span>
+                                            <FormField control={form.control} name={`menajeAsociado.${index}.ratio`} render={({ field: qField }) => (<FormItem className="flex items-center gap-2"><FormLabel>Ratio:</FormLabel><FormControl><Input type="number" {...qField} className="h-8 w-24" /></FormControl></FormItem>)} />
+                                            <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeMenaje(index)}><Trash2 className="h-4 w-4" /></Button>
+                                        </SortableItem>
+                                    ))}
+                                </SortableContext>
+                            </DndContext>
+                        </CardContent>
+                        </AccordionContent>
+                     </Card>
+                </AccordionItem>
+                <AccordionItem value="item-4">
+                     <Card>
+                        <AccordionTrigger className="p-6"><CardTitle>Instrucciones de Cocina</CardTitle></AccordionTrigger>
+                        <AccordionContent>
+                            <CardContent className="grid md:grid-cols-3 gap-6 pt-0">
+                                <FormField control={form.control} name="instruccionesMiseEnPlace" render={({ field }) => ( <FormItem><FormLabel>Mise en Place</FormLabel><FormControl><Textarea {...field} rows={6}/></FormControl></FormItem> )} />
+                                <FormField control={form.control} name="instruccionesRegeneracion" render={({ field }) => ( <FormItem><FormLabel>Regeneración</FormLabel><FormControl><Textarea {...field} rows={6} /></FormControl></FormItem> )} />
+                                <FormField control={form.control} name="instruccionesEmplatado" render={({ field }) => ( <FormItem><FormLabel>Emplatado</FormLabel><FormControl><Textarea {...field} rows={6} /></FormControl></FormItem> )} />
+                            </CardContent>
+                        </AccordionContent>
+                     </Card>
+                </AccordionItem>
+                <AccordionItem value="item-5">
+                    <Card>
+                        <AccordionTrigger className="p-6"><CardTitle className="flex items-center gap-2"><Percent />Costes y Precios</CardTitle></AccordionTrigger>
+                        <AccordionContent>
+                            <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 pt-0">
+                                <FormItem><FormLabel>Gramaje Total (g)</FormLabel><Input readOnly value={gramajeTotal.toFixed(2)} className="font-bold" /></FormItem>
+                                <FormItem><FormLabel>Coste Materia Prima</FormLabel><Input readOnly value={costeMateriaPrima.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="font-bold" /></FormItem>
+                                <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => ( <FormItem><FormLabel>% Coste Producción</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem> )} />
+                                <FormItem><FormLabel>Precio Venta Rec.</FormLabel><Input readOnly value={precioVentaRecomendado.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="font-bold text-primary" /></FormItem>
+                            </CardContent>
+                            <CardFooter>
+                                <div className="border rounded-md p-4 w-full bg-muted/30">
+                                    <h4 className="font-semibold mb-2 flex items-center gap-2"><Sprout/>Alérgenos de la Receta</h4>
+                                    {alergenos.length > 0 ? <div className="flex flex-wrap gap-2">{alergenos.map(a => <Badge key={a} variant="secondary">{a}</Badge>)}</div> : <p className="text-muted-foreground">No se han detectado alérgenos en las elaboraciones.</p>}
+                                </div>
+                            </CardFooter>
+                        </AccordionContent>
+                    </Card>
+                </AccordionItem>
+            </Accordion>
           </form>
         </Form>
       </main>
     </>
   );
 }
-

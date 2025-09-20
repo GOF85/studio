@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, GlassWater } from 'lucide-react';
 import type { MenajeDB } from '@/types';
@@ -209,7 +210,9 @@ export default function MenajeDBPage() {
                 filteredItems.map(item => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.descripcion}</TableCell>
-                    <TableCell>...</TableCell>
+                    <TableCell>
+                        {item.fotoURL && <Image src={item.fotoURL} alt={item.descripcion} width={40} height={40} className="rounded-md object-cover" />}
+                    </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
