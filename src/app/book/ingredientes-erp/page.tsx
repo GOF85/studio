@@ -67,12 +67,15 @@ export default function IngredientesERPPage() {
   }, []);
   
   const filteredItems = useMemo(() => {
-    return items.filter(item => 
-      item.nombreProductoERP.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.nombreProveedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.referenciaProveedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.IdERP.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return items.filter(item => {
+      const term = searchTerm.toLowerCase();
+      return (
+        (item.nombreProductoERP || '').toLowerCase().includes(term) ||
+        (item.nombreProveedor || '').toLowerCase().includes(term) ||
+        (item.referenciaProveedor || '').toLowerCase().includes(term) ||
+        (item.IdERP || '').toLowerCase().includes(term)
+      );
+    });
   }, [items, searchTerm]);
 
 
