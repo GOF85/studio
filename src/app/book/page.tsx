@@ -41,7 +41,7 @@ export default function BookDashboardPage() {
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-headline font-bold flex items-center gap-3"><BookHeart size={24}/>Book Gastronómico</h1>
             <Button asChild>
                 <Link href="/book/recetas/nueva"><PlusCircle size={16}/> Nueva Receta</Link>

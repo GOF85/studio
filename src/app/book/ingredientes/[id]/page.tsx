@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Save, X, ChefHat, Link as LinkIcon, Search, Check, CircleX } from 'lucide-react';
+import { Loader2, Save, X, ChefHat, Link as LinkIcon, Check, CircleX, Trash2 } from 'lucide-react';
 import type { IngredienteInterno, IngredienteERP, Alergeno } from '@/types';
 import { ALERGENOS } from '@/types';
 
@@ -18,13 +18,16 @@ import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
 
 export const ingredienteFormSchema = z.object({
   id: z.string(),
   nombreIngrediente: z.string().min(1, 'El nombre es obligatorio'),
   productoERPlinkId: z.string().min(1, 'Debe enlazar un producto ERP'),
   mermaPorcentaje: z.coerce.number().min(0).max(100).default(0),
-  alergenos: z.array(z.string()).default([]),
+  alergenosPresentes: z.array(z.string()).default([]),
+  alergenosTrazas: z.array(z.string()).default([]),
 });
 
 type IngredienteFormValues = z.infer<typeof ingredienteFormSchema>;
@@ -36,6 +39,7 @@ export default function IngredienteFormPage() {
   const isEditing = id !== 'nuevo';
 
   const [isLoading, setIsLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
   
   const [ingredientesERP, setIngredientesERP] = useState<IngredienteERP[]>([]);
@@ -44,7 +48,7 @@ export default function IngredienteFormPage() {
 
   const form = useForm<IngredienteFormValues>({
     resolver: zodResolver(ingredienteFormSchema),
-    defaultValues: { nombreIngrediente: '', productoERPlinkId: '', mermaPorcentaje: 0, alergenos: [] },
+    defaultValues: { nombreIngrediente: '', productoERPlinkId: '', mermaPorcentaje: 0, alergenosPresentes: [], alergenosTrazas: [] },
   });
   
   const selectedErpId = form.watch('productoERPlinkId');
@@ -59,13 +63,17 @@ export default function IngredienteFormPage() {
       const ingredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
       const ingrediente = ingredientes.find(p => p.id === id);
       if (ingrediente) {
-        form.reset(ingrediente);
+        form.reset({
+          ...ingrediente,
+          alergenosPresentes: ingrediente.alergenosPresentes || [],
+          alergenosTrazas: ingrediente.alergenosTrazas || [],
+        });
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el ingrediente.' });
         router.push('/book/ingredientes');
       }
     } else {
-        form.reset({ id: Date.now().toString(), nombreIngrediente: '', productoERPlinkId: '', mermaPorcentaje: 0, alergenos: [] });
+        form.reset({ id: Date.now().toString(), nombreIngrediente: '', productoERPlinkId: '', mermaPorcentaje: 0, alergenosPresentes: [], alergenosTrazas: [] });
     }
   }, [id, isEditing, form, router, toast]);
 
@@ -101,34 +109,44 @@ export default function IngredienteFormPage() {
     }, 1000);
   }
 
+  const handleDelete = () => {
+    if (!isEditing) return;
+    let allItems = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+    const updatedItems = allItems.filter(p => p.id !== id);
+    localStorage.setItem('ingredientesInternos', JSON.stringify(updatedItems));
+    toast({ title: 'Ingrediente eliminado' });
+    router.push('/book/ingredientes');
+  }
+
   return (
     <>
       <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
-          <form id="ingrediente-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-             <div className="flex items-center justify-between mb-8">
+          <form id="ingrediente-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                     <ChefHat className="h-8 w-8" />
                     <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Ingrediente</h1>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" type="button" onClick={() => router.push('/book/ingredientes')}> <X className="mr-2"/> Cancelar</Button>
+                    {isEditing && (
+                        <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}> <Trash2 className="mr-2"/> Borrar</Button>
+                    )}
                     <Button type="submit" disabled={isLoading}>
                     {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                    <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Ingrediente'}</span>
+                    <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar'}</span>
                     </Button>
                 </div>
             </div>
 
-            <div className="grid lg:grid-cols-2 gap-8">
+            <div className="grid lg:grid-cols-2 gap-6">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>1. Definición del Ingrediente Interno</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
+                    <CardHeader className="py-4"><CardTitle>1. Definición del Ingrediente Interno</CardTitle></CardHeader>
+                    <CardContent className="space-y-4 pt-0">
                         <FormField control={form.control} name="nombreIngrediente" render={({ field }) => (
-                            <FormItem><FormLabel>Nombre del Ingrediente</FormLabel><FormControl><Input {...field} placeholder="Ej: Harina de Trigo" /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} placeholder="Ej: Harina de Trigo" /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="mermaPorcentaje" render={({ field }) => (
                             <FormItem><FormLabel>% de Merma</FormLabel><FormControl><Input type="number" {...field} placeholder="Ej: 10 para un 10%" /></FormControl><FormMessage /></FormItem>
@@ -136,13 +154,10 @@ export default function IngredienteFormPage() {
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader>
-                        <CardTitle>2. Vínculo con Materia Prima (ERP)</CardTitle>
-                        <CardDescription>Enlaza este ingrediente con un producto de tu base de datos ERP para obtener el coste.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                    <CardHeader className="py-4"><CardTitle>2. Vínculo con Materia Prima (ERP)</CardTitle></CardHeader>
+                    <CardContent className="pt-0">
                         {selectedErpProduct ? (
-                            <div className="border rounded-md p-4 space-y-2">
+                            <div className="border rounded-md p-3 space-y-1">
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <p className="font-semibold">{selectedErpProduct.nombreProductoERP}</p>
@@ -150,7 +165,7 @@ export default function IngredienteFormPage() {
                                     </div>
                                     <Button variant="outline" size="sm" onClick={() => form.setValue('productoERPlinkId', '')}><CircleX className="mr-2"/>Desvincular</Button>
                                 </div>
-                                <p className="font-bold text-primary text-lg">{selectedErpProduct.precio.toLocaleString('es-ES', {style:'currency', currency: 'EUR'})} / {selectedErpProduct.unidad}</p>
+                                <p className="font-bold text-primary text-base">{selectedErpProduct.precio.toLocaleString('es-ES', {style:'currency', currency: 'EUR'})} / {selectedErpProduct.unidad}</p>
                             </div>
                         ) : (
                              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -158,20 +173,11 @@ export default function IngredienteFormPage() {
                                     <Button variant="secondary" className="w-full"><LinkIcon className="mr-2"/>Vincular Producto ERP</Button>
                                 </DialogTrigger>
                                 <DialogContent className="max-w-3xl">
-                                    <DialogHeader>
-                                        <DialogTitle>Seleccionar Producto ERP</DialogTitle>
-                                    </DialogHeader>
+                                    <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
                                     <Input placeholder="Buscar por nombre, proveedor, referencia..." value={erpSearchTerm} onChange={e => setErpSearchTerm(e.target.value)} />
                                     <div className="max-h-[60vh] overflow-y-auto border rounded-md">
                                         <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Producto</TableHead>
-                                                    <TableHead>Proveedor</TableHead>
-                                                    <TableHead>Precio</TableHead>
-                                                    <TableHead></TableHead>
-                                                </TableRow>
-                                            </TableHeader>
+                                            <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Proveedor</TableHead><TableHead>Precio</TableHead><TableHead></TableHead></TableRow></TableHeader>
                                             <TableBody>
                                                 {ingredientesERP.filter(p => p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase())).map(p => (
                                                     <TableRow key={p.id}>
@@ -198,44 +204,51 @@ export default function IngredienteFormPage() {
             </div>
             
             <Card>
-                <CardHeader>
-                    <CardTitle>3. Gestión de Alérgenos</CardTitle>
-                    <CardDescription>Marca todos los alérgenos presentes en este ingrediente.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                     {ALERGENOS.map((alergeno) => (
-                        <FormField
-                            key={alergeno}
-                            control={form.control}
-                            name="alergenos"
-                            render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                                <FormControl>
-                                <Checkbox
-                                    checked={field.value?.includes(alergeno)}
-                                    onCheckedChange={(checked) => {
-                                    return checked
-                                        ? field.onChange([...(field.value || []), alergeno])
-                                        : field.onChange(
-                                            (field.value || [])?.filter(
-                                            (value) => value !== alergeno
-                                            )
-                                        )
-                                    }}
-                                />
-                                </FormControl>
-                                <FormLabel className="font-normal capitalize text-sm">
-                                    {alergeno.toLowerCase().replace('_', ' ')}
-                                </FormLabel>
-                            </FormItem>
-                            )}
-                        />
-                    ))}
+                <CardHeader className="py-4"><CardTitle>3. Gestión de Alérgenos</CardTitle></CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-0">
+                    <div>
+                        <h4 className="font-semibold mb-2 text-base">Presente en el ingrediente</h4>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                            {ALERGENOS.map((alergeno) => (
+                                <FormField key={alergeno} control={form.control} name="alergenosPresentes" render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                    <FormControl><Checkbox checked={field.value?.includes(alergeno)} onCheckedChange={(checked) => {return checked ? field.onChange([...(field.value || []), alergeno]) : field.onChange((field.value || [])?.filter(v => v !== alergeno))}} /></FormControl>
+                                    <FormLabel className="font-normal capitalize text-sm">{alergeno.toLowerCase().replace('_', ' ')}</FormLabel>
+                                </FormItem>
+                                )}/>
+                            ))}
+                        </div>
+                    </div>
+                     <div>
+                        <h4 className="font-semibold mb-2 text-base">Puede contener trazas</h4>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                           {ALERGENOS.map((alergeno) => (
+                                <FormField key={alergeno} control={form.control} name="alergenosTrazas" render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                    <FormControl><Checkbox checked={field.value?.includes(alergeno)} onCheckedChange={(checked) => {return checked ? field.onChange([...(field.value || []), alergeno]) : field.onChange((field.value || [])?.filter(v => v !== alergeno))}} /></FormControl>
+                                    <FormLabel className="font-normal capitalize text-sm">{alergeno.toLowerCase().replace('_', ' ')}</FormLabel>
+                                </FormItem>
+                                )}/>
+                            ))}
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 
           </form>
         </Form>
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>Esta acción no se puede deshacer. Se eliminará permanentemente el ingrediente y puede afectar a elaboraciones y recetas que lo utilicen.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleDelete}>Eliminar Ingrediente</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       </main>
     </>
   );

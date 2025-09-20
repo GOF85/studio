@@ -353,7 +353,8 @@ export type IngredienteInterno = {
     nombreIngrediente: string;
     productoERPlinkId: string;
     mermaPorcentaje: number;
-    alergenos: Alergeno[];
+    alergenosPresentes: Alergeno[];
+    alergenosTrazas: Alergeno[];
 };
 
 export type ComponenteElaboracion = {
@@ -379,7 +380,8 @@ export type Elaboracion = {
     tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
     // --- Campos calculados (pueden no estar en el form) ---
     costePorUnidad?: number; 
-    alergenos?: Alergeno[];
+    alergenosPresentes?: Alergeno[];
+    alergenosTrazas?: Alergeno[];
 };
 
 
@@ -390,7 +392,8 @@ export type ElaboracionEnReceta = {
   cantidad: number; // en la unidad de la elaboración
   coste: number;
   gramaje: number;
-  alergenos?: Alergeno[];
+  alergenosPresentes?: Alergeno[];
+  alergenosTrazas?: Alergeno[];
 };
 
 export type MenajeEnReceta = {
@@ -420,7 +423,8 @@ export type Receta = {
     porcentajeCosteProduccion: number;
     costeMateriaPrima: number; // Calculado
     precioVentaRecomendado: number; // Calculado
-    alergenos: Alergeno[]; // Calculado
+    alergenosPresentes: Alergeno[]; // Calculado
+    alergenosTrazas: Alergeno[]; // Calculado
 };
 
 export type MenajeDB = {
