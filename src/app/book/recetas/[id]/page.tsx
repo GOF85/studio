@@ -27,6 +27,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
 
 const elaboracionEnRecetaSchema = z.object({
     id: z.string(),
@@ -107,6 +109,7 @@ export default function RecetaFormPage() {
   const isEditing = id !== 'nueva';
   
   const [isLoading, setIsLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
 
   const [dbElaboraciones, setDbElaboraciones] = useState<ElaboracionConCoste[]>([]);
@@ -176,7 +179,7 @@ export default function RecetaFormPage() {
   }, [id, isEditing, calculateElabAlergenos, form]);
 
   const onAddElab = (elab: ElaboracionConCoste) => {
-    appendElab({ id: elab.id, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [] });
+    appendElab({ id: `${elab.id}-${Date.now()}`, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [] });
   }
 
   const onAddMenaje = (menaje: MenajeDB) => {
@@ -220,6 +223,15 @@ export default function RecetaFormPage() {
     router.push('/book/recetas');
   }
 
+  const handleDelete = () => {
+    if (!isEditing) return;
+    let allItems = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+    const updatedItems = allItems.filter(p => p.id !== id);
+    localStorage.setItem('recetas', JSON.stringify(updatedItems));
+    toast({ title: 'Receta eliminada' });
+    router.push('/book/recetas');
+  }
+
   return (
     <>
       <Header />
@@ -233,6 +245,9 @@ export default function RecetaFormPage() {
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" type="button" onClick={() => router.push('/book/recetas')}> <X className="mr-2"/> Cancelar</Button>
+                    {isEditing && (
+                        <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}> <Trash2 className="mr-2"/> Borrar Receta</Button>
+                    )}
                     <Button type="submit" disabled={isLoading}>
                     {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                     <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Receta'}</span>
@@ -348,6 +363,25 @@ export default function RecetaFormPage() {
             </Accordion>
           </form>
         </Form>
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción no se puede deshacer. Se eliminará permanentemente la receta.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive hover:bg-destructive/90"
+                  onClick={handleDelete}
+                >
+                  Eliminar Receta
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       </main>
     </>
   );
