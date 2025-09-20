@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { BookHeart, ChefHat, Component, PlusCircle, Search, Package, GlassWater } from 'lucide-react';
 import type { Receta } from '@/types';
 import { Input } from '@/components/ui/input';
@@ -47,7 +47,22 @@ export default function BookDashboardPage() {
                 <Link href="/book/recetas/nueva"><PlusCircle size={16}/> Nueva Receta</Link>
             </Button>
         </div>
-
+        
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <Button asChild variant="outline" className="justify-start h-12 text-base">
+                <Link href="/book/elaboraciones"><Component size={18}/>Elaboraciones</Link>
+            </Button>
+            <Button asChild variant="outline" className="justify-start h-12 text-base">
+                <Link href="/book/ingredientes"><ChefHat size={18}/>Ingredientes</Link>
+            </Button>
+            <Button asChild variant="outline" className="justify-start h-12 text-base">
+                <Link href="/book/ingredientes-erp"><Package size={18}/>Materia Prima (ERP)</Link>
+            </Button>
+             <Button asChild variant="outline" className="justify-start h-12 text-base">
+                <Link href="/menaje-db"><GlassWater size={18}/>Menaje</Link>
+            </Button>
+        </div>
+        
         <div className="relative mb-6">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
@@ -58,43 +73,7 @@ export default function BookDashboardPage() {
             />
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-             <Card className="hover:shadow-lg transition-shadow">
-                 <CardContent className="p-3 flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2 text-base font-semibold"><Component size={18}/>Elaboraciones</CardTitle>
-                     <Button asChild variant="outline">
-                        <Link href="/book/elaboraciones">Gestionar</Link>
-                    </Button>
-                </CardContent>
-            </Card>
-             <Card className="hover:shadow-lg transition-shadow">
-                <CardContent className="p-3 flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2 text-base font-semibold"><ChefHat size={18}/>Ingredientes</CardTitle>
-                     <Button asChild variant="outline">
-                        <Link href="/book/ingredientes">Gestionar</Link>
-                    </Button>
-                </CardContent>
-            </Card>
-             <Card className="hover:shadow-lg transition-shadow">
-                <CardContent className="p-3 flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2 text-base font-semibold"><Package size={18}/>Materia Prima (ERP)</CardTitle>
-                    <Button asChild variant="outline">
-                        <Link href="/book/ingredientes-erp">Gestionar</Link>
-                    </Button>
-                </CardContent>
-            </Card>
-             <Card className="hover:shadow-lg transition-shadow">
-                <CardContent className="p-3 flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2 text-base font-semibold"><GlassWater size={18}/>Menaje</CardTitle>
-                    <Button asChild variant="outline">
-                        <Link href="/menaje-db">Gestionar</Link>
-                    </Button>
-                </CardContent>
-            </Card>
-        </div>
-        
         <div>
-            <h2 className="text-xl font-headline font-semibold mb-3">Últimas Recetas Modificadas</h2>
             <Card>
                 <CardContent className="p-3">
                 {filteredRecipes.length > 0 ? (
