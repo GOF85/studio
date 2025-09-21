@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Euro } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Euro, Printer } from 'lucide-react';
 import type { ServiceOrder, PruebaMenuData, PruebaMenuItem, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -133,7 +133,7 @@ export default function PruebaMenuPage() {
 
     return (
       <Card>
-        <CardHeader className="flex-row items-center justify-between py-4">
+        <CardHeader className="flex-row items-center justify-between py-4 no-print">
           <CardTitle>{mainCategory.charAt(0) + mainCategory.slice(1).toLowerCase()}</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" type="button" variant="outline" onClick={() => addRow(mainCategory, 'header')}>+ Subcategoría</Button>
@@ -147,7 +147,7 @@ export default function PruebaMenuPage() {
                 <TableRow>
                   <TableHead className="p-2 border-r">Referencias</TableHead>
                   <TableHead className="p-2">Observaciones</TableHead>
-                  <TableHead className="w-12 p-2"></TableHead>
+                  <TableHead className="w-12 p-2 no-print"></TableHead>
                 </TableRow>
               </TableHeader>
                 <TableBody>
@@ -179,7 +179,7 @@ export default function PruebaMenuPage() {
                             )}
                             />
                         </TableCell>
-                        <TableCell className={cn("py-1 px-2", field.type === 'header' && "bg-muted/50")}>
+                        <TableCell className={cn("py-1 px-2 no-print", field.type === 'header' && "bg-muted/50")}>
                             <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}>
                             <Trash2 className="h-4 w-4" />
                             </Button>
@@ -207,10 +207,10 @@ export default function PruebaMenuPage() {
   return (
     <>
       <Header />
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-start justify-between mb-8">
+      <main className="container mx-auto px-4 py-8 printable-area">
+        <div className="flex items-start justify-between mb-8 no-print">
           <div>
-            <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
+            <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)}>
               <ArrowLeft className="mr-2" />
               Volver a la OS
             </Button>
@@ -220,6 +220,9 @@ export default function PruebaMenuPage() {
             </h1>
           </div>
           <div className="flex gap-2">
+             <Button variant="outline" onClick={() => window.print()}>
+                <Printer className="mr-2" /> Imprimir
+             </Button>
             <Button form="prueba-menu-form" type="submit" disabled={!formState.isDirty}>
               <Save className="mr-2" />
               Guardar Cambios

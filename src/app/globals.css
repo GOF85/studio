@@ -140,4 +140,7 @@
     width: 100% !important;
     max-width: 100% !important;
   }
+  .printable-area table td, .printable-area table th {
+    border: 1px solid hsl(var(--border));
+  }
 }
