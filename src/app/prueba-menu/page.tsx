@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -209,11 +210,12 @@ const handlePrint = async () => {
                 startY: finalY,
                 theme: 'grid',
                 columnStyles: {
-                    0: { cellWidth: (pageWidth - margin * 2) / 2 },
-                    1: { cellWidth: (pageWidth - margin * 2) / 2 },
+                    0: { cellWidth: category === 'GASTRONOMÍA' ? (pageWidth - margin * 2) / 2 : 'auto' },
+                    1: { cellWidth: category === 'GASTRONOMÍA' ? (pageWidth - margin * 2) / 2 : 'auto' },
                 },
                 didParseCell: (data) => {
                     data.cell.styles.minCellHeight = 8;
+                    data.cell.styles.valign = 'middle';
                 },
                 styles: {
                     fontSize: 8,
