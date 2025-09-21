@@ -8,8 +8,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
 
-import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory } from 'lucide-react';
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles } from 'lucide-react';
 import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, IngredienteERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina } from '@/types';
 import { SABORES_PRINCIPALES } from '@/types';
 
@@ -147,6 +148,7 @@ export default function RecetaFormPage() {
   const isEditing = id !== 'nueva';
   
   const [isLoading, setIsLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
 
@@ -159,8 +161,8 @@ export default function RecetaFormPage() {
   const [saboresSecundarios, setSaboresSecundarios] = useState<string[]>([]);
   const [texturas, setTexturas] = useState<string[]>([]);
   const [tecnicasCoccion, setTecnicasCoccion] = useState<string[]>([]);
-  const [formatosServicio, setFormatosServicio] = useState<string[]>([]);
-  const [equipamientos, setEquipamientos] = useState<string[]>([]);
+  const [formatosServicio, setFormatosServicio] = useState<string[]>(['Cóctel (bocado)', 'Buffet', 'Emplatado en mesa', 'Estación de cocina en vivo (Showcooking)']);
+  const [equipamientos, setEquipamientos] = useState<string[]>(['Horno de convección', 'Abatidor', 'Sifón', 'Roner']);
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
@@ -225,7 +227,6 @@ export default function RecetaFormPage() {
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
 
-    // Extract existing tags for multiselect options
     const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const sabores = new Set<string>();
     const texturas = new Set<string>();
@@ -279,6 +280,20 @@ export default function RecetaFormPage() {
         else moveMenaje(oldIndex, newIndex);
     }
   }
+
+  const handleGenerateDescription = async () => {
+    setIsGenerating(true);
+    try {
+        const formData = form.getValues();
+        const description = await recipeDescriptionGenerator(formData);
+        form.setValue('descripcionComercial', description, { shouldDirty: true });
+        toast({ title: 'Descripción generada', description: 'La IA ha generado una nueva descripción comercial.' });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar la descripción.' });
+    } finally {
+        setIsGenerating(false);
+    }
+  };
 
   function onSubmit(data: RecetaFormValues) {
     setIsLoading(true);
@@ -360,15 +375,23 @@ export default function RecetaFormPage() {
                                         )}
                                     />
                                 </div>
-                                <div className="flex items-end gap-4">
+                                
+                                <div className="flex items-start gap-4">
                                   <div className="flex-grow">
-                                    <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem><FormLabel>Descripción Comercial</FormLabel><FormControl><Textarea {...field} placeholder="Descripción para la carta..." rows={2} /></FormControl></FormItem> )} />
+                                    <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem>
+                                        <FormLabel className="flex items-center gap-2">Descripción Comercial 
+                                            <Button size="sm" variant="ghost" type="button" onClick={handleGenerateDescription} disabled={isGenerating} className="h-auto px-1 py-0 text-accent-foreground hover:text-accent-foreground/80">
+                                                {isGenerating ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <Sparkles className="h-3.5 w-3.5"/>}
+                                            </Button>
+                                        </FormLabel>
+                                        <FormControl><Textarea {...field} placeholder="Descripción para la carta..." rows={2} /></FormControl>
+                                    </FormItem> )} />
                                   </div>
                                   <FormField
                                       control={form.control}
                                       name="visibleParaComerciales"
                                       render={({ field }) => (
-                                          <FormItem className="flex flex-row items-center space-x-2 pb-2">
+                                          <FormItem className="flex flex-row items-center space-x-2 pt-9">
                                               <FormControl>
                                                   <Checkbox checked={field.value} onCheckedChange={field.onChange} id="visible-check" />
                                               </FormControl>
@@ -377,6 +400,8 @@ export default function RecetaFormPage() {
                                       )}
                                   />
                                 </div>
+
+
                                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
                                     <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem><FormLabel>Categoría</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
