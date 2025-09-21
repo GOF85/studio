@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -460,7 +461,7 @@ export default function OsPage() {
                   <CardContent className="space-y-3 pt-2">
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                       <FormField control={form.control} name="serviceNumber" render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="flex flex-col">
                           <FormLabel>Nº Servicio</FormLabel>
                           <FormControl><Input {...field} readOnly={!!osId} /></FormControl>
                           <FormMessage />
