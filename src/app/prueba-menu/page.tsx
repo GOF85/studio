@@ -243,27 +243,32 @@ export default function PruebaMenuPage() {
                     </CardContent>
                 </Card>
             
-                 <Card className="mb-6 no-print">
-                    <CardHeader className="py-4">
-                        <CardTitle className="text-lg flex items-center gap-2"><Euro/> Costes Adicionales</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-6 pt-0">
-                         <FormField
-                            control={control}
-                            name="costePruebaMenu"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Coste de la prueba de menú</FormLabel>
-                                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                                </FormItem>
-                            )}
-                        />
-                        <FormItem>
-                            <FormLabel>Asistentes a la prueba</FormLabel>
-                            <FormControl><Input value={asistentesPrueba} readOnly /></FormControl>
-                        </FormItem>
-                    </CardContent>
-                </Card>
+                <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-background no-print">
+                    <div className="flex items-center gap-2">
+                        <Euro className="text-primary"/>
+                        <FormLabel className="font-semibold text-base">Coste de la prueba de menú</FormLabel>
+                    </div>
+                     <FormField
+                        control={control}
+                        name="costePruebaMenu"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormControl>
+                                    <Input 
+                                        type="number" 
+                                        step="0.01" 
+                                        {...field} 
+                                        className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
+                                    />
+                                </FormControl>
+                            </FormItem>
+                        )}
+                    />
+                    <div className="flex items-center gap-2 pl-6">
+                        <FormLabel className="font-semibold text-base">Asistentes a la prueba</FormLabel>
+                        <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
+                    </div>
+                </div>
 
             <div className="space-y-6">
                 {renderSection('BODEGA')}
