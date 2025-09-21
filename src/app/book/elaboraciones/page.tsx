@@ -304,7 +304,7 @@ export default function ElaboracionesPage() {
             <TableBody>
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} >
                     <TableCell className="font-medium cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{item.nombre}</TableCell>
                     <TableCell className="cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{item.produccionTotal} {item.unidadProduccion}</TableCell>
                     <TableCell className="cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{(item.costePorUnidad || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} / {item.unidadProduccion}</TableCell>

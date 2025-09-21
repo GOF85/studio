@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { IngredienteInterno, IngredienteERP, Alergeno } from '@/types';
+import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle } from 'lucide-react';
+import type { IngredienteInterno, IngredienteERP, Alergeno, Elaboracion } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +21,8 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import Papa from 'papaparse';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
 
 type IngredienteConERP = IngredienteInterno & {
     erp?: IngredienteERP;
@@ -35,6 +37,8 @@ export default function IngredientesPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemToDelete, setItemToDelete] = useState<IngredienteConERP | null>(null);
+  const [affectedElaboraciones, setAffectedElaboraciones] = useState<Elaboracion[]>([]);
 
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -188,6 +192,27 @@ export default function IngredientesPage() {
     setCurrentPage(prev => Math.min(totalPages, prev + 1));
   };
 
+  const handleAttemptDelete = (ingrediente: IngredienteConERP) => {
+    const allElaboraciones: Elaboracion[] = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    const elaboracionesUsingIngrediente = allElaboraciones.filter(elab => 
+      elab.componentes.some(c => c.tipo === 'ingrediente' && c.componenteId === ingrediente.id)
+    );
+    setAffectedElaboraciones(elaboracionesUsingIngrediente);
+    setItemToDelete(ingrediente);
+  };
+
+  const handleDelete = () => {
+    if (!itemToDelete) return;
+    
+    let allItems = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+    const updatedItems = allItems.filter(p => p.id !== itemToDelete.id);
+    localStorage.setItem('ingredientesInternos', JSON.stringify(updatedItems));
+
+    // Reload the page to reflect changes
+    window.location.reload();
+  };
+
+
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Ingredientes..." />;
   }
@@ -272,14 +297,15 @@ export default function IngredientesPage() {
                 <TableHead className="py-2">Categoría ERP</TableHead>
                 <TableHead className="py-2">Alérgenos</TableHead>
                 <TableHead className="py-2">% Merma</TableHead>
+                <TableHead className="py-2 text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedItems.length > 0 ? (
                 paginatedItems.map(item => (
-                  <TableRow key={item.id} onClick={() => router.push(`/book/ingredientes/${item.id}`)} className="cursor-pointer">
-                    <TableCell className="font-medium py-2">{item.nombreIngrediente}</TableCell>
-                    <TableCell className="py-2">
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>{item.nombreIngrediente}</TableCell>
+                    <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>
                       {item.erp ? (
                         <div className="flex flex-col">
                             <span className="flex items-center gap-2 text-sm font-semibold">
@@ -292,9 +318,9 @@ export default function IngredientesPage() {
                         <span className="text-destructive text-sm font-semibold">No vinculado</span>
                       )}
                     </TableCell>
-                     <TableCell className="py-2">{item.erp?.IdERP}</TableCell>
-                     <TableCell className="py-2">{item.erp?.familiaCategoria}</TableCell>
-                    <TableCell className="py-2">
+                     <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>{item.erp?.IdERP}</TableCell>
+                     <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>{item.erp?.familiaCategoria}</TableCell>
+                    <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>
                       <div className="flex flex-wrap gap-1">
                         {item.alergenos?.length > 0 && item.alergenos.map(alergeno => {
                            const isPresente = (item.alergenosPresentes || []).includes(alergeno);
@@ -305,12 +331,30 @@ export default function IngredientesPage() {
                         })}
                       </div>
                     </TableCell>
-                    <TableCell className="py-2">{item.mermaPorcentaje}%</TableCell>
+                    <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>{item.mermaPorcentaje}%</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Abrir menú</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => router.push(`/book/ingredientes/${item.id}`)}>
+                                  <Pencil className="mr-2 h-4 w-4" /> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => handleAttemptDelete(item)}>
+                                  <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                              </DropdownMenuItem>
+                          </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     No se encontraron ingredientes.
                   </TableCell>
                 </TableRow>
@@ -319,6 +363,39 @@ export default function IngredientesPage() {
           </Table>
         </div>
       </main>
+
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+                {affectedElaboraciones.length > 0 && <AlertTriangle className="text-destructive" />}
+                ¿Estás seguro?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {affectedElaboraciones.length > 0 ? (
+                <div>
+                    <span className="font-bold text-destructive">¡Atención! Este ingrediente se usa en {affectedElaboraciones.length} elaboración(es):</span>
+                    <ul className="list-disc pl-5 mt-2 text-sm text-muted-foreground max-h-40 overflow-y-auto">
+                        {affectedElaboraciones.map(e => <li key={e.id}>{e.nombre}</li>)}
+                    </ul>
+                    <p className="mt-3">Si continúas, el ingrediente será eliminado. Deberás actualizar estas elaboraciones manualmente. Esta acción no se puede deshacer.</p>
+                </div>
+              ) : (
+                'Esta acción no se puede deshacer. Se eliminará permanentemente el ingrediente.'
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setItemToDelete(null); setAffectedElaboraciones([]); }}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDelete}
+            >
+              Eliminar de todas formas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
