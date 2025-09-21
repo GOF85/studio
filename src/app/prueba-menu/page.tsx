@@ -9,7 +9,7 @@ import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Euro, Printer, Loa
 import type { ServiceOrder, PruebaMenuData, PruebaMenuItem, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -130,14 +130,12 @@ const handlePrint = async () => {
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const margin = 15;
         const pageHeight = doc.internal.pageSize.getHeight();
+        const pageWidth = doc.internal.pageSize.getWidth();
         let finalY = margin;
 
         // --- DIBUJAR CABECERA ---
-        // Icono (SVG como string)
-        const svgIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-utensils-crossed"><path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8"/><path d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7"/><path d="m2.1 2.1 6.4 6.4"/><path d="m19 5-7 7"/></svg>';
-        doc.setFontSize(10);
-        doc.setTextColor('#059669'); // Color primario
-        doc.text(svgIcon, doc.internal.pageSize.getWidth() - margin - 5, margin, {renderingMode: 'font'}); // Simplificado
+        const iconBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAACqUlEQVRoQ+2Z21HbQBCG/9w7cQeOCTgBO4U4FcRUUCoIqSCpIKiCmAoCFQQ7wTo64A4kX2oVYiIZz/c+M/O+H3t2e2d3Z/b3iwBCRPS4sWMuIqKDRkTMdM8kIqKB0yGicxFxD0TUzHSHiAj1G2J+dEBE5GMyD9v/xR0IgLp1f0Q8tL9vTzW/f8Yl8TVJ+g+C43jS6pAnwO0d8eWp4o/YyIqI+gK4eOAIgXcFyCigD4QrA56G+B7wEwJ2QoD3Aac5w4lCbgToCqS9C8AT4Jc5h/wKIF3BehXgQoB7A24GqE6guxagK4JzAw53QGcF6ApcD/gawBvg+wDPf2wB3wBclb6tCWwO+BnA0YDHAD4GfI/A5oDvK11pC+wU8A7AbYBfAfoC/J5BdgA4AZwDvA7g43/e/y/ArQD6BjwD8BdgD3Aq4GrAs4CvAG/3Wou9A/A6wB7Ao871oP8GvG+ATwA3BhyE+A/gw8GvgD8CXnQ+D/gewFeA+wO+/QF+T6DbBNQc8HGAUwPOBbgS8JqBPoAHAf0S8DvA5wI+BOwOOCYwPQLYA3hSAnYGfF8SdgWcD3gdwGnA3Ql0B+AcwLkA/wL4NQC7AP8H8A3ArxL+X0D/A/gXwK+BfxrAbYC/BfA9gN8G8A3AmyA3AWyA/2tGidwH8P8BLtrs/wFmB/xH7bOMrZ4f+fEIA9z7A/wFkHDA8Qn89wDuBDQNsL+v/QeM/wnoBngA8H7A/wK+Bfwx5zC+AXQfMHr7u0+AkwFOBLgPcCfA3YC/BvCbgHeBPgV4M+B+wL9A/wS8GfBnwH8A3A8I48sX+0uW/8vj/8K8/wG+C3iqY8b//rX/LzF/AzyR8f83AG0k/M8bAAAAAElFTkSuQmCC';
+        doc.addImage(iconBase64, 'PNG', pageWidth - margin - 15, margin - 5, 15, 15);
         
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
@@ -146,7 +144,7 @@ const handlePrint = async () => {
         finalY += 10;
         doc.setLineWidth(0.5);
         doc.setDrawColor('#e5e7eb'); // Border color
-        doc.line(margin, finalY, doc.internal.pageSize.getWidth() - margin, finalY);
+        doc.line(margin, finalY, pageWidth - margin, finalY);
         finalY += 8;
 
         // --- DATOS SERVICIO Y EVENTO ---
@@ -170,7 +168,7 @@ const handlePrint = async () => {
             body: serviceData,
             startY: finalY,
             theme: 'plain',
-            tableWidth: (doc.internal.pageSize.getWidth() - margin * 2) / 2 - 5,
+            tableWidth: (pageWidth - margin * 2) / 2 - 5,
             styles: { fontSize: 9, cellPadding: 0.5 },
             columnStyles: { 0: { fontStyle: 'bold' } }
         });
@@ -178,13 +176,17 @@ const handlePrint = async () => {
             body: eventData,
             startY: finalY,
             theme: 'plain',
-            tableWidth: (doc.internal.pageSize.getWidth() - margin * 2) / 2 - 5,
-            margin: { left: doc.internal.pageSize.getWidth() / 2 + 5 },
+            tableWidth: (pageWidth - margin * 2) / 2 - 5,
+            margin: { left: pageWidth / 2 + 5 },
             styles: { fontSize: 9, cellPadding: 0.5 },
             columnStyles: { 0: { fontStyle: 'bold' } }
         });
 
         finalY = (doc as any).lastAutoTable.finalY + 10;
+        doc.setLineWidth(0.5);
+        doc.setDrawColor('#e5e7eb');
+        doc.line(margin, finalY - 5, pageWidth - margin, finalY - 5);
+
 
         // --- TABLAS DE BODEGA Y GASTRONOMÍA ---
         const addSection = (category: 'BODEGA' | 'GASTRONOMÍA') => {
@@ -206,7 +208,7 @@ const handlePrint = async () => {
                 if(item.type === 'header') {
                     return [{ content: item.referencia, colSpan: 2, styles: { fontStyle: 'bold', fillColor: '#f3f4f6' } }];
                 }
-                return [item.referencia, item.observaciones || ' '];
+                return [item.referencia, ''];
             });
 
             autoTable(doc, {
@@ -214,17 +216,21 @@ const handlePrint = async () => {
                 body,
                 startY: finalY,
                 theme: 'grid',
+                columnStyles: {
+                    0: { cellWidth: (pageWidth - margin * 2) / 2 },
+                    1: { cellWidth: (pageWidth - margin * 2) / 2 },
+                },
                 styles: {
                     fontSize: 9,
                     cellPadding: 3,
                     valign: 'middle',
+                    minCellHeight: 15,
                 },
                 headStyles: {
                     fillColor: '#e5e7eb',
                     textColor: '#374151',
                     fontStyle: 'bold'
                 },
-                 minCellHeight: 15,
             });
             finalY = (doc as any).lastAutoTable.finalY + 15;
         }
@@ -235,7 +241,7 @@ const handlePrint = async () => {
         // --- OBSERVACIONES GENERALES ---
         const obsGenerales = form.getValues('observacionesGenerales');
         if (obsGenerales) {
-            if (finalY + 30 > pageHeight) { // Check if new section fits
+            if (finalY + 30 > pageHeight) {
                 doc.addPage();
                 finalY = margin;
             }
@@ -245,11 +251,11 @@ const handlePrint = async () => {
             doc.text('Observaciones Generales', margin, finalY);
             finalY += 8;
             doc.setDrawColor('#e5e7eb');
-            doc.rect(margin, finalY, doc.internal.pageSize.getWidth() - margin * 2, 40);
+            doc.rect(margin, finalY, pageWidth - margin * 2, 40);
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor('#374151');
-            doc.text(obsGenerales, margin + 2, finalY + 5, { maxWidth: doc.internal.pageSize.getWidth() - margin * 2 - 4 });
+            doc.text(obsGenerales, margin + 2, finalY + 5, { maxWidth: pageWidth - margin * 2 - 4 });
         }
 
 
@@ -278,7 +284,7 @@ const handlePrint = async () => {
 
     return (
       <Card>
-        <CardHeader className="flex-row items-center justify-between py-4">
+        <CardHeader className="flex-row items-center justify-between py-4 no-print">
           <CardTitle>{mainCategory.charAt(0) + mainCategory.slice(1).toLowerCase()}</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" type="button" variant="outline" onClick={() => addRow(mainCategory, 'header')}>+ Subcategoría</Button>
@@ -292,7 +298,7 @@ const handlePrint = async () => {
                 <TableRow>
                   <TableHead className="p-2 border-r">Referencias</TableHead>
                   <TableHead className="p-2">Observaciones</TableHead>
-                  <TableHead className="w-12 p-2"></TableHead>
+                  <TableHead className="w-12 p-2 no-print"></TableHead>
                 </TableRow>
               </TableHeader>
                 <TableBody>
@@ -324,7 +330,7 @@ const handlePrint = async () => {
                             )}
                             />
                         </TableCell>
-                        <TableCell className={cn("py-1 px-2", field.type === 'header' && "bg-muted/50")}>
+                        <TableCell className={cn("py-1 px-2 no-print", field.type === 'header' && "bg-muted/50")}>
                             <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}>
                             <Trash2 className="h-4 w-4" />
                             </Button>
@@ -354,9 +360,9 @@ const handlePrint = async () => {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
-            <div className="flex items-start justify-between mb-8">
+             <div className="flex items-start justify-between mb-4">
                 <div>
-                <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)}>
+                <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="no-print">
                     <ArrowLeft className="mr-2" />
                     Volver a la OS
                 </Button>
@@ -365,7 +371,7 @@ const handlePrint = async () => {
                     Prueba de Menú
                 </h1>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 no-print">
                     <Button variant="outline" type="button" onClick={handlePrint} disabled={isPrinting}>
                     {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
                     {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
@@ -377,7 +383,7 @@ const handlePrint = async () => {
                 </div>
             </div>
             
-            <Card className="mb-6">
+            <Card className="mb-4">
                 <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     <div>
                         <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
@@ -395,14 +401,15 @@ const handlePrint = async () => {
                     </div>
                 </CardContent>
             </Card>
+            <Separator className="my-6" />
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                <div className="flex items-center gap-4 p-4 border rounded-lg bg-background">
+                <div className="no-print flex items-center gap-6 p-4 border rounded-lg bg-background">
                      <div className="flex items-center gap-2">
                         <FormLabel className="font-semibold text-base whitespace-nowrap">Asistentes a la prueba</FormLabel>
                         <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
                     </div>
-                     <div className="flex items-center gap-2 ml-auto">
+                     <div className="flex items-center gap-2">
                         <FormLabel className="font-semibold text-base flex items-center gap-2 whitespace-nowrap">Coste de la prueba de menú</FormLabel>
                         <FormField
                             control={control}
