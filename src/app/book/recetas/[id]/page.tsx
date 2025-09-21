@@ -369,12 +369,12 @@ export default function RecetaFormPage() {
                         <AccordionContent>
                             <CardContent className="space-y-3 pt-2">
                                 <div className="grid md:grid-cols-2 gap-3">
-                                    <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
                                     <FormField
                                         control={form.control}
                                         name="responsableEscandallo"
                                         render={({ field }) => (
-                                            <FormItem>
+                                            <FormItem className="flex flex-col">
                                                 <FormLabel className="flex items-center gap-1.5">Responsable del Escandallo <InfoTooltip text="Persona encargada de definir y mantener los costes y componentes de esta receta." /></FormLabel>
                                                 <Select onValueChange={field.onChange} value={field.value}>
                                                     <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un responsable..." /></SelectTrigger></FormControl>
@@ -413,7 +413,7 @@ export default function RecetaFormPage() {
 
 
                                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
-                                    <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem><FormLabel>Categoría</FormLabel>
+                                    <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Categoría</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
                                             <SelectContent>
@@ -421,30 +421,30 @@ export default function RecetaFormPage() {
                                             </SelectContent>
                                         </Select>
                                     <FormMessage /></FormItem> )} />
-                                    <FormField control={form.control} name="partidaProduccion" render={({ field }) => ( <FormItem>
+                                    <FormField control={form.control} name="partidaProduccion" render={({ field }) => ( <FormItem className="flex flex-col">
                                         <FormLabel className="flex items-center gap-1.5">Partida de Producción <InfoTooltip text="Define en qué sección principal de la cocina se prepara esta receta." /></FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="FRIO">Frío</SelectItem><SelectItem value="CALIENTE">Caliente</SelectItem><SelectItem value="PASTELERIA">Pastelería</SelectItem><SelectItem value="EXPEDICION">Expedición</SelectItem></SelectContent></Select>
                                     </FormItem> )} />
-                                    <FormField control={form.control} name="estacionalidad" render={({ field }) => ( <FormItem>
+                                    <FormField control={form.control} name="estacionalidad" render={({ field }) => ( <FormItem className="flex flex-col">
                                         <FormLabel className="flex items-center gap-1.5">Estacionalidad <InfoTooltip text="Indica la temporada ideal para este plato, basado en la disponibilidad y calidad de sus ingredientes." /></FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="INVIERNO">Invierno</SelectItem><SelectItem value="VERANO">Verano</SelectItem><SelectItem value="MIXTO">Mixto</SelectItem></SelectContent></Select>
                                     </FormItem> )} />
-                                    <FormField control={form.control} name="tipoDieta" render={({ field }) => ( <FormItem><FormLabel>Tipo de Dieta</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="VEGETARIANO">Vegetariano</SelectItem><SelectItem value="VEGANO">Vegano</SelectItem><SelectItem value="AMBOS">Ambos</SelectItem><SelectItem value="NINGUNO">Ninguno</SelectItem></SelectContent></Select></FormItem> )} />
+                                    <FormField control={form.control} name="tipoDieta" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Tipo de Dieta</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="VEGETARIANO">Vegetariano</SelectItem><SelectItem value="VEGANO">Vegano</SelectItem><SelectItem value="AMBOS">Ambos</SelectItem><SelectItem value="NINGUNO">Ninguno</SelectItem></SelectContent></Select></FormItem> )} />
                                 </div>
                                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 pt-3">
-                                     <FormField control={form.control} name="tipoCocina" render={({ field }) => ( <FormItem>
+                                     <FormField control={form.control} name="tipoCocina" render={({ field }) => ( <FormItem className="flex flex-col">
                                         <FormLabel className="flex items-center gap-1.5">Tipo de Cocina/Origen <InfoTooltip text="Clasificación culinaria de la receta (ej. Mediterránea, Asiática, Fusión...)." /></FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
                                             <SelectContent>{dbTiposCocina.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}</SelectContent>
                                         </Select>
                                     <FormMessage /></FormItem> )} />
-                                    <FormField control={form.control} name="temperaturaServicio" render={({ field }) => ( <FormItem>
+                                    <FormField control={form.control} name="temperaturaServicio" render={({ field }) => ( <FormItem className="flex flex-col">
                                         <FormLabel className="flex items-center gap-1.5">Temperatura de Servicio <InfoTooltip text="Temperatura a la que se debe servir el plato al cliente final." /></FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl><SelectContent><SelectItem value="CALIENTE">Caliente</SelectItem><SelectItem value="TIBIO">Tibio</SelectItem><SelectItem value="AMBIENTE">Ambiente</SelectItem><SelectItem value="FRIO">Frío</SelectItem><SelectItem value="HELADO">Helado</SelectItem></SelectContent></Select>
                                     </FormItem> )} />
                                     <FormField control={form.control} name="tecnicaCoccionPrincipal" render={({ field }) => ( 
-                                        <FormItem>
+                                        <FormItem className="flex flex-col">
                                             <FormLabel className="flex items-center gap-1.5">Técnica de Cocción Principal <InfoTooltip text="El método de cocción más relevante usado en la receta." /></FormLabel>
                                             <Combobox
                                                 options={tecnicasCoccion.map(t => ({label: t, value: t}))}
