@@ -123,8 +123,9 @@ export default function PruebaMenuPage() {
   };
   
   const handlePrint = async () => {
-    const printableArea = document.getElementById('printable-area');
-    if (!printableArea) {
+    const headerElement = document.getElementById('printable-header');
+    const contentElement = document.getElementById('printable-content');
+    if (!headerElement || !contentElement) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el área de impresión.'});
         return;
     }
@@ -133,32 +134,60 @@ export default function PruebaMenuPage() {
     document.body.classList.add('printing');
 
     try {
-        const canvas = await html2canvas(printableArea, {
-            scale: 2, // Improve resolution
-            useCORS: true, 
-            backgroundColor: '#ffffff',
-        });
-
-        const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
             format: 'a4',
         });
-
         const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const canvasWidth = canvas.width;
-        const canvasHeight = canvas.height;
-        const ratio = canvasWidth / canvasHeight;
-        const width = pdfWidth - 20; // with margin
-        const height = width / ratio;
+        const margin = 10;
+        const usableWidth = pdfWidth - margin * 2;
+
+        // 1. Render Header
+        const headerCanvas = await html2canvas(headerElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+        const headerImgData = headerCanvas.toDataURL('image/png');
+        const headerImgHeight = (headerCanvas.height * usableWidth) / headerCanvas.width;
         
-        let position = 10;
-        if (height < pdfHeight - 20) {
-            pdf.addImage(imgData, 'PNG', 10, position, width, height);
-        } else {
-             toast({ variant: 'destructive', title: 'Contenido demasiado largo', description: 'El contenido es demasiado largo para una sola página. Considera hacerlo más corto.'});
+        // 2. Render Content
+        const contentCanvas = await html2canvas(contentElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+        const contentImgData = contentCanvas.toDataURL('image/png');
+        const contentImgHeight = (contentCanvas.height * usableWidth) / contentCanvas.width;
+        
+        const pageHeight = pdf.internal.pageSize.getHeight() - margin * 2;
+        let contentPosition = 0;
+
+        const addPageWithHeader = () => {
+            pdf.addImage(headerImgData, 'PNG', margin, margin, usableWidth, headerImgHeight);
+            return margin + headerImgHeight + 5; // Start content after header + 5mm space
+        };
+        
+        let currentPageY = addPageWithHeader();
+
+        while (contentPosition < contentImgHeight) {
+            const remainingPageHeight = pageHeight - (currentPageY - margin);
+            const sliceHeight = Math.min(contentImgHeight - contentPosition, remainingPageHeight);
+            
+            const sliceCanvas = document.createElement('canvas');
+            sliceCanvas.width = contentCanvas.width;
+            sliceCanvas.height = (sliceHeight * contentCanvas.width) / usableWidth;
+            
+            const sliceCtx = sliceCanvas.getContext('2d');
+            sliceCtx?.drawImage(
+                contentCanvas,
+                0, (contentPosition * contentCanvas.width) / usableWidth, // source y
+                contentCanvas.width, sliceCanvas.height, // source width, height
+                0, 0, // dest x, y
+                sliceCanvas.width, sliceCanvas.height // dest width, height
+            );
+            
+            pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', margin, currentPageY, usableWidth, sliceHeight);
+            
+            contentPosition += sliceHeight;
+
+            if (contentPosition < contentImgHeight) {
+                pdf.addPage();
+                currentPageY = addPageWithHeader();
+            }
         }
         
         pdf.save('prueba-de-menu.pdf');
@@ -171,6 +200,7 @@ export default function PruebaMenuPage() {
         setIsPrinting(false);
     }
   };
+
 
   const addRow = (mainCategory: 'BODEGA' | 'GASTRONOMÍA', type: 'header' | 'item') => {
     append({
@@ -288,80 +318,86 @@ export default function PruebaMenuPage() {
             </div>
           
             <div id="printable-area">
-                <Card className="mb-6 printable-area-card relative">
-                    <div className="absolute top-4 right-4 printable-only">
-                        <UtensilsCrossed className="h-10 w-10 text-primary" />
-                    </div>
-                    <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                        <div>
-                            <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
-                            <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
-                            <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
-                            <div><strong>Cliente:</strong> {serviceOrder.client}</div>
-                            <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
+                <div id="printable-header">
+                    <Card className="mb-6 printable-area-card relative border-none shadow-none">
+                        <div className="absolute top-0 right-0 printable-only">
+                            <UtensilsCrossed className="h-10 w-10 text-primary" />
                         </div>
-                        <Separator className="my-2 md:hidden" />
-                        <div>
-                            <h4 className="font-bold col-span-full mb-1">Datos del Evento</h4>
-                            <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
-                            <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
-                            <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                    <div className="flex items-center gap-4 p-4 border rounded-lg bg-background no-print">
-                        <FormLabel className="font-semibold text-base flex items-center gap-2"><Euro />Coste de la prueba de menú</FormLabel>
-                        <FormField
-                            control={control}
-                            name="costePruebaMenu"
-                            render={({ field }) => (
-                                <FormItem className="flex items-center gap-2">
-                                    <FormControl>
-                                        <Input 
-                                            type="number" 
-                                            step="0.01" 
-                                            {...field} 
-                                            className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
-                                        />
-                                    </FormControl>
-                                    <span className="text-lg font-bold">€</span>
-                                </FormItem>
-                            )}
-                        />
-                         <FormLabel className="font-semibold text-base pl-6">Asistentes a la prueba</FormLabel>
-                        <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
-                    </div>
-
-                    <div className="space-y-6">
-                    {renderSection('BODEGA')}
-                    {renderSection('GASTRONOMÍA')}
-
-                    <Card className="mt-6">
-                        <CardHeader className="py-4">
-                        <CardTitle>Observaciones Generales</CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                            <FormField
-                            control={control}
-                            name="observacionesGenerales"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormControl>
-                                    <Textarea
-                                    placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
-                                    rows={4}
-                                    {...field}
-                                    />
-                                </FormControl>
-                                </FormItem>
-                            )}
-                            />
+                        <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                            <div>
+                                <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
+                                <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
+                                <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
+                                <div><strong>Cliente:</strong> {serviceOrder.client}</div>
+                                <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
+                            </div>
+                            <Separator className="my-2 md:hidden" />
+                            <div>
+                                <h4 className="font-bold col-span-full mb-1">Datos del Evento</h4>
+                                <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
+                                <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
+                                <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
+                            </div>
                         </CardContent>
                     </Card>
-                    </div>
-                </form>
+                </div>
+                
+                 <div id="printable-content">
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                        <div className="flex items-center gap-4 p-4 border rounded-lg bg-background no-print">
+                            <FormLabel className="font-semibold text-base flex items-center gap-2"><Euro />Coste de la prueba de menú</FormLabel>
+                            <FormField
+                                control={control}
+                                name="costePruebaMenu"
+                                render={({ field }) => (
+                                    <FormItem className="flex items-center gap-2">
+                                        <FormControl>
+                                            <Input 
+                                                type="number" 
+                                                step="0.01" 
+                                                {...field} 
+                                                className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
+                                            />
+                                        </FormControl>
+                                        <span className="text-lg font-bold">€</span>
+                                    </FormItem>
+                                )}
+                            />
+                            <div className="flex items-center gap-2 pl-6">
+                                <FormLabel className="font-semibold text-base">Asistentes a la prueba</FormLabel>
+                                <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                        {renderSection('BODEGA')}
+                        {renderSection('GASTRONOMÍA')}
+
+                        <Card className="mt-6">
+                            <CardHeader className="py-4">
+                            <CardTitle>Observaciones Generales</CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                                <FormField
+                                control={control}
+                                name="observacionesGenerales"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormControl>
+                                        <Textarea
+                                        placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
+                                        rows={4}
+                                        {...field}
+                                        />
+                                    </FormControl>
+                                    </FormItem>
+                                )}
+                                />
+                            </CardContent>
+                        </Card>
+                        </div>
+                    </form>
+                 </div>
             </div>
         </Form>
       </main>
