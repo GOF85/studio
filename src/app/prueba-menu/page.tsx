@@ -137,11 +137,7 @@ const handlePrint = async () => {
         doc.setTextColor('#059669'); // Primary color
         doc.text('Prueba de Menú', margin, finalY);
         finalY += 10;
-        doc.setLineWidth(0.5);
-        doc.setDrawColor('#e5e7eb'); // Border color
-        doc.line(margin, finalY, pageWidth - margin, finalY);
-        finalY += 8;
-
+        
         // --- DATOS SERVICIO Y EVENTO ---
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
@@ -222,7 +218,7 @@ const handlePrint = async () => {
                     fontSize: 8,
                     cellPadding: 2,
                     valign: 'middle',
-                    minCellHeight: 20,
+                    minCellHeight: 12,
                 },
                 headStyles: {
                     fillColor: '#e5e7eb',
