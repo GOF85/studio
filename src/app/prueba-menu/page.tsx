@@ -143,12 +143,10 @@ export default function PruebaMenuPage() {
         const margin = 10;
         const usableWidth = pdfWidth - margin * 2;
 
-        // 1. Render Header
         const headerCanvas = await html2canvas(headerElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
         const headerImgData = headerCanvas.toDataURL('image/png');
         const headerImgHeight = (headerCanvas.height * usableWidth) / headerCanvas.width;
         
-        // 2. Render Content
         const contentCanvas = await html2canvas(contentElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
         const contentImgData = contentCanvas.toDataURL('image/png');
         const contentImgHeight = (contentCanvas.height * usableWidth) / contentCanvas.width;
@@ -158,7 +156,7 @@ export default function PruebaMenuPage() {
 
         const addPageWithHeader = () => {
             pdf.addImage(headerImgData, 'PNG', margin, margin, usableWidth, headerImgHeight);
-            return margin + headerImgHeight + 5; // Start content after header + 5mm space
+            return margin + headerImgHeight + 5;
         };
         
         let currentPageY = addPageWithHeader();
@@ -174,10 +172,10 @@ export default function PruebaMenuPage() {
             const sliceCtx = sliceCanvas.getContext('2d');
             sliceCtx?.drawImage(
                 contentCanvas,
-                0, (contentPosition * contentCanvas.width) / usableWidth, // source y
-                contentCanvas.width, sliceCanvas.height, // source width, height
-                0, 0, // dest x, y
-                sliceCanvas.width, sliceCanvas.height // dest width, height
+                0, (contentPosition * contentCanvas.width) / usableWidth,
+                contentCanvas.width, sliceCanvas.height,
+                0, 0,
+                sliceCanvas.width, sliceCanvas.height
             );
             
             pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', margin, currentPageY, usableWidth, sliceHeight);
@@ -200,7 +198,6 @@ export default function PruebaMenuPage() {
         setIsPrinting(false);
     }
   };
-
 
   const addRow = (mainCategory: 'BODEGA' | 'GASTRONOMÍA', type: 'header' | 'item') => {
     append({
@@ -316,14 +313,16 @@ export default function PruebaMenuPage() {
                 </Button>
                 </div>
             </div>
-          
+            
+            <Separator className="my-6 no-print" />
+
             <div id="printable-area">
                 <div id="printable-header">
-                    <Card className="mb-6 printable-area-card relative border-none shadow-none">
-                        <div className="absolute top-0 right-0 printable-only">
+                    <div className="mb-6 printable-area-card relative border rounded-lg">
+                        <div className="absolute top-2 right-2 printable-only">
                             <UtensilsCrossed className="h-10 w-10 text-primary" />
                         </div>
-                        <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
                             <div>
                                 <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
                                 <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
@@ -338,8 +337,8 @@ export default function PruebaMenuPage() {
                                 <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
                                 <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 </div>
                 
                  <div id="printable-content">
@@ -363,38 +362,38 @@ export default function PruebaMenuPage() {
                                     </FormItem>
                                 )}
                             />
-                            <div className="flex items-center gap-2 pl-6">
+                            <div className="flex items-center gap-2">
                                 <FormLabel className="font-semibold text-base">Asistentes a la prueba</FormLabel>
                                 <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
                             </div>
                         </div>
 
                         <div className="space-y-6">
-                        {renderSection('BODEGA')}
-                        {renderSection('GASTRONOMÍA')}
+                            {renderSection('BODEGA')}
+                            {renderSection('GASTRONOMÍA')}
 
-                        <Card className="mt-6">
-                            <CardHeader className="py-4">
-                            <CardTitle>Observaciones Generales</CardTitle>
-                            </CardHeader>
-                            <CardContent className="pt-0">
-                                <FormField
-                                control={control}
-                                name="observacionesGenerales"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormControl>
-                                        <Textarea
-                                        placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
-                                        rows={4}
-                                        {...field}
-                                        />
-                                    </FormControl>
-                                    </FormItem>
-                                )}
-                                />
-                            </CardContent>
-                        </Card>
+                            <Card>
+                                <CardHeader className="py-4">
+                                <CardTitle>Observaciones Generales</CardTitle>
+                                </CardHeader>
+                                <CardContent className="pt-0">
+                                    <FormField
+                                    control={control}
+                                    name="observacionesGenerales"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormControl>
+                                            <Textarea
+                                            placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
+                                            rows={4}
+                                            {...field}
+                                            />
+                                        </FormControl>
+                                        </FormItem>
+                                    )}
+                                    />
+                                </CardContent>
+                            </Card>
                         </div>
                     </form>
                  </div>
