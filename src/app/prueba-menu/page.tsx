@@ -231,76 +231,71 @@ export default function PruebaMenuPage() {
         </div>
 
         <Form {...form}>
-            <form id="prueba-menu-form" onSubmit={handleSubmit(onSubmit)}>
-                <Card className="mb-6">
-                    <CardContent className="p-4 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
-                        <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
-                        <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
-                        <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
-                        <div><strong>Cliente:</strong> {serviceOrder.client}</div>
-                        <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
-                        <h4 className="font-bold col-span-full mb-1 mt-2">Datos del Evento</h4>
-                        <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
-                        <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
-                        <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
-                    </CardContent>
-                </Card>
-            
-                <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-background no-print">
-                    <div className="flex items-center gap-2">
-                        <Euro className="text-primary"/>
-                        <FormLabel className="font-semibold text-base">Coste de la prueba de menú</FormLabel>
-                    </div>
-                     <FormField
-                        control={control}
-                        name="costePruebaMenu"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormControl>
-                                    <Input 
-                                        type="number" 
-                                        step="0.01" 
-                                        {...field} 
-                                        className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
-                                    />
-                                </FormControl>
-                            </FormItem>
-                        )}
-                    />
-                    <div className="flex items-center gap-2 pl-6">
-                        <FormLabel className="font-semibold text-base">Asistentes a la prueba</FormLabel>
-                        <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
-                    </div>
-                </div>
-
-            <div className="space-y-6">
-                {renderSection('BODEGA')}
-                {renderSection('GASTRONOMÍA')}
-            </div>
-
-            <Card className="mt-6">
-                <CardHeader className="py-4">
-                <CardTitle>Observaciones Generales</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                    <FormField
-                    control={control}
-                    name="observacionesGenerales"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormControl>
-                            <Textarea
-                            placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
-                            rows={4}
-                            {...field}
-                            />
-                        </FormControl>
-                        </FormItem>
-                    )}
-                    />
+          <div className="space-y-6">
+            <Card className="mb-6">
+                <CardContent className="p-4 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
+                    <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
+                    <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
+                    <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
+                    <div><strong>Cliente:</strong> {serviceOrder.client}</div>
+                    <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
+                    <h4 className="font-bold col-span-full mb-1 mt-2">Datos del Evento</h4>
+                    <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
+                    <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
+                    <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
                 </CardContent>
             </Card>
+
+            <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-background no-print">
+              <FormLabel className="font-semibold text-base flex items-center gap-2"><Euro />Coste de la prueba de menú</FormLabel>
+              <FormField
+                  control={control}
+                  name="costePruebaMenu"
+                  render={({ field }) => (
+                      <FormItem>
+                          <FormControl>
+                              <Input 
+                                  type="number" 
+                                  step="0.01" 
+                                  {...field} 
+                                  className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
+                              />
+                          </FormControl>
+                      </FormItem>
+                  )}
+              />
+              <FormLabel className="font-semibold text-base pl-6">Asistentes a la prueba</FormLabel>
+              <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
+            </div>
+
+            <form id="prueba-menu-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {renderSection('BODEGA')}
+              {renderSection('GASTRONOMÍA')}
+
+              <Card className="mt-6">
+                  <CardHeader className="py-4">
+                  <CardTitle>Observaciones Generales</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                      <FormField
+                      control={control}
+                      name="observacionesGenerales"
+                      render={({ field }) => (
+                          <FormItem>
+                          <FormControl>
+                              <Textarea
+                              placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
+                              rows={4}
+                              {...field}
+                              />
+                          </FormControl>
+                          </FormItem>
+                      )}
+                      />
+                  </CardContent>
+              </Card>
             </form>
+          </div>
         </Form>
       </main>
     </>
