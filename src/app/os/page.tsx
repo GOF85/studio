@@ -355,95 +355,95 @@ export default function OsPage() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[180px_1fr] gap-8">
+        <div className="grid lg:grid-cols-[120px_1fr] gap-4">
           <aside className="lg:sticky top-24 self-start flex flex-col">
-            <h2 className="text-base font-semibold mb-2 px-2">Módulos</h2>
+            <h2 className="text-base font-semibold mb-2 px-1">Módulos</h2>
             <nav className="space-y-0.5">
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
                   <Link href={osId ? `/comercial?osId=${osId}` : '#'}>
-                    <Briefcase className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <Briefcase />
                     <span className="font-medium">Comercial</span>
                   </Link>
               </Button>
                {hasPruebaDeMenu && (
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
                   <Link href={osId ? `/prueba-menu?osId=${osId}` : '#'}>
-                    <ClipboardCheck className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span className="font-medium">Prueba de Menú</span>
+                    <ClipboardCheck />
+                    <span className="font-medium">Prueba Menu</span>
                   </Link>
                 </Button>
                )}
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
                   <Link href={osId ? `/gastronomia?osId=${osId}` : '#'}>
-                    <Utensils className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <Utensils />
                     <span className="font-medium">Gastronomía</span>
                   </Link>
               </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
                   <Link href={osId ? `/bodega?osId=${osId}` : '#'}>
-                    <Wine className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <Wine />
                     <span className="font-medium">Bodega</span>
                   </Link>
               </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
                   <Link href={osId ? `/hielo?osId=${osId}` : '#'}>
-                    <Snowflake className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <Snowflake />
                     <span className="font-medium">Hielo</span>
                   </Link>
               </Button>
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
+              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
                   <Link href={osId ? `/bio?osId=${osId}` : '#'}>
-                    <Leaf className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <Leaf />
                     <span className="font-medium">Bio</span>
                   </Link>
               </Button>
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
+              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
                   <Link href={osId ? `/almacen?osId=${osId}` : '#'}>
-                    <Warehouse className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <Warehouse />
                     <span className="font-medium">Almacén</span>
                   </Link>
               </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
                   <Link href={osId ? `/alquiler?osId=${osId}` : '#'}>
-                    <Archive className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <Archive />
                     <span className="font-medium">Alquiler</span>
                   </Link>
               </Button>
                
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
                   <Link href={osId ? `/decoracion?osId=${osId}` : '#'}>
-                    <Flower2 className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <Flower2 />
                     <span className="font-medium">Decoración</span>
                   </Link>
               </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
                   <Link href={osId ? `/atipicos?osId=${osId}` : '#'}>
-                    <FilePlus className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <FilePlus />
                     <span className="font-medium">Atípicos</span>
                   </Link>
               </Button>
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
+              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
                   <Link href={osId ? `/personal-mice?osId=${osId}` : '#'}>
-                    <Users className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <Users />
                     <span className="font-medium">Personal MICE</span>
                   </Link>
               </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
                   <Link href={osId ? `/personal-externo?osId=${osId}` : '#'}>
-                    <UserPlus className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span className="font-medium">Personal Externo</span>
+                    <UserPlus />
+                    <span className="font-medium">Personal Ext.</span>
                   </Link>
               </Button>
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
+              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
                   <Link href={osId ? `/transporte?osId=${osId}` : '#'}>
-                    <Truck className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <Truck />
                     <span className="font-medium">Transporte</span>
                   </Link>
               </Button>
               <Separator className="my-2" />
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-2 text-sm h-auto" disabled={!osId}>
+               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
                   <Link href={osId ? `/cta-explotacion?osId=${osId}` : '#'}>
-                    <DollarSign className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <DollarSign />
                     <span className="font-medium">Cta. Explotación</span>
                   </Link>
               </Button>
@@ -840,5 +840,7 @@ export default function OsPage() {
     </TooltipProvider>
   );
 }
+
+    
 
     
