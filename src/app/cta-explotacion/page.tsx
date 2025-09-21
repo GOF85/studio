@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -212,7 +213,7 @@ export default function CtaExplotacionPage() {
     if (!ctaData) return;
     const updatedCostes = ctaData.costes.map(c => ({
         ...c,
-        cierre: cierreInputs[c.label] ?? c.cierre
+        cierre: cierreInputs[row.label] ?? c.cierre
     }));
 
     setCtaData(prev => prev ? {...prev, costes: updatedCostes} : null);
