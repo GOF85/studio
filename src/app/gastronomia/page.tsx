@@ -155,7 +155,7 @@ export default function GastronomiaPage() {
                                 onClick={() => router.push(`/gastronomia/pedido?osId=${osId}&briefingItemId=${order.id}`)} 
                                 className={cn(
                                     "cursor-pointer", 
-                                    order.descripcion.toLowerCase() === 'prueba de menu' && "bg-muted/50 hover:bg-muted"
+                                    order.descripcion.toLowerCase() === 'prueba de menu' && "bg-muted hover:bg-muted/80"
                                 )}
                             >
                                 <TableCell>{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
