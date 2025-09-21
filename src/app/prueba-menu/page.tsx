@@ -122,23 +122,30 @@ export default function PruebaMenuPage() {
     form.reset(data); // Mark as not dirty
   };
   
-  const handlePrint = async () => {
-    const headerElement = document.getElementById('printable-header');
-    const contentElement = document.getElementById('printable-content');
-    if (!headerElement || !contentElement) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el área de impresión.'});
+const handlePrint = async () => {
+    const printableArea = document.getElementById('printable-area');
+    if (!printableArea) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el área de impresión.' });
         return;
     }
 
     setIsPrinting(true);
-    document.body.classList.add('printing');
+
+    // Clonar el área para no modificar el DOM original
+    const clone = printableArea.cloneNode(true) as HTMLElement;
+    document.body.appendChild(clone);
+    clone.classList.add('printing');
+
+    // Eliminar elementos no deseados del clon
+    clone.querySelectorAll('.no-print').forEach(el => el.remove());
 
     try {
-        const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4',
-        });
+        const headerElement = clone.querySelector('#printable-header') as HTMLElement;
+        const contentElement = clone.querySelector('#printable-content') as HTMLElement;
+
+        if (!headerElement || !contentElement) throw new Error('Elementos de impresión no encontrados en el clon.');
+
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const margin = 10;
         const usableWidth = pdfWidth - margin * 2;
@@ -146,9 +153,8 @@ export default function PruebaMenuPage() {
         const headerCanvas = await html2canvas(headerElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
         const headerImgData = headerCanvas.toDataURL('image/png');
         const headerImgHeight = (headerCanvas.height * usableWidth) / headerCanvas.width;
-        
+
         const contentCanvas = await html2canvas(contentElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-        const contentImgData = contentCanvas.toDataURL('image/png');
         const contentImgHeight = (contentCanvas.height * usableWidth) / contentCanvas.width;
         
         const pageHeight = pdf.internal.pageSize.getHeight() - margin * 2;
@@ -158,29 +164,26 @@ export default function PruebaMenuPage() {
             pdf.addImage(headerImgData, 'PNG', margin, margin, usableWidth, headerImgHeight);
             return margin + headerImgHeight + 5;
         };
-        
+
         let currentPageY = addPageWithHeader();
 
         while (contentPosition < contentImgHeight) {
-            const remainingPageHeight = pageHeight - (currentPageY - margin);
-            const sliceHeight = Math.min(contentImgHeight - contentPosition, remainingPageHeight);
-            
-            const sliceCanvas = document.createElement('canvas');
-            sliceCanvas.width = contentCanvas.width;
-            sliceCanvas.height = (sliceHeight * contentCanvas.width) / usableWidth;
-            
-            const sliceCtx = sliceCanvas.getContext('2d');
-            sliceCtx?.drawImage(
+            const remainingOnPage = pageHeight - (currentPageY - margin);
+            const sliceHeightOnCanvas = (remainingOnPage / usableWidth) * contentCanvas.width;
+
+            pdf.addImage(
                 contentCanvas,
-                0, (contentPosition * contentCanvas.width) / usableWidth,
-                contentCanvas.width, sliceCanvas.height,
-                0, 0,
-                sliceCanvas.width, sliceCanvas.height
+                'PNG',
+                margin, currentPageY,
+                usableWidth, contentImgHeight - contentPosition, // Check if this is right
+                '', 'FAST', 
+                0, // srcX
+                (contentPosition / usableWidth) * contentCanvas.width, // srcY
+                contentCanvas.width, // srcWidth
+                sliceHeightOnCanvas // srcHeight
             );
             
-            pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', margin, currentPageY, usableWidth, sliceHeight);
-            
-            contentPosition += sliceHeight;
+            contentPosition += remainingOnPage;
 
             if (contentPosition < contentImgHeight) {
                 pdf.addPage();
@@ -192,12 +195,12 @@ export default function PruebaMenuPage() {
 
     } catch (error) {
         console.error("Error generating PDF:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.'});
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
     } finally {
-        document.body.classList.remove('printing');
+        document.body.removeChild(clone);
         setIsPrinting(false);
     }
-  };
+};
 
   const addRow = (mainCategory: 'BODEGA' | 'GASTRONOMÍA', type: 'header' | 'item') => {
     append({
@@ -316,10 +319,10 @@ export default function PruebaMenuPage() {
             
             <Separator className="my-6 no-print" />
 
-            <div id="printable-area">
+            <div id="printable-area" className="relative">
                 <div id="printable-header">
                     <div className="mb-6 printable-area-card relative border rounded-lg">
-                        <div className="absolute top-2 right-2 printable-only">
+                         <div className="printable-only absolute top-2 right-2">
                             <UtensilsCrossed className="h-10 w-10 text-primary" />
                         </div>
                         <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
@@ -344,28 +347,28 @@ export default function PruebaMenuPage() {
                  <div id="printable-content">
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                         <div className="flex items-center gap-4 p-4 border rounded-lg bg-background no-print">
-                            <FormLabel className="font-semibold text-base flex items-center gap-2"><Euro />Coste de la prueba de menú</FormLabel>
-                            <FormField
-                                control={control}
-                                name="costePruebaMenu"
-                                render={({ field }) => (
-                                    <FormItem className="flex items-center gap-2">
-                                        <FormControl>
-                                            <Input 
-                                                type="number" 
-                                                step="0.01" 
-                                                {...field} 
-                                                className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
-                                            />
-                                        </FormControl>
-                                        <span className="text-lg font-bold">€</span>
-                                    </FormItem>
-                                )}
-                            />
-                            <div className="flex items-center gap-2">
-                                <FormLabel className="font-semibold text-base">Asistentes a la prueba</FormLabel>
-                                <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
-                            </div>
+                             <FormLabel className="font-semibold text-base flex items-center gap-2 whitespace-nowrap"><Euro />Coste de la prueba de menú</FormLabel>
+                                <FormField
+                                    control={control}
+                                    name="costePruebaMenu"
+                                    render={({ field }) => (
+                                        <FormItem className="flex items-center gap-2">
+                                            <FormControl>
+                                                <Input 
+                                                    type="number" 
+                                                    step="0.01" 
+                                                    {...field} 
+                                                    className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
+                                                />
+                                            </FormControl>
+                                            <span className="text-lg font-bold">€</span>
+                                        </FormItem>
+                                    )}
+                                />
+                                <div className="flex items-center gap-2 ml-auto">
+                                    <FormLabel className="font-semibold text-base whitespace-nowrap">Asistentes a la prueba</FormLabel>
+                                    <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
+                                </div>
                         </div>
 
                         <div className="space-y-6">
