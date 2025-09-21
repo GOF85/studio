@@ -208,30 +208,30 @@ export default function PruebaMenuPage() {
     <>
       <Header />
       <main className="container mx-auto px-4 py-8 printable-area">
-        <div className="flex items-start justify-between mb-8 no-print">
-          <div>
-            <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)}>
-              <ArrowLeft className="mr-2" />
-              Volver a la OS
-            </Button>
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-              <ClipboardCheck />
-              Prueba de Menú
-            </h1>
-          </div>
-          <div className="flex gap-2">
-             <Button variant="outline" type="button" onClick={() => window.print()}>
-                <Printer className="mr-2" /> Imprimir
-             </Button>
-            <Button form="prueba-menu-form" type="submit" disabled={!formState.isDirty}>
-              <Save className="mr-2" />
-              Guardar Cambios
-            </Button>
-          </div>
-        </div>
-
         <Form {...form}>
-          <div className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div className="flex items-start justify-between mb-8 no-print">
+              <div>
+                <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)}>
+                  <ArrowLeft className="mr-2" />
+                  Volver a la OS
+                </Button>
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
+                  <ClipboardCheck />
+                  Prueba de Menú
+                </h1>
+              </div>
+              <div className="flex gap-2">
+                 <Button variant="outline" type="button" onClick={() => window.print()}>
+                    <Printer className="mr-2" /> Imprimir
+                 </Button>
+                <Button type="submit" disabled={!formState.isDirty}>
+                  <Save className="mr-2" />
+                  Guardar Cambios
+                </Button>
+              </div>
+            </div>
+            
             <Card className="mb-6">
                 <CardContent className="p-4 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
                     <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
@@ -268,7 +268,7 @@ export default function PruebaMenuPage() {
               <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
             </div>
 
-            <form id="prueba-menu-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div className="space-y-6">
               {renderSection('BODEGA')}
               {renderSection('GASTRONOMÍA')}
 
@@ -294,8 +294,8 @@ export default function PruebaMenuPage() {
                       />
                   </CardContent>
               </Card>
-            </form>
-          </div>
+            </div>
+          </form>
         </Form>
       </main>
     </>
