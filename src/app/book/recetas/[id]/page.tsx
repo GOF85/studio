@@ -10,7 +10,7 @@ import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSe
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup } from 'lucide-react';
-import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, IngredienteERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal } from '@/types';
+import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, IngredienteERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina } from '@/types';
 import { SABORES_PRINCIPALES } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -68,6 +68,9 @@ const recetaFormSchema = z.object({
   perfilSaborPrincipal: z.enum(SABORES_PRINCIPALES).optional(),
   perfilSaborSecundario: z.array(z.string()).optional().default([]),
   perfilTextura: z.array(z.string()).optional().default([]),
+  tipoCocina: z.string().optional().default(''),
+  temperaturaServicio: z.enum(['CALIENTE', 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO']).optional(),
+  tecnicaCoccionPrincipal: z.string().optional().default(''),
 });
 
 type RecetaFormValues = z.infer<typeof recetaFormSchema>;
@@ -138,6 +141,7 @@ export default function RecetaFormPage() {
   const [dbElaboraciones, setDbElaboraciones] = useState<ElaboracionConCoste[]>([]);
   const [dbMenaje, setDbMenaje] = useState<MenajeDB[]>([]);
   const [dbCategorias, setDbCategorias] = useState<CategoriaReceta[]>([]);
+  const [dbTiposCocina, setDbTiposCocina] = useState<TipoCocina[]>([]);
   const [dbIngredientes, setDbIngredientes] = useState<Map<string, IngredienteConERP>>(new Map());
   const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
   const [saboresSecundarios, setSaboresSecundarios] = useState<string[]>([]);
@@ -200,6 +204,9 @@ export default function RecetaFormPage() {
     const categorias = JSON.parse(localStorage.getItem('categoriasRecetas') || '[]') as CategoriaReceta[];
     setDbCategorias(categorias);
 
+    const tiposCocina = JSON.parse(localStorage.getItem('tiposCocina') || '[]') as TipoCocina[];
+    setDbTiposCocina(tiposCocina);
+
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
 
@@ -219,7 +226,7 @@ export default function RecetaFormPage() {
       const receta = allRecetas.find(e => e.id === id);
       if (receta) form.reset(receta);
     } else {
-      form.reset({ id: Date.now().toString(), nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [] });
+      form.reset({ nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [] });
     }
   }, [id, isEditing, calculateElabAlergenos, form]);
 
@@ -368,7 +375,18 @@ export default function RecetaFormPage() {
                                     <FormField control={form.control} name="estacionalidad" render={({ field }) => ( <FormItem><FormLabel>Estacionalidad</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="INVIERNO">Invierno</SelectItem><SelectItem value="VERANO">Verano</SelectItem><SelectItem value="MIXTO">Mixto</SelectItem></SelectContent></Select></FormItem> )} />
                                     <FormField control={form.control} name="tipoDieta" render={({ field }) => ( <FormItem><FormLabel>Tipo de Dieta</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="VEGETARIANO">Vegetariano</SelectItem><SelectItem value="VEGANO">Vegano</SelectItem><SelectItem value="AMBOS">Ambos</SelectItem><SelectItem value="NINGUNO">Ninguno</SelectItem></SelectContent></Select></FormItem> )} />
                                 </div>
-                                
+                                 <div className="grid md:grid-cols-3 gap-3 pt-3">
+                                     <FormField control={form.control} name="tipoCocina" render={({ field }) => ( <FormItem><FormLabel>Tipo de Cocina/Origen</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                {dbTiposCocina.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    <FormMessage /></FormItem> )} />
+                                    <FormField control={form.control} name="temperaturaServicio" render={({ field }) => ( <FormItem><FormLabel>Temperatura de Servicio</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl><SelectContent><SelectItem value="CALIENTE">Caliente</SelectItem><SelectItem value="TIBIO">Tibio</SelectItem><SelectItem value="AMBIENTE">Ambiente</SelectItem><SelectItem value="FRIO">Frío</SelectItem><SelectItem value="HELADO">Helado</SelectItem></SelectContent></Select></FormItem> )} />
+                                    <FormField control={form.control} name="tecnicaCoccionPrincipal" render={({ field }) => ( <FormItem><FormLabel>Técnica de Cocción Principal</FormLabel><FormControl><Input {...field} placeholder="Ej: Fritura, horno..." /></FormControl></FormItem> )} />
+                                 </div>
                             </CardContent>
                         </AccordionContent>
                     </Card>

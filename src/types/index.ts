@@ -431,6 +431,9 @@ export type Receta = {
     perfilSaborPrincipal?: SaborPrincipal;
     perfilSaborSecundario?: string[];
     perfilTextura?: string[];
+    tipoCocina?: string;
+    temperaturaServicio?: 'CALIENTE' | 'TIBIO' | 'AMBIENTE' | 'FRIO' | 'HELADO';
+    tecnicaCoccionPrincipal?: string;
 };
 
 export type MenajeDB = {
@@ -440,6 +443,11 @@ export type MenajeDB = {
 }
 
 export type CategoriaReceta = {
+    id: string;
+    nombre: string;
+}
+
+export type TipoCocina = {
     id: string;
     nombre: string;
 }
