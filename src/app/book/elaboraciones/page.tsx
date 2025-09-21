@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Component, FileDown, FileUp } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Component, FileDown, FileUp, Menu } from 'lucide-react';
 import type { Elaboracion } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,10 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import Papa from 'papaparse';
+
+const CSV_HEADERS = [ "id", "nombre", "produccionTotal", "unidadProduccion", "componentes", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad" ];
+
 
 export default function ElaboracionesPage() {
   const [items, setItems] = useState<Elaboracion[]>([]);
@@ -44,6 +47,7 @@ export default function ElaboracionesPage() {
 
   const router = useRouter();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     let storedData = localStorage.getItem('elaboraciones');
@@ -98,6 +102,91 @@ export default function ElaboracionesPage() {
     setItemToDelete(null);
   }
 
+  const handleExportCSV = () => {
+    if (items.length === 0) {
+        toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay elaboraciones para exportar.' });
+        return;
+    }
+
+    const dataToExport = items.map(item => ({
+        ...item,
+        componentes: JSON.stringify(item.componentes),
+        fotosProduccionURLs: JSON.stringify(item.fotosProduccionURLs),
+    }));
+
+    const csv = Papa.unparse(dataToExport);
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'elaboraciones.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: 'Exportación completada', description: 'El archivo elaboraciones.csv se ha descargado.' });
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse<any>(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+            const headers = results.meta.fields || [];
+            const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
+
+            if (!hasAllHeaders) {
+                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
+                return;
+            }
+            
+            const importedData: Elaboracion[] = results.data.map(item => {
+                let componentes = [];
+                let fotos = [];
+                try {
+                    componentes = JSON.parse(item.componentes || '[]');
+                    fotos = JSON.parse(item.fotosProduccionURLs || '[]');
+                } catch(e) {
+                    console.error("Error parsing JSON fields for item:", item.id);
+                }
+
+                return {
+                    id: item.id || Date.now().toString() + Math.random(),
+                    nombre: item.nombre || '',
+                    produccionTotal: parseFloat(item.produccionTotal) || 0,
+                    unidadProduccion: item.unidadProduccion || 'UNIDAD',
+                    componentes: componentes,
+                    instruccionesPreparacion: item.instruccionesPreparacion || '',
+                    fotosProduccionURLs: fotos,
+                    videoProduccionURL: item.videoProduccionURL || '',
+                    formatoExpedicion: item.formatoExpedicion || '',
+                    ratioExpedicion: parseFloat(item.ratioExpedicion) || 0,
+                    tipoExpedicion: item.tipoExpedicion || 'REFRIGERADO',
+                    costePorUnidad: parseFloat(item.costePorUnidad) || 0,
+                };
+            });
+            
+            localStorage.setItem('elaboraciones', JSON.stringify(importedData));
+            setItems(importedData);
+            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+        },
+        error: (error) => {
+            toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+        }
+    });
+    if(event.target) {
+        event.target.value = '';
+    }
+  };
+
+
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Elaboraciones..." />;
   }
@@ -115,25 +204,31 @@ export default function ElaboracionesPage() {
                 Nueva Elaboración
               </Link>
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                      <Menu />
+                  </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleImportClick}>
+                       <FileUp size={16} className="mr-2"/>Importar CSV
+                       <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept=".csv"
+                        onChange={handleImportCSV}
+                      />
+                  </DropdownMenuItem>
+                   <DropdownMenuItem onClick={handleExportCSV}>
+                       <FileDown size={16} className="mr-2"/>Exportar CSV
+                  </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         
-        <Card className="mb-6">
-          <CardHeader>
-            <h2 className="text-xl font-semibold">Importar y Exportar</h2>
-          </CardHeader>
-          <CardContent className="flex flex-col md:flex-row gap-4">
-            <Button variant="outline" className="w-full md:w-auto" disabled>
-              <FileUp className="mr-2" />
-              Importar CSV (Próximamente)
-            </Button>
-            <Button variant="outline" className="w-full md:w-auto" disabled>
-              <FileDown className="mr-2" />
-              Exportar CSV (Próximamente)
-            </Button>
-          </CardContent>
-        </Card>
-
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
             placeholder="Buscar por nombre..."
@@ -156,11 +251,11 @@ export default function ElaboracionesPage() {
             <TableBody>
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} onClick={() => router.push(`/book/elaboraciones/${item.id}`)} className="cursor-pointer">
                     <TableCell className="font-medium">{item.nombre}</TableCell>
                     <TableCell>{item.produccionTotal} {item.unidadProduccion}</TableCell>
                     <TableCell>{(item.costePorUnidad || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} / {item.unidadProduccion}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
@@ -169,11 +264,11 @@ export default function ElaboracionesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>
+                          <DropdownMenuItem onClick={(e) => {e.stopPropagation(); router.push(`/book/elaboraciones/${item.id}`)}}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => setItemToDelete(item.id)}>
+                          <DropdownMenuItem className="text-destructive" onClick={(e) => {e.stopPropagation(); setItemToDelete(item.id)}}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Eliminar
                           </DropdownMenuItem>
