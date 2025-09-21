@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { Utensils, ArrowLeft } from 'lucide-react';
@@ -98,6 +98,14 @@ export default function GastronomiaPage() {
     }
     setIsMounted(true);
   }, [osId, router, toast, loadAndSyncOrders]);
+
+  const sortedGastronomyOrders = useMemo(() => {
+    return [...gastronomyOrders].sort((a, b) => {
+      const dateComparison = a.fecha.localeCompare(b.fecha);
+      if (dateComparison !== 0) return dateComparison;
+      return a.horaInicio.localeCompare(b.horaInicio);
+    });
+  }, [gastronomyOrders]);
   
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Gastronomía..." />;
@@ -137,8 +145,8 @@ export default function GastronomiaPage() {
                         </TableRow>
                         </TableHeader>
                         <TableBody>
-                        {gastronomyOrders.length > 0 ? (
-                            gastronomyOrders.map(order => (
+                        {sortedGastronomyOrders.length > 0 ? (
+                            sortedGastronomyOrders.map(order => (
                             <TableRow key={order.id} onClick={() => router.push(`/gastronomia/pedido?osId=${osId}&briefingItemId=${order.id}`)} className="cursor-pointer">
                                 <TableCell>{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
                                 <TableCell>{order.horaInicio}</TableCell>
