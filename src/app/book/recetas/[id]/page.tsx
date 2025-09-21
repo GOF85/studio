@@ -88,7 +88,7 @@ type RecetaFormValues = z.infer<typeof recetaFormSchema>;
 type ElaboracionConCoste = Elaboracion & { costePorUnidad?: number; alergenos?: Alergeno[] };
 type IngredienteConERP = IngredienteInterno & { erp?: IngredienteERP };
 
-function SelectorDialog<T extends { id: string; nombre?: string; descripcion?: string; costePorUnidad?: number }>({ trigger, title, items, columns, onSelect }: { trigger: React.ReactNode; title: string; items: T[]; columns: { key: keyof T; header: string }[]; onSelect: (item: T) => void; }) {
+function SelectorDialog({ trigger, title, items, columns, onSelect }: { trigger: React.ReactNode; title: string; items: any[]; columns: { key: string; header: string }[]; onSelect: (item: any) => void; }) {
     const [open, setOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -115,7 +115,7 @@ function SelectorDialog<T extends { id: string; nombre?: string; descripcion?: s
                     <Table>
                         <TableHeader><TableRow>{columns.map(c => <TableHead key={c.key as string}>{c.header}</TableHead>)}<TableHead></TableHead></TableRow></TableHeader>
                         <TableBody>
-                            {filteredItems.map(item => (
+                            {filteredItems.map((item: any) => (
                                 <TableRow key={item.id}>
                                     {columns.map(c => <TableCell key={c.key as string}>{
                                         c.key === 'costePorUnidad' && typeof item[c.key] === 'number'
