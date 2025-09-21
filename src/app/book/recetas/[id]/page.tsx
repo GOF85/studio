@@ -9,8 +9,9 @@ import { z } from 'zod';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
-import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye } from 'lucide-react';
-import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, IngredienteERP, Alergeno, Personal, CategoriaReceta } from '@/types';
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup } from 'lucide-react';
+import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, IngredienteERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal } from '@/types';
+import { SABORES_PRINCIPALES } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -29,6 +30,7 @@ import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { MultiSelect } from '@/components/ui/multi-select';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -63,6 +65,9 @@ const recetaFormSchema = z.object({
   instruccionesMiseEnPlace: z.string().optional().default(''),
   instruccionesRegeneracion: z.string().optional().default(''),
   instruccionesEmplatado: z.string().optional().default(''),
+  perfilSaborPrincipal: z.enum(SABORES_PRINCIPALES).optional(),
+  perfilSaborSecundario: z.array(z.string()).optional().default([]),
+  perfilTextura: z.array(z.string()).optional().default([]),
 });
 
 type RecetaFormValues = z.infer<typeof recetaFormSchema>;
@@ -135,10 +140,12 @@ export default function RecetaFormPage() {
   const [dbCategorias, setDbCategorias] = useState<CategoriaReceta[]>([]);
   const [dbIngredientes, setDbIngredientes] = useState<Map<string, IngredienteConERP>>(new Map());
   const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
+  const [saboresSecundarios, setSaboresSecundarios] = useState<string[]>([]);
+  const [texturas, setTexturas] = useState<string[]>([]);
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
-    defaultValues: { nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], instruccionesMiseEnPlace: '', instruccionesRegeneracion: '', instruccionesEmplatado: '', }
+    defaultValues: { nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [] }
   });
 
   const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab } = useFieldArray({ control: form.control, name: "elaboraciones" });
@@ -196,12 +203,23 @@ export default function RecetaFormPage() {
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
 
+    // Extract existing tags for multiselect options
+    const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+    const sabores = new Set<string>();
+    const texturas = new Set<string>();
+    allRecetas.forEach(r => {
+      r.perfilSaborSecundario?.forEach(s => sabores.add(s));
+      r.perfilTextura?.forEach(t => texturas.add(t));
+    });
+    setSaboresSecundarios(Array.from(sabores));
+    setTexturas(Array.from(texturas));
+
+
     if (isEditing) {
-      const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-      const receta = recetas.find(e => e.id === id);
+      const receta = allRecetas.find(e => e.id === id);
       if (receta) form.reset(receta);
     } else {
-      form.reset({ id: Date.now().toString(), nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [] });
+      form.reset({ id: Date.now().toString(), nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [] });
     }
   }, [id, isEditing, calculateElabAlergenos, form]);
 
@@ -352,6 +370,50 @@ export default function RecetaFormPage() {
                                 </div>
                                 
                             </CardContent>
+                        </AccordionContent>
+                    </Card>
+                </AccordionItem>
+                <AccordionItem value="item-gastronomico">
+                    <Card>
+                        <AccordionTrigger className="p-4"><CardTitle className="flex items-center gap-2 text-lg"><Soup />Perfil Gastronómico</CardTitle></AccordionTrigger>
+                        <AccordionContent>
+                           <CardContent className="space-y-4 pt-2">
+                            <div className="grid md:grid-cols-3 gap-4">
+                                <FormField control={form.control} name="perfilSaborPrincipal" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Perfil Sabor Principal</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl>
+                                            <SelectContent>{SABORES_PRINCIPALES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                                        </Select>
+                                    </FormItem>
+                                )} />
+                                 <FormField control={form.control} name="perfilSaborSecundario" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Perfil Sabor Secundario</FormLabel>
+                                        <MultiSelect
+                                            options={saboresSecundarios.map(s => ({label: s, value: s}))}
+                                            selected={field.value || []}
+                                            onChange={field.onChange}
+                                            placeholder="Selecciona o crea sabores..."
+                                            onCreated={(value) => setSaboresSecundarios(prev => [...prev, value])}
+                                        />
+                                    </FormItem>
+                                 )} />
+                                  <FormField control={form.control} name="perfilTextura" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Perfil de Textura</FormLabel>
+                                         <MultiSelect
+                                            options={texturas.map(t => ({label: t, value: t}))}
+                                            selected={field.value || []}
+                                            onChange={field.onChange}
+                                            placeholder="Selecciona o crea texturas..."
+                                            onCreated={(value) => setTexturas(prev => [...prev, value])}
+                                        />
+                                    </FormItem>
+                                 )} />
+                            </div>
+                           </CardContent>
                         </AccordionContent>
                     </Card>
                 </AccordionItem>

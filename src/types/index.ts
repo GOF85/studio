@@ -402,6 +402,9 @@ export type MenajeEnReceta = {
   ratio: number; // Ej: 1 (uno por comensal), 0.5 (uno cada dos comensales)
 }
 
+export const SABORES_PRINCIPALES = ['SALADO', 'DULCE', 'ACIDO', 'AMARGO', 'UMAMI'] as const;
+export type SaborPrincipal = typeof SABORES_PRINCIPALES[number];
+
 export type Receta = {
     id: string;
     nombre: string;
@@ -424,6 +427,10 @@ export type Receta = {
     costeMateriaPrima: number; // Calculado
     precioVentaRecomendado: number; // Calculado
     alergenos: Alergeno[];
+    // --- Nuevos campos Gastronómicos ---
+    perfilSaborPrincipal?: SaborPrincipal;
+    perfilSaborSecundario?: string[];
+    perfilTextura?: string[];
 };
 
 export type MenajeDB = {
@@ -436,3 +443,4 @@ export type CategoriaReceta = {
     id: string;
     nombre: string;
 }
+
