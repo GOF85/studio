@@ -68,16 +68,17 @@ export default function RecetasPage() {
           </div>
         </div>
         
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
+        <div className="flex items-center justify-between gap-4 mb-4">
           <Input 
             placeholder="Buscar por nombre o categoría..."
             className="flex-grow max-w-lg"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-        </div>
-        
-        <div className="flex items-center justify-start gap-2 mb-4">
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages}
+            </span>
             <Button
                 variant="outline"
                 size="sm"
@@ -87,9 +88,6 @@ export default function RecetasPage() {
                 <ChevronLeft className="h-4 w-4" />
                 Anterior
             </Button>
-            <span className="text-sm text-muted-foreground">
-                Página {currentPage} de {totalPages}
-            </span>
             <Button
                 variant="outline"
                 size="sm"
@@ -99,6 +97,7 @@ export default function RecetasPage() {
                 Siguiente
                 <ChevronRight className="h-4 w-4" />
             </Button>
+          </div>
         </div>
 
 
