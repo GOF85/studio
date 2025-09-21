@@ -220,7 +220,7 @@ export default function PruebaMenuPage() {
             </h1>
           </div>
           <div className="flex gap-2">
-             <Button variant="outline" onClick={() => window.print()}>
+             <Button variant="outline" type="button" onClick={() => window.print()}>
                 <Printer className="mr-2" /> Imprimir
              </Button>
             <Button form="prueba-menu-form" type="submit" disabled={!formState.isDirty}>
