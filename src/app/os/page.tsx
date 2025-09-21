@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -179,6 +180,7 @@ export default function OsPage() {
   const [accordionDefaultValue, setAccordionDefaultValue] = useState<string[] | undefined>(undefined);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [isSubmittingFromDialog, setIsSubmittingFromDialog] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
 
   const [personal, setPersonal] = useState<Personal[]>([]);
@@ -336,6 +338,30 @@ export default function OsPage() {
     await form.handleSubmit(onSubmit)();
   };
   
+  const handleDelete = () => {
+    if (!osId) return;
+    
+    // Delete OS
+    let allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    allOS = allOS.filter(os => os.id !== osId);
+    localStorage.setItem('serviceOrders', JSON.stringify(allOS));
+
+    // Delete related data from other localStorage items
+    const keysToDeleteFrom: (keyof Window['localStorage'])[] = [
+      'materialOrders', 'comercialBriefings', 'gastronomyOrders', 'transporteOrders', 'hieloOrders', 
+      'decoracionOrders', 'atipicoOrders', 'personalMiceOrders', 'personalExternoOrders', 'pruebasMenu'
+    ];
+
+    keysToDeleteFrom.forEach(key => {
+      const data = JSON.parse(localStorage.getItem(key) || '[]') as { osId: string }[];
+      const filteredData = data.filter(item => item.osId !== osId);
+      localStorage.setItem(key, JSON.stringify(filteredData));
+    });
+
+    toast({ title: 'Orden de Servicio eliminada', description: 'Se han eliminado todos los datos asociados.' });
+    router.push('/pes');
+  };
+
   if (!isMounted) {
     return <LoadingSkeleton title={osId ? 'Editando Orden de Servicio...' : 'Creando Orden de Servicio...'} />;
   }
@@ -348,6 +374,9 @@ export default function OsPage() {
           <h1 className="text-3xl font-headline font-bold">{osId ? 'Editar' : 'Nueva'} Orden de Servicio</h1>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleBackToList}>Volver al listado</Button>
+            {osId && (
+                <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/>Borrar OS</Button>
+            )}
             <Button type="submit" form="os-form" disabled={isLoading}>
               {isLoading ? <Loader2 className="animate-spin" /> : <FileDown />}
               <span className="ml-2">{osId ? 'Guardar Cambios' : 'Guardar OS'}</span>
@@ -453,7 +482,7 @@ export default function OsPage() {
           
           <main>
             <FormProvider {...form}>
-              <form id="os-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form id="os-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
                 <Card>
                   <CardHeader className="py-3">
                     <CardTitle className="text-xl">Datos del Servicio</CardTitle>
@@ -837,6 +866,20 @@ export default function OsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta acción no se puede deshacer. Se eliminará permanentemente la Orden de Servicio y todos sus datos asociados (pedidos de material, briefings, etc.).
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar Permanentemente</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </TooltipProvider>
   );
 }
@@ -846,3 +889,4 @@ export default function OsPage() {
     
 
     
+
