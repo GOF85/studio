@@ -102,7 +102,9 @@ export default function GastronomiaPage() {
 
   const sortedGastronomyOrders = useMemo(() => {
     return [...gastronomyOrders].sort((a, b) => {
-      const dateComparison = a.fecha.localeCompare(b.fecha);
+      const dateA = new Date(a.fecha);
+      const dateB = new Date(b.fecha);
+      const dateComparison = dateA.getTime() - dateB.getTime();
       if (dateComparison !== 0) return dateComparison;
       return a.horaInicio.localeCompare(b.horaInicio);
     });
