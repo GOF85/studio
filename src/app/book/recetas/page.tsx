@@ -4,28 +4,35 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
-import type { Receta } from '@/types';
+import type { Receta, CategoriaReceta } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const ITEMS_PER_PAGE = 20;
 
 export default function RecetasPage() {
   const [items, setItems] = useState<Receta[]>([]);
+  const [categories, setCategories] = useState<CategoriaReceta[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showVisibleOnly, setShowVisibleOnly] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   
   const router = useRouter();
   
   useEffect(() => {
-    let storedData = localStorage.getItem('recetas');
-    setItems(storedData ? JSON.parse(storedData) : []);
+    const storedRecipes = localStorage.getItem('recetas');
+    setItems(storedRecipes ? JSON.parse(storedRecipes) : []);
+    
+    const storedCategories = localStorage.getItem('categoriasRecetas');
+    setCategories(storedCategories ? JSON.parse(storedCategories) : []);
+
     setIsMounted(true);
   }, []);
 
@@ -34,9 +41,10 @@ export default function RecetasPage() {
         const matchesVisibility = !showVisibleOnly || item.visibleParaComerciales;
         const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.categoria || '').toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesVisibility && matchesSearch;
+        const matchesCategory = selectedCategory === 'all' || item.categoria === selectedCategory;
+      return matchesVisibility && matchesSearch && matchesCategory;
     });
-  }, [items, searchTerm, showVisibleOnly]);
+  }, [items, searchTerm, showVisibleOnly, selectedCategory]);
 
   const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
   const paginatedItems = useMemo(() => {
@@ -72,40 +80,51 @@ export default function RecetasPage() {
           </div>
         </div>
         
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <Input 
-            placeholder="Buscar por nombre o categoría..."
-            className="flex-grow max-w-lg"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <div className="flex items-center space-x-2">
-            <Checkbox id="visible-comerciales" checked={showVisibleOnly} onCheckedChange={(checked) => setShowVisibleOnly(Boolean(checked))} />
-            <label htmlFor="visible-comerciales" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"><Eye size={16}/>Mostrar solo visibles para comerciales</label>
-          </div>
-          <div className="flex items-center justify-end gap-2">
-            <span className="text-sm text-muted-foreground">
-                Página {currentPage} de {totalPages || 1}
-            </span>
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-            >
-                <ChevronLeft className="h-4 w-4" />
-                Anterior
-            </Button>
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages}
-            >
-                Siguiente
-                <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 items-center">
+            <div className="lg:col-span-1">
+                <Input 
+                    placeholder="Buscar por nombre o categoría..."
+                    className="w-full"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+            <div className="lg:col-span-2 flex items-center justify-between gap-4">
+                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="w-full max-w-xs">
+                        <SelectValue placeholder="Filtrar por categoría" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todas las Categorías</SelectItem>
+                        {categories.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                <div className="flex items-center space-x-2 whitespace-nowrap">
+                    <Checkbox id="visible-comerciales" checked={showVisibleOnly} onCheckedChange={(checked) => setShowVisibleOnly(Boolean(checked))} />
+                    <label htmlFor="visible-comerciales" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"><Eye size={16}/>Mostrar solo visibles</label>
+                </div>
+                <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                    <span className="text-sm text-muted-foreground">
+                        Pág. {currentPage}/{totalPages || 1}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePreviousPage}
+                        disabled={currentPage === 1}
+                    >
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNextPage}
+                        disabled={currentPage === totalPages}
+                    >
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
         </div>
 
 
