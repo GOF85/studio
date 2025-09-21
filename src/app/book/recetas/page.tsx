@@ -3,13 +3,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, BookHeart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import type { Receta } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -17,6 +18,7 @@ export default function RecetasPage() {
   const [items, setItems] = useState<Receta[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showVisibleOnly, setShowVisibleOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   
   const router = useRouter();
@@ -28,11 +30,13 @@ export default function RecetasPage() {
   }, []);
 
   const filteredItems = useMemo(() => {
-    return items.filter(item => 
-      item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.categoria || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [items, searchTerm]);
+    return items.filter(item => {
+        const matchesVisibility = !showVisibleOnly || item.visibleParaComerciales;
+        const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.categoria || '').toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesVisibility && matchesSearch;
+    });
+  }, [items, searchTerm, showVisibleOnly]);
 
   const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
   const paginatedItems = useMemo(() => {
@@ -75,9 +79,13 @@ export default function RecetasPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          <div className="flex items-center space-x-2">
+            <Checkbox id="visible-comerciales" checked={showVisibleOnly} onCheckedChange={(checked) => setShowVisibleOnly(Boolean(checked))} />
+            <label htmlFor="visible-comerciales" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"><Eye size={16}/>Mostrar solo visibles para comerciales</label>
+          </div>
           <div className="flex items-center justify-end gap-2">
             <span className="text-sm text-muted-foreground">
-                Página {currentPage} de {totalPages}
+                Página {currentPage} de {totalPages || 1}
             </span>
             <Button
                 variant="outline"

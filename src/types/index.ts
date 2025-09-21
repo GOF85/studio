@@ -405,6 +405,7 @@ export type MenajeEnReceta = {
 export type Receta = {
     id: string;
     nombre: string;
+    visibleParaComerciales: boolean;
     descripcionComercial: string;
     responsableEscandallo: string;
     categoria: string;
@@ -429,4 +430,9 @@ export type MenajeDB = {
     id: string;
     descripcion: string;
     fotoURL?: string;
+}
+
+export type CategoriaReceta = {
+    id: string;
+    nombre: string;
 }
