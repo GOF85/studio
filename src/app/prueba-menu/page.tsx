@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Euro, Printer, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Euro, Printer, Loader2, UtensilsCrossed } from 'lucide-react';
 import type { ServiceOrder, PruebaMenuData, PruebaMenuItem, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { Separator } from '@/components/ui/separator';
 
 
 const pruebaMenuItemSchema = z.object({
@@ -194,6 +195,7 @@ export default function PruebaMenuPage() {
           </div>
         </CardHeader>
         <CardContent className="pt-0">
+          <h3 className="text-xl font-bold text-primary my-4 printable-only">{mainCategory.charAt(0) + mainCategory.slice(1).toLowerCase()}</h3>
           <div className="border rounded-lg">
             <Table>
               <TableHeader>
@@ -286,14 +288,20 @@ export default function PruebaMenuPage() {
           </div>
           
           <div id="printable-area">
-            <Card className="mb-6 printable-area-card">
+            <Card className="mb-6 printable-area-card relative">
+                <div className="absolute top-4 right-4 printable-only">
+                    <UtensilsCrossed className="h-10 w-10 text-primary" />
+                </div>
                 <CardContent className="p-4 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
                     <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
                     <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
                     <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
                     <div><strong>Cliente:</strong> {serviceOrder.client}</div>
                     <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
-                    <h4 className="font-bold col-span-full mb-1 mt-2">Datos del Evento</h4>
+                    <div className="col-span-full my-2">
+                        <Separator />
+                    </div>
+                    <h4 className="font-bold col-span-full mb-1">Datos del Evento</h4>
                     <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
                     <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
                     <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
@@ -301,26 +309,29 @@ export default function PruebaMenuPage() {
             </Card>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-background no-print">
-                <FormLabel className="font-semibold text-base flex items-center gap-2"><Euro />Coste de la prueba de menú</FormLabel>
-                <FormField
-                    control={control}
-                    name="costePruebaMenu"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormControl>
-                                <Input 
-                                    type="number" 
-                                    step="0.01" 
-                                    {...field} 
-                                    className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
-                                />
-                            </FormControl>
-                        </FormItem>
-                    )}
-                />
-                <FormLabel className="font-semibold text-base pl-6">Asistentes a la prueba</FormLabel>
-                <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
+                <div className="flex items-center gap-4 p-4 border rounded-lg bg-background no-print">
+                    <FormLabel className="font-semibold text-base flex items-center gap-2"><Euro />Coste de la prueba de menú</FormLabel>
+                    <div className="flex items-center gap-2">
+                        <FormField
+                            control={control}
+                            name="costePruebaMenu"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormControl>
+                                        <Input 
+                                            type="number" 
+                                            step="0.01" 
+                                            {...field} 
+                                            className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                        <span className="text-lg font-bold">€</span>
+                    </div>
+                    <FormLabel className="font-semibold text-base pl-6">Asistentes a la prueba</FormLabel>
+                    <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
                 </div>
 
                 <div className="space-y-6">

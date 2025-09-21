@@ -129,6 +129,11 @@
   display: none !important;
 }
 
+.printing #printable-area table td {
+  height: 2.5rem; 
+}
+
+
 @media print {
   .no-print {
     display: none !important;
@@ -146,5 +151,14 @@
   }
   .printable-area table td, .printable-area table th {
     border: 1px solid hsl(var(--border));
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
   }
+  .printable-only {
+    display: block !important;
+  }
+}
+
+.printable-only {
+    display: none;
 }
