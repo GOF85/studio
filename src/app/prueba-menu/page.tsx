@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import autoTable from 'jspdf-autotable';
 import { Separator } from '@/components/ui/separator';
 
 
@@ -123,81 +123,142 @@ export default function PruebaMenuPage() {
   };
   
 const handlePrint = async () => {
-    const printableArea = document.getElementById('printable-area');
-    if (!printableArea) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el área de impresión.' });
-        return;
-    }
-
+    if (!serviceOrder) return;
     setIsPrinting(true);
 
-    // Clonar el área para no modificar el DOM original
-    const clone = printableArea.cloneNode(true) as HTMLElement;
-    document.body.appendChild(clone);
-    clone.classList.add('printing');
-
-    // Eliminar elementos no deseados del clon
-    clone.querySelectorAll('.no-print').forEach(el => el.remove());
-
     try {
-        const headerElement = clone.querySelector('#printable-header') as HTMLElement;
-        const contentElement = clone.querySelector('#printable-content') as HTMLElement;
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const margin = 15;
+        const pageHeight = doc.internal.pageSize.getHeight();
+        let finalY = margin;
 
-        if (!headerElement || !contentElement) throw new Error('Elementos de impresión no encontrados en el clon.');
-
-        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const margin = 10;
-        const usableWidth = pdfWidth - margin * 2;
-
-        const headerCanvas = await html2canvas(headerElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-        const headerImgData = headerCanvas.toDataURL('image/png');
-        const headerImgHeight = (headerCanvas.height * usableWidth) / headerCanvas.width;
-
-        const contentCanvas = await html2canvas(contentElement, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-        const contentImgHeight = (contentCanvas.height * usableWidth) / contentCanvas.width;
+        // --- DIBUJAR CABECERA ---
+        // Icono (SVG como string)
+        const svgIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-utensils-crossed"><path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8"/><path d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7"/><path d="m2.1 2.1 6.4 6.4"/><path d="m19 5-7 7"/></svg>';
+        doc.setFontSize(10);
+        doc.setTextColor('#059669'); // Color primario
+        doc.text(svgIcon, doc.internal.pageSize.getWidth() - margin - 5, margin, {renderingMode: 'font'}); // Simplificado
         
-        const pageHeight = pdf.internal.pageSize.getHeight() - margin * 2;
-        let contentPosition = 0;
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor('#059669'); // Primary color
+        doc.text('Prueba de Menú', margin, finalY);
+        finalY += 10;
+        doc.setLineWidth(0.5);
+        doc.setDrawColor('#e5e7eb'); // Border color
+        doc.line(margin, finalY, doc.internal.pageSize.getWidth() - margin, finalY);
+        finalY += 8;
 
-        const addPageWithHeader = () => {
-            pdf.addImage(headerImgData, 'PNG', margin, margin, usableWidth, headerImgHeight);
-            return margin + headerImgHeight + 5;
-        };
+        // --- DATOS SERVICIO Y EVENTO ---
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor('#374151'); // Gris oscuro
+        
+        const serviceData = [
+            ['Nº Servicio:', serviceOrder.serviceNumber],
+            ['Comercial:', serviceOrder.comercial || '-'],
+            ['Cliente:', serviceOrder.client],
+            ['Cliente Final:', serviceOrder.finalClient || '-']
+        ];
+        const eventData = [
+            ['Fecha Evento:', format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
+            ['Asistentes:', String(serviceOrder.asistentes)],
+            ['Servicios:', briefingItems.map(i => i.descripcion).join(', ') || '-']
+        ];
 
-        let currentPageY = addPageWithHeader();
+        autoTable(doc, {
+            body: serviceData,
+            startY: finalY,
+            theme: 'plain',
+            tableWidth: (doc.internal.pageSize.getWidth() - margin * 2) / 2 - 5,
+            styles: { fontSize: 9, cellPadding: 0.5 },
+            columnStyles: { 0: { fontStyle: 'bold' } }
+        });
+        autoTable(doc, {
+            body: eventData,
+            startY: finalY,
+            theme: 'plain',
+            tableWidth: (doc.internal.pageSize.getWidth() - margin * 2) / 2 - 5,
+            margin: { left: doc.internal.pageSize.getWidth() / 2 + 5 },
+            styles: { fontSize: 9, cellPadding: 0.5 },
+            columnStyles: { 0: { fontStyle: 'bold' } }
+        });
 
-        while (contentPosition < contentImgHeight) {
-            const remainingOnPage = pageHeight - (currentPageY - margin);
-            const sliceHeightOnCanvas = (remainingOnPage / usableWidth) * contentCanvas.width;
+        finalY = (doc as any).lastAutoTable.finalY + 10;
 
-            pdf.addImage(
-                contentCanvas,
-                'PNG',
-                margin, currentPageY,
-                usableWidth, contentImgHeight - contentPosition, // Check if this is right
-                '', 'FAST', 
-                0, // srcX
-                (contentPosition / usableWidth) * contentCanvas.width, // srcY
-                contentCanvas.width, // srcWidth
-                sliceHeightOnCanvas // srcHeight
-            );
-            
-            contentPosition += remainingOnPage;
+        // --- TABLAS DE BODEGA Y GASTRONOMÍA ---
+        const addSection = (category: 'BODEGA' | 'GASTRONOMÍA') => {
+            const sectionItems = form.getValues('items').filter(item => item.mainCategory === category);
+            if(sectionItems.length === 0) return;
 
-            if (contentPosition < contentImgHeight) {
-                pdf.addPage();
-                currentPageY = addPageWithHeader();
+            if (finalY + 30 > pageHeight) { // Check if new section fits
+                doc.addPage();
+                finalY = margin;
             }
+
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor('#059669');
+            doc.text(category.charAt(0) + category.slice(1).toLowerCase(), margin, finalY);
+            finalY += 6;
+
+            const body = sectionItems.map(item => {
+                if(item.type === 'header') {
+                    return [{ content: item.referencia, colSpan: 2, styles: { fontStyle: 'bold', fillColor: '#f3f4f6' } }];
+                }
+                return [item.referencia, item.observaciones || ' '];
+            });
+
+            autoTable(doc, {
+                head: [['Referencias', 'Observaciones']],
+                body,
+                startY: finalY,
+                theme: 'grid',
+                styles: {
+                    fontSize: 9,
+                    cellPadding: 3,
+                    valign: 'middle',
+                },
+                headStyles: {
+                    fillColor: '#e5e7eb',
+                    textColor: '#374151',
+                    fontStyle: 'bold'
+                },
+                 minCellHeight: 15,
+            });
+            finalY = (doc as any).lastAutoTable.finalY + 15;
         }
-        
-        pdf.save('prueba-de-menu.pdf');
+
+        addSection('BODEGA');
+        addSection('GASTRONOMÍA');
+
+        // --- OBSERVACIONES GENERALES ---
+        const obsGenerales = form.getValues('observacionesGenerales');
+        if (obsGenerales) {
+            if (finalY + 30 > pageHeight) { // Check if new section fits
+                doc.addPage();
+                finalY = margin;
+            }
+             doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor('#059669');
+            doc.text('Observaciones Generales', margin, finalY);
+            finalY += 8;
+            doc.setDrawColor('#e5e7eb');
+            doc.rect(margin, finalY, doc.internal.pageSize.getWidth() - margin * 2, 40);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor('#374151');
+            doc.text(obsGenerales, margin + 2, finalY + 5, { maxWidth: doc.internal.pageSize.getWidth() - margin * 2 - 4 });
+        }
+
+
+        doc.save(`PruebaMenu_${serviceOrder.serviceNumber}.pdf`);
 
     } catch (error) {
         console.error("Error generating PDF:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
     } finally {
-        document.body.removeChild(clone);
         setIsPrinting(false);
     }
 };
@@ -217,7 +278,7 @@ const handlePrint = async () => {
 
     return (
       <Card>
-        <CardHeader className="flex-row items-center justify-between py-4 no-print">
+        <CardHeader className="flex-row items-center justify-between py-4">
           <CardTitle>{mainCategory.charAt(0) + mainCategory.slice(1).toLowerCase()}</CardTitle>
           <div className="flex gap-2">
             <Button size="sm" type="button" variant="outline" onClick={() => addRow(mainCategory, 'header')}>+ Subcategoría</Button>
@@ -225,14 +286,13 @@ const handlePrint = async () => {
           </div>
         </CardHeader>
         <CardContent className="pt-0">
-          <h3 className="text-xl font-bold text-primary my-4 printable-only">{mainCategory.charAt(0) + mainCategory.slice(1).toLowerCase()}</h3>
           <div className="border rounded-lg">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="p-2 border-r">Referencias</TableHead>
                   <TableHead className="p-2">Observaciones</TableHead>
-                  <TableHead className="w-12 p-2 no-print"></TableHead>
+                  <TableHead className="w-12 p-2"></TableHead>
                 </TableRow>
               </TableHeader>
                 <TableBody>
@@ -264,7 +324,7 @@ const handlePrint = async () => {
                             )}
                             />
                         </TableCell>
-                        <TableCell className={cn("py-1 px-2 no-print", field.type === 'header' && "bg-muted/50")}>
+                        <TableCell className={cn("py-1 px-2", field.type === 'header' && "bg-muted/50")}>
                             <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}>
                             <Trash2 className="h-4 w-4" />
                             </Button>
@@ -294,7 +354,7 @@ const handlePrint = async () => {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
-            <div className="flex items-start justify-between mb-8 no-print">
+            <div className="flex items-start justify-between mb-8">
                 <div>
                 <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)}>
                     <ArrowLeft className="mr-2" />
@@ -317,90 +377,81 @@ const handlePrint = async () => {
                 </div>
             </div>
             
-            <Separator className="my-6 no-print" />
+            <Card className="mb-6">
+                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <div>
+                        <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
+                        <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
+                        <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
+                        <div><strong>Cliente:</strong> {serviceOrder.client}</div>
+                        <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
+                    </div>
+                    <Separator className="my-2 md:hidden" />
+                    <div>
+                        <h4 className="font-bold col-span-full mb-1">Datos del Evento</h4>
+                        <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
+                        <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
+                        <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
+                    </div>
+                </CardContent>
+            </Card>
 
-            <div id="printable-area" className="relative">
-                <div id="printable-header">
-                    <div className="mb-6 printable-area-card relative border rounded-lg">
-                         <div className="printable-only absolute top-2 right-2">
-                            <UtensilsCrossed className="h-10 w-10 text-primary" />
-                        </div>
-                        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                            <div>
-                                <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
-                                <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
-                                <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
-                                <div><strong>Cliente:</strong> {serviceOrder.client}</div>
-                                <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
-                            </div>
-                            <Separator className="my-2 md:hidden" />
-                            <div>
-                                <h4 className="font-bold col-span-full mb-1">Datos del Evento</h4>
-                                <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
-                                <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
-                                <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
-                            </div>
-                        </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                <div className="flex items-center gap-4 p-4 border rounded-lg bg-background">
+                     <div className="flex items-center gap-2">
+                        <FormLabel className="font-semibold text-base whitespace-nowrap">Asistentes a la prueba</FormLabel>
+                        <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
+                    </div>
+                     <div className="flex items-center gap-2 ml-auto">
+                        <FormLabel className="font-semibold text-base flex items-center gap-2 whitespace-nowrap">Coste de la prueba de menú</FormLabel>
+                        <FormField
+                            control={control}
+                            name="costePruebaMenu"
+                            render={({ field }) => (
+                                <FormItem className="flex items-center gap-2">
+                                    <FormControl>
+                                        <Input 
+                                            type="number" 
+                                            step="0.01" 
+                                            {...field} 
+                                            className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
+                                        />
+                                    </FormControl>
+                                    <span className="text-lg font-bold">€</span>
+                                </FormItem>
+                            )}
+                        />
                     </div>
                 </div>
-                
-                 <div id="printable-content">
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                        <div className="flex items-center gap-4 p-4 border rounded-lg bg-background no-print">
-                             <FormLabel className="font-semibold text-base flex items-center gap-2 whitespace-nowrap"><Euro />Coste de la prueba de menú</FormLabel>
-                                <FormField
-                                    control={control}
-                                    name="costePruebaMenu"
-                                    render={({ field }) => (
-                                        <FormItem className="flex items-center gap-2">
-                                            <FormControl>
-                                                <Input 
-                                                    type="number" 
-                                                    step="0.01" 
-                                                    {...field} 
-                                                    className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
-                                                />
-                                            </FormControl>
-                                            <span className="text-lg font-bold">€</span>
-                                        </FormItem>
-                                    )}
-                                />
-                                <div className="flex items-center gap-2 ml-auto">
-                                    <FormLabel className="font-semibold text-base whitespace-nowrap">Asistentes a la prueba</FormLabel>
-                                    <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
-                                </div>
-                        </div>
 
-                        <div className="space-y-6">
-                            {renderSection('BODEGA')}
-                            {renderSection('GASTRONOMÍA')}
+                <div className="space-y-6">
+                    {renderSection('BODEGA')}
+                    {renderSection('GASTRONOMÍA')}
 
-                            <Card>
-                                <CardHeader className="py-4">
-                                <CardTitle>Observaciones Generales</CardTitle>
-                                </CardHeader>
-                                <CardContent className="pt-0">
-                                    <FormField
-                                    control={control}
-                                    name="observacionesGenerales"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                        <FormControl>
-                                            <Textarea
-                                            placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
-                                            rows={4}
-                                            {...field}
-                                            />
-                                        </FormControl>
-                                        </FormItem>
-                                    )}
+                    <Card>
+                        <CardHeader className="py-4">
+                        <CardTitle>Observaciones Generales</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            <FormField
+                            control={control}
+                            name="observacionesGenerales"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormControl>
+                                    <Textarea
+                                    placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
+                                    rows={4}
+                                    {...field}
                                     />
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </form>
-                 </div>
-            </div>
+                                </FormControl>
+                                </FormItem>
+                            )}
+                            />
+                        </CardContent>
+                    </Card>
+                </div>
+            </form>
         </Form>
       </main>
     </>

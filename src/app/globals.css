@@ -125,49 +125,8 @@
   }
 }
 
-.printing .no-print {
-  display: none !important;
-}
-
-.printing #printable-area table td,
-.printing #printable-area table th {
-  padding-top: 3rem !important;
-  padding-bottom: 3rem !important;
-  border: 1px solid hsl(var(--border)) !important;
-  vertical-align: middle;
-  font-size: 0.8rem;
-}
-
-
 @media print {
   .no-print {
     display: none !important;
   }
-  body {
-    background-color: white;
-  }
-  .printable-area {
-    box-shadow: none !important;
-    border: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-  
-  .printable-area table td, .printable-area table th {
-    padding-top: 3rem !important;
-    padding-bottom: 3rem !important;
-    border: 1px solid hsl(var(--border));
-    vertical-align: middle;
-    font-size: 0.8rem;
-  }
-
-  .printable-only {
-    display: block !important;
-  }
-}
-
-.printable-only {
-    display: none;
 }

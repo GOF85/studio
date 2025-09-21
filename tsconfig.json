@@ -22,7 +22,7 @@
       "@/*": ["./src/*"],
       "@/dnd/*": ["components/dnd/*"]
     },
-    "types": ["node", "@types/papaparse", "@types/nprogress"]
+    "types": ["node", "@types/papaparse", "@types/nprogress", "jspdf-autotable"]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
