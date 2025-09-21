@@ -34,6 +34,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Combobox } from '@/components/ui/combobox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Slider } from '@/components/ui/slider';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -77,6 +78,9 @@ const recetaFormSchema = z.object({
   potencialMiseEnPlace: z.enum(['COMPLETO', 'PARCIAL', 'AL_MOMENTO']).optional(),
   formatoServicioIdeal: z.array(z.string()).optional().default([]),
   equipamientoCritico: z.array(z.string()).optional().default([]),
+  dificultadProduccion: z.coerce.number().min(1).max(5).optional().default(3),
+  estabilidadBuffet: z.coerce.number().min(1).max(5).optional().default(3),
+  escalabilidad: z.enum(['FACIL', 'MEDIA', 'DIFICIL']).optional(),
 });
 
 type RecetaFormValues = z.infer<typeof recetaFormSchema>;
@@ -498,8 +502,7 @@ export default function RecetaFormPage() {
                     <Card>
                         <AccordionTrigger className="p-4"><CardTitle className="flex items-center gap-2 text-lg"><Factory />Logística y Producción</CardTitle></AccordionTrigger>
                         <AccordionContent>
-                           <CardContent className="space-y-4 pt-2">
-                            <div className="grid md:grid-cols-3 gap-4">
+                           <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2 items-start">
                                 <FormField control={form.control} name="potencialMiseEnPlace" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel className="flex items-center gap-1.5">Potencial de "Mise en Place" <InfoTooltip text="Indica qué parte del plato se puede adelantar para optimizar la producción." /></FormLabel>
@@ -537,7 +540,43 @@ export default function RecetaFormPage() {
                                         />
                                     </FormItem>
                                  )} />
-                            </div>
+                                <FormField control={form.control} name="dificultadProduccion" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="flex items-center gap-1.5">Nivel de Dificultad (1-5) <InfoTooltip text="Valora de 1 (muy fácil) a 5 (muy complejo) la dificultad de producir esta receta."/></FormLabel>
+                                        <FormControl>
+                                            <div className="flex items-center gap-4 pt-2">
+                                                <span>Fácil</span>
+                                                <Slider defaultValue={[field.value || 3]} value={[field.value || 3]} onValueChange={(value) => field.onChange(value[0])} max={5} min={1} step={1} />
+                                                <span>Difícil</span>
+                                            </div>
+                                        </FormControl>
+                                    </FormItem>
+                                 )} />
+                                <FormField control={form.control} name="estabilidadBuffet" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="flex items-center gap-1.5">Estabilidad en Buffet (1-5) <InfoTooltip text="Valora de 1 (muy poco estable) a 5 (muy estable) cuánto tiempo mantiene el plato su calidad en un buffet."/></FormLabel>
+                                        <FormControl>
+                                            <div className="flex items-center gap-4 pt-2">
+                                                <span>Baja</span>
+                                                <Slider defaultValue={[field.value || 3]} value={[field.value || 3]} onValueChange={(value) => field.onChange(value[0])} max={5} min={1} step={1} />
+                                                <span>Alta</span>
+                                            </div>
+                                        </FormControl>
+                                    </FormItem>
+                                 )} />
+                                <FormField control={form.control} name="escalabilidad" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="flex items-center gap-1.5">Escalabilidad <InfoTooltip text="Indica si es fácil o difícil replicar esta receta para un gran número de comensales."/></FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="FACIL">Fácil de escalar</SelectItem>
+                                                <SelectItem value="MEDIA">Escalabilidad media</SelectItem>
+                                                <SelectItem value="DIFICIL">Difícil de escalar</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </FormItem>
+                                )} />
                            </CardContent>
                         </AccordionContent>
                     </Card>

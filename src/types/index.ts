@@ -438,6 +438,9 @@ export type Receta = {
     potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL' | 'AL_MOMENTO';
     formatoServicioIdeal?: string[];
     equipamientoCritico?: string[];
+    dificultadProduccion?: number; // 1-5
+    estabilidadBuffet?: number; // 1-5
+    escalabilidad?: 'FACIL' | 'MEDIA' | 'DIFICIL';
 };
 
 export type MenajeDB = {
