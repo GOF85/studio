@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, DollarSign } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Euro } from 'lucide-react';
 import type { ServiceOrder, PruebaMenuData, PruebaMenuItem, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -243,27 +243,27 @@ export default function PruebaMenuPage() {
                     </CardContent>
                 </Card>
             
-            <Card className="mb-6 no-print">
-                <CardHeader className="py-4">
-                    <CardTitle className="text-lg flex items-center gap-2"><DollarSign/> Costes Adicionales</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-6 pt-0">
-                    <FormField
-                        control={control}
-                        name="costePruebaMenu"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Coste de la prueba de menú</FormLabel>
-                                <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                            </FormItem>
-                        )}
-                    />
-                    <FormItem>
-                        <FormLabel>Asistentes a la prueba</FormLabel>
-                        <FormControl><Input value={asistentesPrueba} readOnly /></FormControl>
-                    </FormItem>
-                </CardContent>
-            </Card>
+                 <Card className="mb-6 no-print">
+                    <CardHeader className="py-4">
+                        <CardTitle className="text-lg flex items-center gap-2"><Euro/> Costes Adicionales</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-2 gap-6 pt-0">
+                         <FormField
+                            control={control}
+                            name="costePruebaMenu"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Coste de la prueba de menú</FormLabel>
+                                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                                </FormItem>
+                            )}
+                        />
+                        <FormItem>
+                            <FormLabel>Asistentes a la prueba</FormLabel>
+                            <FormControl><Input value={asistentesPrueba} readOnly /></FormControl>
+                        </FormItem>
+                    </CardContent>
+                </Card>
 
             <div className="space-y-6">
                 {renderSection('BODEGA')}
