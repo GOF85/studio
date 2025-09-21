@@ -3,19 +3,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, BookHeart } from 'lucide-react';
+import { PlusCircle, BookHeart, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Receta } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+
+const ITEMS_PER_PAGE = 20;
 
 export default function RecetasPage() {
   const [items, setItems] = useState<Receta[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   
   const router = useRouter();
   
@@ -31,6 +33,20 @@ export default function RecetasPage() {
       (item.categoria || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [items, searchTerm]);
+
+  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredItems, currentPage]);
+
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(1, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+  };
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Recetas..." />;
@@ -52,7 +68,7 @@ export default function RecetasPage() {
           </div>
         </div>
         
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4 mb-4">
           <Input 
             placeholder="Buscar por nombre o categoría..."
             className="flex-grow max-w-lg"
@@ -60,27 +76,52 @@ export default function RecetasPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        
+        <div className="flex items-center justify-start gap-2 mb-4">
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+            >
+                <ChevronLeft className="h-4 w-4" />
+                Anterior
+            </Button>
+            <span className="text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages}
+            </span>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+            >
+                Siguiente
+                <ChevronRight className="h-4 w-4" />
+            </Button>
+        </div>
+
 
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nombre Receta</TableHead>
-                <TableHead>Categoría</TableHead>
-                <TableHead>Responsable</TableHead>
-                <TableHead>Coste Materia Prima</TableHead>
-                <TableHead>Precio Venta Rec.</TableHead>
+                <TableHead className="py-2">Nombre Receta</TableHead>
+                <TableHead className="py-2">Categoría</TableHead>
+                <TableHead className="py-2">Partida Producción</TableHead>
+                <TableHead className="py-2">Coste M.P.</TableHead>
+                <TableHead className="py-2">Precio Venta Rec.</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredItems.length > 0 ? (
-                filteredItems.map(item => (
+              {paginatedItems.length > 0 ? (
+                paginatedItems.map(item => (
                   <TableRow key={item.id} onClick={() => router.push(`/book/recetas/${item.id}`)} className="cursor-pointer">
-                    <TableCell className="font-medium">{item.nombre}</TableCell>
-                    <TableCell>{item.categoria}</TableCell>
-                    <TableCell>{item.responsableEscandallo}</TableCell>
-                    <TableCell>{(item.costeMateriaPrima || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                     <TableCell className="font-bold text-primary">{(item.precioVentaRecomendado || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell className="font-medium py-2">{item.nombre}</TableCell>
+                    <TableCell className="py-2">{item.categoria}</TableCell>
+                    <TableCell className="py-2">{item.partidaProduccion}</TableCell>
+                    <TableCell className="py-2">{(item.costeMateriaPrima || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                     <TableCell className="font-bold text-primary py-2">{(item.precioVentaRecomendado || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                   </TableRow>
                 ))
               ) : (
