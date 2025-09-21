@@ -125,8 +125,11 @@
   }
 }
 
-.printing #printable-area table td {
-  height: 2.5rem; 
+.printing #printable-area table td,
+.printing #printable-area table th {
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
+  border: 1px solid hsl(var(--border)) !important;
 }
 
 

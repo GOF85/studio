@@ -300,9 +300,7 @@ export default function PruebaMenuPage() {
                             <div><strong>Cliente:</strong> {serviceOrder.client}</div>
                             <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
                         </div>
-                        <div className="my-2 md:hidden">
-                            <Separator />
-                        </div>
+                        <Separator className="my-2 md:hidden" />
                         <div>
                             <h4 className="font-bold col-span-full mb-1">Datos del Evento</h4>
                             <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
