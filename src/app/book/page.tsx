@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
-import { BookHeart, ChefHat, Component, Package, GlassWater, ChevronRight, ChevronLeft } from 'lucide-react';
+import { BookHeart, ChefHat, Component, Package, GlassWater, ChevronRight, ChevronLeft, PlusCircle, Menu } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import type { Receta } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useRouter } from 'next/navigation';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -62,36 +63,45 @@ export default function BookDashboardPage() {
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-headline font-bold flex items-center gap-3"><BookHeart size={24}/>Book Gastronómico</h1>
-            <Button asChild>
-                <Link href="/book/recetas/nueva">Nueva Receta</Link>
-            </Button>
+            <div className="flex gap-2">
+                <Button asChild>
+                    <Link href="/book/recetas/nueva"><PlusCircle className="mr-2"/>Nueva Receta</Link>
+                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon">
+                            <Menu />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                             <Link href="/book/elaboraciones"><Component size={16} className="mr-2"/>Elaboraciones</Link>
+                        </DropdownMenuItem>
+                         <DropdownMenuItem asChild>
+                             <Link href="/book/ingredientes"><ChefHat size={16} className="mr-2"/>Ingredientes</Link>
+                        </DropdownMenuItem>
+                         <DropdownMenuItem asChild>
+                             <Link href="/book/ingredientes-erp"><Package size={16} className="mr-2"/>Materia Prima (ERP)</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                             <Link href="/menaje-db"><GlassWater size={16} className="mr-2"/>Menaje</Link>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
         </div>
         
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <Button asChild variant="outline" className="justify-start h-12 text-base">
-                <Link href="/book/elaboraciones"><Component size={18} className="mr-2"/>Elaboraciones</Link>
-            </Button>
-            <Button asChild variant="outline" className="justify-start h-12 text-base">
-                <Link href="/book/ingredientes"><ChefHat size={18} className="mr-2"/>Ingredientes</Link>
-            </Button>
-            <Button asChild variant="outline" className="justify-start h-12 text-base">
-                <Link href="/book/ingredientes-erp"><Package size={18} className="mr-2"/>Materia Prima (ERP)</Link>
-            </Button>
-             <Button asChild variant="outline" className="justify-start h-12 text-base">
-                <Link href="/menaje-db"><GlassWater size={18} className="mr-2"/>Menaje</Link>
-            </Button>
-        </div>
-        
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
+        <div className="flex items-center justify-between gap-4 mb-4">
           <Input 
             placeholder="Buscar recetas por nombre o categoría..."
             className="flex-grow max-w-lg"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-        </div>
-        
-        <div className="flex items-center justify-start gap-2 mb-4">
+           <div className="flex items-center justify-end gap-2">
+            <span className="text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages || 1}
+            </span>
             <Button
                 variant="outline"
                 size="sm"
@@ -101,9 +111,6 @@ export default function BookDashboardPage() {
                 <ChevronLeft className="h-4 w-4" />
                 Anterior
             </Button>
-            <span className="text-sm text-muted-foreground">
-                Página {currentPage} de {totalPages}
-            </span>
             <Button
                 variant="outline"
                 size="sm"
@@ -113,6 +120,7 @@ export default function BookDashboardPage() {
                 Siguiente
                 <ChevronRight className="h-4 w-4" />
             </Button>
+          </div>
         </div>
 
         <div className="border rounded-lg">
