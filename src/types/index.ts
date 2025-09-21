@@ -427,20 +427,22 @@ export type Receta = {
     costeMateriaPrima: number; // Calculado
     precioVentaRecomendado: number; // Calculado
     alergenos: Alergeno[];
-    // --- Nuevos campos Gastronómicos ---
+    // --- Atributos Gastronómicos ---
     perfilSaborPrincipal?: SaborPrincipal;
     perfilSaborSecundario?: string[];
     perfilTextura?: string[];
     tipoCocina?: string;
     temperaturaServicio?: 'CALIENTE' | 'TIBIO' | 'AMBIENTE' | 'FRIO' | 'HELADO';
     tecnicaCoccionPrincipal?: string;
-    // --- Nuevos campos Logísticos ---
+    // --- Atributos Logísticos ---
     potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL' | 'AL_MOMENTO';
     formatoServicioIdeal?: string[];
     equipamientoCritico?: string[];
     dificultadProduccion?: number; // 1-5
     estabilidadBuffet?: number; // 1-5
     escalabilidad?: 'FACIL' | 'MEDIA' | 'DIFICIL';
+    // --- Atributos Comerciales ---
+    etiquetasTendencia?: string[];
 };
 
 export type MenajeDB = {

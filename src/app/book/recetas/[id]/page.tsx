@@ -10,7 +10,7 @@ import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSe
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
 
-import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles } from 'lucide-react';
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp } from 'lucide-react';
 import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, IngredienteERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina } from '@/types';
 import { SABORES_PRINCIPALES } from '@/types';
 
@@ -81,6 +81,7 @@ const recetaFormSchema = z.object({
   dificultadProduccion: z.coerce.number().min(1).max(5).optional().default(3),
   estabilidadBuffet: z.coerce.number().min(1).max(5).optional().default(3),
   escalabilidad: z.enum(['FACIL', 'MEDIA', 'DIFICIL']).optional(),
+  etiquetasTendencia: z.array(z.string()).optional().default([]),
 });
 
 type RecetaFormValues = z.infer<typeof recetaFormSchema>;
@@ -167,10 +168,12 @@ export default function RecetaFormPage() {
   const [tecnicasCoccion, setTecnicasCoccion] = useState<string[]>([]);
   const [formatosServicio, setFormatosServicio] = useState<string[]>(['Cóctel (bocado)', 'Buffet', 'Emplatado en mesa', 'Estación de cocina en vivo (Showcooking)']);
   const [equipamientos, setEquipamientos] = useState<string[]>(['Horno de convección', 'Abatidor', 'Sifón', 'Roner']);
+  const [etiquetasTendencia, setEtiquetasTendencia] = useState<string[]>(['Plant-based', 'Comfort food', 'Superalimentos', 'Kilómetro 0', 'Sin gluten', 'Keto']);
+
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
-    defaultValues: { nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [] }
+    defaultValues: { nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] }
   });
 
   const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab } = useFieldArray({ control: form.control, name: "elaboraciones" });
@@ -237,6 +240,7 @@ export default function RecetaFormPage() {
     const tecnicas = new Set<string>();
     const formatos = new Set<string>(['Cóctel (bocado)', 'Buffet', 'Emplatado en mesa', 'Estación de cocina en vivo (Showcooking)']);
     const equipos = new Set<string>(['Horno de convección', 'Abatidor', 'Sifón', 'Roner']);
+    const tendencias = new Set<string>(['Plant-based', 'Comfort food', 'Superalimentos', 'Kilómetro 0', 'Sin gluten', 'Keto']);
 
     allRecetas.forEach(r => {
       r.perfilSaborSecundario?.forEach(s => sabores.add(s));
@@ -244,19 +248,21 @@ export default function RecetaFormPage() {
       if (r.tecnicaCoccionPrincipal) tecnicas.add(r.tecnicaCoccionPrincipal);
       r.formatoServicioIdeal?.forEach(f => formatos.add(f));
       r.equipamientoCritico?.forEach(e => equipos.add(e));
+      r.etiquetasTendencia?.forEach(t => tendencias.add(t));
     });
     setSaboresSecundarios(Array.from(sabores));
     setTexturas(Array.from(texturas));
     setTecnicasCoccion(Array.from(tecnicas));
     setFormatosServicio(Array.from(formatos));
     setEquipamientos(Array.from(equipos));
+    setEtiquetasTendencia(Array.from(tendencias));
 
 
     if (isEditing) {
       const receta = allRecetas.find(e => e.id === id);
       if (receta) form.reset(receta);
     } else {
-      form.reset({ nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [] });
+      form.reset({ nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] });
     }
   }, [id, isEditing, calculateElabAlergenos, form]);
 
@@ -425,7 +431,7 @@ export default function RecetaFormPage() {
                                     </FormItem> )} />
                                     <FormField control={form.control} name="tipoDieta" render={({ field }) => ( <FormItem><FormLabel>Tipo de Dieta</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="VEGETARIANO">Vegetariano</SelectItem><SelectItem value="VEGANO">Vegano</SelectItem><SelectItem value="AMBOS">Ambos</SelectItem><SelectItem value="NINGUNO">Ninguno</SelectItem></SelectContent></Select></FormItem> )} />
                                 </div>
-                                 <div className="grid md:grid-cols-3 gap-3 pt-3">
+                                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 pt-3">
                                      <FormField control={form.control} name="tipoCocina" render={({ field }) => ( <FormItem>
                                         <FormLabel className="flex items-center gap-1.5">Tipo de Cocina/Origen <InfoTooltip text="Clasificación culinaria de la receta (ej. Mediterránea, Asiática, Fusión...)." /></FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
@@ -449,6 +455,20 @@ export default function RecetaFormPage() {
                                             />
                                         </FormItem> 
                                     )} />
+                                 </div>
+                                  <div className="pt-3">
+                                    <FormField control={form.control} name="etiquetasTendencia" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="flex items-center gap-1.5">Etiquetas de Tendencia <InfoTooltip text="Clasifica la receta según las corrientes gastronómicas actuales (ej. Plant-based, Comfort food)." /></FormLabel>
+                                            <MultiSelect
+                                                options={etiquetasTendencia.map(t => ({label: t, value: t}))}
+                                                selected={field.value || []}
+                                                onChange={field.onChange}
+                                                placeholder="Selecciona o crea etiquetas..."
+                                                onCreated={(value) => setEtiquetasTendencia(prev => [...prev, value])}
+                                            />
+                                        </FormItem>
+                                     )} />
                                  </div>
                             </CardContent>
                         </AccordionContent>
