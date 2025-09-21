@@ -219,8 +219,13 @@ export default function RecetaFormPage() {
     const ingredientesMap = new Map(combined.map(i => [i.id, i]));
     setDbIngredientes(ingredientesMap);
 
-    const elaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    setDbElaboraciones(elaboraciones.map(e => ({...e, costePorUnidad: e.costePorUnidad, alergenos: calculateElabAlergenos(e, ingredientesMap)})));
+    const elaboracionesData = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    const elaboracionesConDatos = elaboracionesData.map(e => ({
+        ...e, 
+        costePorUnidad: e.costePorUnidad || 0, 
+        alergenos: calculateElabAlergenos(e, ingredientesMap)
+    }));
+    setDbElaboraciones(elaboracionesConDatos);
     
     const menaje = JSON.parse(localStorage.getItem('menajeDB') || '[]') as MenajeDB[];
     setDbMenaje(menaje);
