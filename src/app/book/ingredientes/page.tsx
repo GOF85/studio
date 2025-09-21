@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, ChefHat, Link as LinkIcon } from 'lucide-react';
+import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown } from 'lucide-react';
 import type { IngredienteInterno, IngredienteERP, Alergeno } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -19,11 +19,15 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import Papa from 'papaparse';
 
 type IngredienteConERP = IngredienteInterno & {
     erp?: IngredienteERP;
     alergenos: Alergeno[];
 }
+
+const CSV_HEADERS = ["id", "nombreIngrediente", "productoERPlinkId", "mermaPorcentaje", "alergenosPresentes", "alergenosTrazas"];
 
 export default function IngredientesPage() {
   const [ingredientes, setIngredientes] = useState<IngredienteConERP[]>([]);
@@ -31,6 +35,8 @@ export default function IngredientesPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
   
   useEffect(() => {
     // Cargar datos de prueba ERP si no existen
@@ -73,6 +79,86 @@ export default function IngredientesPage() {
     setIngredientes(combinedData);
     setIsMounted(true);
   }, []);
+  
+  const handleExportCSV = () => {
+    if (ingredientes.length === 0) {
+        toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay ingredientes para exportar.' });
+        return;
+    }
+    
+    const dataToExport = ingredientes.map(item => {
+        const { erp, alergenos, ...rest } = item;
+        return {
+            ...rest,
+            alergenosPresentes: JSON.stringify(item.alergenosPresentes),
+            alergenosTrazas: JSON.stringify(item.alergenosTrazas),
+        };
+    });
+
+    const csv = Papa.unparse(dataToExport);
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'ingredientes.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: 'Exportación completada', description: 'El archivo ingredientes.csv se ha descargado.' });
+  };
+  
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse<any>(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+            const headers = results.meta.fields || [];
+            const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
+
+            if (!hasAllHeaders) {
+                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
+                return;
+            }
+            
+            const importedData: IngredienteInterno[] = results.data.map(item => {
+                let alergenosPresentes = [];
+                let alergenosTrazas = [];
+                try {
+                    alergenosPresentes = JSON.parse(item.alergenosPresentes || '[]');
+                    alergenosTrazas = JSON.parse(item.alergenosTrazas || '[]');
+                } catch(e) { console.error("Error parsing JSON fields for item:", item.id); }
+
+                return {
+                    id: item.id || Date.now().toString() + Math.random(),
+                    nombreIngrediente: item.nombreIngrediente || '',
+                    productoERPlinkId: item.productoERPlinkId || '',
+                    mermaPorcentaje: parseFloat(item.mermaPorcentaje) || 0,
+                    alergenosPresentes,
+                    alergenosTrazas,
+                };
+            });
+            
+            localStorage.setItem('ingredientesInternos', JSON.stringify(importedData));
+            // Reload data after import
+             window.location.reload();
+            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros. La página se recargará.` });
+        },
+        error: (error) => {
+            toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+        }
+    });
+    if(event.target) {
+        event.target.value = '';
+    }
+  };
 
   const filteredItems = useMemo(() => {
     return ingredientes.filter(item => {
@@ -103,6 +189,28 @@ export default function IngredientesPage() {
                 Nuevo Ingrediente
               </Link>
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                      <Menu />
+                  </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleImportClick}>
+                       <FileUp size={16} className="mr-2"/>Importar CSV
+                       <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept=".csv"
+                        onChange={handleImportCSV}
+                      />
+                  </DropdownMenuItem>
+                   <DropdownMenuItem onClick={handleExportCSV}>
+                       <FileDown size={16} className="mr-2"/>Exportar CSV
+                  </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         
