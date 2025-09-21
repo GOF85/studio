@@ -262,7 +262,7 @@ export default function RecetaFormPage() {
       const receta = allRecetas.find(e => e.id === id);
       if (receta) form.reset(receta);
     } else {
-      form.reset({ nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] });
+      form.reset({ id: Date.now().toString(), nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] });
     }
   }, [id, isEditing, calculateElabAlergenos, form]);
 
