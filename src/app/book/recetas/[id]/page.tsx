@@ -35,6 +35,7 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { Combobox } from '@/components/ui/combobox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Slider } from '@/components/ui/slider';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -153,6 +154,7 @@ export default function RecetaFormPage() {
   const isEditing = id !== 'nueva';
   
   const [isLoading, setIsLoading] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
@@ -211,7 +213,7 @@ export default function RecetaFormPage() {
     return Array.from(elabAlergenos);
   }, []);
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
     const erpMap = new Map(storedErp.map(i => [i.id, i]));
@@ -262,18 +264,20 @@ export default function RecetaFormPage() {
     setEquipamientos(Array.from(equipos));
     setEtiquetasTendencia(Array.from(tendencias));
 
-
     if (isEditing) {
       const receta = allRecetas.find(e => e.id === id);
-      if (receta) form.reset(receta);
+      if (receta) {
+        form.reset(receta);
+      }
     } else {
       form.reset({ id: Date.now().toString(), nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] });
     }
+    setIsDataLoaded(true);
   }, [id, isEditing, calculateElabAlergenos, form]);
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, []);
 
 
   const onAddElab = (elab: ElaboracionConCoste) => {
@@ -342,6 +346,10 @@ export default function RecetaFormPage() {
     localStorage.setItem('recetas', JSON.stringify(updatedItems));
     toast({ title: 'Receta eliminada' });
     router.push('/book');
+  }
+
+  if (!isDataLoaded) {
+    return <LoadingSkeleton title="Cargando receta..." />;
   }
 
   return (
