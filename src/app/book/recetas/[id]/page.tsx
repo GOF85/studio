@@ -31,6 +31,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { Combobox } from '@/components/ui/combobox';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -146,6 +147,7 @@ export default function RecetaFormPage() {
   const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
   const [saboresSecundarios, setSaboresSecundarios] = useState<string[]>([]);
   const [texturas, setTexturas] = useState<string[]>([]);
+  const [tecnicasCoccion, setTecnicasCoccion] = useState<string[]>([]);
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
@@ -214,12 +216,15 @@ export default function RecetaFormPage() {
     const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const sabores = new Set<string>();
     const texturas = new Set<string>();
+    const tecnicas = new Set<string>();
     allRecetas.forEach(r => {
       r.perfilSaborSecundario?.forEach(s => sabores.add(s));
       r.perfilTextura?.forEach(t => texturas.add(t));
+      if (r.tecnicaCoccionPrincipal) tecnicas.add(r.tecnicaCoccionPrincipal);
     });
     setSaboresSecundarios(Array.from(sabores));
     setTexturas(Array.from(texturas));
+    setTecnicasCoccion(Array.from(tecnicas));
 
 
     if (isEditing) {
@@ -385,7 +390,18 @@ export default function RecetaFormPage() {
                                         </Select>
                                     <FormMessage /></FormItem> )} />
                                     <FormField control={form.control} name="temperaturaServicio" render={({ field }) => ( <FormItem><FormLabel>Temperatura de Servicio</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl><SelectContent><SelectItem value="CALIENTE">Caliente</SelectItem><SelectItem value="TIBIO">Tibio</SelectItem><SelectItem value="AMBIENTE">Ambiente</SelectItem><SelectItem value="FRIO">Frío</SelectItem><SelectItem value="HELADO">Helado</SelectItem></SelectContent></Select></FormItem> )} />
-                                    <FormField control={form.control} name="tecnicaCoccionPrincipal" render={({ field }) => ( <FormItem><FormLabel>Técnica de Cocción Principal</FormLabel><FormControl><Input {...field} placeholder="Ej: Fritura, horno..." /></FormControl></FormItem> )} />
+                                    <FormField control={form.control} name="tecnicaCoccionPrincipal" render={({ field }) => ( 
+                                        <FormItem>
+                                            <FormLabel>Técnica de Cocción Principal</FormLabel>
+                                            <Combobox
+                                                options={tecnicasCoccion.map(t => ({label: t, value: t}))}
+                                                value={field.value || ''}
+                                                onChange={field.onChange}
+                                                onCreated={(value) => setTecnicasCoccion(prev => [...prev, value])}
+                                                placeholder="Selecciona o crea una técnica..."
+                                            />
+                                        </FormItem> 
+                                    )} />
                                  </div>
                             </CardContent>
                         </AccordionContent>

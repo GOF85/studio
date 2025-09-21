@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Check, ChevronsUpDown, PlusCircle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -28,16 +28,27 @@ interface ComboboxProps {
     options: ComboboxOption[];
     value: string;
     onChange: (value: string) => void;
+    onCreated?: (value: string) => void;
     placeholder?: string;
     searchPlaceholder?: string;
     emptyPlaceholder?: string;
 }
 
-export function Combobox({ options, value, onChange, placeholder, searchPlaceholder, emptyPlaceholder }: ComboboxProps) {
+export function Combobox({ options, value, onChange, onCreated, placeholder, searchPlaceholder, emptyPlaceholder }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState('');
 
-  const filteredOptions = options.filter(option => option.label.toLowerCase().includes(query.toLowerCase()));
+  const filteredOptions = query 
+    ? options.filter(option => option.label.toLowerCase().includes(query.toLowerCase()))
+    : options;
+
+  const handleCreate = () => {
+    if (query && onCreated && !options.some(opt => opt.value.toLowerCase() === query.toLowerCase())) {
+        onCreated(query);
+    }
+    onChange(query);
+    setOpen(false);
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -69,13 +80,12 @@ export function Combobox({ options, value, onChange, placeholder, searchPlacehol
                 className="cursor-pointer px-2 py-1.5 text-sm"
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  if (query) {
-                    onChange(query);
-                    setOpen(false);
-                  }
+                  handleCreate();
                 }}
               >
-                {query ? `Añadir "${query}"` : (emptyPlaceholder || "No se encontraron resultados.")}
+                {query ? (
+                    <span className="flex items-center"><PlusCircle className="mr-2"/>Añadir "{query}"</span>
+                ) : (emptyPlaceholder || "No se encontraron resultados.")}
               </div>
             </CommandEmpty>
             <CommandGroup>
