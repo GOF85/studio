@@ -36,6 +36,7 @@ import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import Papa from 'papaparse';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const CSV_HEADERS = [ "id", "nombre", "produccionTotal", "unidadProduccion", "componentes", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad" ];
 
@@ -96,7 +97,7 @@ export default function ElaboracionesPage() {
   }, [items, searchTerm]);
 
   const handleAttemptDelete = (elaboracion: Elaboracion) => {
-    const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]');
+    const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const recipesUsingElaboracion = allRecetas.filter(receta => 
       receta.elaboraciones.some(e => e.elaboracionId === elaboracion.id)
     );
@@ -123,7 +124,7 @@ export default function ElaboracionesPage() {
       tableRows.push(recipeData);
     });
 
-    (doc as any).autoTable(tableColumn, tableRows, { startY: 50 });
+    autoTable(doc, tableColumn, tableRows, { startY: 50, styles: { minCellHeight: 8 }, headStyles: { fillColor: '#e5e7eb', textColor: '#374151' } });
     
     doc.save(`informe_eliminacion_${deletedItemName.replace(/\s+/g, '_')}.pdf`);
 
@@ -345,7 +346,7 @@ export default function ElaboracionesPage() {
             <AlertDialogDescription>
               {affectedRecipes.length > 0 ? (
                 <div>
-                    <p className="font-bold text-destructive">¡Atención! Esta elaboración está siendo utilizada en {affectedRecipes.length} receta(s):</p>
+                    <span className="font-bold text-destructive">¡Atención! Esta elaboración está siendo utilizada en {affectedRecipes.length} receta(s):</span>
                     <ul className="list-disc pl-5 mt-2 text-sm text-muted-foreground max-h-40 overflow-y-auto">
                         {affectedRecipes.map(r => <li key={r.id}>{r.nombre}</li>)}
                     </ul>
