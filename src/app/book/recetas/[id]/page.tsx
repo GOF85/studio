@@ -374,21 +374,17 @@ export default function RecetaFormPage() {
                         <AccordionContent>
                             <CardContent className="space-y-3 pt-2">
                                 <div className="grid md:grid-cols-2 gap-3">
-                                    <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                    <FormField
-                                        control={form.control}
-                                        name="responsableEscandallo"
-                                        render={({ field }) => (
-                                            <FormItem className="flex flex-col">
-                                                <FormLabel className="flex items-center gap-1.5">Responsable del Escandallo <InfoTooltip text="Persona encargada de definir y mantener los costes y componentes de esta receta." /></FormLabel>
-                                                <Select onValueChange={field.onChange} value={field.value}>
-                                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un responsable..." /></SelectTrigger></FormControl>
-                                                    <SelectContent>{personalCPR.map((p) => (<SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>))}</SelectContent>
-                                                </Select>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                  <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                  <FormField control={form.control} name="responsableEscandallo" render={({ field }) => (
+                                    <FormItem className="flex flex-col">
+                                      <FormLabel className="flex items-center gap-1.5">Responsable del Escandallo <InfoTooltip text="Persona encargada de definir y mantener los costes y componentes de esta receta." /></FormLabel>
+                                      <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un responsable..." /></SelectTrigger></FormControl>
+                                        <SelectContent>{personalCPR.map((p) => (<SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>))}</SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )} />
                                 </div>
                                 
                                 <div className="flex items-start gap-4">
@@ -402,23 +398,20 @@ export default function RecetaFormPage() {
                                         <FormControl><Textarea {...field} placeholder="Descripción para la carta..." rows={2} /></FormControl>
                                     </FormItem> )} />
                                   </div>
-                                  <FormField
-                                      control={form.control}
-                                      name="visibleParaComerciales"
-                                      render={({ field }) => (
-                                          <FormItem className="flex flex-row items-center space-x-2 pt-9">
-                                              <FormControl>
-                                                  <Checkbox checked={field.value} onCheckedChange={field.onChange} id="visible-check" />
-                                              </FormControl>
-                                              <FormLabel htmlFor="visible-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Eye /><InfoTooltip text="Marca esta casilla si la receta debe aparecer en las propuestas y herramientas para el equipo comercial." /></FormLabel>
-                                          </FormItem>
-                                      )}
-                                  />
+                                  <FormField control={form.control} name="visibleParaComerciales" render={({ field }) => (
+                                      <FormItem className="flex flex-row items-center space-x-2 pt-9">
+                                          <FormControl>
+                                              <Checkbox checked={field.value} onCheckedChange={field.onChange} id="visible-check" />
+                                          </FormControl>
+                                          <FormLabel htmlFor="visible-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Eye /><InfoTooltip text="Marca esta casilla si la receta debe aparecer en las propuestas y herramientas para el equipo comercial." /></FormLabel>
+                                      </FormItem>
+                                  )} />
                                 </div>
 
 
                                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
-                                    <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Categoría</FormLabel>
+                                    <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem className="flex flex-col">
+                                      <FormLabel>Categoría</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
                                             <SelectContent>
@@ -434,7 +427,10 @@ export default function RecetaFormPage() {
                                         <FormLabel className="flex items-center gap-1.5">Estacionalidad <InfoTooltip text="Indica la temporada ideal para este plato, basado en la disponibilidad y calidad de sus ingredientes." /></FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="INVIERNO">Invierno</SelectItem><SelectItem value="VERANO">Verano</SelectItem><SelectItem value="MIXTO">Mixto</SelectItem></SelectContent></Select>
                                     </FormItem> )} />
-                                    <FormField control={form.control} name="tipoDieta" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Tipo de Dieta</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="VEGETARIANO">Vegetariano</SelectItem><SelectItem value="VEGANO">Vegano</SelectItem><SelectItem value="AMBOS">Ambos</SelectItem><SelectItem value="NINGUNO">Ninguno</SelectItem></SelectContent></Select></FormItem> )} />
+                                    <FormField control={form.control} name="tipoDieta" render={({ field }) => ( <FormItem className="flex flex-col">
+                                      <FormLabel>Tipo de Dieta</FormLabel>
+                                      <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="VEGETARIANO">Vegetariano</SelectItem><SelectItem value="VEGANO">Vegano</SelectItem><SelectItem value="AMBOS">Ambos</SelectItem><SelectItem value="NINGUNO">Ninguno</SelectItem></SelectContent></Select>
+                                    </FormItem> )} />
                                 </div>
                                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 pt-3">
                                      <FormField control={form.control} name="tipoCocina" render={({ field }) => ( <FormItem className="flex flex-col">
