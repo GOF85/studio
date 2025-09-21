@@ -19,6 +19,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { cn } from '@/lib/utils';
 
 const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   Pendiente: 'secondary',
@@ -147,7 +148,11 @@ export default function GastronomiaPage() {
                         <TableBody>
                         {sortedGastronomyOrders.length > 0 ? (
                             sortedGastronomyOrders.map(order => (
-                            <TableRow key={order.id} onClick={() => router.push(`/gastronomia/pedido?osId=${osId}&briefingItemId=${order.id}`)} className="cursor-pointer">
+                            <TableRow 
+                                key={order.id} 
+                                onClick={() => router.push(`/gastronomia/pedido?osId=${osId}&briefingItemId=${order.id}`)} 
+                                className={cn("cursor-pointer", order.descripcion.toLowerCase() === 'prueba de menu' && 'bg-muted/50')}
+                            >
                                 <TableCell>{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
                                 <TableCell>{order.horaInicio}</TableCell>
                                 <TableCell className="min-w-[200px] font-medium">{order.descripcion}</TableCell>
