@@ -82,7 +82,7 @@ export default function TipoCocinaFormPage() {
     localStorage.setItem('tiposCocina', JSON.stringify(allItems));
     
     setTimeout(() => {
-      toast({ title: 'Operación Exitosa', description: message });
+      toast({ description: message });
       setIsLoading(false);
       router.push('/tipos-cocina');
     }, 1000);

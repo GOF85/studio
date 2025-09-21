@@ -127,7 +127,7 @@ export default function EspacioFormPage() {
     localStorage.setItem('espacios', JSON.stringify(allEspacios));
     
     setTimeout(() => {
-      toast({ title: 'Operación Exitosa', description: message });
+      toast({ description: message });
       setIsLoading(false);
       router.push('/espacios');
     }, 1000);

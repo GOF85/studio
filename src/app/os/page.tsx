@@ -1,6 +1,7 @@
 
 
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -318,7 +319,6 @@ export default function OsPage() {
     
     setTimeout(() => {
       toast({
-        title: 'Operación Exitosa',
         description: message,
       });
       setIsLoading(false);
@@ -889,4 +889,3 @@ export default function OsPage() {
     
 
     
-

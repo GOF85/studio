@@ -88,7 +88,7 @@ export default function AlquilerFormPage() {
     localStorage.setItem('alquilerDB', JSON.stringify(allItems));
     
     setTimeout(() => {
-      toast({ title: 'Operación Exitosa', description: message });
+      toast({ description: message });
       setIsLoading(false);
       router.push('/alquiler-db');
     }, 1000);

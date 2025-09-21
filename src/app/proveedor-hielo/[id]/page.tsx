@@ -86,7 +86,7 @@ export default function ProveedorHieloFormPage() {
     localStorage.setItem('proveedorHielo', JSON.stringify(allItems));
     
     setTimeout(() => {
-      toast({ title: 'Operación Exitosa', description: message });
+      toast({ description: message });
       setIsLoading(false);
       router.push('/proveedor-hielo');
     }, 1000);

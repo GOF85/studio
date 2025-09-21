@@ -195,7 +195,7 @@ export default function ElaboracionFormPage() {
     localStorage.setItem('elaboraciones', JSON.stringify(allItems));
     
     setTimeout(() => {
-      toast({ title: 'Operación Exitosa', description: message });
+      toast({ description: message });
       setIsLoading(false);
       router.push('/book/elaboraciones');
     }, 1000);

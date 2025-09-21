@@ -95,7 +95,7 @@ export default function PrecioFormPage() {
     localStorage.setItem('precios', JSON.stringify(allPrecios));
     
     setTimeout(() => {
-      toast({ title: 'Operación Exitosa', description: message });
+      toast({ description: message });
       setIsLoading(false);
       router.push('/precios');
     }, 1000);

@@ -85,7 +85,7 @@ export default function DecoracionFormPage() {
     localStorage.setItem('decoracionDB', JSON.stringify(allItems));
     
     setTimeout(() => {
-      toast({ title: 'Operación Exitosa', description: message });
+      toast({ description: message });
       setIsLoading(false);
       router.push('/decoracion-db');
     }, 1000);

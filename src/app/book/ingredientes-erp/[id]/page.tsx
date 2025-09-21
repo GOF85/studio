@@ -94,7 +94,7 @@ export default function IngredienteErpFormPage() {
     localStorage.setItem('ingredientesERP', JSON.stringify(allItems));
     
     setTimeout(() => {
-      toast({ title: 'Operación Exitosa', description: message });
+      toast({ description: message });
       setIsLoading(false);
       router.push('/book/ingredientes-erp');
     }, 1000);

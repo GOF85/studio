@@ -82,7 +82,7 @@ export default function CategoriaRecetaFormPage() {
     localStorage.setItem('categoriasRecetas', JSON.stringify(allItems));
     
     setTimeout(() => {
-      toast({ title: 'Operación Exitosa', description: message });
+      toast({ description: message });
       setIsLoading(false);
       router.push('/categorias-recetas');
     }, 1000);

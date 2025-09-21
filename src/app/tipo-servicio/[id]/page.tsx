@@ -82,7 +82,7 @@ export default function TipoServicioFormPage() {
     localStorage.setItem('tipoServicio', JSON.stringify(allItems));
     
     setTimeout(() => {
-      toast({ title: 'Operación Exitosa', description: message });
+      toast({ description: message });
       setIsLoading(false);
       router.push('/tipo-servicio');
     }, 1000);

@@ -103,7 +103,7 @@ export default function PersonalFormPage() {
     localStorage.setItem('personal', JSON.stringify(allPersonal));
     
     setTimeout(() => {
-      toast({ title: 'Operación Exitosa', description: message });
+      toast({ description: message });
       setIsLoading(false);
       router.push('/personal');
     }, 1000);

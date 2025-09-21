@@ -330,7 +330,7 @@ export default function RecetaFormPage() {
     }
 
     localStorage.setItem('recetas', JSON.stringify(allItems));
-    toast({ title: 'Operación Exitosa', description: `Receta "${data.nombre}" guardada.` });
+    toast({ description: `Receta "${data.nombre}" guardada.` });
     setIsLoading(false);
     router.push('/book');
   }

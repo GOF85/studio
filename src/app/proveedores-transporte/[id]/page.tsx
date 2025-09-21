@@ -86,7 +86,7 @@ export default function ProveedorTransporteFormPage() {
     localStorage.setItem('proveedoresTransporte', JSON.stringify(allItems));
     
     setTimeout(() => {
-      toast({ title: 'Operación Exitosa', description: message });
+      toast({ description: message });
       setIsLoading(false);
       router.push('/proveedores-transporte');
     }, 1000);

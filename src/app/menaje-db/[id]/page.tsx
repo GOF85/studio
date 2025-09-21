@@ -84,7 +84,7 @@ export default function MenajeFormPage() {
     localStorage.setItem('menajeDB', JSON.stringify(allItems));
     
     setTimeout(() => {
-      toast({ title: 'Operación Exitosa', description: message });
+      toast({ description: message });
       setIsLoading(false);
       router.push('/menaje-db');
     }, 1000);

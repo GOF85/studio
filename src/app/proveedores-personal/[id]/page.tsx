@@ -87,7 +87,7 @@ export default function ProveedorPersonalFormPage() {
     localStorage.setItem('proveedoresPersonal', JSON.stringify(allItems));
     
     setTimeout(() => {
-      toast({ title: 'Operación Exitosa', description: message });
+      toast({ description: message });
       setIsLoading(false);
       router.push('/proveedores-personal');
     }, 1000);
