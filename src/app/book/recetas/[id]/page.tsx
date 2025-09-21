@@ -50,7 +50,7 @@ const menajeEnRecetaSchema = z.object({
 const recetaFormSchema = z.object({
   id: z.string(),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
-  visibleParaComerciales: z.boolean().default(false),
+  visibleParaComerciales: z.boolean().default(true),
   descripcionComercial: z.string().optional().default(''),
   responsableEscandallo: z.string().optional().default(''),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
@@ -138,7 +138,7 @@ export default function RecetaFormPage() {
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
-    defaultValues: { nombre: '', visibleParaComerciales: false, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], instruccionesMiseEnPlace: '', instruccionesRegeneracion: '', instruccionesEmplatado: '', }
+    defaultValues: { nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], instruccionesMiseEnPlace: '', instruccionesRegeneracion: '', instruccionesEmplatado: '', }
   });
 
   const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab } = useFieldArray({ control: form.control, name: "elaboraciones" });
@@ -201,7 +201,7 @@ export default function RecetaFormPage() {
       const receta = recetas.find(e => e.id === id);
       if (receta) form.reset(receta);
     } else {
-      form.reset({ id: Date.now().toString(), nombre: '', visibleParaComerciales: false, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [] });
+      form.reset({ id: Date.now().toString(), nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [] });
     }
   }, [id, isEditing, calculateElabAlergenos, form]);
 
@@ -320,7 +320,23 @@ export default function RecetaFormPage() {
                                         )}
                                     />
                                 </div>
-                                <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem><FormLabel>Descripción Comercial</FormLabel><FormControl><Textarea {...field} placeholder="Descripción para la carta..." rows={2} /></FormControl></FormItem> )} />
+                                <div className="flex items-end gap-4">
+                                  <div className="flex-grow">
+                                    <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem><FormLabel>Descripción Comercial</FormLabel><FormControl><Textarea {...field} placeholder="Descripción para la carta..." rows={2} /></FormControl></FormItem> )} />
+                                  </div>
+                                  <FormField
+                                      control={form.control}
+                                      name="visibleParaComerciales"
+                                      render={({ field }) => (
+                                          <FormItem className="flex flex-row items-center space-x-2 pb-2">
+                                              <FormControl>
+                                                  <Checkbox checked={field.value} onCheckedChange={field.onChange} id="visible-check" />
+                                              </FormControl>
+                                              <FormLabel htmlFor="visible-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Eye />Visible para Comerciales</FormLabel>
+                                          </FormItem>
+                                      )}
+                                  />
+                                </div>
                                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
                                     <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem><FormLabel>Categoría</FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
@@ -334,20 +350,7 @@ export default function RecetaFormPage() {
                                     <FormField control={form.control} name="estacionalidad" render={({ field }) => ( <FormItem><FormLabel>Estacionalidad</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="INVIERNO">Invierno</SelectItem><SelectItem value="VERANO">Verano</SelectItem><SelectItem value="MIXTO">Mixto</SelectItem></SelectContent></Select></FormItem> )} />
                                     <FormField control={form.control} name="tipoDieta" render={({ field }) => ( <FormItem><FormLabel>Tipo de Dieta</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="VEGETARIANO">Vegetariano</SelectItem><SelectItem value="VEGANO">Vegano</SelectItem><SelectItem value="AMBOS">Ambos</SelectItem><SelectItem value="NINGUNO">Ninguno</SelectItem></SelectContent></Select></FormItem> )} />
                                 </div>
-                                <FormField
-                                    control={form.control}
-                                    name="visibleParaComerciales"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
-                                            <FormControl>
-                                                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                            </FormControl>
-                                            <div className="space-y-1 leading-none">
-                                                <FormLabel className="flex items-center gap-2"><Eye />Visible para Comerciales</FormLabel>
-                                            </div>
-                                        </FormItem>
-                                    )}
-                                />
+                                
                             </CardContent>
                         </AccordionContent>
                     </Card>
