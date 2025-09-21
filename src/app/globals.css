@@ -125,6 +125,10 @@
   }
 }
 
+.printing .no-print {
+  display: none !important;
+}
+
 @media print {
   .no-print {
     display: none !important;

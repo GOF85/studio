@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Euro, Printer } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Euro, Printer, Loader2 } from 'lucide-react';
 import type { ServiceOrder, PruebaMenuData, PruebaMenuItem, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 
 const pruebaMenuItemSchema = z.object({
@@ -43,6 +45,7 @@ export default function PruebaMenuPage() {
   const { toast } = useToast();
 
   const [isMounted, setIsMounted] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [asistentesPrueba, setAsistentesPrueba] = useState(0);
@@ -118,6 +121,56 @@ export default function PruebaMenuPage() {
     form.reset(data); // Mark as not dirty
   };
   
+  const handlePrint = async () => {
+    const printableArea = document.getElementById('printable-area');
+    if (!printableArea) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el área de impresión.'});
+        return;
+    }
+
+    setIsPrinting(true);
+    document.body.classList.add('printing');
+
+    try {
+        const canvas = await html2canvas(printableArea, {
+            scale: 2, // Improve resolution
+            useCORS: true, 
+            backgroundColor: '#ffffff',
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4',
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const ratio = canvasWidth / canvasHeight;
+        const width = pdfWidth - 20; // with margin
+        const height = width / ratio;
+        
+        let position = 10;
+        if (height < pdfHeight - 20) {
+            pdf.addImage(imgData, 'PNG', 10, position, width, height);
+        } else {
+             toast({ variant: 'destructive', title: 'Contenido demasiado largo', description: 'El contenido es demasiado largo para una sola página. Considera hacerlo más corto.'});
+        }
+        
+        pdf.save('prueba-de-menu.pdf');
+
+    } catch (error) {
+        console.error("Error generating PDF:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.'});
+    } finally {
+        document.body.classList.remove('printing');
+        setIsPrinting(false);
+    }
+  };
+
   const addRow = (mainCategory: 'BODEGA' | 'GASTRONOMÍA', type: 'header' | 'item') => {
     append({
       id: Date.now().toString(),
@@ -207,32 +260,33 @@ export default function PruebaMenuPage() {
   return (
     <>
       <Header />
-      <main className="container mx-auto px-4 py-8 printable-area">
+      <main className="container mx-auto px-4 py-8">
         <Form {...form}>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="flex items-start justify-between mb-8 no-print">
-              <div>
-                <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)}>
-                  <ArrowLeft className="mr-2" />
-                  Volver a la OS
-                </Button>
-                <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                  <ClipboardCheck />
-                  Prueba de Menú
-                </h1>
-              </div>
-              <div className="flex gap-2">
-                 <Button variant="outline" type="button" onClick={() => window.print()}>
-                    <Printer className="mr-2" /> Imprimir
-                 </Button>
-                <Button type="submit" disabled={!formState.isDirty}>
-                  <Save className="mr-2" />
-                  Guardar Cambios
-                </Button>
-              </div>
+          <div className="flex items-start justify-between mb-8 no-print">
+            <div>
+              <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)}>
+                <ArrowLeft className="mr-2" />
+                Volver a la OS
+              </Button>
+              <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
+                <ClipboardCheck />
+                Prueba de Menú
+              </h1>
             </div>
-            
-            <Card className="mb-6">
+            <div className="flex gap-2">
+                <Button variant="outline" type="button" onClick={handlePrint} disabled={isPrinting}>
+                  {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
+                  {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
+                </Button>
+              <Button type="button" onClick={handleSubmit(onSubmit)} disabled={!formState.isDirty}>
+                <Save className="mr-2" />
+                Guardar Cambios
+              </Button>
+            </div>
+          </div>
+          
+          <div id="printable-area">
+            <Card className="mb-6 printable-area-card">
                 <CardContent className="p-4 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-sm">
                     <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
                     <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
@@ -246,56 +300,58 @@ export default function PruebaMenuPage() {
                 </CardContent>
             </Card>
 
-            <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-background no-print">
-              <FormLabel className="font-semibold text-base flex items-center gap-2"><Euro />Coste de la prueba de menú</FormLabel>
-              <FormField
-                  control={control}
-                  name="costePruebaMenu"
-                  render={({ field }) => (
-                      <FormItem>
-                          <FormControl>
-                              <Input 
-                                  type="number" 
-                                  step="0.01" 
-                                  {...field} 
-                                  className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
-                              />
-                          </FormControl>
-                      </FormItem>
-                  )}
-              />
-              <FormLabel className="font-semibold text-base pl-6">Asistentes a la prueba</FormLabel>
-              <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
-            </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-background no-print">
+                <FormLabel className="font-semibold text-base flex items-center gap-2"><Euro />Coste de la prueba de menú</FormLabel>
+                <FormField
+                    control={control}
+                    name="costePruebaMenu"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormControl>
+                                <Input 
+                                    type="number" 
+                                    step="0.01" 
+                                    {...field} 
+                                    className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+                <FormLabel className="font-semibold text-base pl-6">Asistentes a la prueba</FormLabel>
+                <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
+                </div>
 
-            <div className="space-y-6">
-              {renderSection('BODEGA')}
-              {renderSection('GASTRONOMÍA')}
+                <div className="space-y-6">
+                {renderSection('BODEGA')}
+                {renderSection('GASTRONOMÍA')}
 
-              <Card className="mt-6">
-                  <CardHeader className="py-4">
-                  <CardTitle>Observaciones Generales</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                      <FormField
-                      control={control}
-                      name="observacionesGenerales"
-                      render={({ field }) => (
-                          <FormItem>
-                          <FormControl>
-                              <Textarea
-                              placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
-                              rows={4}
-                              {...field}
-                              />
-                          </FormControl>
-                          </FormItem>
-                      )}
-                      />
-                  </CardContent>
-              </Card>
-            </div>
-          </form>
+                <Card className="mt-6">
+                    <CardHeader className="py-4">
+                    <CardTitle>Observaciones Generales</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                        <FormField
+                        control={control}
+                        name="observacionesGenerales"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormControl>
+                                <Textarea
+                                placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
+                                rows={4}
+                                {...field}
+                                />
+                            </FormControl>
+                            </FormItem>
+                        )}
+                        />
+                    </CardContent>
+                </Card>
+                </div>
+            </form>
+          </div>
         </Form>
       </main>
     </>
