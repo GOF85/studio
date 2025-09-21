@@ -124,7 +124,13 @@ export default function ElaboracionesPage() {
       tableRows.push(recipeData);
     });
 
-    autoTable(doc, tableColumn, tableRows, { startY: 50, styles: { minCellHeight: 8 }, headStyles: { fillColor: '#e5e7eb', textColor: '#374151' } });
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 50, 
+      styles: { minCellHeight: 8 }, 
+      headStyles: { fillColor: '#e5e7eb', textColor: '#374151' } 
+    });
     
     doc.save(`informe_eliminacion_${deletedItemName.replace(/\s+/g, '_')}.pdf`);
 
@@ -298,11 +304,11 @@ export default function ElaboracionesPage() {
             <TableBody>
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
-                  <TableRow key={item.id} onClick={() => router.push(`/book/elaboraciones/${item.id}`)} className="cursor-pointer">
-                    <TableCell className="font-medium">{item.nombre}</TableCell>
-                    <TableCell>{item.produccionTotal} {item.unidadProduccion}</TableCell>
-                    <TableCell>{(item.costePorUnidad || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} / {item.unidadProduccion}</TableCell>
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{item.nombre}</TableCell>
+                    <TableCell className="cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{item.produccionTotal} {item.unidadProduccion}</TableCell>
+                    <TableCell className="cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{(item.costePorUnidad || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} / {item.unidadProduccion}</TableCell>
+                    <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
@@ -311,11 +317,11 @@ export default function ElaboracionesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => {e.stopPropagation(); router.push(`/book/elaboraciones/${item.id}`)}}>
+                          <DropdownMenuItem onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={(e) => {e.stopPropagation(); handleAttemptDelete(item)}}>
+                          <DropdownMenuItem className="text-destructive" onClick={() => handleAttemptDelete(item)}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Eliminar
                           </DropdownMenuItem>
