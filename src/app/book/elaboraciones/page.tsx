@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Component, FileDown, FileUp, Menu } from 'lucide-react';
-import type { Elaboracion } from '@/types';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Component, FileDown, FileUp, Menu, AlertTriangle } from 'lucide-react';
+import type { Elaboracion, Receta } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,6 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import Papa from 'papaparse';
+import jsPDF from 'jspdf';
 
 const CSV_HEADERS = [ "id", "nombre", "produccionTotal", "unidadProduccion", "componentes", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad" ];
 
@@ -43,7 +44,8 @@ export default function ElaboracionesPage() {
   const [items, setItems] = useState<Elaboracion[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<Elaboracion | null>(null);
+  const [affectedRecipes, setAffectedRecipes] = useState<Receta[]>([]);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -93,13 +95,57 @@ export default function ElaboracionesPage() {
     );
   }, [items, searchTerm]);
 
+  const handleAttemptDelete = (elaboracion: Elaboracion) => {
+    const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]');
+    const recipesUsingElaboracion = allRecetas.filter(receta => 
+      receta.elaboraciones.some(e => e.elaboracionId === elaboracion.id)
+    );
+    setAffectedRecipes(recipesUsingElaboracion);
+    setItemToDelete(elaboracion);
+  };
+
+  const generateReportAndToast = (deletedItemName: string) => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text('Informe de Eliminación de Elaboración', 14, 22);
+    doc.setFontSize(12);
+    doc.text(`Se ha eliminado la elaboración: "${deletedItemName}"`, 14, 32);
+    doc.text('Las siguientes recetas se han visto afectadas:', 14, 42);
+    
+    const tableColumn = ["ID Receta", "Nombre Receta"];
+    const tableRows: (string | number)[][] = [];
+
+    affectedRecipes.forEach(recipe => {
+      const recipeData = [
+        recipe.id,
+        recipe.nombre,
+      ];
+      tableRows.push(recipeData);
+    });
+
+    (doc as any).autoTable(tableColumn, tableRows, { startY: 50 });
+    
+    doc.save(`informe_eliminacion_${deletedItemName.replace(/\s+/g, '_')}.pdf`);
+
+    toast({
+        title: 'Informe generado',
+        description: 'Se ha descargado un PDF con las recetas afectadas.'
+    });
+  };
+
   const handleDelete = () => {
     if (!itemToDelete) return;
-    const updatedData = items.filter(i => i.id !== itemToDelete);
+
+    if (affectedRecipes.length > 0) {
+        generateReportAndToast(itemToDelete.nombre);
+    }
+
+    const updatedData = items.filter(i => i.id !== itemToDelete.id);
     localStorage.setItem('elaboraciones', JSON.stringify(updatedData));
     setItems(updatedData);
     toast({ title: 'Elaboración eliminada' });
     setItemToDelete(null);
+    setAffectedRecipes([]);
   }
 
   const handleExportCSV = () => {
@@ -268,7 +314,7 @@ export default function ElaboracionesPage() {
                             <Pencil className="mr-2 h-4 w-4" />
                             Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={(e) => {e.stopPropagation(); setItemToDelete(item.id)}}>
+                          <DropdownMenuItem className="text-destructive" onClick={(e) => {e.stopPropagation(); handleAttemptDelete(item)}}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Eliminar
                           </DropdownMenuItem>
@@ -292,18 +338,31 @@ export default function ElaboracionesPage() {
        <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2">
+                {affectedRecipes.length > 0 && <AlertTriangle className="text-destructive" />}
+                ¿Estás seguro?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente la elaboración y puede afectar a recetas que la utilicen.
+              {affectedRecipes.length > 0 ? (
+                <div>
+                    <p className="font-bold text-destructive">¡Atención! Esta elaboración está siendo utilizada en {affectedRecipes.length} receta(s):</p>
+                    <ul className="list-disc pl-5 mt-2 text-sm text-muted-foreground max-h-40 overflow-y-auto">
+                        {affectedRecipes.map(r => <li key={r.id}>{r.nombre}</li>)}
+                    </ul>
+                    <p className="mt-3">Si continúas, se generará un informe en PDF con las recetas afectadas. Esta acción no se puede deshacer.</p>
+                </div>
+              ) : (
+                'Esta acción no se puede deshacer. Se eliminará permanentemente la elaboración.'
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => { setItemToDelete(null); setAffectedRecipes([]); }}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
               onClick={handleDelete}
             >
-              Eliminar
+              {affectedRecipes.length > 0 ? 'Generar Informe y Eliminar' : 'Eliminar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
