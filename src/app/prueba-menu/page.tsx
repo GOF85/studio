@@ -174,24 +174,22 @@ const handlePrint = async () => {
         });
 
         finalY = (doc as any).lastAutoTable.finalY + 10;
-        doc.setLineWidth(0.2);
-        doc.setDrawColor('#cbd5e1');
-        doc.line(margin, finalY - 5, pageWidth - margin, finalY - 5);
-
-
+        
         // --- TABLAS DE BODEGA Y GASTRONOMÍA ---
         const addSection = (category: 'BODEGA' | 'GASTRONOMÍA') => {
             const sectionItems = form.getValues('items').filter(item => item.mainCategory === category);
             if(sectionItems.length === 0) return;
 
-            if (finalY + 30 > pageHeight) { // Check if new section fits
+             doc.setLineWidth(0.2);
+            doc.setDrawColor('#cbd5e1');
+            doc.line(margin, finalY - 5, pageWidth - margin, finalY - 5);
+
+
+            if (finalY + 20 > pageHeight) { // Check if new section fits
                 doc.addPage();
                 finalY = margin;
             }
             
-            doc.line(margin, finalY, pageWidth - margin, finalY);
-            finalY += 5;
-
             doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor('#059669');
@@ -202,7 +200,7 @@ const handlePrint = async () => {
                 if(item.type === 'header') {
                     return [{ content: item.referencia, colSpan: 2, styles: { fontStyle: 'bold', fillColor: '#f3f4f6' } }];
                 }
-                return [item.referencia, item.observaciones || ''];
+                return [item.referencia, ''];
             });
 
             autoTable(doc, {
@@ -211,14 +209,16 @@ const handlePrint = async () => {
                 startY: finalY,
                 theme: 'grid',
                 columnStyles: {
-                    0: { cellWidth: '*' },
-                    1: { cellWidth: '*' },
+                    0: { cellWidth: (pageWidth - margin * 2) / 2 },
+                    1: { cellWidth: (pageWidth - margin * 2) / 2 },
+                },
+                didParseCell: (data) => {
+                    data.cell.styles.minCellHeight = 8;
                 },
                 styles: {
                     fontSize: 8,
                     cellPadding: 2,
                     valign: 'middle',
-                    minCellHeight: 12,
                 },
                 headStyles: {
                     fillColor: '#e5e7eb',
@@ -239,7 +239,7 @@ const handlePrint = async () => {
                 doc.addPage();
                 finalY = margin;
             }
-             doc.setFontSize(12);
+            doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor('#059669');
             doc.text('Observaciones Generales', margin, finalY);
