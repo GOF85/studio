@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -455,11 +454,11 @@ export default function OsPage() {
             <FormProvider {...form}>
               <form id="os-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <Card>
-                  <CardHeader className="py-4">
+                  <CardHeader className="py-3">
                     <CardTitle className="text-xl">Datos del Servicio</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <CardContent className="space-y-3 pt-2">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                       <FormField control={form.control} name="serviceNumber" render={({ field }) => (
                         <FormItem>
                           <FormLabel>Nº Servicio</FormLabel>
@@ -840,6 +839,8 @@ export default function OsPage() {
     </TooltipProvider>
   );
 }
+
+    
 
     
 
