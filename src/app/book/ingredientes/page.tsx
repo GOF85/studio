@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown } from 'lucide-react';
+import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { IngredienteInterno, IngredienteERP, Alergeno } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -28,11 +28,13 @@ type IngredienteConERP = IngredienteInterno & {
 }
 
 const CSV_HEADERS = ["id", "nombreIngrediente", "productoERPlinkId", "mermaPorcentaje", "alergenosPresentes", "alergenosTrazas"];
+const ITEMS_PER_PAGE = 20;
 
 export default function IngredientesPage() {
   const [ingredientes, setIngredientes] = useState<IngredienteConERP[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -172,6 +174,20 @@ export default function IngredientesPage() {
     });
   }, [ingredientes, searchTerm]);
 
+  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredItems, currentPage]);
+
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(1, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+  };
+
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Ingredientes..." />;
   }
@@ -214,33 +230,56 @@ export default function IngredientesPage() {
           </div>
         </div>
         
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="flex items-center justify-between gap-4 mb-4">
           <Input 
             placeholder="Buscar por ingrediente, producto ERP, Id. ERP o categoría..."
             className="flex-grow max-w-lg"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+           <div className="flex items-center justify-end gap-2">
+            <span className="text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages || 1}
+            </span>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+            >
+                <ChevronLeft className="h-4 w-4" />
+                Anterior
+            </Button>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+            >
+                Siguiente
+                <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Ingrediente Interno</TableHead>
-                <TableHead>Producto ERP Vinculado</TableHead>
-                <TableHead>Id. ERP</TableHead>
-                <TableHead>Categoría ERP</TableHead>
-                <TableHead>Alérgenos</TableHead>
-                <TableHead>% Merma</TableHead>
+                <TableHead className="py-2">Ingrediente Interno</TableHead>
+                <TableHead className="py-2">Producto ERP Vinculado</TableHead>
+                <TableHead className="py-2">Id. ERP</TableHead>
+                <TableHead className="py-2">Categoría ERP</TableHead>
+                <TableHead className="py-2">Alérgenos</TableHead>
+                <TableHead className="py-2">% Merma</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredItems.length > 0 ? (
-                filteredItems.map(item => (
+              {paginatedItems.length > 0 ? (
+                paginatedItems.map(item => (
                   <TableRow key={item.id} onClick={() => router.push(`/book/ingredientes/${item.id}`)} className="cursor-pointer">
-                    <TableCell className="font-medium">{item.nombreIngrediente}</TableCell>
-                    <TableCell>
+                    <TableCell className="font-medium py-2">{item.nombreIngrediente}</TableCell>
+                    <TableCell className="py-2">
                       {item.erp ? (
                         <div className="flex flex-col">
                             <span className="flex items-center gap-2 text-sm font-semibold">
@@ -253,9 +292,9 @@ export default function IngredientesPage() {
                         <span className="text-destructive text-sm font-semibold">No vinculado</span>
                       )}
                     </TableCell>
-                     <TableCell>{item.erp?.IdERP}</TableCell>
-                     <TableCell>{item.erp?.familiaCategoria}</TableCell>
-                    <TableCell>
+                     <TableCell className="py-2">{item.erp?.IdERP}</TableCell>
+                     <TableCell className="py-2">{item.erp?.familiaCategoria}</TableCell>
+                    <TableCell className="py-2">
                       <div className="flex flex-wrap gap-1">
                         {item.alergenos?.length > 0 && item.alergenos.map(alergeno => {
                            const isPresente = (item.alergenosPresentes || []).includes(alergeno);
@@ -266,7 +305,7 @@ export default function IngredientesPage() {
                         })}
                       </div>
                     </TableCell>
-                    <TableCell>{item.mermaPorcentaje}%</TableCell>
+                    <TableCell className="py-2">{item.mermaPorcentaje}%</TableCell>
                   </TableRow>
                 ))
               ) : (
