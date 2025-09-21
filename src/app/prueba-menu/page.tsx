@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, Printer, DollarSign } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, PlusCircle, ClipboardCheck, DollarSign } from 'lucide-react';
 import type { ServiceOrder, PruebaMenuData, PruebaMenuItem, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
-import Link from 'next/link';
 
 
 const pruebaMenuItemSchema = z.object({
