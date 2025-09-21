@@ -419,7 +419,7 @@ export default function RecetaFormPage() {
 
                                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
                                     <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Categoría</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                                        <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
                                             <SelectContent>
                                                 {dbCategorias.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
