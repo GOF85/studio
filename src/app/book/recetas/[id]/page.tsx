@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
-import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup } from 'lucide-react';
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory } from 'lucide-react';
 import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, IngredienteERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina } from '@/types';
 import { SABORES_PRINCIPALES } from '@/types';
 
@@ -32,6 +32,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Combobox } from '@/components/ui/combobox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -72,6 +73,9 @@ const recetaFormSchema = z.object({
   tipoCocina: z.string().optional().default(''),
   temperaturaServicio: z.enum(['CALIENTE', 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO']).optional(),
   tecnicaCoccionPrincipal: z.string().optional().default(''),
+  potencialMiseEnPlace: z.enum(['COMPLETO', 'PARCIAL', 'AL_MOMENTO']).optional(),
+  formatoServicioIdeal: z.array(z.string()).optional().default([]),
+  equipamientoCritico: z.array(z.string()).optional().default([]),
 });
 
 type RecetaFormValues = z.infer<typeof recetaFormSchema>;
@@ -148,6 +152,8 @@ export default function RecetaFormPage() {
   const [saboresSecundarios, setSaboresSecundarios] = useState<string[]>([]);
   const [texturas, setTexturas] = useState<string[]>([]);
   const [tecnicasCoccion, setTecnicasCoccion] = useState<string[]>([]);
+  const [formatosServicio, setFormatosServicio] = useState<string[]>([]);
+  const [equipamientos, setEquipamientos] = useState<string[]>([]);
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
@@ -217,14 +223,21 @@ export default function RecetaFormPage() {
     const sabores = new Set<string>();
     const texturas = new Set<string>();
     const tecnicas = new Set<string>();
+    const formatos = new Set<string>(['Cóctel (bocado)', 'Buffet', 'Emplatado en mesa', 'Estación de cocina en vivo (Showcooking)']);
+    const equipos = new Set<string>(['Horno de convección', 'Abatidor', 'Sifón', 'Roner']);
+
     allRecetas.forEach(r => {
       r.perfilSaborSecundario?.forEach(s => sabores.add(s));
       r.perfilTextura?.forEach(t => texturas.add(t));
       if (r.tecnicaCoccionPrincipal) tecnicas.add(r.tecnicaCoccionPrincipal);
+      r.formatoServicioIdeal?.forEach(f => formatos.add(f));
+      r.equipamientoCritico?.forEach(e => equipos.add(e));
     });
     setSaboresSecundarios(Array.from(sabores));
     setTexturas(Array.from(texturas));
     setTecnicasCoccion(Array.from(tecnicas));
+    setFormatosServicio(Array.from(formatos));
+    setEquipamientos(Array.from(equipos));
 
 
     if (isEditing) {
@@ -295,7 +308,7 @@ export default function RecetaFormPage() {
   }
 
   return (
-    <>
+    <TooltipProvider>
       <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
@@ -451,6 +464,72 @@ export default function RecetaFormPage() {
                         </AccordionContent>
                     </Card>
                 </AccordionItem>
+                 <AccordionItem value="item-operacional">
+                    <Card>
+                        <AccordionTrigger className="p-4"><CardTitle className="flex items-center gap-2 text-lg"><Factory />Logística y Producción</CardTitle></AccordionTrigger>
+                        <AccordionContent>
+                           <CardContent className="space-y-4 pt-2">
+                            <div className="grid md:grid-cols-3 gap-4">
+                                <FormField control={form.control} name="potencialMiseEnPlace" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="flex items-center gap-1.5">
+                                            Potencial de "Mise en Place"
+                                            <Tooltip>
+                                                <TooltipTrigger type="button"><Info className="h-3 w-3"/></TooltipTrigger>
+                                                <TooltipContent><p>Indica qué parte del plato se puede adelantar para optimizar la producción.</p></TooltipContent>
+                                            </Tooltip>
+                                        </FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="COMPLETO">Completo (Se puede dejar listo para servir)</SelectItem>
+                                                <SelectItem value="PARCIAL">Parcial (Salsas, bases, guarniciones...)</SelectItem>
+                                                <SelectItem value="AL_MOMENTO">Al momento (Se debe hacer al momento del servicio)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </FormItem>
+                                )} />
+                                 <FormField control={form.control} name="formatoServicioIdeal" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="flex items-center gap-1.5">
+                                            Formato de Servicio Ideal
+                                            <Tooltip>
+                                                <TooltipTrigger type="button"><Info className="h-3 w-3"/></TooltipTrigger>
+                                                <TooltipContent><p>Define para qué tipo de servicio está pensado este plato.</p></TooltipContent>
+                                            </Tooltip>
+                                        </FormLabel>
+                                        <MultiSelect
+                                            options={formatosServicio.map(f => ({label: f, value: f}))}
+                                            selected={field.value || []}
+                                            onChange={field.onChange}
+                                            placeholder="Selecciona formatos..."
+                                            onCreated={(value) => setFormatosServicio(prev => [...prev, value])}
+                                        />
+                                    </FormItem>
+                                 )} />
+                                  <FormField control={form.control} name="equipamientoCritico" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="flex items-center gap-1.5">
+                                            Equipamiento Crítico Requerido
+                                            <Tooltip>
+                                                <TooltipTrigger type="button"><Info className="h-3 w-3"/></TooltipTrigger>
+                                                <TooltipContent><p>Lista la maquinaria específica y limitada necesaria para este plato.</p></TooltipContent>
+                                            </Tooltip>
+                                        </FormLabel>
+                                         <MultiSelect
+                                            options={equipamientos.map(e => ({label: e, value: e}))}
+                                            selected={field.value || []}
+                                            onChange={field.onChange}
+                                            placeholder="Selecciona o añade equipo..."
+                                            onCreated={(value) => setEquipamientos(prev => [...prev, value])}
+                                        />
+                                    </FormItem>
+                                 )} />
+                            </div>
+                           </CardContent>
+                        </AccordionContent>
+                    </Card>
+                </AccordionItem>
                 <AccordionItem value="item-2">
                      <Card>
                         <AccordionTrigger className="p-4"><CardTitle className="flex items-center gap-2 text-lg"><Utensils />Elaboraciones</CardTitle></AccordionTrigger>
@@ -562,6 +641,6 @@ export default function RecetaFormPage() {
             </AlertDialogContent>
         </AlertDialog>
       </main>
-    </>
+    </TooltipProvider>
   );
 }

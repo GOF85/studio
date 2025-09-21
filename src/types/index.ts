@@ -434,6 +434,10 @@ export type Receta = {
     tipoCocina?: string;
     temperaturaServicio?: 'CALIENTE' | 'TIBIO' | 'AMBIENTE' | 'FRIO' | 'HELADO';
     tecnicaCoccionPrincipal?: string;
+    // --- Nuevos campos Logísticos ---
+    potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL' | 'AL_MOMENTO';
+    formatoServicioIdeal?: string[];
+    equipamientoCritico?: string[];
 };
 
 export type MenajeDB = {
@@ -451,4 +455,3 @@ export type TipoCocina = {
     id: string;
     nombre: string;
 }
-
