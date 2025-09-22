@@ -495,7 +495,16 @@ export type ContenedorIsotermo = {
     nombre: string;
 }
 
-export type OrdenPicking = {
+export type PickingState = {
     osId: string;
-    // Define los kits de receta o elaboraciones a pickear
-}
+    assignedContainers: {
+        REFRIGERADO?: ContenedorIsotermo[];
+        CONGELADO?: ContenedorIsotermo[];
+        SECO?: ContenedorIsotermo[];
+    };
+    itemStates: {
+        id: string; // ElaboracionNecesaria['id']
+        isPicked: boolean;
+        containerId?: string;
+    }[];
+};

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown } from 'lucide-react';
 import { format } from 'date-fns';
-import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, ContenedorIsotermo } from '@/types';
+import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, ContenedorIsotermo, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -15,6 +15,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 
 type ElaboracionNecesaria = {
@@ -43,6 +44,19 @@ export default function PickingDetailPage() {
     const router = useRouter();
     const params = useParams();
     const osId = params.id as string;
+    const { toast } = useToast();
+
+    const savePickingState = useCallback((currentNecesidades: ElaboracionNecesaria[], currentContainers: typeof assignedContainers) => {
+        if (!osId) return;
+        const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
+        const newState: PickingState = {
+            osId,
+            assignedContainers: currentContainers,
+            itemStates: currentNecesidades.map(n => ({ id: n.id, isPicked: n.isPicked, containerId: n.containerId }))
+        };
+        allPickingStates[osId] = newState;
+        localStorage.setItem('pickingStates', JSON.stringify(allPickingStates));
+    }, [osId]);
 
     useEffect(() => {
         if (osId) {
@@ -60,7 +74,7 @@ export default function PickingDetailPage() {
             const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
             const osGastroOrders = allGastroOrders.filter(go => go.osId === osId);
             
-            const allNecesidades: ElaboracionNecesaria[] = [];
+            let initialNecesidades: ElaboracionNecesaria[] = [];
 
             osGastroOrders.forEach(order => {
                 (order.items || []).forEach(item => {
@@ -71,7 +85,7 @@ export default function PickingDetailPage() {
                                 const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
                                 if (elaboracion) {
                                     const cantidadNecesaria = (item.quantity || 0) * elabEnReceta.cantidad;
-                                    allNecesidades.push({
+                                    initialNecesidades.push({
                                         id: elaboracion.id + '-' + receta.id,
                                         nombre: elaboracion.nombre,
                                         cantidad: cantidadNecesaria,
@@ -86,7 +100,20 @@ export default function PickingDetailPage() {
                     }
                 });
             });
-            setNecesidades(allNecesidades);
+
+            const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
+            const savedState = allPickingStates[osId];
+
+            if (savedState) {
+                setAssignedContainers(savedState.assignedContainers || {});
+                const itemStatesMap = new Map(savedState.itemStates.map(s => [s.id, s]));
+                initialNecesidades = initialNecesidades.map(n => {
+                    const savedItemState = itemStatesMap.get(n.id);
+                    return savedItemState ? { ...n, isPicked: savedItemState.isPicked, containerId: savedItemState.containerId } : n;
+                })
+            }
+
+            setNecesidades(initialNecesidades);
         }
         setIsMounted(true);
     }, [osId]);
@@ -94,26 +121,30 @@ export default function PickingDetailPage() {
     const addContainerToSection = (tipo: Elaboracion['tipoExpedicion'], container: ContenedorIsotermo) => {
         setAssignedContainers(prev => {
             const currentSectionContainers = prev[tipo] || [];
-            if(currentSectionContainers.some(c => c.id === container.id)) return prev; // Avoid duplicates
-            return {
-                ...prev,
-                [tipo]: [...currentSectionContainers, container]
-            }
+            if(currentSectionContainers.some(c => c.id === container.id)) return prev;
+            const newContainers = { ...prev, [tipo]: [...currentSectionContainers, container]};
+            savePickingState(necesidades, newContainers);
+            return newContainers;
         })
     };
 
     const assignElaboracionToContainer = (elaboracionId: string, containerId: string) => {
-        setNecesidades(prev => prev.map(nec => 
+        const newNecesidades = necesidades.map(nec => 
             nec.id === elaboracionId ? { ...nec, isPicked: true, containerId: containerId } : nec
-        ));
+        );
+        setNecesidades(newNecesidades);
+        savePickingState(newNecesidades, assignedContainers);
+        toast({title: "Asignado", description: "La elaboración ha sido asignada al contenedor."});
     };
 
     const unassignElaboracion = (elaboracionId: string) => {
-        setNecesidades(prev => prev.map(nec => 
+        const newNecesidades = necesidades.map(nec => 
             nec.id === elaboracionId ? { ...nec, isPicked: false, containerId: undefined } : nec
-        ));
+        );
+        setNecesidades(newNecesidades);
+        savePickingState(newNecesidades, assignedContainers);
+        toast({title: "Desasignado", description: "La elaboración ha sido devuelta a la lista de pendientes."});
     }
-
 
     const necesidadesAgrupadas = useMemo(() => {
         const grouped: {[key in Elaboracion['tipoExpedicion']]?: ElaboracionNecesaria[]} = {};
