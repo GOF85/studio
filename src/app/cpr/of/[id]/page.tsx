@@ -25,7 +25,7 @@ const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'seconda
 
 type FormData = {
     responsable?: string;
-    cantidadReal?: number;
+    cantidadReal: number | null;
 }
 
 export default function OfDetailPage() {
@@ -37,7 +37,12 @@ export default function OfDetailPage() {
     const { toast } = useToast();
     const id = params.id as string;
     
-    const form = useForm<FormData>();
+    const form = useForm<FormData>({
+        defaultValues: {
+            responsable: '',
+            cantidadReal: null
+        }
+    });
 
     useEffect(() => {
         if(id) {
@@ -47,7 +52,7 @@ export default function OfDetailPage() {
             if (currentOF) {
                 form.reset({
                     responsable: currentOF.responsable,
-                    cantidadReal: currentOF.cantidadReal
+                    cantidadReal: currentOF.cantidadReal ?? null
                 })
             }
             
@@ -76,7 +81,7 @@ export default function OfDetailPage() {
              updatedOF = {
                 ...orden,
                 responsable: formData.responsable,
-                cantidadReal: formData.cantidadReal,
+                cantidadReal: formData.cantidadReal ?? undefined,
              };
         }
 
@@ -86,7 +91,7 @@ export default function OfDetailPage() {
             allOFs[index] = updatedOF;
             localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
             setOrden(updatedOF);
-            form.reset({ responsable: updatedOF.responsable, cantidadReal: updatedOF.cantidadReal });
+            form.reset({ responsable: updatedOF.responsable, cantidadReal: updatedOF.cantidadReal ?? null });
             toast({ title: 'Guardado', description: `La Orden de Fabricación ha sido actualizada.` });
         }
     };
@@ -197,7 +202,7 @@ export default function OfDetailPage() {
                                     <Controller
                                         name="cantidadReal"
                                         control={form.control}
-                                        render={({ field }) => <Input id="cantidadReal" type="number" step="0.01" {...field} disabled={!canFinish}/>}
+                                        render={({ field }) => <Input id="cantidadReal" type="number" step="0.01" {...field} value={field.value ?? ''} disabled={!canFinish}/>}
                                     />
                                 </div>
                                 <Button className="w-full" variant="default" disabled={!canFinish} onClick={() => handleSave('Finalizado')}>Marcar como Finalizada</Button>
