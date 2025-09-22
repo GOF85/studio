@@ -2,9 +2,10 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday } from 'date-fns';
-import { ClipboardList, Calendar as CalendarIcon, Factory, Info } from 'lucide-react';
+import { ClipboardList, Calendar as CalendarIcon, Factory, Info, AlertTriangle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -15,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion } from '@/types';
 
@@ -40,18 +42,24 @@ type NecesidadElaboracion = {
 };
 
 export default function PlanificacionPage() {
+    const router = useRouter();
     const [isMounted, setIsMounted] = useState(false);
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: startOfToday(),
         to: addDays(startOfToday(), 7),
     });
     const [necesidades, setNecesidades] = useState<Map<string, NecesidadElaboracion>>(new Map());
+    const [incidencias, setIncidencias] = useState<OrdenFabricacion[]>([]);
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
     const calcularNecesidades = useCallback(() => {
         setIsLoading(true);
+
+        const allOrdenesFabricacion: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+        setIncidencias(allOrdenesFabricacion.filter(of => of.estado === 'Incidencia'));
+
         if (!dateRange?.from || !dateRange?.to) {
             setNecesidades(new Map());
             setIsLoading(false);
@@ -65,7 +73,7 @@ export default function PlanificacionPage() {
         const allGastroOrders: GastronomyOrder[] = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
         const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
         const allElaboraciones: Elaboracion[] = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-        const allOrdenesFabricacion: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+        
 
         const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
         const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
@@ -137,7 +145,6 @@ export default function PlanificacionPage() {
         // Restar cantidades ya cubiertas por OFs existentes
         const necesidadesNetas = new Map(necesidadesBrutas);
         
-        // Find all OFs related to the OS in the date range
         const ofsRelevantes = allOrdenesFabricacion.filter(of => 
             of.osIDs.some(osId => osIdsEnRango.has(osId))
         );
@@ -146,7 +153,7 @@ export default function PlanificacionPage() {
             const ofsParaEstaElaboracion = ofsRelevantes.filter(of => of.elaboracionId === elabId);
             
             const cantidadCubierta = ofsParaEstaElaboracion.reduce((sum, of) => {
-                const isFinished = of.estado === 'Finalizado' || of.estado === 'Validado' || of.estado === 'Incidencia';
+                const isFinished = ['Finalizado', 'Validado', 'Incidencia'].includes(of.estado);
                 return sum + (isFinished && typeof of.cantidadReal === 'number' ? of.cantidadReal : of.cantidadTotal);
             }, 0);
             
@@ -365,6 +372,47 @@ export default function PlanificacionPage() {
                         </TableBody>
                     </Table>
                 </div>
+
+                <Card className="mt-8">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-3 text-destructive"><AlertTriangle/>Informe de Incidencias</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="border rounded-lg">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Lote / OF</TableHead>
+                                        <TableHead>Elaboración</TableHead>
+                                        <TableHead>Fecha Prevista</TableHead>
+                                        <TableHead>Responsable</TableHead>
+                                        <TableHead>Observaciones</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {incidencias.length > 0 ? (
+                                        incidencias.map(incidencia => (
+                                            <TableRow key={incidencia.id} className="cursor-pointer hover:bg-destructive/10" onClick={() => router.push(`/cpr/of/${incidencia.id}`)}>
+                                                <TableCell className="font-mono">{incidencia.id}</TableCell>
+                                                <TableCell>{incidencia.elaboracionNombre}</TableCell>
+                                                <TableCell>{format(new Date(incidencia.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
+                                                <TableCell>{incidencia.responsable}</TableCell>
+                                                <TableCell className="max-w-xs truncate">{incidencia.incidenciaObservaciones}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                                No hay incidencias registradas.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+
             </div>
         </TooltipProvider>
     );
