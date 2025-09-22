@@ -15,7 +15,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, UnidadMedida } from '@/types';
+import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion } from '@/types';
 
 type EventoAfectado = {
     osId: string;
@@ -35,6 +35,7 @@ type NecesidadElaboracion = {
     unidad: UnidadMedida;
     eventos: EventoAfectado[];
     recetas: RecetaNecesidad[];
+    partidaProduccion: PartidaProduccion;
 };
 
 export default function PlanificacionPage() {
@@ -113,6 +114,7 @@ export default function PlanificacionPage() {
                                         nombre: elaboracion.nombre,
                                         cantidadTotal: cantidadNecesaria,
                                         unidad: elaboracion.unidadProduccion,
+                                        partidaProduccion: receta.partidaProduccion, // Get partida from receta
                                         eventos: [{ osId: gastroOrder.osId, serviceNumber: serviceOrder.serviceNumber, serviceType: gastroOrder.descripcion }],
                                         recetas: [{ recetaNombre: receta.nombre, cantidad: cantidadNecesaria }],
                                     });
@@ -155,10 +157,45 @@ export default function PlanificacionPage() {
             });
             return;
         }
-        toast({
-            title: 'Funcionalidad en desarrollo',
-            description: `Se generarían OF para ${selectedRows.size} elaboraciones.`
+
+        const allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+        const lastIdNumber = allOFs.reduce((max, of) => {
+            const num = parseInt(of.id.split('-')[2]);
+            return isNaN(num) ? max : Math.max(max, num);
+        }, 0);
+
+        let newOFs: OrdenFabricacion[] = [];
+        let currentIdNumber = lastIdNumber;
+
+        selectedRows.forEach(elaboracionId => {
+            const necesidad = necesidades.get(elaboracionId);
+            if(necesidad) {
+                currentIdNumber++;
+                const newOF: OrdenFabricacion = {
+                    id: `OF-${new Date().getFullYear()}-${currentIdNumber.toString().padStart(3, '0')}`,
+                    fechaCreacion: new Date().toISOString(),
+                    fechaProduccionPrevista: dateRange?.from?.toISOString() || new Date().toISOString(),
+                    elaboracionId: necesidad.elaboracionId,
+                    elaboracionNombre: necesidad.nombre,
+                    cantidadTotal: necesidad.cantidadTotal,
+                    unidad: necesidad.unidad,
+                    partidaAsignada: necesidad.partidaProduccion,
+                    estado: 'Pendiente',
+                    osIDs: Array.from(new Set(necesidad.eventos.map(e => e.osId))),
+                };
+                newOFs.push(newOF);
+            }
         });
+        
+        const updatedOFs = [...allOFs, ...newOFs];
+        localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
+
+        toast({
+            title: 'Órdenes de Fabricación Generadas',
+            description: `Se han creado ${newOFs.length} nuevas OF.`,
+        });
+
+        setSelectedRows(new Set()); // Clear selection
     }
 
     if (!isMounted) {

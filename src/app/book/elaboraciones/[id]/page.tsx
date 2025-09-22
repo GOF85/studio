@@ -6,7 +6,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Component, ChefHat, PlusCircle, Trash2, DollarSign } from 'lucide-react';
-import type { Elaboracion, IngredienteInterno, UnidadMedida, IngredienteERP } from '@/types';
+import type { Elaboracion, IngredienteInterno, UnidadMedida, IngredienteERP, PartidaProduccion } from '@/types';
 import { UNIDADES_MEDIDA } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ const elaboracionFormSchema = z.object({
   nombre: z.string().min(1, 'El nombre es obligatorio'),
   produccionTotal: z.coerce.number().min(0.001, 'La producción total es obligatoria'),
   unidadProduccion: z.enum(UNIDADES_MEDIDA),
+  partidaProduccion: z.enum(['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION']),
   componentes: z.array(componenteSchema).min(1, 'Debe tener al menos un componente'),
   instruccionesPreparacion: z.string().optional().default(''),
   fotosProduccionURLs: z.array(z.string()).optional().default([]), // Placeholder for multi-image
@@ -106,7 +107,7 @@ export default function ElaboracionFormPage() {
   const form = useForm<ElaboracionFormValues>({
     resolver: zodResolver(elaboracionFormSchema),
     defaultValues: { 
-        nombre: '', produccionTotal: 1, unidadProduccion: 'KILO', componentes: [],
+        nombre: '', produccionTotal: 1, unidadProduccion: 'KILO', partidaProduccion: 'FRIO', componentes: [],
         tipoExpedicion: 'REFRIGERADO', formatoExpedicion: '', ratioExpedicion: 0,
         instruccionesPreparacion: '', videoProduccionURL: '', fotosProduccionURLs: [],
     }
@@ -137,7 +138,7 @@ export default function ElaboracionFormPage() {
       }
     } else {
         form.reset({
-            id: Date.now().toString(), nombre: '', produccionTotal: 1, unidadProduccion: 'KILO', componentes: [],
+            id: Date.now().toString(), nombre: '', produccionTotal: 1, unidadProduccion: 'KILO', partidaProduccion: 'FRIO', componentes: [],
             tipoExpedicion: 'REFRIGERADO', formatoExpedicion: '', ratioExpedicion: 0,
             instruccionesPreparacion: '', videoProduccionURL: '', fotosProduccionURLs: [],
         });
@@ -232,9 +233,24 @@ export default function ElaboracionFormPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <FormField control={form.control} name="nombre" render={({ field }) => (
-                        <FormItem><FormLabel>Nombre de la Elaboración</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
+                     <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="nombre" render={({ field }) => (
+                            <FormItem><FormLabel>Nombre de la Elaboración</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="partidaProduccion" render={({ field }) => (
+                            <FormItem><FormLabel>Partida de Producción</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="FRIO">FRIO</SelectItem>
+                                        <SelectItem value="CALIENTE">CALIENTE</SelectItem>
+                                        <SelectItem value="PASTELERIA">PASTELERIA</SelectItem>
+                                        <SelectItem value="EXPEDICION">EXPEDICION</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            <FormMessage /></FormItem>
+                        )} />
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                         <FormField control={form.control} name="produccionTotal" render={({ field }) => (
                             <FormItem><FormLabel>Producción Total</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>

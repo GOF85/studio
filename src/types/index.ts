@@ -331,6 +331,7 @@ export type PruebaMenuData = {
 }
 
 // --- BOOK GASTRONOMICO ---
+export type PartidaProduccion = 'FRIO' | 'CALIENTE' | 'PASTELERIA' | 'EXPEDICION';
 
 export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS_DE_CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
 export type Alergeno = typeof ALERGENOS[number];
@@ -371,6 +372,7 @@ export type Elaboracion = {
     nombre: string;
     produccionTotal: number; 
     unidadProduccion: UnidadMedida;
+    partidaProduccion: PartidaProduccion;
     componentes: ComponenteElaboracion[];
     instruccionesPreparacion: string;
     fotosProduccionURLs: string[];
@@ -413,7 +415,7 @@ export type Receta = {
     descripcionComercial: string;
     responsableEscandallo: string;
     categoria: string;
-    partidaProduccion: 'FRIO' | 'CALIENTE' | 'PASTELERIA' | 'EXPEDICION';
+    partidaProduccion: PartidaProduccion;
     estacionalidad: 'INVIERNO' | 'VERANO' | 'MIXTO';
     tipoDieta: 'VEGETARIANO' | 'VEGANO' | 'AMBOS' | 'NINGUNO';
     gramajeTotal: number; // en gramos
@@ -463,7 +465,6 @@ export type TipoCocina = {
 }
 
 // --- CPR ---
-export type PartidaProduccion = 'FRIO' | 'CALIENTE' | 'PASTELERIA';
 
 export type OrdenFabricacion = {
     id: string; // Lote único
