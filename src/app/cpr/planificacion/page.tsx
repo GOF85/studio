@@ -81,8 +81,10 @@ export default function PlanificacionPage() {
         const osIdsEnRango = new Set(
             allServiceOrders
                 .filter(os => {
-                    const osDate = new Date(os.startDate);
-                    return os.status === 'Confirmado' && osDate >= from && osDate <= to;
+                    try {
+                        const osDate = new Date(os.startDate);
+                        return os.status === 'Confirmado' && osDate >= from && osDate <= to;
+                    } catch(e) { return false; }
                 })
                 .map(os => os.id)
         );
@@ -140,26 +142,25 @@ export default function PlanificacionPage() {
                 }
             });
         });
-
-        // Restar cantidades ya cubiertas por OFs existentes
-        const necesidadesNetas = new Map(necesidadesBrutas);
         
         const ofsRelevantes = allOrdenesFabricacion.filter(of => 
             of.osIDs.some(osId => osIdsEnRango.has(osId))
         );
 
-        necesidadesNetas.forEach((necesidad, elabId) => {
-            const ofsParaEstaElaboracion = ofsRelevantes.filter(of => of.elaboracionId === elabId);
-            
-            const cantidadCubierta = ofsParaEstaElaboracion.reduce((sum, of) => {
-                const isFinished = ['Finalizado', 'Validado', 'Incidencia'].includes(of.estado);
-                return sum + (isFinished && typeof of.cantidadReal === 'number' ? of.cantidadReal : of.cantidadTotal);
-            }, 0);
-            
-            necesidad.cantidadTotal -= cantidadCubierta;
+        const cantidadesCubiertasPorElaboracion = new Map<string, number>();
+        ofsRelevantes.forEach(of => {
+            const isFinished = ['Finalizado', 'Validado', 'Incidencia'].includes(of.estado);
+            const cantidadACubrir = isFinished && typeof of.cantidadReal === 'number' ? of.cantidadReal : of.cantidadTotal;
+            cantidadesCubiertasPorElaboracion.set(of.elaboracionId, (cantidadesCubiertasPorElaboracion.get(of.elaboracionId) || 0) + cantidadACubrir);
+        });
 
-            if (necesidad.cantidadTotal <= 0.001) { // Use a small threshold to avoid floating point issues
-                necesidadesNetas.delete(elabId);
+        const necesidadesNetas = new Map<string, NecesidadElaboracion>();
+        necesidadesBrutas.forEach((necesidad, elabId) => {
+            const cantidadCubierta = cantidadesCubiertasPorElaboracion.get(elabId) || 0;
+            const necesidadNeta = necesidad.cantidadTotal - cantidadCubierta;
+
+            if (necesidadNeta > 0.001) {
+                necesidadesNetas.set(elabId, { ...necesidad, cantidadTotal: necesidadNeta });
             }
         });
         
