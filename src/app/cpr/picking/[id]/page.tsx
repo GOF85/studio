@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown, Printer, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
-import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, ContenedorIsotermo, PickingState } from '@/types';
+import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -20,13 +20,12 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 
-type ElaboracionNecesaria = {
-    id: string;
-    nombre: string;
+type LoteDisponible = {
+    ofId: string;
+    elaboracionNombre: string;
     cantidad: number;
     unidad: string;
-    tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
-    recetaContenedora: string;
+    tipoExpedicion: OrdenFabricacion['partidaAsignada']; // We'll approximate this from partida
     isPicked: boolean;
     containerId?: string;
 };
@@ -38,9 +37,9 @@ type AssignedContainer = {
 
 export default function PickingDetailPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-    const [necesidades, setNecesidades] = useState<ElaboracionNecesaria[]>([]);
+    const [lotes, setLotes] = useState<LoteDisponible[]>([]);
     const [dbContainers, setDbContainers] = useState<ContenedorIsotermo[]>([]);
-    const [assignedContainers, setAssignedContainers] = useState<{[key in Elaboracion['tipoExpedicion']]?: AssignedContainer[]}>({});
+    const [assignedContainers, setAssignedContainers] = useState<{[key in 'FRIO' | 'CALIENTE' | 'PASTELERIA']?: AssignedContainer[]}>({});
     const [isMounted, setIsMounted] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
     
@@ -49,13 +48,13 @@ export default function PickingDetailPage() {
     const osId = params.id as string;
     const { toast } = useToast();
 
-    const savePickingState = useCallback((currentNecesidades: ElaboracionNecesaria[], currentContainers: typeof assignedContainers) => {
+    const savePickingState = useCallback((currentLotes: LoteDisponible[], currentContainers: typeof assignedContainers) => {
         if (!osId) return;
         const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
         const newState: PickingState = {
             osId,
             assignedContainers: currentContainers,
-            itemStates: currentNecesidades.map(n => ({ id: n.id, isPicked: n.isPicked, containerId: n.containerId }))
+            itemStates: currentLotes.map(n => ({ id: n.ofId, isPicked: n.isPicked, containerId: n.containerId }))
         };
         allPickingStates[osId] = newState;
         localStorage.setItem('pickingStates', JSON.stringify(allPickingStates));
@@ -67,42 +66,20 @@ export default function PickingDetailPage() {
             const currentOS = allServiceOrders.find(os => os.id === osId);
             setServiceOrder(currentOS || null);
 
-            const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-            const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-            const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+            const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
             const allContainers = JSON.parse(localStorage.getItem('contenedoresDB') || '[]') as ContenedorIsotermo[];
             setDbContainers(allContainers);
             
-            const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
-            const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
-            const osGastroOrders = allGastroOrders.filter(go => go.osId === osId);
-            
-            let initialNecesidades: ElaboracionNecesaria[] = [];
+            const osOFs = allOFs.filter(of => of.osIDs.includes(osId) && of.estado === 'Validado');
 
-            osGastroOrders.forEach(order => {
-                (order.items || []).forEach(item => {
-                    if (item.type === 'item') {
-                        const receta = recetasMap.get(item.id);
-                        if (receta) {
-                            receta.elaboraciones.forEach(elabEnReceta => {
-                                const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
-                                if (elaboracion) {
-                                    const cantidadNecesaria = (item.quantity || 0) * elabEnReceta.cantidad;
-                                    initialNecesidades.push({
-                                        id: elaboracion.id + '-' + receta.id,
-                                        nombre: elaboracion.nombre,
-                                        cantidad: cantidadNecesaria,
-                                        unidad: elaboracion.unidadProduccion,
-                                        tipoExpedicion: elaboracion.tipoExpedicion,
-                                        recetaContenedora: receta.nombre,
-                                        isPicked: false,
-                                    });
-                                }
-                            });
-                        }
-                    }
-                });
-            });
+            let initialLotes: LoteDisponible[] = osOFs.map(of => ({
+                ofId: of.id,
+                elaboracionNombre: of.elaboracionNombre,
+                cantidad: of.cantidadReal || of.cantidadTotal,
+                unidad: of.unidad,
+                tipoExpedicion: of.partidaAsignada, // Approximation
+                isPicked: false,
+            }));
 
             const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
             const savedState = allPickingStates[osId];
@@ -110,55 +87,56 @@ export default function PickingDetailPage() {
             if (savedState) {
                 setAssignedContainers(savedState.assignedContainers || {});
                 const itemStatesMap = new Map(savedState.itemStates.map(s => [s.id, s]));
-                initialNecesidades = initialNecesidades.map(n => {
-                    const savedItemState = itemStatesMap.get(n.id);
-                    return savedItemState ? { ...n, isPicked: savedItemState.isPicked, containerId: savedItemState.containerId } : n;
+                initialLotes = initialLotes.map(lote => {
+                    const savedItemState = itemStatesMap.get(lote.ofId);
+                    return savedItemState ? { ...lote, isPicked: savedItemState.isPicked, containerId: savedItemState.containerId } : lote;
                 })
             }
 
-            setNecesidades(initialNecesidades);
+            setLotes(initialLotes);
         }
         setIsMounted(true);
     }, [osId]);
 
-    const addContainerToSection = (tipo: Elaboracion['tipoExpedicion'], container: ContenedorIsotermo) => {
+    const addContainerToSection = (tipo: LoteDisponible['tipoExpedicion'], container: ContenedorIsotermo) => {
         setAssignedContainers(prev => {
             const currentSectionContainers = prev[tipo] || [];
             if(currentSectionContainers.some(c => c.id === container.id)) return prev;
             const newContainers = { ...prev, [tipo]: [...currentSectionContainers, container]};
-            savePickingState(necesidades, newContainers);
+            savePickingState(lotes, newContainers);
             return newContainers;
         })
     };
 
-    const assignElaboracionToContainer = (elaboracionId: string, containerId: string) => {
-        const newNecesidades = necesidades.map(nec => 
-            nec.id === elaboracionId ? { ...nec, isPicked: true, containerId: containerId } : nec
+    const assignLoteToContainer = (ofId: string, containerId: string) => {
+        const newLotes = lotes.map(lote => 
+            lote.ofId === ofId ? { ...lote, isPicked: true, containerId: containerId } : lote
         );
-        setNecesidades(newNecesidades);
-        savePickingState(newNecesidades, assignedContainers);
-        toast({title: "Asignado", description: "La elaboración ha sido asignada al contenedor."});
+        setLotes(newLotes);
+        savePickingState(newLotes, assignedContainers);
+        toast({title: "Asignado", description: `El lote ${ofId} ha sido asignado al contenedor.`});
     };
 
-    const unassignElaboracion = (elaboracionId: string) => {
-        const newNecesidades = necesidades.map(nec => 
-            nec.id === elaboracionId ? { ...nec, isPicked: false, containerId: undefined } : nec
+    const unassignLote = (ofId: string) => {
+        const newLotes = lotes.map(lote => 
+            lote.ofId === ofId ? { ...lote, isPicked: false, containerId: undefined } : lote
         );
-        setNecesidades(newNecesidades);
-        savePickingState(newNecesidades, assignedContainers);
-        toast({title: "Desasignado", description: "La elaboración ha sido devuelta a la lista de pendientes."});
+        setLotes(newLotes);
+        savePickingState(newLotes, assignedContainers);
+        toast({title: "Desasignado", description: `El lote ${ofId} ha sido devuelto a la lista de pendientes.`});
     }
 
-    const necesidadesAgrupadas = useMemo(() => {
-        const grouped: {[key in Elaboracion['tipoExpedicion']]?: ElaboracionNecesaria[]} = {};
-        necesidades.forEach(nec => {
-            if (!grouped[nec.tipoExpedicion]) {
-                grouped[nec.tipoExpedicion] = [];
+    const lotesAgrupados = useMemo(() => {
+        const grouped: {[key in LoteDisponible['tipoExpedicion']]?: LoteDisponible[]} = {};
+        lotes.forEach(lote => {
+            const tipo = lote.tipoExpedicion;
+            if (!grouped[tipo]) {
+                grouped[tipo] = [];
             }
-            grouped[nec.tipoExpedicion]!.push(nec);
+            grouped[tipo]!.push(lote);
         });
         return grouped;
-    }, [necesidades]);
+    }, [lotes]);
 
     const handlePrint = async () => {
         if (!serviceOrder) return;
@@ -181,7 +159,7 @@ export default function PickingDetailPage() {
             finalY += 10;
 
             // Sections
-            for (const tipo of Object.keys(necesidadesAgrupadas) as Array<keyof typeof necesidadesAgrupadas>) {
+            for (const tipo of Object.keys(lotesAgrupados) as Array<keyof typeof lotesAgrupados>) {
                 const sectionContainers = assignedContainers[tipo] || [];
                 if (sectionContainers.length === 0) continue;
 
@@ -196,10 +174,11 @@ export default function PickingDetailPage() {
                 finalY += 8;
 
                 sectionContainers.forEach(container => {
-                    const containerItems = necesidades.filter(n => n.containerId === container.id);
-                    const head = [['Elaboración (Receta)', 'Cantidad']];
+                    const containerItems = lotes.filter(n => n.containerId === container.id);
+                    const head = [['Lote (OF)', 'Elaboración', 'Cantidad']];
                     const body = containerItems.map(item => [
-                        `${item.nombre} (${item.recetaContenedora})`, 
+                        item.ofId,
+                        item.elaboracionNombre, 
                         `${item.cantidad.toFixed(2)} ${item.unidad}`
                     ]);
 
@@ -239,9 +218,10 @@ export default function PickingDetailPage() {
     }
 
     const expeditionTypeMap = {
-        REFRIGERADO: { title: "Refrigerado", icon: ThermometerSnowflake, className: "bg-blue-100 border-blue-200" },
-        CONGELADO: { title: "Congelado", icon: ThermometerSnowflake, className: "bg-sky-100 border-sky-200" },
-        SECO: { title: "Seco", icon: Archive, className: "bg-amber-100 border-amber-200" },
+        FRIO: { title: "Partida Frío", icon: ThermometerSnowflake, className: "bg-blue-100 border-blue-200" },
+        CALIENTE: { title: "Partida Caliente", icon: ThermometerSnowflake, className: "bg-red-100 border-red-200" },
+        PASTELERIA: { title: "Partida Pastelería", icon: Archive, className: "bg-pink-100 border-pink-200" },
+        EXPEDICION: { title: "Partida Expedición", icon: Package, className: "bg-gray-100 border-gray-200" },
     };
 
     return (
@@ -266,12 +246,12 @@ export default function PickingDetailPage() {
             </div>
 
             <div className="space-y-8">
-                {(Object.keys(necesidadesAgrupadas) as Array<keyof typeof necesidadesAgrupadas>).map(tipo => {
-                    const sectionNeeds = necesidadesAgrupadas[tipo] || [];
-                    const pendingNeeds = sectionNeeds.filter(n => !n.isPicked);
+                {(Object.keys(lotesAgrupados) as Array<keyof typeof lotesAgrupados>).map(tipo => {
+                    const sectionLotes = lotesAgrupados[tipo] || [];
+                    const pendingLotes = sectionLotes.filter(n => !n.isPicked);
                     const info = expeditionTypeMap[tipo];
                     const sectionContainers = assignedContainers[tipo] || [];
-                    if (sectionNeeds.length === 0) return null;
+                    if (sectionLotes.length === 0) return null;
 
                     return (
                         <Card key={tipo} className={cn(info.className, "print-section")}>
@@ -305,16 +285,17 @@ export default function PickingDetailPage() {
                                 </Dialog>
                             </CardHeader>
                             <CardContent>
-                                {pendingNeeds.length > 0 && (
+                                {pendingLotes.length > 0 && (
                                     <div className="mb-6">
-                                        <h3 className="font-semibold text-lg mb-2">Elaboraciones pendientes de asignar</h3>
+                                        <h3 className="font-semibold text-lg mb-2">Lotes pendientes de asignar</h3>
                                         <Table className="bg-white">
-                                            <TableHeader><TableRow><TableHead>Elaboración (Receta)</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-48 no-print"></TableHead></TableRow></TableHeader>
+                                            <TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-48 no-print"></TableHead></TableRow></TableHeader>
                                             <TableBody>
-                                                {pendingNeeds.map(nec => (
-                                                    <TableRow key={nec.id}>
-                                                        <TableCell className="font-medium">{nec.nombre} <span className="text-muted-foreground text-xs">({nec.recetaContenedora})</span></TableCell>
-                                                        <TableCell className="text-right font-mono">{nec.cantidad.toFixed(2)} {nec.unidad}</TableCell>
+                                                {pendingLotes.map(lote => (
+                                                    <TableRow key={lote.ofId}>
+                                                        <TableCell className="font-medium font-mono">{lote.ofId}</TableCell>
+                                                        <TableCell>{lote.elaboracionNombre}</TableCell>
+                                                        <TableCell className="text-right font-mono">{lote.cantidad.toFixed(2)} {lote.unidad}</TableCell>
                                                          <TableCell className="text-right no-print">
                                                             <Popover>
                                                                 <PopoverTrigger asChild>
@@ -327,7 +308,7 @@ export default function PickingDetailPage() {
                                                                             <CommandEmpty>No hay contenedores.</CommandEmpty>
                                                                             <CommandGroup>
                                                                                 {sectionContainers.map(c => (
-                                                                                    <CommandItem key={c.id} onSelect={() => assignElaboracionToContainer(nec.id, c.id)}>{c.nombre} ({c.id})</CommandItem>
+                                                                                    <CommandItem key={c.id} onSelect={() => assignLoteToContainer(lote.ofId, c.id)}>{c.nombre} ({c.id})</CommandItem>
                                                                                 ))}
                                                                             </CommandGroup>
                                                                         </CommandList>
@@ -344,21 +325,22 @@ export default function PickingDetailPage() {
                                 
                                 <div className="space-y-6">
                                     {sectionContainers.map(container => {
-                                        const containerItems = sectionNeeds.filter(n => n.containerId === container.id);
+                                        const containerItems = sectionLotes.filter(n => n.containerId === container.id);
                                         return (
                                             <div key={container.id}>
                                                 <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">Contenedor: <Badge variant="secondary" className="text-base">{container.nombre} ({container.id})</Badge></h3>
                                                 <Table className="bg-white/70">
-                                                    <TableHeader><TableRow><TableHead>Elaboración (Receta)</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-16 no-print"></TableHead></TableRow></TableHeader>
+                                                    <TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-16 no-print"></TableHead></TableRow></TableHeader>
                                                     <TableBody>
                                                          {containerItems.length === 0 ? (
-                                                            <TableRow><TableCell colSpan={3} className="text-center h-20 text-muted-foreground">Vacío</TableCell></TableRow>
+                                                            <TableRow><TableCell colSpan={4} className="text-center h-20 text-muted-foreground">Vacío</TableCell></TableRow>
                                                          ) : (
                                                             containerItems.map(item => (
-                                                                <TableRow key={item.id}>
-                                                                    <TableCell className="font-medium">{item.nombre} <span className="text-muted-foreground text-xs">({item.recetaContenedora})</span></TableCell>
+                                                                <TableRow key={item.ofId}>
+                                                                    <TableCell className="font-medium font-mono">{item.ofId}</TableCell>
+                                                                    <TableCell>{item.elaboracionNombre}</TableCell>
                                                                     <TableCell className="text-right font-mono">{item.cantidad.toFixed(2)} {item.unidad}</TableCell>
-                                                                    <TableCell className="no-print"><Button variant="ghost" size="sm" onClick={() => unassignElaboracion(item.id)}>Quitar</Button></TableCell>
+                                                                    <TableCell className="no-print"><Button variant="ghost" size="sm" onClick={() => unassignLote(item.ofId)}>Quitar</Button></TableCell>
                                                                 </TableRow>
                                                             ))
                                                          )}
