@@ -33,7 +33,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Combobox } from '@/components/ui/combobox';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Slider } from '@/components/ui/slider';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
@@ -136,8 +136,16 @@ function SelectorDialog({ trigger, title, items, columns, onSelect }: { trigger:
 
 function SortableItem({ id, children }: { id: string, children: React.ReactNode }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-    const style = { transform: CSS.Transform.toString(transform), transition, };
-    return <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="flex items-center gap-2 bg-background p-1">{children}</div>;
+    const style = { transform: CSS.Transform.toString(transform), transition };
+    
+    return (
+        <div ref={setNodeRef} style={style} className="flex items-center gap-2 bg-background p-1">
+            <div {...attributes} {...listeners} className="cursor-grab text-muted-foreground">
+                <GripVertical />
+            </div>
+            {children}
+        </div>
+    );
 }
 
 const InfoTooltip = ({ text }: { text: string }) => (
@@ -627,9 +635,15 @@ export default function RecetaFormPage() {
                                     <div className="space-y-1">
                                     {elabFields.map((field, index) => (
                                         <SortableItem key={field.id} id={field.id}>
-                                            <GripVertical className="cursor-grab text-muted-foreground" />
-                                            <span className="font-semibold flex-1">{field.nombre}</span>
-                                            <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (<FormItem className="flex items-center gap-2"><FormLabel className="text-xs">Cantidad:</FormLabel><FormControl><Input type="number" {...qField} className="h-8 w-20" /></FormControl></FormItem>)} />
+                                            <div className="flex-1 flex items-center">
+                                                <span className="font-semibold flex-1">{field.nombre}</span>
+                                                <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (
+                                                    <FormItem className="flex items-center gap-2">
+                                                        <FormLabel className="text-xs">Cantidad:</FormLabel>
+                                                        <FormControl><Input type="number" {...qField} className="h-8 w-20" /></FormControl>
+                                                    </FormItem>
+                                                )} />
+                                            </div>
                                             <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeElab(index)}><Trash2 className="h-4 w-4" /></Button>
                                         </SortableItem>
                                     ))}
@@ -653,13 +667,16 @@ export default function RecetaFormPage() {
                                 <SortableContext items={menajeFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                                     <div className="space-y-1">
                                     {menajeFields.map((field, index) => (
-                                        <SortableItem key={field.id} id={field.id}>
-                                            <GripVertical className="cursor-grab text-muted-foreground" />
-                                            <span className="font-semibold flex-1">{field.descripcion}</span>
-                                            <FormField control={form.control} name={`menajeAsociado.${index}.ratio`} render={({ field: qField }) => (<FormItem className="flex items-center gap-2">
-                                                <FormLabel className="text-xs flex items-center gap-1.5">Ratio <InfoTooltip text="Ej: 1 (uno por comensal), 0.5 (uno cada dos), 4 (cuatro por comensal)." /></FormLabel>
-                                                <FormControl><Input type="number" {...qField} className="h-8 w-20" /></FormControl>
-                                            </FormItem>)} />
+                                         <SortableItem key={field.id} id={field.id}>
+                                            <div className="flex-1 flex items-center">
+                                                <span className="font-semibold flex-1">{field.descripcion}</span>
+                                                <FormField control={form.control} name={`menajeAsociado.${index}.ratio`} render={({ field: qField }) => (
+                                                    <FormItem className="flex items-center gap-2">
+                                                        <FormLabel className="text-xs flex items-center gap-1.5">Ratio <InfoTooltip text="Ej: 1 (uno por comensal), 0.5 (uno cada dos), 4 (cuatro por comensal)." /></FormLabel>
+                                                        <FormControl><Input type="number" {...qField} className="h-8 w-20" /></FormControl>
+                                                    </FormItem>
+                                                )} />
+                                            </div>
                                             <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeMenaje(index)}><Trash2 className="h-4 w-4" /></Button>
                                         </SortableItem>
                                     ))}
