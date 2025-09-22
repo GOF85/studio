@@ -75,7 +75,7 @@ export default function PickingDetailPage() {
             let initialLotes: LoteDisponible[] = osOFs.map(of => ({
                 ofId: of.id,
                 elaboracionNombre: of.elaboracionNombre,
-                cantidad: of.cantidadReal || of.cantidadTotal,
+                cantidad: Number(of.cantidadReal) || of.cantidadTotal,
                 unidad: of.unidad,
                 tipoExpedicion: of.partidaAsignada, // Approximation
                 isPicked: false,
@@ -358,3 +358,5 @@ export default function PickingDetailPage() {
         </div>
     );
 }
+
+    
