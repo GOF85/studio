@@ -493,7 +493,6 @@ export type PedidoPlantilla = {
 export type ContenedorIsotermo = {
     id: string; // e.g., 'ISO-042'
     nombre: string;
-    // ... any other properties like size, last maintenance, etc.
 }
 
 export type OrdenPicking = {
