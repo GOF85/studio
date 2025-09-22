@@ -30,7 +30,7 @@ export default function UserManualPage() {
                 <h3>2.1. Creación y Gestión de una Orden de Servicio (OS)</h3>
                 <p>Todo comienza en "Previsión de Servicios". Desde aquí puedes crear una nueva OS o editar una existente. La ficha de la OS es el centro neurálgico que conecta todos los módulos relacionados con un evento.</p>
                 <h3>2.2. El Módulo Comercial: Creando el Briefing</h3>
-                <p>Dentro de una OS, el módulo "Comercial" permite detallar cada hito del evento (coffee, almuerzo, cena). Es crucial registrar aquí la **información sobre alergias y dietas especiales** (ej: "3 celiacos") para que cocina reciba el aviso.</p>
+                <p>Dentro de una OS, el módulo "Comercial" permite detallar cada hito del evento (coffees, almuerzos, cena). Es crucial registrar aquí la **información sobre alergias y dietas especiales** (ej: "3 celiacos") para que cocina reciba el aviso.</p>
                 <h3>2.3. Módulos Auxiliares</h3>
                 <p>Desde la barra lateral de la OS, puedes acceder a módulos específicos para solicitar material de almacén, bodega, alquiler, transporte, hielo, y registrar gastos atípicos o de decoración. Próximamente, se podrán usar **plantillas de pedidos** para agilizar la creación de solicitudes para servicios estándar (ej. "Coffee Break Básico").</p>
                 <h3>2.4. La Cuenta de Explotación</h3>
