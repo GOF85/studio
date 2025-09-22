@@ -64,6 +64,7 @@ export default function PlanificacionPage() {
         const allGastroOrders: GastronomyOrder[] = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
         const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
         const allElaboraciones: Elaboracion[] = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+        const allOrdenesFabricacion: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
 
         const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
         const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
@@ -80,7 +81,7 @@ export default function PlanificacionPage() {
 
         const gastroOrdersEnRango = allGastroOrders.filter(go => osIdsEnRango.has(go.osId));
 
-        const necesidadesAgregadas = new Map<string, NecesidadElaboracion>();
+        const necesidadesBrutas = new Map<string, NecesidadElaboracion>();
 
         gastroOrdersEnRango.forEach(gastroOrder => {
             const serviceOrder = serviceOrderMap.get(gastroOrder.osId);
@@ -94,7 +95,7 @@ export default function PlanificacionPage() {
                             const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
                             if (elaboracion) {
                                 const cantidadNecesaria = (item.quantity || 0) * elabEnReceta.cantidad;
-                                const existing = necesidadesAgregadas.get(elaboracion.id);
+                                const existing = necesidadesBrutas.get(elaboracion.id);
 
                                 if (existing) {
                                     existing.cantidadTotal += cantidadNecesaria;
@@ -109,12 +110,12 @@ export default function PlanificacionPage() {
                                         existing.recetas.push({ recetaNombre: receta.nombre, cantidad: cantidadNecesaria });
                                     }
                                 } else {
-                                    necesidadesAgregadas.set(elaboracion.id, {
+                                    necesidadesBrutas.set(elaboracion.id, {
                                         elaboracionId: elaboracion.id,
                                         nombre: elaboracion.nombre,
                                         cantidadTotal: cantidadNecesaria,
                                         unidad: elaboracion.unidadProduccion,
-                                        partidaProduccion: receta.partidaProduccion, // Get partida from receta
+                                        partidaProduccion: receta.partidaProduccion,
                                         eventos: [{ osId: gastroOrder.osId, serviceNumber: serviceOrder.serviceNumber, serviceType: gastroOrder.descripcion }],
                                         recetas: [{ recetaNombre: receta.nombre, cantidad: cantidadNecesaria }],
                                     });
@@ -125,8 +126,21 @@ export default function PlanificacionPage() {
                 }
             });
         });
+
+        // Restar cantidades ya cubiertas por OFs existentes
+        const necesidadesNetas = new Map(necesidadesBrutas);
+        necesidadesNetas.forEach((necesidad, elabId) => {
+            const ofsExistentes = allOrdenesFabricacion.filter(of => of.elaboracionId === elabId && of.osIDs.some(osId => osIdsEnRango.has(osId)));
+            const cantidadCubierta = ofsExistentes.reduce((sum, of) => sum + of.cantidadTotal, 0);
+            
+            necesidad.cantidadTotal -= cantidadCubierta;
+
+            if (necesidad.cantidadTotal <= 0) {
+                necesidadesNetas.delete(elabId);
+            }
+        });
         
-        setNecesidades(necesidadesAgregadas);
+        setNecesidades(necesidadesNetas);
         setSelectedRows(new Set());
         setIsLoading(false);
     }, [dateRange]);
@@ -160,7 +174,8 @@ export default function PlanificacionPage() {
 
         const allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
         const lastIdNumber = allOFs.reduce((max, of) => {
-            const num = parseInt(of.id.split('-')[2]);
+            const numPart = of.id.split('-')[2];
+            const num = numPart ? parseInt(numPart) : 0;
             return isNaN(num) ? max : Math.max(max, num);
         }, 0);
 
@@ -194,8 +209,9 @@ export default function PlanificacionPage() {
             title: 'Órdenes de Fabricación Generadas',
             description: `Se han creado ${newOFs.length} nuevas OF.`,
         });
-
-        setSelectedRows(new Set()); // Clear selection
+        
+        // Recalcular necesidades para actualizar la tabla
+        calcularNecesidades();
     }
 
     if (!isMounted) {
@@ -325,7 +341,7 @@ export default function PlanificacionPage() {
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={5} className="h-24 text-center">
-                                        No se encontraron necesidades para el rango de fechas seleccionado.
+                                        No se encontraron necesidades para el rango de fechas seleccionado o ya están todas cubiertas.
                                     </TableCell>
                                 </TableRow>
                             )}
