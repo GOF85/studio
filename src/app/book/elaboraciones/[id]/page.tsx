@@ -170,7 +170,8 @@ export default function ElaboracionFormPage() {
             }
         }
     });
-    const porUnidad = watchedProduccionTotal > 0 ? total / watchedProduccionTotal : 0;
+    const produccionTotal = watchedProduccionTotal > 0 ? watchedProduccionTotal : 1;
+    const porUnidad = total / produccionTotal;
     return { costeTotal: total, costePorUnidad: porUnidad };
   }, [watchedComponentes, watchedProduccionTotal, ingredientesData]);
 
@@ -180,7 +181,10 @@ export default function ElaboracionFormPage() {
     let allItems = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     let message = '';
     
-    const dataToSave = { ...data, costePorUnidad };
+    const dataToSave: Elaboracion = { 
+      ...data, 
+      costePorUnidad 
+    };
 
     if (isEditing) {
       const index = allItems.findIndex(p => p.id === id);

@@ -110,7 +110,9 @@ export default function PlanificacionPage() {
                         receta.elaboraciones.forEach(elabEnReceta => {
                             const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
                             if (elaboracion) {
-                                const cantidadNecesaria = (item.quantity || 0) * elabEnReceta.cantidad;
+                                const cantidadNecesaria = Number(item.quantity || 0) * Number(elabEnReceta.cantidad);
+                                if (isNaN(cantidadNecesaria)) return;
+                                
                                 const existing = necesidadesBrutas.get(elaboracion.id);
 
                                 if (existing) {
@@ -150,8 +152,10 @@ export default function PlanificacionPage() {
         const cantidadesCubiertasPorElaboracion = new Map<string, number>();
         ofsRelevantes.forEach(of => {
             const isFinished = ['Finalizado', 'Validado', 'Incidencia'].includes(of.estado);
-            const cantidadACubrir = isFinished && typeof of.cantidadReal === 'number' ? of.cantidadReal : of.cantidadTotal;
-            cantidadesCubiertasPorElaboracion.set(of.elaboracionId, (cantidadesCubiertasPorElaboracion.get(of.elaboracionId) || 0) + cantidadACubrir);
+            const cantidadACubrir = isFinished && typeof of.cantidadReal === 'number' ? Number(of.cantidadReal) : Number(of.cantidadTotal);
+            if (!isNaN(cantidadACubrir)) {
+                cantidadesCubiertasPorElaboracion.set(of.elaboracionId, (cantidadesCubiertasPorElaboracion.get(of.elaboracionId) || 0) + cantidadACubrir);
+            }
         });
 
         const necesidadesNetas = new Map<string, NecesidadElaboracion>();
