@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -211,7 +212,7 @@ export default function OfDetailPage() {
                         <div className="mt-6">
                             <h4 className="font-semibold mb-2 flex items-center gap-2 text-destructive"><AlertTriangle/>Observaciones de Incidencia</h4>
                             <div className="p-4 border rounded-lg bg-destructive/10 text-destructive-foreground border-destructive/30">
-                                <p>{orden.incidenciaObservaciones}</p>
+                                <p className="text-black font-bold">{orden.incidenciaObservaciones}</p>
                             </div>
                         </div>
                     )}
