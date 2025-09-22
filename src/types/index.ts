@@ -460,3 +460,20 @@ export type TipoCocina = {
     id: string;
     nombre: string;
 }
+
+// --- CPR ---
+export type PartidaProduccion = 'FRIO' | 'CALIENTE' | 'PASTELERIA';
+
+export type OrdenFabricacion = {
+    id: string;
+    fechaCreacion: string;
+    fechaProduccionPrevista: string;
+    elaboracionId: string;
+    elaboracionNombre: string;
+    cantidadTotal: number;
+    unidad: UnidadMedida;
+    partidaAsignada: PartidaProduccion;
+    estado: 'Pendiente' | 'En Proceso' | 'Finalizado' | 'Incidencia';
+    responsable?: string;
+    osIDs: string[]; // Referencia a las OS que necesitan esta elaboración
+}
