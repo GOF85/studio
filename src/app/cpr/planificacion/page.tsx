@@ -148,11 +148,13 @@ export default function PlanificacionPage() {
         const ofsRelevantes = allOrdenesFabricacion.filter(of => 
             of.osIDs.some(osId => osIdsEnRango.has(osId))
         );
-
+        
         const cantidadesCubiertasPorElaboracion = new Map<string, number>();
         ofsRelevantes.forEach(of => {
-            const isFinished = ['Finalizado', 'Validado', 'Incidencia'].includes(of.estado);
+            const finishedStates: OrdenFabricacion['estado'][] = ['Finalizado', 'Validado', 'Incidencia'];
+            const isFinished = finishedStates.includes(of.estado);
             const cantidadACubrir = isFinished && typeof of.cantidadReal === 'number' ? Number(of.cantidadReal) : Number(of.cantidadTotal);
+
             if (!isNaN(cantidadACubrir)) {
                 cantidadesCubiertasPorElaboracion.set(of.elaboracionId, (cantidadesCubiertasPorElaboracion.get(of.elaboracionId) || 0) + cantidadACubrir);
             }
