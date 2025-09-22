@@ -43,12 +43,50 @@ export default function PlantillasPedidosPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const storedData = localStorage.getItem('pedidoPlantillas');
-    if (storedData) {
+    let storedData = localStorage.getItem('pedidoPlantillas');
+     if (!storedData || JSON.parse(storedData).length === 0) {
+        const dummyData: PedidoPlantilla[] = [
+            {
+                id: 'plantilla-1',
+                nombre: 'Coffee Básico 50pax',
+                tipo: 'Almacén',
+                items: [
+                    { itemCode: '1001', quantity: 50, description: 'Taza de café' },
+                    { itemCode: '1002', quantity: 50, description: 'Platillo de café' },
+                    { itemCode: '1003', quantity: 50, description: 'Cucharilla de café' },
+                    { itemCode: '1004', quantity: 10, description: 'Jarra de leche' },
+                ]
+            },
+            {
+                id: 'plantilla-2',
+                nombre: 'Vinos Evento',
+                tipo: 'Bodega',
+                items: [
+                    { itemCode: '2001', quantity: 12, description: 'Vino Tinto Crianza' },
+                    { itemCode: '2002', quantity: 12, description: 'Vino Blanco Verdejo' },
+                    { itemCode: '2003', quantity: 6, description: 'Cava Brut Nature' },
+                ]
+            },
+            {
+                id: 'plantilla-3',
+                nombre: 'Pack Básico Alquiler',
+                tipo: 'Alquiler',
+                items: [
+                    { itemCode: '1', quantity: 1, description: 'Equipo de Sonido 2000W' },
+                    { itemCode: '2', quantity: 1, description: 'Proyector FullHD 5000 lumens' },
+                    { itemCode: '3', quantity: 1, description: 'Pantalla de proyección 100"' },
+                ]
+            }
+        ];
+        storedData = JSON.stringify(dummyData);
+        localStorage.setItem('pedidoPlantillas', storedData);
+        setPlantillas(dummyData);
+        toast({ title: 'Plantillas de ejemplo cargadas', description: 'Se han creado algunas plantillas para que puedas probar.' });
+    } else {
       setPlantillas(JSON.parse(storedData));
     }
     setIsMounted(true);
-  }, []);
+  }, [toast]);
 
   const handleDelete = () => {
     if (!plantillaToDelete) return;

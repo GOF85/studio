@@ -81,6 +81,20 @@ export default function AlquilerDBPage() {
           precioAlquiler: 60.00,
           precioReposicion: 450.00,
           imagen: 'https://picsum.photos/seed/lectern/100'
+        },
+        {
+            id: '5',
+            concepto: 'Pack 4 Walkie-Talkies',
+            precioAlquiler: 50.00,
+            precioReposicion: 400.00,
+            imagen: 'https://picsum.photos/seed/walkie/100'
+        },
+        {
+            id: '6',
+            concepto: 'Impresora multifunción A4',
+            precioAlquiler: 70.00,
+            precioReposicion: 600.00,
+            imagen: 'https://picsum.photos/seed/printer/100'
         }
       ];
       storedData = JSON.stringify(dummyData);
