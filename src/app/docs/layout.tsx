@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LifeBuoy, Users, Code, BookOpen, Workflow, Database, Bot } from 'lucide-react';
+import { LifeBuoy, Users, Code, BookOpen, Workflow, Database, Bot, BookHeart, Factory } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
