@@ -41,9 +41,9 @@ export function Header() {
                 </Link>
               </Button>
             <Button variant="ghost" asChild>
-                <Link href="/planificacion-cpr">
+                <Link href="/cpr">
                   <Factory className="mr-2" />
-                  Planificación CPR
+                  Producción (CPR)
                 </Link>
               </Button>
              <Button variant="ghost" asChild>

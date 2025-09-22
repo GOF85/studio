@@ -466,7 +466,7 @@ export type TipoCocina = {
 export type PartidaProduccion = 'FRIO' | 'CALIENTE' | 'PASTELERIA';
 
 export type OrdenFabricacion = {
-    id: string;
+    id: string; // Lote único
     fechaCreacion: string;
     fechaProduccionPrevista: string;
     elaboracionId: string;
@@ -486,5 +486,17 @@ export type PedidoPlantilla = {
     items: {
         itemCode: string;
         quantity: number;
+        description: string;
     }[];
+}
+
+export type ContenedorIsotermo = {
+    id: string; // e.g., 'ISO-042'
+    nombre: string;
+    // ... any other properties like size, last maintenance, etc.
+}
+
+export type OrdenPicking = {
+    osId: string;
+    // Define los kits de receta o elaboraciones a pickear
 }
