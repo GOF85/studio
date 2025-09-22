@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown } from 'lucide-react';
+import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown, Printer, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, ContenedorIsotermo, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 
 type ElaboracionNecesaria = {
@@ -40,6 +42,7 @@ export default function PickingDetailPage() {
     const [dbContainers, setDbContainers] = useState<ContenedorIsotermo[]>([]);
     const [assignedContainers, setAssignedContainers] = useState<{[key in Elaboracion['tipoExpedicion']]?: AssignedContainer[]}>({});
     const [isMounted, setIsMounted] = useState(false);
+    const [isPrinting, setIsPrinting] = useState(false);
     
     const router = useRouter();
     const params = useParams();
@@ -157,6 +160,79 @@ export default function PickingDetailPage() {
         return grouped;
     }, [necesidades]);
 
+    const handlePrint = async () => {
+        if (!serviceOrder) return;
+        setIsPrinting(true);
+        try {
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+            const margin = 15;
+            const pageWidth = doc.internal.pageSize.getWidth();
+            let finalY = margin;
+
+            // Header
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Hoja de Picking: ${serviceOrder.serviceNumber}`, margin, finalY);
+            finalY += 10;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Cliente: ${serviceOrder.client}`, margin, finalY);
+            doc.text(`Fecha: ${format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}`, pageWidth - margin, finalY, { align: 'right' });
+            finalY += 10;
+
+            // Sections
+            for (const tipo of Object.keys(necesidadesAgrupadas) as Array<keyof typeof necesidadesAgrupadas>) {
+                const sectionContainers = assignedContainers[tipo] || [];
+                if (sectionContainers.length === 0) continue;
+
+                if (finalY + 20 > doc.internal.pageSize.getHeight()) {
+                    doc.addPage();
+                    finalY = margin;
+                }
+
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.text(tipo, margin, finalY);
+                finalY += 8;
+
+                sectionContainers.forEach(container => {
+                    const containerItems = necesidades.filter(n => n.containerId === container.id);
+                    const head = [['Elaboración (Receta)', 'Cantidad']];
+                    const body = containerItems.map(item => [
+                        `${item.nombre} (${item.recetaContenedora})`, 
+                        `${item.cantidad.toFixed(2)} ${item.unidad}`
+                    ]);
+
+                     if (finalY + body.length * 8 + 20 > doc.internal.pageSize.getHeight()) {
+                        doc.addPage();
+                        finalY = margin;
+                    }
+
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`Contenedor: ${container.nombre} (${container.id})`, margin, finalY);
+                    finalY += 6;
+                    
+                    autoTable(doc, {
+                        head,
+                        body,
+                        startY: finalY,
+                        theme: 'grid',
+                        headStyles: { fillColor: '#e5e7eb', textColor: '#374151' }
+                    });
+                    finalY = (doc as any).lastAutoTable.finalY + 10;
+                });
+            }
+            
+            doc.save(`Picking_${serviceOrder.serviceNumber}.pdf`);
+
+        } catch (error) {
+             toast({ variant: "destructive", title: "Error", description: "No se pudo generar el PDF." });
+        } finally {
+            setIsPrinting(false);
+        }
+    };
+
 
     if (!isMounted || !serviceOrder) {
         return <LoadingSkeleton title="Cargando Picking..." />;
@@ -183,8 +259,9 @@ export default function PickingDetailPage() {
                         Cliente: {serviceOrder.client} | Fecha: {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}
                     </CardDescription>
                 </div>
-                <Button onClick={() => window.print()} className="no-print">
-                    Imprimir Hoja de Picking
+                <Button onClick={handlePrint} className="no-print" disabled={isPrinting}>
+                    {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2"/>}
+                    {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
                 </Button>
             </div>
 
