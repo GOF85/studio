@@ -277,7 +277,7 @@ export default function RecetaFormPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [id]);
 
 
   const onAddElab = (elab: ElaboracionConCoste) => {
