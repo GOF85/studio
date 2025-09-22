@@ -21,6 +21,21 @@ export default {
         headline: ['Open Sans', 'sans-serif'],
         code: ['monospace'],
       },
+      typography: (theme: (arg0: string) => any) => ({
+        DEFAULT: {
+          css: {
+            h1: {
+              fontFamily: theme('fontFamily.headline'),
+            },
+            h2: {
+              fontFamily: theme('fontFamily.headline'),
+            },
+            h3: {
+              fontFamily: theme('fontFamily.headline'),
+            },
+          },
+        },
+      }),
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -92,5 +107,5 @@ export default {
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [require('tailwindcss-animate'), require('@tailwindcss/typography')],
 } satisfies Config;

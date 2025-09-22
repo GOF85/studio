@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { UtensilsCrossed, FileText, ClipboardList, Database, Menu, Calendar, Trash2, Flower2, Target, BookHeart, Factory } from 'lucide-react';
+import { UtensilsCrossed, FileText, ClipboardList, Database, Menu, Calendar, Trash2, Flower2, Target, BookHeart, Factory, LifeBuoy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -42,6 +42,12 @@ export function Header() {
                 <Link href="/planificacion-cpr">
                   <Factory className="mr-2" />
                   Planificación CPR
+                </Link>
+              </Button>
+             <Button variant="ghost" asChild>
+                <Link href="/docs">
+                  <LifeBuoy className="mr-2" />
+                  Documentación
                 </Link>
               </Button>
           <DropdownMenu>
