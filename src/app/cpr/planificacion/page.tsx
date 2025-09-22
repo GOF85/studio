@@ -159,7 +159,7 @@ export default function PlanificacionPage() {
             const cantidadCubierta = cantidadesCubiertasPorElaboracion.get(elabId) || 0;
             const necesidadNeta = necesidad.cantidadTotal - cantidadCubierta;
 
-            if (necesidadNeta > 0.001) {
+            if (necesidadNeta > 0.001) { // Use a small epsilon to avoid floating point issues
                 necesidadesNetas.set(elabId, { ...necesidad, cantidadTotal: necesidadNeta });
             }
         });
