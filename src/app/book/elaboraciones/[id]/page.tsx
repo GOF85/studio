@@ -253,7 +253,7 @@ export default function ElaboracionFormPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <FormField control={form.control} name="produccionTotal" render={({ field }) => (
-                            <FormItem><FormLabel>Producción Total</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Producción Total</FormLabel><FormControl><Input type="number" step="any" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                             <FormField control={form.control} name="unidadProduccion" render={({ field }) => (
                             <FormItem><FormLabel>Unidad</FormLabel>
@@ -291,7 +291,7 @@ export default function ElaboracionFormPage() {
                                         <TableCell className="font-medium py-1 px-3">{field.nombre}</TableCell>
                                         <TableCell className="py-1 px-3">
                                             <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
-                                                <FormItem><FormControl><Input type="number" {...qField} className="h-8" /></FormControl></FormItem>
+                                                <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
                                             )} />
                                         </TableCell>
                                         <TableCell className="py-1 px-3">
@@ -341,7 +341,7 @@ export default function ElaboracionFormPage() {
                                 <FormItem><FormLabel>Formato Expedición</FormLabel><FormControl><Input {...field} placeholder="Ej: Barqueta 1kg" /></FormControl><FormMessage /></FormItem>
                             )} />
                              <FormField control={form.control} name="ratioExpedicion" render={({ field }) => (
-                                <FormItem><FormLabel>Ratio Expedición</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Ratio Expedición</FormLabel><FormControl><Input type="number" step="any" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
                          <FormField control={form.control} name="tipoExpedicion" render={({ field }) => (
