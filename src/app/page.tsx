@@ -2,69 +2,42 @@
 
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bell, FileText, PlusCircle } from 'lucide-react';
+import { ClipboardList, Calendar, BookHeart, Factory, LifeBuoy, Settings } from 'lucide-react';
+
+const menuItems = [
+    { title: 'Previsión de Servicios', href: '/pes', icon: ClipboardList, description: 'Gestiona órdenes de servicio, clientes y eventos.' },
+    { title: 'Calendario', href: '/calendario', icon: Calendar, description: 'Visualiza todos tus servicios en una vista mensual.' },
+    { title: 'Book Gastronómico', href: '/book', icon: BookHeart, description: 'Define recetas, elaboraciones e ingredientes.' },
+    { title: 'Producción (CPR)', href: '/cpr', icon: Factory, description: 'Planifica, produce y controla la logística de cocina.' },
+    { title: 'Documentación', href: '/docs', icon: LifeBuoy, description: 'Guías y manuales de uso de la aplicación.' },
+    { title: 'Configuración', href: '/configuracion', icon: Settings, description: 'Administra las bases de datos y plantillas del sistema.' },
+]
 
 export default function DashboardPage() {
-  // Datos de ejemplo para notificaciones
-  const notifications = [
-    { id: 1, message: "El pedido de material para la OS-2024-001 ha cambiado a 'En preparación'.", time: "hace 5 minutos" },
-    { id: 2, message: "Se ha creado una nueva Orden de Servicio: OS-2024-003.", time: "hace 1 hora" },
-    { id: 3, message: "El briefing comercial para 'Boda J&M' ha sido actualizado.", time: "hace 3 horas" },
-  ];
-
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Columna Izquierda: Centro de Notificaciones */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <Bell />
-                Centro de Notificaciones
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {notifications.length > 0 ? (
-                <ul className="space-y-4">
-                  {notifications.map((notification) => (
-                    <li key={notification.id} className="flex flex-col pb-2 border-b last:border-0">
-                      <p className="font-medium">{notification.message}</p>
-                      <p className="text-sm text-muted-foreground mt-1">{notification.time}</p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="text-center text-muted-foreground py-10">
-                  <p>No tienes notificaciones nuevas.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <div className="text-center mb-12">
+            <h1 className="text-4xl font-headline font-bold tracking-tight">Bienvenido a CateringStock</h1>
+            <p className="text-lg text-muted-foreground mt-2">Gestiona tu operativa de catering de forma centralizada.</p>
+        </div>
 
-          {/* Columna Derecha: Acciones Rápidas */}
-          <div className="space-y-8">
-            <Card className="bg-primary/10 border-primary">
-               <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                    <FileText />
-                    Gestión de Servicios
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center justify-center text-center p-10">
-                <p className="text-lg mb-4">Crea y gestiona todas tus órdenes de servicio desde un único lugar.</p>
-                <Button asChild size="lg">
-                    <Link href="/os">
-                        <PlusCircle className="mr-2" />
-                        Nueva Orden de Servicio
-                    </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {menuItems.map(item => (
+                 <Link href={item.href} key={item.href}>
+                    <Card className="h-full hover:border-primary hover:shadow-lg transition-all flex flex-col">
+                        <CardHeader className="flex-row items-center gap-4 space-y-0">
+                            <item.icon className="w-8 h-8 text-primary" />
+                             <CardTitle>{item.title}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex-grow">
+                           <p className="text-sm text-muted-foreground">{item.description}</p>
+                        </CardContent>
+                    </Card>
+                 </Link>
+            ))}
         </div>
       </main>
       <footer className="py-4 border-t mt-auto">
