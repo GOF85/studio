@@ -79,6 +79,12 @@ export default function PlanificacionPage() {
                 })
                 .map(os => os.id)
         );
+        
+        if (osIdsEnRango.size === 0) {
+            setNecesidades(new Map());
+            setIsLoading(false);
+            return;
+        }
 
         const gastroOrdersEnRango = allGastroOrders.filter(go => osIdsEnRango.has(go.osId));
 
@@ -130,17 +136,23 @@ export default function PlanificacionPage() {
 
         // Restar cantidades ya cubiertas por OFs existentes
         const necesidadesNetas = new Map(necesidadesBrutas);
+        
+        // Find all OFs related to the OS in the date range
+        const ofsRelevantes = allOrdenesFabricacion.filter(of => 
+            of.osIDs.some(osId => osIdsEnRango.has(osId))
+        );
+
         necesidadesNetas.forEach((necesidad, elabId) => {
-            const ofsExistentes = allOrdenesFabricacion.filter(of => of.elaboracionId === elabId);
-            const cantidadCubierta = ofsExistentes.reduce((sum, of) => {
-                // Use cantidadReal if it exists and the OF is finished/validated, otherwise use the planned total
+            const ofsParaEstaElaboracion = ofsRelevantes.filter(of => of.elaboracionId === elabId);
+            
+            const cantidadCubierta = ofsParaEstaElaboracion.reduce((sum, of) => {
                 const isFinished = of.estado === 'Finalizado' || of.estado === 'Validado' || of.estado === 'Incidencia';
                 return sum + (isFinished && typeof of.cantidadReal === 'number' ? of.cantidadReal : of.cantidadTotal);
             }, 0);
             
             necesidad.cantidadTotal -= cantidadCubierta;
 
-            if (necesidad.cantidadTotal <= 0) {
+            if (necesidad.cantidadTotal <= 0.001) { // Use a small threshold to avoid floating point issues
                 necesidadesNetas.delete(elabId);
             }
         });
@@ -284,7 +296,7 @@ export default function PlanificacionPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead className="w-12"><Checkbox 
-                                    checked={selectedRows.size > 0 && selectedRows.size === necesidades.size}
+                                    checked={selectedRows.size > 0 && necesidades.size > 0 && selectedRows.size === necesidades.size}
                                     onCheckedChange={(checked) => {
                                         if(checked) {
                                             setSelectedRows(new Set(Array.from(necesidades.keys())))
