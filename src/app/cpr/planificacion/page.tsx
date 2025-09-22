@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday } from 'date-fns';
-import { ClipboardList, Calendar as CalendarIcon, ChevronsUpDown, Check, PlusCircle, Factory } from 'lucide-react';
+import { ClipboardList, Calendar as CalendarIcon, Factory, Info } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -13,15 +13,28 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, ElaboracionEnReceta, UnidadMedida } from '@/types';
+import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, UnidadMedida } from '@/types';
+
+type EventoAfectado = {
+    osId: string;
+    serviceNumber: string;
+    serviceType: string;
+};
+
+type RecetaNecesidad = {
+    recetaNombre: string;
+    cantidad: number;
+}
 
 type NecesidadElaboracion = {
     elaboracionId: string;
     nombre: string;
     cantidadTotal: number;
     unidad: UnidadMedida;
-    osIDs: Set<string>;
+    eventos: EventoAfectado[];
+    recetas: RecetaNecesidad[];
 };
 
 export default function PlanificacionPage() {
@@ -46,16 +59,15 @@ export default function PlanificacionPage() {
         const from = dateRange.from;
         const to = dateRange.to;
 
-        // Cargar todos los datos necesarios de localStorage
-        const allServiceOrders: ServiceOrder[] = JSON.parse(localStorage.getItem('serviceOrders') || '[]');
-        const allGastroOrders: GastronomyOrder[] = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]');
-        const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]');
-        const allElaboraciones: Elaboracion[] = JSON.parse(localStorage.getItem('elaboraciones') || '[]');
+        const allServiceOrders: ServiceOrder[] = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const allGastroOrders: GastronomyOrder[] = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+        const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+        const allElaboraciones: Elaboracion[] = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
 
         const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
         const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
+        const serviceOrderMap = new Map(allServiceOrders.map(os => [os.id, os]));
 
-        // 1. Filtrar OS confirmadas en el rango de fechas
         const osIdsEnRango = new Set(
             allServiceOrders
                 .filter(os => {
@@ -65,16 +77,17 @@ export default function PlanificacionPage() {
                 .map(os => os.id)
         );
 
-        // 2. Obtener los pedidos de gastronomía para esas OS
         const gastroOrdersEnRango = allGastroOrders.filter(go => osIdsEnRango.has(go.osId));
 
-        // 3. Agregar las necesidades de elaboración
         const necesidadesAgregadas = new Map<string, NecesidadElaboracion>();
 
         gastroOrdersEnRango.forEach(gastroOrder => {
+            const serviceOrder = serviceOrderMap.get(gastroOrder.osId);
+            if (!serviceOrder) return;
+
             (gastroOrder.items || []).forEach(item => {
                 if (item.type === 'item') {
-                    const receta = recetasMap.get(item.id); // El `id` del item es el `id` de la receta
+                    const receta = recetasMap.get(item.id);
                     if (receta) {
                         receta.elaboraciones.forEach(elabEnReceta => {
                             const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
@@ -84,14 +97,24 @@ export default function PlanificacionPage() {
 
                                 if (existing) {
                                     existing.cantidadTotal += cantidadNecesaria;
-                                    existing.osIDs.add(gastroOrder.osId);
+                                    const eventoExistente = existing.eventos.find(e => e.osId === gastroOrder.osId && e.serviceType === gastroOrder.descripcion);
+                                    if (!eventoExistente) {
+                                        existing.eventos.push({ osId: gastroOrder.osId, serviceNumber: serviceOrder.serviceNumber, serviceType: gastroOrder.descripcion });
+                                    }
+                                    const recetaExistente = existing.recetas.find(r => r.recetaNombre === receta.nombre);
+                                    if (recetaExistente) {
+                                        recetaExistente.cantidad += cantidadNecesaria;
+                                    } else {
+                                        existing.recetas.push({ recetaNombre: receta.nombre, cantidad: cantidadNecesaria });
+                                    }
                                 } else {
                                     necesidadesAgregadas.set(elaboracion.id, {
                                         elaboracionId: elaboracion.id,
                                         nombre: elaboracion.nombre,
                                         cantidadTotal: cantidadNecesaria,
                                         unidad: elaboracion.unidadProduccion,
-                                        osIDs: new Set([gastroOrder.osId]),
+                                        eventos: [{ osId: gastroOrder.osId, serviceNumber: serviceOrder.serviceNumber, serviceType: gastroOrder.descripcion }],
+                                        recetas: [{ recetaNombre: receta.nombre, cantidad: cantidadNecesaria }],
                                     });
                                 }
                             }
@@ -102,7 +125,7 @@ export default function PlanificacionPage() {
         });
         
         setNecesidades(necesidadesAgregadas);
-        setSelectedRows(new Set()); // Limpiar selección al recalcular
+        setSelectedRows(new Set());
         setIsLoading(false);
     }, [dateRange]);
 
@@ -132,7 +155,6 @@ export default function PlanificacionPage() {
             });
             return;
         }
-        // TODO: Implementar lógica de generación de OF
         toast({
             title: 'Funcionalidad en desarrollo',
             description: `Se generarían OF para ${selectedRows.size} elaboraciones.`
@@ -144,104 +166,136 @@ export default function PlanificacionPage() {
     }
 
     return (
-        <div>
-            <div className="flex items-start justify-between mb-6">
-                <div>
-                    <h1 className="text-3xl font.headline font-bold flex items-center gap-3">
-                        <ClipboardList />
-                        Planificación de Producción
-                    </h1>
-                    <p className="text-muted-foreground mt-1">Agrega las necesidades de elaboración para los eventos confirmados.</p>
+        <TooltipProvider>
+            <div>
+                <div className="flex items-start justify-between mb-6">
+                    <div>
+                        <h1 className="text-3xl font.headline font-bold flex items-center gap-3">
+                            <ClipboardList />
+                            Planificación de Producción
+                        </h1>
+                        <p className="text-muted-foreground mt-1">Agrega las necesidades de elaboración para los eventos confirmados.</p>
+                    </div>
+                    <Button onClick={handleGenerateOF} disabled={selectedRows.size === 0}>
+                        <Factory className="mr-2"/> Generar Órdenes de Fabricación ({selectedRows.size})
+                    </Button>
                 </div>
-                <Button onClick={handleGenerateOF} disabled={selectedRows.size === 0}>
-                    <Factory className="mr-2"/> Generar Órdenes de Fabricación ({selectedRows.size})
-                </Button>
-            </div>
 
-            <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-card">
-                 <Popover>
-                    <PopoverTrigger asChild>
-                        <Button
-                            id="date"
-                            variant={"outline"}
-                            className="w-[300px] justify-start text-left font-normal"
-                        >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {dateRange?.from ? (
-                            dateRange.to ? (
-                                <>
-                                {format(dateRange.from, "LLL dd, y", {locale: es})} -{" "}
-                                {format(dateRange.to, "LLL dd, y", {locale: es})}
-                                </>
-                            ) : (
-                                format(dateRange.from, "LLL dd, y", {locale: es})
-                            )
-                            ) : (
-                            <span>Elige un rango de fechas</span>
-                            )}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                            initialFocus
-                            mode="range"
-                            defaultMonth={dateRange?.from}
-                            selected={dateRange}
-                            onSelect={setDateRange}
-                            numberOfMonths={2}
-                            locale={es}
-                        />
-                    </PopoverContent>
-                </Popover>
-                 <Button onClick={calcularNecesidades} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Calcular Necesidades'}
-                </Button>
-            </div>
+                <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-card">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                id="date"
+                                variant={"outline"}
+                                className="w-[300px] justify-start text-left font-normal"
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateRange?.from ? (
+                                dateRange.to ? (
+                                    <>
+                                    {format(dateRange.from, "LLL dd, y", {locale: es})} -{" "}
+                                    {format(dateRange.to, "LLL dd, y", {locale: es})}
+                                    </>
+                                ) : (
+                                    format(dateRange.from, "LLL dd, y", {locale: es})
+                                )
+                                ) : (
+                                <span>Elige un rango de fechas</span>
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                initialFocus
+                                mode="range"
+                                defaultMonth={dateRange?.from}
+                                selected={dateRange}
+                                onSelect={setDateRange}
+                                numberOfMonths={2}
+                                locale={es}
+                            />
+                        </PopoverContent>
+                    </Popover>
+                    <Button onClick={calcularNecesidades} disabled={isLoading}>
+                        {isLoading ? 'Calculando...' : 'Calcular Necesidades'}
+                    </Button>
+                </div>
 
-             <div className="border rounded-lg">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-12"><Checkbox 
-                                checked={selectedRows.size > 0 && selectedRows.size === necesidades.size}
-                                onCheckedChange={(checked) => {
-                                    if(checked) {
-                                        setSelectedRows(new Set(Array.from(necesidades.keys())))
-                                    } else {
-                                        setSelectedRows(new Set())
-                                    }
-                                }}
-                            /></TableHead>
-                            <TableHead>Elaboración</TableHead>
-                            <TableHead className="text-right">Cantidad Total Necesaria</TableHead>
-                            <TableHead>Unidad</TableHead>
-                            <TableHead>Eventos Afectados</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow>
-                        ) : necesidades.size > 0 ? (
-                            Array.from(necesidades.values()).map(elab => (
-                                <TableRow key={elab.elaboracionId} onClick={() => handleSelectRow(elab.elaboracionId)} className="cursor-pointer">
-                                    <TableCell><Checkbox checked={selectedRows.has(elab.elaboracionId)} /></TableCell>
-                                    <TableCell className="font-medium">{elab.nombre}</TableCell>
-                                    <TableCell className="text-right font-mono">{elab.cantidadTotal.toFixed(2)}</TableCell>
-                                    <TableCell>{elab.unidad}</TableCell>
-                                    <TableCell>{elab.osIDs.size}</TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
+                <div className="border rounded-lg">
+                    <Table>
+                        <TableHeader>
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
-                                    No se encontraron necesidades para el rango de fechas seleccionado.
-                                </TableCell>
+                                <TableHead className="w-12"><Checkbox 
+                                    checked={selectedRows.size > 0 && selectedRows.size === necesidades.size}
+                                    onCheckedChange={(checked) => {
+                                        if(checked) {
+                                            setSelectedRows(new Set(Array.from(necesidades.keys())))
+                                        } else {
+                                            setSelectedRows(new Set())
+                                        }
+                                    }}
+                                /></TableHead>
+                                <TableHead>Elaboración</TableHead>
+                                <TableHead className="text-right">Cantidad Total Necesaria</TableHead>
+                                <TableHead>Unidad</TableHead>
+                                <TableHead className="flex items-center gap-1.5">Eventos Afectados <Info size={14}/></TableHead>
                             </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                <TableRow><TableCell colSpan={5} className="h-24 text-center">Calculando...</TableCell></TableRow>
+                            ) : necesidades.size > 0 ? (
+                                Array.from(necesidades.values()).map(elab => (
+                                    <TableRow key={elab.elaboracionId} onClick={() => handleSelectRow(elab.elaboracionId)} className="cursor-pointer">
+                                        <TableCell><Checkbox checked={selectedRows.has(elab.elaboracionId)} /></TableCell>
+                                        <TableCell className="font-medium">{elab.nombre}</TableCell>
+                                        <TableCell className="text-right font-mono">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span>{elab.cantidadTotal.toFixed(2)}</span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <div className="p-1">
+                                                        <h4 className="font-bold mb-2 text-center">Desglose por Receta</h4>
+                                                        {elab.recetas.map((r, i) => (
+                                                            <div key={i} className="flex justify-between gap-4 text-xs">
+                                                                <span>{r.recetaNombre}:</span>
+                                                                <span className="font-semibold">{r.cantidad.toFixed(2)} {elab.unidad}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TableCell>
+                                        <TableCell>{elab.unidad}</TableCell>
+                                        <TableCell>
+                                             <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span className="flex items-center gap-1.5">{elab.eventos.length} <Info size={14}/></span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <div className="p-1">
+                                                        <h4 className="font-bold mb-2 text-center">Eventos Implicados</h4>
+                                                        {elab.eventos.map((e, i) => (
+                                                            <div key={i} className="text-xs">{e.serviceNumber} - {e.serviceType}</div>
+                                                        ))}
+                                                    </div>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="h-24 text-center">
+                                        No se encontraron necesidades para el rango de fechas seleccionado.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
             </div>
-
-        </div>
+        </TooltipProvider>
     );
 }
