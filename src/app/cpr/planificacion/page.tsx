@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -130,8 +131,12 @@ export default function PlanificacionPage() {
         // Restar cantidades ya cubiertas por OFs existentes
         const necesidadesNetas = new Map(necesidadesBrutas);
         necesidadesNetas.forEach((necesidad, elabId) => {
-            const ofsExistentes = allOrdenesFabricacion.filter(of => of.elaboracionId === elabId && of.osIDs.some(osId => osIdsEnRango.has(osId)));
-            const cantidadCubierta = ofsExistentes.reduce((sum, of) => sum + of.cantidadTotal, 0);
+            const ofsExistentes = allOrdenesFabricacion.filter(of => of.elaboracionId === elabId);
+            const cantidadCubierta = ofsExistentes.reduce((sum, of) => {
+                // Use cantidadReal if it exists and the OF is finished/validated, otherwise use the planned total
+                const isFinished = of.estado === 'Finalizado' || of.estado === 'Validado' || of.estado === 'Incidencia';
+                return sum + (isFinished && typeof of.cantidadReal === 'number' ? of.cantidadReal : of.cantidadTotal);
+            }, 0);
             
             necesidad.cantidadTotal -= cantidadCubierta;
 
