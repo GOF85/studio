@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, ArrowLeft, Save, FilePlus2, Loader2, X, AlertTriangle } from 'lucide-react';
+import { PlusCircle, Trash2, ArrowLeft, Save, FilePlus2, Loader2, X } from 'lucide-react';
 import type { PedidoPlantilla, MaterialOrderType, CateringItem, OrderItem, AlquilerDBItem, Precio } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
