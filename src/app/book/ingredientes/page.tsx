@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle } from 'lucide-react';
+import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle, MoreHorizontal, Pencil } from 'lucide-react';
 import type { IngredienteInterno, IngredienteERP, Alergeno, Elaboracion } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
