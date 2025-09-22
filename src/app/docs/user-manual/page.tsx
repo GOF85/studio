@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, BookOpen, Workflow, Factory, BarChart3 } from "lucide-react";
+import { Users, BookOpen, Workflow, Factory, BarChart3, ShieldCheck } from "lucide-react";
 
 export default function UserManualPage() {
     return (
@@ -30,9 +30,9 @@ export default function UserManualPage() {
                 <h3>2.1. Creación y Gestión de una Orden de Servicio (OS)</h3>
                 <p>Todo comienza en "Previsión de Servicios". Desde aquí puedes crear una nueva OS o editar una existente. La ficha de la OS es el centro neurálgico que conecta todos los módulos relacionados con un evento.</p>
                 <h3>2.2. El Módulo Comercial: Creando el Briefing</h3>
-                <p>Dentro de una OS, el módulo "Comercial" permite detallar cada hito del evento (coffee, almuerzo, cena) con sus horarios y asistentes. Es crucial registrar aquí la **información sobre alergias y dietas especiales** (ej: "3 celiacos, 1 alérgico a marisco") para que cocina reciba el aviso.</p>
+                <p>Dentro de una OS, el módulo "Comercial" permite detallar cada hito del evento (coffee, almuerzo, cena). Es crucial registrar aquí la **información sobre alergias y dietas especiales** (ej: "3 celiacos") para que cocina reciba el aviso.</p>
                 <h3>2.3. Módulos Auxiliares</h3>
-                <p>Desde la barra lateral de la OS, puedes acceder a módulos específicos para solicitar material de almacén, bodega, alquiler, transporte, hielo, y registrar gastos atípicos o de decoración.</p>
+                <p>Desde la barra lateral de la OS, puedes acceder a módulos específicos para solicitar material de almacén, bodega, alquiler, transporte, hielo, y registrar gastos atípicos o de decoración. Próximamente, se podrán usar **plantillas de pedidos** para agilizar la creación de solicitudes para servicios estándar (ej. "Coffee Break Básico").</p>
                 <h3>2.4. La Cuenta de Explotación</h3>
                 <p>El módulo "Cta. Explotación" ofrece una visión financiera completa del evento, comparando los costes presupuestados con los objetivos y los costes reales para analizar la rentabilidad.</p>
             </section>
@@ -49,8 +49,7 @@ export default function UserManualPage() {
             </section>
 
             <section id="c4">
-                <h2 className="flex items-center gap-3"><Factory />Capítulo 4: Planificación y Producción (CPR)</h2>
-                <p>Este es el flujo maestro que conecta los pedidos de los eventos con la producción en la cocina central.</p>
+                <h2 className="flex items-center gap-3"><Factory />Capítulo 4: Planificación CPR y Producción (El Flujo Maestro)</h2>
                 <h3>4.1. Visión General del Ciclo de Producción</h3>
                 <p>El ciclo completo es: Agregación de Necesidades &rarr; Orden de Fabricación (OF) &rarr; Producción en Partida &rarr; Control de Calidad &rarr; Picking Logístico &rarr; Servicio en Evento.</p>
                 <h3>4.2. Paso 1: La Orden de Fabricación (OF)</h3>
@@ -58,7 +57,7 @@ export default function UserManualPage() {
                 <h3>4.3. Paso 2: El Proceso en Cocina y Control de Calidad</h3>
                 <p>Cada partida tendrá un panel con sus OF pendientes. El cocinero tomará una, cambiará su estado a "En Proceso" y, al finalizar, registrará la **cantidad real producida** para control de mermas. La OF pasará entonces a "Control de Calidad", donde un responsable la validará antes de que esté disponible para logística.</p>
                 <h3>4.4. Paso 3: El Picking y la Logística</h3>
-                <p>El operario de logística, desde la **"Orden de Picking"** de un evento, verá los "kits de receta" a preparar. Recogerá las elaboraciones (ya con su etiqueta de lote) y las asignará a **contenedores isotérmicos**, indicando qué kit va en qué contenedor para una trazabilidad perfecta.</p>
+                <p>El operario de logística, desde la **"Orden de Picking"** de un evento, verá los "kits de receta" a preparar, agrupados por tipo (refrigerado, seco). Recogerá las elaboraciones y las asignará a **contenedores isotérmicos o cajas**, indicando qué kit va en qué contenedor para una trazabilidad perfecta.</p>
                 <h3>4.5. Paso 4: La Hoja de Pase en el Evento</h3>
                 <p>El equipo de sala, desde la OS, consultará la **"Hoja de Pase"** para ver las instrucciones de emplatado, regeneración, **alérgenos** y en qué isotermo se encuentra cada kit de receta, asegurando un servicio eficiente y sin errores.</p>
             </section>
