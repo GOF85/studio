@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Database, PlusCircle, ArrowRight, Users, UserPlus, GlassWater, BookText } from 'lucide-react';
+import { Database, PlusCircle, ArrowRight, Users, UserPlus, GlassWater, BookText, FilePlus2 } from 'lucide-react';
 
 // Placeholder type
 type DatabaseEntry = {
@@ -42,6 +42,7 @@ export default function BdPage() {
     { id: '14', name: 'Book: Menaje', description: 'Gestión del menaje para los emplatados.', itemCount: 0, path: '/menaje-db' },
     { id: '15', name: 'Book: Categorías de Recetas', description: 'Gestión de las categorías para las recetas del book.', itemCount: 0, path: '/categorias-recetas' },
     { id: '16', name: 'Book: Tipos de Cocina', description: 'Gestión de los tipos de cocina/origen para las recetas.', itemCount: 0, path: '/tipos-cocina' },
+    { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', itemCount: 0, path: '/plantillas-pedidos' },
   ]);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -63,6 +64,7 @@ export default function BdPage() {
     const menajeDB = JSON.parse(localStorage.getItem('menajeDB') || '[]').length;
     const categoriasRecetas = JSON.parse(localStorage.getItem('categoriasRecetas') || '[]').length;
     const tiposCocina = JSON.parse(localStorage.getItem('tiposCocina') || '[]').length;
+    const pedidoPlantillas = JSON.parse(localStorage.getItem('pedidoPlantillas') || '[]').length;
     
     setDatabases(prev => prev.map(db => {
       if (db.id === '1') return { ...db, itemCount: personal };
@@ -81,6 +83,7 @@ export default function BdPage() {
       if (db.id === '14') return { ...db, itemCount: menajeDB };
       if (db.id === '15') return { ...db, itemCount: categoriasRecetas };
       if (db.id === '16') return { ...db, itemCount: tiposCocina };
+      if (db.id === '17') return { ...db, itemCount: pedidoPlantillas };
       return db;
     }));
   }, []);

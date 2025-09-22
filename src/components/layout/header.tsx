@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { UtensilsCrossed, FileText, ClipboardList, Database, Menu, Calendar, Trash2, Flower2, Target, BookHeart, Factory, LifeBuoy, FilePlus2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
