@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Package } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Package, Menu } from 'lucide-react';
 import type { IngredienteERP, UnidadMedida } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -195,29 +195,6 @@ export default function IngredientesERPPage() {
             </Button>
           </div>
         </div>
-        
-        <Card className="mb-6">
-          <CardHeader>
-            <h2 className="text-xl font-semibold">Importar y Exportar</h2>
-          </CardHeader>
-          <CardContent className="flex flex-col md:flex-row gap-4">
-             <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".csv"
-                onChange={handleImportCSV}
-            />
-            <Button variant="outline" className="w-full md:w-auto" onClick={handleImportClick}>
-              <FileUp className="mr-2" />
-              Importar CSV
-            </Button>
-            <Button variant="outline" className="w-full md:w-auto" onClick={handleExportCSV}>
-              <FileDown className="mr-2" />
-              Exportar CSV
-            </Button>
-          </CardContent>
-        </Card>
 
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
@@ -226,6 +203,28 @@ export default function IngredientesERPPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                    <Menu />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleImportClick}>
+                     <FileUp size={16} className="mr-2"/>Importar CSV
+                     <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept=".csv"
+                      onChange={handleImportCSV}
+                    />
+                </DropdownMenuItem>
+                 <DropdownMenuItem onClick={handleExportCSV}>
+                     <FileDown size={16} className="mr-2"/>Exportar CSV
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="border rounded-lg">
