@@ -493,3 +493,14 @@ export type PedidoPlantilla = {
         description: string;
     }[];
 }
+
+export type ContenedorIsotermo = {
+    id: string;
+    nombre: string;
+}
+
+export type PickingState = {
+    osId: string;
+    assignedContainers: { [key in PartidaProduccion]?: ContenedorIsotermo[] };
+    itemStates: { id: string; isPicked: boolean; containerId?: string; }[];
+}
