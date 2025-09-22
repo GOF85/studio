@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { UtensilsCrossed, Settings } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { UtensilsCrossed } from 'lucide-react';
 
 export function Header() {
   return (
@@ -15,12 +14,6 @@ export function Header() {
           </h1>
         </Link>
         <nav className="flex flex-1 items-center justify-end space-x-2">
-            <Button variant="ghost" asChild>
-                <Link href="/configuracion">
-                  <Settings className="mr-2" />
-                  Configuración
-                </Link>
-            </Button>
         </nav>
       </div>
     </header>
