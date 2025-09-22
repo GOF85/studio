@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { OrdenFabricacion, Personal } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { ArrowLeft, Save, Factory, Info, Check, X, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save, Factory, Info, Check, X, AlertTriangle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useForm, Controller } from 'react-hook-form';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente': 'secondary',
@@ -27,12 +29,14 @@ const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'seconda
 type FormData = {
     responsable?: string;
     cantidadReal: number | null;
+    incidenciaObservaciones?: string;
 }
 
 export default function OfDetailPage() {
     const [orden, setOrden] = useState<OrdenFabricacion | null>(null);
     const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
     const [isMounted, setIsMounted] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const router = useRouter();
     const params = useParams();
     const { toast } = useToast();
@@ -41,7 +45,8 @@ export default function OfDetailPage() {
     const form = useForm<FormData>({
         defaultValues: {
             responsable: '',
-            cantidadReal: null
+            cantidadReal: null,
+            incidenciaObservaciones: '',
         }
     });
 
@@ -53,7 +58,8 @@ export default function OfDetailPage() {
             if (currentOF) {
                 form.reset({
                     responsable: currentOF.responsable,
-                    cantidadReal: currentOF.cantidadReal ?? null
+                    cantidadReal: currentOF.cantidadReal ?? null,
+                    incidenciaObservaciones: currentOF.incidenciaObservaciones || '',
                 })
             }
             
@@ -78,11 +84,15 @@ export default function OfDetailPage() {
                 updatedOF.cantidadReal = formData.cantidadReal || updatedOF.cantidadTotal;
                 updatedOF.fechaFinalizacion = new Date().toISOString();
             }
+            if (newStatus === 'Incidencia') {
+                updatedOF.incidenciaObservaciones = formData.incidenciaObservaciones;
+            }
         } else {
              updatedOF = {
                 ...orden,
                 responsable: formData.responsable,
                 cantidadReal: formData.cantidadReal ?? undefined,
+                incidenciaObservaciones: formData.incidenciaObservaciones,
              };
         }
 
@@ -92,10 +102,19 @@ export default function OfDetailPage() {
             allOFs[index] = updatedOF;
             localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
             setOrden(updatedOF);
-            form.reset({ responsable: updatedOF.responsable, cantidadReal: updatedOF.cantidadReal ?? null });
+            form.reset({ responsable: updatedOF.responsable, cantidadReal: updatedOF.cantidadReal ?? null, incidenciaObservaciones: updatedOF.incidenciaObservaciones || '' });
             toast({ title: 'Guardado', description: `La Orden de Fabricación ha sido actualizada.` });
         }
     };
+    
+    const handleDelete = () => {
+        if (!orden) return;
+        let allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+        const updatedOFs = allOFs.filter(of => of.id !== orden.id);
+        localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
+        toast({ title: 'Orden Eliminada', description: `La OF ${orden.id} ha sido eliminada.`});
+        router.push('/cpr/of');
+    }
 
 
     if (!isMounted) {
@@ -131,6 +150,7 @@ export default function OfDetailPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     <Badge variant={statusVariant[orden.estado]} className="text-base px-4 py-2">{orden.estado}</Badge>
+                    <Button onClick={() => setShowDeleteConfirm(true)} variant="destructive"><Trash2 className="mr-2"/>Eliminar OF</Button>
                     <Button onClick={() => handleSave()} disabled={!form.formState.isDirty}>
                         <Save className="mr-2" />
                         Guardar Cambios
@@ -173,6 +193,14 @@ export default function OfDetailPage() {
                             />
                         </div>
                     </div>
+                     {orden.incidenciaObservaciones && (
+                        <div className="mt-6">
+                            <h4 className="font-semibold mb-2 flex items-center gap-2 text-destructive"><AlertTriangle/>Observaciones de Incidencia</h4>
+                            <div className="p-4 border rounded-lg bg-destructive/10 text-destructive-foreground border-destructive/30">
+                                <p>{orden.incidenciaObservaciones}</p>
+                            </div>
+                        </div>
+                    )}
                     <Separator className="my-6" />
                     <div>
                          <h4 className="font-semibold mb-4">Escandallo de la Elaboración</h4>
@@ -215,12 +243,53 @@ export default function OfDetailPage() {
                                  <p className="text-sm text-muted-foreground">
                                     Si hubo un problema (ej. producto quemado, error de cantidad), regístralo aquí.
                                 </p>
-                                <Button className="w-full" variant="destructive" onClick={() => handleSave('Incidencia')}>Declarar Incidencia</Button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button className="w-full" variant="destructive">Declarar Incidencia</Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Describir la Incidencia</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Explica brevemente qué ha ocurrido con esta producción. Esta información quedará registrada.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <Controller
+                                            name="incidenciaObservaciones"
+                                            control={form.control}
+                                            render={({ field }) => <Textarea {...field} placeholder="Ej: Se quemó parte de la producción, solo se pudieron salvar 5kg..." />}
+                                        />
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleSave('Incidencia')}>Guardar Incidencia</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                             </CardContent>
                         </Card>
                      </div>
                 </CardFooter>
             </Card>
+
+            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar Orden de Fabricación?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                           Esta acción es irreversible. La OF será eliminada y la necesidad de producción volverá a aparecer en la pantalla de Planificación.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive hover:bg-destructive/90"
+                            onClick={handleDelete}
+                        >
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

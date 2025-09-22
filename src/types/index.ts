@@ -480,6 +480,7 @@ export type OrdenFabricacion = {
     cantidadReal?: number;
     fechaFinalizacion?: string;
     osIDs: string[]; // Referencia a las OS que necesitan esta elaboración
+    incidenciaObservaciones?: string;
 }
 
 export type PedidoPlantilla = {
@@ -511,3 +512,4 @@ export type PickingState = {
         containerId?: string;
     }[];
 };
+
