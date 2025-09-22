@@ -160,8 +160,8 @@ export default function BioPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {allItemsByStatus[status].length > 0 ? (
-                                            allItemsByStatus[status].map(item => (
-                                                <TableRow key={`${item.itemCode}-${item.orderContract}`}>
+                                            allItemsByStatus[status].map((item, index) => (
+                                                <TableRow key={`${item.itemCode}-${item.orderContract}-${index}`}>
                                                     <TableCell className="font-medium">{item.description}</TableCell>
                                                     <TableCell>{item.quantity}</TableCell>
                                                 </TableRow>
