@@ -132,6 +132,7 @@ export type ComercialBriefingItem = {
     matBebida: string;
     materialGastro: string;
     manteleria: string;
+    alergenos?: string;
 };
 
 export type ComercialBriefing = {
@@ -476,4 +477,14 @@ export type OrdenFabricacion = {
     estado: 'Pendiente' | 'En Proceso' | 'Finalizado' | 'Incidencia';
     responsable?: string;
     osIDs: string[]; // Referencia a las OS que necesitan esta elaboración
+}
+
+export type PedidoPlantilla = {
+    id: string;
+    nombre: string;
+    tipo: MaterialOrderType;
+    items: {
+        itemCode: string;
+        quantity: number;
+    }[];
 }
