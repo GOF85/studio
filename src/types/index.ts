@@ -493,22 +493,3 @@ export type PedidoPlantilla = {
         description: string;
     }[];
 }
-
-export type ContenedorIsotermo = {
-    id: string; // e.g., 'ISO-042'
-    nombre: string;
-}
-
-export type PickingState = {
-    osId: string;
-    assignedContainers: {
-        REFRIGERADO?: ContenedorIsotermo[];
-        CONGELADO?: ContenedorIsotermo[];
-        SECO?: ContenedorIsotermo[];
-    };
-    itemStates: {
-        id: string; // ElaboracionNecesaria['id']
-        isPicked: boolean;
-        containerId?: string;
-    }[];
-};
