@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente': 'secondary',
+  'Asignada': 'secondary',
   'En Proceso': 'outline',
   'Finalizado': 'default',
   'Incidencia': 'destructive',
@@ -68,8 +69,8 @@ export default function OfDetailPage() {
         }
         setIsMounted(true);
     }, [id, form]);
-
-    const handleSave = (newStatus?: OrdenFabricacion['estado']) => {
+    
+    const handleSave = (newStatus?: OrdenFabricacion['estado'], newResponsable?: string) => {
         if (!orden) return;
 
         const formData = form.getValues();
@@ -79,6 +80,9 @@ export default function OfDetailPage() {
             updatedOF.estado = newStatus;
             if (newStatus === 'En Proceso' && !updatedOF.responsable) {
                 updatedOF.responsable = formData.responsable || 'Sin asignar';
+            }
+             if (newStatus === 'Asignada' && newResponsable) {
+                updatedOF.responsable = newResponsable;
             }
             if (newStatus === 'Finalizado') {
                 updatedOF.cantidadReal = formData.cantidadReal || updatedOF.cantidadTotal;
@@ -91,7 +95,7 @@ export default function OfDetailPage() {
              updatedOF = {
                 ...orden,
                 responsable: formData.responsable,
-                cantidadReal: formData.cantidadReal ?? undefined,
+                cantidadReal: formData.cantidadReal,
                 incidenciaObservaciones: formData.incidenciaObservaciones,
              };
         }
@@ -102,7 +106,7 @@ export default function OfDetailPage() {
             allOFs[index] = updatedOF;
             localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
             setOrden(updatedOF);
-            form.reset({ responsable: updatedOF.responsable, cantidadReal: updatedOF.cantidadReal ?? null, incidenciaObservaciones: updatedOF.incidenciaObservaciones || '' });
+            form.reset({ responsable: updatedOF.responsable, cantidadReal: updatedOF.cantidadReal, incidenciaObservaciones: updatedOF.incidenciaObservaciones || '' });
             toast({ title: 'Guardado', description: `La Orden de Fabricación ha sido actualizada.` });
         }
     };
@@ -133,7 +137,8 @@ export default function OfDetailPage() {
         )
     }
 
-    const canStart = orden.estado === 'Pendiente';
+    const canBeAssigned = orden.estado === 'Pendiente';
+    const canStart = orden.estado === 'Asignada';
     const canFinish = orden.estado === 'En Proceso';
 
     return (
@@ -181,7 +186,16 @@ export default function OfDetailPage() {
                                 name="responsable"
                                 control={form.control}
                                 render={({ field }) => (
-                                    <Select onValueChange={field.onChange} value={field.value} disabled={!canStart}>
+                                    <Select 
+                                        onValueChange={(value) => { 
+                                            field.onChange(value);
+                                            if(canBeAssigned) {
+                                                handleSave('Asignada', value);
+                                            }
+                                        }} 
+                                        value={field.value} 
+                                        disabled={!canBeAssigned}
+                                    >
                                         <SelectTrigger id="responsable">
                                             <SelectValue placeholder="Asignar responsable..." />
                                         </SelectTrigger>
@@ -214,11 +228,11 @@ export default function OfDetailPage() {
                 <CardFooter className="flex-col items-start gap-4">
                      <h4 className="font-semibold">Registro de Producción</h4>
                      <div className="grid md:grid-cols-3 gap-6 w-full">
-                        <Card className={!canStart && !canFinish ? 'bg-muted/30' : ''}>
+                        <Card className={!canStart ? 'bg-muted/30' : ''}>
                             <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2">1. Iniciar Producción</CardTitle></CardHeader>
                             <CardContent>
                                  <p className="text-sm text-muted-foreground mb-4">
-                                    Asigna un responsable y pulsa para cambiar el estado a "En Proceso".
+                                    Pulsa para cambiar el estado a "En Proceso" una vez asignado el responsable.
                                 </p>
                                 <Button className="w-full" variant="secondary" disabled={!canStart} onClick={() => handleSave('En Proceso')}>Empezar Producción</Button>
                             </CardContent>

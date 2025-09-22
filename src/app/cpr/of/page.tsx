@@ -27,9 +27,11 @@ import { format } from 'date-fns';
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente': 'secondary',
+  'Asignada': 'secondary',
   'En Proceso': 'outline',
   'Finalizado': 'default',
   'Incidencia': 'destructive',
+  'Validado': 'default',
 };
 
 const partidas: PartidaProduccion[] = ['FRIO', 'CALIENTE', 'PASTELERIA'];

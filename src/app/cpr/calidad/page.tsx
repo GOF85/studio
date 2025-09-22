@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente': 'secondary',
+  'Asignada': 'secondary',
   'En Proceso': 'outline',
   'Finalizado': 'default',
   'Incidencia': 'destructive',

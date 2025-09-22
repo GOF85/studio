@@ -475,9 +475,9 @@ export type OrdenFabricacion = {
     cantidadTotal: number;
     unidad: UnidadMedida;
     partidaAsignada: PartidaProduccion;
-    estado: 'Pendiente' | 'En Proceso' | 'Finalizado' | 'Incidencia' | 'Validado';
+    estado: 'Pendiente' | 'Asignada' | 'En Proceso' | 'Finalizado' | 'Incidencia' | 'Validado';
     responsable?: string;
-    cantidadReal?: number;
+    cantidadReal?: number | null;
     fechaFinalizacion?: string;
     osIDs: string[]; // Referencia a las OS que necesitan esta elaboración
     incidenciaObservaciones?: string;
@@ -512,4 +512,3 @@ export type PickingState = {
         containerId?: string;
     }[];
 };
-
