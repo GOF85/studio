@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, FilePlus2 } from 'lucide-react';
+import { PlusCircle, FilePlus2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import type { PedidoPlantilla } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -15,22 +15,49 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
 
 export default function PlantillasPedidosPage() {
   const [plantillas, setPlantillas] = useState<PedidoPlantilla[]>([]);
+  const [plantillaToDelete, setPlantillaToDelete] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Cargar plantillas desde localStorage
     const storedData = localStorage.getItem('pedidoPlantillas');
     if (storedData) {
       setPlantillas(JSON.parse(storedData));
     }
     setIsMounted(true);
   }, []);
+
+  const handleDelete = () => {
+    if (!plantillaToDelete) return;
+    const updatedData = plantillas.filter(p => p.id !== plantillaToDelete);
+    localStorage.setItem('pedidoPlantillas', JSON.stringify(updatedData));
+    setPlantillas(updatedData);
+    toast({ title: 'Plantilla eliminada' });
+    setPlantillaToDelete(null);
+  };
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Plantillas de Pedidos..." />;
@@ -70,7 +97,24 @@ export default function PlantillasPedidosPage() {
                     <TableCell><Badge variant="outline">{item.tipo}</Badge></TableCell>
                     <TableCell>{item.items.length}</TableCell>
                     <TableCell className="text-right">
-                      {/* Acciones como Editar/Eliminar irán aquí */}
+                       <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                            <span className="sr-only">Abrir menú</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => router.push(`/plantillas-pedidos/${item.id}`)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={(e) => {e.stopPropagation(); setPlantillaToDelete(item.id)}}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -85,6 +129,26 @@ export default function PlantillasPedidosPage() {
           </Table>
         </div>
       </main>
+
+      <AlertDialog open={!!plantillaToDelete} onOpenChange={(open) => !open && setPlantillaToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Esto eliminará permanentemente la plantilla.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPlantillaToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDelete}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
