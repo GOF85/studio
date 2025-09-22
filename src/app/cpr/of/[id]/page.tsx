@@ -21,6 +21,7 @@ const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'seconda
   'En Proceso': 'outline',
   'Finalizado': 'default',
   'Incidencia': 'destructive',
+  'Validado': 'default',
 };
 
 type FormData = {

@@ -24,12 +24,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente': 'secondary',
   'En Proceso': 'outline',
   'Finalizado': 'default',
   'Incidencia': 'destructive',
+  'Validado': 'default',
 };
 
 export default function CalidadPage() {
@@ -38,6 +40,7 @@ export default function CalidadPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrdenFabricacion['estado'] | 'all'>('Finalizado');
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     let storedData = localStorage.getItem('ordenesFabricacion');
@@ -46,6 +49,19 @@ export default function CalidadPage() {
     }
     setIsMounted(true);
   }, []);
+  
+  const handleValidate = (ofId: string) => {
+    const updatedOrdenes = ordenes.map(of => {
+        if (of.id === ofId) {
+            return { ...of, estado: 'Validado' as const };
+        }
+        return of;
+    });
+    setOrdenes(updatedOrdenes);
+    localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOrdenes));
+    toast({ title: 'Lote Validado', description: `La OF ${ofId} ha sido marcada como validada.` });
+  };
+
 
   const filteredItems = useMemo(() => {
     return ordenes.filter(item => {
@@ -112,25 +128,30 @@ export default function CalidadPage() {
               filteredItems.map(of => (
                 <TableRow
                   key={of.id}
-                  onClick={() => router.push(`/cpr/of/${of.id}`)}
-                  className="cursor-pointer"
                 >
-                  <TableCell className="font-medium">{of.id}</TableCell>
-                  <TableCell>{of.elaboracionNombre}</TableCell>
-                  <TableCell>{of.cantidadTotal} {of.unidad}</TableCell>
-                  <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
-                  <TableCell>
+                  <TableCell className="font-medium cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.id}</TableCell>
+                  <TableCell className="cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.elaboracionNombre}</TableCell>
+                  <TableCell className="cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.cantidadReal || of.cantidadTotal} {of.unidad}</TableCell>
+                  <TableCell className="cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell className="cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>
                     <Badge variant={statusVariant[of.estado]}>{of.estado}</Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm" disabled>Validar</Button>
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        disabled={of.estado !== 'Finalizado'}
+                        onClick={() => handleValidate(of.id)}
+                    >
+                        Validar
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center">
-                  No hay órdenes de fabricación pendientes de validación.
+                  No hay órdenes de fabricación con los filtros seleccionados.
                 </TableCell>
               </TableRow>
             )}

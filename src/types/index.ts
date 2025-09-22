@@ -475,7 +475,7 @@ export type OrdenFabricacion = {
     cantidadTotal: number;
     unidad: UnidadMedida;
     partidaAsignada: PartidaProduccion;
-    estado: 'Pendiente' | 'En Proceso' | 'Finalizado' | 'Incidencia';
+    estado: 'Pendiente' | 'En Proceso' | 'Finalizado' | 'Incidencia' | 'Validado';
     responsable?: string;
     cantidadReal?: number;
     fechaFinalizacion?: string;
