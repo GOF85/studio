@@ -280,8 +280,8 @@ export type PersonalMiceOrder = {
     horaEntrada: string;
     horaSalida: string;
     precioHora: number;
-    horaEntradaReal: string;
-    horaSalidaReal: string;
+    horaEntradaReal?: string;
+    horaSalidaReal?: string;
 };
 
 export type ProveedorPersonal = {
