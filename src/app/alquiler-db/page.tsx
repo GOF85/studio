@@ -68,6 +68,20 @@ export default function AlquilerDBPage() {
           precioReposicion: 1500.00,
           imagen: 'https://picsum.photos/seed/projector/100'
         },
+        {
+          id: '3',
+          concepto: 'Pantalla de proyección 100"',
+          precioAlquiler: 40.00,
+          precioReposicion: 300.00,
+          imagen: 'https://picsum.photos/seed/screen/100'
+        },
+        {
+          id: '4',
+          concepto: 'Atril de metacrilato',
+          precioAlquiler: 60.00,
+          precioReposicion: 450.00,
+          imagen: 'https://picsum.photos/seed/lectern/100'
+        }
       ];
       storedData = JSON.stringify(dummyData);
       localStorage.setItem('alquilerDB', storedData);

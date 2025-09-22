@@ -63,6 +63,16 @@ export default function AtipicosDBPage() {
           concepto: 'Servicio Limpieza Especial',
           precio: 250.00
         },
+         {
+          id: '3',
+          concepto: 'Canon SGAE',
+          precio: 150.00
+        },
+        {
+          id: '4',
+          concepto: 'Ajuste de Caja',
+          precio: 0
+        },
       ];
       storedData = JSON.stringify(dummyData);
       localStorage.setItem('atipicosDB', storedData);

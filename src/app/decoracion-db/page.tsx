@@ -64,6 +64,16 @@ export default function DecoracionDBPage() {
           concepto: 'Alquiler de photocall',
           precio: 300.00
         },
+        {
+          id: '3',
+          concepto: 'Guirnaldas de luces',
+          precio: 120.00
+        },
+        {
+          id: '4',
+          concepto: 'Cartelería personalizada',
+          precio: 80.00
+        }
       ];
       storedData = JSON.stringify(dummyData);
       localStorage.setItem('decoracionDB', storedData);
