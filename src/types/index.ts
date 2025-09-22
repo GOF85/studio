@@ -477,6 +477,8 @@ export type OrdenFabricacion = {
     partidaAsignada: PartidaProduccion;
     estado: 'Pendiente' | 'En Proceso' | 'Finalizado' | 'Incidencia';
     responsable?: string;
+    cantidadReal?: number;
+    fechaFinalizacion?: string;
     osIDs: string[]; // Referencia a las OS que necesitan esta elaboración
 }
 
