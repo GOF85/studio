@@ -2,20 +2,52 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import type { CateringItem, OrderItem } from '@/types';
+import type { CateringItem, OrderItem, PedidoPlantilla } from '@/types';
 import { ItemListItem } from './item-list-item';
 import { AssistantDialog } from '../order/assistant-dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '../ui/button';
+import { FilePlus2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 
 interface ItemCatalogProps {
   items: CateringItem[];
   orderItems: OrderItem[];
   onAddItem: (item: CateringItem, quantity: number) => void;
   orderType: string | null;
+  plantillas: PedidoPlantilla[];
+  onApplyTemplate: (plantilla: PedidoPlantilla) => void;
 }
 
-export function ItemCatalog({ items, onAddItem, orderItems, orderType }: ItemCatalogProps) {
+function TemplateSelectorDialog({ plantillas, onSelect }: { plantillas: PedidoPlantilla[], onSelect: (plantilla: PedidoPlantilla) => void }) {
+    const [isOpen, setIsOpen] = useState(false);
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline"><FilePlus2 className="mr-2"/>Usar Plantilla</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Seleccionar Plantilla</DialogTitle></DialogHeader>
+                <div className="space-y-2 py-4">
+                    {plantillas.length === 0 ? (
+                        <p className="text-muted-foreground text-center">No hay plantillas para este tipo de pedido.</p>
+                    ) : plantillas.map(p => (
+                        <div key={p.id} className="flex justify-between items-center p-3 border rounded-md hover:bg-secondary">
+                            <div>
+                                <p className="font-semibold">{p.nombre}</p>
+                                <p className="text-sm text-muted-foreground">{p.items.length} artículos</p>
+                            </div>
+                            <Button onClick={() => { onSelect(p); setIsOpen(false); }}>Aplicar</Button>
+                        </div>
+                    ))}
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantillas, onApplyTemplate }: ItemCatalogProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
@@ -33,7 +65,10 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType }: ItemCat
     <section>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
         <h2 className="text-3xl font-headline font-bold tracking-tight">Catálogo de Artículos</h2>
-        {orderType !== 'Alquiler' && <AssistantDialog onAddSuggestedItem={onAddItem} />}
+        <div className="flex gap-2">
+            {plantillas && plantillas.length > 0 && <TemplateSelectorDialog plantillas={plantillas} onSelect={onApplyTemplate} />}
+            {orderType !== 'Alquiler' && <AssistantDialog onAddSuggestedItem={onAddItem} />}
+        </div>
       </div>
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <Input 
@@ -73,3 +108,4 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType }: ItemCat
     </section>
   );
 }
+

@@ -3,11 +3,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { OrderItem, CateringItem, MaterialOrder, ServiceOrder, AlquilerDBItem, Precio } from '@/types';
+import type { OrderItem, CateringItem, MaterialOrder, ServiceOrder, AlquilerDBItem, Precio, PedidoPlantilla } from '@/types';
 import { Header } from '@/components/layout/header';
 import { ItemCatalog } from '@/components/catalog/item-catalog';
 import { OrderSummary, type ExistingOrderData } from '@/components/order/order-summary';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { FilePlus2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 type CatalogSourceItem = CateringItem | (Omit<AlquilerDBItem, 'precioReposicion' | 'precioAlquiler' | 'imagen'> & { price: number; description: string; stock: number; itemCode: string; imageUrl: string; imageHint: string; category: string });
 
@@ -15,6 +18,7 @@ export default function PedidosPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [catalogItems, setCatalogItems] = useState<CateringItem[]>([]);
+  const [plantillas, setPlantillas] = useState<PedidoPlantilla[]>([]);
   const [existingOrderData, setExistingOrderData] = useState<ExistingOrderData | null>(null);
   const { toast } = useToast();
   const router = useRouter();
@@ -67,6 +71,9 @@ export default function PedidosPage() {
             }));
     }
     setCatalogItems(itemsToLoad);
+
+    const allPlantillas = JSON.parse(localStorage.getItem('pedidoPlantillas') || '[]') as PedidoPlantilla[];
+    setPlantillas(allPlantillas.filter(p => p.tipo === orderType));
     
     if (editOrderId) {
       const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
@@ -97,6 +104,19 @@ export default function PedidosPage() {
       } else {
         return [...prevItems, { ...(item as CateringItem), quantity }];
       }
+    });
+  };
+
+  const handleApplyTemplate = (plantilla: PedidoPlantilla) => {
+    plantilla.items.forEach(plantillaItem => {
+        const catalogItem = catalogItems.find(item => item.itemCode === plantillaItem.itemCode);
+        if(catalogItem) {
+            handleAddItem(catalogItem, plantillaItem.quantity);
+        }
+    });
+    toast({
+        title: `Plantilla "${plantilla.nombre}" aplicada`,
+        description: `${plantilla.items.length} tipos de artículos añadidos al pedido.`
     });
   };
 
@@ -224,6 +244,8 @@ export default function PedidosPage() {
             onAddItem={handleAddItem}
             orderItems={orderItems}
             orderType={orderType}
+            plantillas={plantillas}
+            onApplyTemplate={handleApplyTemplate}
           />
           <div className="mt-8 lg:mt-0">
             <OrderSummary
