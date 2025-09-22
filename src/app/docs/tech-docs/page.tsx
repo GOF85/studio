@@ -26,6 +26,7 @@ export default function TechDocsPage() {
                     <li><strong>Formularios:</strong> React Hook Form con Zod para validación.</li>
                     <li><strong>Funcionalidad IA:</strong> Genkit (Google AI)</li>
                     <li><strong>Almacenamiento de Datos:</strong> `localStorage` del navegador.</li>
+                    <li><strong>(Futuro) Portal de Proveedores:</strong> Se desarrollará una aplicación satélite o una sección segura para que los proveedores de personal gestionen sus asignaciones.</li>
                 </ul>
                 <h3>1.2. Estructura de Carpetas del Proyecto</h3>
                 <ul>
@@ -52,11 +53,15 @@ export default function TechDocsPage() {
                 <div className="p-4 border rounded-md my-6 bg-secondary/30">
                     <p><strong>ServiceOrder (OS)</strong> --1:N--&gt; <strong>GastronomyOrder</strong>, <strong>MaterialOrder</strong>, etc.</p>
                     <p><strong>ServiceOrder (OS)</strong> --1:1--&gt; <strong>ComercialBriefing</strong></p>
+                    <p><strong>ComercialBriefingItem</strong> contiene un campo de texto para **anotaciones sobre alérgenos**.</p>
                     <p><strong>GastronomyOrder</strong> --1:N--&gt; <strong>GastronomyOrderItem (Receta)</strong></p>
                     <p><strong>Receta</strong> --N:M--&gt; <strong>Elaboracion</strong> (a través de `ElaboracionEnReceta`)</p>
                     <p><strong>Elaboracion</strong> --N:M--&gt; <strong>IngredienteInterno</strong> (a través de `ComponenteElaboracion`)</p>
+                    <p><strong>Elaboracion</strong> contiene un campo `tipoExpedicion` ('REFRIGERADO', 'SECO').</p>
                     <p><strong>IngredienteInterno</strong> --N:1--&gt; <strong>IngredienteERP</strong></p>
                     <p><strong>OrdenFabricacion</strong> --N:1--&gt; <strong>Elaboracion</strong> (Define qué producir)</p>
+                    <p><strong>OrdenPicking</strong> --N:M--&gt; <strong>Elaboracion</strong> (Define qué "pickear")</p>
+                    <p><strong>OrdenPicking</strong> --N:M--&gt; <strong>ContenedorIsotermo</strong> (Define dónde se "pickea")</p>
                 </div>
 
                 <h3>Entidades Clave</h3>
@@ -64,16 +69,16 @@ export default function TechDocsPage() {
                     <dt>ServiceOrder</dt>
                     <dd>La entidad central que representa un evento. Contiene toda la información general, fechas, cliente, espacio y responsables.</dd>
                     <dt>ComercialBriefing</dt>
-                    <dd>Almacena la secuencia de hitos o servicios de un evento (coffees, comidas, etc.) con sus horarios y número de asistentes.</dd>
+                    <dd>Almacena la secuencia de hitos o servicios de un evento (coffees, comidas, etc.) con sus horarios y número de asistentes. Cada hito tiene un campo para registrar información sobre alérgenos.</dd>
                     <dt>GastronomyOrder</dt>
-                    <dd>Un pedido de producción para un hito gastronómico específico, derivado del briefing.</dd>
+                    <dd>Un pedido de producción para un hito gastronómico específico, derivado del briefing. Hereda la información de alérgenos.</dd>
                     <dt>Receta</dt>
                     <dd>El plato final. Contiene su escandallo (lista de elaboraciones), instrucciones de emplatado, costes, y atributos gastronómicos.</dd>
                     <dt>Elaboracion</dt>
-                    <dd>Una preparación base que forma parte de una o más recetas. Contiene su propio escandallo de ingredientes y/o otras elaboraciones, y su tipo de expedición (Refrigerado, Seco, etc.).</dd>
+                    <dd>Una preparación base que forma parte de una o más recetas. Contiene su propio escandallo de ingredientes y/o otras elaboraciones, y su **tipo de expedición** (Refrigerado, Seco, etc.).</dd>
                     <dt>OrdenFabricacion</dt>
-                    <dd>Una orden para producir una cantidad específica de una elaboración. Estará vinculada a un **lote**, partida y estado, y registrará la merma real.</dd>
-                    <dt>OrdenPicking (Concepto)</dt>
+                    <dd>Una orden para producir una cantidad específica de una elaboración. Actúa como **lote de producción** y registra la merma real, el estado (Pendiente, En Proceso, Control Calidad, Finalizado) y la caducidad.</dd>
+                    <dt>OrdenPicking</dt>
                     <dd>La hoja de trabajo para logística, que detallará qué elaboraciones (agrupadas por receta) deben ser empaquetadas en qué contenedores (isotermos) para un evento.</dd>
                 </dl>
             </section>
@@ -97,6 +102,7 @@ export default function TechDocsPage() {
                     <li><strong>Cocinero (CPR):</strong> Acceso al panel de su partida para gestionar Órdenes de Fabricación.</li>
                     <li><strong>Operario de Logística:</strong> Acceso al módulo de Picking y gestión de isotermos.</li>
                     <li><strong>Metre / Jefe de Pase:</strong> Acceso a la Hoja de Pase para el servicio en el evento.</li>
+                    <li>**Proveedor Externo (Futuro):** Acceso a un portal limitado para gestionar la asignación y horas de su personal.</li>
                 </ul>
             </section>
 
