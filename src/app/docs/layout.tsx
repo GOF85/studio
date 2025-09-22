@@ -2,24 +2,27 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LifeBuoy, Users, Code, BookOpen, Workflow, Database, Bot, BookHeart, Factory } from 'lucide-react';
+import { LifeBuoy, Users, Code, BookOpen, Workflow, Database, Bot, Factory, BarChart3, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-const DOC_VERSION = "0.1.0";
+const DOC_VERSION = "0.2.0";
 const LAST_UPDATED = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
 
 const userManualNav = [
     { title: 'Primeros Pasos', path: '#c1', icon: BookOpen },
     { title: 'Flujo Comercial y de Servicios', path: '#c2', icon: Workflow },
-    { title: 'El Book Gastronómico', path: '#c3', icon: BookHeart },
-    { title: 'Planificación CPR y Producción', path: '#c4', icon: Factory },
+    { title: 'El Book Gastronómico', path: '#c3', icon: BookOpen },
+    { title: 'Planificación y Producción (CPR)', path: '#c4', icon: Factory },
+    { title: 'Informes y Análisis', path: '#c5', icon: BarChart3 },
 ];
 
 const techDocsNav = [
     { title: 'Arquitectura General', path: '#c1-tech', icon: Code },
     { title: 'Modelo de Datos', path: '#c2-tech', icon: Database },
     { title: 'Flujos de IA', path: '#c3-tech', icon: Bot },
+    { title: 'Roles y Permisos', path: '#c4-tech', icon: Users },
+    { title: 'Seguridad y Trazabilidad', path: '#c5-tech', icon: ShieldCheck },
 ];
 
 
@@ -61,7 +64,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                                      <nav className="space-y-1">
                                         {activeNav.map(item => (
                                             <Link key={item.title} href={item.path} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                                                {item.icon && <item.icon />}
+                                                <item.icon />
                                                 {item.title}
                                             </Link>
                                         ))}

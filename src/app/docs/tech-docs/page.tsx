@@ -1,6 +1,6 @@
 'use client';
 
-import { Code, Database, Bot, Workflow } from "lucide-react";
+import { Code, Database, Bot, Workflow, Users, ShieldCheck } from "lucide-react";
 import Image from 'next/image';
 
 export default function TechDocsPage() {
@@ -34,7 +34,6 @@ export default function TechDocsPage() {
                         <ul>
                             <li><code>/ui</code>: Componentes base de ShadCN.</li>
                             <li><code>/layout</code>: Componentes estructurales como Header.</li>
-                            <li><code>/order</code>, <code>/catalog</code>: Componentes específicos de módulo.</li>
                         </ul>
                     </li>
                     <li><code>/src/lib</code>: Utilidades, datos estáticos y definiciones.</li>
@@ -48,17 +47,16 @@ export default function TechDocsPage() {
                 <h2 className="flex items-center gap-3"><Database />Capítulo 2: Modelo de Datos (`/src/types/index.ts`)</h2>
                 <p>A continuación se describen las principales entidades de datos y sus relaciones. Todas las definiciones residen en <code>src/types/index.ts</code>.</p>
                 
-                <h3>Diagrama de Entidad-Relación (Simplificado)</h3>
+                <h3>Diagrama de Entidad-Relación (Conceptual)</h3>
                 <p><em>(Este diagrama se irá completando a medida que se construyan los nuevos módulos)</em></p>
                 <div className="p-4 border rounded-md my-6 bg-secondary/30">
-                    <p><strong>ServiceOrder (OS)</strong> --1:N--&gt; <strong>MaterialOrder</strong></p>
+                    <p><strong>ServiceOrder (OS)</strong> --1:N--&gt; <strong>GastronomyOrder</strong>, <strong>MaterialOrder</strong>, etc.</p>
                     <p><strong>ServiceOrder (OS)</strong> --1:1--&gt; <strong>ComercialBriefing</strong></p>
-                    <p><strong>ComercialBriefing</strong> --1:N--&gt; <strong>ComercialBriefingItem</strong></p>
-                    <p><strong>ComercialBriefingItem</strong> --1:1--&gt; <strong>GastronomyOrder</strong></p>
                     <p><strong>GastronomyOrder</strong> --1:N--&gt; <strong>GastronomyOrderItem (Receta)</strong></p>
-                    <p><strong>Receta</strong> --N:M--&gt; <strong>Elaboracion</strong></p>
-                    <p><strong>Elaboracion</strong> --N:M--&gt; <strong>IngredienteInterno</strong></p>
+                    <p><strong>Receta</strong> --N:M--&gt; <strong>Elaboracion</strong> (a través de `ElaboracionEnReceta`)</p>
+                    <p><strong>Elaboracion</strong> --N:M--&gt; <strong>IngredienteInterno</strong> (a través de `ComponenteElaboracion`)</p>
                     <p><strong>IngredienteInterno</strong> --N:1--&gt; <strong>IngredienteERP</strong></p>
+                    <p><strong>OrdenFabricacion</strong> --N:1--&gt; <strong>Elaboracion</strong> (Define qué producir)</p>
                 </div>
 
                 <h3>Entidades Clave</h3>
@@ -72,11 +70,11 @@ export default function TechDocsPage() {
                     <dt>Receta</dt>
                     <dd>El plato final. Contiene su escandallo (lista de elaboraciones), instrucciones de emplatado, costes, y atributos gastronómicos.</dd>
                     <dt>Elaboracion</dt>
-                    <dd>Una preparación base que forma parte de una o más recetas. Contiene su propio escandallo de ingredientes y/o otras elaboraciones.</dd>
-                    <dt>OrdenFabricacion <em>(Próximamente)</em></dt>
-                    <dd>Una orden para producir una cantidad específica de una elaboración. Estará vinculada a un lote, partida y estado.</dd>
-                    <dt>OrdenPicking <em>(Próximamente)</em></dt>
-                    <dd>La hoja de trabajo para logística, que detalla qué elaboraciones deben ser empaquetadas en qué contenedores para un evento.</dd>
+                    <dd>Una preparación base que forma parte de una o más recetas. Contiene su propio escandallo de ingredientes y/o otras elaboraciones, y su tipo de expedición (Refrigerado, Seco, etc.).</dd>
+                    <dt>OrdenFabricacion</dt>
+                    <dd>Una orden para producir una cantidad específica de una elaboración. Estará vinculada a un **lote**, partida y estado, y registrará la merma real.</dd>
+                    <dt>OrdenPicking (Concepto)</dt>
+                    <dd>La hoja de trabajo para logística, que detallará qué elaboraciones (agrupadas por receta) deben ser empaquetadas en qué contenedores (isotermos) para un evento.</dd>
                 </dl>
             </section>
             
@@ -87,6 +85,30 @@ export default function TechDocsPage() {
                 <p>Este flujo recibe una descripción de un evento y devuelve una lista de artículos de alquiler sugeridos con cantidades, basándose en el conocimiento general de modelos de lenguaje sobre organización de eventos.</p>
                 <h3>3.2. `recipeDescriptionGenerator`</h3>
                 <p>Recibe los datos clave de una receta (nombre, sabores, texturas) y genera una descripción de marketing atractiva y sugerente para menús y propuestas comerciales.</p>
+            </section>
+
+             <section id="c4-tech">
+                <h2 className="flex items-center gap-3"><Users />Capítulo 4: Roles y Permisos</h2>
+                <p>El sistema se diseñará para soportar diferentes roles de usuario, cada uno con acceso a las funcionalidades relevantes para su trabajo, simplificando la interfaz y protegiendo datos sensibles.</p>
+                <ul>
+                    <li><strong>Administrador:</strong> Acceso total.</li>
+                    <li><strong>Comercial:</strong> Gestión de OS y briefings. Visión de rentabilidad sin desglose de costes.</li>
+                    <li><strong>Jefe de Producción (CPR):</strong> Control total del módulo de producción, costes y calidad.</li>
+                    <li><strong>Cocinero (CPR):</strong> Acceso al panel de su partida para gestionar Órdenes de Fabricación.</li>
+                    <li><strong>Operario de Logística:</strong> Acceso al módulo de Picking y gestión de isotermos.</li>
+                    <li><strong>Metre / Jefe de Pase:</strong> Acceso a la Hoja de Pase para el servicio en el evento.</li>
+                </ul>
+            </section>
+
+            <section id="c5-tech">
+                <h2 className="flex items-center gap-3"><ShieldCheck />Capítulo 5: Seguridad y Trazabilidad</h2>
+                <p>La trazabilidad es un pilar fundamental del sistema de producción.</p>
+                <h3>5.1. Lotes de Producción</h3>
+                <p>Cada `OrdenFabricacion` actuará como un lote único. Esto permite asociar una producción específica (un día, un cocinero) con su fecha de caducidad y los eventos a los que se sirve.</p>
+                <h3>5.2. Trazabilidad Inversa</h3>
+                <p>El modelo de datos permitirá una trazabilidad inversa. Ante una incidencia en un lote, el sistema podrá identificar rápidamente todas las recetas, Órdenes de Servicio (eventos) y contenedores isotérmicos afectados, permitiendo una acción rápida y precisa.</p>
+                <h3>5.3. Sistema de Alertas</h3>
+                <p>Se contempla un sistema de notificaciones proactivas para comunicar incidencias de lotes a los responsables de los eventos afectados, centralizando la comunicación de crisis.</p>
             </section>
         </>
     );
