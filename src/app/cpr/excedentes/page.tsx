@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { differenceInDays, format, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PackagePlus, Search, AlertTriangle } from 'lucide-react';
-import type { OrdenFabricacion, Elaboracion, ServiceOrder, Receta, GastronomyOrder } from '@/types';
+import type { OrdenFabricacion, Elaboracion, ServiceOrder, Receta, GastronomyOrder, ExcedenteProduccion } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -90,25 +90,25 @@ export default function ExcedentesPage() {
 
     // 2. Sumar toda la producción de todas las OFs
     allOrdenesFabricacion.forEach(of => {
-      const registro = necesidadesPorElaboracion.get(of.elaboracionId);
+      let registro = necesidadesPorElaboracion.get(of.elaboracionId);
       const cantidadProducida = (of.estado === 'Finalizado' || of.estado === 'Validado' || of.estado === 'Incidencia') && of.cantidadReal !== null 
         ? Number(of.cantidadReal) 
         : Number(of.cantidadTotal);
+      
+      if (!registro) {
+         const elaboracion = elaboracionesMap.get(of.elaboracionId);
+         if (elaboracion) {
+            registro = { necesidadBruta: 0, produccionAcumulada: 0, elaboracion, eventos: new Set() };
+            necesidadesPorElaboracion.set(elaboracion.id, registro);
+         }
+      }
 
-      if (registro) {
-        if (!isNaN(cantidadProducida)) {
+      if (registro && !isNaN(cantidadProducida)) {
           registro.produccionAcumulada += cantidadProducida;
-        }
-      } else { // Si hay una OF pero no había necesidad, se considera todo excedente
-        const elaboracion = elaboracionesMap.get(of.elaboracionId);
-        if (elaboracion && !isNaN(cantidadProducida)) {
-            necesidadesPorElaboracion.set(elaboracion.id, {
-                necesidadBruta: 0,
-                produccionAcumulada: cantidadProducida,
-                elaboracion,
-                eventos: new Set(of.osIDs.map(id => serviceOrderMap.get(id)?.serviceNumber).filter(Boolean) as string[])
-            });
-        }
+          of.osIDs.forEach(osId => {
+              const os = serviceOrderMap.get(osId);
+              if (os) registro.eventos.add(os.serviceNumber);
+          })
       }
     });
 

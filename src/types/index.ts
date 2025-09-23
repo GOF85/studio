@@ -500,6 +500,8 @@ export type PickingState = {
 
 export type ExcedenteProduccion = {
     ofId: string; // Lote de origen
+    fechaProduccion: string;
+    diasCaducidad?: number;
     cantidadAjustada: number; // Cantidad real que queda
     motivoAjuste?: string;
     fechaAjuste?: string;
