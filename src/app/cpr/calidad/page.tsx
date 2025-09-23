@@ -112,6 +112,7 @@ export default function CalidadPage() {
     if (index > -1) {
         allOFs[index] = {
             ...allOFs[index],
+            estado: 'Incidencia',
             incidencia: true,
             cantidadReal: incidentData.cantidadReal,
             observacionesIncidencia: incidentData.observaciones,

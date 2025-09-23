@@ -84,10 +84,13 @@ export default function PickingDetailPage() {
             setDbContainers(allContainers);
             
             const osOFs = allOFs.filter(of => of.osIDs.includes(osId));
-            const lotesValidados = osOFs.filter(of => of.okCalidad);
-            const lotesPendientes = osOFs.filter(of => !of.okCalidad && of.estado !== 'Incidencia');
-            setLotesPendientesCalidad(lotesPendientes);
 
+            const lotesValidados = osOFs.filter(of => 
+                (of.okCalidad) || 
+                (of.incidencia && of.cantidadReal && of.cantidadReal > 0)
+            );
+            const lotesPendientes = osOFs.filter(of => !of.okCalidad && !of.incidencia);
+            setLotesPendientesCalidad(lotesPendientes);
 
             let initialLotes: LoteDisponible[] = lotesValidados.map(of => ({
                 ofId: of.id,
