@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -78,7 +79,7 @@ export default function CalidadPage() {
         toast({ variant: 'destructive', title: 'Error', description: 'Por favor, selecciona un responsable de calidad.' });
         return;
     }
-    let allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]');
+    let allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
     const index = allOFs.findIndex(of => of.id === ofId);
     
     if (index > -1) {
@@ -105,7 +106,7 @@ export default function CalidadPage() {
   const handleSetIncident = () => {
     if (!ofForIncident) return;
     
-    let allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]');
+    let allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
     const index = allOFs.findIndex(of => of.id === ofForIncident.id);
 
     if (index > -1) {
@@ -319,4 +320,3 @@ export default function CalidadPage() {
     </div>
   );
 }
-
