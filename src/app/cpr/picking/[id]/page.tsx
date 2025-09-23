@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown, Printer, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado } from '@/types';
+import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -124,11 +124,11 @@ export default function PickingDetailPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [lotesNecesarios, setLotesNecesarios] = useState<OrdenFabricacion[]>([]);
     const [dbContainers, setDbContainers] = useState<ContenedorIsotermo[]>([]);
+    const [elaboraciones, setElaboraciones] = useState<Elaboracion[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', assignedContainers: {}, itemStates: [] });
     const [isMounted, setIsMounted] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [lotesPendientesCalidad, setLotesPendientesCalidad] = useState<OrdenFabricacion[]>([]);
     
     const router = useRouter();
     const params = useParams();
@@ -152,14 +152,10 @@ export default function PickingDetailPage() {
             const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
             const allContainers = JSON.parse(localStorage.getItem('contenedoresDB') || '[]') as ContenedorIsotermo[];
             setDbContainers(allContainers);
+            setElaboraciones(JSON.parse(localStorage.getItem('elaboraciones') || '[]'));
             
             const osOFs = allOFs.filter(of => of.osIDs.includes(osId));
             setLotesNecesarios(osOFs);
-
-             const lotesPendientes = osOFs.filter(of => 
-                (of.estado !== 'Finalizado' && of.estado !== 'Validado' && !of.incidencia)
-            );
-            setLotesPendientesCalidad(lotesPendientes);
 
             const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
             const savedState = allPickingStates[osId];
@@ -171,6 +167,14 @@ export default function PickingDetailPage() {
         }
         setIsMounted(true);
     }, [osId]);
+    
+    const lotesPendientesCalidad = useMemo(() => {
+        return lotesNecesarios.filter(of => 
+            of.estado !== 'Finalizado' && 
+            of.estado !== 'Validado' && 
+            !(of.incidencia && of.cantidadReal !== null && of.cantidadReal > 0)
+        );
+    }, [lotesNecesarios]);
 
     const addContainerToSection = (tipo: keyof typeof expeditionTypeMap, container: ContenedorIsotermo) => {
         const newAssignedContainers = { ...pickingState.assignedContainers };
@@ -197,11 +201,11 @@ export default function PickingDetailPage() {
 
     const lotesPendientes = useMemo(() => {
         return lotesNecesarios
-        .filter(of => (
+        .filter(of => 
             of.estado === 'Finalizado' || 
             of.estado === 'Validado' || 
             (of.incidencia && of.cantidadReal !== null && of.cantidadReal > 0)
-        ))
+        )
         .map(of => {
             const cantidadTotal = Number(of.cantidadReal ?? of.cantidadTotal);
             const cantidadAsignada = pickingState.itemStates
@@ -235,7 +239,75 @@ export default function PickingDetailPage() {
         setShowDeleteConfirm(false);
     }
     
-    const handlePrint = () => { /* Logic to be implemented */ };
+    const handlePrint = () => {
+        if (!serviceOrder) return;
+        setIsPrinting(true);
+
+        try {
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            
+            Object.values(pickingState.assignedContainers).flat().forEach((container, index, allContainers) => {
+                if (index > 0) doc.addPage();
+                
+                let finalY = 15;
+                const margin = 15;
+                
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`Etiqueta de Contenedor (${index + 1}/${allContainers.length})`, margin, finalY);
+                finalY += 8;
+
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Contenedor: ${container.nombre} (${container.id})`, margin, finalY);
+                finalY += 10;
+                
+                autoTable(doc, {
+                    startY: finalY,
+                    theme: 'plain',
+                    styles: { fontSize: 9 },
+                    body: [
+                        [{content: 'Nº SERVICIO:', styles:{fontStyle: 'bold'}}, serviceOrder.serviceNumber],
+                        [{content: 'CLIENTE:', styles:{fontStyle: 'bold'}}, `${serviceOrder.client} ${serviceOrder.finalClient ? `(${serviceOrder.finalClient})` : ''}`],
+                        [{content: 'FECHA EVENTO:', styles:{fontStyle: 'bold'}}, format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
+                        [{content: 'ESPACIO:', styles:{fontStyle: 'bold'}}, serviceOrder.space || 'N/A'],
+                    ]
+                });
+                finalY = (doc as any).lastAutoTable.finalY + 10;
+                
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.text('CONTENIDO', margin, finalY);
+                finalY += 6;
+                
+                const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
+                const itemsBody = containerItems.map(item => {
+                    const loteInfo = lotesNecesarios.find(l => l.id === item.ofId);
+                    return [
+                        loteInfo?.elaboracionNombre || 'Desconocido',
+                        (item.quantity || 0).toFixed(2),
+                        loteInfo?.unidad || '',
+                        item.ofId
+                    ];
+                });
+
+                autoTable(doc, {
+                    startY: finalY,
+                    head: [['Elaboración', 'Cantidad', 'Unidad', 'Lote (OF)']],
+                    body: itemsBody,
+                    theme: 'grid',
+                    headStyles: { fillColor: '#e5e7eb', textColor: '#374151' }
+                });
+            });
+
+            doc.save(`Etiquetas_Picking_${serviceOrder.serviceNumber}.pdf`);
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
+        } finally {
+            setIsPrinting(false);
+        }
+    };
 
 
     if (!isMounted || !serviceOrder) {
