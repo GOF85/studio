@@ -465,15 +465,19 @@ export type OrdenFabricacion = {
     cantidadTotal: number;
     unidad: UnidadMedida;
     partidaAsignada: PartidaProduccion;
-    estado: 'Pendiente' | 'Asignada' | 'En Proceso' | 'Finalizado' | 'Incidencia' | 'Validado';
+    estado: 'Pendiente' | 'Asignada' | 'En Proceso' | 'Finalizado';
+    incidencia: boolean;
+    observacionesIncidencia?: string;
+    okCalidad: boolean;
     responsable?: string;
+    responsableCalidad?: string;
     cantidadReal?: number | null;
     osIDs: string[]; // Referencia a las OS que necesitan esta elaboración
-    incidenciaObservaciones?: string;
     // Timestamps for productivity
     fechaAsignacion?: string;
     fechaInicioProduccion?: string;
     fechaFinalizacion?: string;
+    fechaValidacionCalidad?: string;
 }
 
 export type PedidoPlantilla = {
