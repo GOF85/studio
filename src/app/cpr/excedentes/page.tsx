@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -39,58 +40,100 @@ export default function ExcedentesPage() {
   const router = useRouter();
 
   const calcularExcedentes = useCallback(() => {
-    // Cargar todos los datos necesarios
-    const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]).filter(of => of.estado === 'Finalizado' || of.estado === 'Validado');
+    // --- DATA LOADING ---
+    const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
     const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
     const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    const allOrdenesFabricacion = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
 
-    const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
     const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
-    const serviceOrdersMap = new Map(allServiceOrders.map(os => [os.id, os]));
+    const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
+    const serviceOrderMap = new Map(allServiceOrders.map(os => [os.id, os]));
     
-    const excedentesCalculados: Excedente[] = [];
+    // --- CALCULATIONS ---
+    const necesidadesPorElaboracion = new Map<string, {
+        necesidadBruta: number;
+        produccionAcumulada: number;
+        elaboracion: Elaboracion;
+        eventos: Set<string>;
+    }>();
 
-    allOFs.forEach(of => {
-      let necesidadTotal = 0;
-      const osIds = of.osIDs;
-      const eventosNombres = new Set<string>();
+    // 1. Calcular necesidad bruta total de todas las OS confirmadas
+    allGastroOrders.forEach(gastroOrder => {
+      const serviceOrder = serviceOrderMap.get(gastroOrder.osId);
+      if (!serviceOrder) return;
 
-      osIds.forEach(osId => {
-        const gastroOrdersForOS = allGastroOrders.filter(g => g.osId === osId);
-        gastroOrdersForOS.forEach(gOrder => {
-          (gOrder.items || []).forEach(item => {
-            const receta = recetasMap.get(item.id);
-            if (receta) {
-              receta.elaboraciones.forEach(elabEnReceta => {
-                if (elabEnReceta.elaboracionId === of.elaboracionId) {
-                  necesidadTotal += (item.quantity || 0) * elabEnReceta.cantidad;
-                  const os = serviceOrdersMap.get(osId);
-                  if (os) eventosNombres.add(os.serviceNumber);
+      (gastroOrder.items || []).forEach(item => {
+        if (item.type === 'item') {
+          const receta = recetasMap.get(item.id);
+          if (receta) {
+            receta.elaboraciones.forEach(elabEnReceta => {
+              const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
+              if (elaboracion) {
+                const cantidadNecesaria = Number(item.quantity || 0) * Number(elabEnReceta.cantidad);
+                if (isNaN(cantidadNecesaria) || cantidadNecesaria <= 0) return;
+
+                let registro = necesidadesPorElaboracion.get(elaboracion.id);
+                if (!registro) {
+                  registro = { necesidadBruta: 0, produccionAcumulada: 0, elaboracion, eventos: new Set() };
+                  necesidadesPorElaboracion.set(elaboracion.id, registro);
                 }
-              });
-            }
-          });
-        });
+                registro.necesidadBruta += cantidadNecesaria;
+                registro.eventos.add(serviceOrder.serviceNumber);
+              }
+            });
+          }
+        }
       });
-      
-      const cantidadProducida = of.cantidadReal ?? of.cantidadTotal;
-      const diferencia = cantidadProducida - necesidadTotal;
+    });
 
-      if (diferencia > 0.001) { // Si hay excedente significativo
+    // 2. Sumar toda la producción de todas las OFs
+    allOrdenesFabricacion.forEach(of => {
+      const registro = necesidadesPorElaboracion.get(of.elaboracionId);
+      const cantidadProducida = (of.estado === 'Finalizado' || of.estado === 'Validado' || of.estado === 'Incidencia') && of.cantidadReal !== null 
+        ? Number(of.cantidadReal) 
+        : Number(of.cantidadTotal);
+
+      if (registro) {
+        if (!isNaN(cantidadProducida)) {
+          registro.produccionAcumulada += cantidadProducida;
+        }
+      } else { // Si hay una OF pero no había necesidad, se considera todo excedente
         const elaboracion = elaboracionesMap.get(of.elaboracionId);
-        if(elaboracion) {
-            excedentesCalculados.push({
-                ofId: of.id,
-                elaboracionId: of.elaboracionId,
-                elaboracionNombre: elaboracion.nombre,
-                cantidadExcedente: diferencia,
-                unidad: elaboracion.unidadProduccion,
-                fechaProduccion: of.fechaFinalizacion || of.fechaCreacion,
-                eventosOrigen: Array.from(eventosNombres),
+        if (elaboracion && !isNaN(cantidadProducida)) {
+            necesidadesPorElaboracion.set(elaboracion.id, {
+                necesidadBruta: 0,
+                produccionAcumulada: cantidadProducida,
+                elaboracion,
+                eventos: new Set(of.osIDs.map(id => serviceOrderMap.get(id)?.serviceNumber).filter(Boolean) as string[])
             });
         }
+      }
+    });
+
+    // 3. Calcular excedentes
+    const excedentesCalculados: Excedente[] = [];
+    necesidadesPorElaboracion.forEach((registro, elabId) => {
+      const diferencia = registro.produccionAcumulada - registro.necesidadBruta;
+      
+      if (diferencia > 0.001) { // Si hay excedente significativo
+        // Encontrar la OF más reciente para esta elaboración para usar como lote de referencia
+        const ofsParaElab = allOrdenesFabricacion
+            .filter(of => of.elaboracionId === elabId)
+            .sort((a,b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
+
+        const ofReferencia = ofsParaElab.length > 0 ? ofsParaElab[0] : null;
+
+        excedentesCalculados.push({
+          ofId: ofReferencia?.id || `EXCEDENTE-${elabId}`,
+          elaboracionId: elabId,
+          elaboracionNombre: registro.elaboracion.nombre,
+          cantidadExcedente: diferencia,
+          unidad: registro.elaboracion.unidadProduccion,
+          fechaProduccion: ofReferencia?.fechaFinalizacion || ofReferencia?.fechaCreacion || new Date().toISOString(),
+          eventosOrigen: Array.from(registro.eventos),
+        });
       }
     });
 
@@ -172,7 +215,7 @@ export default function ExcedentesPage() {
                             {item.elaboracionNombre}
                         </TableCell>
                         <TableCell><Badge variant="secondary">{item.ofId}</Badge></TableCell>
-                        <TableCell>{item.cantidadExcedente.toFixed(3)} {item.unidad}</TableCell>
+                        <TableCell>{item.cantidadExcedente.toFixed(2)} {item.unidad}</TableCell>
                         <TableCell>{format(new Date(item.fechaProduccion), 'dd/MM/yyyy')}</TableCell>
                         <TableCell>{item.eventosOrigen.join(', ')}</TableCell>
                     </TableRow>
