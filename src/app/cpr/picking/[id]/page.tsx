@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -244,7 +245,7 @@ export default function PickingDetailPage() {
         setShowDeleteConfirm(false);
     }
     
-const handlePrint = () => {
+const handlePrint = async () => {
     if (!serviceOrder) return;
     setIsPrinting(true);
 
@@ -255,40 +256,60 @@ const handlePrint = () => {
         allAssignedContainers.forEach((container, index) => {
             if (index > 0) doc.addPage();
 
-            const margin = 8;
+            const margin = 5;
             const pageWidth = doc.internal.pageSize.getWidth();
-            let finalY = margin;
+            let finalY = margin + 2;
 
             // --- HEADER ---
-            doc.setFontSize(18);
+            doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
             doc.text(container.nombre, margin, finalY);
-            doc.text(`${index + 1} de ${allAssignedContainers.length}`, pageWidth - margin, finalY, { align: 'right' });
-            finalY += 6;
+            doc.text(`${index + 1}/${allAssignedContainers.length}`, pageWidth - margin, finalY, { align: 'right' });
+            finalY += 3;
             
             doc.setLineWidth(0.5);
             doc.setDrawColor(0, 0, 0);
             doc.line(margin, finalY, pageWidth - margin, finalY);
-            finalY += 5;
+            finalY += 4;
 
             // --- EVENT INFO (2 columns) ---
-            const headerBody = [
-                [{content: 'Nº SERVICIO:', styles: {fontStyle: 'bold'}}, serviceOrder.serviceNumber],
-                [{content: 'FECHA:', styles: {fontStyle: 'bold'}}, format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
-                [{content: 'CLIENTE:', styles: {fontStyle: 'bold'}}, serviceOrder.client],
-                [{content: 'ESPACIO:', styles: {fontStyle: 'bold'}}, serviceOrder.space || 'N/A'],
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(0, 0, 0);
+            
+            const serviceData = [
+                [{content: 'Nº Serv:', styles: {fontStyle: 'bold'}}, serviceOrder.serviceNumber],
+                [{content: 'Cliente:', styles: {fontStyle: 'bold'}}, serviceOrder.client],
+                [{content: 'Espacio:', styles: {fontStyle: 'bold'}}, serviceOrder.space || '-'],
             ];
+            const eventData = [
+                [{content: 'Fecha:', styles: {fontStyle: 'bold'}}, format(new Date(serviceOrder.startDate), 'dd/MM/yy')],
+                [{content: 'PAX:', styles: {fontStyle: 'bold'}}, String(serviceOrder.asistentes)],
+                [{content: 'Sala:', styles: {fontStyle: 'bold'}}, 'Pendiente'],
+            ];
+
              autoTable(doc, {
-                body: headerBody,
+                body: serviceData,
                 startY: finalY,
                 theme: 'plain',
-                styles: { fontSize: 9, cellPadding: 0.5 },
+                tableWidth: (pageWidth - margin * 2) / 2 - 2,
+                styles: { fontSize: 8, cellPadding: 0.2 },
+                columnStyles: { 0: { fontStyle: 'bold' } }
             });
-            finalY = (doc as any).lastAutoTable.finalY + 5;
+            autoTable(doc, {
+                body: eventData,
+                startY: finalY,
+                theme: 'plain',
+                tableWidth: (pageWidth - margin * 2) / 2 - 2,
+                margin: { left: pageWidth / 2 + 2 },
+                styles: { fontSize: 8, cellPadding: 0.2 },
+                columnStyles: { 0: { fontStyle: 'bold' } }
+            });
+            finalY = (doc as any).lastAutoTable.finalY + 3;
 
             doc.setLineWidth(0.2);
             doc.line(margin, finalY, pageWidth - margin, finalY);
-            finalY += 6;
+            finalY += 5;
 
             // --- CONTENT TABLE ---
             const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
@@ -320,9 +341,9 @@ const handlePrint = () => {
                 startY: finalY,
                 head: [['Elaboración', 'Cant. Tot.', 'Lote']],
                 body,
-                theme: 'plain',
-                headStyles: { fontStyle: 'bold', fontSize: 11, halign: 'center', cellPadding: 1 },
-                styles: { fontSize: 10, cellPadding: 1.5, lineColor: '#000', lineWidth: 0.2 },
+                theme: 'striped',
+                headStyles: { fontStyle: 'bold', fontSize: 10, halign: 'center', cellPadding: 1, fillColor: [230, 230, 230], textColor: [0,0,0] },
+                styles: { fontSize: 9, cellPadding: 1.5, lineColor: '#000', lineWidth: 0.1 },
                 columnStyles: {
                     0: { cellWidth: 40 },
                     1: { cellWidth: 20, halign: 'right' },
