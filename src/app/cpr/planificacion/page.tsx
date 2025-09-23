@@ -48,7 +48,6 @@ export default function PlanificacionPage() {
         to: addDays(startOfToday(), 7),
     });
     const [necesidades, setNecesidades] = useState<Map<string, NecesidadElaboracion>>(new Map());
-    const [incidencias, setIncidencias] = useState<OrdenFabricacion[]>([]);
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
@@ -57,7 +56,6 @@ export default function PlanificacionPage() {
         setIsLoading(true);
 
         const allOrdenesFabricacion: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        setIncidencias(allOrdenesFabricacion.filter(of => of.estado === 'Incidencia'));
 
         if (!dateRange?.from || !dateRange?.to) {
             setNecesidades(new Map());
@@ -378,47 +376,6 @@ export default function PlanificacionPage() {
                         </TableBody>
                     </Table>
                 </div>
-
-                <Card className="mt-8">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-3 text-destructive"><AlertTriangle/>Informe de Incidencias</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="border rounded-lg">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Lote / OF</TableHead>
-                                        <TableHead>Elaboración</TableHead>
-                                        <TableHead>Fecha Prevista</TableHead>
-                                        <TableHead>Responsable</TableHead>
-                                        <TableHead>Observaciones</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {incidencias.length > 0 ? (
-                                        incidencias.map(incidencia => (
-                                            <TableRow key={incidencia.id} className="cursor-pointer hover:bg-destructive/10" onClick={() => router.push(`/cpr/of/${incidencia.id}`)}>
-                                                <TableCell className="font-mono">{incidencia.id}</TableCell>
-                                                <TableCell>{incidencia.elaboracionNombre}</TableCell>
-                                                <TableCell>{format(new Date(incidencia.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
-                                                <TableCell>{incidencia.responsable}</TableCell>
-                                                <TableCell className="max-w-xs truncate">{incidencia.incidenciaObservaciones}</TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                                                No hay incidencias registradas.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </CardContent>
-                </Card>
-
             </div>
         </TooltipProvider>
     );
