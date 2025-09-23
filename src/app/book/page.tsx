@@ -22,11 +22,9 @@ export default function BookDashboardPage() {
   const router = useRouter();
   
   useEffect(() => {
-    setIsMounted(true);
     const storedRecipes = localStorage.getItem('recetas');
-    if (storedRecipes) {
-      setAllRecipes(JSON.parse(storedRecipes));
-    }
+    setAllRecipes(storedRecipes ? JSON.parse(storedRecipes) : []);
+    setIsMounted(true);
   }, []);
 
   const filteredRecipes = useMemo(() => {
