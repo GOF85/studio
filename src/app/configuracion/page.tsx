@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Database, Target, FilePlus2, Trash2, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const configItems = [
     { title: 'Bases de Datos', href: '/bd', icon: Database, description: 'Gestiona personal, espacios, proveedores, etc.' },
