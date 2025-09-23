@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -209,7 +208,7 @@ export default function PickingDetailPage() {
         (of) =>
           (of.estado === 'Finalizado' ||
             of.estado === 'Validado' ||
-            (of.incidencia && of.cantidadReal !== null && of.cantidadReal > 0))
+            (of.incidencia && (of.cantidadReal || 0) > 0))
       )
       .map((of) => {
         const cantidadTotal = Number(of.cantidadReal ?? of.cantidadTotal);
@@ -245,7 +244,7 @@ export default function PickingDetailPage() {
         setShowDeleteConfirm(false);
     }
     
-    const handlePrint = () => {
+const handlePrint = () => {
     if (!serviceOrder) return;
     setIsPrinting(true);
 
@@ -258,60 +257,40 @@ export default function PickingDetailPage() {
 
             const margin = 8;
             const pageWidth = doc.internal.pageSize.getWidth();
-            let finalY = margin + 5;
+            let finalY = margin;
 
             // --- HEADER ---
-            doc.setFontSize(22);
+            doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
             doc.text(container.nombre, margin, finalY);
-            finalY += 8;
-            doc.setFontSize(14);
-            doc.text(`${index + 1} de ${allAssignedContainers.length}`, pageWidth - margin, finalY - 8, { align: 'right' });
+            doc.text(`${index + 1} de ${allAssignedContainers.length}`, pageWidth - margin, finalY, { align: 'right' });
+            finalY += 6;
             
             doc.setLineWidth(0.5);
-            doc.setDrawColor(0,0,0);
+            doc.setDrawColor(0, 0, 0);
             doc.line(margin, finalY, pageWidth - margin, finalY);
-            finalY += 8;
+            finalY += 5;
 
-            // --- EVENT INFO ---
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Nº SERVICIO:', margin, finalY);
-            doc.setFont('helvetica', 'normal');
-            doc.text(serviceOrder.serviceNumber, margin + 28, finalY);
-            finalY += 6;
-
-            doc.setFont('helvetica', 'bold');
-            doc.text('CLIENTE:', margin, finalY);
-            doc.setFont('helvetica', 'normal');
-            const clientText = `${serviceOrder.client}${serviceOrder.finalClient ? ` (${serviceOrder.finalClient})` : ''}`;
-            const clientLines = doc.splitTextToSize(clientText, pageWidth - margin * 2 - 20);
-            doc.text(clientLines, margin + 20, finalY);
-            finalY += (clientLines.length * 4) + 2;
-
-
-            doc.setFont('helvetica', 'bold');
-            doc.text('FECHA:', margin, finalY);
-            doc.setFont('helvetica', 'normal');
-            doc.text(format(new Date(serviceOrder.startDate), 'dd/MM/yyyy'), margin + 18, finalY);
-            finalY += 6;
-
-            doc.setFont('helvetica', 'bold');
-            doc.text('ESPACIO:', margin, finalY);
-            doc.setFont('helvetica', 'normal');
-            doc.text(serviceOrder.space || 'N/A', margin + 20, finalY);
-            finalY += 8;
+            // --- EVENT INFO (2 columns) ---
+            const headerBody = [
+                [{content: 'Nº SERVICIO:', styles: {fontStyle: 'bold'}}, serviceOrder.serviceNumber],
+                [{content: 'FECHA:', styles: {fontStyle: 'bold'}}, format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
+                [{content: 'CLIENTE:', styles: {fontStyle: 'bold'}}, serviceOrder.client],
+                [{content: 'ESPACIO:', styles: {fontStyle: 'bold'}}, serviceOrder.space || 'N/A'],
+            ];
+             autoTable(doc, {
+                body: headerBody,
+                startY: finalY,
+                theme: 'plain',
+                styles: { fontSize: 9, cellPadding: 0.5 },
+            });
+            finalY = (doc as any).lastAutoTable.finalY + 5;
 
             doc.setLineWidth(0.2);
             doc.line(margin, finalY, pageWidth - margin, finalY);
-            finalY += 8;
+            finalY += 6;
 
             // --- CONTENT TABLE ---
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'bold');
-            doc.text('CONTENIDO', margin, finalY);
-            finalY += 7;
-
             const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
             const itemsGroupedByRecipe = new Map<string, { totalQuantity: number, lotes: string[], unidad: string }>();
 
@@ -339,10 +318,10 @@ export default function PickingDetailPage() {
 
             autoTable(doc, {
                 startY: finalY,
-                head: [['Elaboración', 'Cantidad Total', 'Lote(s) Origen']],
+                head: [['Elaboración', 'Cant. Tot.', 'Lote']],
                 body,
                 theme: 'plain',
-                headStyles: { fontStyle: 'bold', fontSize: 10, halign: 'center' },
+                headStyles: { fontStyle: 'bold', fontSize: 11, halign: 'center', cellPadding: 1 },
                 styles: { fontSize: 10, cellPadding: 1.5, lineColor: '#000', lineWidth: 0.2 },
                 columnStyles: {
                     0: { cellWidth: 40 },
@@ -350,13 +329,6 @@ export default function PickingDetailPage() {
                     2: { cellWidth: 'auto', halign: 'right' },
                 }
             });
-            finalY = (doc as any).lastAutoTable.finalY;
-
-             // --- FOOTER ---
-             doc.setFontSize(8);
-             doc.setFont('helvetica', 'italic');
-             doc.setTextColor(100);
-             doc.text(`Impreso: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, doc.internal.pageSize.getHeight() - 5);
         });
 
         doc.save(`Etiquetas_Picking_${serviceOrder.serviceNumber}.pdf`);
@@ -544,3 +516,4 @@ export default function PickingDetailPage() {
     );
 }
 
+    
