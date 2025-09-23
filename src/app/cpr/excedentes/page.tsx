@@ -208,7 +208,7 @@ export default function ExcedentesPage() {
                 <TableHead>Lote Origen (OF)</TableHead>
                 <TableHead>Cantidad Excedente</TableHead>
                 <TableHead>Fecha Producción</TableHead>
-                <TableHead>Fecha Expiración</TableHead>
+                <TableHead>Fecha caducidad segun el detalle del excedente</TableHead>
                 <TableHead>Estado</TableHead>
               </TableRow>
             </TableHeader>
