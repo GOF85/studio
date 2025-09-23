@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -93,7 +94,8 @@ export default function IngredientesERPPage() {
   const parseCurrency = (value: string | number) => {
     if (typeof value === 'number') return value;
     if (typeof value === 'string') {
-        const cleaned = value.replace(/[€\s]/g, '').replace(',', '.');
+        // First, remove quotes, then spaces, then replace comma with dot.
+        const cleaned = value.replace(/"/g, '').replace(/\s/g, '').replace(',', '.');
         const number = parseFloat(cleaned);
         return isNaN(number) ? 0 : number;
     }
@@ -123,9 +125,9 @@ export default function IngredientesERPPage() {
         const importedData: IngredienteERP[] = results.data.map(item => {
             let unidad: UnidadMedida;
             const itemUnidad = (item.unidad || '').toUpperCase();
-            if (itemUnidad === 'KG') {
+            if (itemUnidad === 'KG' || itemUnidad === 'KILO') {
                 unidad = 'KILO';
-            } else if (itemUnidad === 'L') {
+            } else if (itemUnidad === 'L' || itemUnidad === 'LITRO') {
                 unidad = 'LITRO';
             } else {
                 unidad = 'UNIDAD';
@@ -133,7 +135,7 @@ export default function IngredientesERPPage() {
             
             return {
                 id: item.id || Date.now().toString() + Math.random(),
-                IdERP: item.IdERP || item.referenciaProveedor || '',
+                IdERP: item.IdERP || item.referenciaProveedor || `AUTOGEN-${Date.now()}`,
                 nombreProductoERP: item.nombreProductoERP || '',
                 referenciaProveedor: item.referenciaProveedor || '',
                 nombreProveedor: item.nombreProveedor || '',
