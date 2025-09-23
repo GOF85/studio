@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -23,6 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Combobox } from '@/components/ui/combobox';
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -258,57 +260,61 @@ export default function OfDetailPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className={cn("grid md:grid-cols-3 gap-6", !isEditing && "items-end")}>
-                        {!isEditing ? (
-                            <>
-                                <FormField control={form.control} name="elaboracionId" render={({ field }) => (
-                                    <FormItem>
-                                        <Label>Elaboración</Label>
-                                        <Combobox options={dbElaboraciones.map(e => ({ value: e.id, label: e.nombre }))} value={field.value} onChange={field.onChange} placeholder="Buscar elaboración..." />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="cantidadTotal" render={({ field }) => (
-                                    <FormItem>
-                                        <Label>Cantidad a Producir ({elabUnidad})</Label>
-                                        <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="fechaProduccionPrevista" render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                        <Label>Fecha Prevista</Label>
-                                        <Popover><PopoverTrigger asChild>
-                                        <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                            {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige</span>}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                        </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es}/></PopoverContent></Popover>
-                                    </FormItem>
-                                )} />
-                            </>
-                        ) : (
-                            <>
-                                <div className="space-y-1">
-                                    <h4 className="font-semibold text-muted-foreground">Cantidad a Producir</h4>
-                                    <p className="font-bold text-2xl">{ceilToTwoDecimals(elabCantidad)} <span className="text-lg font-normal">{elabUnidad}</span></p>
-                                </div>
-                                {orden && orden.osIDs.length > 0 && 
+                    <Form {...form}>
+                        <div className={cn("grid md:grid-cols-3 gap-6", !isEditing && "items-end")}>
+                            {!isEditing ? (
+                                <>
+                                    <FormField control={form.control} name="elaboracionId" render={({ field }) => (
+                                        <FormItem>
+                                            <Label>Elaboración</Label>
+                                            <Combobox options={dbElaboraciones.map(e => ({ value: e.id, label: e.nombre }))} value={field.value} onChange={field.onChange} placeholder="Buscar elaboración..." />
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="cantidadTotal" render={({ field }) => (
+                                        <FormItem>
+                                            <Label>Cantidad a Producir ({elabUnidad})</Label>
+                                            <FormControl>
+                                                <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                                            </FormControl>
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="fechaProduccionPrevista" render={({ field }) => (
+                                        <FormItem className="flex flex-col">
+                                            <Label>Fecha Prevista</Label>
+                                            <Popover><PopoverTrigger asChild>
+                                                <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                    {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige</span>}
+                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es}/></PopoverContent></Popover>
+                                        </FormItem>
+                                    )} />
+                                </>
+                            ) : (
+                                <>
                                     <div className="space-y-1">
-                                        <h4 className="font-semibold text-muted-foreground">Órdenes de Servicio</h4>
-                                        <p className="flex items-center gap-1.5"><Info className="h-4 w-4"/> Afecta a {orden.osIDs.length} evento(s)</p>
+                                        <h4 className="font-semibold text-muted-foreground">Cantidad a Producir</h4>
+                                        <p className="font-bold text-2xl">{ceilToTwoDecimals(elabCantidad)} <span className="text-lg font-normal">{elabUnidad}</span></p>
                                     </div>
-                                }
-                                <div className="space-y-1">
-                                    <Label htmlFor="responsable">Responsable</Label>
-                                    <Controller name="responsable" control={form.control} render={({ field }) => (
-                                        <Select onValueChange={(value) => { field.onChange(value); if(canBeAssigned) { handleSave('Asignada', value); }}} value={field.value} disabled={!canBeAssigned}>
-                                            <SelectTrigger id="responsable"><SelectValue placeholder="Asignar responsable..." /></SelectTrigger>
-                                            <SelectContent>{personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}</SelectContent>
-                                        </Select>
-                                    )}/>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                                    {orden && orden.osIDs.length > 0 && 
+                                        <div className="space-y-1">
+                                            <h4 className="font-semibold text-muted-foreground">Órdenes de Servicio</h4>
+                                            <p className="flex items-center gap-1.5"><Info className="h-4 w-4"/> Afecta a {orden.osIDs.length} evento(s)</p>
+                                        </div>
+                                    }
+                                    <div className="space-y-1">
+                                        <Label htmlFor="responsable">Responsable</Label>
+                                        <Controller name="responsable" control={form.control} render={({ field }) => (
+                                            <Select onValueChange={(value) => { field.onChange(value); if(canBeAssigned) { handleSave('Asignada', value); }}} value={field.value} disabled={!canBeAssigned}>
+                                                <SelectTrigger id="responsable"><SelectValue placeholder="Asignar responsable..." /></SelectTrigger>
+                                                <SelectContent>{personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                        )}/>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </Form>
                      {isEditing && orden?.incidenciaObservaciones && (
                         <div className="mt-6">
                             <h4 className="font-semibold mb-2 flex items-center gap-2 text-destructive"><AlertTriangle/>Observaciones de Incidencia</h4>
