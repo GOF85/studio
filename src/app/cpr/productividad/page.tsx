@@ -34,7 +34,6 @@ export default function ProductividadPage() {
         from: subDays(startOfToday(), 7),
         to: startOfToday(),
     });
-    const [reporteData, setReporteData] = useState<DatosResponsable[]>([]);
     const [allOFs, setAllOFs] = useState<OrdenFabricacion[]>([]);
     const [responsableFilter, setResponsableFilter] = useState('all');
 
@@ -44,45 +43,47 @@ export default function ProductividadPage() {
         setIsMounted(true);
     }, []);
 
-    useEffect(() => {
-        if (dateRange?.from) {
-            const ofsEnRango = allOFs.filter(of => {
-                const fechaFin = of.fechaFinalizacion ? parseISO(of.fechaFinalizacion) : null;
-                return fechaFin && fechaFin >= dateRange.from! && fechaFin <= (dateRange.to || dateRange.from);
-            });
-            
-            const ofsFiltradasPorResponsable = responsableFilter === 'all'
-                ? ofsEnRango
-                : ofsEnRango.filter(of => of.responsable === responsableFilter);
+    const reporteData = useMemo(() => {
+        if (!dateRange?.from) return [];
 
-            const porResponsable = new Map<string, DatosResponsable>();
+        const ofsEnRango = allOFs.filter(of => {
+            const fechaFin = of.fechaFinalizacion ? parseISO(of.fechaFinalizacion) : null;
+            return fechaFin && fechaFin >= dateRange.from! && fechaFin <= (dateRange.to || dateRange.from);
+        });
 
-            ofsFiltradasPorResponsable.forEach(of => {
-                if (of.responsable) {
-                    if (!porResponsable.has(of.responsable)) {
-                        porResponsable.set(of.responsable, { nombre: of.responsable, ofs: [], incidencias: [] });
-                    }
-                    const data = porResponsable.get(of.responsable)!;
-                    
-                    if (of.estado === 'Finalizado' || of.estado === 'Validado') {
-                         const ofConTiempos: OfConTiempos = { ...of };
-                        if (of.fechaAsignacion && of.fechaInicioProduccion) {
-                            ofConTiempos.tiempoAsignacion = formatDistance(parseISO(of.fechaInicioProduccion), parseISO(of.fechaAsignacion), { locale: es });
-                        }
-                        if (of.fechaInicioProduccion && of.fechaFinalizacion) {
-                            ofConTiempos.tiempoProduccion = formatDistance(parseISO(of.fechaFinalizacion), parseISO(of.fechaInicioProduccion), { locale: es });
-                        }
-                        data.ofs.push(ofConTiempos);
-                    }
-                    
-                    if (of.estado === 'Incidencia') {
-                        data.incidencias.push(of);
-                    }
+        const ofsFiltradasPorResponsable = responsableFilter === 'all'
+            ? ofsEnRango
+            : ofsEnRango.filter(of => of.responsable === responsableFilter);
+
+        const porResponsable = new Map<string, DatosResponsable>();
+
+        ofsFiltradasPorResponsable.forEach(of => {
+            if (of.responsable) {
+                if (!porResponsable.has(of.responsable)) {
+                    porResponsable.set(of.responsable, { nombre: of.responsable, ofs: [], incidencias: [] });
                 }
-            });
-            setReporteData(Array.from(porResponsable.values()));
-        }
-    }, [dateRange, allOFs, responsableFilter]);
+                const data = porResponsable.get(of.responsable)!;
+                
+                if (of.estado === 'Finalizado' || of.estado === 'Validado') {
+                     const ofConTiempos: OfConTiempos = { ...of };
+                    if (of.fechaAsignacion && of.fechaInicioProduccion) {
+                        ofConTiempos.tiempoAsignacion = formatDistance(parseISO(of.fechaInicioProduccion), parseISO(of.fechaAsignacion), { locale: es });
+                    }
+                    if (of.fechaInicioProduccion && of.fechaFinalizacion) {
+                        ofConTiempos.tiempoProduccion = formatDistance(parseISO(of.fechaFinalizacion), parseISO(of.fechaInicioProduccion), { locale: es });
+                    }
+                    data.ofs.push(ofConTiempos);
+                }
+                
+                if (of.estado === 'Incidencia') {
+                    data.incidencias.push(of);
+                }
+            }
+        });
+        return Array.from(porResponsable.values());
+
+    }, [allOFs, dateRange, responsableFilter]);
+
 
     const responsablesUnicos = useMemo(() => {
         const responsables = new Set<string>();
