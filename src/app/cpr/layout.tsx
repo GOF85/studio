@@ -91,6 +91,14 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
                     if (fechaProduccion && differenceInDays(new Date(), new Date(fechaProduccion)) > 3) {
                        hasPending = true;
                     }
+                 } else {
+                    const fechaProduccion = ofReferencia?.fechaFinalizacion || ofReferencia?.fechaCreacion;
+                    if (fechaProduccion) {
+                        const fechaCad = addDays(new Date(fechaProduccion), diasCaducidad);
+                        if (new Date() > fechaCad) {
+                            hasPending = true;
+                        }
+                    }
                  }
             }
         });
