@@ -1,10 +1,10 @@
 'use client';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, Suspense } from 'react';
 import NProgress from 'nprogress';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 
-export function NProgressProvider({ children }: { children: React.ReactNode }) {
+function NProgressComponent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { isLoading } = useLoadingStore();
@@ -16,9 +16,6 @@ export function NProgressProvider({ children }: { children: React.ReactNode }) {
       NProgress.start();
     }
     previousPath.current = currentPath;
-
-    // The NProgress.done() is called in a separate effect
-    // to ensure it runs after the new page has rendered.
   }, [pathname, searchParams]);
 
   useEffect(() => {
@@ -33,5 +30,16 @@ export function NProgressProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isLoading]);
 
-  return <>{children}</>;
+  return null;
+}
+
+export function NProgressProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <Suspense fallback={null}>
+        <NProgressComponent />
+      </Suspense>
+      {children}
+    </>
+  );
 }
