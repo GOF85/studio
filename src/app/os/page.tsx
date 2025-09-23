@@ -3,6 +3,7 @@
 
 
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -455,7 +456,7 @@ export default function OsPage() {
                   </Link>
               </Button>
               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/personal-mice?osId=${osId}` : '#'}>
+                  <Link href={osId ? `/personal-mice/${osId}` : '#'}>
                     <Users />
                     <span className="font-medium">Personal MICE</span>
                   </Link>
@@ -892,4 +893,3 @@ export default function OsPage() {
     
 
     
-
