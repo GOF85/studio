@@ -137,12 +137,9 @@ export default function PedidoHieloPage() {
       const order = allOrders.find(o => o.id === orderId);
       if (order) {
         form.reset({
-          id: order.id,
+          ...order,
+          observaciones: order.observaciones || '',
           fecha: new Date(order.fecha),
-          proveedorId: order.proveedorId,
-          observaciones: order.observaciones,
-          status: order.status,
-          items: order.items,
         });
       }
     } else {
@@ -151,6 +148,7 @@ export default function PedidoHieloPage() {
         fecha: currentOS?.startDate ? new Date(currentOS.startDate) : new Date(),
         status: 'Pendiente',
         items: [],
+        observaciones: '',
       });
     }
     
