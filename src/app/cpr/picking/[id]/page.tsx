@@ -49,7 +49,7 @@ const expeditionTypeMap = {
 
 function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendiente, containers: ContenedorIsotermo[], onAllocate: (ofId: string, containerId: string, quantity: number) => void }) {
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
-    const initialQuantity = lote.cantidadTotal - lote.cantidadAsignada;
+    const initialQuantity = Number(lote.cantidadTotal) - Number(lote.cantidadAsignada);
     const [quantity, setQuantity] = useState(isNaN(initialQuantity) ? 0 : initialQuantity);
     const [open, setOpen] = useState(false);
 
@@ -58,7 +58,7 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
             alert("Por favor, selecciona un contenedor.");
             return;
         }
-        if (quantity <= 0 || quantity > (lote.cantidadTotal - lote.cantidadAsignada)) {
+        if (quantity <= 0 || quantity > (Number(lote.cantidadTotal) - Number(lote.cantidadAsignada))) {
             alert("La cantidad no es válida.");
             return;
         }
@@ -77,9 +77,9 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
                 </DialogHeader>
                 <div className="py-4 space-y-4">
                     <div className="p-2 border rounded-md">
-                        <div className="flex justify-between text-sm"><span>Cantidad Total Lote:</span> <span className="font-bold">{lote.cantidadTotal.toFixed(2)} {lote.unidad}</span></div>
-                        <div className="flex justify-between text-sm"><span>Ya Asignado:</span> <span className="font-bold">{lote.cantidadAsignada.toFixed(2)} {lote.unidad}</span></div>
-                        <div className="flex justify-between text-sm font-semibold mt-1 pt-1 border-t"><span>Pendiente de Asignar:</span> <span>{(lote.cantidadTotal - lote.cantidadAsignada).toFixed(2)} {lote.unidad}</span></div>
+                        <div className="flex justify-between text-sm"><span>Cantidad Total Lote:</span> <span className="font-bold">{Number(lote.cantidadTotal).toFixed(2)} {lote.unidad}</span></div>
+                        <div className="flex justify-between text-sm"><span>Ya Asignado:</span> <span className="font-bold">{Number(lote.cantidadAsignada).toFixed(2)} {lote.unidad}</span></div>
+                        <div className="flex justify-between text-sm font-semibold mt-1 pt-1 border-t"><span>Pendiente de Asignar:</span> <span>{(Number(lote.cantidadTotal) - Number(lote.cantidadAsignada)).toFixed(2)} {lote.unidad}</span></div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="quantity-to-allocate">Cantidad a Asignar</Label>
@@ -157,8 +157,7 @@ export default function PickingDetailPage() {
             setLotesNecesarios(osOFs);
 
              const lotesPendientes = osOFs.filter(of => 
-                (of.estado !== 'Finalizado' && of.estado !== 'Validado' && !of.incidencia) ||
-                (of.incidencia && (!of.cantidadReal || of.cantidadReal <= 0))
+                (of.estado !== 'Finalizado' && of.estado !== 'Validado' && !of.incidencia)
             );
             setLotesPendientesCalidad(lotesPendientes);
 
@@ -198,7 +197,11 @@ export default function PickingDetailPage() {
 
     const lotesPendientes = useMemo(() => {
         return lotesNecesarios
-        .filter(of => (of.estado === 'Finalizado' || of.estado === 'Validado' || (of.incidencia && (of.cantidadReal || 0) > 0)))
+        .filter(of => (
+            of.estado === 'Finalizado' || 
+            of.estado === 'Validado' || 
+            (of.incidencia && of.cantidadReal !== null && of.cantidadReal > 0)
+        ))
         .map(of => {
             const cantidadTotal = Number(of.cantidadReal ?? of.cantidadTotal);
             const cantidadAsignada = pickingState.itemStates
