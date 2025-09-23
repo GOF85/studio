@@ -32,6 +32,7 @@ type Excedente = {
   fechaProduccion: string;
   eventosOrigen: string[];
   estado: 'Apto' | 'Revisar';
+  fechaExpiracion: string | null;
 };
 
 export default function ExcedentesPage() {
@@ -130,9 +131,12 @@ export default function ExcedentesPage() {
         const diasCaducidad = excedenteData?.diasCaducidad;
         const fechaProduccion = ofReferencia?.fechaFinalizacion || ofReferencia?.fechaCreacion || new Date().toISOString();
         let estado: 'Apto' | 'Revisar' = 'Apto';
+        let fechaExpiracion = null;
+
         if (diasCaducidad !== undefined) {
-            const fechaCaducidad = addDays(new Date(fechaProduccion), diasCaducidad);
-            if (new Date() > fechaCaducidad) {
+            const fechaCad = addDays(new Date(fechaProduccion), diasCaducidad);
+            fechaExpiracion = format(fechaCad, 'dd/MM/yyyy');
+            if (new Date() > fechaCad) {
                 estado = 'Revisar';
             }
         }
@@ -146,6 +150,7 @@ export default function ExcedentesPage() {
           fechaProduccion: fechaProduccion,
           eventosOrigen: Array.from(registro.eventos),
           estado,
+          fechaExpiracion,
         });
       }
     });
@@ -199,6 +204,7 @@ export default function ExcedentesPage() {
                 <TableHead>Lote Origen (OF)</TableHead>
                 <TableHead>Cantidad Excedente</TableHead>
                 <TableHead>Fecha Producción</TableHead>
+                <TableHead>Fecha Expiración</TableHead>
                 <TableHead>Estado</TableHead>
               </TableRow>
             </TableHeader>
@@ -206,7 +212,7 @@ export default function ExcedentesPage() {
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => {
                   const diasDesdeProduccion = differenceInDays(new Date(), new Date(item.fechaProduccion));
-                  const necesitaAtencion = item.estado === 'Revisar' || diasDesdeProduccion > 3;
+                  const necesitaAtencion = item.estado === 'Revisar' || (diasDesdeProduccion > 3 && item.fechaExpiracion === null);
 
                   return (
                     <TableRow 
@@ -230,6 +236,7 @@ export default function ExcedentesPage() {
                         <TableCell><Badge variant="secondary">{item.ofId}</Badge></TableCell>
                         <TableCell>{item.cantidadExcedente.toFixed(2)} {item.unidad}</TableCell>
                         <TableCell>{format(new Date(item.fechaProduccion), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell className={cn(item.estado === 'Revisar' && 'font-bold text-destructive')}>{item.fechaExpiracion || 'No definida'}</TableCell>
                         <TableCell>
                            <Badge variant={item.estado === 'Revisar' ? 'destructive' : 'default'} className={cn(item.estado === 'Apto' && 'bg-green-600')}>
                                 {item.estado}
@@ -240,7 +247,7 @@ export default function ExcedentesPage() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No se encontraron excedentes.
                   </TableCell>
                 </TableRow>
