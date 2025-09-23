@@ -1,9 +1,10 @@
 
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { OrdenFabricacion, Personal } from '@/types';
+import type { OrdenFabricacion, Personal, Elaboracion, ComponenteElaboracion } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { ArrowLeft, Save, Factory, Info, Check, X, AlertTriangle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm, Controller } from 'react-hook-form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente': 'secondary',
@@ -36,6 +38,7 @@ type FormData = {
 
 export default function OfDetailPage() {
     const [orden, setOrden] = useState<OrdenFabricacion | null>(null);
+    const [elaboracion, setElaboracion] = useState<Elaboracion | null>(null);
     const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -57,12 +60,17 @@ export default function OfDetailPage() {
             const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
             const currentOF = allOFs.find(of => of.id === id);
             setOrden(currentOF || null);
+            
             if (currentOF) {
                 form.reset({
                     responsable: currentOF.responsable,
                     cantidadReal: currentOF.cantidadReal ?? null,
                     incidenciaObservaciones: currentOF.incidenciaObservaciones || '',
-                })
+                });
+
+                const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+                const elabData = allElaboraciones.find(e => e.id === currentOF.elaboracionId);
+                setElaboracion(elabData || null);
             }
             
             const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
@@ -70,6 +78,11 @@ export default function OfDetailPage() {
         }
         setIsMounted(true);
     }, [id, form]);
+
+    const ratioProduccion = useMemo(() => {
+        if (!orden || !elaboracion || !elaboracion.produccionTotal) return 1;
+        return orden.cantidadTotal / elaboracion.produccionTotal;
+    }, [orden, elaboracion]);
     
     const handleSave = (newStatus?: OrdenFabricacion['estado'], newResponsable?: string) => {
         if (!orden) return;
@@ -217,12 +230,34 @@ export default function OfDetailPage() {
                         </div>
                     )}
                     <Separator className="my-6" />
-                    <div>
-                         <h4 className="font-semibold mb-4">Escandallo de la Elaboración</h4>
-                        <div className="p-4 border rounded-lg bg-muted/50">
-                            <p className="text-muted-foreground text-center">
-                                (Aquí se mostrará el escandallo de la elaboración para guiar al cocinero)
-                            </p>
+                     <div className="grid md:grid-cols-2 gap-6">
+                         <div>
+                             <h4 className="font-semibold mb-4">Escandallo para {orden.cantidadTotal} {orden.unidad}</h4>
+                            <div className="p-4 border rounded-lg bg-muted/50">
+                                {elaboracion ? (
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>Componente</TableHead><TableHead className="text-right">Cantidad Necesaria</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {elaboracion.componentes.map(comp => (
+                                                <TableRow key={comp.id}>
+                                                    <TableCell>{comp.nombre}</TableCell>
+                                                    <TableCell className="text-right font-mono">{(comp.cantidad * ratioProduccion).toFixed(3)} uds</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                ) : (
+                                    <p className="text-muted-foreground text-center">No se encontró la elaboración en el Book.</p>
+                                )}
+                            </div>
+                        </div>
+                         <div>
+                             <h4 className="font-semibold mb-4">Instrucciones de Preparación</h4>
+                            <div className="p-4 border rounded-lg bg-muted/50 h-full">
+                                <p className="text-muted-foreground whitespace-pre-wrap">
+                                    {elaboracion?.instruccionesPreparacion || 'No hay instrucciones para esta elaboración.'}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </CardContent>

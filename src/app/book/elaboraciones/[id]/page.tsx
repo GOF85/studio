@@ -26,6 +26,7 @@ const componenteSchema = z.object({
     componenteId: z.string(),
     nombre: z.string(),
     cantidad: z.coerce.number().min(0.001, 'La cantidad debe ser mayor que 0'),
+    costePorUnidad: z.coerce.number().optional().default(0),
 });
 
 const elaboracionFormSchema = z.object({
@@ -146,12 +147,17 @@ export default function ElaboracionFormPage() {
   }, [id, isEditing, form, router, toast]);
 
   const handleSelectIngrediente = (ingrediente: IngredienteConERP) => {
+      const costeConMerma = ingrediente.mermaPorcentaje > 0 && ingrediente.erp
+        ? (ingrediente.erp.precio / (1 - ingrediente.mermaPorcentaje / 100))
+        : ingrediente.erp?.precio || 0;
+      
       append({
           id: `${ingrediente.id}-${Date.now()}`,
           tipo: 'ingrediente',
           componenteId: ingrediente.id,
           nombre: ingrediente.nombreIngrediente,
           cantidad: 1,
+          costePorUnidad: costeConMerma
       });
       setIsSelectorOpen(false);
   }
@@ -160,20 +166,13 @@ export default function ElaboracionFormPage() {
     let total = 0;
     watchedComponentes.forEach(componente => {
         if (componente.tipo === 'ingrediente') {
-            const data = ingredientesData.get(componente.componenteId);
-            if (data?.erp) {
-                const costeSinMerma = data.erp.precio * componente.cantidad;
-                const costeConMerma = data.mermaPorcentaje > 0 
-                    ? costeSinMerma / (1 - data.mermaPorcentaje / 100)
-                    : costeSinMerma;
-                total += costeConMerma;
-            }
+           total += (componente.costePorUnidad || 0) * componente.cantidad;
         }
     });
     const produccionTotal = watchedProduccionTotal > 0 ? watchedProduccionTotal : 1;
     const porUnidad = total / produccionTotal;
     return { costeTotal: total, costePorUnidad: porUnidad };
-  }, [watchedComponentes, watchedProduccionTotal, ingredientesData]);
+  }, [watchedComponentes, watchedProduccionTotal]);
 
 
   function onSubmit(data: ElaboracionFormValues) {

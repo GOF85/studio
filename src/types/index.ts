@@ -360,11 +360,11 @@ export type IngredienteInterno = {
 };
 
 export type ComponenteElaboracion = {
-    id: string; // ID único para el componente en la lista (para React)
+    id: string;
     tipo: 'ingrediente' | 'elaboracion';
-    componenteId: string; // ID de IngredienteInterno o de Elaboracion
-    nombre: string; // Nombre para mostrar en la UI
-    cantidad: number;
+    componenteId: string;
+    nombre: string;
+    cantidad: number; // Changed from string to number
 };
 
 export type Elaboracion = {

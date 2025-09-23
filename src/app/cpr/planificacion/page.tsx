@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -21,6 +22,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Loader2 } from 'lucide-react';
 
 import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion } from '@/types';
 
@@ -116,7 +118,7 @@ export default function PlanificacionPage() {
                             const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
                             if (elaboracion) {
                                 const cantidadNecesaria = Number(item.quantity || 0) * Number(elabEnReceta.cantidad);
-                                if (isNaN(cantidadNecesaria)) return;
+                                if (isNaN(cantidadNecesaria) || cantidadNecesaria <= 0) return;
                                 
                                 let necesidad = necesidadesBrutas.get(elaboracion.id);
                                 if (!necesidad) {
@@ -148,42 +150,27 @@ export default function PlanificacionPage() {
             });
         });
         
-        const cantidadesCubiertasPorElaboracion = new Map<string, { cantidad: number, lotes: {ofId: string, fecha: string, cantidad: number}[] }>();
-        allOrdenesFabricacion.forEach(of => {
+        const ofsRelevantes = allOrdenesFabricacion.filter(of => of.osIDs.some(osId => osIdsEnRango.has(osId)));
+        const cantidadesCubiertasPorElaboracion = new Map<string, number>();
+
+        ofsRelevantes.forEach(of => {
             const finishedStates: OrdenFabricacion['estado'][] = ['Finalizado', 'Validado', 'Incidencia'];
             const isFinished = finishedStates.includes(of.estado);
             const cantidadProducida = isFinished && typeof of.cantidadReal === 'number' && of.cantidadReal !== null ? Number(of.cantidadReal) : Number(of.cantidadTotal);
-
+            
             if (!isNaN(cantidadProducida)) {
-                if (!cantidadesCubiertasPorElaboracion.has(of.elaboracionId)) {
-                    cantidadesCubiertasPorElaboracion.set(of.elaboracionId, { cantidad: 0, lotes: [] });
-                }
-                const current = cantidadesCubiertasPorElaboracion.get(of.elaboracionId)!;
-                current.cantidad += cantidadProducida;
-                current.lotes.push({ ofId: of.id, fecha: of.fechaProduccionPrevista, cantidad: cantidadProducida });
+                const current = cantidadesCubiertasPorElaboracion.get(of.elaboracionId) || 0;
+                cantidadesCubiertasPorElaboracion.set(of.elaboracionId, current + cantidadProducida);
             }
         });
 
         const planificacionFinal: NecesidadPlanificacion[] = [];
         necesidadesBrutas.forEach((necesidad, elabId) => {
-            const cubierto = cantidadesCubiertasPorElaboracion.get(elabId);
-            const cantidadCubierta = cubierto?.cantidad || 0;
+            const cantidadCubierta = cantidadesCubiertasPorElaboracion.get(elabId) || 0;
             const diferencia = necesidad.cantidadTotal - cantidadCubierta;
 
             if (diferencia > 0.001) { // Necesidad Neta
                 planificacionFinal.push({ ...necesidad, id: elabId, type: 'necesidad', cantidad: diferencia });
-            } else if (diferencia < -0.001) { // Excedente
-                cubierto?.lotes.forEach(lote => {
-                    planificacionFinal.push({
-                        id: lote.ofId,
-                        type: 'excedente',
-                        nombre: `Excedente de ${necesidad.nombre}`,
-                        cantidad: Math.abs(diferencia), // Simplificado, idealmente sería por lote
-                        unidad: necesidad.unidad,
-                        ofId: lote.ofId,
-                        fechaProduccion: lote.fecha,
-                    });
-                });
             }
         });
         
@@ -437,4 +424,3 @@ export default function PlanificacionPage() {
         </TooltipProvider>
     );
 }
-
