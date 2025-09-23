@@ -209,7 +209,7 @@ export default function PickingDetailPage() {
         (of) =>
           (of.estado === 'Finalizado' ||
             of.estado === 'Validado' ||
-            (of.incidencia && (of.cantidadReal || 0) > 0))
+            (of.incidencia && of.cantidadReal !== null && of.cantidadReal > 0))
       )
       .map((of) => {
         const cantidadTotal = Number(of.cantidadReal ?? of.cantidadTotal);
@@ -272,38 +272,22 @@ const handlePrint = async () => {
             doc.line(margin, finalY, pageWidth - margin, finalY);
             finalY += 4;
 
-            // --- EVENT INFO (2 columns) ---
-            doc.setFontSize(8);
+            // --- EVENT INFO ---
+            doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor(0, 0, 0);
             
             const serviceData = [
-                [{content: 'Nº Serv:', styles: {fontStyle: 'bold'}}, serviceOrder.serviceNumber],
-                [{content: 'Cliente:', styles: {fontStyle: 'bold'}}, serviceOrder.client],
-                [{content: 'Espacio:', styles: {fontStyle: 'bold'}}, serviceOrder.space || '-'],
-            ];
-            const eventData = [
-                [{content: 'Fecha:', styles: {fontStyle: 'bold'}}, format(new Date(serviceOrder.startDate), 'dd/MM/yy')],
-                [{content: 'PAX:', styles: {fontStyle: 'bold'}}, String(serviceOrder.asistentes)],
-                [{content: 'Sala:', styles: {fontStyle: 'bold'}}, 'Pendiente'],
+                ['Nº Serv:', serviceOrder.serviceNumber, 'Fecha:', format(new Date(serviceOrder.startDate), 'dd/MM/yy')],
+                ['Cliente:', serviceOrder.client, 'PAX:', String(serviceOrder.asistentes)],
+                ['Espacio:', serviceOrder.space || '-', 'Sala:', 'Pendiente'],
             ];
 
              autoTable(doc, {
                 body: serviceData,
                 startY: finalY,
                 theme: 'plain',
-                tableWidth: (pageWidth - margin * 2) / 2 - 2,
                 styles: { fontSize: 8, cellPadding: 0.2 },
-                columnStyles: { 0: { fontStyle: 'bold' } }
-            });
-            autoTable(doc, {
-                body: eventData,
-                startY: finalY,
-                theme: 'plain',
-                tableWidth: (pageWidth - margin * 2) / 2 - 2,
-                margin: { left: pageWidth / 2 + 2 },
-                styles: { fontSize: 8, cellPadding: 0.2 },
-                columnStyles: { 0: { fontStyle: 'bold' } }
+                columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } }
             });
             finalY = (doc as any).lastAutoTable.finalY + 3;
 
@@ -345,9 +329,9 @@ const handlePrint = async () => {
                 headStyles: { fontStyle: 'bold', fontSize: 10, halign: 'center', cellPadding: 1, fillColor: [230, 230, 230], textColor: [0,0,0] },
                 styles: { fontSize: 9, cellPadding: 1.5, lineColor: '#000', lineWidth: 0.1 },
                 columnStyles: {
-                    0: { cellWidth: 40 },
+                    0: { cellWidth: 30 },
                     1: { cellWidth: 20, halign: 'right' },
-                    2: { cellWidth: 'auto', halign: 'right' },
+                    2: { cellWidth: 40, halign: 'right' },
                 }
             });
         });
