@@ -23,7 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+import Link from 'next/link';
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente': 'secondary',
@@ -40,7 +41,7 @@ export default function OfPage() {
   const [ordenes, setOrdenes] = useState<OrdenFabricacion[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<string>('Pendiente');
   const [partidaFilter, setPartidaFilter] = useState('all');
   const router = useRouter();
 
@@ -50,19 +51,38 @@ export default function OfPage() {
     setIsMounted(true);
   }, []);
 
-  const filteredItems = useMemo(() => {
-    return ordenes.filter(item => {
-      const searchMatch = searchTerm === '' || 
-                          item.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          item.elaboracionNombre.toLowerCase().includes(searchTerm.toLowerCase());
-      const statusMatch = statusFilter === 'all' || item.estado === statusFilter;
-      const partidaMatch = partidaFilter === 'all' || item.partidaAsignada === partidaFilter;
-      return searchMatch && statusMatch && partidaMatch;
-    });
+  const filteredAndSortedItems = useMemo(() => {
+    const statusOrder: OrdenFabricacion['estado'][] = ['Pendiente', 'Asignada', 'En Proceso', 'Finalizado', 'Validado', 'Incidencia'];
+    
+    return ordenes
+      .filter(item => {
+        const searchMatch = searchTerm === '' || 
+                            item.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            item.elaboracionNombre.toLowerCase().includes(searchTerm.toLowerCase());
+        const statusMatch = statusFilter === 'all' || item.estado === statusFilter;
+        const partidaMatch = partidaFilter === 'all' || item.partidaAsignada === partidaFilter;
+        return searchMatch && statusMatch && partidaMatch;
+      })
+      .sort((a, b) => {
+        // Prioritize 'Pendiente' status
+        if (a.estado === 'Pendiente' && b.estado !== 'Pendiente') return -1;
+        if (a.estado !== 'Pendiente' && b.estado === 'Pendiente') return 1;
+
+        // Then sort by date descending
+        const dateA = parseISO(a.fechaProduccionPrevista);
+        const dateB = parseISO(b.fechaProduccionPrevista);
+        return dateB.getTime() - dateA.getTime();
+      });
   }, [ordenes, searchTerm, statusFilter, partidaFilter]);
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Órdenes de Fabricación..." />;
+  }
+
+  const ceilToTwoDecimals = (num?: number | null) => {
+    if (num === null || num === undefined) return '-';
+    const factor = Math.pow(10, 2);
+    return (Math.ceil(num * factor) / factor).toFixed(2);
   }
 
   return (
@@ -75,9 +95,11 @@ export default function OfPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Gestiona el estado y la asignación de la producción.</p>
         </div>
-         <Button onClick={() => {}} disabled>
-            <PlusCircle className="mr-2"/>
-            Nueva OF Manual
+         <Button asChild>
+            <Link href="/cpr/of/nuevo">
+              <PlusCircle className="mr-2"/>
+              Nueva OF Manual
+            </Link>
         </Button>
       </div>
 
@@ -126,8 +148,8 @@ export default function OfPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredItems.length > 0 ? (
-              filteredItems.map(of => (
+            {filteredAndSortedItems.length > 0 ? (
+              filteredAndSortedItems.map(of => (
                 <TableRow
                   key={of.id}
                   onClick={() => router.push(`/cpr/of/${of.id}`)}
@@ -135,8 +157,8 @@ export default function OfPage() {
                 >
                   <TableCell className="font-medium">{of.id}</TableCell>
                   <TableCell>{of.elaboracionNombre}</TableCell>
-                  <TableCell>{of.cantidadTotal} {of.unidad}</TableCell>
-                  <TableCell>{of.cantidadReal ? `${of.cantidadReal} ${of.unidad}`: '-'}</TableCell>
+                  <TableCell>{ceilToTwoDecimals(of.cantidadTotal)} {of.unidad}</TableCell>
+                  <TableCell>{ceilToTwoDecimals(of.cantidadReal)} {of.cantidadReal ? of.unidad : ''}</TableCell>
                   <TableCell><Badge variant="secondary">{of.partidaAsignada}</Badge></TableCell>
                   <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
                   <TableCell>
