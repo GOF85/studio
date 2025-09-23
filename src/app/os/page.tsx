@@ -2,6 +2,7 @@
 
 
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -187,6 +188,8 @@ export default function OsPage() {
   const [personal, setPersonal] = useState<Personal[]>([]);
   const [espacios, setEspacios] = useState<Espacio[]>([]);
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
+  const [startDateOpen, setStartDateOpen] = useState(false);
+  const [endDateOpen, setEndDateOpen] = useState(false);
 
   const hasPruebaDeMenu = useMemo(() => {
     return briefingItems.some(item => item.descripcion.toLowerCase() === 'prueba de menu');
@@ -499,7 +502,7 @@ export default function OsPage() {
                       <FormField control={form.control} name="startDate" render={({ field }) => (
                           <FormItem className="flex flex-col">
                             <FormLabel>Fecha Inicio</FormLabel>
-                            <Popover>
+                            <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
                               <PopoverTrigger asChild>
                                 <FormControl>
                                   <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
@@ -512,7 +515,7 @@ export default function OsPage() {
                                 <Calendar 
                                   mode="single" 
                                   selected={field.value} 
-                                  onSelect={field.onChange}
+                                  onSelect={(date) => {field.onChange(date); setStartDateOpen(false);}}
                                   initialFocus 
                                   locale={es} 
                                 />
@@ -524,7 +527,7 @@ export default function OsPage() {
                       <FormField control={form.control} name="endDate" render={({ field }) => (
                           <FormItem className="flex flex-col">
                             <FormLabel>Fecha Fin</FormLabel>
-                            <Popover>
+                            <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
                               <PopoverTrigger asChild>
                                 <FormControl>
                                   <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
@@ -537,7 +540,7 @@ export default function OsPage() {
                                  <Calendar 
                                   mode="single" 
                                   selected={field.value} 
-                                  onSelect={field.onChange}
+                                  onSelect={(date) => {field.onChange(date); setEndDateOpen(false);}}
                                   initialFocus 
                                   locale={es} 
                                 />
@@ -889,3 +892,4 @@ export default function OsPage() {
     
 
     
+

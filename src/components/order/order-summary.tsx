@@ -75,6 +75,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
   const [deliverySpace, setDeliverySpace] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { toast } = useToast();
 
   const isRental = orderType !== 'Bodega' && orderType !== 'Bio';
@@ -255,7 +256,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="delivery-date-dialog">Fecha de Entrega</Label>
-                  <Popover>
+                  <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         id="delivery-date-dialog"
@@ -270,7 +271,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                       <Calendar
                         mode="single"
                         selected={deliveryDate}
-                        onSelect={setDeliveryDate}
+                        onSelect={(date) => { setDeliveryDate(date); setIsCalendarOpen(false); }}
                         initialFocus
                         locale={es}
                       />
@@ -306,3 +307,4 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
     </Card>
   );
 }
+

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -95,6 +96,7 @@ export default function PersonalExternoPage() {
   const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -392,19 +394,19 @@ export default function PersonalExternoPage() {
                                 fields.map((field, index) => (
                                     <TableRow key={field.id}>
                                         <TableCell className="px-2 py-1">
-                                            <FormField control={control} name={`personal.${index}.fecha`} render={({ field }) => (
+                                            <FormField control={control} name={`personal.${index}.fecha`} render={({ field: dateField }) => (
                                                 <FormItem>
                                                     <Popover>
                                                         <PopoverTrigger asChild>
                                                             <FormControl>
-                                                                <Button variant={"outline"} className={cn("w-32 h-9 pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                                    {field.value ? format(field.value, "dd/MM/yy") : <span>Elige</span>}
+                                                                <Button variant={"outline"} className={cn("w-32 h-9 pl-3 text-left font-normal", !dateField.value && "text-muted-foreground")}>
+                                                                    {dateField.value ? format(dateField.value, "dd/MM/yy") : <span>Elige</span>}
                                                                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                                 </Button>
                                                             </FormControl>
                                                         </PopoverTrigger>
                                                         <PopoverContent className="w-auto p-0" align="start">
-                                                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
+                                                            <Calendar mode="single" selected={dateField.value} onSelect={dateField.onChange} initialFocus locale={es} />
                                                         </PopoverContent>
                                                     </Popover>
                                                 </FormItem>
