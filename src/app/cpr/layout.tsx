@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus } from 'lucide-react';
+import { Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/layout/header';
 
@@ -12,6 +12,7 @@ const cprNav = [
     { title: 'Picking y Logística', href: '/cpr/picking', icon: Package, description: 'Prepara los pedidos para eventos.' },
     { title: 'Excedentes', href: '/cpr/excedentes', icon: PackagePlus, description: 'Gestiona el sobrante de producción.' },
     { title: 'Control de Calidad', href: '/cpr/calidad', icon: CheckCircle, description: 'Valida las elaboraciones.' },
+    { title: 'Informe de Productividad', href: '/cpr/productividad', icon: BarChart3, description: 'Analiza los tiempos de producción.' },
     { title: 'Trazabilidad', href: '/cpr/trazabilidad', icon: History, description: 'Consulta lotes y su histórico.' },
     { title: 'Informe de Incidencias', href: '/cpr/incidencias', icon: AlertTriangle, description: 'Revisa las incidencias de producción.' },
 ];

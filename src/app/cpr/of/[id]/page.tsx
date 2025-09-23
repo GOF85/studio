@@ -102,11 +102,13 @@ export default function OfDetailPage() {
 
         if (newStatus) {
             updatedOF.estado = newStatus;
-            if (newStatus === 'En Proceso' && !updatedOF.responsable) {
-                updatedOF.responsable = formData.responsable || 'Sin asignar';
-            }
-             if (newStatus === 'Asignada' && newResponsable) {
+            if (newStatus === 'Asignada' && newResponsable) {
                 updatedOF.responsable = newResponsable;
+                updatedOF.fechaAsignacion = new Date().toISOString();
+            }
+            if (newStatus === 'En Proceso') {
+                if (!updatedOF.responsable) updatedOF.responsable = formData.responsable || 'Sin asignar';
+                updatedOF.fechaInicioProduccion = new Date().toISOString();
             }
             if (newStatus === 'Finalizado') {
                 updatedOF.cantidadReal = formData.cantidadReal || updatedOF.cantidadTotal;

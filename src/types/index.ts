@@ -51,7 +51,7 @@ export type Personal = {
     mail: string;
     dni: string;
     precioHora: number;
-}
+};
 
 export type Espacio = {
     id: string;
@@ -468,9 +468,12 @@ export type OrdenFabricacion = {
     estado: 'Pendiente' | 'Asignada' | 'En Proceso' | 'Finalizado' | 'Incidencia' | 'Validado';
     responsable?: string;
     cantidadReal?: number | null;
-    fechaFinalizacion?: string;
     osIDs: string[]; // Referencia a las OS que necesitan esta elaboración
     incidenciaObservaciones?: string;
+    // Timestamps for productivity
+    fechaAsignacion?: string;
+    fechaInicioProduccion?: string;
+    fechaFinalizacion?: string;
 }
 
 export type PedidoPlantilla = {
