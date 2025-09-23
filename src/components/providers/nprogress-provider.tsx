@@ -9,9 +9,9 @@ function NProgressComponent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    NProgress.start();
+    NProgress.done();
     return () => {
-      NProgress.done();
+      NProgress.start();
     };
   }, [pathname, searchParams]);
 
