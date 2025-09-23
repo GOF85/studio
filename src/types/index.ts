@@ -107,16 +107,6 @@ export type Precio = {
     imagen: string; // url
 };
 
-export type GastronomiaDBItem = {
-    id: string;
-    referencia: string;
-    categoria: string;
-    imagenRef: string; // url
-    imagenEmpl: string; // url
-    precio: number;
-    gramaje: number;
-}
-
 export type ComercialBriefingItem = {
     id: string;
     fecha: string;
