@@ -494,3 +494,10 @@ export type PickingState = {
     assignedContainers: { [key in PartidaProduccion]?: ContenedorIsotermo[] };
     itemStates: { id: string; isPicked: boolean; containerId?: string; }[];
 }
+
+export type ExcedenteProduccion = {
+    ofId: string; // Lote de origen
+    cantidadAjustada: number; // Cantidad real que queda
+    motivoAjuste?: string;
+    fechaAjuste?: string;
+}
