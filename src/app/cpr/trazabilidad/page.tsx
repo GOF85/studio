@@ -1,42 +1,70 @@
+
 'use client';
 
-import { useState, useMemo } from 'react';
-import { History, Search, Package, Factory, Calendar } from 'lucide-react';
-import type { OrdenFabricacion, ServiceOrder } from '@/types';
+import { useState, useMemo, useEffect } from 'react';
+import { History, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import type { OrdenFabricacion } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useRouter } from 'next/navigation';
+
+const ITEMS_PER_PAGE = 20;
+
+const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
+  'Pendiente': 'secondary',
+  'Asignada': 'secondary',
+  'En Proceso': 'outline',
+  'Finalizado': 'default',
+  'Incidencia': 'destructive',
+  'Validado': 'default',
+};
 
 export default function TrazabilidadPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [loteEncontrado, setLoteEncontrado] = useState<OrdenFabricacion | null>(null);
-  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [allOFs, setAllOFs] = useState<OrdenFabricacion[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const router = useRouter();
+  
+  useEffect(() => {
+    const storedOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]');
+    const sortedOFs = storedOFs.sort((a, b) => {
+        const dateA = new Date(a.fechaFinalizacion || a.fechaCreacion);
+        const dateB = new Date(b.fechaFinalizacion || b.fechaCreacion);
+        return dateB.getTime() - dateA.getTime();
+    });
+    setAllOFs(sortedOFs);
+  }, []);
 
-  const handleSearch = () => {
-    setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      const allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]');
-      const found = allOFs.find(of => of.id.toLowerCase() === searchTerm.toLowerCase());
-      setLoteEncontrado(found || null);
+  const filteredItems = useMemo(() => {
+    return allOFs.filter(item => {
+      const term = searchTerm.toLowerCase();
+      return (
+        item.id.toLowerCase().includes(term) ||
+        item.elaboracionNombre.toLowerCase().includes(term) ||
+        (item.responsable || '').toLowerCase().includes(term)
+      );
+    });
+  }, [allOFs, searchTerm]);
+  
+  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredItems, currentPage]);
 
-      if (found) {
-        const allOS: ServiceOrder[] = JSON.parse(localStorage.getItem('serviceOrders') || '[]');
-        const relatedOS = allOS.filter(os => found.osIDs.includes(os.id));
-        setServiceOrders(relatedOS);
-      } else {
-        setServiceOrders([]);
-      }
-
-      setIsLoading(false);
-    }, 500);
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(1, prev - 1));
   };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+  };
+
 
   return (
     <div>
@@ -46,76 +74,84 @@ export default function TrazabilidadPage() {
             <History />
             Trazabilidad de Lotes
           </h1>
-          <p className="text-muted-foreground mt-1">Busca un lote (OF) para ver su ciclo de vida y los eventos asociados.</p>
+          <p className="text-muted-foreground mt-1">Busca un lote (OF) o navega por el historial de producción.</p>
         </div>
       </div>
 
-      <div className="flex gap-2 mb-8">
-        <Input
-          type="search"
-          placeholder="Introduce un Nº de Lote (ej: OF-2024-001)..."
-          className="max-w-md"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-        />
-        <Button onClick={handleSearch} disabled={!searchTerm || isLoading}>
-            {isLoading ? <span className="animate-spin">⏳</span> : <Search className="mr-2"/>}
-            Buscar
-        </Button>
+       <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="relative flex-grow">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Buscar por Lote, Elaboración o Responsable..."
+            className="pl-8 w-full"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center justify-end gap-2">
+            <span className="text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages || 1}
+            </span>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+            >
+                <ChevronLeft className="h-4 w-4" />
+                Anterior
+            </Button>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages || totalPages === 0}
+            >
+                Siguiente
+                <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
       </div>
 
-      {isLoading ? (
-        <Card>
-            <CardHeader><CardTitle><div className="h-6 bg-muted rounded w-1/3"></div></CardTitle></CardHeader>
-            <CardContent><div className="h-20 bg-muted rounded w-full"></div></CardContent>
-        </Card>
-      ) : loteEncontrado ? (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Lote: {loteEncontrado.id}</span>
-                <Badge variant="outline">{loteEncontrado.estado}</Badge>
-              </CardTitle>
-              <CardDescription>
-                <span className="flex items-center gap-2"><Factory /> {loteEncontrado.cantidadTotal} {loteEncontrado.unidad} de <strong>{loteEncontrado.elaboracionNombre}</strong></span>
-                <span className="flex items-center gap-2"><Calendar /> Producido el {format(new Date(loteEncontrado.fechaProduccionPrevista), 'dd/MM/yyyy')}</span>
-              </CardDescription>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl"><Package />Utilizado en los siguientes eventos:</CardTitle>
-            </CardHeader>
-             <CardContent>
-                {serviceOrders.length > 0 ? (
-                    <div className="border rounded-lg">
-                        <ul className="divide-y">
-                            {serviceOrders.map(os => (
-                                <li key={os.id} className="p-3 hover:bg-muted/50 transition-colors">
-                                    <Link href={`/os?id=${os.id}`} className="flex justify-between items-center">
-                                        <div>
-                                            <p className="font-bold">{os.serviceNumber}</p>
-                                            <p className="text-sm text-muted-foreground">{os.client}</p>
-                                        </div>
-                                        <p className="text-sm">{format(new Date(os.startDate), 'dd/MM/yyyy')}</p>
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                ) : (
-                    <p className="text-muted-foreground text-center p-6">Este lote no se ha asignado a ningún evento todavía.</p>
-                )}
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <p className="text-center text-muted-foreground p-10">
-          {searchTerm ? `No se encontró ningún lote con el ID "${searchTerm}".` : 'Introduce un ID de lote para empezar la búsqueda.'}
-        </p>
-      )}
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Lote / OF</TableHead>
+              <TableHead>Elaboración</TableHead>
+              <TableHead>Fecha Prod.</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead>Responsable</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginatedItems.length > 0 ? (
+              paginatedItems.map(of => (
+                <TableRow
+                  key={of.id}
+                  onClick={() => router.push(`/cpr/of/${of.id}`)}
+                  className="cursor-pointer"
+                >
+                  <TableCell className="font-medium font-mono">{of.id}</TableCell>
+                  <TableCell>{of.elaboracionNombre}</TableCell>
+                  <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
+                   <TableCell>
+                    <Badge variant={statusVariant[of.estado]}>{of.estado}</Badge>
+                  </TableCell>
+                  <TableCell>{of.responsable}</TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center">
+                  No se encontraron órdenes de fabricación.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
