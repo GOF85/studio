@@ -37,7 +37,7 @@ import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 
-const CSV_REQUIRED_HEADERS = ["id", "nombreProductoERP", "referenciaProveedor", "nombreProveedor", "familiaCategoria", "precio", "unidad"];
+const CSV_REQUIRED_HEADERS = ["nombreProductoERP", "referenciaProveedor", "nombreProveedor", "familiaCategoria", "precio", "unidad"];
 
 export default function IngredientesERPPage() {
   const [items, setItems] = useState<IngredienteERP[]>([]);
