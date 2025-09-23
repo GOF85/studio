@@ -85,10 +85,7 @@ type DesglosePorEvento = {
 export default function PlanificacionPage() {
     const router = useRouter();
     const [isMounted, setIsMounted] = useState(false);
-    const [dateRange, setDateRange] = useState<DateRange | undefined>({
-        from: startOfToday(),
-        to: addDays(startOfToday(), 7),
-    });
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
     
     // Unified state for both needs and surpluses
     const [planificacionItems, setPlanificacionItems] = useState<Necesidad[]>([]);
@@ -260,8 +257,18 @@ export default function PlanificacionPage() {
 
     useEffect(() => {
         setIsMounted(true);
-        calcularNecesidades();
-    }, [calcularNecesidades]);
+        // Set initial date range only on client to avoid hydration errors
+        setDateRange({
+            from: startOfToday(),
+            to: addDays(startOfToday(), 7),
+        });
+    }, []);
+
+    useEffect(() => {
+        if(isMounted) {
+            calcularNecesidades();
+        }
+    }, [isMounted, calcularNecesidades]);
 
     const handleSelectRow = (id: string) => {
         const item = planificacionItems.find(i => i.id === id);
@@ -309,6 +316,8 @@ export default function PlanificacionPage() {
                     partidaAsignada: necesidad.partidaProduccion,
                     estado: 'Pendiente',
                     osIDs: Array.from(new Set(necesidad.eventos!.map(e => e.osId))),
+                    incidencia: false,
+                    okCalidad: false,
                 };
                 newOFs.push(newOF);
             }
