@@ -35,7 +35,7 @@ const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'seconda
   'Validado': 'default',
 };
 
-const partidas: PartidaProduccion[] = ['FRIO', 'CALIENTE', 'PASTELERIA'];
+const partidas: PartidaProduccion[] = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'];
 
 export default function OfPage() {
   const [ordenes, setOrdenes] = useState<OrdenFabricacion[]>([]);

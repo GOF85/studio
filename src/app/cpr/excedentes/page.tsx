@@ -142,13 +142,15 @@ export default function ExcedentesPage() {
         let estado: 'Apto' | 'Revisar' = 'Apto';
         let fechaExpiracion = null;
 
-        if (diasCaducidad !== undefined) {
-            const fechaCad = addDays(new Date(fechaProduccion), diasCaducidad);
-            fechaExpiracion = format(fechaCad, 'dd/MM/yyyy');
-            if (new Date() > fechaCad) {
-                estado = 'Revisar';
-            }
+        const diasCaducidadDef = diasCaducidad !== undefined ? diasCaducidad : 7;
+        const fechaCad = addDays(new Date(fechaProduccion), diasCaducidadDef);
+        if (new Date() > fechaCad) {
+            estado = 'Revisar';
         }
+        if (diasCaducidad !== undefined) {
+             fechaExpiracion = format(fechaCad, 'dd/MM/yyyy');
+        }
+        
 
         excedentesCalculados.push({
           ofId: ofReferencia?.id || `EXCEDENTE-${elabId}`,
@@ -208,7 +210,7 @@ export default function ExcedentesPage() {
                 <TableHead>Lote Origen (OF)</TableHead>
                 <TableHead>Cantidad Excedente</TableHead>
                 <TableHead>Fecha Producción</TableHead>
-                <TableHead>Fecha caducidad segun el detalle del excedente</TableHead>
+                <TableHead>Fecha caducidad</TableHead>
                 <TableHead>Estado</TableHead>
               </TableRow>
             </TableHeader>

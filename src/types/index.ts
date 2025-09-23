@@ -464,11 +464,12 @@ export type OrdenFabricacion = {
     elaboracionId: string;
     elaboracionNombre: string;
     cantidadTotal: number;
+    necesidadTotal?: number;
     unidad: UnidadMedida;
     partidaAsignada: PartidaProduccion;
     estado: 'Pendiente' | 'Asignada' | 'En Proceso' | 'Finalizado' | 'Validado' | 'Incidencia';
     incidencia: boolean;
-    observacionesIncidencia?: string;
+    incidenciaObservaciones?: string;
     okCalidad: boolean;
     responsable?: string;
     responsableCalidad?: string;

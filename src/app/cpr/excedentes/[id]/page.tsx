@@ -51,9 +51,11 @@ export default function ExcedenteDetailPage() {
         if (currentExcedente) {
             setValue('cantidadAjustada', currentExcedente.cantidadAjustada);
             setValue('motivoAjuste', currentExcedente.motivoAjuste || '');
-            setValue('diasCaducidad', currentExcedente.diasCaducidad || 0);
+            setValue('diasCaducidad', currentExcedente.diasCaducidad);
         } else if (currentOF) {
-            // This is complex, so for now we rely on the list view calculation
+             const diferencia = (currentOF.cantidadReal || currentOF.cantidadTotal) - (currentOF.necesidadTotal || 0);
+            setValue('cantidadAjustada', diferencia > 0 ? diferencia : 0);
+            setValue('diasCaducidad', 7); // Default caducidad
         }
 
         setIsMounted(true);
@@ -207,7 +209,7 @@ export default function ExcedenteDetailPage() {
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground flex items-center gap-2"><Watch size={14}/> Días de Vida Útil:</span>
-                                <span className="font-semibold">{diasCaducidadWatch || 'No definido'} días</span>
+                                <span className="font-semibold">{diasCaducidadWatch ?? 'No definido'} días</span>
                             </div>
                              <Separator />
                              <div className="flex justify-between">
