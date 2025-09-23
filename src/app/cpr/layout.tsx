@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -123,8 +124,7 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
                                     <span
                                         className={cn(
                                             "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                                            pathname.startsWith(item.href) ? "bg-accent" : "transparent",
-                                            needsHighlight && "bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+                                            pathname.startsWith(item.href) ? "bg-accent" : "transparent"
                                         )}
                                     >
                                         <item.icon className="mr-2 h-4 w-4" />
