@@ -43,16 +43,18 @@ type RecetaNecesidad = {
     cantidad: number;
 }
 
-// For the aggregated view
-type NecesidadAgregada = {
+type Necesidad = {
     id: string; // elaboracionId
     nombre: string;
     cantidad: number;
     unidad: UnidadMedida;
     partidaProduccion?: PartidaProduccion;
-    eventos?: EventoAfectado[];
-    recetas?: RecetaNecesidad[];
+    eventos: EventoAfectado[];
+    recetas: RecetaNecesidad[];
+    type: 'necesidad' | 'excedente';
+    loteOrigen?: string;
 };
+
 
 // For the detailed tree view
 type DetalleElaboracionEnReceta = {
@@ -88,8 +90,9 @@ export default function PlanificacionPage() {
         to: addDays(startOfToday(), 7),
     });
     
-    // State for aggregated view
-    const [necesidadesAgregadas, setNecesidadesAgregadas] = useState<NecesidadAgregada[]>([]);
+    // Unified state for both needs and surpluses
+    const [planificacionItems, setPlanificacionItems] = useState<Necesidad[]>([]);
+    
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
     // State for detailed view
@@ -100,7 +103,7 @@ export default function PlanificacionPage() {
 
     const calcularNecesidades = useCallback(() => {
         setIsLoading(true);
-        setNecesidadesAgregadas([]);
+        setPlanificacionItems([]);
         setDesgloseEventos([]);
         setSelectedRows(new Set());
 
@@ -141,8 +144,13 @@ export default function PlanificacionPage() {
 
         // --- CALCULATIONS ---
         
-        // 1. Calculate Gross Needs per Elaboration
-        const necesidadesBrutas = new Map<string, Omit<NecesidadAgregada, 'id' | 'cantidad' > & {cantidadTotal: number}>();
+        const necesidadesPorElaboracion = new Map<string, {
+            necesidadBruta: number;
+            produccionAcumulada: number;
+            elaboracion: Elaboracion;
+            eventos: EventoAfectado[];
+            recetas: RecetaNecesidad[];
+        }>();
         
         // Detailed structure for tree view
         const desglose: Map<string, DesglosePorEvento> = new Map();
@@ -151,14 +159,10 @@ export default function PlanificacionPage() {
             const serviceOrder = serviceOrderMap.get(gastroOrder.osId);
             if (!serviceOrder) return;
             
-            // Initialize OS in detailed view
             if (!desglose.has(serviceOrder.id)) {
                 desglose.set(serviceOrder.id, {
-                    osId: serviceOrder.id,
-                    serviceNumber: serviceOrder.serviceNumber,
-                    client: serviceOrder.client,
-                    startDate: serviceOrder.startDate,
-                    recetas: [],
+                    osId: serviceOrder.id, serviceNumber: serviceOrder.serviceNumber,
+                    client: serviceOrder.client, startDate: serviceOrder.startDate, recetas: [],
                 });
             }
             const desgloseOS = desglose.get(serviceOrder.id)!;
@@ -167,7 +171,6 @@ export default function PlanificacionPage() {
                 if (item.type === 'item') {
                     const receta = recetasMap.get(item.id);
                     if (receta) {
-                        // Add receta to detailed view
                         let desgloseReceta = desgloseOS.recetas.find(r => r.recetaId === receta.id);
                         if (!desgloseReceta) {
                             desgloseReceta = { recetaId: receta.id, recetaNombre: receta.nombre, cantidadTotal: 0, elaboraciones: [] };
@@ -181,31 +184,22 @@ export default function PlanificacionPage() {
                                 const cantidadNecesaria = Number(item.quantity || 0) * Number(elabEnReceta.cantidad);
                                 if (isNaN(cantidadNecesaria) || cantidadNecesaria <= 0) return;
 
-                                // AGGREGATED VIEW LOGIC
-                                let necesidadAgregada = necesidadesBrutas.get(elaboracion.id);
-                                if (!necesidadAgregada) {
-                                    necesidadAgregada = {
-                                        nombre: elaboracion.nombre,
-                                        cantidadTotal: 0,
-                                        unidad: elaboracion.unidadProduccion,
-                                        partidaProduccion: receta.partidaProduccion,
-                                        eventos: [],
-                                        recetas: [],
+                                let registro = necesidadesPorElaboracion.get(elaboracion.id);
+                                if (!registro) {
+                                    registro = {
+                                        necesidadBruta: 0, produccionAcumulada: 0, elaboracion,
+                                        eventos: [], recetas: [],
                                     };
-                                    necesidadesBrutas.set(elaboracion.id, necesidadAgregada);
+                                    necesidadesPorElaboracion.set(elaboracion.id, registro);
                                 }
-                                necesidadAgregada.cantidadTotal += cantidadNecesaria;
-                                if (!necesidadAgregada.eventos!.find(e => e.osId === gastroOrder.osId && e.serviceType === gastroOrder.descripcion)) {
-                                    necesidadAgregada.eventos!.push({ osId: gastroOrder.osId, serviceNumber: serviceOrder.serviceNumber, serviceType: gastroOrder.descripcion });
+                                registro.necesidadBruta += cantidadNecesaria;
+                                if (!registro.eventos!.find(e => e.osId === gastroOrder.osId && e.serviceType === gastroOrder.descripcion)) {
+                                    registro.eventos!.push({ osId: gastroOrder.osId, serviceNumber: serviceOrder.serviceNumber, serviceType: gastroOrder.descripcion });
                                 }
-                                const recetaExistenteAgregada = necesidadAgregada.recetas!.find(r => r.recetaId === receta.id);
-                                if (recetaExistenteAgregada) {
-                                    recetaExistenteAgregada.cantidad += cantidadNecesaria;
-                                } else {
-                                    necesidadAgregada.recetas!.push({ recetaId: receta.id, recetaNombre: receta.nombre, cantidad: cantidadNecesaria });
-                                }
+                                const recetaExistente = registro.recetas.find(r => r.recetaId === receta.id);
+                                if (recetaExistente) recetaExistente.cantidad += cantidadNecesaria;
+                                else registro.recetas.push({ recetaId: receta.id, recetaNombre: receta.nombre, cantidad: cantidadNecesaria });
                                 
-                                // DETAILED VIEW LOGIC
                                 let desgloseElaboracion = desgloseReceta!.elaboraciones.find(e => e.elaboracionId === elaboracion.id);
                                 if (!desgloseElaboracion) {
                                     desgloseElaboracion = { elaboracionId: elaboracion.id, elaboracionNombre: elaboracion.nombre, cantidadNecesaria: 0, unidad: elaboracion.unidadProduccion, cantidadCubierta: 0, ofsAsignadas: [] };
@@ -219,43 +213,47 @@ export default function PlanificacionPage() {
             });
         });
 
-        // 2. Subtract produced quantities
-        const cantidadesCubiertasPorElaboracion = new Map<string, number>();
+        // Sumar producción
         ofsEnRango.forEach(of => {
-            const finishedStates: OrdenFabricacion['estado'][] = ['Finalizado', 'Validado', 'Incidencia'];
-            const isFinished = finishedStates.includes(of.estado);
-            const cantidadProducida = isFinished && typeof of.cantidadReal === 'number' && of.cantidadReal !== null ? Number(of.cantidadReal) : Number(of.cantidadTotal);
-            
-            if (!isNaN(cantidadProducida)) {
-                // For aggregated view
-                const current = cantidadesCubiertasPorElaboracion.get(of.elaboracionId) || 0;
-                cantidadesCubiertasPorElaboracion.set(of.elaboracionId, current + cantidadProducida);
-
-                // For detailed view
-                 desglose.forEach(os => {
-                    os.recetas.forEach(receta => {
-                        const elab = receta.elaboraciones.find(e => e.elaboracionId === of.elaboracionId);
-                        if (elab) {
-                            elab.cantidadCubierta += cantidadProducida;
-                            elab.ofsAsignadas.push({ id: of.id, cantidad: cantidadProducida, estado: of.estado });
-                        }
-                    })
-                 });
+            const registro = necesidadesPorElaboracion.get(of.elaboracionId);
+            if (registro) {
+                const cantidadProducida = (of.estado === 'Finalizado' || of.estado === 'Validado' || of.estado === 'Incidencia') && of.cantidadReal !== null ? Number(of.cantidadReal) : Number(of.cantidadTotal);
+                if (!isNaN(cantidadProducida)) {
+                    registro.produccionAcumulada += cantidadProducida;
+                }
             }
+             desglose.forEach(os => {
+                os.recetas.forEach(receta => {
+                    const elab = receta.elaboraciones.find(e => e.elaboracionId === of.elaboracionId);
+                    if (elab) {
+                        const cantidadProducidaOf = (of.estado === 'Finalizado' || of.estado === 'Validado' || of.estado === 'Incidencia') && of.cantidadReal !== null ? Number(of.cantidadReal) : Number(of.cantidadTotal);
+                        elab.cantidadCubierta += cantidadProducidaOf;
+                        elab.ofsAsignadas.push({ id: of.id, cantidad: cantidadProducidaOf, estado: of.estado });
+                    }
+                })
+             });
         });
 
-        // 3. Finalize Aggregated Needs
-        const planificacionAgregada: NecesidadAgregada[] = [];
-        necesidadesBrutas.forEach((necesidad, elabId) => {
-            const cantidadCubierta = cantidadesCubiertasPorElaboracion.get(elabId) || 0;
-            const diferencia = necesidad.cantidadTotal - cantidadCubierta;
-
-            if (diferencia > 0.001) {
-                planificacionAgregada.push({ ...necesidad, id: elabId, cantidad: diferencia });
+        const itemsFinales: Necesidad[] = [];
+        necesidadesPorElaboracion.forEach((registro, elabId) => {
+            const diferencia = registro.necesidadBruta - registro.produccionAcumulada;
+            
+            if (Math.abs(diferencia) > 0.001) { // Only show if there's a significant difference
+                 itemsFinales.push({
+                    id: elabId,
+                    nombre: registro.elaboracion.nombre,
+                    cantidad: Math.abs(diferencia),
+                    unidad: registro.elaboracion.unidadProduccion,
+                    partidaProduccion: registro.elaboracion.partidaProduccion,
+                    eventos: registro.eventos,
+                    recetas: registro.recetas,
+                    type: diferencia > 0 ? 'necesidad' : 'excedente',
+                    loteOrigen: diferencia < 0 ? ofsEnRango.find(of => of.elaboracionId === elabId)?.id : undefined
+                });
             }
         });
         
-        setNecesidadesAgregadas(planificacionAgregada);
+        setPlanificacionItems(itemsFinales);
         setDesgloseEventos(Array.from(desglose.values()));
         setIsLoading(false);
     }, [dateRange]);
@@ -266,6 +264,9 @@ export default function PlanificacionPage() {
     }, [calcularNecesidades]);
 
     const handleSelectRow = (id: string) => {
+        const item = planificacionItems.find(i => i.id === id);
+        if (item?.type !== 'necesidad') return; // Only allow selecting needs
+
         setSelectedRows(prev => {
             const newSelection = new Set(prev);
             if (newSelection.has(id)) {
@@ -294,8 +295,8 @@ export default function PlanificacionPage() {
         let currentIdNumber = lastIdNumber;
 
         selectedRows.forEach(elaboracionId => {
-            const necesidad = necesidadesAgregadas.find(item => item.id === elaboracionId);
-            if(necesidad && necesidad.partidaProduccion) {
+            const necesidad = planificacionItems.find(item => item.id === elaboracionId);
+            if(necesidad && necesidad.partidaProduccion && necesidad.type === 'necesidad') {
                 currentIdNumber++;
                 const newOF: OrdenFabricacion = {
                     id: `OF-${new Date().getFullYear()}-${currentIdNumber.toString().padStart(3, '0')}`,
@@ -406,10 +407,11 @@ export default function PlanificacionPage() {
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead className="w-12"><Checkbox 
-                                                    checked={selectedRows.size > 0 && necesidadesAgregadas.length > 0 && selectedRows.size === necesidadesAgregadas.length}
+                                                    checked={selectedRows.size > 0 && planificacionItems.filter(i => i.type === 'necesidad').length > 0 && selectedRows.size === planificacionItems.filter(i => i.type === 'necesidad').length}
                                                     onCheckedChange={(checked) => {
+                                                        const needItems = planificacionItems.filter(i => i.type === 'necesidad').map(i => i.id);
                                                         if(checked) {
-                                                            setSelectedRows(new Set(necesidadesAgregadas.map(i => i.id)))
+                                                            setSelectedRows(new Set(needItems))
                                                         } else {
                                                             setSelectedRows(new Set())
                                                         }
@@ -424,15 +426,28 @@ export default function PlanificacionPage() {
                                         <TableBody>
                                             {isLoading ? (
                                                 <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow>
-                                            ) : necesidadesAgregadas.length > 0 ? (
-                                                necesidadesAgregadas.map(item => (
-                                                    <TableRow key={item.id} onClick={() => handleSelectRow(item.id)} className='cursor-pointer'>
-                                                        <TableCell><Checkbox checked={selectedRows.has(item.id)} /></TableCell>
+                                            ) : planificacionItems.length > 0 ? (
+                                                planificacionItems.map(item => (
+                                                    <TableRow 
+                                                        key={item.id} 
+                                                        onClick={() => handleSelectRow(item.id)} 
+                                                        className={cn('cursor-pointer', item.type === 'excedente' && 'bg-green-100/50 hover:bg-green-100/60 cursor-default')}
+                                                    >
+                                                        <TableCell>
+                                                          {item.type === 'necesidad' ? (
+                                                            <Checkbox checked={selectedRows.has(item.id)} />
+                                                          ) : (
+                                                            <Tooltip>
+                                                              <TooltipTrigger><PackageCheck className="text-green-600"/></TooltipTrigger>
+                                                              <TooltipContent><p>Excedente disponible</p></TooltipContent>
+                                                            </Tooltip>
+                                                          )}
+                                                        </TableCell>
                                                         <TableCell className="font-medium">{item.nombre}</TableCell>
-                                                        <TableCell className="text-right font-mono">
+                                                        <TableCell className={cn("text-right font-mono", item.type === 'excedente' && 'text-green-600')}>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <span>{item.cantidad.toFixed(2)}</span>
+                                                                    <span>{item.type === 'excedente' && '+ '}{item.cantidad.toFixed(2)}</span>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
                                                                     <div className="p-1">
@@ -490,7 +505,7 @@ export default function PlanificacionPage() {
                                 ) : desgloseEventos.length > 0 ? (
                                     desgloseEventos.map(os => (
                                         <Collapsible key={os.osId} className="border rounded-lg p-4">
-                                            <CollapsibleTrigger className="w-full flex justify-between items-center">
+                                            <CollapsibleTrigger className="w-full flex justify-between items-center group">
                                                 <div className="text-left">
                                                     <h4 className="font-bold text-lg">{os.serviceNumber} - {os.client}</h4>
                                                     <p className="text-sm text-muted-foreground">{format(new Date(os.startDate), 'PPP', { locale: es })}</p>
@@ -500,7 +515,7 @@ export default function PlanificacionPage() {
                                             <CollapsibleContent className="pt-4 space-y-3">
                                                 {os.recetas.map(receta => (
                                                      <Collapsible key={receta.recetaId} className="border rounded-md p-3 bg-secondary/50">
-                                                        <CollapsibleTrigger className="w-full flex justify-between items-center text-left">
+                                                        <CollapsibleTrigger className="w-full flex justify-between items-center text-left group">
                                                             <div className="flex items-center gap-2">
                                                                 <Utensils className="h-4 w-4" />
                                                                 <span className="font-semibold">{receta.cantidadTotal} x {receta.recetaNombre}</span>
@@ -547,3 +562,4 @@ export default function PlanificacionPage() {
         </TooltipProvider>
     );
 }
+
