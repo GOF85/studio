@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy, AlertTriangle } from 'lucide-react';
+import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy, AlertTriangle, Menu, FileUp, FileDown } from 'lucide-react';
 import type { Receta, CategoriaReceta } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,15 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import Papa from 'papaparse';
+import { useToast } from '@/hooks/use-toast';
 
 const ITEMS_PER_PAGE = 20;
+
+// Headers for CSV export/import, including all fields of a Receta
+const CSV_HEADERS = [ "id", "nombre", "visibleParaComerciales", "descripcionComercial", "responsableEscandallo", "categoria", "partidaProduccion", "estacionalidad", "tipoDieta", "porcentajeCosteProduccion", "elaboraciones", "menajeAsociado", "instruccionesMiseEnPlace", "instruccionesRegeneracion", "instruccionesEmplatado", "perfilSaborPrincipal", "perfilSaborSecundario", "perfilTextura", "tipoCocina", "temperaturaServicio", "tecnicaCoccionPrincipal", "potencialMiseEnPlace", "formatoServicioIdeal", "equipamientoCritico", "dificultadProduccion", "estabilidadBuffet", "escalabilidad", "etiquetasTendencia", "costeMateriaPrima", "gramajeTotal", "precioVentaRecomendado", "alergenos", "requiereRevision" ];
+
 
 export default function RecetasPage() {
   const [items, setItems] = useState<Receta[]>([]);
@@ -26,6 +33,8 @@ export default function RecetasPage() {
   const [currentPage, setCurrentPage] = useState(1);
   
   const router = useRouter();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     const storedRecipes = localStorage.getItem('recetas');
@@ -60,6 +69,98 @@ export default function RecetasPage() {
   const handleNextPage = () => {
     setCurrentPage(prev => Math.min(totalPages, prev + 1));
   };
+  
+  const handleExportCSV = () => {
+    if (items.length === 0) {
+      toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay recetas para exportar.' });
+      return;
+    }
+    const dataToExport = items.map(item => ({
+        ...item,
+        elaboraciones: JSON.stringify(item.elaboraciones),
+        menajeAsociado: JSON.stringify(item.menajeAsociado),
+        perfilSaborSecundario: JSON.stringify(item.perfilSaborSecundario),
+        perfilTextura: JSON.stringify(item.perfilTextura),
+        formatoServicioIdeal: JSON.stringify(item.formatoServicioIdeal),
+        equipamientoCritico: JSON.stringify(item.equipamientoCritico),
+        etiquetasTendencia: JSON.stringify(item.etiquetasTendencia),
+        alergenos: JSON.stringify(item.alergenos),
+    }));
+
+    const csv = Papa.unparse(dataToExport);
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'recetas.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: 'Exportación completada', description: 'El archivo recetas.csv se ha descargado.' });
+  };
+  
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const safeJsonParse = (jsonString: string, fallback: any = []) => {
+    try {
+        return JSON.parse(jsonString);
+    } catch (e) {
+        return fallback;
+    }
+  }
+
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse<any>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const headers = results.meta.fields || [];
+        const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
+
+        if (!hasAllHeaders) {
+            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
+            return;
+        }
+        
+        const importedData: Receta[] = results.data.map(item => ({
+          ...item,
+          visibleParaComerciales: item.visibleParaComerciales === 'true',
+          requiereRevision: item.requiereRevision === 'true',
+          porcentajeCosteProduccion: parseFloat(item.porcentajeCosteProduccion) || 0,
+          costeMateriaPrima: parseFloat(item.costeMateriaPrima) || 0,
+          gramajeTotal: parseFloat(item.gramajeTotal) || 0,
+          precioVentaRecomendado: parseFloat(item.precioVentaRecomendado) || 0,
+          dificultadProduccion: parseInt(item.dificultadProduccion) || 3,
+          estabilidadBuffet: parseInt(item.estabilidadBuffet) || 3,
+          elaboraciones: safeJsonParse(item.elaboraciones),
+          menajeAsociado: safeJsonParse(item.menajeAsociado),
+          perfilSaborSecundario: safeJsonParse(item.perfilSaborSecundario),
+          perfilTextura: safeJsonParse(item.perfilTextura),
+          formatoServicioIdeal: safeJsonParse(item.formatoServicioIdeal),
+          equipamientoCritico: safeJsonParse(item.equipamientoCritico),
+          etiquetasTendencia: safeJsonParse(item.etiquetasTendencia),
+          alergenos: safeJsonParse(item.alergenos),
+        }));
+        
+        localStorage.setItem('recetas', JSON.stringify(importedData));
+        setItems(importedData);
+        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+      },
+      error: (error) => {
+        toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+      }
+    });
+    if(event.target) {
+        event.target.value = '';
+    }
+  };
+
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Recetas..." />;
@@ -78,6 +179,28 @@ export default function RecetasPage() {
                 Nueva Receta
               </Link>
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                      <Menu />
+                  </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleImportClick}>
+                       <FileUp size={16} className="mr-2"/>Importar CSV
+                       <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept=".csv"
+                        onChange={handleImportCSV}
+                      />
+                  </DropdownMenuItem>
+                   <DropdownMenuItem onClick={handleExportCSV}>
+                       <FileDown size={16} className="mr-2"/>Exportar CSV
+                  </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         
