@@ -36,20 +36,29 @@ type Excedente = {
 };
 
 export default function ExcedentesPage() {
-  const [excedentes, setExcedentes] = useState<Excedente[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const router = useRouter();
 
-  const calcularExcedentes = useCallback(() => {
-    // --- DATA LOADING ---
-    const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
-    const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-    const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    const allOrdenesFabricacion = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-    const allExcedentesData = JSON.parse(localStorage.getItem('excedentesProduccion') || '{}') as {[key: string]: ExcedenteProduccion};
+  const [allServiceOrders, setAllServiceOrders] = useState<ServiceOrder[]>([]);
+  const [allGastroOrders, setAllGastroOrders] = useState<GastronomyOrder[]>([]);
+  const [allRecetas, setAllRecetas] = useState<Receta[]>([]);
+  const [allElaboraciones, setAllElaboraciones] = useState<Elaboracion[]>([]);
+  const [allOrdenesFabricacion, setAllOrdenesFabricacion] = useState<OrdenFabricacion[]>([]);
+  const [allExcedentesData, setAllExcedentesData] = useState<{[key: string]: ExcedenteProduccion}>({});
 
+  useEffect(() => {
+    // --- DATA LOADING ---
+    setAllServiceOrders((JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado'));
+    setAllGastroOrders(JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
+    setAllRecetas(JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
+    setAllElaboraciones(JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[]);
+    setAllOrdenesFabricacion(JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
+    setAllExcedentesData(JSON.parse(localStorage.getItem('excedentesProduccion') || '{}') as {[key: string]: ExcedenteProduccion});
+    setIsMounted(true);
+  }, []);
+
+  const excedentes = useMemo(() => {
     const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
     const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
     const serviceOrderMap = new Map(allServiceOrders.map(os => [os.id, os]));
@@ -155,13 +164,8 @@ export default function ExcedentesPage() {
       }
     });
 
-    setExcedentes(excedentesCalculados);
-    setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
-    calcularExcedentes();
-  }, [calcularExcedentes]);
+    return excedentesCalculados;
+  }, [allRecetas, allElaboraciones, allServiceOrders, allGastroOrders, allOrdenesFabricacion, allExcedentesData]);
 
   const filteredItems = useMemo(() => {
     return excedentes.filter(item => 
