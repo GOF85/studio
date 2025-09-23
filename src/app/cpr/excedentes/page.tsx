@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { differenceInDays, format, startOfToday } from 'date-fns';
+import { differenceInDays, format, startOfToday, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PackagePlus, Search, AlertTriangle } from 'lucide-react';
 import type { OrdenFabricacion, Elaboracion, ServiceOrder, Receta, GastronomyOrder, ExcedenteProduccion } from '@/types';
@@ -31,6 +31,7 @@ type Excedente = {
   unidad: string;
   fechaProduccion: string;
   eventosOrigen: string[];
+  estado: 'Apto' | 'Revisar';
 };
 
 export default function ExcedentesPage() {
@@ -46,6 +47,7 @@ export default function ExcedentesPage() {
     const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     const allOrdenesFabricacion = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+    const allExcedentesData = JSON.parse(localStorage.getItem('excedentesProduccion') || '{}') as {[key: string]: ExcedenteProduccion};
 
     const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
     const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
@@ -118,12 +120,22 @@ export default function ExcedentesPage() {
       const diferencia = registro.produccionAcumulada - registro.necesidadBruta;
       
       if (diferencia > 0.001) { // Si hay excedente significativo
-        // Encontrar la OF más reciente para esta elaboración para usar como lote de referencia
         const ofsParaElab = allOrdenesFabricacion
             .filter(of => of.elaboracionId === elabId)
             .sort((a,b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
 
         const ofReferencia = ofsParaElab.length > 0 ? ofsParaElab[0] : null;
+        
+        const excedenteData = allExcedentesData[ofReferencia?.id || ''];
+        const diasCaducidad = excedenteData?.diasCaducidad;
+        const fechaProduccion = ofReferencia?.fechaFinalizacion || ofReferencia?.fechaCreacion || new Date().toISOString();
+        let estado: 'Apto' | 'Revisar' = 'Apto';
+        if (diasCaducidad !== undefined) {
+            const fechaCaducidad = addDays(new Date(fechaProduccion), diasCaducidad);
+            if (new Date() > fechaCaducidad) {
+                estado = 'Revisar';
+            }
+        }
 
         excedentesCalculados.push({
           ofId: ofReferencia?.id || `EXCEDENTE-${elabId}`,
@@ -131,8 +143,9 @@ export default function ExcedentesPage() {
           elaboracionNombre: registro.elaboracion.nombre,
           cantidadExcedente: diferencia,
           unidad: registro.elaboracion.unidadProduccion,
-          fechaProduccion: ofReferencia?.fechaFinalizacion || ofReferencia?.fechaCreacion || new Date().toISOString(),
+          fechaProduccion: fechaProduccion,
           eventosOrigen: Array.from(registro.eventos),
+          estado,
         });
       }
     });
@@ -186,26 +199,26 @@ export default function ExcedentesPage() {
                 <TableHead>Lote Origen (OF)</TableHead>
                 <TableHead>Cantidad Excedente</TableHead>
                 <TableHead>Fecha Producción</TableHead>
-                <TableHead>Eventos Origen</TableHead>
+                <TableHead>Estado</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => {
                   const diasDesdeProduccion = differenceInDays(new Date(), new Date(item.fechaProduccion));
-                  const necesitaAtencion = diasDesdeProduccion > 3;
+                  const necesitaAtencion = item.estado === 'Revisar' || diasDesdeProduccion > 3;
 
                   return (
                     <TableRow 
                         key={item.ofId}
-                        className={cn("cursor-pointer", necesitaAtencion && 'bg-destructive/10 hover:bg-destructive/20')}
+                        className={cn("cursor-pointer", necesitaAtencion && 'bg-amber-100/50 hover:bg-amber-100/80')}
                         onClick={() => router.push(`/cpr/excedentes/${item.ofId}`)}
                     >
                         <TableCell className="font-medium flex items-center gap-2">
-                             {necesitaAtencion && (
+                             {necesitaAtencion && item.estado === 'Apto' && (
                                 <Tooltip>
                                     <TooltipTrigger>
-                                        <AlertTriangle className="h-4 w-4 text-destructive"/>
+                                        <AlertTriangle className="h-4 w-4 text-amber-500"/>
                                     </TooltipTrigger>
                                     <TooltipContent>
                                         <p>Revisar por fecha de caducidad próxima.</p>
@@ -217,7 +230,11 @@ export default function ExcedentesPage() {
                         <TableCell><Badge variant="secondary">{item.ofId}</Badge></TableCell>
                         <TableCell>{item.cantidadExcedente.toFixed(2)} {item.unidad}</TableCell>
                         <TableCell>{format(new Date(item.fechaProduccion), 'dd/MM/yyyy')}</TableCell>
-                        <TableCell>{item.eventosOrigen.join(', ')}</TableCell>
+                        <TableCell>
+                           <Badge variant={item.estado === 'Revisar' ? 'destructive' : 'default'} className={cn(item.estado === 'Apto' && 'bg-green-600')}>
+                                {item.estado}
+                           </Badge>
+                        </TableCell>
                     </TableRow>
                   );
                 })
