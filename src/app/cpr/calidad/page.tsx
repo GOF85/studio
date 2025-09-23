@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -28,6 +29,16 @@ import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+
+const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
+  'Pendiente': 'secondary',
+  'Asignada': 'secondary',
+  'En Proceso': 'outline',
+  'Finalizado': 'default',
+  'Incidencia': 'destructive',
+  'Validado': 'default',
+};
 
 
 export default function CalidadPage() {
@@ -38,14 +49,14 @@ export default function CalidadPage() {
   const [responsableCalidad, setResponsableCalidad] = useState<string>('');
   const [ofForIncident, setOfForIncident] = useState<OrdenFabricacion | null>(null);
   const [incidentData, setIncidentData] = useState({ cantidadReal: 0, observaciones: '' });
+  const [showAll, setShowAll] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
     let storedData = localStorage.getItem('ordenesFabricacion');
     if (storedData) {
-        const allOFs = JSON.parse(storedData) as OrdenFabricacion[];
-        setOrdenes(allOFs.filter(of => of.estado === 'Finalizado' && !of.okCalidad && !of.incidencia));
+        setOrdenes(JSON.parse(storedData));
     }
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
@@ -68,7 +79,7 @@ export default function CalidadPage() {
             fechaValidacionCalidad: new Date().toISOString(),
         };
         localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
-        setOrdenes(prev => prev.filter(of => of.id !== ofId));
+        setOrdenes(allOFs);
         toast({ title: 'Lote Validado', description: `La OF ${ofId} ha sido marcada como validada.` });
     }
   };
@@ -95,7 +106,7 @@ export default function CalidadPage() {
             observacionesIncidencia: incidentData.observaciones,
         };
         localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
-        setOrdenes(prev => prev.filter(of => of.id !== ofForIncident.id));
+        setOrdenes(allOFs);
         toast({ title: 'Incidencia Registrada', description: `Se ha registrado una incidencia para la OF ${ofForIncident.id}.`});
         setOfForIncident(null);
     }
@@ -104,14 +115,26 @@ export default function CalidadPage() {
 
   const filteredItems = useMemo(() => {
     return ordenes.filter(item => {
-      return searchTerm === '' || 
-                          item.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          item.elaboracionNombre.toLowerCase().includes(searchTerm.toLowerCase());
-    });
-  }, [ordenes, searchTerm]);
+        const isPending = item.estado === 'Finalizado' && !item.okCalidad && !item.incidencia;
+        const matchesFilter = showAll || isPending;
+        
+        const searchMatch = searchTerm === '' || 
+                            item.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            item.elaboracionNombre.toLowerCase().includes(searchTerm.toLowerCase());
+
+        return matchesFilter && searchMatch;
+    }).sort((a,b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
+  }, [ordenes, searchTerm, showAll]);
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Control de Calidad..." />;
+  }
+
+  const renderStatusBadge = (of: OrdenFabricacion) => {
+    if (of.incidencia) return <Badge variant="destructive">Incidencia</Badge>;
+    if (of.okCalidad) return <Badge className="bg-green-600">Validado</Badge>;
+    if (of.estado === 'Finalizado') return <Badge variant="secondary">Pendiente Calidad</Badge>;
+    return <Badge variant="outline">{of.estado}</Badge>
   }
 
   return (
@@ -137,6 +160,10 @@ export default function CalidadPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        <div className="flex items-center space-x-2">
+            <Checkbox id="showAll" checked={showAll} onCheckedChange={(checked) => setShowAll(Boolean(checked))} />
+            <Label htmlFor="showAll">Ver todos los lotes</Label>
+        </div>
       </div>
 
       <div className="border rounded-lg">
@@ -148,6 +175,7 @@ export default function CalidadPage() {
               <TableHead>Cantidad Producida</TableHead>
               <TableHead>Fecha Producción</TableHead>
               <TableHead>Responsable</TableHead>
+              {showAll && <TableHead>Estado Calidad</TableHead>}
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -164,14 +192,18 @@ export default function CalidadPage() {
                   <TableCell className="cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>
                     <Badge variant="secondary">{of.responsable}</Badge>
                   </TableCell>
+                   {showAll && <TableCell>{renderStatusBadge(of)}</TableCell>}
                   <TableCell className="text-right space-x-2">
-                     <Button variant="destructive" size="sm" onClick={() => openIncidentDialog(of)}>
+                     <Button variant="destructive" size="sm" onClick={() => openIncidentDialog(of)} disabled={of.okCalidad || of.incidencia}>
                         <AlertTriangle className="mr-2 h-4 w-4" />
                         Incidencia
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm">Validar</Button>
+                        <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700" disabled={of.okCalidad || of.incidencia}>
+                            <CheckCircle className="mr-2 h-4 w-4"/>
+                            Validar
+                        </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                           <AlertDialogHeader>
@@ -199,8 +231,8 @@ export default function CalidadPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  No hay órdenes de fabricación finalizadas pendientes de validación.
+                <TableCell colSpan={showAll ? 7 : 6} className="h-24 text-center">
+                  No hay órdenes de fabricación que coincidan con los filtros.
                 </TableCell>
               </TableRow>
             )}
