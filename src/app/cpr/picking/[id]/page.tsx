@@ -202,9 +202,9 @@ export default function PickingDetailPage() {
     const lotesPendientes = useMemo(() => {
         return lotesNecesarios
         .filter(of => 
-            of.estado === 'Finalizado' || 
+            (of.estado === 'Finalizado' || 
             of.estado === 'Validado' || 
-            (of.incidencia && of.cantidadReal !== null && of.cantidadReal > 0)
+            (of.incidencia && of.cantidadReal !== null && of.cantidadReal > 0))
         )
         .map(of => {
             const cantidadTotal = Number(of.cantidadReal ?? of.cantidadTotal);
@@ -242,64 +242,117 @@ export default function PickingDetailPage() {
     const handlePrint = () => {
         if (!serviceOrder) return;
         setIsPrinting(true);
-
+    
         try {
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [100, 150] });
+            const allAssignedContainers = Object.values(pickingState.assignedContainers).flat();
             
-            Object.values(pickingState.assignedContainers).flat().forEach((container, index, allContainers) => {
+            allAssignedContainers.forEach((container, index) => {
                 if (index > 0) doc.addPage();
-                
-                let finalY = 15;
-                const margin = 15;
-                
-                doc.setFontSize(14);
+    
+                const margin = 8;
+                const pageWidth = doc.internal.pageSize.getWidth();
+                let finalY = margin;
+    
+                // --- HEADER ---
+                doc.setFontSize(16);
                 doc.setFont('helvetica', 'bold');
-                doc.text(`Etiqueta de Contenedor (${index + 1}/${allContainers.length})`, margin, finalY);
-                finalY += 8;
-
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-                doc.text(`Contenedor: ${container.nombre} (${container.id})`, margin, finalY);
-                finalY += 10;
-                
-                autoTable(doc, {
-                    startY: finalY,
-                    theme: 'plain',
-                    styles: { fontSize: 9 },
-                    body: [
-                        [{content: 'Nº SERVICIO:', styles:{fontStyle: 'bold'}}, serviceOrder.serviceNumber],
-                        [{content: 'CLIENTE:', styles:{fontStyle: 'bold'}}, `${serviceOrder.client} ${serviceOrder.finalClient ? `(${serviceOrder.finalClient})` : ''}`],
-                        [{content: 'FECHA EVENTO:', styles:{fontStyle: 'bold'}}, format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
-                        [{content: 'ESPACIO:', styles:{fontStyle: 'bold'}}, serviceOrder.space || 'N/A'],
-                    ]
-                });
-                finalY = (doc as any).lastAutoTable.finalY + 10;
-                
+                doc.text(container.nombre, margin, finalY);
                 doc.setFontSize(12);
+                doc.text(`${index + 1} de ${allAssignedContainers.length}`, pageWidth - margin, finalY, { align: 'right' });
+                finalY += 8;
+                doc.setLineWidth(0.5);
+                doc.line(margin, finalY, pageWidth - margin, finalY);
+                finalY += 8;
+    
+                // --- EVENT INFO ---
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Nº SERVICIO:', margin, finalY);
+                doc.setFont('helvetica', 'normal');
+                doc.text(serviceOrder.serviceNumber, margin + 25, finalY);
+                finalY += 5;
+    
+                doc.setFont('helvetica', 'bold');
+                doc.text('CLIENTE:', margin, finalY);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`${serviceOrder.client}${serviceOrder.finalClient ? ` (${serviceOrder.finalClient})` : ''}`, margin + 25, finalY, { maxWidth: pageWidth - margin * 2 - 25 });
+                finalY += 8;
+    
+                doc.setFont('helvetica', 'bold');
+                doc.text('FECHA:', margin, finalY);
+                doc.setFont('helvetica', 'normal');
+                doc.text(format(new Date(serviceOrder.startDate), 'dd/MM/yyyy'), margin + 25, finalY);
+                finalY += 5;
+    
+                doc.setFont('helvetica', 'bold');
+                doc.text('ESPACIO:', margin, finalY);
+                doc.setFont('helvetica', 'normal');
+                doc.text(serviceOrder.space || 'N/A', margin + 25, finalY);
+                finalY += 8;
+    
+                doc.setLineWidth(0.2);
+                doc.line(margin, finalY, pageWidth - margin, finalY);
+                finalY += 8;
+    
+                // --- CONTENT TABLE ---
+                doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
                 doc.text('CONTENIDO', margin, finalY);
                 finalY += 6;
-                
+    
                 const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
-                const itemsBody = containerItems.map(item => {
+                
+                // Aggregate items by elaboration
+                const aggregatedItems = new Map<string, { nombre: string; totalQuantity: number; unidad: string; ofs: string[] }>();
+                containerItems.forEach(item => {
                     const loteInfo = lotesNecesarios.find(l => l.id === item.ofId);
-                    return [
-                        loteInfo?.elaboracionNombre || 'Desconocido',
-                        (item.quantity || 0).toFixed(2),
-                        loteInfo?.unidad || '',
-                        item.ofId
-                    ];
+                    if (!loteInfo) return;
+    
+                    if (!aggregatedItems.has(loteInfo.elaboracionId)) {
+                        aggregatedItems.set(loteInfo.elaboracionId, {
+                            nombre: loteInfo.elaboracionNombre,
+                            totalQuantity: 0,
+                            unidad: loteInfo.unidad,
+                            ofs: []
+                        });
+                    }
+                    const aggItem = aggregatedItems.get(loteInfo.elaboracionId)!;
+                    aggItem.totalQuantity += item.quantity;
+                    aggItem.ofs.push(item.ofId);
                 });
-
+    
+                const itemsBody = Array.from(aggregatedItems.values()).map(item => [
+                    item.nombre,
+                    item.totalQuantity.toFixed(2),
+                    item.unidad,
+                    [...new Set(item.ofs)].join(', ') // Unique OFs
+                ]);
+    
                 autoTable(doc, {
                     startY: finalY,
-                    head: [['Elaboración', 'Cantidad', 'Unidad', 'Lote (OF)']],
+                    head: [['Elaboración', 'Cant.', 'Ud.', 'Lote(s) Origen']],
                     body: itemsBody,
                     theme: 'grid',
-                    headStyles: { fillColor: '#e5e7eb', textColor: '#374151' }
+                    headStyles: { fillColor: '#e5e7eb', textColor: '#374151', fontSize: 8, cellPadding: 1 },
+                    styles: { fontSize: 7, cellPadding: 1 },
+                    columnStyles: {
+                        0: { cellWidth: 35 },
+                        1: { cellWidth: 10, halign: 'right' },
+                        2: { cellWidth: 8 },
+                        3: { cellWidth: 'auto' }
+                    }
                 });
-            });
+                finalY = (doc as any).lastAutoTable.finalY;
 
+                 // --- FOOTER ---
+                 doc.setFontSize(7);
+                 doc.setFont('helvetica', 'italic');
+                 doc.setTextColor('#64748b');
+                 doc.text(`Impreso: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, doc.internal.pageSize.getHeight() - 5);
+
+            });
+    
             doc.save(`Etiquetas_Picking_${serviceOrder.serviceNumber}.pdf`);
         } catch (error) {
             console.error("Error generating PDF:", error);
