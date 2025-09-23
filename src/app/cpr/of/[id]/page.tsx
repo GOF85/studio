@@ -254,7 +254,7 @@ export default function OfDetailPage() {
                                                 return (
                                                     <TableRow key={comp.id}>
                                                         <TableCell>{comp.nombre}</TableCell>
-                                                        <TableCell className="text-right font-mono">{(comp.cantidad * ratioProduccion).toFixed(3)} {unidad}</TableCell>
+                                                        <TableCell className="text-right font-mono">{(comp.cantidad * ratioProduccion).toFixed(2)} {unidad}</TableCell>
                                                     </TableRow>
                                                 )
                                             })}
