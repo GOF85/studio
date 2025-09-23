@@ -54,39 +54,9 @@ export default function GastronomiaDBPage() {
 
   useEffect(() => {
     let storedData = localStorage.getItem('gastronomiaDB');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: GastronomiaDBItem[] = [
-        {
-          id: `1-${Date.now()}-${Math.random()}`,
-          referencia: 'Solomillo de ternera',
-          categoria: 'Carnes',
-          imagenRef: 'https://picsum.photos/seed/solomillo-ref/100',
-          imagenEmpl: 'https://picsum.photos/seed/solomillo-empl/100',
-          precio: 28.50,
-          gramaje: 250,
-        },
-        {
-          id: `2-${Date.now()}-${Math.random()}`,
-          referencia: 'Tarta de queso',
-          categoria: 'Postres',
-          imagenRef: 'https://picsum.photos/seed/tarta-ref/100',
-          imagenEmpl: 'https://picsum.photos/seed/tarta-empl/100',
-          precio: 8.00,
-          gramaje: 150,
-        },
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('gastronomiaDB', storedData);
-      setGastronomia(dummyData);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se han cargado platos de ejemplo.',
-      });
-    } else {
-      setGastronomia(JSON.parse(storedData));
-    }
+    setGastronomia(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const categories = useMemo(() => {
     if (!gastronomia) return [];

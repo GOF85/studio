@@ -53,41 +53,9 @@ export default function PersonalPage() {
 
   useEffect(() => {
     let storedPersonal = localStorage.getItem('personal');
-    if (!storedPersonal || JSON.parse(storedPersonal).length === 0) {
-      const dummyPersonal: Personal[] = [
-        {
-          id: '1',
-          nombre: 'Juan Pérez',
-          departamento: 'Operaciones',
-          categoria: 'Metre',
-          telefono: '600111222',
-          mail: 'juan.perez@example.com',
-          dni: '12345678A',
-          precioHora: 25,
-        },
-        {
-          id: '2',
-          nombre: 'Ana López',
-          departamento: 'Cocina',
-          categoria: 'Cocinero/a',
-          telefono: '600333444',
-          mail: 'ana.lopez@example.com',
-          dni: '87654321B',
-          precioHora: 22,
-        },
-      ];
-      storedPersonal = JSON.stringify(dummyPersonal);
-      localStorage.setItem('personal', storedPersonal);
-      setPersonal(dummyPersonal);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se ha cargado personal de ejemplo.',
-      });
-    } else {
-      setPersonal(JSON.parse(storedPersonal));
-    }
+    setPersonal(storedPersonal ? JSON.parse(storedPersonal) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const departments = useMemo(() => {
     if (!personal) return ['all'];

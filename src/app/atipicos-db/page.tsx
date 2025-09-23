@@ -51,41 +51,9 @@ export default function AtipicosDBPage() {
 
   useEffect(() => {
     let storedData = localStorage.getItem('atipicosDB');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: AtipicoDBItem[] = [
-        {
-          id: '1',
-          concepto: 'Horas Extra (Seguridad)',
-          precio: 50.00
-        },
-        {
-          id: '2',
-          concepto: 'Servicio Limpieza Especial',
-          precio: 250.00
-        },
-         {
-          id: '3',
-          concepto: 'Canon SGAE',
-          precio: 150.00
-        },
-        {
-          id: '4',
-          concepto: 'Ajuste de Caja',
-          precio: 0
-        },
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('atipicosDB', storedData);
-      setItems(dummyData);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se han cargado conceptos atípicos de ejemplo.',
-      });
-    } else {
-      setItems(JSON.parse(storedData));
-    }
+    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const filteredItems = useMemo(() => {
     return items.filter(item => 

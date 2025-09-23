@@ -45,19 +45,8 @@ export default function OfPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Cargar datos de prueba si no existen
     let storedData = localStorage.getItem('ordenesFabricacion');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-        const dummyData: OrdenFabricacion[] = [
-            { id: 'OF-2024-001', fechaCreacion: new Date().toISOString(), fechaProduccionPrevista: new Date().toISOString(), elaboracionId: 'elab-1', elaboracionNombre: 'Salsa Boloñesa Clásica', cantidadTotal: 15, unidad: 'KILO', partidaAsignada: 'CALIENTE', estado: 'Pendiente', osIDs: ['OS-2024-001'] },
-            { id: 'OF-2024-002', fechaCreacion: new Date().toISOString(), fechaProduccionPrevista: new Date().toISOString(), elaboracionId: 'elab-2', elaboracionNombre: 'Bechamel Ligera', cantidadTotal: 8, unidad: 'LITRO', partidaAsignada: 'CALIENTE', estado: 'En Proceso', responsable: 'Ana López', osIDs: ['OS-2024-001'] },
-        ];
-        storedData = JSON.stringify(dummyData);
-        localStorage.setItem('ordenesFabricacion', storedData);
-        setOrdenes(dummyData);
-    } else {
-        setOrdenes(JSON.parse(storedData));
-    }
+    setOrdenes(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
   }, []);
 

@@ -52,41 +52,9 @@ export default function DecoracionDBPage() {
 
   useEffect(() => {
     let storedData = localStorage.getItem('decoracionDB');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: DecoracionDBItem[] = [
-        {
-          id: '1',
-          concepto: 'Centro de mesa floral',
-          precio: 75.00
-        },
-        {
-          id: '2',
-          concepto: 'Alquiler de photocall',
-          precio: 300.00
-        },
-        {
-          id: '3',
-          concepto: 'Guirnaldas de luces',
-          precio: 120.00
-        },
-        {
-          id: '4',
-          concepto: 'Cartelería personalizada',
-          precio: 80.00
-        }
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('decoracionDB', storedData);
-      setItems(dummyData);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se han cargado conceptos de decoración de ejemplo.',
-      });
-    } else {
-      setItems(JSON.parse(storedData));
-    }
+    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const filteredItems = useMemo(() => {
     return items.filter(item => 

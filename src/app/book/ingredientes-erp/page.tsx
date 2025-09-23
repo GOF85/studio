@@ -51,18 +51,7 @@ export default function IngredientesERPPage() {
 
   useEffect(() => {
     let storedData = localStorage.getItem('ingredientesERP');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: IngredienteERP[] = [
-        { id: 'erp-1', IdERP: 'ERP001', nombreProductoERP: 'Harina de Trigo (Saco 25kg)', referenciaProveedor: 'HT25', nombreProveedor: 'Harinas Molineras', familiaCategoria: 'Secos', precio: 15.00, unidad: 'KILO' },
-        { id: 'erp-2', IdERP: 'ERP002', nombreProductoERP: 'Huevo Campero (Caja 30 und)', referenciaProveedor: 'HC30', nombreProveedor: 'Granjas del Sol', familiaCategoria: 'Frescos', precio: 5.50, unidad: 'UNIDAD' },
-        { id: 'erp-3', IdERP: 'ERP003', nombreProductoERP: 'Leche Entera (Litro)', referenciaProveedor: 'LE01', nombreProveedor: 'Lácteos El Prado', familiaCategoria: 'Lácteos', precio: 1.10, unidad: 'LITRO' },
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('ingredientesERP', storedData);
-      setItems(dummyData);
-    } else {
-      setItems(JSON.parse(storedData));
-    }
+    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
   }, []);
   

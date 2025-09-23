@@ -54,39 +54,9 @@ export default function PreciosPage() {
 
   useEffect(() => {
     let storedPrecios = localStorage.getItem('precios');
-    if (!storedPrecios || JSON.parse(storedPrecios).length === 0) {
-      const dummyPrecios: Precio[] = [
-        {
-          id: '1',
-          producto: 'Vino Tinto Reserva',
-          categoria: 'BODEGA',
-          loc: 'P-1-A',
-          precioUd: 15.50,
-          precioAlquilerUd: 0,
-          imagen: 'https://picsum.photos/seed/vino_tinto/100',
-        },
-        {
-          id: '2',
-          producto: 'Silla Tiffany',
-          categoria: 'ALMACEN',
-          loc: 'P-3-B',
-          precioUd: 25.00,
-          precioAlquilerUd: 5.00,
-          imagen: 'https://picsum.photos/seed/silla_tiffany/100',
-        },
-      ];
-      storedPrecios = JSON.stringify(dummyPrecios);
-      localStorage.setItem('precios', storedPrecios);
-      setPrecios(dummyPrecios);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se han cargado precios de ejemplo.',
-      });
-    } else {
-      setPrecios(JSON.parse(storedPrecios));
-    }
+    setPrecios(storedPrecios ? JSON.parse(storedPrecios) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const filteredPrecios = useMemo(() => {
     return precios.filter(p => {

@@ -51,27 +51,9 @@ export default function TiposCocinaPage() {
 
   useEffect(() => {
     let storedData = localStorage.getItem('tiposCocina');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: TipoCocina[] = [
-        { id: '1', nombre: 'Mediterránea' },
-        { id: '2', nombre: 'Asiática' },
-        { id: '3', nombre: 'Mexicana' },
-        { id: '4', nombre: 'De autor' },
-        { id: '5', nombre: 'Fusión' },
-        { id: '6', nombre: 'Tradicional' },
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('tiposCocina', storedData);
-      setItems(dummyData);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se han cargado tipos de cocina de ejemplo.',
-      });
-    } else {
-      setItems(JSON.parse(storedData));
-    }
+    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const filteredItems = useMemo(() => {
     return items.filter(item => 

@@ -51,25 +51,9 @@ export default function CategoriasRecetasPage() {
 
   useEffect(() => {
     let storedData = localStorage.getItem('categoriasRecetas');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: CategoriaReceta[] = [
-        { id: '1', nombre: 'Coffee' },
-        { id: '2', nombre: 'Cóctel frío' },
-        { id: '3', nombre: 'Cóctel caliente' },
-        { id: '4', nombre: 'Postres' },
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('categoriasRecetas', storedData);
-      setItems(dummyData);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se han cargado categorías de ejemplo.',
-      });
-    } else {
-      setItems(JSON.parse(storedData));
-    }
+    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const filteredItems = useMemo(() => {
     return items.filter(item => 

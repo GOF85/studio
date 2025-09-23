@@ -52,63 +52,9 @@ export default function AlquilerDBPage() {
 
   useEffect(() => {
     let storedData = localStorage.getItem('alquilerDB');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: AlquilerDBItem[] = [
-        {
-          id: '1',
-          concepto: 'Equipo de Sonido 2000W',
-          precioAlquiler: 150.00,
-          precioReposicion: 2000.00,
-          imagen: 'https://picsum.photos/seed/sound-system/100'
-        },
-        {
-          id: '2',
-          concepto: 'Proyector FullHD 5000 lumens',
-          precioAlquiler: 120.00,
-          precioReposicion: 1500.00,
-          imagen: 'https://picsum.photos/seed/projector/100'
-        },
-        {
-          id: '3',
-          concepto: 'Pantalla de proyección 100"',
-          precioAlquiler: 40.00,
-          precioReposicion: 300.00,
-          imagen: 'https://picsum.photos/seed/screen/100'
-        },
-        {
-          id: '4',
-          concepto: 'Atril de metacrilato',
-          precioAlquiler: 60.00,
-          precioReposicion: 450.00,
-          imagen: 'https://picsum.photos/seed/lectern/100'
-        },
-        {
-            id: '5',
-            concepto: 'Pack 4 Walkie-Talkies',
-            precioAlquiler: 50.00,
-            precioReposicion: 400.00,
-            imagen: 'https://picsum.photos/seed/walkie/100'
-        },
-        {
-            id: '6',
-            concepto: 'Impresora multifunción A4',
-            precioAlquiler: 70.00,
-            precioReposicion: 600.00,
-            imagen: 'https://picsum.photos/seed/printer/100'
-        }
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('alquilerDB', storedData);
-      setItems(dummyData);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se han cargado artículos de alquiler de ejemplo.',
-      });
-    } else {
-      setItems(JSON.parse(storedData));
-    }
+    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const filteredItems = useMemo(() => {
     return items.filter(item => 

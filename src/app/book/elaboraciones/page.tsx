@@ -54,39 +54,7 @@ export default function ElaboracionesPage() {
   
   useEffect(() => {
     let storedData = localStorage.getItem('elaboraciones');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: Elaboracion[] = [
-        {
-          id: 'elab-1',
-          nombre: 'Salsa Boloñesa Clásica',
-          produccionTotal: 5,
-          unidadProduccion: 'KILO',
-          componentes: [],
-          instruccionesPreparacion: 'Pochar verduras, añadir carne, etc.',
-          fotosProduccionURLs: [],
-          formatoExpedicion: 'Barqueta 1kg',
-          ratioExpedicion: 1,
-          tipoExpedicion: 'REFRIGERADO',
-        },
-        {
-          id: 'elab-2',
-          nombre: 'Bechamel Ligera',
-          produccionTotal: 2,
-          unidadProduccion: 'LITRO',
-          componentes: [],
-          instruccionesPreparacion: 'Derretir mantequilla, añadir harina y luego leche.',
-          fotosProduccionURLs: [],
-          formatoExpedicion: 'Manga Pastelera',
-          ratioExpedicion: 1,
-          tipoExpedicion: 'REFRIGERADO',
-        },
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('elaboraciones', storedData);
-      setItems(dummyData);
-    } else {
-      setItems(JSON.parse(storedData));
-    }
+    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
   }, []);
 

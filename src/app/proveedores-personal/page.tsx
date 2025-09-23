@@ -52,33 +52,9 @@ export default function ProveedoresPersonalPage() {
 
   useEffect(() => {
     let storedData = localStorage.getItem('proveedoresPersonal');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: ProveedorPersonal[] = [
-        {
-          id: '1',
-          nombreProveedor: 'Staff Global ETT',
-          categoria: 'Camarero/a',
-          precioHora: 18.00
-        },
-        {
-          id: '2',
-          nombreProveedor: 'Staff Global ETT',
-          categoria: 'Cocinero/a',
-          precioHora: 22.00
-        },
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('proveedoresPersonal', storedData);
-      setItems(dummyData);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se han cargado proveedores de personal de ejemplo.',
-      });
-    } else {
-      setItems(JSON.parse(storedData));
-    }
+    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const filteredItems = useMemo(() => {
     return items.filter(item => 

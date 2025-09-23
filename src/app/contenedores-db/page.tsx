@@ -47,24 +47,9 @@ export default function ContenedoresDBPage() {
 
   useEffect(() => {
     let storedData = localStorage.getItem('contenedoresDB');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: ContenedorIsotermo[] = [
-        { id: 'ISO-001', nombre: 'Isotermo Grande 1' },
-        { id: 'ISO-002', nombre: 'Isotermo Grande 2' },
-        { id: 'ISO-003', nombre: 'Isotermo Mediano 1' },
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('contenedoresDB', storedData);
-      setItems(dummyData);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se han cargado contenedores de ejemplo.',
-      });
-    } else {
-      setItems(JSON.parse(storedData));
-    }
+    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const filteredItems = useMemo(() => {
     return items.filter(item => 

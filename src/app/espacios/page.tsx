@@ -54,61 +54,9 @@ export default function EspaciosPage() {
 
   useEffect(() => {
     let storedEspacios = localStorage.getItem('espacios');
-    if (!storedEspacios || JSON.parse(storedEspacios).length === 0) {
-      const dummyEspacios: Espacio[] = [
-        {
-          id: '1',
-          espacio: 'Finca La Reunión',
-          escaparateMICE: 'Sí',
-          carpetaDRIVE: 'https://example.com/drive1',
-          calle: 'Calle Falsa 123',
-          nombreContacto1: 'Ana Torres',
-          telefonoContacto1: '611223344',
-          emailContacto1: 'ana.torres@example.com',
-          canonEspacioPorcentaje: 10,
-          canonEspacioFijo: 0,
-          canonMcPorcentaje: 15,
-          canonMcFijo: 0,
-          comisionAlquilerMcPorcentaje: 5,
-          precioOrientativoAlquiler: '2000€ - 5000€',
-          horaLimiteCierre: '02:00',
-          aforoCocktail: 200,
-          aforoBanquete: 150,
-          auditorio: 'Sí',
-          aforoAuditorio: 100,
-          zonaExterior: 'Sí',
-          capacidadesPorSala: 'Salón Principal (150p), Jardín (200p)',
-          numeroDeSalas: 2,
-          tipoDeEspacio: 'Finca',
-          tipoDeEventos: 'Bodas, Corporativos',
-          ciudad: 'Madrid',
-          directorio: 'Bodas.net',
-          descripcion: 'Espectacular finca a las afueras de Madrid con amplios, jardines y un salón principal de gran capacidad.',
-          comentariosVarios: 'Parking propio para 100 coches.',
-          equipoAudiovisuales: 'Básico (proyector y pantalla)',
-          cocina: 'Sí, equipada',
-          accesibilidadAsistentes: 'Sí',
-          pantalla: 'Sí',
-          plato: 'No',
-          accesoVehiculos: 'Sí',
-          aparcamiento: 'Sí',
-          conexionWifi: 'Sí',
-          homologacion: 'Sí',
-          comentariosMarketing: 'Ideal para eventos de lujo.'
-        },
-      ];
-      storedEspacios = JSON.stringify(dummyEspacios);
-      localStorage.setItem('espacios', storedEspacios);
-      setEspacios(dummyEspacios);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se ha cargado un espacio de ejemplo.',
-      });
-    } else {
-      setEspacios(JSON.parse(storedEspacios));
-    }
+    setEspacios(storedEspacios ? JSON.parse(storedEspacios) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const cities = useMemo(() => {
     if (!espacios) return ['all'];

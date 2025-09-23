@@ -37,107 +37,11 @@ export default function PesPage() {
 
   useEffect(() => {
     const storedOrders = localStorage.getItem('serviceOrders');
-    
-    if (!storedOrders || JSON.parse(storedOrders).length === 0) {
-      // Create dummy data if no orders exist
-      const dummyOS: ServiceOrder[] = [
-        {
-          id: `${Date.now()}-1`,
-          serviceNumber: 'OS-2024-001',
-          startDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-          endDate: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
-          client: 'Empresa Innovadora S.L.',
-          tipoCliente: 'Empresa',
-          asistentes: 150,
-          status: 'Confirmado',
-          space: 'Finca La Reunión',
-          spaceAddress: 'Calle Falsa 123',
-          contact: 'Ana Torres',
-          phone: '611223344',
-          finalClient: 'Tech Conference 2024',
-          comercial: 'com1',
-          comercialAsiste: true,
-          comercialPhone: '612345678',
-          comercialMail: 'comercial1@example.com',
-          rrhhAsiste: false,
-          respRRHH: '',
-          respRRHHPhone: '',
-          respRRHHMail: '',
-          spaceContact: 'Luis García',
-          spacePhone: '699887766',
-          spaceMail: 'luis.garcia@example.com',
-          respMetre: 'metre1',
-          respMetrePhone: '622334455',
-          respMetreMail: 'metre1@example.com',
-          respPase: 'pase1',
-          respPasePhone: '655555555',
-          respPaseMail: 'pase1@example.com',
-          respCocinaPase: 'cocinapase1',
-          respCocinaPasePhone: '655555556',
-          respCocinaPaseMail: 'cocinapase1@example.com',
-          agencyPercentage: 10,
-          spacePercentage: 5,
-          facturacion: 25000,
-          respCocinaCPR: 'cocinacpr1',
-          respCocinaCPRPhone: '633445566',
-          respCocinaCPRMail: 'cocinacpr1@example.com',
-          plane: '',
-          comments: 'Evento de presentación de producto. Necesitan buena iluminación y sonido.'
-        },
-        {
-          id: `${Date.now()}-2`,
-          serviceNumber: 'OS-2024-002',
-          startDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-          endDate: new Date(Date.now() + 11 * 24 * 60 * 60 * 1000).toISOString(),
-          client: 'Particulares - Boda J&M',
-          tipoCliente: 'Particular',
-          asistentes: 80,
-          status: 'Borrador',
-          space: 'Restaurante El Mirador',
-          spaceAddress: 'Avenida del Sol 45',
-          contact: 'Javier Martín',
-          phone: '655443322',
-          finalClient: '',
-          comercial: 'com2',
-          comercialAsiste: false,
-          comercialPhone: '612345679',
-          comercialMail: 'comercial2@example.com',
-          rrhhAsiste: true,
-          respRRHH: 'rrhh1',
-          respRRHHPhone: '699999999',
-          respRRHHMail: 'rrhh1@example.com',
-          spaceContact: 'Elena Soler',
-          spacePhone: '677889900',
-          spaceMail: 'elena.soler@example.com',
-          respMetre: 'metre2',
-          respMetrePhone: '644556677',
-          respMetreMail: 'metre2@example.com',
-          respPase: 'pase2',
-          respPasePhone: '655555557',
-          respPaseMail: 'pase2@example.com',
-          respCocinaPase: 'cocinapase2',
-          respCocinaPasePhone: '655555558',
-          respCocinaPaseMail: 'cocinapase2@example.com',
-          agencyPercentage: 0,
-          spacePercentage: 0,
-          facturacion: 8000,
-          respCocinaCPR: 'cocinacpr2',
-          respCocinaCPRPhone: '655667788',
-          respCocinaCPRMail: 'cocinacpr2@example.com',
-          plane: '',
-          comments: 'Boda íntima. Menú vegetariano para 10 invitados.'
-        },
-      ];
-      localStorage.setItem('serviceOrders', JSON.stringify(dummyOS));
-      setServiceOrders(dummyOS);
-      toast({ title: 'Datos de prueba cargados', description: 'Se han cargado órdenes de servicio y pedidos de ejemplo.' });
-    } else {
-      setServiceOrders(JSON.parse(storedOrders));
-    }
+    setServiceOrders(storedOrders ? JSON.parse(storedOrders) : []);
     const storedBriefings = localStorage.getItem('comercialBriefings');
     setBriefings(storedBriefings ? JSON.parse(storedBriefings) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
 
   const availableMonths = useMemo(() => {
     const months = new Set<string>();

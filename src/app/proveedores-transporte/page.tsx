@@ -51,33 +51,9 @@ export default function ProveedoresTransportePage() {
 
   useEffect(() => {
     let storedData = localStorage.getItem('proveedoresTransporte');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: ProveedorTransporte[] = [
-        {
-          id: '1',
-          nombreProveedor: 'Transportes Rápidos S.L.',
-          tipoTransporte: 'Furgoneta grande',
-          precio: 120.00
-        },
-        {
-          id: '2',
-          nombreProveedor: 'Logística Eficaz',
-          tipoTransporte: 'Camión pequeño',
-          precio: 250.00
-        },
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('proveedoresTransporte', storedData);
-      setItems(dummyData);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se han cargado proveedores de transporte de ejemplo.',
-      });
-    } else {
-      setItems(JSON.parse(storedData));
-    }
+    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const filteredItems = useMemo(() => {
     return items.filter(item => 

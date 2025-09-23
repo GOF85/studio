@@ -51,33 +51,9 @@ export default function ProveedorHieloPage() {
 
   useEffect(() => {
     let storedData = localStorage.getItem('proveedorHielo');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: ProveedorHielo[] = [
-        {
-          id: '1',
-          nombreProveedor: 'Hielos Polares S.L.',
-          producto: 'Bolsa 2kg Cubito Macizo',
-          precio: 2.50
-        },
-        {
-          id: '2',
-          nombreProveedor: 'Hielos Polares S.L.',
-          producto: 'Saco 10kg Hielo Picado',
-          precio: 8.00
-        },
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('proveedorHielo', storedData);
-      setItems(dummyData);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se han cargado proveedores de hielo de ejemplo.',
-      });
-    } else {
-      setItems(JSON.parse(storedData));
-    }
+    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const filteredItems = useMemo(() => {
     return items.filter(item => 

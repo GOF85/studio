@@ -51,37 +51,9 @@ export default function TipoServicioPage() {
 
   useEffect(() => {
     let storedData = localStorage.getItem('tipoServicio');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: TipoServicio[] = [
-        {
-          id: '1',
-          servicio: 'COFFEE',
-        },
-        {
-          id: '2',
-          servicio: 'ALMUERZO',
-        },
-        {
-          id: '3',
-          servicio: 'CENA',
-        },
-        {
-          id: '4',
-          servicio: 'COCKTAIL',
-        },
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('tipoServicio', storedData);
-      setItems(dummyData);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se han cargado tipos de servicio de ejemplo.',
-      });
-    } else {
-      setItems(JSON.parse(storedData));
-    }
+    setItems(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const filteredItems = useMemo(() => {
     return items.filter(item => 

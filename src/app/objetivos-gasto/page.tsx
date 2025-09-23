@@ -46,37 +46,9 @@ export default function ObjetivosGastoPage() {
 
   useEffect(() => {
     let storedData = localStorage.getItem('objetivosGastoPlantillas');
-    if (!storedData || JSON.parse(storedData).length === 0) {
-      const dummyData: ObjetivosGasto[] = [
-        {
-          id: '1',
-          name: 'Micecatering',
-          gastronomia: 28,
-          bodega: 12,
-          consumibles: 1,
-          hielo: 0.5,
-          almacen: 2.5,
-          alquiler: 8,
-          transporte: 1,
-          decoracion: 1,
-          atipicos: 1,
-          personalMice: 1,
-          personalExterno: 20,
-          costePruebaMenu: 1,
-        },
-      ];
-      storedData = JSON.stringify(dummyData);
-      localStorage.setItem('objetivosGastoPlantillas', storedData);
-      setPlantillas(dummyData);
-      toast({
-        title: 'Datos de prueba cargados',
-        description: 'Se ha cargado una plantilla de objetivos de ejemplo.',
-      });
-    } else {
-      setPlantillas(JSON.parse(storedData));
-    }
+    setPlantillas(storedData ? JSON.parse(storedData) : []);
     setIsMounted(true);
-  }, [toast]);
+  }, []);
   
   const filteredItems = useMemo(() => {
     return plantillas.filter(item => 
