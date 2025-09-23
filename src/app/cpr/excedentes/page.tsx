@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -103,7 +104,7 @@ export default function ExcedentesPage() {
     // 2. Sumar toda la producción de todas las OFs
     allOrdenesFabricacion.forEach(of => {
       let registro = necesidadesPorElaboracion.get(of.elaboracionId);
-      const cantidadProducida = (of.estado === 'Finalizado' || of.estado === 'Validado' || of.estado === 'Incidencia') && of.cantidadReal !== null 
+      const cantidadProducida = (of.estado === 'Finalizado' || of.estado === 'Validado' || (of.incidencia && of.cantidadReal !== null && of.cantidadReal > 0)) 
         ? Number(of.cantidadReal) 
         : Number(of.cantidadTotal);
       
@@ -144,12 +145,12 @@ export default function ExcedentesPage() {
 
         const diasCaducidadDef = diasCaducidad !== undefined ? diasCaducidad : 7;
         const fechaCad = addDays(new Date(fechaProduccion), diasCaducidadDef);
+        
         if (new Date() > fechaCad) {
             estado = 'Revisar';
         }
-        if (diasCaducidad !== undefined) {
-             fechaExpiracion = format(fechaCad, 'dd/MM/yyyy');
-        }
+        
+        fechaExpiracion = format(fechaCad, 'dd/MM/yyyy');
         
 
         excedentesCalculados.push({
