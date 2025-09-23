@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, Search } from 'lucide-react';
+import { CheckCircle, Search, AlertTriangle } from 'lucide-react';
 import type { OrdenFabricacion, Personal } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +26,8 @@ import {
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 
 export default function CalidadPage() {
@@ -34,6 +36,8 @@ export default function CalidadPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
   const [responsableCalidad, setResponsableCalidad] = useState<string>('');
+  const [ofForIncident, setOfForIncident] = useState<OrdenFabricacion | null>(null);
+  const [incidentData, setIncidentData] = useState({ cantidadReal: 0, observaciones: '' });
   const router = useRouter();
   const { toast } = useToast();
 
@@ -66,6 +70,34 @@ export default function CalidadPage() {
         localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
         setOrdenes(prev => prev.filter(of => of.id !== ofId));
         toast({ title: 'Lote Validado', description: `La OF ${ofId} ha sido marcada como validada.` });
+    }
+  };
+
+  const openIncidentDialog = (of: OrdenFabricacion) => {
+    setOfForIncident(of);
+    setIncidentData({
+        cantidadReal: of.cantidadReal ?? of.cantidadTotal,
+        observaciones: of.observacionesIncidencia || ''
+    });
+  };
+
+  const handleSetIncident = () => {
+    if (!ofForIncident) return;
+    
+    let allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]');
+    const index = allOFs.findIndex(of => of.id === ofForIncident.id);
+
+    if (index > -1) {
+        allOFs[index] = {
+            ...allOFs[index],
+            incidencia: true,
+            cantidadReal: incidentData.cantidadReal,
+            observacionesIncidencia: incidentData.observaciones,
+        };
+        localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
+        setOrdenes(prev => prev.filter(of => of.id !== ofForIncident.id));
+        toast({ title: 'Incidencia Registrada', description: `Se ha registrado una incidencia para la OF ${ofForIncident.id}.`});
+        setOfForIncident(null);
     }
   };
 
@@ -132,7 +164,11 @@ export default function CalidadPage() {
                   <TableCell className="cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>
                     <Badge variant="secondary">{of.responsable}</Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-2">
+                     <Button variant="destructive" size="sm" onClick={() => openIncidentDialog(of)}>
+                        <AlertTriangle className="mr-2 h-4 w-4" />
+                        Incidencia
+                    </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="outline" size="sm">Validar</Button>
@@ -171,6 +207,42 @@ export default function CalidadPage() {
           </TableBody>
         </Table>
       </div>
+
+       <AlertDialog open={!!ofForIncident} onOpenChange={(open) => !open && setOfForIncident(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Registrar Incidencia en Lote</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Ajusta la cantidad real si es necesario y describe el problema. Esto marcará la OF con una incidencia y la sacará del flujo normal.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="cantidad-incidencia">Cantidad Real Producida ({ofForIncident?.unidad})</Label>
+                        <Input 
+                            id="cantidad-incidencia" 
+                            type="number"
+                            step="0.01"
+                            value={incidentData.cantidadReal}
+                            onChange={(e) => setIncidentData(prev => ({...prev, cantidadReal: parseFloat(e.target.value) || 0}))}
+                        />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="observaciones-incidencia">Observaciones de la Incidencia</Label>
+                        <Textarea 
+                            id="observaciones-incidencia"
+                            placeholder="Ej: Se quemó parte de la producción, contaminación cruzada, etc."
+                            value={incidentData.observaciones}
+                            onChange={(e) => setIncidentData(prev => ({...prev, observaciones: e.target.value}))}
+                        />
+                    </div>
+                </div>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setOfForIncident(null)}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSetIncident}>Confirmar Incidencia</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }
