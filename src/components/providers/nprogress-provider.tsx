@@ -14,21 +14,18 @@ function NProgressComponent() {
     const currentPath = pathname + searchParams.toString();
     if (previousPath.current !== currentPath) {
       NProgress.start();
-    }
-    previousPath.current = currentPath;
-  }, [pathname, searchParams]);
-
-  useEffect(() => {
-    NProgress.done();
-  }, [pathname, searchParams]);
-
-  useEffect(() => {
-    if (isLoading) {
+    } else if (isLoading) {
       NProgress.start();
     } else {
       NProgress.done();
     }
-  }, [isLoading]);
+    
+    previousPath.current = currentPath;
+
+    return () => {
+        NProgress.done();
+    }
+  }, [pathname, searchParams, isLoading]);
 
   return null;
 }
