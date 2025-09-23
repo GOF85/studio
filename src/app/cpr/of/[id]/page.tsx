@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { OrdenFabricacion, Personal, Elaboracion, ComponenteElaboracion } from '@/types';
+import type { OrdenFabricacion, Personal, Elaboracion, ComponenteElaboracion, IngredienteInterno, IngredienteERP } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { ArrowLeft, Save, Factory, Info, Check, X, AlertTriangle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,10 +36,13 @@ type FormData = {
     incidenciaObservaciones?: string;
 }
 
+type IngredienteConERP = IngredienteInterno & { erp?: IngredienteERP };
+
 export default function OfDetailPage() {
     const [orden, setOrden] = useState<OrdenFabricacion | null>(null);
     const [elaboracion, setElaboracion] = useState<Elaboracion | null>(null);
     const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
+    const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
     const [isMounted, setIsMounted] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const router = useRouter();
@@ -71,6 +74,13 @@ export default function OfDetailPage() {
                 const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
                 const elabData = allElaboraciones.find(e => e.id === currentOF.elaboracionId);
                 setElaboracion(elabData || null);
+                
+                // Cargar datos de ingredientes para el escandallo
+                const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+                const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
+                const erpMap = new Map(storedErp.map(i => [i.id, i]));
+                const combined = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
+                setIngredientesData(new Map(combined.map(i => [i.id, i])));
             }
             
             const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
@@ -238,12 +248,16 @@ export default function OfDetailPage() {
                                     <Table>
                                         <TableHeader><TableRow><TableHead>Componente</TableHead><TableHead className="text-right">Cantidad Necesaria</TableHead></TableRow></TableHeader>
                                         <TableBody>
-                                            {elaboracion.componentes.map(comp => (
-                                                <TableRow key={comp.id}>
-                                                    <TableCell>{comp.nombre}</TableCell>
-                                                    <TableCell className="text-right font-mono">{(comp.cantidad * ratioProduccion).toFixed(3)} uds</TableCell>
-                                                </TableRow>
-                                            ))}
+                                            {elaboracion.componentes.map(comp => {
+                                                const ingrediente = ingredientesData.get(comp.componenteId);
+                                                const unidad = ingrediente?.erp?.unidad || 'uds';
+                                                return (
+                                                    <TableRow key={comp.id}>
+                                                        <TableCell>{comp.nombre}</TableCell>
+                                                        <TableCell className="text-right font-mono">{(comp.cantidad * ratioProduccion).toFixed(3)} {unidad}</TableCell>
+                                                    </TableRow>
+                                                )
+                                            })}
                                         </TableBody>
                                     </Table>
                                 ) : (
