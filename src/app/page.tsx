@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, Calendar, BookHeart, Factory, LifeBuoy, Settings, ChefHat, Component, Package, GlassWater, ChevronRight, ClipboardCheck, ListChecks, History, AlertTriangle, PackagePlus, BarChart3 } from 'lucide-react';
+import { ClipboardList, Calendar, BookHeart, Factory, LifeBuoy, Settings, ChefHat, Component, Package, GlassWater, ChevronRight, ClipboardCheck, ListChecks, History, AlertTriangle, PackagePlus, BarChart3, ShieldCheck } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 type SubLink = {
@@ -57,7 +57,7 @@ const menuItems: MenuItem[] = [
             { title: 'Órdenes de Fabricación', href: '/cpr/of', icon: Factory },
             { title: 'Picking y Logística', href: '/cpr/picking', icon: ListChecks },
             { title: 'Excedentes', href: '/cpr/excedentes', icon: PackagePlus },
-            { title: 'Control de Calidad', href: '/cpr/calidad', icon: Checkbox },
+            { title: 'Control de Calidad', href: '/cpr/calidad', icon: ShieldCheck },
             { title: 'Productividad', href: '/cpr/productividad', icon: BarChart3 },
             { title: 'Trazabilidad', href: '/cpr/trazabilidad', icon: History },
             { title: 'Incidencias', href: '/cpr/incidencias', icon: AlertTriangle },
