@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown, Printer, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState } from '@/types';
+import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, PartidaProduccion } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -35,7 +36,7 @@ type LoteDisponible = {
     elaboracionNombre: string;
     cantidad: number;
     unidad: string;
-    tipoExpedicion: OrdenFabricacion['partidaAsignada']; // We'll approximate this from partida
+    tipoExpedicion: PartidaProduccion;
     isPicked: boolean;
     containerId?: string;
 };
@@ -49,10 +50,11 @@ export default function PickingDetailPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [lotes, setLotes] = useState<LoteDisponible[]>([]);
     const [dbContainers, setDbContainers] = useState<ContenedorIsotermo[]>([]);
-    const [assignedContainers, setAssignedContainers] = useState<{[key in 'FRIO' | 'CALIENTE' | 'PASTELERIA']?: AssignedContainer[]}>({});
+    const [assignedContainers, setAssignedContainers] = useState<{[key in PartidaProduccion]?: AssignedContainer[]}>({});
     const [isMounted, setIsMounted] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [lotesPendientesCalidad, setLotesPendientesCalidad] = useState<OrdenFabricacion[]>([]);
     
     const router = useRouter();
     const params = useParams();
@@ -81,14 +83,18 @@ export default function PickingDetailPage() {
             const allContainers = JSON.parse(localStorage.getItem('contenedoresDB') || '[]') as ContenedorIsotermo[];
             setDbContainers(allContainers);
             
-            const osOFs = allOFs.filter(of => of.osIDs.includes(osId) && of.estado === 'Validado');
+            const osOFs = allOFs.filter(of => of.osIDs.includes(osId));
+            const lotesValidados = osOFs.filter(of => of.okCalidad);
+            const lotesPendientes = osOFs.filter(of => !of.okCalidad && of.estado !== 'Incidencia');
+            setLotesPendientesCalidad(lotesPendientes);
 
-            let initialLotes: LoteDisponible[] = osOFs.map(of => ({
+
+            let initialLotes: LoteDisponible[] = lotesValidados.map(of => ({
                 ofId: of.id,
                 elaboracionNombre: of.elaboracionNombre,
                 cantidad: Number(of.cantidadReal) || of.cantidadTotal || 0,
                 unidad: of.unidad,
-                tipoExpedicion: of.partidaAsignada, // Approximation
+                tipoExpedicion: of.partidaAsignada,
                 isPicked: false,
             }));
 
@@ -273,6 +279,24 @@ export default function PickingDetailPage() {
                     </Button>
                 </div>
             </div>
+            
+            {lotesPendientesCalidad.length > 0 && (
+                 <Card className="mb-6 bg-yellow-50 border-yellow-200">
+                    <CardHeader>
+                        <CardTitle className="text-yellow-800">Lotes Pendientes de Control de Calidad</CardTitle>
+                        <CardDescription className="text-yellow-700">
+                            Los siguientes lotes son necesarios para este evento pero aún no han sido validados por Calidad. No se pueden añadir al picking.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-wrap gap-2">
+                            {lotesPendientesCalidad.map(of => (
+                                <Badge key={of.id} variant="secondary">{of.id} - {of.elaboracionNombre}</Badge>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="space-y-8">
                 {(Object.keys(lotesAgrupados) as Array<keyof typeof lotesAgrupados>).map(tipo => {
@@ -356,7 +380,7 @@ export default function PickingDetailPage() {
                                     {sectionContainers.map(container => {
                                         const containerItems = sectionLotes.filter(n => n.containerId === container.id);
                                         return (
-                                            <div key={container.id}>
+                                            <div key={`${container.id}-${tipo}`}>
                                                 <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">Contenedor: <Badge variant="secondary" className="text-base">{container.nombre} ({container.id})</Badge></h3>
                                                 <Table className="bg-white/70">
                                                     <TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-16 no-print"></TableHead></TableRow></TableHeader>
