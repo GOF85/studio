@@ -75,6 +75,9 @@ export default function BookDashboardPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
+                             <Link href="/book/recetas"><BookHeart size={16} className="mr-2"/>Recetas</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
                              <Link href="/book/elaboraciones"><Component size={16} className="mr-2"/>Elaboraciones</Link>
                         </DropdownMenuItem>
                          <DropdownMenuItem asChild>
