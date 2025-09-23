@@ -49,7 +49,8 @@ const expeditionTypeMap = {
 
 function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendiente, containers: ContenedorIsotermo[], onAllocate: (ofId: string, containerId: string, quantity: number) => void }) {
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
-    const [quantity, setQuantity] = useState(lote.cantidadTotal - lote.cantidadAsignada);
+    const initialQuantity = lote.cantidadTotal - lote.cantidadAsignada;
+    const [quantity, setQuantity] = useState(isNaN(initialQuantity) ? 0 : initialQuantity);
     const [open, setOpen] = useState(false);
 
     const handleAllocate = () => {
@@ -155,8 +156,9 @@ export default function PickingDetailPage() {
             const osOFs = allOFs.filter(of => of.osIDs.includes(osId));
             setLotesNecesarios(osOFs);
 
-            const lotesPendientes = osOFs.filter(of => 
-                (of.estado !== 'Finalizado' && of.estado !== 'Validado' && of.estado !== 'Incidencia')
+             const lotesPendientes = osOFs.filter(of => 
+                (of.estado !== 'Finalizado' && of.estado !== 'Validado' && !of.incidencia) ||
+                (of.incidencia && (!of.cantidadReal || of.cantidadReal <= 0))
             );
             setLotesPendientesCalidad(lotesPendientes);
 
@@ -196,12 +198,12 @@ export default function PickingDetailPage() {
 
     const lotesPendientes = useMemo(() => {
         return lotesNecesarios
-        .filter(of => of.estado === 'Finalizado' || of.estado === 'Validado' || (of.incidencia && (of.cantidadReal || 0) > 0))
+        .filter(of => (of.estado === 'Finalizado' || of.estado === 'Validado' || (of.incidencia && (of.cantidadReal || 0) > 0)))
         .map(of => {
-            const cantidadTotal = of.cantidadReal ?? of.cantidadTotal;
+            const cantidadTotal = Number(of.cantidadReal ?? of.cantidadTotal);
             const cantidadAsignada = pickingState.itemStates
                 .filter(a => a.ofId === of.id)
-                .reduce((sum, a) => sum + a.quantity, 0);
+                .reduce((sum, a) => sum + Number(a.quantity), 0);
 
             return {
                 ofId: of.id,
@@ -408,4 +410,3 @@ export default function PickingDetailPage() {
         </div>
     );
 }
-
