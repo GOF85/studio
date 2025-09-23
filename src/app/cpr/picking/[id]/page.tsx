@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown, Printer, Loader2 } from 'lucide-react';
+import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown, Printer, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,16 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 
 type LoteDisponible = {
@@ -42,6 +52,7 @@ export default function PickingDetailPage() {
     const [assignedContainers, setAssignedContainers] = useState<{[key in 'FRIO' | 'CALIENTE' | 'PASTELERIA']?: AssignedContainer[]}>({});
     const [isMounted, setIsMounted] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     
     const router = useRouter();
     const params = useParams();
@@ -75,7 +86,7 @@ export default function PickingDetailPage() {
             let initialLotes: LoteDisponible[] = osOFs.map(of => ({
                 ofId: of.id,
                 elaboracionNombre: of.elaboracionNombre,
-                cantidad: Number(of.cantidadReal) || of.cantidadTotal,
+                cantidad: Number(of.cantidadReal) || of.cantidadTotal || 0,
                 unidad: of.unidad,
                 tipoExpedicion: of.partidaAsignada, // Approximation
                 isPicked: false,
@@ -211,6 +222,19 @@ export default function PickingDetailPage() {
             setIsPrinting(false);
         }
     };
+    
+    const handleDeletePicking = () => {
+        if (!osId) return;
+        const newLotes = lotes.map(l => ({ ...l, isPicked: false, containerId: undefined }));
+        const newContainers = {};
+        
+        setLotes(newLotes);
+        setAssignedContainers(newContainers);
+        savePickingState(newLotes, newContainers);
+
+        toast({ title: "Picking Reiniciado", description: "Se han desasignado todos los lotes y contenedores."});
+        setShowDeleteConfirm(false);
+    }
 
 
     if (!isMounted || !serviceOrder) {
@@ -239,10 +263,15 @@ export default function PickingDetailPage() {
                         Cliente: {serviceOrder.client} | Fecha: {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}
                     </CardDescription>
                 </div>
-                <Button onClick={handlePrint} className="no-print" disabled={isPrinting}>
-                    {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2"/>}
-                    {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
-                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={handlePrint} className="no-print" disabled={isPrinting}>
+                        {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2"/>}
+                        {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
+                    </Button>
+                     <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)} className="no-print">
+                        <Trash2 className="mr-2"/> Reiniciar Picking
+                    </Button>
+                </div>
             </div>
 
             <div className="space-y-8">
@@ -355,8 +384,25 @@ export default function PickingDetailPage() {
                     )
                 })}
             </div>
+             <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Reiniciar el picking?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta acción desasignará todos los lotes de sus contenedores y vaciará la lista de contenedores asignados a este evento. Es útil si necesitas empezar la organización logística desde cero.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive hover:bg-destructive/90"
+                      onClick={handleDeletePicking}
+                    >
+                      Sí, reiniciar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
-
-    
