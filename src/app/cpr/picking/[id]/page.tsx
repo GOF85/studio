@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown, Printer, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion } from '@/types';
+import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -83,7 +84,7 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="quantity-to-allocate">Cantidad a Asignar</Label>
-                        <Input id="quantity-to-allocate" type="number" value={quantity} onChange={(e) => setQuantity(parseFloat(e.target.value))} max={lote.cantidadTotal - lote.cantidadAsignada} min="0.01" step="0.01" />
+                        <Input id="quantity-to-allocate" type="number" value={quantity} onChange={(e) => setQuantity(parseFloat(e.target.value))} max={Number(lote.cantidadTotal) - Number(lote.cantidadAsignada)} min="0.01" step="0.01" />
                     </div>
                     <div className="space-y-2">
                         <Label>Contenedor de Destino</Label>
@@ -124,7 +125,7 @@ export default function PickingDetailPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [lotesNecesarios, setLotesNecesarios] = useState<OrdenFabricacion[]>([]);
     const [dbContainers, setDbContainers] = useState<ContenedorIsotermo[]>([]);
-    const [elaboraciones, setElaboraciones] = useState<Elaboracion[]>([]);
+    const [gastroOrder, setGastroOrder] = useState<GastronomyOrder | null>(null);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', assignedContainers: {}, itemStates: [] });
     const [isMounted, setIsMounted] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
@@ -152,10 +153,13 @@ export default function PickingDetailPage() {
             const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
             const allContainers = JSON.parse(localStorage.getItem('contenedoresDB') || '[]') as ContenedorIsotermo[];
             setDbContainers(allContainers);
-            setElaboraciones(JSON.parse(localStorage.getItem('elaboraciones') || '[]'));
             
             const osOFs = allOFs.filter(of => of.osIDs.includes(osId));
             setLotesNecesarios(osOFs);
+            
+            const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+            const currentGastroOrder = allGastroOrders.find(go => go.osId === osId);
+            setGastroOrder(currentGastroOrder || null);
 
             const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
             const savedState = allPickingStates[osId];
@@ -303,32 +307,37 @@ export default function PickingDetailPage() {
     
                 const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
                 
-                // Aggregate items by elaboration
-                const aggregatedItems = new Map<string, { nombre: string; totalQuantity: number; unidad: string; ofs: string[] }>();
-                containerItems.forEach(item => {
-                    const loteInfo = lotesNecesarios.find(l => l.id === item.ofId);
-                    if (!loteInfo) return;
-    
-                    if (!aggregatedItems.has(loteInfo.elaboracionId)) {
-                        aggregatedItems.set(loteInfo.elaboracionId, {
-                            nombre: loteInfo.elaboracionNombre,
-                            totalQuantity: 0,
-                            unidad: loteInfo.unidad,
-                            ofs: []
-                        });
+                const itemsBody: any[] = [];
+                const itemsGroupedByRecipe = new Map<string, any[]>();
+                
+                // Group by recipe/service type from gastronomy order
+                gastroOrder?.items?.forEach(gastroItem => {
+                    const elabIdsInGastroItem = new Set(); // Assuming we can get this info, for now we will check by name
+                    
+                    containerItems.forEach(assignedLote => {
+                        const loteInfo = lotesNecesarios.find(l => l.id === assignedLote.ofId);
+                        if (loteInfo && gastroItem.nombre === loteInfo.elaboracionNombre) { // Simplified link, ideally needs a recipe book lookup
+                             if (!itemsGroupedByRecipe.has(gastroItem.nombre)) {
+                                itemsGroupedByRecipe.set(gastroItem.nombre, []);
+                            }
+                            itemsGroupedByRecipe.get(gastroItem.nombre)?.push(assignedLote);
+                        }
+                    });
+                     if (!itemsGroupedByRecipe.has(gastroItem.nombre) && gastroItem.type === 'separator') {
+                       itemsGroupedByRecipe.set(gastroItem.nombre, []); // Add separators
                     }
-                    const aggItem = aggregatedItems.get(loteInfo.elaboracionId)!;
-                    aggItem.totalQuantity += item.quantity;
-                    aggItem.ofs.push(item.ofId);
                 });
-    
-                const itemsBody = Array.from(aggregatedItems.values()).map(item => [
-                    item.nombre,
-                    item.totalQuantity.toFixed(2),
-                    item.unidad,
-                    [...new Set(item.ofs)].join(', ') // Unique OFs
-                ]);
-    
+                
+                itemsGroupedByRecipe.forEach((lotes, recetaNombre) => {
+                    itemsBody.push([{ content: recetaNombre, colSpan: 4, styles: { fontStyle: 'bold', fillColor: '#f3f4f6' } }]);
+                    lotes.forEach(lote => {
+                         const loteInfo = lotesNecesarios.find(l => l.id === lote.ofId);
+                         if (loteInfo) {
+                            itemsBody.push([loteInfo.elaboracionNombre, lote.quantity.toFixed(2), loteInfo.unidad, lote.ofId]);
+                         }
+                    })
+                });
+
                 autoTable(doc, {
                     startY: finalY,
                     head: [['Elaboración', 'Cant.', 'Ud.', 'Lote(s) Origen']],
@@ -471,7 +480,7 @@ export default function PickingDetailPage() {
                                                     <TableRow key={lote.ofId}>
                                                         <TableCell className="font-medium font-mono">{lote.ofId}</TableCell>
                                                         <TableCell>{lote.elaboracionNombre}</TableCell>
-                                                        <TableCell className="text-right font-mono">{(lote.cantidadTotal - lote.cantidadAsignada).toFixed(2)} {lote.unidad}</TableCell>
+                                                        <TableCell className="text-right font-mono">{(Number(lote.cantidadTotal) - Number(lote.cantidadAsignada)).toFixed(2)} {lote.unidad}</TableCell>
                                                         <TableCell className="text-right no-print">
                                                             <AllocationDialog lote={lote} containers={contenedoresDePartida} onAllocate={allocateLote} />
                                                          </TableCell>
