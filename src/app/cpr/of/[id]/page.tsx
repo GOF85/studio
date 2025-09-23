@@ -198,7 +198,7 @@ export default function OfDetailPage() {
                     <div className="grid md:grid-cols-3 gap-6">
                         <div className="space-y-1">
                             <h4 className="font-semibold text-muted-foreground">Cantidad a Producir</h4>
-                            <p className="font-bold text-2xl">{orden.cantidadTotal} <span className="text-lg font-normal">{orden.unidad}</span></p>
+                            <p className="font-bold text-2xl">{orden.cantidadTotal.toFixed(2)} <span className="text-lg font-normal">{orden.unidad}</span></p>
                         </div>
                         <div className="space-y-1">
                              <h4 className="font-semibold text-muted-foreground">Órdenes de Servicio</h4>
@@ -242,7 +242,7 @@ export default function OfDetailPage() {
                     <Separator className="my-6" />
                      <div className="grid md:grid-cols-2 gap-6">
                          <div>
-                             <h4 className="font-semibold mb-4">Escandallo para {orden.cantidadTotal} {orden.unidad}</h4>
+                             <h4 className="font-semibold mb-4">Escandallo para {orden.cantidadTotal.toFixed(2)} {orden.unidad}</h4>
                             <div className="p-4 border rounded-lg bg-muted/50">
                                 {elaboracion ? (
                                     <Table>
