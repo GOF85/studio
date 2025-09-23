@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import type { OrdenFabricacion } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 type OfConTiempos = OrdenFabricacion & {
     tiempoAsignacion?: string;
@@ -34,20 +35,29 @@ export default function ProductividadPage() {
         to: startOfToday(),
     });
     const [reporteData, setReporteData] = useState<DatosResponsable[]>([]);
-    
+    const [allOFs, setAllOFs] = useState<OrdenFabricacion[]>([]);
+    const [responsableFilter, setResponsableFilter] = useState('all');
+
     useEffect(() => {
+        const storedOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+        setAllOFs(storedOFs);
         setIsMounted(true);
+    }, []);
+
+    useEffect(() => {
         if (dateRange?.from) {
-            const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-            
             const ofsEnRango = allOFs.filter(of => {
                 const fechaFin = of.fechaFinalizacion ? parseISO(of.fechaFinalizacion) : null;
                 return fechaFin && fechaFin >= dateRange.from! && fechaFin <= (dateRange.to || dateRange.from);
             });
+            
+            const ofsFiltradasPorResponsable = responsableFilter === 'all'
+                ? ofsEnRango
+                : ofsEnRango.filter(of => of.responsable === responsableFilter);
 
             const porResponsable = new Map<string, DatosResponsable>();
 
-            ofsEnRango.forEach(of => {
+            ofsFiltradasPorResponsable.forEach(of => {
                 if (of.responsable) {
                     if (!porResponsable.has(of.responsable)) {
                         porResponsable.set(of.responsable, { nombre: of.responsable, ofs: [], incidencias: [] });
@@ -72,7 +82,20 @@ export default function ProductividadPage() {
             });
             setReporteData(Array.from(porResponsable.values()));
         }
-    }, [dateRange]);
+    }, [dateRange, allOFs, responsableFilter]);
+
+    const responsablesUnicos = useMemo(() => {
+        const responsables = new Set<string>();
+        allOFs.forEach(of => {
+            if (of.responsable) responsables.add(of.responsable);
+        });
+        return Array.from(responsables).sort();
+    }, [allOFs]);
+
+    const handleClearFilters = () => {
+        setDateRange({ from: subDays(startOfToday(), 7), to: startOfToday() });
+        setResponsableFilter('all');
+    }
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Informe de Productividad..." />;
@@ -90,13 +113,13 @@ export default function ProductividadPage() {
                 </div>
             </div>
 
-            <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-card">
+            <div className="flex flex-col md:flex-row gap-4 mb-6 p-4 border rounded-lg bg-card">
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button
                             id="date"
                             variant={"outline"}
-                            className="w-[300px] justify-start text-left font-normal"
+                            className="w-full md:w-[300px] justify-start text-left font-normal"
                         >
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {dateRange?.from ? (
@@ -125,13 +148,25 @@ export default function ProductividadPage() {
                         />
                     </PopoverContent>
                 </Popover>
+                 <Select value={responsableFilter} onValueChange={setResponsableFilter}>
+                    <SelectTrigger className="w-full md:w-[240px]">
+                        <SelectValue placeholder="Filtrar por responsable" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todos los responsables</SelectItem>
+                        {responsablesUnicos.map(r => (
+                            <SelectItem key={r} value={r}>{r}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                 <Button variant="secondary" onClick={handleClearFilters}>Limpiar Filtros</Button>
             </div>
             
             <div className="space-y-8">
                 {reporteData.length === 0 ? (
                      <Card>
                         <CardContent className="py-10 text-center text-muted-foreground">
-                            No hay datos de producción finalizados para el rango de fechas seleccionado.
+                            No hay datos de producción finalizados para los filtros seleccionados.
                         </CardContent>
                     </Card>
                 ) : reporteData.map(responsable => (
