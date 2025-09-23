@@ -258,22 +258,21 @@ const handlePrint = async () => {
 
             const margin = 5;
             const pageWidth = doc.internal.pageSize.getWidth();
-            let finalY = margin + 2;
+            let finalY = margin;
 
             // --- HEADER ---
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
-            doc.text(container.nombre, margin, finalY);
-            doc.text(`${index + 1}/${allAssignedContainers.length}`, pageWidth - margin, finalY, { align: 'right' });
-            finalY += 3;
+            doc.text(container.nombre, margin, finalY + 2);
+            doc.text(`${index + 1}/${allAssignedContainers.length}`, pageWidth - margin, finalY + 2, { align: 'right' });
+            finalY += 4;
             
             doc.setLineWidth(0.5);
-            doc.setDrawColor(0, 0, 0);
             doc.line(margin, finalY, pageWidth - margin, finalY);
-            finalY += 4;
+            finalY += 2;
 
             // --- EVENT INFO ---
-            doc.setFontSize(9);
+            doc.setFontSize(8);
             doc.setFont('helvetica', 'normal');
             
             const serviceData = [
@@ -289,33 +288,41 @@ const handlePrint = async () => {
                 styles: { fontSize: 8, cellPadding: 0.2 },
                 columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } }
             });
-            finalY = (doc as any).lastAutoTable.finalY + 3;
+            finalY = (doc as any).lastAutoTable.finalY + 2;
 
             doc.setLineWidth(0.2);
             doc.line(margin, finalY, pageWidth - margin, finalY);
-            finalY += 5;
+            finalY += 3;
 
             // --- CONTENT TABLE ---
             const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
-            const itemsGroupedByRecipe = new Map<string, { totalQuantity: number, lotes: string[], unidad: string }>();
+            const itemsGrouped = new Map<string, { totalQuantity: number, lotes: string[], unidad: string, serviceTypes: Set<string> }>();
 
             containerItems.forEach(assignedLote => {
                 const loteInfo = lotesNecesarios.find(l => l.id === assignedLote.ofId);
                 if (loteInfo) {
                     const key = loteInfo.elaboracionNombre;
-                    if (!itemsGroupedByRecipe.has(key)) {
-                        itemsGroupedByRecipe.set(key, { totalQuantity: 0, lotes: [], unidad: loteInfo.unidad });
+                    if (!itemsGrouped.has(key)) {
+                        itemsGrouped.set(key, { totalQuantity: 0, lotes: [], unidad: loteInfo.unidad, serviceTypes: new Set() });
                     }
-                    const entry = itemsGroupedByRecipe.get(key)!;
+                    const entry = itemsGrouped.get(key)!;
                     entry.totalQuantity += assignedLote.quantity;
-                    entry.lotes.push(loteInfo.id);
+                    if(!entry.lotes.includes(loteInfo.id)) entry.lotes.push(loteInfo.id);
+
+                    // Find which service/recipe this is for
+                    gastroOrder?.items?.forEach(gItem => {
+                       const receta = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]).find(r => r.id === gItem.id);
+                       if(receta && receta.elaboraciones.some(e => e.elaboracionId === loteInfo.elaboracionId)) {
+                           entry.serviceTypes.add(gItem.nombre);
+                       }
+                    });
                 }
             });
 
             const body: any[] = [];
-            itemsGroupedByRecipe.forEach((data, elabName) => {
+            itemsGrouped.forEach((data, elabName) => {
                  body.push([
-                    elabName, 
+                    { content: `${elabName}\n${Array.from(data.serviceTypes).join(', ')}`, styles: { fontSize: 8 } },
                     `${data.totalQuantity.toFixed(2)} ${data.unidad}`, 
                     data.lotes.join(', ')
                 ]);
@@ -325,7 +332,7 @@ const handlePrint = async () => {
                 startY: finalY,
                 head: [['Elaboración', 'Cant. Tot.', 'Lote']],
                 body,
-                theme: 'striped',
+                theme: 'grid',
                 headStyles: { fontStyle: 'bold', fontSize: 10, halign: 'center', cellPadding: 1, fillColor: [230, 230, 230], textColor: [0,0,0] },
                 styles: { fontSize: 9, cellPadding: 1.5, lineColor: '#000', lineWidth: 0.1 },
                 columnStyles: {
