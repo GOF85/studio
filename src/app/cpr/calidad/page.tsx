@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, Search, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Search, AlertTriangle, Calendar as CalendarIcon } from 'lucide-react';
 import type { OrdenFabricacion, Personal } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,12 +24,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { format } from 'date-fns';
+import { format, parseISO, startOfToday, subDays, isWithinInterval, endOfDay } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DateRange } from 'react-day-picker';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente': 'secondary',
@@ -50,6 +56,10 @@ export default function CalidadPage() {
   const [ofForIncident, setOfForIncident] = useState<OrdenFabricacion | null>(null);
   const [incidentData, setIncidentData] = useState({ cantidadReal: 0, observaciones: '' });
   const [showAll, setShowAll] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(startOfToday(), 7),
+    to: startOfToday(),
+  });
   const router = useRouter();
   const { toast } = useToast();
 
@@ -121,10 +131,29 @@ export default function CalidadPage() {
         const searchMatch = searchTerm === '' || 
                             item.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
                             item.elaboracionNombre.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        let dateMatch = true;
+        if(dateRange?.from && item.fechaFinalizacion) {
+          const itemDate = parseISO(item.fechaFinalizacion);
+          if (dateRange.to) {
+              dateMatch = isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+          } else {
+              dateMatch = isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
+          }
+        } else if (dateRange?.from) {
+            dateMatch = false; // If date filter is set, but item has no date, it doesn't match
+        }
 
-        return matchesFilter && searchMatch;
+        return matchesFilter && searchMatch && dateMatch;
     }).sort((a,b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
-  }, [ordenes, searchTerm, showAll]);
+  }, [ordenes, searchTerm, showAll, dateRange]);
+  
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setShowAll(false);
+    setDateRange({ from: subDays(startOfToday(), 7), to: startOfToday() });
+  };
+
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Control de Calidad..." />;
@@ -149,7 +178,7 @@ export default function CalidadPage() {
         </div>
       </div>
 
-       <div className="flex flex-col md:flex-row gap-4 mb-6">
+       <div className="flex flex-col md:flex-row gap-4 mb-6 items-center">
         <div className="relative flex-grow">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -160,10 +189,22 @@ export default function CalidadPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal md:w-[300px]", !dateRange && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
+            </PopoverContent>
+        </Popover>
         <div className="flex items-center space-x-2">
             <Checkbox id="showAll" checked={showAll} onCheckedChange={(checked) => setShowAll(Boolean(checked))} />
             <Label htmlFor="showAll">Ver todos los lotes</Label>
         </div>
+        <Button variant="secondary" onClick={handleClearFilters}>Limpiar Filtros</Button>
       </div>
 
       <div className="border rounded-lg">
@@ -278,3 +319,4 @@ export default function CalidadPage() {
     </div>
   );
 }
+
