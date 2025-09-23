@@ -5,8 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Save, X, ChefHat, Link as LinkIcon, Check, CircleX, Trash2 } from 'lucide-react';
-import type { IngredienteInterno, IngredienteERP, Alergeno } from '@/types';
+import { Loader2, Save, X, ChefHat, Link as LinkIcon, Check, CircleX, Trash2, AlertTriangle } from 'lucide-react';
+import type { IngredienteInterno, IngredienteERP, Alergeno, Elaboracion } from '@/types';
 import { ALERGENOS } from '@/types';
 import * as React from 'react';
 
@@ -41,6 +41,7 @@ export default function IngredienteFormPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [affectedElaboraciones, setAffectedElaboraciones] = useState<Elaboracion[]>([]);
   const { toast } = useToast();
   
   const [ingredientesERP, setIngredientesERP] = useState<IngredienteERP[]>([]);
@@ -117,8 +118,38 @@ export default function IngredienteFormPage() {
     }, 1000);
   }
 
+  const handleAttemptDelete = () => {
+    const allElaboraciones: Elaboracion[] = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    const elaborationsUsingIngredient = allElaboraciones.filter(elab => 
+      elab.componentes.some(c => c.componenteId === id)
+    );
+    setAffectedElaboraciones(elaborationsUsingIngredient);
+    setShowDeleteConfirm(true);
+  };
+
+
   const handleDelete = () => {
     if (!isEditing) return;
+
+    if (affectedElaboraciones.length > 0) {
+        let allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+        const affectedElabIds = new Set(affectedElaboraciones.map(e => e.id));
+        const recipesToFlag = allRecetas.filter(receta =>
+            receta.elaboraciones.some(e => affectedElabIds.has(e.elaboracionId))
+        );
+        const recipesToFlagIds = new Set(recipesToFlag.map(r => r.id));
+
+        const updatedRecetas = allRecetas.map(r => 
+            recipesToFlagIds.has(r.id) ? { ...r, requiereRevision: true } : r
+        );
+        localStorage.setItem('recetas', JSON.stringify(updatedRecetas));
+
+        toast({
+            title: 'Recetas marcadas para revisión',
+            description: `${recipesToFlag.length} receta(s) que usaban este ingrediente han sido marcadas.`
+        });
+    }
+
     let allItems = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const updatedItems = allItems.filter(p => p.id !== id);
     localStorage.setItem('ingredientesInternos', JSON.stringify(updatedItems));
@@ -207,7 +238,7 @@ export default function IngredienteFormPage() {
                 <div className="flex gap-2">
                     <Button variant="outline" type="button" onClick={() => router.push('/book/ingredientes')}> <X className="mr-2"/> Cancelar</Button>
                     {isEditing && (
-                        <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}> <Trash2 className="mr-2"/> Borrar</Button>
+                        <Button variant="destructive" type="button" onClick={handleAttemptDelete}> <Trash2 className="mr-2"/> Borrar</Button>
                     )}
                     <Button type="submit" disabled={isLoading}>
                     {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
@@ -299,12 +330,20 @@ export default function IngredienteFormPage() {
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                <AlertDialogDescription>Esta acción no se puede deshacer. Se eliminará permanentemente el ingrediente y puede afectar a elaboraciones y recetas que lo utilicen.</AlertDialogDescription>
+                <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive"/>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {affectedElaboraciones.length > 0 ? (
+                      <span>¡Atención! Este ingrediente se usa en <strong>{affectedElaboraciones.length} elaboración(es)</strong>. Si lo eliminas, las recetas que contengan estas elaboraciones serán marcadas para su revisión.</span>
+                  ) : (
+                      'Esta acción no se puede deshacer. Se eliminará permanentemente el ingrediente.'
+                  )}
+                </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleDelete}>Eliminar Ingrediente</AlertDialogAction>
+                <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleDelete}>
+                  {affectedElaboraciones.length > 0 ? 'Eliminar y Marcar' : 'Eliminar Ingrediente'}
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

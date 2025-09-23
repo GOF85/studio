@@ -415,6 +415,7 @@ export type Receta = {
     instruccionesRegeneracion?: string;
     instruccionesEmplatado?: string;
     fotosEmplatadoURLs?: string[];
+    requiereRevision?: boolean;
     // --- Campos de Coste ---
     porcentajeCosteProduccion: number;
     costeMateriaPrima: number; // Calculado
@@ -465,7 +466,7 @@ export type OrdenFabricacion = {
     cantidadTotal: number;
     unidad: UnidadMedida;
     partidaAsignada: PartidaProduccion;
-    estado: 'Pendiente' | 'Asignada' | 'En Proceso' | 'Finalizado';
+    estado: 'Pendiente' | 'Asignada' | 'En Proceso' | 'Finalizado' | 'Validado' | 'Incidencia';
     incidencia: boolean;
     observacionesIncidencia?: string;
     okCalidad: boolean;
@@ -496,10 +497,17 @@ export type ContenedorIsotermo = {
     nombre: string;
 }
 
+export type LoteAsignado = {
+    allocationId: string;
+    ofId: string;
+    containerId: string;
+    quantity: number;
+}
+
 export type PickingState = {
     osId: string;
     assignedContainers: { [key in PartidaProduccion]?: ContenedorIsotermo[] };
-    itemStates: { id: string; isPicked: boolean; containerId?: string; }[];
+    itemStates: LoteAsignado[];
 }
 
 export type ExcedenteProduccion = {

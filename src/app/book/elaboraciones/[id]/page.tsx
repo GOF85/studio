@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Component, ChefHat, PlusCircle, Trash2, DollarSign } from 'lucide-react';
-import type { Elaboracion, IngredienteInterno, UnidadMedida, IngredienteERP, PartidaProduccion } from '@/types';
+import type { Elaboracion, IngredienteInterno, UnidadMedida, IngredienteERP, PartidaProduccion, Receta } from '@/types';
 import { UNIDADES_MEDIDA } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const componenteSchema = z.object({
     id: z.string(),
@@ -97,12 +98,17 @@ function IngredienteSelector({ onSelect }: { onSelect: (ingrediente: Ingrediente
 export default function ElaboracionFormPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
   const isEditing = id !== 'nuevo';
+  const cloneId = searchParams.get('cloneId');
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
+  const [affectedRecipes, setAffectedRecipes] = useState<Receta[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const { toast } = useToast();
 
   const form = useForm<ElaboracionFormValues>({
@@ -123,28 +129,35 @@ export default function ElaboracionFormPage() {
   const watchedProduccionTotal = form.watch('produccionTotal');
 
   useEffect(() => {
-    // Load all data needed for calculations
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
     const erpMap = new Map(storedErp.map(i => [i.id, i]));
     const combined = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
     setIngredientesData(new Map(combined.map(i => [i.id, i])));
 
-    // Load form data
-    if (isEditing) {
-      const elaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-      const elab = elaboraciones.find(e => e.id === id);
-      if (elab) {
-        form.reset(elab);
-      }
-    } else {
-        form.reset({
+    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    let initialData: Elaboracion | null = null;
+    
+    if (cloneId) {
+        const elabToClone = allElaboraciones.find(e => e.id === cloneId);
+        if (elabToClone) {
+            initialData = { ...elabToClone, id: Date.now().toString(), nombre: `${elabToClone.nombre} (Copia)` };
+        }
+    } else if (isEditing) {
+        initialData = allElaboraciones.find(e => e.id === id) || null;
+    }
+
+    if (initialData) {
+        form.reset(initialData);
+    } else if (!isEditing) {
+         form.reset({
             id: Date.now().toString(), nombre: '', produccionTotal: 1, unidadProduccion: 'KILO', partidaProduccion: 'FRIO', componentes: [],
             tipoExpedicion: 'REFRIGERADO', formatoExpedicion: '', ratioExpedicion: 0,
             instruccionesPreparacion: '', videoProduccionURL: '', fotosProduccionURLs: [],
         });
     }
-  }, [id, isEditing, form, router, toast]);
+
+  }, [id, isEditing, cloneId, form]);
 
   const handleSelectIngrediente = (ingrediente: IngredienteConERP) => {
       const costeConMerma = ingrediente.mermaPorcentaje > 0 && ingrediente.erp
@@ -185,7 +198,7 @@ export default function ElaboracionFormPage() {
       costePorUnidad 
     };
 
-    if (isEditing) {
+    if (isEditing && !cloneId) {
       const index = allItems.findIndex(p => p.id === id);
       if (index !== -1) {
         allItems[index] = dataToSave;
@@ -193,7 +206,7 @@ export default function ElaboracionFormPage() {
       }
     } else {
       allItems.push(dataToSave);
-      message = 'Elaboración creada correctamente.';
+      message = cloneId ? 'Elaboración clonada correctamente.' : 'Elaboración creada correctamente.';
     }
 
     localStorage.setItem('elaboraciones', JSON.stringify(allItems));
@@ -205,6 +218,33 @@ export default function ElaboracionFormPage() {
     }, 1000);
   }
 
+  const handleAttemptDelete = () => {
+    const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+    const recipesUsingElaboracion = allRecetas.filter(receta => 
+      receta.elaboraciones.some(e => e.elaboracionId === id)
+    );
+    setAffectedRecipes(recipesUsingElaboracion);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDelete = () => {
+    if (affectedRecipes.length > 0) {
+        let allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+        const affectedRecipeIds = new Set(affectedRecipes.map(r => r.id));
+        const updatedRecetas = allRecetas.map(r => 
+            affectedRecipeIds.has(r.id) ? { ...r, requiereRevision: true } : r
+        );
+        localStorage.setItem('recetas', JSON.stringify(updatedRecetas));
+    }
+
+    let allItems = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    const updatedItems = allItems.filter(p => p.id !== id);
+    localStorage.setItem('elaboraciones', JSON.stringify(updatedItems));
+    
+    toast({ title: 'Elaboración eliminada' });
+    router.push('/book/elaboraciones');
+  };
+
   return (
     <>
       <Header />
@@ -214,13 +254,14 @@ export default function ElaboracionFormPage() {
              <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                     <Component className="h-8 w-8" />
-                    <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nueva'} Elaboración</h1>
+                    <h1 className="text-3xl font-headline font-bold">{isEditing && !cloneId ? 'Editar' : 'Nueva'} Elaboración {cloneId && <span className="text-xl text-muted-foreground">(Clonada)</span>}</h1>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" type="button" onClick={() => router.push('/book/elaboraciones')}> <X className="mr-2"/> Cancelar</Button>
+                    {isEditing && !cloneId && <Button variant="destructive" type="button" onClick={handleAttemptDelete}><Trash2 className="mr-2"/>Borrar</Button>}
                     <Button type="submit" disabled={isLoading}>
                     {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                    <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Elaboración'}</span>
+                    <span className="ml-2">{isEditing && !cloneId ? 'Guardar Cambios' : 'Guardar Elaboración'}</span>
                     </Button>
                 </div>
             </div>
@@ -364,6 +405,26 @@ export default function ElaboracionFormPage() {
             </div>
           </form>
         </Form>
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {affectedRecipes.length > 0 ? (
+                    <span>¡Atención! Esta elaboración se usa en <strong>{affectedRecipes.length} receta(s)</strong>. Si la eliminas, estas recetas quedarán incompletas y se marcarán para su revisión.</span>
+                  ) : (
+                    'Esta acción no se puede deshacer. Se eliminará permanentemente la elaboración.'
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleDelete}>
+                    {affectedRecipes.length > 0 ? 'Eliminar y Marcar Recetas' : 'Eliminar Elaboración'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       </main>
     </>
   );

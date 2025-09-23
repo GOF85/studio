@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy } from 'lucide-react';
+import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy, AlertTriangle } from 'lucide-react';
 import type { Receta, CategoriaReceta } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -145,7 +145,19 @@ export default function RecetasPage() {
               {paginatedItems.length > 0 ? (
                 paginatedItems.map(item => (
                   <TableRow key={item.id} onClick={() => router.push(`/book/recetas/${item.id}`)} className="cursor-pointer">
-                    <TableCell className="font-medium py-2">{item.nombre}</TableCell>
+                    <TableCell className="font-medium py-2 flex items-center gap-2">
+                        {item.requiereRevision && (
+                            <Tooltip>
+                                <TooltipTrigger>
+                                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Esta receta necesita revisión.</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        )}
+                        {item.nombre}
+                    </TableCell>
                     <TableCell className="py-2">{item.categoria}</TableCell>
                     <TableCell className="py-2">{item.partidaProduccion}</TableCell>
                     <TableCell className="py-2">{(item.costeMateriaPrima || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Component, FileDown, FileUp, Menu, AlertTriangle } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Component, FileDown, FileUp, Menu, AlertTriangle, Copy } from 'lucide-react';
 import type { Elaboracion, Receta } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Tooltip, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 
 const CSV_HEADERS = [ "id", "nombre", "produccionTotal", "unidadProduccion", "componentes", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad" ];
 
@@ -79,7 +80,7 @@ export default function ElaboracionesPage() {
     doc.text('Informe de Eliminación de Elaboración', 14, 22);
     doc.setFontSize(12);
     doc.text(`Se ha eliminado la elaboración: "${deletedItemName}"`, 14, 32);
-    doc.text('Las siguientes recetas se han visto afectadas:', 14, 42);
+    doc.text('Las siguientes recetas se han visto afectadas y necesitan revisión:', 14, 42);
     
     const tableColumn = ["ID Receta", "Nombre Receta"];
     const tableRows: (string | number)[][] = [];
@@ -113,6 +114,16 @@ export default function ElaboracionesPage() {
 
     if (affectedRecipes.length > 0) {
         generateReportAndToast(itemToDelete.nombre);
+        // Marcar recetas afectadas para revisión
+        let allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+        const affectedRecipeIds = new Set(affectedRecipes.map(r => r.id));
+        const updatedRecetas = allRecetas.map(r => {
+            if (affectedRecipeIds.has(r.id)) {
+                return { ...r, requiereRevision: true };
+            }
+            return r;
+        });
+        localStorage.setItem('recetas', JSON.stringify(updatedRecetas));
     }
 
     const updatedData = items.filter(i => i.id !== itemToDelete.id);
@@ -214,6 +225,7 @@ export default function ElaboracionesPage() {
 
   return (
     <>
+    <TooltipProvider>
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
@@ -266,7 +278,7 @@ export default function ElaboracionesPage() {
                 <TableHead>Nombre Elaboración</TableHead>
                 <TableHead>Producción Total</TableHead>
                 <TableHead>Coste / Unidad</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="text-right w-24">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -277,24 +289,16 @@ export default function ElaboracionesPage() {
                     <TableCell className="cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{item.produccionTotal} {item.unidadProduccion}</TableCell>
                     <TableCell className="cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{(item.costePorUnidad || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} / {item.unidadProduccion}</TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Abrir menú</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleAttemptDelete(item)}>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Eliminar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                       <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); router.push(`/book/elaboraciones/nuevo?cloneId=${item.id}`); }}>
+                                    <Copy className="h-4 w-4"/>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Clonar</p>
+                            </TooltipContent>
+                        </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))
@@ -320,7 +324,7 @@ export default function ElaboracionesPage() {
             <AlertDialogDescription>
               {affectedRecipes.length > 0 ? (
                 <div>
-                    <span className="font-bold text-destructive">¡Atención! Esta elaboración está siendo utilizada en {affectedRecipes.length} receta(s):</span>
+                    <span className="font-bold text-destructive">¡Atención! Esta elaboración está siendo utilizada en {affectedRecipes.length} receta(s) que serán marcadas para revisión:</span>
                     <ul className="list-disc pl-5 mt-2 text-sm text-muted-foreground max-h-40 overflow-y-auto">
                         {affectedRecipes.map(r => <li key={r.id}>{r.nombre}</li>)}
                     </ul>
@@ -342,6 +346,7 @@ export default function ElaboracionesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </TooltipProvider>
     </>
   );
 }
