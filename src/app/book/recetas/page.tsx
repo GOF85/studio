@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { PlusCircle, BookHeart, ChevronLeft, ChevronRight, Eye, Copy } from 'lucide-react';
 import type { Receta, CategoriaReceta } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -65,7 +66,7 @@ export default function RecetasPage() {
   }
 
   return (
-    <>
+    <TooltipProvider>
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
@@ -137,6 +138,7 @@ export default function RecetasPage() {
                 <TableHead className="py-2">Partida Producción</TableHead>
                 <TableHead className="py-2">Coste M.P.</TableHead>
                 <TableHead className="py-2">Precio Venta Rec.</TableHead>
+                <TableHead className="w-12 text-right py-2"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -147,12 +149,24 @@ export default function RecetasPage() {
                     <TableCell className="py-2">{item.categoria}</TableCell>
                     <TableCell className="py-2">{item.partidaProduccion}</TableCell>
                     <TableCell className="py-2">{(item.costeMateriaPrima || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                     <TableCell className="font-bold text-primary py-2">{(item.precioVentaRecomendado || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell className="font-bold text-primary py-2">{(item.precioVentaRecomendado || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell className="py-2 text-right">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); router.push(`/book/recetas/nueva?cloneId=${item.id}`); }}>
+                                    <Copy className="h-4 w-4"/>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Clonar</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No se encontraron recetas.
                   </TableCell>
                 </TableRow>
@@ -161,6 +175,6 @@ export default function RecetasPage() {
           </Table>
         </div>
       </main>
-    </>
+    </TooltipProvider>
   );
 }

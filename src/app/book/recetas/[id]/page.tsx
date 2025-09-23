@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -159,8 +160,10 @@ const InfoTooltip = ({ text }: { text: string }) => (
 export default function RecetaFormPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
   const isEditing = id !== 'nueva';
+  const cloneId = searchParams.get('cloneId');
   
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -273,20 +276,32 @@ export default function RecetaFormPage() {
     setEquipamientos(Array.from(equipos));
     setEtiquetasTendencia(Array.from(tendencias));
 
-    if (isEditing) {
-      const receta = allRecetas.find(e => e.id === id);
-      if (receta) {
-        form.reset(receta);
-      }
-    } else {
-      form.reset({ id: Date.now().toString(), nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] });
+    let initialValues: Receta | null = null;
+    if (cloneId) {
+        const recetaToClone = allRecetas.find(e => e.id === cloneId);
+        if (recetaToClone) {
+            initialValues = {
+                ...recetaToClone,
+                id: Date.now().toString(), // New ID for the clone
+                nombre: `${recetaToClone.nombre} (Copia)`
+            }
+        }
+    } else if (isEditing) {
+        initialValues = allRecetas.find(e => e.id === id) || null;
     }
+
+    if (initialValues) {
+        form.reset(initialValues);
+    } else if (!isEditing) {
+        form.reset({ id: Date.now().toString(), nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] });
+    }
+    
     setIsDataLoaded(true);
-  }, [id, isEditing, calculateElabAlergenos, form]);
+  }, [id, isEditing, cloneId, calculateElabAlergenos, form]);
 
   useEffect(() => {
     loadData();
-  }, [id]);
+  }, [id, loadData]);
 
 
   const onAddElab = (elab: ElaboracionConCoste) => {
@@ -335,7 +350,7 @@ export default function RecetaFormPage() {
         alergenos,
     };
 
-    if (isEditing) {
+    if (isEditing && !cloneId) {
       const index = allItems.findIndex(p => p.id === id);
       if (index !== -1) allItems[index] = dataToSave;
     } else {
@@ -370,16 +385,16 @@ export default function RecetaFormPage() {
              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <BookHeart className="h-8 w-8" />
-                    <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nueva'} Receta</h1>
+                    <h1 className="text-3xl font-headline font-bold">{isEditing && !cloneId ? 'Editar' : 'Nueva'} Receta {cloneId && <span className="text-muted-foreground text-xl">(Clonando)</span>}</h1>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" type="button" onClick={() => router.push('/book')}> <X className="mr-2"/> Cancelar</Button>
-                    {isEditing && (
+                    {isEditing && !cloneId && (
                         <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}> <Trash2 className="mr-2"/> Borrar Receta</Button>
                     )}
                     <Button type="submit" disabled={isLoading}>
                     {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                    <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Receta'}</span>
+                    <span className="ml-2">{isEditing && !cloneId ? 'Guardar Cambios' : 'Guardar Receta'}</span>
                     </Button>
                 </div>
             </div>
