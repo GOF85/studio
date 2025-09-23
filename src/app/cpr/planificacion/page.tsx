@@ -1,12 +1,11 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday } from 'date-fns';
-import { ClipboardList, Calendar as CalendarIcon, Factory, Info, AlertTriangle, PackageCheck } from 'lucide-react';
+import { ClipboardList, Calendar as CalendarIcon, Factory, Info, AlertTriangle, PackageCheck, ChevronRight, ChevronDown, Utensils, Component } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -23,8 +22,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion } from '@/types';
+
+// --- DATA STRUCTURES ---
 
 type EventoAfectado = {
     osId: string;
@@ -33,23 +36,45 @@ type EventoAfectado = {
 };
 
 type RecetaNecesidad = {
+    recetaId: string;
     recetaNombre: string;
     cantidad: number;
 }
 
-type NecesidadPlanificacion = {
-    id: string; // elaboracionId para necesidades, ofId para excedentes
-    type: 'necesidad' | 'excedente';
+// For the aggregated view
+type NecesidadAgregada = {
+    id: string; // elaboracionId
     nombre: string;
-    cantidad: number; // Cantidad necesaria o cantidad excedente
+    cantidad: number;
     unidad: UnidadMedida;
     partidaProduccion?: PartidaProduccion;
-    // Para necesidades
     eventos?: EventoAfectado[];
     recetas?: RecetaNecesidad[];
-    // Para excedentes
-    ofId?: string;
-    fechaProduccion?: string;
+};
+
+// For the detailed tree view
+type DetalleElaboracionEnReceta = {
+    elaboracionId: string;
+    elaboracionNombre: string;
+    cantidadNecesaria: number;
+    unidad: UnidadMedida;
+    cantidadCubierta: number;
+    ofsAsignadas: { id: string; cantidad: number; estado: OrdenFabricacion['estado'] }[];
+}
+
+type DetalleRecetaEnOS = {
+    recetaId: string;
+    recetaNombre: string;
+    cantidadTotal: number;
+    elaboraciones: DetalleElaboracionEnReceta[];
+}
+
+type DesglosePorEvento = {
+    osId: string;
+    serviceNumber: string;
+    client: string;
+    startDate: string;
+    recetas: DetalleRecetaEnOS[];
 };
 
 
@@ -60,24 +85,32 @@ export default function PlanificacionPage() {
         from: startOfToday(),
         to: addDays(startOfToday(), 7),
     });
-    const [itemsPlanificacion, setItemsPlanificacion] = useState<NecesidadPlanificacion[]>([]);
+    
+    // State for aggregated view
+    const [necesidadesAgregadas, setNecesidadesAgregadas] = useState<NecesidadAgregada[]>([]);
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+
+    // State for detailed view
+    const [desgloseEventos, setDesgloseEventos] = useState<DesglosePorEvento[]>([]);
+
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
     const calcularNecesidades = useCallback(() => {
         setIsLoading(true);
-        setItemsPlanificacion([]);
+        setNecesidadesAgregadas([]);
+        setDesgloseEventos([]);
         setSelectedRows(new Set());
 
         if (!dateRange?.from || !dateRange?.to) {
             setIsLoading(false);
             return;
         }
-
+        
         const from = dateRange.from;
         const to = dateRange.to;
 
+        // --- DATA LOADING ---
         const allServiceOrders: ServiceOrder[] = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const allGastroOrders: GastronomyOrder[] = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
         const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
@@ -88,41 +121,68 @@ export default function PlanificacionPage() {
         const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
         const serviceOrderMap = new Map(allServiceOrders.map(os => [os.id, os]));
 
-        const osIdsEnRango = new Set(
-            allServiceOrders
-                .filter(os => {
-                    try {
-                        const osDate = new Date(os.startDate);
-                        return os.status === 'Confirmado' && osDate >= from && osDate <= to;
-                    } catch(e) { return false; }
-                })
-                .map(os => os.id)
-        );
+        // --- FILTERING DATA FOR THE DATE RANGE ---
+        const osEnRango = allServiceOrders.filter(os => {
+            try {
+                const osDate = new Date(os.startDate);
+                return os.status === 'Confirmado' && osDate >= from && osDate <= to;
+            } catch(e) { return false; }
+        });
+        const osIdsEnRango = new Set(osEnRango.map(os => os.id));
         
         if (osIdsEnRango.size === 0) {
             setIsLoading(false);
             return;
         }
 
-        const necesidadesBrutas = new Map<string, Omit<NecesidadPlanificacion, 'id' | 'type' | 'cantidad' > & {cantidadTotal: number}>();
+        const ofsEnRango = allOrdenesFabricacion.filter(of => of.osIDs.some(osId => osIdsEnRango.has(osId)));
+
+        // --- CALCULATIONS ---
+        
+        // 1. Calculate Gross Needs per Elaboration
+        const necesidadesBrutas = new Map<string, Omit<NecesidadAgregada, 'id' | 'cantidad' > & {cantidadTotal: number}>();
+        
+        // Detailed structure for tree view
+        const desglose: Map<string, DesglosePorEvento> = new Map();
 
         allGastroOrders.filter(go => osIdsEnRango.has(go.osId)).forEach(gastroOrder => {
             const serviceOrder = serviceOrderMap.get(gastroOrder.osId);
             if (!serviceOrder) return;
+            
+            // Initialize OS in detailed view
+            if (!desglose.has(serviceOrder.id)) {
+                desglose.set(serviceOrder.id, {
+                    osId: serviceOrder.id,
+                    serviceNumber: serviceOrder.serviceNumber,
+                    client: serviceOrder.client,
+                    startDate: serviceOrder.startDate,
+                    recetas: [],
+                });
+            }
+            const desgloseOS = desglose.get(serviceOrder.id)!;
 
             (gastroOrder.items || []).forEach(item => {
                 if (item.type === 'item') {
                     const receta = recetasMap.get(item.id);
                     if (receta) {
+                        // Add receta to detailed view
+                        let desgloseReceta = desgloseOS.recetas.find(r => r.recetaId === receta.id);
+                        if (!desgloseReceta) {
+                            desgloseReceta = { recetaId: receta.id, recetaNombre: receta.nombre, cantidadTotal: 0, elaboraciones: [] };
+                            desgloseOS.recetas.push(desgloseReceta);
+                        }
+                        desgloseReceta.cantidadTotal += Number(item.quantity || 0);
+
                         receta.elaboraciones.forEach(elabEnReceta => {
                             const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
                             if (elaboracion) {
                                 const cantidadNecesaria = Number(item.quantity || 0) * Number(elabEnReceta.cantidad);
                                 if (isNaN(cantidadNecesaria) || cantidadNecesaria <= 0) return;
-                                
-                                let necesidad = necesidadesBrutas.get(elaboracion.id);
-                                if (!necesidad) {
-                                    necesidad = {
+
+                                // AGGREGATED VIEW LOGIC
+                                let necesidadAgregada = necesidadesBrutas.get(elaboracion.id);
+                                if (!necesidadAgregada) {
+                                    necesidadAgregada = {
                                         nombre: elaboracion.nombre,
                                         cantidadTotal: 0,
                                         unidad: elaboracion.unidadProduccion,
@@ -130,51 +190,71 @@ export default function PlanificacionPage() {
                                         eventos: [],
                                         recetas: [],
                                     };
-                                    necesidadesBrutas.set(elaboracion.id, necesidad);
+                                    necesidadesBrutas.set(elaboracion.id, necesidadAgregada);
                                 }
-
-                                necesidad.cantidadTotal += cantidadNecesaria;
-                                if (!necesidad.eventos!.find(e => e.osId === gastroOrder.osId && e.serviceType === gastroOrder.descripcion)) {
-                                    necesidad.eventos!.push({ osId: gastroOrder.osId, serviceNumber: serviceOrder.serviceNumber, serviceType: gastroOrder.descripcion });
+                                necesidadAgregada.cantidadTotal += cantidadNecesaria;
+                                if (!necesidadAgregada.eventos!.find(e => e.osId === gastroOrder.osId && e.serviceType === gastroOrder.descripcion)) {
+                                    necesidadAgregada.eventos!.push({ osId: gastroOrder.osId, serviceNumber: serviceOrder.serviceNumber, serviceType: gastroOrder.descripcion });
                                 }
-                                const recetaExistente = necesidad.recetas!.find(r => r.recetaNombre === receta.nombre);
-                                if (recetaExistente) {
-                                    recetaExistente.cantidad += cantidadNecesaria;
+                                const recetaExistenteAgregada = necesidadAgregada.recetas!.find(r => r.recetaId === receta.id);
+                                if (recetaExistenteAgregada) {
+                                    recetaExistenteAgregada.cantidad += cantidadNecesaria;
                                 } else {
-                                    necesidad.recetas!.push({ recetaNombre: receta.nombre, cantidad: cantidadNecesaria });
+                                    necesidadAgregada.recetas!.push({ recetaId: receta.id, recetaNombre: receta.nombre, cantidad: cantidadNecesaria });
                                 }
+                                
+                                // DETAILED VIEW LOGIC
+                                let desgloseElaboracion = desgloseReceta!.elaboraciones.find(e => e.elaboracionId === elaboracion.id);
+                                if (!desgloseElaboracion) {
+                                    desgloseElaboracion = { elaboracionId: elaboracion.id, elaboracionNombre: elaboracion.nombre, cantidadNecesaria: 0, unidad: elaboracion.unidadProduccion, cantidadCubierta: 0, ofsAsignadas: [] };
+                                    desgloseReceta!.elaboraciones.push(desgloseElaboracion);
+                                }
+                                desgloseElaboracion.cantidadNecesaria += cantidadNecesaria;
                             }
                         });
                     }
                 }
             });
         });
-        
-        const ofsRelevantes = allOrdenesFabricacion.filter(of => of.osIDs.some(osId => osIdsEnRango.has(osId)));
-        const cantidadesCubiertasPorElaboracion = new Map<string, number>();
 
-        ofsRelevantes.forEach(of => {
+        // 2. Subtract produced quantities
+        const cantidadesCubiertasPorElaboracion = new Map<string, number>();
+        ofsEnRango.forEach(of => {
             const finishedStates: OrdenFabricacion['estado'][] = ['Finalizado', 'Validado', 'Incidencia'];
             const isFinished = finishedStates.includes(of.estado);
             const cantidadProducida = isFinished && typeof of.cantidadReal === 'number' && of.cantidadReal !== null ? Number(of.cantidadReal) : Number(of.cantidadTotal);
             
             if (!isNaN(cantidadProducida)) {
+                // For aggregated view
                 const current = cantidadesCubiertasPorElaboracion.get(of.elaboracionId) || 0;
                 cantidadesCubiertasPorElaboracion.set(of.elaboracionId, current + cantidadProducida);
+
+                // For detailed view
+                 desglose.forEach(os => {
+                    os.recetas.forEach(receta => {
+                        const elab = receta.elaboraciones.find(e => e.elaboracionId === of.elaboracionId);
+                        if (elab) {
+                            elab.cantidadCubierta += cantidadProducida;
+                            elab.ofsAsignadas.push({ id: of.id, cantidad: cantidadProducida, estado: of.estado });
+                        }
+                    })
+                 });
             }
         });
 
-        const planificacionFinal: NecesidadPlanificacion[] = [];
+        // 3. Finalize Aggregated Needs
+        const planificacionAgregada: NecesidadAgregada[] = [];
         necesidadesBrutas.forEach((necesidad, elabId) => {
             const cantidadCubierta = cantidadesCubiertasPorElaboracion.get(elabId) || 0;
             const diferencia = necesidad.cantidadTotal - cantidadCubierta;
 
-            if (diferencia > 0.001) { // Necesidad Neta
-                planificacionFinal.push({ ...necesidad, id: elabId, type: 'necesidad', cantidad: diferencia });
+            if (diferencia > 0.001) {
+                planificacionAgregada.push({ ...necesidad, id: elabId, cantidad: diferencia });
             }
         });
         
-        setItemsPlanificacion(planificacionFinal);
+        setNecesidadesAgregadas(planificacionAgregada);
+        setDesgloseEventos(Array.from(desglose.values()));
         setIsLoading(false);
     }, [dateRange]);
 
@@ -183,11 +263,7 @@ export default function PlanificacionPage() {
         calcularNecesidades();
     }, [calcularNecesidades]);
 
-    const handleSelectRow = (id: string, type: 'necesidad' | 'excedente') => {
-        if (type === 'excedente') {
-            toast({ variant: 'destructive', title: "Acción no permitida", description: "No se pueden generar OF a partir de un excedente." });
-            return;
-        }
+    const handleSelectRow = (id: string) => {
         setSelectedRows(prev => {
             const newSelection = new Set(prev);
             if (newSelection.has(id)) {
@@ -216,7 +292,7 @@ export default function PlanificacionPage() {
         let currentIdNumber = lastIdNumber;
 
         selectedRows.forEach(elaboracionId => {
-            const necesidad = itemsPlanificacion.find(item => item.id === elaboracionId && item.type === 'necesidad');
+            const necesidad = necesidadesAgregadas.find(item => item.id === elaboracionId);
             if(necesidad && necesidad.partidaProduccion) {
                 currentIdNumber++;
                 const newOF: OrdenFabricacion = {
@@ -261,9 +337,6 @@ export default function PlanificacionPage() {
                         </h1>
                         <p className="text-muted-foreground mt-1">Agrega las necesidades de elaboración para los eventos confirmados.</p>
                     </div>
-                    <Button onClick={handleGenerateOF} disabled={selectedRows.size === 0}>
-                        <Factory className="mr-2"/> Generar Órdenes de Fabricación ({selectedRows.size})
-                    </Button>
                 </div>
 
                 <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-card">
@@ -307,119 +380,167 @@ export default function PlanificacionPage() {
                     </Button>
                 </div>
 
-                <div className="border rounded-lg">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-12"><Checkbox 
-                                    checked={selectedRows.size > 0 && itemsPlanificacion.filter(i => i.type === 'necesidad').length > 0 && selectedRows.size === itemsPlanificacion.filter(i => i.type === 'necesidad').length}
-                                    onCheckedChange={(checked) => {
-                                        if(checked) {
-                                            setSelectedRows(new Set(itemsPlanificacion.filter(i => i.type === 'necesidad').map(i => i.id)))
-                                        } else {
-                                            setSelectedRows(new Set())
-                                        }
-                                    }}
-                                /></TableHead>
-                                <TableHead>Elaboración</TableHead>
-                                <TableHead className="text-right">Cantidad</TableHead>
-                                <TableHead>Unidad</TableHead>
-                                <TableHead className="flex items-center gap-1.5">Detalles <Info size={14}/></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoading ? (
-                                <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow>
-                            ) : itemsPlanificacion.length > 0 ? (
-                                itemsPlanificacion.map(item => (
-                                    <TableRow key={item.id} onClick={() => handleSelectRow(item.id, item.type)} className={item.type === 'necesidad' ? 'cursor-pointer' : ''}>
-                                        <TableCell>
-                                           {item.type === 'necesidad' ? (
-                                                <Checkbox checked={selectedRows.has(item.id)} />
+                <Tabs defaultValue="agrupado">
+                    <div className="flex justify-between items-center">
+                        <TabsList>
+                            <TabsTrigger value="agrupado">Necesidades Agrupadas</TabsTrigger>
+                            <TabsTrigger value="desglosado">Desglose por Evento</TabsTrigger>
+                        </TabsList>
+                         <div className="flex-grow text-right">
+                           <Button onClick={handleGenerateOF} disabled={selectedRows.size === 0}>
+                                <Factory className="mr-2"/> Generar Órdenes de Fabricación ({selectedRows.size})
+                           </Button>
+                        </div>
+                    </div>
+                    <TabsContent value="agrupado">
+                        <Card className="mt-4">
+                            <CardHeader>
+                                <CardTitle>Necesidades de Producción Agrupadas</CardTitle>
+                                <CardDescription>Vista consolidada de todo lo que se necesita producir para el rango de fechas. Selecciona las filas para generar Órdenes de Fabricación.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="border rounded-lg">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="w-12"><Checkbox 
+                                                    checked={selectedRows.size > 0 && necesidadesAgregadas.length > 0 && selectedRows.size === necesidadesAgregadas.length}
+                                                    onCheckedChange={(checked) => {
+                                                        if(checked) {
+                                                            setSelectedRows(new Set(necesidadesAgregadas.map(i => i.id)))
+                                                        } else {
+                                                            setSelectedRows(new Set())
+                                                        }
+                                                    }}
+                                                /></TableHead>
+                                                <TableHead>Elaboración</TableHead>
+                                                <TableHead className="text-right">Cantidad</TableHead>
+                                                <TableHead>Unidad</TableHead>
+                                                <TableHead className="flex items-center gap-1.5">Detalles <Info size={14}/></TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {isLoading ? (
+                                                <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow>
+                                            ) : necesidadesAgregadas.length > 0 ? (
+                                                necesidadesAgregadas.map(item => (
+                                                    <TableRow key={item.id} onClick={() => handleSelectRow(item.id)} className='cursor-pointer'>
+                                                        <TableCell><Checkbox checked={selectedRows.has(item.id)} /></TableCell>
+                                                        <TableCell className="font-medium">{item.nombre}</TableCell>
+                                                        <TableCell className="text-right font-mono">
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <span>{item.cantidad.toFixed(2)}</span>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <div className="p-1">
+                                                                        <h4 className="font-bold mb-2 text-center">Desglose por Receta</h4>
+                                                                        {item.recetas!.map((r, i) => (
+                                                                            <div key={i} className="flex justify-between gap-4 text-xs">
+                                                                                <span>{r.recetaNombre}:</span>
+                                                                                <span className="font-semibold">{r.cantidad.toFixed(2)} {item.unidad}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TableCell>
+                                                        <TableCell>{item.unidad}</TableCell>
+                                                        <TableCell>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <span className="flex items-center gap-1.5">{item.eventos!.length} evento(s) <Info size={14}/></span>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <div className="p-1">
+                                                                        <h4 className="font-bold mb-2 text-center">Eventos Implicados</h4>
+                                                                        {item.eventos!.map((e, i) => (
+                                                                            <div key={i} className="text-xs">{e.serviceNumber} - {e.serviceType}</div>
+                                                                        ))}
+                                                                    </div>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
                                             ) : (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <PackageCheck className="text-green-600"/>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Este es un lote de excedente.</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
+                                                <TableRow>
+                                                    <TableCell colSpan={5} className="h-24 text-center">
+                                                        No se encontraron necesidades para el rango de fechas seleccionado o ya están todas cubiertas.
+                                                    </TableCell>
+                                                </TableRow>
                                             )}
-                                        </TableCell>
-                                        <TableCell className="font-medium">{item.nombre}</TableCell>
-                                        <TableCell className="text-right font-mono">
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span>{item.cantidad.toFixed(2)}</span>
-                                                </TooltipTrigger>
-                                                {item.type === 'necesidad' && (
-                                                    <TooltipContent>
-                                                        <div className="p-1">
-                                                            <h4 className="font-bold mb-2 text-center">Desglose por Receta</h4>
-                                                            {item.recetas!.map((r, i) => (
-                                                                <div key={i} className="flex justify-between gap-4 text-xs">
-                                                                    <span>{r.recetaNombre}:</span>
-                                                                    <span className="font-semibold">{r.cantidad.toFixed(2)} {item.unidad}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </TooltipContent>
-                                                )}
-                                            </Tooltip>
-                                        </TableCell>
-                                        <TableCell>{item.unidad}</TableCell>
-                                        <TableCell>
-                                            {item.type === 'necesidad' ? (
-                                                 <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <span className="flex items-center gap-1.5">{item.eventos!.length} evento(s) <Info size={14}/></span>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <div className="p-1">
-                                                            <h4 className="font-bold mb-2 text-center">Eventos Implicados</h4>
-                                                            {item.eventos!.map((e, i) => (
-                                                                <div key={i} className="text-xs">{e.serviceNumber} - {e.serviceType}</div>
-                                                            ))}
-                                                        </div>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            ) : (
-                                                 <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="outline" size="sm">Utilizar Excedente</Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Confirmar Uso de Excedente</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                Vas a utilizar el lote de excedente <strong>{item.ofId}</strong>. Por favor, confirma o ajusta la cantidad real disponible en stock.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <div className="space-y-2">
-                                                            <Label htmlFor="real-quantity">Cantidad Real Disponible</Label>
-                                                            <Input id="real-quantity" type="number" defaultValue={item.cantidad.toFixed(2)} />
-                                                        </div>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                            <AlertDialogAction disabled>Confirmar y Asignar</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                 </AlertDialog>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center">
-                                        No se encontraron necesidades para el rango de fechas seleccionado o ya están todas cubiertas.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="desglosado">
+                         <Card className="mt-4">
+                            <CardHeader>
+                                <CardTitle>Desglose por Evento</CardTitle>
+                                <CardDescription>Vista jerárquica de las necesidades, desde la Orden de Servicio hasta la elaboración.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {isLoading ? (
+                                    <div className="flex justify-center items-center h-24"><Loader2 className="mx-auto animate-spin" /></div>
+                                ) : desgloseEventos.length > 0 ? (
+                                    desgloseEventos.map(os => (
+                                        <Collapsible key={os.osId} className="border rounded-lg p-4">
+                                            <CollapsibleTrigger className="w-full flex justify-between items-center">
+                                                <div className="text-left">
+                                                    <h4 className="font-bold text-lg">{os.serviceNumber} - {os.client}</h4>
+                                                    <p className="text-sm text-muted-foreground">{format(new Date(os.startDate), 'PPP', { locale: es })}</p>
+                                                </div>
+                                                <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent className="pt-4 space-y-3">
+                                                {os.recetas.map(receta => (
+                                                     <Collapsible key={receta.recetaId} className="border rounded-md p-3 bg-secondary/50">
+                                                        <CollapsibleTrigger className="w-full flex justify-between items-center text-left">
+                                                            <div className="flex items-center gap-2">
+                                                                <Utensils className="h-4 w-4" />
+                                                                <span className="font-semibold">{receta.cantidadTotal} x {receta.recetaNombre}</span>
+                                                            </div>
+                                                            <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                                        </CollapsibleTrigger>
+                                                        <CollapsibleContent className="pt-3">
+                                                            <Table>
+                                                                <TableHeader><TableRow><TableHead>Elaboración</TableHead><TableHead>Necesario</TableHead><TableHead>OFs Asignadas</TableHead><TableHead>Pendiente</TableHead></TableRow></TableHeader>
+                                                                <TableBody>
+                                                                    {receta.elaboraciones.map(elab => {
+                                                                        const pendiente = elab.cantidadNecesaria - elab.cantidadCubierta;
+                                                                        return (
+                                                                            <TableRow key={elab.elaboracionId}>
+                                                                                <TableCell className="font-medium flex items-center gap-2"><Component size={14}/>{elab.elaboracionNombre}</TableCell>
+                                                                                <TableCell>{elab.cantidadNecesaria.toFixed(2)} {elab.unidad}</TableCell>
+                                                                                <TableCell>
+                                                                                    {elab.ofsAsignadas.map(of => (
+                                                                                        <Badge key={of.id} variant="secondary" className="mr-1">{of.id}</Badge>
+                                                                                    ))}
+                                                                                </TableCell>
+                                                                                <TableCell className={cn("font-bold", pendiente > 0.01 && 'text-destructive')}>
+                                                                                    {pendiente > 0.01 ? `${pendiente.toFixed(2)} ${elab.unidad}` : <Badge>Cubierto</Badge>}
+                                                                                </TableCell>
+                                                                            </TableRow>
+                                                                        )
+                                                                    })}
+                                                                </TableBody>
+                                                            </Table>
+                                                        </CollapsibleContent>
+                                                     </Collapsible>
+                                                ))}
+                                            </CollapsibleContent>
+                                        </Collapsible>
+                                    ))
+                                ) : (
+                                    <p className="text-center text-muted-foreground py-8">No hay eventos con necesidades de producción en el rango de fechas seleccionado.</p>
+                                )}
+                            </CardContent>
+                         </Card>
+                    </TabsContent>
+                </Tabs>
             </div>
         </TooltipProvider>
     );
