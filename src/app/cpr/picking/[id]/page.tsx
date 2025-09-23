@@ -77,9 +77,9 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
                 </DialogHeader>
                 <div className="py-4 space-y-4">
                     <div className="p-2 border rounded-md">
-                        <div className="flex justify-between text-sm"><span>Cantidad Total Lote:</span> <span className="font-bold">{Number(lote.cantidadTotal).toFixed(2)} {lote.unidad}</span></div>
-                        <div className="flex justify-between text-sm"><span>Ya Asignado:</span> <span className="font-bold">{Number(lote.cantidadAsignada).toFixed(2)} {lote.unidad}</span></div>
-                        <div className="flex justify-between text-sm font-semibold mt-1 pt-1 border-t"><span>Pendiente de Asignar:</span> <span>{(Number(lote.cantidadTotal) - Number(lote.cantidadAsignada)).toFixed(2)} {lote.unidad}</span></div>
+                        <div className="flex justify-between text-sm"><span>Cantidad Total Lote:</span> <span className="font-bold">{lote.cantidadTotal.toFixed(2)} {lote.unidad}</span></div>
+                        <div className="flex justify-between text-sm"><span>Ya Asignado:</span> <span className="font-bold">{lote.cantidadAsignada.toFixed(2)} {lote.unidad}</span></div>
+                        <div className="flex justify-between text-sm font-semibold mt-1 pt-1 border-t"><span>Pendiente de Asignar:</span> <span>{(lote.cantidadTotal - lote.cantidadAsignada).toFixed(2)} {lote.unidad}</span></div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="quantity-to-allocate">Cantidad a Asignar</Label>
@@ -372,7 +372,7 @@ export default function PickingDetailPage() {
                                                                 <TableRow key={item.allocationId}>
                                                                     <TableCell className="font-medium font-mono">{item.ofId}</TableCell>
                                                                     <TableCell>{loteInfo?.elaboracionNombre}</TableCell>
-                                                                    <TableCell className="text-right font-mono">{item.quantity.toFixed(2)} {loteInfo?.unidad}</TableCell>
+                                                                    <TableCell className="text-right font-mono">{(item.quantity || 0).toFixed(2)} {loteInfo?.unidad}</TableCell>
                                                                     <TableCell className="no-print"><Button variant="ghost" size="sm" onClick={() => deallocateLote(item.allocationId)}>Quitar</Button></TableCell>
                                                                 </TableRow>
                                                             )})
