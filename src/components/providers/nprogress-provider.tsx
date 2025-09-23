@@ -12,9 +12,8 @@ function NProgressComponent() {
 
   useEffect(() => {
     const currentPath = pathname + searchParams.toString();
-    if (previousPath.current !== currentPath) {
-      NProgress.start();
-    } else if (isLoading) {
+    
+    if (isLoading || previousPath.current !== currentPath) {
       NProgress.start();
     } else {
       NProgress.done();
