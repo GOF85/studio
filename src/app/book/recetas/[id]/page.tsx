@@ -209,7 +209,7 @@ export default function RecetaFormPage() {
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
-    defaultValues: { nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], perfilSaborSecundario: [], perfilTextura: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] }
+    defaultValues: { id: '', nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], perfilSaborSecundario: [], perfilTextura: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] }
   });
 
   const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab } = useFieldArray({ control: form.control, name: "elaboraciones" });
@@ -313,7 +313,26 @@ export default function RecetaFormPage() {
     if (initialValues) {
         form.reset(initialValues);
     } else if (!isEditing) {
-        form.reset({ nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], perfilSaborSecundario: [], perfilTextura: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] });
+        form.reset({ 
+            id: Date.now().toString(),
+            nombre: '', 
+            visibleParaComerciales: true, 
+            descripcionComercial: '', 
+            responsableEscandallo: '', 
+            categoria: '', 
+            estacionalidad: 'MIXTO', 
+            tipoDieta: 'NINGUNO', 
+            gramajeTotal: 0, 
+            porcentajeCosteProduccion: 30, 
+            elaboraciones: [], 
+            menajeAsociado: [], 
+            fotosEmplatadoURLs: [], 
+            perfilSaborSecundario: [], 
+            perfilTextura: [], 
+            equipamientoCritico: [], 
+            formatoServicioIdeal: [], 
+            etiquetasTendencia: [] 
+        });
     }
     
     setIsDataLoaded(true);
@@ -518,7 +537,7 @@ export default function RecetaFormPage() {
                                 
                                 <Separator className="my-4"/>
 
-                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <div className="grid md:grid-cols-3 gap-3">
                                     <FormItem><FormLabel>Coste Materia Prima</FormLabel><Input readOnly value={formatCurrency(costeMateriaPrima)} className="font-bold h-9" /></FormItem>
                                     <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => ( <FormItem>
                                         <FormLabel className="flex items-center gap-1.5">% Imputacion CPR<InfoTooltip text="Porcentaje que se suma al coste de materia prima para obtener el precio de venta." /></FormLabel>
@@ -795,6 +814,7 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
+
 
 
 
