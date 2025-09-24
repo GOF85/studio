@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -152,7 +153,7 @@ export default function PickingPage() {
             <TableRow>
               <TableHead>Servicio (Hito)</TableHead>
               <TableHead>Nº Servicio (OS)</TableHead>
-              <TableHead>Cliente</TableHead>
+              <TableHead>Espacio - Cliente</TableHead>
               <TableHead>Fecha Servicio</TableHead>
               <TableHead>Estado Picking</TableHead>
             </TableRow>
@@ -167,7 +168,7 @@ export default function PickingPage() {
                 >
                   <TableCell className="font-medium">{hito.descripcion}</TableCell>
                   <TableCell><Badge variant="outline">{hito.serviceOrder.serviceNumber}</Badge></TableCell>
-                  <TableCell>{hito.serviceOrder.client}{hito.serviceOrder.finalClient && ` (${hito.serviceOrder.finalClient})`}</TableCell>
+                  <TableCell>{hito.serviceOrder.space}{hito.serviceOrder.finalClient && ` (${hito.serviceOrder.finalClient})`}</TableCell>
                   <TableCell>{format(new Date(hito.fecha), 'dd/MM/yyyy')} {hito.horaInicio}</TableCell>
                   <TableCell>
                     <Badge variant={statusVariant[hito.pickingStatus]}>{hito.pickingStatus}</Badge>
