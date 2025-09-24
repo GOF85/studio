@@ -24,7 +24,7 @@ import { formatCurrency, formatUnit } from '@/lib/utils';
 import Image from 'next/image';
 import { Combobox } from '@/components/ui/combobox';
 
-const componenteSchema = z.object({
+const ingredienteSchema = z.object({
     id: z.string(),
     tipo: z.literal('ingrediente'), // Por ahora solo ingredientes
     componenteId: z.string(),
@@ -39,7 +39,7 @@ const elaboracionFormSchema = z.object({
   produccionTotal: z.coerce.number().min(0.001, 'La producción total es obligatoria'),
   unidadProduccion: z.enum(UNIDADES_MEDIDA),
   partidaProduccion: z.enum(['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION']),
-  componentes: z.array(componenteSchema).min(1, 'Debe tener al menos un componente'),
+  componentes: z.array(ingredienteSchema).min(1, 'Debe tener al menos un ingrediente'),
   instruccionesPreparacion: z.string().optional().default(''),
   fotosProduccionURLs: z.array(z.string().url("Debe ser una URL válida")).optional().default([]),
   videoProduccionURL: z.string().url().or(z.literal('')).optional(),
@@ -346,11 +346,11 @@ export default function ElaboracionFormPage() {
             
             <Card>
                 <CardHeader className="flex-row items-center justify-between py-3">
-                    <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><ChefHat/>Componentes</CardTitle>
+                    <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><ChefHat/>Ingredientes</CardTitle>
                     <CardDescription className="text-xs">Añade los ingredientes que forman parte de esta preparación.</CardDescription></div>
                     <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                         <DialogTrigger asChild>
-                             <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Componente</Button>
+                             <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Ingrediente</Button>
                         </DialogTrigger>
                         <IngredienteSelector onSelect={handleSelectIngrediente} />
                     </Dialog>
@@ -358,9 +358,9 @@ export default function ElaboracionFormPage() {
                 <CardContent>
                      <div className="border rounded-lg">
                         <Table>
-                            <TableHeader><TableRow><TableHead className="py-2 px-3">Componente</TableHead><TableHead className="w-40 py-2 px-3">Cantidad</TableHead><TableHead className="w-40 py-2 px-3">Unidad</TableHead><TableHead className="w-12 py-2 px-3"></TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead className="py-2 px-3">Ingrediente</TableHead><TableHead className="w-40 py-2 px-3">Cantidad</TableHead><TableHead className="w-40 py-2 px-3">Unidad</TableHead><TableHead className="w-12 py-2 px-3"></TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {fields.length === 0 && <TableRow><TableCell colSpan={4} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
+                                {fields.length === 0 && <TableRow><TableCell colSpan={4} className="h-24 text-center">Añade un ingrediente para empezar.</TableCell></TableRow>}
                                 {fields.map((field, index) => (
                                     <TableRow key={field.id}>
                                         <TableCell className="font-medium py-1 px-3">{field.nombre}</TableCell>
