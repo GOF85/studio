@@ -386,6 +386,7 @@ export type ElaboracionEnReceta = {
   coste: number;
   gramaje: number;
   alergenos?: Alergeno[];
+  unidad: UnidadMedida;
 };
 
 export type MenajeEnReceta = {
@@ -503,10 +504,14 @@ export type LoteAsignado = {
     ofId: string;
     containerId: string;
     quantity: number;
+    hitoId: string;
 }
+
+export type PickingStatus = 'Pendiente' | 'Preparado' | 'Enviado' | 'Entregado' | 'Retornado';
 
 export type PickingState = {
     osId: string;
+    status: PickingStatus;
     assignedContainers: { [key in PartidaProduccion]?: ContenedorIsotermo[] };
     itemStates: LoteAsignado[];
 }

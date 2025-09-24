@@ -4,11 +4,11 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown, Printer, Loader2, Trash2 } from 'lucide-react';
+import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown, Printer, Loader2, Trash2, Check, X, Utensils } from 'lucide-react';
 import { format } from 'date-fns';
-import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta } from '@/types';
+import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -31,12 +31,15 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
 
 type LotePendiente = {
     ofId: string;
+    elaboracionId: string;
     elaboracionNombre: string;
-    cantidadTotal: number;
-    cantidadAsignada: number;
+    cantidadNecesaria: number; // Necesidad para este hito
+    cantidadAsignada: number; // Asignado a este hito
     unidad: string;
     tipoExpedicion: 'FRIO' | 'CALIENTE' | 'PASTELERIA' | 'EXPEDICION';
 };
@@ -48,10 +51,19 @@ const expeditionTypeMap = {
     EXPEDICION: { title: "Partida Expedición", icon: Package, className: "bg-gray-100 border-gray-200" },
 };
 
+const statusOptions: PickingStatus[] = ['Pendiente', 'Preparado', 'Enviado', 'Entregado', 'Retornado'];
+const statusVariant: { [key in PickingStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
+  Pendiente: 'secondary',
+  Preparado: 'outline',
+  Enviado: 'default',
+  Entregado: 'default',
+  Retornado: 'destructive',
+};
+
 function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendiente, containers: ContenedorIsotermo[], onAllocate: (ofId: string, containerId: string, quantity: number) => void }) {
+    const cantidadPendiente = Number(lote.cantidadNecesaria) - Number(lote.cantidadAsignada);
+    const [quantity, setQuantity] = useState(isNaN(cantidadPendiente) ? 0 : cantidadPendiente);
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
-    const initialQuantity = Number(lote.cantidadTotal) - Number(lote.cantidadAsignada);
-    const [quantity, setQuantity] = useState(isNaN(initialQuantity) ? 0 : initialQuantity);
     const [open, setOpen] = useState(false);
 
     const handleAllocate = () => {
@@ -59,8 +71,8 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
             alert("Por favor, selecciona un contenedor.");
             return;
         }
-        if (quantity <= 0 || quantity > (Number(lote.cantidadTotal) - Number(lote.cantidadAsignada))) {
-            alert("La cantidad no es válida.");
+        if (quantity <= 0 || quantity > cantidadPendiente) {
+            alert(`La cantidad debe estar entre 0.01 y ${cantidadPendiente.toFixed(2)}.`);
             return;
         }
         onAllocate(lote.ofId, selectedContainerId, quantity);
@@ -78,13 +90,11 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
                 </DialogHeader>
                 <div className="py-4 space-y-4">
                     <div className="p-2 border rounded-md">
-                        <div className="flex justify-between text-sm"><span>Cantidad Total Lote:</span> <span className="font-bold">{Number(lote.cantidadTotal).toFixed(2)} {lote.unidad}</span></div>
-                        <div className="flex justify-between text-sm"><span>Ya Asignado:</span> <span className="font-bold">{Number(lote.cantidadAsignada).toFixed(2)} {lote.unidad}</span></div>
-                        <div className="flex justify-between text-sm font-semibold mt-1 pt-1 border-t"><span>Pendiente de Asignar:</span> <span>{(Number(lote.cantidadTotal) - Number(lote.cantidadAsignada)).toFixed(2)} {lote.unidad}</span></div>
+                        <div className="flex justify-between text-sm font-semibold mt-1 pt-1 border-t"><span>Pendiente de Asignar:</span> <span>{formatNumber(cantidadPendiente, 2)} {formatUnit(lote.unidad)}</span></div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="quantity-to-allocate">Cantidad a Asignar</Label>
-                        <Input id="quantity-to-allocate" type="number" value={quantity} onChange={(e) => setQuantity(parseFloat(e.target.value))} max={Number(lote.cantidadTotal) - Number(lote.cantidadAsignada)} min="0.01" step="0.01" />
+                        <Input id="quantity-to-allocate" type="number" value={quantity} onChange={(e) => setQuantity(parseFloat(e.target.value))} max={cantidadPendiente} min="0.01" step="0.01" />
                     </div>
                     <div className="space-y-2">
                         <Label>Contenedor de Destino</Label>
@@ -120,13 +130,19 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
     )
 }
 
+type HitoConNecesidades = {
+    id: string; // briefingItemId
+    descripcion: string;
+    fecha: string;
+    horaInicio: string;
+    lotesPendientes: LotePendiente[];
+}
 
 export default function PickingDetailPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-    const [lotesNecesarios, setLotesNecesarios] = useState<OrdenFabricacion[]>([]);
     const [dbContainers, setDbContainers] = useState<ContenedorIsotermo[]>([]);
-    const [gastroOrder, setGastroOrder] = useState<GastronomyOrder | null>(null);
-    const [pickingState, setPickingState] = useState<PickingState>({ osId: '', assignedContainers: {}, itemStates: [] });
+    const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: {}, itemStates: [] });
+    const [hitosConNecesidades, setHitosConNecesidades] = useState<HitoConNecesidades[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -144,33 +160,115 @@ export default function PickingDetailPage() {
         setPickingState(newState);
     }, [osId]);
 
+    const handleStatusChange = (newStatus: PickingStatus) => {
+        savePickingState({ ...pickingState, status: newStatus });
+        toast({title: "Estado Actualizado", description: `El estado del picking es ahora: ${newStatus}`});
+    }
+    
+    const isPickingComplete = useMemo(() => {
+        return hitosConNecesidades.every(hito => hito.lotesPendientes.length === 0);
+    }, [hitosConNecesidades]);
+
+    const getRecetaForElaboracion = useCallback((elaboracionId: string, osId: string): string => {
+        const gastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).filter(o => o.osId === osId);
+        const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+        for (const order of gastroOrders) {
+            for (const item of (order.items || [])) {
+                if(item.type === 'item') {
+                    const receta = recetas.find(r => r.id === item.id);
+                    if(receta && receta.elaboraciones.some(e => e.elaboracionId === elaboracionId)) {
+                        return receta.nombre;
+                    }
+                }
+            }
+        }
+        return '-';
+    }, []);
+
+    const lotesNecesarios = useMemo(() => {
+        if (!isMounted) return [];
+        const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+        return allOFs.filter(of => of.osIDs.includes(osId));
+    }, [osId, isMounted]);
+
     useEffect(() => {
         if (osId) {
             const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
             const currentOS = allServiceOrders.find(os => os.id === osId);
             setServiceOrder(currentOS || null);
 
-            const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
             const allContainers = JSON.parse(localStorage.getItem('contenedoresDB') || '[]') as ContenedorIsotermo[];
             setDbContainers(allContainers);
             
-            const osOFs = allOFs.filter(of => of.osIDs.includes(osId));
-            setLotesNecesarios(osOFs);
-            
-            const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-            const currentGastroOrder = allGastroOrders.find(go => go.osId === osId);
-            setGastroOrder(currentGastroOrder || null);
-
             const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
             const savedState = allPickingStates[osId];
             if (savedState) {
                 setPickingState(savedState);
             } else {
-                setPickingState({ osId, assignedContainers: {}, itemStates: [] });
+                setPickingState({ osId, status: 'Pendiente', assignedContainers: {}, itemStates: [] });
             }
+
+             // Complex Logic to determine needs per hito
+            const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).filter(g => g.osId === osId);
+            const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
+            const allRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
+            const allElaboraciones = (JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[]);
+            
+            const hitos: HitoConNecesidades[] = allGastroOrders.map(gastroOrder => {
+                const necesidadesHito: Map<string, LotePendiente> = new Map();
+
+                (gastroOrder.items || []).forEach(item => {
+                    if (item.type === 'item') {
+                        const receta = allRecetas.find(r => r.id === item.id);
+                        if (receta) {
+                            receta.elaboraciones.forEach(elabEnReceta => {
+                                const elabInfo = allElaboraciones.find(e => e.id === elabEnReceta.elaboracionId);
+                                if (elabInfo) {
+                                    const cantidadNecesaria = Number(item.quantity || 0) * elabEnReceta.cantidad;
+                                    const existing = necesidadesHito.get(elabInfo.id);
+                                    if(existing) {
+                                        existing.cantidadNecesaria += cantidadNecesaria;
+                                    } else {
+                                        const of = allOFs.find(o => o.osIDs.includes(osId) && o.elaboracionId === elabInfo.id);
+                                        necesidadesHito.set(elabInfo.id, {
+                                            ofId: of?.id || 'NO-OF',
+                                            elaboracionId: elabInfo.id,
+                                            elaboracionNombre: elabInfo.nombre,
+                                            cantidadNecesaria: cantidadNecesaria,
+                                            cantidadAsignada: 0, // se calculará luego
+                                            unidad: elabInfo.unidadProduccion,
+                                            tipoExpedicion: elabInfo.partidaProduccion
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                    }
+                });
+                
+                const lotesPendientesHito = Array.from(necesidadesHito.values()).map(necesidad => {
+                    const cantidadAsignadaTotal = savedState?.itemStates
+                        .filter(a => a.ofId === necesidad.ofId && a.hitoId === gastroOrder.id)
+                        .reduce((sum, a) => sum + a.quantity, 0) || 0;
+                    
+                    return {
+                        ...necesidad,
+                        cantidadAsignada: cantidadAsignadaTotal,
+                    }
+                }).filter(lote => (lote.cantidadNecesaria - lote.cantidadAsignada) > 0.001 && (allOFs.find(of => of.id === lote.ofId)?.estado === 'Validado' || allOFs.find(of => of.id === lote.ofId)?.estado === 'Finalizado'));
+                
+                return {
+                    id: gastroOrder.id,
+                    descripcion: gastroOrder.descripcion,
+                    fecha: gastroOrder.fecha,
+                    horaInicio: gastroOrder.horaInicio,
+                    lotesPendientes: lotesPendientesHito
+                };
+            });
+            setHitosConNecesidades(hitos);
         }
         setIsMounted(true);
-    }, [osId]);
+    }, [osId, pickingState.itemStates]); // Re-run when allocations change
     
     const lotesPendientesCalidad = useMemo(() => {
         return lotesNecesarios.filter(of => 
@@ -191,56 +289,20 @@ export default function PickingDetailPage() {
         savePickingState({ ...pickingState, assignedContainers: newAssignedContainers });
     };
 
-    const allocateLote = (ofId: string, containerId: string, quantity: number) => {
-        const newAllocation: LoteAsignado = { allocationId: Date.now().toString(), ofId, containerId, quantity };
+    const allocateLote = (ofId: string, containerId: string, quantity: number, hitoId: string) => {
+        const newAllocation: LoteAsignado = { allocationId: Date.now().toString(), ofId, containerId, quantity, hitoId };
         const newItemStates = [...pickingState.itemStates, newAllocation];
         savePickingState({ ...pickingState, itemStates: newItemStates });
-        toast({ title: 'Lote Asignado', description: `Se asignaron ${quantity.toFixed(2)} unidades al contenedor.`});
+        toast({ title: 'Lote Asignado', description: `Se asignaron ${formatNumber(quantity, 2)} unidades al contenedor.`});
     }
     
     const deallocateLote = (allocationId: string) => {
         const newItemStates = pickingState.itemStates.filter(a => a.allocationId !== allocationId);
         savePickingState({ ...pickingState, itemStates: newItemStates });
     }
-
-    const lotesPendientes = useMemo(() => {
-    return lotesNecesarios
-      .filter(
-        (of) =>
-          (of.estado === 'Finalizado' ||
-            of.estado === 'Validado' ||
-            (of.incidencia && of.cantidadReal !== null && of.cantidadReal > 0))
-      )
-      .map((of) => {
-        const cantidadTotal = Number(of.cantidadReal ?? of.cantidadTotal);
-        const cantidadAsignada = pickingState.itemStates
-          .filter((a) => a.ofId === of.id)
-          .reduce((sum, a) => sum + Number(a.quantity), 0);
-
-        return {
-          ofId: of.id,
-          elaboracionNombre: of.elaboracionNombre,
-          cantidadTotal: cantidadTotal,
-          cantidadAsignada: cantidadAsignada,
-          unidad: of.unidad,
-          tipoExpedicion: of.partidaAsignada,
-        };
-      })
-      .filter((lote) => lote.cantidadTotal - lote.cantidadAsignada > 0.001);
-  }, [lotesNecesarios, pickingState.itemStates]);
-    
-    const lotesPorPartida = useMemo(() => {
-        const grouped: {[key in keyof typeof expeditionTypeMap]?: LotePendiente[]} = {};
-         lotesPendientes.forEach(lote => {
-            const tipo = lote.tipoExpedicion;
-            if (!grouped[tipo]) grouped[tipo] = [];
-            grouped[tipo]!.push(lote);
-        });
-        return grouped;
-    }, [lotesPendientes]);
     
      const handleDeletePicking = () => {
-        savePickingState({ osId, assignedContainers: {}, itemStates: [] });
+        savePickingState({ osId, status: 'Pendiente', assignedContainers: {}, itemStates: [] });
         toast({ title: "Picking Reiniciado", description: "Se han desasignado todos los lotes y contenedores."});
         setShowDeleteConfirm(false);
     }
@@ -274,6 +336,7 @@ const handlePrint = async () => {
             // --- EVENT INFO ---
             doc.setFontSize(8);
             doc.setFont('helvetica', 'normal');
+            doc.setTextColor('#374151'); // Gris oscuro
             
             const serviceData = [
                 ['Nº Serv:', serviceOrder.serviceNumber, 'Fecha:', format(new Date(serviceOrder.startDate), 'dd/MM/yy')],
@@ -309,21 +372,18 @@ const handlePrint = async () => {
                     entry.totalQuantity += assignedLote.quantity;
                     if(!entry.lotes.includes(loteInfo.id)) entry.lotes.push(loteInfo.id);
 
-                    // Find which service/recipe this is for
-                    gastroOrder?.items?.forEach(gItem => {
-                       const receta = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]).find(r => r.id === gItem.id);
-                       if(receta && receta.elaboraciones.some(e => e.elaboracionId === loteInfo.elaboracionId)) {
-                           entry.serviceTypes.add(gItem.nombre);
-                       }
-                    });
+                    const gastroOrder = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).find(go => go.id === assignedLote.hitoId);
+                    if (gastroOrder) {
+                        entry.serviceTypes.add(gastroOrder.descripcion);
+                    }
                 }
             });
 
             const body: any[] = [];
             itemsGrouped.forEach((data, elabName) => {
                  body.push([
-                    { content: `${elabName}\n${Array.from(data.serviceTypes).join(', ')}`, styles: { fontSize: 8 } },
-                    `${data.totalQuantity.toFixed(2)} ${data.unidad}`, 
+                    { content: `${elabName}\n(${Array.from(data.serviceTypes).join(', ')})`, styles: { fontSize: 8 } },
+                    `${formatNumber(data.totalQuantity, 2)} ${formatUnit(data.unidad)}`, 
                     data.lotes.join(', ')
                 ]);
             });
@@ -374,12 +434,20 @@ const handlePrint = async () => {
                     </CardDescription>
                 </div>
                  <div className="flex gap-2 no-print">
+                     <Select onValueChange={(value: PickingStatus) => handleStatusChange(value)} value={pickingState.status} disabled={!isPickingComplete && pickingState.status === 'Pendiente'}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Estado..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {statusOptions.map(s => <SelectItem key={s} value={s} disabled={s !== pickingState.status && !isPickingComplete}><Badge variant={statusVariant[s]}>{s}</Badge></SelectItem>)}
+                        </SelectContent>
+                     </Select>
                     <Button onClick={handlePrint} disabled={!hasContentToPrint || isPrinting}>
                         {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2"/>}
                         {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
                     </Button>
                     <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
-                        <Trash2 className="mr-2"/> Reiniciar Picking
+                        <Trash2 className="mr-2"/> Reiniciar
                     </Button>
                 </div>
             </div>
@@ -403,106 +471,107 @@ const handlePrint = async () => {
             )}
 
             <div className="space-y-8">
-                {(Object.keys(expeditionTypeMap) as Array<keyof typeof expeditionTypeMap>).map(tipo => {
-                    const lotesDePartida = lotesPorPartida[tipo] || [];
-                    const contenedoresDePartida = pickingState.assignedContainers[tipo] || [];
-                    const info = expeditionTypeMap[tipo];
-                    
-                    if (lotesDePartida.length === 0 && contenedoresDePartida.length === 0 && !Object.values(pickingState.assignedContainers).flat().some(ac => pickingState.itemStates.some(is => is.containerId === ac.id && lotesNecesarios.find(ln => ln.id === is.ofId)?.partidaAsignada === tipo))) {
-                        return null;
-                    }
+                 {hitosConNecesidades.map(hito => {
+                    const hitosPorPartida = hito.lotesPendientes.reduce((acc, lote) => {
+                        const partida = lote.tipoExpedicion;
+                        if (!acc[partida]) acc[partida] = [];
+                        acc[partida]!.push(lote);
+                        return acc;
+                    }, {} as {[key in keyof typeof expeditionTypeMap]?: LotePendiente[]});
 
                     return (
-                        <Card key={tipo} className={cn(info.className, "print-section")}>
-                            <CardHeader className="flex-row items-start justify-between">
-                                <CardTitle className="flex items-center gap-3">
-                                    <info.icon />
-                                    {info.title}
-                                </CardTitle>
-                                 <Dialog>
-                                    <DialogTrigger asChild>
-                                        <Button size="sm" variant="outline" className="no-print bg-white/50"><PlusCircle className="mr-2"/>Asignar Contenedor</Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader><DialogTitle>Seleccionar Contenedores para {info.title}</DialogTitle></DialogHeader>
-                                         <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button variant="outline" role="combobox" className="w-full justify-between">
-                                                    Añadir contenedor...
-                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                                <Command>
-                                                    <CommandInput placeholder="Buscar contenedor..." />
-                                                    <CommandList>
-                                                        <CommandEmpty>No hay contenedores.</CommandEmpty>
-                                                        <CommandGroup>
-                                                            {dbContainers.map(c => (
-                                                                <CommandItem key={c.id} onSelect={() => addContainerToSection(tipo, c)}>{c.nombre} ({c.id})</CommandItem>
-                                                            ))}
-                                                        </CommandGroup>
-                                                    </CommandList>
-                                                </Command>
-                                            </PopoverContent>
-                                        </Popover>
-                                    </DialogContent>
-                                </Dialog>
+                        <Card key={hito.id} className="print-section">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3"><Utensils />Hito: {hito.descripcion}</CardTitle>
+                                <CardDescription>{format(new Date(hito.fecha), 'dd/MM/yyyy')} a las {hito.horaInicio}</CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                {lotesDePartida.length > 0 && (
-                                    <div className="mb-6">
-                                        <h3 className="font-semibold text-lg mb-2">Lotes pendientes de asignar</h3>
-                                        <Table className="bg-white">
-                                            <TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
-                                            <TableBody>
-                                                {lotesDePartida.map(lote => (
-                                                    <TableRow key={lote.ofId}>
-                                                        <TableCell className="font-medium font-mono">{lote.ofId}</TableCell>
-                                                        <TableCell>{lote.elaboracionNombre}</TableCell>
-                                                        <TableCell className="text-right font-mono">{(Number(lote.cantidadTotal) - Number(lote.cantidadAsignada)).toFixed(2)} {lote.unidad}</TableCell>
-                                                        <TableCell className="text-right no-print">
-                                                            <AllocationDialog lote={lote} containers={contenedoresDePartida} onAllocate={allocateLote} />
-                                                         </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                )}
-                                
-                                <div className="space-y-6">
-                                    {contenedoresDePartida.map(container => {
-                                        const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
-                                        return (
-                                            <div key={container.id}>
-                                                <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">Contenedor: <Badge variant="secondary" className="text-base">{container.nombre} ({container.id})</Badge></h3>
-                                                <Table className="bg-white/70">
-                                                    <TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-16 no-print"></TableHead></TableRow></TableHeader>
-                                                    <TableBody>
-                                                         {containerItems.length === 0 ? (
-                                                            <TableRow><TableCell colSpan={4} className="text-center h-20 text-muted-foreground">Vacío</TableCell></TableRow>
-                                                         ) : (
-                                                            containerItems.map(item => {
-                                                                const loteInfo = lotesNecesarios.find(l => l.id === item.ofId);
-                                                                return (
-                                                                <TableRow key={item.allocationId}>
-                                                                    <TableCell className="font-medium font-mono">{item.ofId}</TableCell>
-                                                                    <TableCell>{loteInfo?.elaboracionNombre}</TableCell>
-                                                                    <TableCell className="text-right font-mono">{(item.quantity || 0).toFixed(2)} {loteInfo?.unidad}</TableCell>
-                                                                    <TableCell className="no-print"><Button variant="ghost" size="sm" onClick={() => deallocateLote(item.allocationId)}>Quitar</Button></TableCell>
-                                                                </TableRow>
-                                                            )})
-                                                         )}
-                                                    </TableBody>
-                                                </Table>
-                                            </div>
-                                        )
-                                    })}
-                                </div>
+                            <CardContent className="space-y-6">
+                                {(Object.keys(expeditionTypeMap) as Array<keyof typeof expeditionTypeMap>).map(tipo => {
+                                    const lotesDePartida = hitosPorPartida[tipo] || [];
+                                    const contenedoresDePartida = pickingState.assignedContainers[tipo] || [];
+                                    const info = expeditionTypeMap[tipo];
+
+                                    const allocationsForHito = pickingState.itemStates.filter(state => state.hitoId === hito.id);
+                                    
+                                    if (lotesDePartida.length === 0 && !allocationsForHito.some(alloc => lotesNecesarios.find(ln => ln.id === alloc.ofId)?.partidaAsignada === tipo)) {
+                                        return null;
+                                    }
+
+                                    return (
+                                        <Card key={`${hito.id}-${tipo}`} className={cn(info.className)}>
+                                            <CardHeader className="flex-row items-start justify-between">
+                                                <CardTitle className="flex items-center gap-3 text-lg"><info.icon />{info.title}</CardTitle>
+                                                <Dialog>
+                                                    <DialogTrigger asChild><Button size="sm" variant="outline" className="no-print bg-white/50"><PlusCircle className="mr-2"/>Asignar Contenedor</Button></DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader><DialogTitle>Seleccionar Contenedores para {info.title}</DialogTitle></DialogHeader>
+                                                        <Popover>
+                                                            <PopoverTrigger asChild><Button variant="outline" role="combobox" className="w-full justify-between">Añadir contenedor...<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></PopoverTrigger>
+                                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                                                <Command>
+                                                                    <CommandInput placeholder="Buscar contenedor..." /><CommandList><CommandEmpty>No hay contenedores.</CommandEmpty><CommandGroup>
+                                                                    {dbContainers.map(c => (<CommandItem key={c.id} onSelect={() => addContainerToSection(tipo, c)}>{c.nombre} ({c.id})</CommandItem>))}
+                                                                    </CommandGroup></CommandList>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            </CardHeader>
+                                            <CardContent>
+                                                {lotesDePartida.length > 0 && (
+                                                    <div className="mb-4">
+                                                        <h3 className="font-semibold mb-2">Lotes pendientes de asignar para este hito</h3>
+                                                        <Table className="bg-white"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
+                                                            <TableBody>
+                                                                {lotesDePartida.map(lote => (
+                                                                    <TableRow key={lote.ofId}>
+                                                                        <TableCell className="font-medium font-mono">{lote.ofId}</TableCell>
+                                                                        <TableCell>{lote.elaboracionNombre}</TableCell>
+                                                                        <TableCell className="text-right font-mono">{formatNumber(lote.cantidadNecesaria - lote.cantidadAsignada, 2)} {formatUnit(lote.unidad)}</TableCell>
+                                                                        <TableCell className="text-right no-print"><AllocationDialog lote={lote} containers={contenedoresDePartida} onAllocate={(of, cont, qty) => allocateLote(of, cont, qty, hito.id)} /></TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                )}
+                                                <div className="space-y-4">
+                                                    {contenedoresDePartida.map(container => {
+                                                        const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id && item.hitoId === hito.id);
+                                                        return (
+                                                            <div key={container.id}>
+                                                                <h3 className="font-semibold mb-2 flex items-center gap-2">Contenedor: <Badge variant="secondary" className="text-base">{container.nombre} ({container.id})</Badge></h3>
+                                                                <Table className="bg-white/70"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead>Receta</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-16 no-print"></TableHead></TableRow></TableHeader>
+                                                                    <TableBody>
+                                                                        {containerItems.length === 0 ? (
+                                                                            <TableRow><TableCell colSpan={5} className="text-center h-20 text-muted-foreground">Vacío</TableCell></TableRow>
+                                                                        ) : (
+                                                                            containerItems.map(item => {
+                                                                                const loteInfo = lotesNecesarios.find(l => l.id === item.ofId);
+                                                                                return (
+                                                                                <TableRow key={item.allocationId}>
+                                                                                    <TableCell className="font-medium font-mono">{item.ofId}</TableCell>
+                                                                                    <TableCell>{loteInfo?.elaboracionNombre}</TableCell>
+                                                                                    <TableCell className="text-xs text-muted-foreground">({getRecetaForElaboracion(loteInfo?.elaboracionId || '', osId)})</TableCell>
+                                                                                    <TableCell className="text-right font-mono">{formatNumber(item.quantity || 0, 2)} {loteInfo ? formatUnit(loteInfo.unidad) : ''}</TableCell>
+                                                                                    <TableCell className="no-print"><Button variant="ghost" size="sm" onClick={() => deallocateLote(item.allocationId)}>Quitar</Button></TableCell>
+                                                                                </TableRow>
+                                                                            )})
+                                                                        )}
+                                                                    </TableBody>
+                                                                </Table>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    )
+                                })}
                             </CardContent>
                         </Card>
-                    )
+                    );
                 })}
             </div>
             <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
@@ -527,5 +596,3 @@ const handlePrint = async () => {
         </div>
     );
 }
-
-    
