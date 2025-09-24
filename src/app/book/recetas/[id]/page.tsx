@@ -209,7 +209,7 @@ export default function RecetaFormPage() {
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
-    defaultValues: { nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] }
+    defaultValues: { nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], perfilSaborSecundario: [], perfilTextura: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] }
   });
 
   const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab } = useFieldArray({ control: form.control, name: "elaboraciones" });
@@ -223,7 +223,7 @@ export default function RecetaFormPage() {
     const allAlergenos = new Set<Alergeno>();
     const allPartidas = new Set<PartidaProduccion>();
 
-    watchedElaboraciones.forEach(elab => {
+    (watchedElaboraciones || []).forEach(elab => {
         const costeConMerma = elab.coste * (1 + (elab.merma || 0) / 100);
         coste += costeConMerma * elab.cantidad;
         (elab.alergenos || []).forEach(a => allAlergenos.add(a as Alergeno));
@@ -313,7 +313,7 @@ export default function RecetaFormPage() {
     if (initialValues) {
         form.reset(initialValues);
     } else if (!isEditing) {
-        form.reset({ id: Date.now().toString(), nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] });
+        form.reset({ nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], perfilSaborSecundario: [], perfilTextura: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] });
     }
     
     setIsDataLoaded(true);
@@ -369,10 +369,17 @@ export default function RecetaFormPage() {
     const firstError = Object.entries(errors)[0];
     if (firstError) {
         const [fieldName, errorDetails] = firstError;
+        let errorMessage = errorDetails.message;
+        if (errorDetails.root) { // For array errors
+            errorMessage = errorDetails.root.message;
+        }
+        if (typeof errorDetails === 'object' && !errorMessage && 'message' in errorDetails) {
+            errorMessage = (errorDetails as any).message;
+        }
         toast({
             variant: 'destructive',
             title: 'Error de validación',
-            description: `${fieldName}: ${errorDetails.message}`,
+            description: `${fieldName}: ${errorMessage}`,
         })
     }
   };
@@ -508,8 +515,8 @@ export default function RecetaFormPage() {
                                         <FormMessage />
                                     </FormItem>)} />
                                 </div>
-
-                                 <Separator className="my-4"/>
+                                
+                                <Separator className="my-4"/>
 
                                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                                     <FormItem><FormLabel>Coste Materia Prima</FormLabel><Input readOnly value={formatCurrency(costeMateriaPrima)} className="font-bold h-9" /></FormItem>
@@ -545,7 +552,7 @@ export default function RecetaFormPage() {
                             <DndContext sensors={sensors} onDragEnd={(e) => handleDragEnd(e, 'elab')} collisionDetection={closestCenter}>
                                 <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                                     <div className="space-y-1">
-                                    {elabFields.map((field, index) => (
+                                    {(elabFields || []).map((field, index) => (
                                         <SortableItem key={field.id} id={field.id}>
                                             <div className="flex-1 grid grid-cols-4 items-center gap-2">
                                                 <span className="font-semibold col-span-2">{field.nombre}</span>
@@ -788,6 +795,4 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
-
-
 
