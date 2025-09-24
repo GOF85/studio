@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -5,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Package, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { ServiceOrder, GastronomyOrder } from '@/types';
+import type { ServiceOrder, GastronomyOrder, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -22,11 +23,17 @@ import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { statusVariant } from '@/app/cpr/picking/[id]/page';
 
 const ITEMS_PER_PAGE = 20;
 
+type HitoDePicking = GastronomyOrder & {
+    serviceOrder: ServiceOrder;
+    pickingStatus: PickingState['status'];
+};
+
 export default function PickingPage() {
-  const [serviceOrdersWithGastro, setServiceOrdersWithGastro] = useState<ServiceOrder[]>([]);
+  const [hitos, setHitos] = useState<HitoDePicking[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -36,44 +43,61 @@ export default function PickingPage() {
   useEffect(() => {
     const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+    const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
 
-    const osIdsWithGastro = new Set(allGastroOrders.map(o => o.osId));
+    const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
     
-    const filteredOS = allServiceOrders
-      .filter(os => osIdsWithGastro.has(os.id))
-      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    const hitosDePicking = allGastroOrders
+        .map(gastroOrder => {
+            const serviceOrder = osMap.get(gastroOrder.osId);
+            if (!serviceOrder) return null;
+
+            const pickingState = allPickingStates[gastroOrder.osId];
+            // Simplification: We'll show the main OS picking status for now.
+            // A more advanced implementation might track status per hito.
+            const status = pickingState?.status || 'Pendiente';
+            
+            return {
+                ...gastroOrder,
+                serviceOrder,
+                pickingStatus: status
+            };
+        })
+        .filter((h): h is HitoDePicking => h !== null)
+        .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
       
-    setServiceOrdersWithGastro(filteredOS);
+    setHitos(hitosDePicking);
     setIsMounted(true);
   }, []);
 
-  const filteredOrders = useMemo(() => {
-    return serviceOrdersWithGastro.filter(os => {
+  const filteredHitos = useMemo(() => {
+    return hitos.filter(hito => {
       const searchMatch = 
-        os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        os.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (os.finalClient || '').toLowerCase().includes(searchTerm.toLowerCase());
+        hito.serviceOrder.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        hito.serviceOrder.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (hito.serviceOrder.finalClient || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        hito.descripcion.toLowerCase().includes(searchTerm.toLowerCase());
 
       let dateMatch = true;
       if(dateRange?.from) {
-        const osDate = new Date(os.startDate);
+        const hitoDate = new Date(hito.fecha);
         if (dateRange.to) {
-            dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+            dateMatch = isWithinInterval(hitoDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
         } else {
-            dateMatch = isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
+            dateMatch = isWithinInterval(hitoDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
         }
       }
 
       return searchMatch && dateMatch;
     });
-  }, [serviceOrdersWithGastro, searchTerm, dateRange]);
+  }, [hitos, searchTerm, dateRange]);
 
-  const paginatedOrders = useMemo(() => {
+  const paginatedHitos = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredOrders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredOrders, currentPage]);
+    return filteredHitos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredHitos, currentPage]);
 
-  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredHitos.length / ITEMS_PER_PAGE);
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Picking y Logística..." />;
@@ -87,7 +111,7 @@ export default function PickingPage() {
             <Package />
             Picking y Logística
             </h1>
-            <p className="text-muted-foreground mt-1">Selecciona una Orden de Servicio para preparar el picking.</p>
+            <p className="text-muted-foreground mt-1">Selecciona un servicio para preparar su picking individualmente.</p>
         </div>
       </div>
 
@@ -96,7 +120,7 @@ export default function PickingPage() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                   type="search"
-                  placeholder="Buscar por Nº Servicio, cliente..."
+                  placeholder="Buscar por servicio, cliente, OS..."
                   className="pl-8 sm:w-full"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -126,33 +150,34 @@ export default function PickingPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nº Servicio</TableHead>
+              <TableHead>Servicio (Hito)</TableHead>
+              <TableHead>Nº Servicio (OS)</TableHead>
               <TableHead>Cliente</TableHead>
-              <TableHead>Fecha Evento</TableHead>
+              <TableHead>Fecha Servicio</TableHead>
               <TableHead>Estado Picking</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedOrders.length > 0 ? (
-              paginatedOrders.map(os => (
+            {paginatedHitos.length > 0 ? (
+              paginatedHitos.map(hito => (
                 <TableRow
-                  key={os.id}
-                  onClick={() => router.push(`/cpr/picking/${os.id}`)}
+                  key={hito.id}
+                  onClick={() => router.push(`/cpr/picking/${hito.osId}?hitoId=${hito.id}`)}
                   className="cursor-pointer"
                 >
-                  <TableCell className="font-medium">{os.serviceNumber}</TableCell>
-                  <TableCell>{os.client}{os.finalClient && ` (${os.finalClient})`}</TableCell>
-                  <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell className="font-medium">{hito.descripcion}</TableCell>
+                  <TableCell><Badge variant="outline">{hito.serviceOrder.serviceNumber}</Badge></TableCell>
+                  <TableCell>{hito.serviceOrder.client}{hito.serviceOrder.finalClient && ` (${hito.serviceOrder.finalClient})`}</TableCell>
+                  <TableCell>{format(new Date(hito.fecha), 'dd/MM/yyyy')} {hito.horaInicio}</TableCell>
                   <TableCell>
-                    {/* Placeholder for picking status */}
-                    <Badge variant="secondary">Pendiente</Badge>
+                    <Badge variant={statusVariant[hito.pickingStatus]}>{hito.pickingStatus}</Badge>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
-                  No hay Órdenes de Servicio con pedidos de gastronomía para los filtros seleccionados.
+                <TableCell colSpan={5} className="h-24 text-center">
+                  No hay servicios con gastronomía para los filtros seleccionados.
                 </TableCell>
               </TableRow>
             )}
