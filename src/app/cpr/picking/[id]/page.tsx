@@ -207,68 +207,71 @@ export default function PickingDetailPage() {
             } else {
                 setPickingState({ osId, status: 'Pendiente', assignedContainers: {}, itemStates: [] });
             }
-
-             // Complex Logic to determine needs per hito
-            const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).filter(g => g.osId === osId);
-            const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
-            const allRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
-            const allElaboraciones = (JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[]);
-            
-            const hitos: HitoConNecesidades[] = allGastroOrders.map(gastroOrder => {
-                const necesidadesHito: Map<string, LotePendiente> = new Map();
-
-                (gastroOrder.items || []).forEach(item => {
-                    if (item.type === 'item') {
-                        const receta = allRecetas.find(r => r.id === item.id);
-                        if (receta) {
-                            receta.elaboraciones.forEach(elabEnReceta => {
-                                const elabInfo = allElaboraciones.find(e => e.id === elabEnReceta.elaboracionId);
-                                if (elabInfo) {
-                                    const cantidadNecesaria = Number(item.quantity || 0) * elabEnReceta.cantidad;
-                                    const existing = necesidadesHito.get(elabInfo.id);
-                                    if(existing) {
-                                        existing.cantidadNecesaria += cantidadNecesaria;
-                                    } else {
-                                        const of = allOFs.find(o => o.osIDs.includes(osId) && o.elaboracionId === elabInfo.id);
-                                        necesidadesHito.set(elabInfo.id, {
-                                            ofId: of?.id || 'NO-OF',
-                                            elaboracionId: elabInfo.id,
-                                            elaboracionNombre: elabInfo.nombre,
-                                            cantidadNecesaria: cantidadNecesaria,
-                                            cantidadAsignada: 0, // se calculará luego
-                                            unidad: elabInfo.unidadProduccion,
-                                            tipoExpedicion: elabInfo.partidaProduccion
-                                        });
-                                    }
-                                }
-                            });
-                        }
-                    }
-                });
-                
-                const lotesPendientesHito = Array.from(necesidadesHito.values()).map(necesidad => {
-                    const cantidadAsignadaTotal = pickingState.itemStates
-                        .filter(a => a.ofId === necesidad.ofId && a.hitoId === gastroOrder.id)
-                        .reduce((sum, a) => sum + a.quantity, 0) || 0;
-                    
-                    return {
-                        ...necesidad,
-                        cantidadAsignada: cantidadAsignadaTotal,
-                    }
-                }).filter(lote => (lote.cantidadNecesaria - lote.cantidadAsignada) > 0.001 && (allOFs.find(of => of.id === lote.ofId)?.estado === 'Validado' || allOFs.find(of => of.id === lote.ofId)?.estado === 'Finalizado'));
-                
-                return {
-                    id: gastroOrder.id,
-                    descripcion: gastroOrder.descripcion,
-                    fecha: gastroOrder.fecha,
-                    horaInicio: gastroOrder.horaInicio,
-                    lotesPendientes: lotesPendientesHito
-                };
-            });
-            setHitosConNecesidades(hitos);
         }
         setIsMounted(true);
-    }, [osId, pickingState.itemStates]); // Re-run when allocations change
+    }, [osId]); 
+
+    useEffect(() => {
+        if(!isMounted) return;
+         // Complex Logic to determine needs per hito
+        const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).filter(g => g.osId === osId);
+        const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
+        const allRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
+        const allElaboraciones = (JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[]);
+        
+        const hitos: HitoConNecesidades[] = allGastroOrders.map(gastroOrder => {
+            const necesidadesHito: Map<string, LotePendiente> = new Map();
+
+            (gastroOrder.items || []).forEach(item => {
+                if (item.type === 'item') {
+                    const receta = allRecetas.find(r => r.id === item.id);
+                    if (receta) {
+                        receta.elaboraciones.forEach(elabEnReceta => {
+                            const elabInfo = allElaboraciones.find(e => e.id === elabEnReceta.elaboracionId);
+                            if (elabInfo) {
+                                const cantidadNecesaria = Number(item.quantity || 0) * elabEnReceta.cantidad;
+                                const existing = necesidadesHito.get(elabInfo.id);
+                                if(existing) {
+                                    existing.cantidadNecesaria += cantidadNecesaria;
+                                } else {
+                                    const of = allOFs.find(o => o.osIDs.includes(osId) && o.elaboracionId === elabInfo.id);
+                                    necesidadesHito.set(elabInfo.id, {
+                                        ofId: of?.id || 'NO-OF',
+                                        elaboracionId: elabInfo.id,
+                                        elaboracionNombre: elabInfo.nombre,
+                                        cantidadNecesaria: cantidadNecesaria,
+                                        cantidadAsignada: 0, // se calculará luego
+                                        unidad: elabInfo.unidadProduccion,
+                                        tipoExpedicion: elabInfo.partidaProduccion
+                                    });
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+            
+            const lotesPendientesHito = Array.from(necesidadesHito.values()).map(necesidad => {
+                const cantidadAsignadaTotal = pickingState.itemStates
+                    .filter(a => a.ofId === necesidad.ofId && a.hitoId === gastroOrder.id)
+                    .reduce((sum, a) => sum + a.quantity, 0) || 0;
+                
+                return {
+                    ...necesidad,
+                    cantidadAsignada: cantidadAsignadaTotal,
+                }
+            }).filter(lote => (lote.cantidadNecesaria - lote.cantidadAsignada) > 0.001 && (allOFs.find(of => of.id === lote.ofId)?.estado === 'Validado' || allOFs.find(of => of.id === lote.ofId)?.estado === 'Finalizado'));
+            
+            return {
+                id: gastroOrder.id,
+                descripcion: gastroOrder.descripcion,
+                fecha: gastroOrder.fecha,
+                horaInicio: gastroOrder.horaInicio,
+                lotesPendientes: lotesPendientesHito
+            };
+        });
+        setHitosConNecesidades(hitos);
+    }, [osId, isMounted, pickingState.itemStates]);
     
     const lotesPendientesCalidad = useMemo(() => {
         return lotesNecesarios.filter(of => 
@@ -600,3 +603,4 @@ const handlePrint = async () => {
         </div>
     );
 }
+
