@@ -269,7 +269,7 @@ export default function PickingDetailPage() {
             lotesPorHito.set(hito.id, lotesPendientesHito);
         });
         
-        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete };
+        return { lotesPendientesPorHito, isPickingComplete: allComplete };
 
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates]);
     
@@ -448,7 +448,7 @@ const handlePrint = async () => {
                         Hoja de Picking: {serviceOrder.serviceNumber}
                     </h1>
                     <CardDescription>
-                        Cliente: {serviceOrder.client} | Fecha: {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}
+                        Cliente: {serviceOrder.client} | Espacio: {serviceOrder.space} | Fecha: {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}
                     </CardDescription>
                 </div>
                  <div className="flex gap-2 no-print">
