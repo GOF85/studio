@@ -61,8 +61,8 @@ export const statusVariant: { [key in PickingStatus]: 'default' | 'secondary' | 
 };
 
 function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendiente, containers: ContenedorIsotermo[], onAllocate: (ofId: string, containerId: string, quantity: number) => void }) {
-    const cantidadPendiente = Number(lote.cantidadNecesaria) - Number(lote.cantidadAsignada);
-    const [quantity, setQuantity] = useState(parseFloat(cantidadPendiente.toFixed(2)));
+    const cantidadPendiente = parseFloat((Number(lote.cantidadNecesaria) - Number(lote.cantidadAsignada)).toFixed(2));
+    const [quantity, setQuantity] = useState(cantidadPendiente);
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
     const [open, setOpen] = useState(false);
 
@@ -262,7 +262,8 @@ export default function PickingDetailPage() {
             }).filter(lote => {
                 const ofState = allOFs.find(of => of.id === lote.ofId)?.estado;
                 const isReadyForPicking = ofState === 'Validado' || ofState === 'Finalizado';
-                return (lote.cantidadNecesaria - lote.cantidadAsignada) > 0.001 && isReadyForPicking;
+                const cantidadPendiente = lote.cantidadNecesaria - lote.cantidadAsignada;
+                return cantidadPendiente > 0.001 && isReadyForPicking;
             });
             
             if (lotesPendientesHito.length > 0) allComplete = false;
@@ -448,7 +449,7 @@ const handlePrint = async () => {
                         <Package />
                         Hoja de Picking: {serviceOrder.serviceNumber}
                     </h1>
-                    <CardDescription>
+                     <CardDescription>
                         Cliente: {serviceOrder.client} | Espacio: {serviceOrder.space} | Fecha: {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}
                     </CardDescription>
                 </div>
