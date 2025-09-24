@@ -9,15 +9,15 @@ export default function UserManualPage() {
                 <Users className="w-10 h-10 text-primary" />
                 <div>
                     <h1 className="!m-0">Manual de Usuario</h1>
-                    <p className="lead !m-0">Guía funcional completa para aprender a utilizar CateringStock.</p>
+                    <p className="lead !m-0">Guía funcional completa para aprender a utilizar MICE Catering.</p>
                 </div>
             </div>
 
             <section id="c1">
                 <h2 className="flex items-center gap-3"><BookOpen />Capítulo 1: Primeros Pasos</h2>
                 <p>Este capítulo introduce los conceptos básicos de la aplicación, su estructura y cómo empezar a trabajar con ella.</p>
-                <h3>1.1. Introducción a CateringStock</h3>
-                <p>CateringStock es una herramienta integral para la gestión de servicios de catering, desde la planificación comercial hasta la ejecución en cocina y la logística del evento.</p>
+                <h3>1.1. Introducción a MICE Catering</h3>
+                <p>MICE Catering es una herramienta integral para la gestión de servicios de catering, desde la planificación comercial hasta la ejecución en cocina y la logística del evento.</p>
                 <h3>1.2. Roles de Usuario</h3>
                 <p>La aplicación está diseñada para diferentes perfiles. Dependiendo de tu rol (Comercial, Jefe de Producción, Cocinero, etc.), verás las secciones y opciones relevantes para tu trabajo, simplificando la interfaz y protegiendo la información.</p>
                 <h3>1.3. Gestión de Bases de Datos</h3>
@@ -64,7 +64,7 @@ export default function UserManualPage() {
             
             <section id="c5">
                 <h2 className="flex items-center gap-3"><BarChart3 />Capítulo 5: Informes y Análisis</h2>
-                <p>CateringStock no solo gestiona, sino que también proporciona inteligencia de negocio para tomar decisiones estratégicas.</p>
+                <p>MICE Catering no solo gestiona, sino que también proporciona inteligencia de negocio para tomar decisiones estratégicas.</p>
                 <h3>5.1. Informes de Rentabilidad</h3>
                 <p>El sistema permitirá analizar la rentabilidad histórica por cliente o tipo de evento para identificar las áreas más rentables del negocio.</p>
                 <h3>5.2. Análisis de Producción</h3>

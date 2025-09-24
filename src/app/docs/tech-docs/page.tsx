@@ -10,7 +10,7 @@ export default function TechDocsPage() {
                 <Code className="w-10 h-10 text-primary" />
                 <div>
                     <h1 className="!m-0">Documentación Técnica</h1>
-                    <p className="lead !m-0">Arquitectura, modelo de datos y flujos técnicos de CateringStock.</p>
+                    <p className="lead !m-0">Arquitectura, modelo de datos y flujos técnicos de MICE Catering.</p>
                 </div>
             </div>
 

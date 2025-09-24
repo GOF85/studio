@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { NProgressProvider } from '@/components/providers/nprogress-provider';
 
 export const metadata: Metadata = {
-  title: 'CateringStock',
+  title: 'MICE Catering',
   description: 'Soluciones de alquiler para tus eventos',
 };
 

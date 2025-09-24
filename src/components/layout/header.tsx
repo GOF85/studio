@@ -8,7 +8,7 @@ export function Header() {
         <Link href="/" className="flex items-center gap-3">
           <UtensilsCrossed className="h-7 w-7 text-primary" />
           <h1 className="text-2xl font-headline font-bold text-primary tracking-tight">
-            CateringStock
+            MICE Catering
           </h1>
         </Link>
         <nav className="flex flex-1 items-center justify-end space-x-2">

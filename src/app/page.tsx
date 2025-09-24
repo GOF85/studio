@@ -73,7 +73,7 @@ export default function DashboardPage() {
         <Header />
         <main className="flex-grow container mx-auto px-4 py-8">
           <div className="text-center mb-6">
-              <h1 className="text-4xl font-headline font-bold tracking-tight">Bienvenido a CateringStock</h1>
+              <h1 className="text-4xl font-headline font-bold tracking-tight">Bienvenido a MICE Catering</h1>
           </div>
 
           <section className="mb-10">
@@ -137,7 +137,7 @@ export default function DashboardPage() {
         </main>
         <footer className="py-4 border-t mt-auto">
           <div className="container mx-auto text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} CateringStock. Todos los derechos reservados.
+            © {new Date().getFullYear()} MICE Catering. Todos los derechos reservados.
           </div>
         </footer>
       </div>
