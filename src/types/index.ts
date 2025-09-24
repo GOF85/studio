@@ -4,6 +4,7 @@
 
 
 
+
 import type { OsFormValues } from "@/app/os/page";
 import { z } from "zod";
 
@@ -92,8 +93,8 @@ export type Espacio = {
     accesibilidadAsistentes: string;
     pantalla: string;
     plato: string;
+aparcamiento: string;
     accesoVehiculos: string;
-    aparcamiento: string;
     conexionWifi: string;
     homologacion: string;
     comentariosMarketing: string;
@@ -352,7 +353,6 @@ export type IngredienteInterno = {
     id: string;
     nombreIngrediente: string;
     productoERPlinkId: string;
-    mermaPorcentaje: number;
     alergenosPresentes: Alergeno[];
     alergenosTrazas: Alergeno[];
 };
@@ -362,7 +362,8 @@ export type ComponenteElaboracion = {
     tipo: 'ingrediente' | 'elaboracion';
     componenteId: string;
     nombre: string;
-    cantidad: number; // Changed from string to number
+    cantidad: number;
+    mermaPorcentaje: number;
 };
 
 export type FormatoExpedicion = {

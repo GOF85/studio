@@ -26,7 +26,6 @@ export const ingredienteFormSchema = z.object({
   id: z.string(),
   nombreIngrediente: z.string().min(1, 'El nombre es obligatorio'),
   productoERPlinkId: z.string().min(1, 'Debe enlazar un producto ERP'),
-  mermaPorcentaje: z.coerce.number().min(0).max(100).default(0),
   alergenosPresentes: z.array(z.string()).default([]),
   alergenosTrazas: z.array(z.string()).default([]),
 });
@@ -79,7 +78,7 @@ export default function IngredienteFormPage() {
 
   const form = useForm<IngredienteFormValues>({
     resolver: zodResolver(ingredienteFormSchema),
-    defaultValues: { nombreIngrediente: '', productoERPlinkId: '', mermaPorcentaje: 0, alergenosPresentes: [], alergenosTrazas: [] },
+    defaultValues: { nombreIngrediente: '', productoERPlinkId: '', alergenosPresentes: [], alergenosTrazas: [] },
   });
   
   const selectedErpId = form.watch('productoERPlinkId');
@@ -118,7 +117,7 @@ export default function IngredienteFormPage() {
         router.push('/book/ingredientes');
       }
     } else {
-        form.reset({ id: Date.now().toString(), nombreIngrediente: '', productoERPlinkId: '', mermaPorcentaje: 0, alergenosPresentes: [], alergenosTrazas: [] });
+        form.reset({ id: Date.now().toString(), nombreIngrediente: '', productoERPlinkId: '', alergenosPresentes: [], alergenosTrazas: [] });
     }
   }, [id, isEditing, form, router, toast]);
 
@@ -292,17 +291,12 @@ export default function IngredienteFormPage() {
                 <CardHeader className="py-3"><CardTitle className="text-lg">Información del Ingrediente</CardTitle></CardHeader>
                 <CardContent className="pt-2">
                     <div className="grid grid-cols-12 gap-4 items-start">
-                        <div className="col-span-5">
+                        <div className="col-span-6">
                             <FormField control={form.control} name="nombreIngrediente" render={({ field }) => (
                                 <FormItem><FormLabel>Nombre del Ingrediente</FormLabel><FormControl><Input {...field} placeholder="Ej: Harina de Trigo" /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
-                        <div className="col-span-2">
-                            <FormField control={form.control} name="mermaPorcentaje" render={({ field }) => (
-                                <FormItem><FormLabel>% de Merma</FormLabel><FormControl><Input type="number" {...field} placeholder="Ej: 10" /></FormControl><FormMessage /></FormItem>
-                            )} />
-                        </div>
-                         <div className="col-span-5">
+                         <div className="col-span-6">
                              <FormItem>
                                 <FormLabel>Vínculo con Materia Prima (ERP)</FormLabel>
                                 {selectedErpProduct ? (

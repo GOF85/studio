@@ -29,7 +29,7 @@ type IngredienteConERP = IngredienteInterno & {
     alergenos: Alergeno[];
 }
 
-const CSV_HEADERS = ["id", "nombreIngrediente", "productoERPlinkId", "mermaPorcentaje", "alergenosPresentes", "alergenosTrazas"];
+const CSV_HEADERS = ["id", "nombreIngrediente", "productoERPlinkId", "alergenosPresentes", "alergenosTrazas"];
 const ITEMS_PER_PAGE = 20;
 
 export default function IngredientesPage() {
@@ -134,7 +134,6 @@ export default function IngredientesPage() {
                     id: item.id || Date.now().toString() + Math.random(),
                     nombreIngrediente: item.nombreIngrediente || '',
                     productoERPlinkId: item.productoERPlinkId || '',
-                    mermaPorcentaje: parseFloat(item.mermaPorcentaje) || 0,
                     alergenosPresentes,
                     alergenosTrazas,
                 };
@@ -284,7 +283,6 @@ export default function IngredientesPage() {
                 <TableHead className="py-2">Id. ERP</TableHead>
                 <TableHead className="py-2">Categoría ERP</TableHead>
                 <TableHead className="py-2">Alérgenos</TableHead>
-                <TableHead className="py-2">% Merma</TableHead>
                 <TableHead className="py-2 text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -319,7 +317,6 @@ export default function IngredientesPage() {
                         })}
                       </div>
                     </TableCell>
-                    <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>{item.mermaPorcentaje}%</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -342,7 +339,7 @@ export default function IngredientesPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No se encontraron ingredientes.
                   </TableCell>
                 </TableRow>
