@@ -72,7 +72,7 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
             return;
         }
         if (quantity <= 0 || quantity > cantidadPendiente) {
-            alert(`La cantidad debe estar entre 0.01 y ${cantidadPendiente.toFixed(2)}.`);
+            alert(`La cantidad debe estar entre 0.01 y ${formatNumber(cantidadPendiente, 2)}.`);
             return;
         }
         onAllocate(lote.ofId, selectedContainerId, quantity);
@@ -293,7 +293,7 @@ export default function PickingDetailPage() {
         const newAllocation: LoteAsignado = { allocationId: Date.now().toString(), ofId, containerId, quantity, hitoId };
         const newItemStates = [...pickingState.itemStates, newAllocation];
         savePickingState({ ...pickingState, itemStates: newItemStates });
-        toast({ title: 'Lote Asignado', description: `Se asignaron ${formatNumber(quantity, 2)} unidades al contenedor.`});
+        toast({ title: 'Lote Asignado', description: `${formatNumber(quantity, 2)} unidades asignadas al contenedor.`});
     }
     
     const deallocateLote = (allocationId: string) => {
@@ -434,12 +434,12 @@ const handlePrint = async () => {
                     </CardDescription>
                 </div>
                  <div className="flex gap-2 no-print">
-                     <Select onValueChange={(value: PickingStatus) => handleStatusChange(value)} value={pickingState.status} disabled={!isPickingComplete && pickingState.status === 'Pendiente'}>
+                     <Select onValueChange={(value: PickingStatus) => handleStatusChange(value)} value={pickingState.status}>
                         <SelectTrigger className="w-[180px]">
                             <SelectValue placeholder="Estado..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {statusOptions.map(s => <SelectItem key={s} value={s} disabled={s !== pickingState.status && !isPickingComplete}><Badge variant={statusVariant[s]}>{s}</Badge></SelectItem>)}
+                            {statusOptions.map(s => <SelectItem key={s} value={s} disabled={s !== 'Pendiente' && !isPickingComplete}><Badge variant={statusVariant[s]}>{s}</Badge></SelectItem>)}
                         </SelectContent>
                      </Select>
                     <Button onClick={handlePrint} disabled={!hasContentToPrint || isPrinting}>
