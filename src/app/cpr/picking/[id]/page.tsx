@@ -161,7 +161,9 @@ export default function PickingDetailPage() {
     }, [osId]);
 
     const handleStatusChange = (newStatus: PickingStatus) => {
-        savePickingState({ ...pickingState, status: newStatus });
+        // Only update the status property, keep other parts of the state stable
+        const updatedState = { ...pickingState, status: newStatus };
+        savePickingState(updatedState);
         toast({title: "Estado Actualizado", description: `El estado del picking es ahora: ${newStatus}`});
     }
     
@@ -247,7 +249,7 @@ export default function PickingDetailPage() {
                 });
                 
                 const lotesPendientesHito = Array.from(necesidadesHito.values()).map(necesidad => {
-                    const cantidadAsignadaTotal = savedState?.itemStates
+                    const cantidadAsignadaTotal = pickingState.itemStates
                         .filter(a => a.ofId === necesidad.ofId && a.hitoId === gastroOrder.id)
                         .reduce((sum, a) => sum + a.quantity, 0) || 0;
                     
