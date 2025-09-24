@@ -159,6 +159,18 @@ const InfoTooltip = ({ text }: { text: string }) => (
     </Tooltip>
 );
 
+const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteConERP>) => {
+    const elabAlergenos = new Set<Alergeno>();
+    elaboracion.componentes.forEach(comp => {
+        if(comp.tipo === 'ingrediente') {
+            const ingData = ingredientesMap.get(comp.componenteId);
+            (ingData?.alergenosPresentes || []).forEach(a => elabAlergenos.add(a));
+            (ingData?.alergenosTrazas || []).forEach(a => elabAlergenos.add(a));
+        }
+    });
+    return Array.from(elabAlergenos);
+};
+
 export default function RecetaFormPage() {
   const router = useRouter();
   const params = useParams();
@@ -177,7 +189,6 @@ export default function RecetaFormPage() {
   const [dbMenaje, setDbMenaje] = useState<MenajeDB[]>([]);
   const [dbCategorias, setDbCategorias] = useState<CategoriaReceta[]>([]);
   const [dbTiposCocina, setDbTiposCocina] = useState<TipoCocina[]>([]);
-  const [dbIngredientes, setDbIngredientes] = useState<Map<string, IngredienteConERP>>(new Map());
   const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
   const [saboresSecundarios, setSaboresSecundarios] = useState<string[]>([]);
   const [texturas, setTexturas] = useState<string[]>([]);
@@ -228,25 +239,12 @@ export default function RecetaFormPage() {
     return costeMateriaPrima / (watchedPorcentajeCoste / 100);
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
-  const calculateElabAlergenos = useCallback((elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteConERP>) => {
-    const elabAlergenos = new Set<Alergeno>();
-    elaboracion.componentes.forEach(comp => {
-        if(comp.tipo === 'ingrediente') {
-            const ingData = ingredientesMap.get(comp.componenteId);
-            (ingData?.alergenosPresentes || []).forEach(a => elabAlergenos.add(a));
-            (ingData?.alergenosTrazas || []).forEach(a => elabAlergenos.add(a));
-        }
-    });
-    return Array.from(elabAlergenos);
-  }, []);
-
   const loadData = useCallback(async () => {
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
     const erpMap = new Map(storedErp.map(i => [i.id, i]));
     const combined = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
     const ingredientesMap = new Map(combined.map(i => [i.id, i]));
-    setDbIngredientes(ingredientesMap);
 
     const elaboracionesData = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     const elaboracionesConDatos = elaboracionesData.map(e => ({
@@ -312,7 +310,7 @@ export default function RecetaFormPage() {
     }
     
     setIsDataLoaded(true);
-  }, [id, isEditing, cloneId, calculateElabAlergenos, form]);
+  }, [id, isEditing, cloneId, form]);
 
   useEffect(() => {
     loadData();
