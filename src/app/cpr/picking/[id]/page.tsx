@@ -71,7 +71,7 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
             alert("Por favor, selecciona un contenedor.");
             return;
         }
-        if (quantity <= 0 || quantity > cantidadPendiente) {
+        if (quantity <= 0 || quantity > cantidadPendiente + 0.001) { // Add tolerance for float issues
             alert(`La cantidad debe estar entre 0.01 y ${formatNumber(cantidadPendiente, 2)}.`);
             return;
         }
@@ -344,24 +344,23 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
 
             doc.setFontSize(8);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151'); // Gris oscuro
+            doc.setTextColor('#374151'); // Dark gray
             
             const serviceData = [
                 ['Nº Serv:', serviceOrder.serviceNumber],
                 ['Cliente:', serviceOrder.finalClient || serviceOrder.client],
-                ['Espacio:', serviceOrder.space || '-'],
             ];
-
-             autoTable(doc, {
+            autoTable(doc, {
                 body: serviceData,
                 startY: finalY,
                 theme: 'plain',
+                tableWidth: (pageWidth - margin * 2) / 2 - 2, // 2mm gap
                 styles: { fontSize: 8, cellPadding: 0.1 },
                 columnStyles: { 0: { fontStyle: 'bold' } }
             });
-            finalY = (doc as any).lastAutoTable.finalY + 0.5;
 
             const eventData = [
+                ['Espacio:', serviceOrder.space || '-'],
                 ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
                 ['Servicio:', hito.descripcion]
             ];
@@ -369,10 +368,13 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                 body: eventData,
                 startY: finalY,
                 theme: 'plain',
+                tableWidth: (pageWidth - margin * 2) / 2 - 2, // 2mm gap
+                margin: { left: pageWidth / 2 + 2 },
                 styles: { fontSize: 8, cellPadding: 0.1 },
                 columnStyles: { 0: { fontStyle: 'bold' } }
             });
-            finalY = (doc as any).lastAutoTable.finalY;
+
+            finalY = (doc as any).lastAutoTable.finalY + 2;
 
 
             doc.setLineWidth(0.2);
@@ -411,11 +413,12 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                 head: [['Elaboración (Receta)', 'Cant. Tot.', 'Lote']],
                 body,
                 theme: 'grid',
+                tableWidth: pageWidth - margin * 2,
                 headStyles: { fontStyle: 'bold', fontSize: 9, halign: 'center', cellPadding: 1, fillColor: [230, 230, 230], textColor: [0,0,0] },
                 styles: { fontSize: 8, cellPadding: 1, lineColor: '#000', lineWidth: 0.1, valign: 'middle' },
                 columnStyles: {
-                    0: { cellWidth: 38 },
-                    1: { cellWidth: 22, halign: 'right' },
+                    0: { cellWidth: 35 },
+                    1: { cellWidth: 20, halign: 'right' },
                     2: { cellWidth: 'auto', halign: 'right' },
                 }
             });
