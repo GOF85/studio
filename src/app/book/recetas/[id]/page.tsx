@@ -5,7 +5,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -163,13 +163,18 @@ const InfoTooltip = ({ text }: { text: string }) => (
     </Tooltip>
 );
 
-const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteConERP>) => {
+const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteConERP>): Alergeno[] => {
     const elabAlergenos = new Set<Alergeno>();
+    if (!elaboracion || !elaboracion.componentes) {
+      return [];
+    }
     elaboracion.componentes.forEach(comp => {
         if(comp.tipo === 'ingrediente') {
             const ingData = ingredientesMap.get(comp.componenteId);
-            (ingData?.alergenosPresentes || []).forEach(a => elabAlergenos.add(a));
-            (ingData?.alergenosTrazas || []).forEach(a => elabAlergenos.add(a));
+            if (ingData) {
+              (ingData.alergenosPresentes || []).forEach(a => elabAlergenos.add(a));
+              (ingData.alergenosTrazas || []).forEach(a => elabAlergenos.add(a));
+            }
         }
     });
     return Array.from(elabAlergenos);
@@ -316,7 +321,7 @@ export default function RecetaFormPage() {
 
   useEffect(() => {
     loadData();
-  }, [id, loadData]);
+  }, [loadData]);
 
 
   const onAddElab = (elab: ElaboracionConCoste) => {
@@ -343,13 +348,32 @@ export default function RecetaFormPage() {
     setIsGenerating(true);
     try {
         const formData = form.getValues();
-        const description = await recipeDescriptionGenerator(formData);
+        const description = await recipeDescriptionGenerator({
+          nombre: formData.nombre,
+          tipoCocina: formData.tipoCocina,
+          perfilSaborPrincipal: formData.perfilSaborPrincipal,
+          perfilSaborSecundario: formData.perfilSaborSecundario,
+          perfilTextura: formData.perfilTextura,
+          tecnicaCoccionPrincipal: formData.tecnicaCoccionPrincipal,
+        });
         form.setValue('descripcionComercial', description, { shouldDirty: true });
         toast({ title: 'Descripción generada', description: 'La IA ha generado una nueva descripción comercial.' });
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar la descripción.' });
     } finally {
         setIsGenerating(false);
+    }
+  };
+  
+  const onError = (errors: FieldErrors<RecetaFormValues>) => {
+    const firstError = Object.entries(errors)[0];
+    if (firstError) {
+        const [fieldName, errorDetails] = firstError;
+        toast({
+            variant: 'destructive',
+            title: 'Error de validación',
+            description: `${fieldName}: ${errorDetails.message}`,
+        })
     }
   };
 
@@ -375,6 +399,7 @@ export default function RecetaFormPage() {
     localStorage.setItem('recetas', JSON.stringify(allItems));
     toast({ description: `Receta "${data.nombre}" guardada.` });
     setIsLoading(false);
+    form.reset(dataToSave); // Mark form as clean with the saved data
     router.push('/book');
   }
 
@@ -396,7 +421,7 @@ export default function RecetaFormPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
-          <form id="receta-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form id="receta-form" onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-4">
              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <BookHeart className="h-8 w-8" />
@@ -483,8 +508,8 @@ export default function RecetaFormPage() {
                                         <FormMessage />
                                     </FormItem>)} />
                                 </div>
-                                
-                                <Separator className="my-4"/>
+
+                                 <Separator className="my-4"/>
 
                                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                                     <FormItem><FormLabel>Coste Materia Prima</FormLabel><Input readOnly value={formatCurrency(costeMateriaPrima)} className="font-bold h-9" /></FormItem>
@@ -494,7 +519,7 @@ export default function RecetaFormPage() {
                                     </FormItem> )} />
                                     <FormItem><FormLabel>Precio Venta</FormLabel><Input readOnly value={formatCurrency(precioVenta)} className="font-bold text-primary h-9" /></FormItem>
                                 </div>
-
+                                
                                 <div className="pt-3">
                                     <h4 className="font-semibold mb-2 flex items-center gap-2"><Sprout/>Alérgenos de la Receta</h4>
                                     <div className="border rounded-md p-3 w-full bg-muted/30">
@@ -763,5 +788,6 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
+
 
 
