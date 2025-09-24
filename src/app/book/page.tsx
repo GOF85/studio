@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
-import { BookHeart, ChefHat, Component, Package, GlassWater, ChevronRight, ChevronLeft, PlusCircle, Menu } from 'lucide-react';
+import { BookHeart, ChefHat, Component, Package, GlassWater, ChevronRight, ChevronLeft, PlusCircle, Menu, Sprout } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import type { Receta } from '@/types';
 import { Input } from '@/components/ui/input';
@@ -86,6 +86,9 @@ export default function BookDashboardPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                              <Link href="/menaje-db"><GlassWater size={16} className="mr-2"/>Menaje</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                             <Link href="/book/alergenos"><Sprout size={16} className="mr-2"/>Gestión de Alérgenos</Link>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

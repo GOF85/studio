@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, Calendar, BookHeart, Factory, Settings, ChefHat, Component, Package, GlassWater, ChevronRight, ClipboardCheck, ListChecks, History, AlertTriangle, PackagePlus, BarChart3, ShieldCheck, LifeBuoy } from 'lucide-react';
+import { ClipboardList, Calendar, BookHeart, Factory, Settings, ChefHat, Component, Package, GlassWater, ChevronRight, ClipboardCheck, ListChecks, History, AlertTriangle, PackagePlus, BarChart3, ShieldCheck, LifeBuoy, Sprout } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
@@ -34,6 +34,7 @@ const mainMenuItems: MenuItem[] = [
             { title: 'Ingredientes', href: '/book/ingredientes', icon: ChefHat },
             { title: 'Materia Prima (ERP)', href: '/book/ingredientes-erp', icon: Package },
             { title: 'Menaje', href: '/menaje-db', icon: GlassWater },
+            { title: 'Gestión de Alérgenos', href: '/book/alergenos', icon: Sprout },
         ]
     },
     { 
