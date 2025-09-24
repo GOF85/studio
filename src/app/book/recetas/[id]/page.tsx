@@ -67,7 +67,7 @@ const recetaFormSchema = z.object({
   descripcionComercial: z.string().optional().default(''),
   responsableEscandallo: z.string().optional().default(''),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
-  partidaProduccion: z.string().optional(), // Now a string, will be dynamically computed
+  partidaProduccion: z.string().optional(),
   gramajeTotal: z.coerce.number().optional().default(0),
   estacionalidad: z.enum(['INVIERNO', 'VERANO', 'MIXTO']),
   tipoDieta: z.enum(['VEGETARIANO', 'VEGANO', 'AMBOS', 'NINGUNO']),
@@ -489,7 +489,7 @@ export default function RecetaFormPage() {
                                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                                     <FormItem><FormLabel>Coste Materia Prima</FormLabel><Input readOnly value={formatCurrency(costeMateriaPrima)} className="font-bold h-9" /></FormItem>
                                     <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => ( <FormItem>
-                                        <FormLabel className="flex items-center gap-1.5">% Imputación CPR<InfoTooltip text="Porcentaje que se suma al coste de materia prima para obtener el precio de venta." /></FormLabel>
+                                        <FormLabel className="flex items-center gap-1.5">% Imputacion CPR<InfoTooltip text="Porcentaje que se suma al coste de materia prima para obtener el precio de venta." /></FormLabel>
                                         <FormControl><Input type="number" {...field} className="h-9" /></FormControl>
                                     </FormItem> )} />
                                     <FormItem><FormLabel>Precio Venta</FormLabel><Input readOnly value={formatCurrency(precioVenta)} className="font-bold text-primary h-9" /></FormItem>
@@ -763,4 +763,5 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
+
 
