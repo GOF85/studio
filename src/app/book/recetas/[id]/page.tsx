@@ -13,7 +13,7 @@ import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-ki
 import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
 
 import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp } from 'lucide-react';
-import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, IngredienteERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina } from '@/types';
+import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, IngredienteERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina, PartidaProduccion } from '@/types';
 import { SABORES_PRINCIPALES } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -64,7 +64,7 @@ const recetaFormSchema = z.object({
   descripcionComercial: z.string().optional().default(''),
   responsableEscandallo: z.string().optional().default(''),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
-  partidaProduccion: z.enum(['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION']),
+  partidaProduccion: z.string().optional(), // Now a string, will be dynamically computed
   estacionalidad: z.enum(['INVIERNO', 'VERANO', 'MIXTO']),
   tipoDieta: z.enum(['VEGETARIANO', 'VEGANO', 'AMBOS', 'NINGUNO']),
   porcentajeCosteProduccion: z.coerce.number().optional().default(30),
@@ -189,7 +189,7 @@ export default function RecetaFormPage() {
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
-    defaultValues: { nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] }
+    defaultValues: { nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] }
   });
 
   const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab } = useFieldArray({ control: form.control, name: "elaboraciones" });
@@ -198,17 +198,30 @@ export default function RecetaFormPage() {
   const watchedElaboraciones = form.watch('elaboraciones');
   const watchedPorcentajeCoste = form.watch('porcentajeCosteProduccion');
 
-  const { costeMateriaPrima, gramajeTotal, alergenos } = useMemo(() => {
+  const { costeMateriaPrima, gramajeTotal, alergenos, partidasProduccion } = useMemo(() => {
     let coste = 0;
     let gramaje = 0;
     const allAlergenos = new Set<Alergeno>();
+    const allPartidas = new Set<PartidaProduccion>();
+
     watchedElaboraciones.forEach(elab => {
         coste += (elab.coste || 0) * elab.cantidad;
         gramaje += (elab.gramaje || 0) * elab.cantidad;
         (elab.alergenos || []).forEach(a => allAlergenos.add(a as Alergeno));
+
+        const elabData = dbElaboraciones.find(dbElab => dbElab.id === elab.elaboracionId);
+        if (elabData?.partidaProduccion) {
+            allPartidas.add(elabData.partidaProduccion);
+        }
     });
-    return { costeMateriaPrima: coste, gramajeTotal: gramaje, alergenos: Array.from(allAlergenos) };
-  }, [watchedElaboraciones]);
+
+    return { 
+        costeMateriaPrima: coste, 
+        gramajeTotal: gramaje, 
+        alergenos: Array.from(allAlergenos),
+        partidasProduccion: Array.from(allPartidas)
+    };
+  }, [watchedElaboraciones, dbElaboraciones]);
 
   const precioVentaRecomendado = useMemo(() => {
     if (!watchedPorcentajeCoste || watchedPorcentajeCoste <= 0) return 0;
@@ -295,7 +308,7 @@ export default function RecetaFormPage() {
     if (initialValues) {
         form.reset(initialValues);
     } else if (!isEditing) {
-        form.reset({ id: Date.now().toString(), nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] });
+        form.reset({ id: Date.now().toString(), nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] });
     }
     
     setIsDataLoaded(true);
@@ -350,6 +363,7 @@ export default function RecetaFormPage() {
         gramajeTotal, 
         precioVentaRecomendado, 
         alergenos,
+        partidaProduccion: partidasProduccion.join(', '), // Save computed value
     };
 
     if (isEditing && !cloneId) {
@@ -453,10 +467,18 @@ export default function RecetaFormPage() {
                                             </SelectContent>
                                         </Select>
                                     <FormMessage /></FormItem> )} />
-                                    <FormField control={form.control} name="partidaProduccion" render={({ field }) => ( <FormItem className="flex flex-col">
-                                        <FormLabel className="flex items-center gap-1.5">Partida de Producción <InfoTooltip text="Define en qué sección principal de la cocina se prepara esta receta." /></FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="FRIO">Frío</SelectItem><SelectItem value="CALIENTE">Caliente</SelectItem><SelectItem value="PASTELERIA">Pastelería</SelectItem><SelectItem value="EXPEDICION">Expedición</SelectItem></SelectContent></Select>
-                                    </FormItem> )} />
+                                    <FormItem className="flex flex-col">
+                                        <FormLabel className="flex items-center gap-1.5">Partida de Producción <InfoTooltip text="Se calcula automáticamente a partir de las elaboraciones añadidas." /></FormLabel>
+                                        <div className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm">
+                                            <div className="flex flex-wrap gap-1">
+                                                {partidasProduccion.length > 0 ? (
+                                                    partidasProduccion.map(p => <Badge key={p} variant="secondary">{p}</Badge>)
+                                                ) : (
+                                                    <span className="text-muted-foreground">N/A</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </FormItem>
                                     <FormField control={form.control} name="estacionalidad" render={({ field }) => ( <FormItem className="flex flex-col">
                                         <FormLabel className="flex items-center gap-1.5">Estacionalidad <InfoTooltip text="Indica la temporada ideal para este plato, basado en la disponibilidad y calidad de sus ingredientes." /></FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="INVIERNO">Invierno</SelectItem><SelectItem value="VERANO">Verano</SelectItem><SelectItem value="MIXTO">Mixto</SelectItem></SelectContent></Select>

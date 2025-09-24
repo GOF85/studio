@@ -2,6 +2,7 @@
 
 
 
+
 import type { OsFormValues } from "@/app/os/page";
 import { z } from "zod";
 
@@ -417,7 +418,7 @@ export type Receta = {
     descripcionComercial: string;
     responsableEscandallo: string;
     categoria: string;
-    partidaProduccion: PartidaProduccion;
+    partidaProduccion: string;
     estacionalidad: 'INVIERNO' | 'VERANO' | 'MIXTO';
     tipoDieta: 'VEGETARIANO' | 'VEGANO' | 'AMBOS' | 'NINGUNO';
     gramajeTotal: number; // en gramos
