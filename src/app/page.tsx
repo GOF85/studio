@@ -34,7 +34,7 @@ const mainMenuItems: MenuItem[] = [
             { title: 'Ingredientes', href: '/book/ingredientes', icon: ChefHat },
             { title: 'Materia Prima (ERP)', href: '/book/ingredientes-erp', icon: Package },
             { title: 'Menaje', href: '/menaje-db', icon: GlassWater },
-            { title: 'Gestión de Alérgenos', href: '/book/alergenos', icon: Sprout },
+            { title: 'Información de Alérgenos', href: '/book/alergenos', icon: Sprout },
         ]
     },
     { 

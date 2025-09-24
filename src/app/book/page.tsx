@@ -88,7 +88,7 @@ export default function BookDashboardPage() {
                              <Link href="/menaje-db"><GlassWater size={16} className="mr-2"/>Menaje</Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                             <Link href="/book/alergenos"><Sprout size={16} className="mr-2"/>Gestión de Alérgenos</Link>
+                             <Link href="/book/alergenos"><Sprout size={16} className="mr-2"/>Información de Alérgenos</Link>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

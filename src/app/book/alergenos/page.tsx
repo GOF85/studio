@@ -45,7 +45,7 @@ export default function AlergenosPage() {
   const allergenOptions = ALERGENOS.map(a => ({ value: a, label: a.charAt(0) + a.slice(1).toLowerCase().replace('_', ' ') }));
 
   if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Gestión de Alérgenos..." />;
+    return <LoadingSkeleton title="Cargando Información de Alérgenos..." />;
   }
 
   return (
@@ -53,7 +53,7 @@ export default function AlergenosPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Sprout />Gestión de Alérgenos</h1>
+          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Sprout />Información de Alérgenos</h1>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
