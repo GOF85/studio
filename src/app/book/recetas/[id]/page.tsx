@@ -164,10 +164,10 @@ const InfoTooltip = ({ text }: { text: string }) => (
 );
 
 const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteConERP>): Alergeno[] => {
-    const elabAlergenos = new Set<Alergeno>();
     if (!elaboracion || !elaboracion.componentes) {
       return [];
     }
+    const elabAlergenos = new Set<Alergeno>();
     elaboracion.componentes.forEach(comp => {
         if(comp.tipo === 'ingrediente') {
             const ingData = ingredientesMap.get(comp.componenteId);
@@ -795,5 +795,6 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
+
 
 
