@@ -9,7 +9,7 @@ import { format } from 'date-fns';
 import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -94,7 +94,7 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="quantity-to-allocate">Cantidad a Asignar</Label>
-                        <Input id="quantity-to-allocate" type="number" value={quantity} onChange={(e) => setQuantity(parseFloat(e.target.value))} max={cantidadPendiente} min="0.01" step="0.01" />
+                        <Input id="quantity-to-allocate" type="number" value={quantity} onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)} max={cantidadPendiente} min="0.01" step="0.01" />
                     </div>
                     <div className="space-y-2">
                         <Label>Contenedor de Destino</Label>
@@ -132,7 +132,7 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
 
 export default function PickingDetailPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-    const [hito, setHito] = useState<ComercialBriefingItem | null>(null);
+    const [hitosConNecesidades, setHitosConNecesidades] = useState<ComercialBriefingItem[]>([]);
     const [dbContainers, setDbContainers] = useState<ContenedorIsotermo[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: {}, itemStates: [] });
     const [lotesPendientes, setLotesPendientes] = useState<LotePendiente[]>([]);
@@ -147,23 +147,21 @@ export default function PickingDetailPage() {
     const hitoId = searchParams.get('hitoId');
     const { toast } = useToast();
 
-    const savePickingState = useCallback((newState: PickingState) => {
+    const savePickingState = useCallback((newState: Partial<PickingState>) => {
         if (!osId) return;
         const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
-        allPickingStates[osId] = newState;
+        const currentState = allPickingStates[osId] || { osId, status: 'Pendiente', assignedContainers: {}, itemStates: [] };
+        const updatedState = { ...currentState, ...newState };
+        allPickingStates[osId] = updatedState;
         localStorage.setItem('pickingStates', JSON.stringify(allPickingStates));
-        setPickingState(newState);
+        setPickingState(updatedState);
     }, [osId]);
 
     const handleStatusChange = (newStatus: PickingStatus) => {
-        savePickingState({ ...pickingState, status: newStatus });
+        savePickingState({ status: newStatus });
         toast({title: "Estado Actualizado", description: `El estado del picking es ahora: ${newStatus}`});
     }
     
-    const isPickingComplete = useMemo(() => {
-        return lotesPendientes.length === 0;
-    }, [lotesPendientes]);
-
     const getRecetaForElaboracion = useCallback((elaboracionId: string, osId: string): string => {
         const gastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).filter(o => o.osId === osId);
         const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
@@ -187,15 +185,15 @@ export default function PickingDetailPage() {
     }, [osId, isMounted]);
 
     useEffect(() => {
-        if (osId && hitoId) {
+        if (osId) {
             const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
             const currentOS = allServiceOrders.find(os => os.id === osId);
             setServiceOrder(currentOS || null);
             
             const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
             const currentBriefing = allBriefings.find(b => b.osId === osId);
-            const currentHito = currentBriefing?.items.find(i => i.id === hitoId);
-            setHito(currentHito || null);
+            const gastronomicHitos = currentBriefing?.items.filter(i => i.conGastronomia) || [];
+            setHitosConNecesidades(gastronomicHitos);
 
             const allContainers = JSON.parse(localStorage.getItem('contenedoresDB') || '[]') as ContenedorIsotermo[];
             setDbContainers(allContainers);
@@ -204,70 +202,77 @@ export default function PickingDetailPage() {
             const savedState = allPickingStates[osId];
             if (savedState) {
                 setPickingState(savedState);
-            } else {
-                setPickingState({ osId, status: 'Pendiente', assignedContainers: {}, itemStates: [] });
             }
         }
         setIsMounted(true);
-    }, [osId, hitoId]); 
+    }, [osId]); 
 
-    useEffect(() => {
-        if(!isMounted || !hito) return;
-         // Complex Logic to determine needs per hito
+    const { lotesPendientesPorHito, isPickingComplete } = useMemo(() => {
+        if(!isMounted) return { lotesPendientesPorHito: new Map(), isPickingComplete: false };
+
         const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
         const allRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
         const allElaboraciones = (JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[]);
         const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
 
-        const necesidadesHito: Map<string, LotePendiente> = new Map();
-        
-        const gastroOrder = allGastroOrders.find(go => go.id === hito.id);
+        let allComplete = true;
+        const lotesPorHito = new Map<string, LotePendiente[]>();
 
-        if (gastroOrder && gastroOrder.items) {
-            gastroOrder.items.forEach(item => {
-                if (item.type === 'item') {
-                    const receta = allRecetas.find(r => r.id === item.id);
-                    if (receta) {
-                        receta.elaboraciones.forEach(elabEnReceta => {
-                            const elabInfo = allElaboraciones.find(e => e.id === elabEnReceta.elaboracionId);
-                            if (elabInfo) {
-                                const cantidadNecesaria = Number(item.quantity || 0) * elabEnReceta.cantidad;
-                                const existing = necesidadesHito.get(elabInfo.id);
-                                if(existing) {
-                                    existing.cantidadNecesaria += cantidadNecesaria;
-                                } else {
-                                    const of = allOFs.find(o => o.osIDs.includes(osId) && o.elaboracionId === elabInfo.id);
-                                    necesidadesHito.set(elabInfo.id, {
-                                        ofId: of?.id || 'NO-OF',
-                                        elaboracionId: elabInfo.id,
-                                        elaboracionNombre: elabInfo.nombre,
-                                        cantidadNecesaria: cantidadNecesaria,
-                                        cantidadAsignada: 0, // se calculará luego
-                                        unidad: elabInfo.unidadProduccion,
-                                        tipoExpedicion: elabInfo.partidaProduccion
-                                    });
+        hitosConNecesidades.forEach(hito => {
+            const necesidadesHito: Map<string, LotePendiente> = new Map();
+            const gastroOrder = allGastroOrders.find(go => go.id === hito.id);
+
+            if (gastroOrder && gastroOrder.items) {
+                gastroOrder.items.forEach(item => {
+                    if (item.type === 'item') {
+                        const receta = allRecetas.find(r => r.id === item.id);
+                        if (receta) {
+                            receta.elaboraciones.forEach(elabEnReceta => {
+                                const elabInfo = allElaboraciones.find(e => e.id === elabEnReceta.elaboracionId);
+                                if (elabInfo) {
+                                    const cantidadNecesaria = Number(item.quantity || 0) * elabEnReceta.cantidad;
+                                    const existing = necesidadesHito.get(elabInfo.id);
+                                    if(existing) {
+                                        existing.cantidadNecesaria += cantidadNecesaria;
+                                    } else {
+                                        const of = allOFs.find(o => o.osIDs.includes(osId) && o.elaboracionId === elabInfo.id);
+                                        necesidadesHito.set(elabInfo.id, {
+                                            ofId: of?.id || 'NO-OF',
+                                            elaboracionId: elabInfo.id,
+                                            elaboracionNombre: elabInfo.nombre,
+                                            cantidadNecesaria: cantidadNecesaria,
+                                            cantidadAsignada: 0,
+                                            unidad: elabInfo.unidadProduccion,
+                                            tipoExpedicion: elabInfo.partidaProduccion
+                                        });
+                                    }
                                 }
-                            }
-                        });
+                            });
+                        }
                     }
-                }
-            });
-        }
-        
-        const lotesPendientesHito = Array.from(necesidadesHito.values()).map(necesidad => {
-            const cantidadAsignadaTotal = pickingState.itemStates
-                .filter(a => a.ofId === necesidad.ofId && a.hitoId === hito.id)
-                .reduce((sum, a) => sum + a.quantity, 0) || 0;
-            
-            return {
-                ...necesidad,
-                cantidadAsignada: cantidadAsignadaTotal,
+                });
             }
-        }).filter(lote => (lote.cantidadNecesaria - lote.cantidadAsignada) > 0.001 && (allOFs.find(of => of.id === lote.ofId)?.estado === 'Validado' || allOFs.find(of => of.id === lote.ofId)?.estado === 'Finalizado'));
-        
-        setLotesPendientes(lotesPendientesHito);
 
-    }, [osId, hito, isMounted, pickingState.itemStates]);
+            const lotesPendientesHito = Array.from(necesidadesHito.values()).map(necesidad => {
+                const cantidadAsignadaTotal = pickingState.itemStates
+                    .filter(a => a.ofId === necesidad.ofId && a.hitoId === hito.id)
+                    .reduce((sum, a) => sum + a.quantity, 0) || 0;
+                
+                return { ...necesidad, cantidadAsignada: cantidadAsignadaTotal };
+            }).filter(lote => {
+                const ofState = allOFs.find(of => of.id === lote.ofId)?.estado;
+                const isReadyForPicking = ofState === 'Validado' || ofState === 'Finalizado';
+                return (lote.cantidadNecesaria - lote.cantidadAsignada) > 0.001 && isReadyForPicking;
+            });
+            
+            if (lotesPendientesHito.length > 0) allComplete = false;
+
+            lotesPorHito.set(hito.id, lotesPendientesHito);
+        });
+
+        return { lotesPendientesPorHito, isPickingComplete: allComplete };
+
+    }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates]);
     
     const lotesPendientesCalidad = useMemo(() => {
         return lotesNecesarios.filter(of => 
@@ -285,30 +290,29 @@ export default function PickingDetailPage() {
             return;
         };
         newAssignedContainers[tipo] = [...currentSectionContainers, container];
-        savePickingState({ ...pickingState, assignedContainers: newAssignedContainers });
+        savePickingState({ assignedContainers: newAssignedContainers });
     };
 
-    const allocateLote = (ofId: string, containerId: string, quantity: number) => {
-        if (!hitoId) return;
+    const allocateLote = (ofId: string, containerId: string, quantity: number, hitoId: string) => {
         const newAllocation: LoteAsignado = { allocationId: Date.now().toString(), ofId, containerId, quantity, hitoId };
         const newItemStates = [...pickingState.itemStates, newAllocation];
-        savePickingState({ ...pickingState, itemStates: newItemStates });
+        savePickingState({ itemStates: newItemStates });
         toast({ title: 'Lote Asignado', description: `${formatNumber(quantity, 2)} unidades asignadas al contenedor.`});
     }
     
     const deallocateLote = (allocationId: string) => {
         const newItemStates = pickingState.itemStates.filter(a => a.allocationId !== allocationId);
-        savePickingState({ ...pickingState, itemStates: newItemStates });
+        savePickingState({ itemStates: newItemStates });
     }
     
      const handleDeletePicking = () => {
-        savePickingState({ osId, status: 'Pendiente', assignedContainers: {}, itemStates: [] });
+        savePickingState({ status: 'Pendiente', assignedContainers: {}, itemStates: [] });
         toast({ title: "Picking Reiniciado", description: "Se han desasignado todos los lotes y contenedores."});
         setShowDeleteConfirm(false);
     }
     
 const handlePrint = async () => {
-    if (!serviceOrder || !hito) return;
+    if (!serviceOrder) return;
     setIsPrinting(true);
 
     try {
@@ -322,7 +326,6 @@ const handlePrint = async () => {
             const pageWidth = doc.internal.pageSize.getWidth();
             let finalY = margin;
 
-            // --- HEADER ---
             doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
             doc.text(container.nombre, margin, finalY + 2);
@@ -333,17 +336,18 @@ const handlePrint = async () => {
             doc.line(margin, finalY, pageWidth - margin, finalY);
             finalY += 2;
 
-            // --- EVENT INFO ---
             doc.setFontSize(8);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151'); // Gris oscuro
+            doc.setTextColor('#374151');
+            
+            const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
+            const hitoId = containerItems.length > 0 ? containerItems[0].hitoId : null;
+            const hito = hitoId ? hitosConNecesidades.find(h => h.id === hitoId) : null;
             
             const serviceData = [
                 ['Nº Serv:', serviceOrder.serviceNumber],
                 ['Cliente:', serviceOrder.finalClient || serviceOrder.client],
                 ['Espacio:', serviceOrder.space || '-'],
-                ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
-                ['Servicio:', hito.descripcion]
             ];
 
              autoTable(doc, {
@@ -353,14 +357,28 @@ const handlePrint = async () => {
                 styles: { fontSize: 8, cellPadding: 0.1 },
                 columnStyles: { 0: { fontStyle: 'bold' } }
             });
-            finalY = (doc as any).lastAutoTable.finalY;
+            finalY = (doc as any).lastAutoTable.finalY + 0.5;
+
+            if (hito) {
+                 const eventData = [
+                    ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
+                    ['Servicio:', hito.descripcion]
+                ];
+                autoTable(doc, {
+                    body: eventData,
+                    startY: finalY,
+                    theme: 'plain',
+                    styles: { fontSize: 8, cellPadding: 0.1 },
+                    columnStyles: { 0: { fontStyle: 'bold' } }
+                });
+                finalY = (doc as any).lastAutoTable.finalY;
+            }
+
 
             doc.setLineWidth(0.2);
             doc.line(margin, finalY, pageWidth - margin, finalY);
             finalY += 2;
 
-            // --- CONTENT TABLE ---
-            const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id && item.hitoId === hitoId);
             const itemsGrouped = new Map<string, { totalQuantity: number, lotes: string[], unidad: string, receta: string }>();
 
             containerItems.forEach(assignedLote => {
@@ -402,7 +420,7 @@ const handlePrint = async () => {
             });
         });
 
-        doc.save(`Etiquetas_Picking_${serviceOrder.serviceNumber}_${hito.descripcion}.pdf`);
+        doc.save(`Etiquetas_Picking_${serviceOrder.serviceNumber}.pdf`);
     } catch (error) {
         console.error("Error generating PDF:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
@@ -411,11 +429,11 @@ const handlePrint = async () => {
     }
 };
 
-    if (!isMounted || !serviceOrder || !hito) {
+    if (!isMounted || !serviceOrder) {
         return <LoadingSkeleton title="Cargando Picking..." />;
     }
     
-    const allocationsForHito = pickingState.itemStates.filter(state => state.hitoId === hitoId);
+    const allocationsForHito = pickingState.itemStates;
     const hasContentToPrint = allocationsForHito.length > 0;
 
     return (
@@ -427,10 +445,10 @@ const handlePrint = async () => {
                     </Button>
                     <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
                         <Package />
-                        Hoja de Picking: {hito.descripcion} - {serviceOrder.serviceNumber}
+                        Hoja de Picking: {serviceOrder.serviceNumber}
                     </h1>
                     <CardDescription>
-                        Cliente: {serviceOrder.client} | Fecha: {format(new Date(hito.fecha), 'dd/MM/yyyy')} a las {hito.horaInicio}
+                        Cliente: {serviceOrder.client} | Fecha: {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}
                     </CardDescription>
                 </div>
                  <div className="flex gap-2 no-print">
@@ -471,98 +489,105 @@ const handlePrint = async () => {
             )}
 
             <div className="space-y-8">
-                 <Card className="print-section">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-3"><Utensils />Necesidades para: {hito.descripcion}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        {(Object.keys(expeditionTypeMap) as Array<keyof typeof expeditionTypeMap>).map(tipo => {
-                            const lotesDePartida = lotesPendientes.filter(l => l.tipoExpedicion === tipo);
-                            const contenedoresDePartida = pickingState.assignedContainers[tipo] || [];
-                            
-                            const allocationsForPartida = allocationsForHito.filter(alloc => lotesNecesarios.find(ln => ln.id === alloc.ofId)?.partidaAsignada === tipo);
+                {hitosConNecesidades.map(hito => {
+                    const lotesPendientesHito = lotesPendientesPorHito.get(hito.id) || [];
+                    
+                    return (
+                        <Card key={hito.id} className="print-section">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3"><Utensils />Necesidades para: {hito.descripcion}</CardTitle>
+                                <CardDescription>Fecha: {format(new Date(hito.fecha), 'dd/MM/yyyy')} a las {hito.horaInicio}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                {(Object.keys(expeditionTypeMap) as Array<keyof typeof expeditionTypeMap>).map(tipo => {
+                                    const lotesDePartida = lotesPendientesHito.filter(l => l.tipoExpedicion === tipo);
+                                    const contenedoresDePartida = pickingState.assignedContainers[tipo] || [];
+                                    
+                                    const allocationsForPartida = allocationsForHito.filter(alloc => lotesNecesarios.find(ln => ln.id === alloc.ofId)?.partidaAsignada === tipo && alloc.hitoId === hito.id);
 
-                            if (lotesDePartida.length === 0 && allocationsForPartida.length === 0) {
-                                return null;
-                            }
-                            
-                            const info = expeditionTypeMap[tipo];
+                                    if (lotesDePartida.length === 0 && allocationsForPartida.length === 0) {
+                                        return null;
+                                    }
+                                    
+                                    const info = expeditionTypeMap[tipo];
 
-                            return (
-                                <Card key={`${hito.id}-${tipo}`} className={cn(info.className)}>
-                                    <CardHeader className="flex-row items-start justify-between">
-                                        <CardTitle className="flex items-center gap-3 text-lg"><info.icon />{info.title}</CardTitle>
-                                        <Dialog>
-                                            <DialogTrigger asChild><Button size="sm" variant="outline" className="no-print bg-white/50"><PlusCircle className="mr-2"/>Asignar Contenedor</Button></DialogTrigger>
-                                            <DialogContent>
-                                                <DialogHeader><DialogTitle>Seleccionar Contenedores para {info.title}</DialogTitle></DialogHeader>
-                                                <Popover>
-                                                    <PopoverTrigger asChild><Button variant="outline" role="combobox" className="w-full justify-between">Añadir contenedor...<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></PopoverTrigger>
-                                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                                        <Command>
-                                                            <CommandInput placeholder="Buscar contenedor..." /><CommandList><CommandEmpty>No hay contenedores.</CommandEmpty><CommandGroup>
-                                                            {dbContainers.map(c => (<CommandItem key={c.id} onSelect={() => addContainerToSection(tipo, c)}>{c.nombre} ({c.id})</CommandItem>))}
-                                                            </CommandGroup></CommandList>
-                                                        </Command>
-                                                    </PopoverContent>
-                                                </Popover>
-                                            </DialogContent>
-                                        </Dialog>
-                                    </CardHeader>
-                                    <CardContent>
-                                        {lotesDePartida.length > 0 && (
-                                            <div className="mb-4">
-                                                <h3 className="font-semibold mb-2">Lotes pendientes de asignar para este servicio</h3>
-                                                <Table className="bg-white"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
-                                                    <TableBody>
-                                                        {lotesDePartida.map(lote => (
-                                                            <TableRow key={lote.ofId}>
-                                                                <TableCell className="font-medium font-mono">{lote.ofId}</TableCell>
-                                                                <TableCell>{lote.elaboracionNombre}</TableCell>
-                                                                <TableCell className="text-right font-mono">{formatNumber(lote.cantidadNecesaria - lote.cantidadAsignada, 2)} {formatUnit(lote.unidad)}</TableCell>
-                                                                <TableCell className="text-right no-print"><AllocationDialog lote={lote} containers={contenedoresDePartida} onAllocate={(of, cont, qty) => allocateLote(of, cont, qty)} /></TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
-                                            </div>
-                                        )}
-                                        <div className="space-y-4">
-                                            {contenedoresDePartida.map(container => {
-                                                const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id && item.hitoId === hitoId);
-                                                if(containerItems.length === 0) return null;
-                                                return (
-                                                    <div key={container.id}>
-                                                        <h3 className="font-semibold mb-2 flex items-center gap-2">Contenedor: <Badge variant="secondary" className="text-base">{container.nombre} ({container.id})</Badge></h3>
-                                                        <Table className="bg-white/70"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead>Receta</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-16 no-print"></TableHead></TableRow></TableHeader>
+                                    return (
+                                        <Card key={`${hito.id}-${tipo}`} className={cn(info.className)}>
+                                            <CardHeader className="flex-row items-start justify-between">
+                                                <CardTitle className="flex items-center gap-3 text-lg"><info.icon />{info.title}</CardTitle>
+                                                <Dialog>
+                                                    <DialogTrigger asChild><Button size="sm" variant="outline" className="no-print bg-white/50"><PlusCircle className="mr-2"/>Asignar Contenedor</Button></DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader><DialogTitle>Seleccionar Contenedores para {info.title}</DialogTitle></DialogHeader>
+                                                        <Popover>
+                                                            <PopoverTrigger asChild><Button variant="outline" role="combobox" className="w-full justify-between">Añadir contenedor...<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></PopoverTrigger>
+                                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                                                <Command>
+                                                                    <CommandInput placeholder="Buscar contenedor..." /><CommandList><CommandEmpty>No hay contenedores.</CommandEmpty><CommandGroup>
+                                                                    {dbContainers.map(c => (<CommandItem key={c.id} onSelect={() => addContainerToSection(tipo, c)}>{c.nombre} ({c.id})</CommandItem>))}
+                                                                    </CommandGroup></CommandList>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            </CardHeader>
+                                            <CardContent>
+                                                {lotesDePartida.length > 0 && (
+                                                    <div className="mb-4">
+                                                        <h3 className="font-semibold mb-2">Lotes pendientes de asignar para este servicio</h3>
+                                                        <Table className="bg-white"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
                                                             <TableBody>
-                                                                {containerItems.length > 0 ? (
-                                                                    containerItems.map(item => {
-                                                                        const loteInfo = lotesNecesarios.find(l => l.id === item.ofId);
-                                                                        return (
-                                                                        <TableRow key={item.allocationId}>
-                                                                            <TableCell className="font-medium font-mono">{item.ofId}</TableCell>
-                                                                            <TableCell>{loteInfo?.elaboracionNombre}</TableCell>
-                                                                            <TableCell className="text-xs text-muted-foreground">({getRecetaForElaboracion(loteInfo?.elaboracionId || '', osId)})</TableCell>
-                                                                            <TableCell className="text-right font-mono">{formatNumber(item.quantity || 0, 2)} {loteInfo ? formatUnit(loteInfo.unidad) : ''}</TableCell>
-                                                                            <TableCell className="no-print"><Button variant="ghost" size="sm" onClick={() => deallocateLote(item.allocationId)}>Quitar</Button></TableCell>
-                                                                        </TableRow>
-                                                                    )})
-                                                                ) : (
-                                                                     <TableRow><TableCell colSpan={5} className="text-center h-20 text-muted-foreground">Vacío</TableCell></TableRow>
-                                                                )}
+                                                                {lotesDePartida.map(lote => (
+                                                                    <TableRow key={lote.ofId}>
+                                                                        <TableCell className="font-medium font-mono">{lote.ofId}</TableCell>
+                                                                        <TableCell>{lote.elaboracionNombre}</TableCell>
+                                                                        <TableCell className="text-right font-mono">{formatNumber(lote.cantidadNecesaria - lote.cantidadAsignada, 2)} {formatUnit(lote.unidad)}</TableCell>
+                                                                        <TableCell className="text-right no-print"><AllocationDialog lote={lote} containers={contenedoresDePartida} onAllocate={(of, cont, qty) => allocateLote(of, cont, qty, hito.id)} /></TableCell>
+                                                                    </TableRow>
+                                                                ))}
                                                             </TableBody>
                                                         </Table>
                                                     </div>
-                                                )
-                                            })}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            )
-                        })}
-                    </CardContent>
-                </Card>
+                                                )}
+                                                <div className="space-y-4">
+                                                    {contenedoresDePartida.map(container => {
+                                                        const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id && item.hitoId === hito.id);
+                                                        if(containerItems.length === 0) return null;
+                                                        return (
+                                                            <div key={container.id}>
+                                                                <h3 className="font-semibold mb-2 flex items-center gap-2">Contenedor: <Badge variant="secondary" className="text-base">{container.nombre} ({container.id})</Badge></h3>
+                                                                <Table className="bg-white/70"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead>Receta</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-16 no-print"></TableHead></TableRow></TableHeader>
+                                                                    <TableBody>
+                                                                        {containerItems.length > 0 ? (
+                                                                            containerItems.map(item => {
+                                                                                const loteInfo = lotesNecesarios.find(l => l.id === item.ofId);
+                                                                                return (
+                                                                                <TableRow key={item.allocationId}>
+                                                                                    <TableCell className="font-medium font-mono">{item.ofId}</TableCell>
+                                                                                    <TableCell>{loteInfo?.elaboracionNombre}</TableCell>
+                                                                                    <TableCell className="text-xs text-muted-foreground">({getRecetaForElaboracion(loteInfo?.elaboracionId || '', osId)})</TableCell>
+                                                                                    <TableCell className="text-right font-mono">{formatNumber(item.quantity || 0, 2)} {loteInfo ? formatUnit(loteInfo.unidad) : ''}</TableCell>
+                                                                                    <TableCell className="no-print"><Button variant="ghost" size="sm" onClick={() => deallocateLote(item.allocationId)}>Quitar</Button></TableCell>
+                                                                                </TableRow>
+                                                                            )})
+                                                                        ) : (
+                                                                            <TableRow><TableCell colSpan={5} className="text-center h-20 text-muted-foreground">Vacío</TableCell></TableRow>
+                                                                        )}
+                                                                    </TableBody>
+                                                                </Table>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    )
+                                })}
+                            </CardContent>
+                        </Card>
+                    );
+                })}
             </div>
             <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
                 <AlertDialogContent>
