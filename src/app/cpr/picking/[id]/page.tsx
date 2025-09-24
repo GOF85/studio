@@ -4,9 +4,9 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown, Printer, Loader2, Trash2, Check, X, Utensils } from 'lucide-react';
+import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown, Printer, Loader2, Trash2, Check, X, Utensils, Building, Phone } from 'lucide-react';
 import { format } from 'date-fns';
-import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus } from '@/types';
+import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -62,7 +62,7 @@ export const statusVariant: { [key in PickingStatus]: 'default' | 'secondary' | 
 
 function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendiente, containers: ContenedorIsotermo[], onAllocate: (ofId: string, containerId: string, quantity: number) => void }) {
     const cantidadPendiente = Number(lote.cantidadNecesaria) - Number(lote.cantidadAsignada);
-    const [quantity, setQuantity] = useState(isNaN(cantidadPendiente) ? 0 : cantidadPendiente);
+    const [quantity, setQuantity] = useState(cantidadPendiente);
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
     const [open, setOpen] = useState(false);
 
@@ -143,7 +143,6 @@ export default function PickingDetailPage() {
     const params = useParams();
     const searchParams = useSearchParams();
     const osId = params.id as string;
-    const hitoId = searchParams.get('hitoId');
     const { toast } = useToast();
 
     const savePickingState = useCallback((newState: Partial<PickingState>) => {
@@ -269,7 +268,7 @@ export default function PickingDetailPage() {
             lotesPorHito.set(hito.id, lotesPendientesHito);
         });
         
-        return { lotesPendientesPorHito, isPickingComplete: allComplete };
+        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete };
 
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates]);
     
