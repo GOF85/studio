@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown, Printer, Loader2, Trash2, Check, X, Utensils, Building, Phone } from 'lucide-react';
 import { format } from 'date-fns';
-import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio } from '@/types';
+import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -136,7 +136,7 @@ export default function PickingDetailPage() {
     const [dbContainers, setDbContainers] = useState<ContenedorIsotermo[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: {}, itemStates: [] });
     const [isMounted, setIsMounted] = useState(false);
-    const [isPrinting, setIsPrinting] = useState(false);
+    const [isPrinting, setIsPrinting] = useState<string | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     
     const router = useRouter();
@@ -312,15 +312,19 @@ export default function PickingDetailPage() {
         setShowDeleteConfirm(false);
     }
     
-const handlePrint = async () => {
+const handlePrintHito = async (hito: ComercialBriefingItem) => {
     if (!serviceOrder) return;
-    setIsPrinting(true);
+    setIsPrinting(hito.id);
 
     try {
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [100, 150] });
-        const allAssignedContainers = Object.values(pickingState.assignedContainers).flat();
         
-        allAssignedContainers.forEach((container, index) => {
+        const allocationsForHito = pickingState.itemStates.filter(item => item.hitoId === hito.id);
+        const containerIdsForHito = new Set(allocationsForHito.map(item => item.containerId));
+        const allAssignedContainers = Object.values(pickingState.assignedContainers).flat();
+        const containersForHito = allAssignedContainers.filter(c => containerIdsForHito.has(c.id));
+        
+        containersForHito.forEach((container, index) => {
             if (index > 0) doc.addPage();
 
             const margin = 4;
@@ -331,7 +335,7 @@ const handlePrint = async () => {
             doc.setFont('helvetica', 'bold');
             doc.setTextColor('#059669'); // Primary color
             doc.text(container.nombre, margin, finalY + 2);
-            doc.text(`${index + 1}/${allAssignedContainers.length}`, pageWidth - margin, finalY + 2, { align: 'right' });
+            doc.text(`${index + 1}/${containersForHito.length}`, pageWidth - margin, finalY + 2, { align: 'right' });
             finalY += 4;
             
             doc.setLineWidth(0.5);
@@ -341,10 +345,6 @@ const handlePrint = async () => {
             doc.setFontSize(8);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor('#374151'); // Gris oscuro
-            
-            const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
-            const hitoId = containerItems.length > 0 ? containerItems[0].hitoId : null;
-            const hito = hitoId ? hitosConNecesidades.find(h => h.id === hitoId) : null;
             
             const serviceData = [
                 ['Nº Serv:', serviceOrder.serviceNumber],
@@ -361,20 +361,18 @@ const handlePrint = async () => {
             });
             finalY = (doc as any).lastAutoTable.finalY + 0.5;
 
-            if (hito) {
-                 const eventData = [
-                    ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
-                    ['Servicio:', hito.descripcion]
-                ];
-                autoTable(doc, {
-                    body: eventData,
-                    startY: finalY,
-                    theme: 'plain',
-                    styles: { fontSize: 8, cellPadding: 0.1 },
-                    columnStyles: { 0: { fontStyle: 'bold' } }
-                });
-                finalY = (doc as any).lastAutoTable.finalY;
-            }
+            const eventData = [
+                ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
+                ['Servicio:', hito.descripcion]
+            ];
+            autoTable(doc, {
+                body: eventData,
+                startY: finalY,
+                theme: 'plain',
+                styles: { fontSize: 8, cellPadding: 0.1 },
+                columnStyles: { 0: { fontStyle: 'bold' } }
+            });
+            finalY = (doc as any).lastAutoTable.finalY;
 
 
             doc.setLineWidth(0.2);
@@ -382,6 +380,7 @@ const handlePrint = async () => {
             finalY += 2;
 
             const itemsGrouped = new Map<string, { totalQuantity: number, lotes: string[], unidad: string, receta: string }>();
+            const containerItems = allocationsForHito.filter(item => item.containerId === container.id);
 
             containerItems.forEach(assignedLote => {
                 const loteInfo = lotesNecesarios.find(l => l.id === assignedLote.ofId);
@@ -422,12 +421,12 @@ const handlePrint = async () => {
             });
         });
 
-        doc.save(`Etiquetas_Picking_${serviceOrder.serviceNumber}.pdf`);
+        doc.save(`Etiquetas_Picking_${serviceOrder.serviceNumber}_${hito.descripcion.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
         console.error("Error generating PDF:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
     } finally {
-        setIsPrinting(false);
+        setIsPrinting(null);
     }
 };
 
@@ -435,9 +434,6 @@ const handlePrint = async () => {
         return <LoadingSkeleton title="Cargando Picking..." />;
     }
     
-    const allocationsForHito = pickingState.itemStates;
-    const hasContentToPrint = allocationsForHito.length > 0;
-
     return (
         <div>
             <div className="flex items-start justify-between mb-6">
@@ -450,7 +446,7 @@ const handlePrint = async () => {
                         Hoja de Picking: {serviceOrder.serviceNumber}
                     </h1>
                      <CardDescription>
-                        Cliente: {serviceOrder.client} | Espacio: {serviceOrder.space} | Fecha: {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}
+                       Cliente: {serviceOrder.client} | Espacio: {serviceOrder.space} | Fecha: {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}
                     </CardDescription>
                 </div>
                  <div className="flex gap-2 no-print">
@@ -462,10 +458,6 @@ const handlePrint = async () => {
                             {statusOptions.map(s => <SelectItem key={s} value={s} disabled={s !== 'Pendiente' && !isPickingComplete}><Badge variant={statusVariant[s]}>{s}</Badge></SelectItem>)}
                         </SelectContent>
                      </Select>
-                    <Button onClick={handlePrint} disabled={!hasContentToPrint || isPrinting}>
-                        {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2"/>}
-                        {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
-                    </Button>
                     <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
                         <Trash2 className="mr-2"/> Reiniciar
                     </Button>
@@ -493,19 +485,26 @@ const handlePrint = async () => {
             <div className="space-y-8">
                 {hitosConNecesidades.map(hito => {
                     const lotesPendientesHito = lotesPendientesPorHito.get(hito.id) || [];
+                    const hasContentToPrint = pickingState.itemStates.some(item => item.hitoId === hito.id);
                     
                     return (
                         <Card key={hito.id} className="print-section">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3"><Utensils />Necesidades para: {hito.descripcion}</CardTitle>
+                            <CardHeader className="flex-row items-center justify-between">
+                               <div>
+                                 <CardTitle className="flex items-center gap-3"><Utensils />Necesidades para: {hito.descripcion}</CardTitle>
                                 <CardDescription>Fecha: {format(new Date(hito.fecha), 'dd/MM/yyyy')} a las {hito.horaInicio}</CardDescription>
+                               </div>
+                                <Button onClick={() => handlePrintHito(hito)} disabled={!hasContentToPrint || !!isPrinting} className="no-print">
+                                    {isPrinting === hito.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2"/>}
+                                    {isPrinting === hito.id ? 'Generando...' : 'Generar etiquetas'}
+                                </Button>
                             </CardHeader>
                             <CardContent className="space-y-6">
                                 {(Object.keys(expeditionTypeMap) as Array<keyof typeof expeditionTypeMap>).map(tipo => {
                                     const lotesDePartida = lotesPendientesHito.filter(l => l.tipoExpedicion === tipo);
                                     const contenedoresDePartida = pickingState.assignedContainers[tipo] || [];
                                     
-                                    const allocationsForPartida = allocationsForHito.filter(alloc => lotesNecesarios.find(ln => ln.id === alloc.ofId)?.partidaAsignada === tipo && alloc.hitoId === hito.id);
+                                    const allocationsForPartida = pickingState.itemStates.filter(alloc => lotesNecesarios.find(ln => ln.id === alloc.ofId)?.partidaAsignada === tipo && alloc.hitoId === hito.id);
 
                                     if (lotesDePartida.length === 0 && allocationsForPartida.length === 0) {
                                         return null;
