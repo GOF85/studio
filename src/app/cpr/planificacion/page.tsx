@@ -514,7 +514,7 @@ export default function PlanificacionPage() {
                                             </TableRow>
                                              <TableRow>
                                                 <TableHead className="p-2 sticky left-0 bg-background z-10" colSpan={3}><Component className="inline-block mr-2"/>Unidades Totales</TableHead>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l">{h.totalUnits.toFixed(2)}</TableCell>)}
+                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l">{h.totalUnits.toFixed(0)}</TableCell>)}
                                             </TableRow>
                                             <TableRow className="bg-muted/50">
                                                 <TableHead className="p-2 font-semibold sticky left-0 bg-muted z-10">Elaboración</TableHead>
