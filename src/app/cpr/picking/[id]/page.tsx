@@ -161,9 +161,7 @@ export default function PickingDetailPage() {
     }, [osId]);
 
     const handleStatusChange = (newStatus: PickingStatus) => {
-        // Only update the status property, keep other parts of the state stable
-        const updatedState = { ...pickingState, status: newStatus };
-        savePickingState(updatedState);
+        savePickingState({ ...pickingState, status: newStatus });
         toast({title: "Estado Actualizado", description: `El estado del picking es ahora: ${newStatus}`});
     }
     
@@ -481,6 +479,10 @@ const handlePrint = async () => {
                         return acc;
                     }, {} as {[key in keyof typeof expeditionTypeMap]?: LotePendiente[]});
 
+                    const allocationsForHito = pickingState.itemStates.filter(state => state.hitoId === hito.id);
+                    if(hito.lotesPendientes.length === 0 && allocationsForHito.length === 0) return null;
+
+
                     return (
                         <Card key={hito.id} className="print-section">
                             <CardHeader>
@@ -493,9 +495,9 @@ const handlePrint = async () => {
                                     const contenedoresDePartida = pickingState.assignedContainers[tipo] || [];
                                     const info = expeditionTypeMap[tipo];
 
-                                    const allocationsForHito = pickingState.itemStates.filter(state => state.hitoId === hito.id);
+                                    const allocationsForHitoAndPartida = allocationsForHito.filter(alloc => lotesNecesarios.find(ln => ln.id === alloc.ofId)?.partidaAsignada === tipo);
                                     
-                                    if (lotesDePartida.length === 0 && !allocationsForHito.some(alloc => lotesNecesarios.find(ln => ln.id === alloc.ofId)?.partidaAsignada === tipo)) {
+                                    if (lotesDePartida.length === 0 && allocationsForHitoAndPartida.length === 0) {
                                         return null;
                                     }
 
