@@ -56,29 +56,33 @@ type Necesidad = {
 };
 
 
-// For the detailed tree view
-type DetalleElaboracionEnReceta = {
-    elaboracionId: string;
-    elaboracionNombre: string;
-    cantidadNecesaria: number;
-    unidad: UnidadMedida;
-    cantidadCubierta: number;
-    ofsAsignadas: { id: string; cantidad: number; estado: OrdenFabricacion['estado'] }[];
-}
-
-type DetalleRecetaEnOS = {
-    recetaId: string;
-    recetaNombre: string;
+// For the detailed recipe view
+type RecetaAgregada = {
+    id: string;
+    nombre: string;
     cantidadTotal: number;
-    elaboraciones: DetalleElaboracionEnReceta[];
 }
-
-type DesglosePorEvento = {
+type DetalleHito = {
+    id: string;
+    descripcion: string;
+    recetas: {
+        id: string;
+        nombre: string;
+        cantidad: number;
+        elaboraciones: {
+            id: string;
+            nombre: string;
+            cantidadPorReceta: number;
+            unidad: UnidadMedida;
+        }[];
+    }[];
+}
+type DesgloseEventoRecetas = {
     osId: string;
     serviceNumber: string;
     client: string;
     startDate: string;
-    recetas: DetalleRecetaEnOS[];
+    hitos: DetalleHito[];
 };
 
 
@@ -93,7 +97,9 @@ export default function PlanificacionPage() {
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
     // State for detailed view
-    const [desgloseEventos, setDesgloseEventos] = useState<DesglosePorEvento[]>([]);
+    const [recetasAgregadas, setRecetasAgregadas] = useState<RecetaAgregada[]>([]);
+    const [desgloseEventosRecetas, setDesgloseEventosRecetas] = useState<DesgloseEventoRecetas[]>([]);
+
 
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
@@ -101,7 +107,8 @@ export default function PlanificacionPage() {
     const calcularNecesidades = useCallback(() => {
         setIsLoading(true);
         setPlanificacionItems([]);
-        setDesgloseEventos([]);
+        setRecetasAgregadas([]);
+        setDesgloseEventosRecetas([]);
         setSelectedRows(new Set());
 
         if (!dateRange?.from || !dateRange?.to) {
@@ -149,36 +156,53 @@ export default function PlanificacionPage() {
             recetas: RecetaNecesidad[];
         }>();
         
-        // Detailed structure for tree view
-        const desglose: Map<string, DesglosePorEvento> = new Map();
+        // Detailed structures for recipe view
+        const desgloseEventosMap: Map<string, DesgloseEventoRecetas> = new Map();
+        const agregadoRecetasMap: Map<string, RecetaAgregada> = new Map();
+
 
         allGastroOrders.filter(go => osIdsEnRango.has(go.osId)).forEach(gastroOrder => {
             const serviceOrder = serviceOrderMap.get(gastroOrder.osId);
             if (!serviceOrder) return;
             
-            if (!desglose.has(serviceOrder.id)) {
-                desglose.set(serviceOrder.id, {
+            if (!desgloseEventosMap.has(serviceOrder.id)) {
+                desgloseEventosMap.set(serviceOrder.id, {
                     osId: serviceOrder.id, serviceNumber: serviceOrder.serviceNumber,
-                    client: serviceOrder.client, startDate: serviceOrder.startDate, recetas: [],
+                    client: serviceOrder.client, startDate: serviceOrder.startDate, hitos: [],
                 });
             }
-            const desgloseOS = desglose.get(serviceOrder.id)!;
+            const desgloseOS = desgloseEventosMap.get(serviceOrder.id)!;
+            const hito: DetalleHito = { id: gastroOrder.id, descripcion: gastroOrder.descripcion, recetas: [] };
+            desgloseOS.hitos.push(hito);
 
             (gastroOrder.items || []).forEach(item => {
                 if (item.type === 'item') {
                     const receta = recetasMap.get(item.id);
                     if (receta) {
-                        let desgloseReceta = desgloseOS.recetas.find(r => r.recetaId === receta.id);
-                        if (!desgloseReceta) {
-                            desgloseReceta = { recetaId: receta.id, recetaNombre: receta.nombre, cantidadTotal: 0, elaboraciones: [] };
-                            desgloseOS.recetas.push(desgloseReceta);
+                        const cantidadReceta = Number(item.quantity || 0);
+                        // Add to aggregated recipes
+                        let recetaAgregada = agregadoRecetasMap.get(receta.id);
+                        if (!recetaAgregada) {
+                             recetaAgregada = { id: receta.id, nombre: receta.nombre, cantidadTotal: 0 };
+                             agregadoRecetasMap.set(receta.id, recetaAgregada);
                         }
-                        desgloseReceta.cantidadTotal += Number(item.quantity || 0);
+                        recetaAgregada.cantidadTotal += cantidadReceta;
+
+                        // Add to detailed event breakdown
+                        const detalleRecetaEnHito = {
+                            id: receta.id, nombre: receta.nombre, cantidad: cantidadReceta, elaboraciones: receta.elaboraciones.map(e => ({
+                                id: e.elaboracionId,
+                                nombre: e.nombre,
+                                cantidadPorReceta: e.cantidad,
+                                unidad: elaboracionesMap.get(e.elaboracionId)?.unidadProduccion || 'UNIDAD',
+                            }))
+                        };
+                        hito.recetas.push(detalleRecetaEnHito);
 
                         receta.elaboraciones.forEach(elabEnReceta => {
                             const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
                             if (elaboracion) {
-                                const cantidadNecesaria = Number(item.quantity || 0) * Number(elabEnReceta.cantidad);
+                                const cantidadNecesaria = cantidadReceta * Number(elabEnReceta.cantidad);
                                 if (isNaN(cantidadNecesaria) || cantidadNecesaria <= 0) return;
 
                                 let registro = necesidadesPorElaboracion.get(elaboracion.id);
@@ -196,13 +220,6 @@ export default function PlanificacionPage() {
                                 const recetaExistente = registro.recetas.find(r => r.recetaId === receta.id);
                                 if (recetaExistente) recetaExistente.cantidad += cantidadNecesaria;
                                 else registro.recetas.push({ recetaId: receta.id, recetaNombre: receta.nombre, cantidad: cantidadNecesaria });
-                                
-                                let desgloseElaboracion = desgloseReceta!.elaboraciones.find(e => e.elaboracionId === elaboracion.id);
-                                if (!desgloseElaboracion) {
-                                    desgloseElaboracion = { elaboracionId: elaboracion.id, elaboracionNombre: elaboracion.nombre, cantidadNecesaria: 0, unidad: elaboracion.unidadProduccion, cantidadCubierta: 0, ofsAsignadas: [] };
-                                    desgloseReceta!.elaboraciones.push(desgloseElaboracion);
-                                }
-                                desgloseElaboracion.cantidadNecesaria += cantidadNecesaria;
                             }
                         });
                     }
@@ -219,16 +236,6 @@ export default function PlanificacionPage() {
                     registro.produccionAcumulada += cantidadProducida;
                 }
             }
-             desglose.forEach(os => {
-                os.recetas.forEach(receta => {
-                    const elab = receta.elaboraciones.find(e => e.elaboracionId === of.elaboracionId);
-                    if (elab) {
-                        const cantidadProducidaOf = (of.estado === 'Finalizado' || of.estado === 'Validado' || of.estado === 'Incidencia') && of.cantidadReal !== null ? Number(of.cantidadReal) : Number(of.cantidadTotal);
-                        elab.cantidadCubierta += cantidadProducidaOf;
-                        elab.ofsAsignadas.push({ id: of.id, cantidad: cantidadProducidaOf, estado: of.estado });
-                    }
-                })
-             });
         });
 
         const itemsFinales: Necesidad[] = [];
@@ -251,7 +258,8 @@ export default function PlanificacionPage() {
         });
         
         setPlanificacionItems(itemsFinales);
-        setDesgloseEventos(Array.from(desglose.values()));
+        setRecetasAgregadas(Array.from(agregadoRecetasMap.values()));
+        setDesgloseEventosRecetas(Array.from(desgloseEventosMap.values()));
         setIsLoading(false);
     }, [dateRange]);
 
@@ -392,11 +400,11 @@ export default function PlanificacionPage() {
                     </Button>
                 </div>
 
-                <Tabs defaultValue="agrupado">
+                <Tabs defaultValue="recetas">
                     <div className="flex justify-between items-center">
                         <TabsList>
-                            <TabsTrigger value="agrupado">Necesidades Agrupadas</TabsTrigger>
-                            <TabsTrigger value="desglosado">Desglose por Evento</TabsTrigger>
+                            <TabsTrigger value="recetas">Planificación por Recetas</TabsTrigger>
+                            <TabsTrigger value="elaboraciones">Planificación de Elaboraciones</TabsTrigger>
                         </TabsList>
                          <div className="flex-grow text-right">
                            <Button onClick={handleGenerateOF} disabled={selectedRows.size === 0}>
@@ -404,11 +412,11 @@ export default function PlanificacionPage() {
                            </Button>
                         </div>
                     </div>
-                    <TabsContent value="agrupado">
+                    <TabsContent value="elaboraciones">
                         <Card className="mt-4">
                             <CardHeader>
-                                <CardTitle>Necesidades de Producción Agrupadas</CardTitle>
-                                <CardDescription>Vista consolidada de todo lo que se necesita producir para el rango de fechas. Selecciona las filas para generar Órdenes de Fabricación.</CardDescription>
+                                <CardTitle>Planificación de Elaboraciones</CardTitle>
+                                <CardDescription>Vista consolidada de todas las elaboraciones necesarias para producir. Selecciona las filas para generar Órdenes de Fabricación.</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="border rounded-lg">
@@ -502,69 +510,93 @@ export default function PlanificacionPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
-                    <TabsContent value="desglosado">
-                         <Card className="mt-4">
-                            <CardHeader>
-                                <CardTitle>Desglose por Evento</CardTitle>
-                                <CardDescription>Vista jerárquica de las necesidades, desde la Orden de Servicio hasta la elaboración.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {isLoading ? (
-                                    <div className="flex justify-center items-center h-24"><Loader2 className="mx-auto animate-spin" /></div>
-                                ) : desgloseEventos.length > 0 ? (
-                                    desgloseEventos.map(os => (
-                                        <Collapsible key={os.osId} className="border rounded-lg p-4">
-                                            <CollapsibleTrigger className="w-full flex justify-between items-center group">
-                                                <div className="text-left">
-                                                    <h4 className="font-bold text-lg">{os.serviceNumber} - {os.client}</h4>
-                                                    <p className="text-sm text-muted-foreground">{format(new Date(os.startDate), 'PPP', { locale: es })}</p>
-                                                </div>
-                                                <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                                            </CollapsibleTrigger>
-                                            <CollapsibleContent className="pt-4 space-y-3">
-                                                {os.recetas.map(receta => (
-                                                     <Collapsible key={receta.recetaId} className="border rounded-md p-3 bg-secondary/50">
-                                                        <CollapsibleTrigger className="w-full flex justify-between items-center text-left group">
-                                                            <div className="flex items-center gap-2">
-                                                                <Utensils className="h-4 w-4" />
-                                                                <span className="font-semibold">{receta.cantidadTotal} x {receta.recetaNombre}</span>
-                                                            </div>
-                                                            <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                                                        </CollapsibleTrigger>
-                                                        <CollapsibleContent className="pt-3">
-                                                            <Table>
-                                                                <TableHeader><TableRow><TableHead>Elaboración</TableHead><TableHead>Necesario</TableHead><TableHead>OFs Asignadas</TableHead><TableHead>Pendiente</TableHead></TableRow></TableHeader>
-                                                                <TableBody>
-                                                                    {receta.elaboraciones.map(elab => {
-                                                                        const pendiente = elab.cantidadNecesaria - elab.cantidadCubierta;
-                                                                        return (
-                                                                            <TableRow key={elab.elaboracionId}>
-                                                                                <TableCell className="font-medium flex items-center gap-2"><Component size={14}/>{elab.elaboracionNombre}</TableCell>
-                                                                                <TableCell>{elab.cantidadNecesaria.toFixed(2)} {elab.unidad}</TableCell>
+                    <TabsContent value="recetas">
+                        <div className="mt-4 space-y-4">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Resumen Agregado de Recetas</CardTitle>
+                                    <CardDescription>Total de recetas completas a producir en el período seleccionado.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                     <Table>
+                                        <TableHeader><TableRow><TableHead>Receta</TableHead><TableHead className="text-right">Cantidad Total</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                             {isLoading ? (
+                                                <TableRow><TableCell colSpan={2} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow>
+                                            ) : recetasAgregadas.length > 0 ? (
+                                                recetasAgregadas.map(receta => (
+                                                    <TableRow key={receta.id}>
+                                                        <TableCell className="font-medium">{receta.nombre}</TableCell>
+                                                        <TableCell className="text-right font-mono">{receta.cantidadTotal}</TableCell>
+                                                    </TableRow>
+                                                ))
+                                            ) : (
+                                                <TableRow><TableCell colSpan={2} className="h-24 text-center">No hay recetas planificadas para este período.</TableCell></TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+
+                             <Card>
+                                <CardHeader>
+                                    <CardTitle>Desglose por Evento</CardTitle>
+                                    <CardDescription>Vista jerárquica de las necesidades por evento, hito y receta.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {isLoading ? (
+                                        <div className="flex justify-center items-center h-24"><Loader2 className="mx-auto animate-spin" /></div>
+                                    ) : desgloseEventosRecetas.length > 0 ? (
+                                        desgloseEventosRecetas.map(os => (
+                                            <Collapsible key={os.osId} className="border rounded-lg p-4 bg-card">
+                                                <CollapsibleTrigger className="w-full flex justify-between items-center group">
+                                                    <div className="text-left">
+                                                        <h4 className="font-bold text-lg">{os.serviceNumber} - {os.client}</h4>
+                                                        <p className="text-sm text-muted-foreground">{format(new Date(os.startDate), 'PPP', { locale: es })}</p>
+                                                    </div>
+                                                    <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                                </CollapsibleTrigger>
+                                                <CollapsibleContent className="pt-4 space-y-3">
+                                                    {os.hitos.map(hito => (
+                                                         <Collapsible key={hito.id} className="border rounded-md p-3 bg-background">
+                                                            <CollapsibleTrigger className="w-full flex justify-between items-center text-left group">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Utensils className="h-4 w-4" />
+                                                                    <span className="font-semibold">{hito.descripcion}</span>
+                                                                </div>
+                                                                <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                                            </CollapsibleTrigger>
+                                                            <CollapsibleContent className="pt-3">
+                                                                <Table>
+                                                                    <TableHeader><TableRow><TableHead>Receta</TableHead><TableHead>Cantidad</TableHead><TableHead>Elaboraciones</TableHead></TableRow></TableHeader>
+                                                                    <TableBody>
+                                                                        {hito.recetas.map(receta => (
+                                                                            <TableRow key={receta.id}>
+                                                                                <TableCell className="font-medium">{receta.nombre}</TableCell>
+                                                                                <TableCell>{receta.cantidad}</TableCell>
                                                                                 <TableCell>
-                                                                                    {elab.ofsAsignadas.map(of => (
-                                                                                        <Badge key={of.id} variant="secondary" className="mr-1">{of.id}</Badge>
-                                                                                    ))}
-                                                                                </TableCell>
-                                                                                <TableCell className={cn("font-bold", pendiente > 0.01 && 'text-destructive')}>
-                                                                                    {pendiente > 0.01 ? `${pendiente.toFixed(2)} ${elab.unidad}` : <Badge>Cubierto</Badge>}
+                                                                                    <ul className="list-disc pl-5 text-xs text-muted-foreground">
+                                                                                        {receta.elaboraciones.map(elab => (
+                                                                                            <li key={elab.id}>{elab.cantidadPorReceta.toFixed(2)} {elab.unidad} - {elab.nombre}</li>
+                                                                                        ))}
+                                                                                    </ul>
                                                                                 </TableCell>
                                                                             </TableRow>
-                                                                        )
-                                                                    })}
-                                                                </TableBody>
-                                                            </Table>
-                                                        </CollapsibleContent>
-                                                     </Collapsible>
-                                                ))}
-                                            </CollapsibleContent>
-                                        </Collapsible>
-                                    ))
-                                ) : (
-                                    <p className="text-center text-muted-foreground py-8">No hay eventos con necesidades de producción en el rango de fechas seleccionado.</p>
-                                )}
-                            </CardContent>
-                         </Card>
+                                                                        ))}
+                                                                    </TableBody>
+                                                                </Table>
+                                                            </CollapsibleContent>
+                                                         </Collapsible>
+                                                    ))}
+                                                </CollapsibleContent>
+                                            </Collapsible>
+                                        ))
+                                    ) : (
+                                        <p className="text-center text-muted-foreground py-8">No hay eventos con necesidades de producción en el rango de fechas seleccionado.</p>
+                                    )}
+                                </CardContent>
+                             </Card>
+                        </div>
                     </TabsContent>
                 </Tabs>
             </div>
