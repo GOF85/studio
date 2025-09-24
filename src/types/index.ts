@@ -1,10 +1,3 @@
-
-
-
-
-
-
-
 import type { OsFormValues } from "@/app/os/page";
 import { z } from "zod";
 
@@ -397,10 +390,11 @@ export type ElaboracionEnReceta = {
   elaboracionId: string;
   nombre: string;
   cantidad: number; // en la unidad de la elaboración
-  coste: number;
+  coste: number; // Coste original de la elaboración por su unidad
   gramaje: number;
   alergenos?: Alergeno[];
   unidad: UnidadMedida;
+  merma: number; // Porcentaje de merma en el emplatado/servicio
 };
 
 export type MenajeEnReceta = {

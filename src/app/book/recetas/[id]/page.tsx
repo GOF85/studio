@@ -49,7 +49,10 @@ const elaboracionEnRecetaSchema = z.object({
     coste: z.coerce.number().default(0),
     gramaje: z.coerce.number().default(0),
     alergenos: z.array(z.string()).optional().default([]),
+    unidad: z.enum(['KILO', 'LITRO', 'UNIDAD']),
+    merma: z.coerce.number().optional().default(0),
 });
+
 const menajeEnRecetaSchema = z.object({
     id: z.string(),
     menajeId: z.string(),
@@ -216,7 +219,8 @@ export default function RecetaFormPage() {
     const allPartidas = new Set<PartidaProduccion>();
 
     watchedElaboraciones.forEach(elab => {
-        coste += (elab.coste || 0) * elab.cantidad;
+        const costeConMerma = elab.coste * (1 + (elab.merma || 0) / 100);
+        coste += costeConMerma * elab.cantidad;
         (elab.alergenos || []).forEach(a => allAlergenos.add(a as Alergeno));
 
         const elabData = dbElaboraciones.find(dbElab => dbElab.id === elab.elaboracionId);
@@ -316,7 +320,7 @@ export default function RecetaFormPage() {
 
 
   const onAddElab = (elab: ElaboracionConCoste) => {
-    appendElab({ id: `${elab.id}-${Date.now()}`, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [] });
+    appendElab({ id: `${elab.id}-${Date.now()}`, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [], unidad: elab.unidadProduccion, merma: 0 });
   }
 
   const onAddMenaje = (menaje: MenajeDB) => {
@@ -410,7 +414,7 @@ export default function RecetaFormPage() {
                 </div>
             </div>
 
-            <Accordion type="multiple" defaultValue={['item-1']} className="w-full space-y-3">
+            <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full space-y-3">
                 <AccordionItem value="item-1">
                     <Card>
                         <AccordionTrigger className="p-4"><CardTitle className="text-lg">Información General y Clasificación</CardTitle></AccordionTrigger>
@@ -515,12 +519,25 @@ export default function RecetaFormPage() {
                                     <div className="space-y-1">
                                     {elabFields.map((field, index) => (
                                         <SortableItem key={field.id} id={field.id}>
-                                            <div className="flex-1 flex items-center">
-                                                <span className="font-semibold flex-1">{field.nombre}</span>
+                                            <div className="flex-1 grid grid-cols-4 items-center gap-2">
+                                                <span className="font-semibold col-span-2">{field.nombre}</span>
                                                 <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (
                                                     <FormItem className="flex items-center gap-2">
                                                         <FormLabel className="text-xs">Cantidad:</FormLabel>
-                                                        <FormControl><Input type="number" {...qField} className="h-8 w-20" /></FormControl>
+                                                        <FormControl>
+                                                            <div className="flex items-center">
+                                                                <Input type="number" {...qField} className="h-8 w-20" />
+                                                                <span className="text-xs text-muted-foreground ml-1">{formatUnit(field.unidad)}</span>
+                                                            </div>
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )} />
+                                                <FormField control={form.control} name={`elaboraciones.${index}.merma`} render={({ field: mField }) => (
+                                                    <FormItem className="flex items-center gap-2">
+                                                        <FormLabel className="text-xs">% Merma:</FormLabel>
+                                                        <FormControl>
+                                                            <Input type="number" {...mField} className="h-8 w-20" />
+                                                        </FormControl>
                                                     </FormItem>
                                                 )} />
                                             </div>
