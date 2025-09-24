@@ -132,6 +132,7 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
 
 export default function PickingDetailPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+    const [spaceAddress, setSpaceAddress] = useState<string>('');
     const [hitosConNecesidades, setHitosConNecesidades] = useState<ComercialBriefingItem[]>([]);
     const [dbContainers, setDbContainers] = useState<ContenedorIsotermo[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: {}, itemStates: [] });
@@ -187,6 +188,12 @@ export default function PickingDetailPage() {
             const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
             const currentOS = allServiceOrders.find(os => os.id === osId);
             setServiceOrder(currentOS || null);
+
+            if (currentOS?.space) {
+                const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
+                const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
+                setSpaceAddress(currentSpace?.calle || '');
+            }
             
             const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
             const currentBriefing = allBriefings.find(b => b.osId === osId);
@@ -354,9 +361,10 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                 body: serviceData,
                 startY: finalY,
                 theme: 'plain',
-                tableWidth: (pageWidth - margin * 2) / 2 - 2, // 2mm gap
+                tableWidth: (pageWidth - margin * 2) / 2 - 2,
                 styles: { fontSize: 8, cellPadding: 0.1 },
-                columnStyles: { 0: { fontStyle: 'bold' } }
+                columnStyles: { 0: { fontStyle: 'bold' } },
+                margin: { left: margin },
             });
 
             const eventData = [
@@ -368,7 +376,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                 body: eventData,
                 startY: finalY,
                 theme: 'plain',
-                tableWidth: (pageWidth - margin * 2) / 2 - 2, // 2mm gap
+                tableWidth: (pageWidth - margin * 2) / 2 - 2,
                 margin: { left: pageWidth / 2 + 2 },
                 styles: { fontSize: 8, cellPadding: 0.1 },
                 columnStyles: { 0: { fontStyle: 'bold' } }
@@ -416,6 +424,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                 tableWidth: pageWidth - margin * 2,
                 headStyles: { fontStyle: 'bold', fontSize: 9, halign: 'center', cellPadding: 1, fillColor: [230, 230, 230], textColor: [0,0,0] },
                 styles: { fontSize: 8, cellPadding: 1, lineColor: '#000', lineWidth: 0.1, valign: 'middle' },
+                margin: { left: margin },
                 columnStyles: {
                     0: { cellWidth: 35 },
                     1: { cellWidth: 20, halign: 'right' },
