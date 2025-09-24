@@ -357,6 +357,11 @@ export type ComponenteElaboracion = {
     cantidad: number; // Changed from string to number
 };
 
+export type FormatoExpedicion = {
+    id: string;
+    nombre: string;
+}
+
 export type Elaboracion = {
     id: string;
     nombre: string;

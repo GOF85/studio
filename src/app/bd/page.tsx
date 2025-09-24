@@ -42,6 +42,7 @@ export default function BdPage() {
     { id: '16', name: 'Book: Tipos de Cocina', description: 'Gestión de los tipos de cocina/origen para las recetas.', itemCount: 0, path: '/tipos-cocina' },
     { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', itemCount: 0, path: '/plantillas-pedidos' },
     { id: '18', name: 'Contenedores Isotérmicos', description: 'Gestión de los contenedores para logística.', itemCount: 0, path: '/contenedores-db' },
+    { id: '19', name: 'Formatos de Expedición', description: 'Define los formatos de empaquetado para producción.', itemCount: 0, path: '/formatos-expedicion' },
   ]);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -63,6 +64,7 @@ export default function BdPage() {
     const tiposCocina = JSON.parse(localStorage.getItem('tiposCocina') || '[]').length;
     const pedidoPlantillas = JSON.parse(localStorage.getItem('pedidoPlantillas') || '[]').length;
     const contenedores = JSON.parse(localStorage.getItem('contenedoresDB') || '[]').length;
+    const formatosExpedicion = JSON.parse(localStorage.getItem('formatosExpedicionDB') || '[]').length;
     
     setDatabases(prev => prev.map(db => {
       if (db.id === '1') return { ...db, itemCount: personal };
@@ -81,6 +83,7 @@ export default function BdPage() {
       if (db.id === '16') return { ...db, itemCount: tiposCocina };
       if (db.id === '17') return { ...db, itemCount: pedidoPlantillas };
       if (db.id === '18') return { ...db, itemCount: contenedores };
+      if (db.id === '19') return { ...db, itemCount: formatosExpedicion };
       return db;
     }));
   }, []);

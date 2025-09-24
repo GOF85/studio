@@ -6,7 +6,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Component, ChefHat, PlusCircle, Trash2, DollarSign, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
-import type { Elaboracion, IngredienteInterno, UnidadMedida, IngredienteERP, PartidaProduccion, Receta } from '@/types';
+import type { Elaboracion, IngredienteInterno, UnidadMedida, IngredienteERP, PartidaProduccion, Receta, FormatoExpedicion } from '@/types';
 import { UNIDADES_MEDIDA } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatCurrency, formatUnit } from '@/lib/utils';
 import Image from 'next/image';
+import { Combobox } from '@/components/ui/combobox';
 
 const componenteSchema = z.object({
     id: z.string(),
@@ -111,6 +112,7 @@ export default function ElaboracionFormPage() {
   const [affectedRecipes, setAffectedRecipes] = useState<Receta[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState('');
+  const [formatosExpedicion, setFormatosExpedicion] = useState<FormatoExpedicion[]>([]);
 
   const { toast } = useToast();
 
@@ -137,6 +139,9 @@ export default function ElaboracionFormPage() {
   const watchedProduccionTotal = form.watch('produccionTotal');
 
   useEffect(() => {
+    const storedFormatos = JSON.parse(localStorage.getItem('formatosExpedicionDB') || '[]') as FormatoExpedicion[];
+    setFormatosExpedicion(storedFormatos);
+
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
     const erpMap = new Map(storedErp.map(i => [i.id, i]));
@@ -186,12 +191,20 @@ export default function ElaboracionFormPage() {
   const handleAddImageUrl = () => {
     try {
         const url = new URL(newImageUrl);
-        appendFoto(url.href);
+        appendFoto({value: url.href});
         setNewImageUrl('');
     } catch(e) {
         toast({ variant: 'destructive', title: 'URL inválida', description: 'Por favor, introduce una URL de imagen válida.'});
     }
   }
+
+  const handleCreateFormato = (nombre: string) => {
+    const newFormato = { id: Date.now().toString(), nombre };
+    const updatedFormatos = [...formatosExpedicion, newFormato];
+    setFormatosExpedicion(updatedFormatos);
+    localStorage.setItem('formatosExpedicionDB', JSON.stringify(updatedFormatos));
+    toast({ title: 'Formato Creado', description: `Se ha añadido "${nombre}" a la base de datos.` });
+  };
 
   const { costeTotal, costePorUnidad } = useMemo(() => {
     let total = 0;
@@ -268,8 +281,8 @@ export default function ElaboracionFormPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
-          <form id="elaboracion-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-             <div className="flex items-center justify-between mb-6">
+          <form id="elaboracion-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <Component className="h-8 w-8" />
                     <h1 className="text-3xl font-headline font-bold">{isEditing && !cloneId ? 'Editar' : 'Nueva'} Elaboración {cloneId && <span className="text-xl text-muted-foreground">(Clonada)</span>}</h1>
@@ -285,22 +298,22 @@ export default function ElaboracionFormPage() {
             </div>
             
             <Card>
-                <CardHeader className="flex flex-row justify-between items-start pb-4">
+                <CardHeader className="flex flex-row justify-between items-start py-3">
                     <div>
-                        <CardTitle>Información General</CardTitle>
+                        <CardTitle className="text-lg">Información General</CardTitle>
                     </div>
                     <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Coste / {formatUnit(form.watch('unidadProduccion'))}</p>
-                        <p className="font-bold text-2xl text-primary">{formatCurrency(costePorUnidad)}</p>
+                        <p className="text-xs text-muted-foreground">Coste / {formatUnit(form.watch('unidadProduccion'))}</p>
+                        <p className="font-bold text-xl text-primary">{formatCurrency(costePorUnidad)}</p>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                     <div className="grid grid-cols-2 gap-4">
+                     <div className="flex items-center gap-4">
                         <FormField control={form.control} name="nombre" render={({ field }) => (
-                            <FormItem><FormLabel>Nombre de la Elaboración</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="partidaProduccion" render={({ field }) => (
-                            <FormItem><FormLabel>Partida de Producción</FormLabel>
+                            <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Partida de Producción</FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                     <SelectContent>
@@ -313,12 +326,12 @@ export default function ElaboracionFormPage() {
                             <FormMessage /></FormItem>
                         )} />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center gap-4">
                         <FormField control={form.control} name="produccionTotal" render={({ field }) => (
-                            <FormItem><FormLabel>Producción Total</FormLabel><FormControl><Input type="number" step="any" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Producción Total</FormLabel><FormControl><Input type="number" step="any" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                             <FormField control={form.control} name="unidadProduccion" render={({ field }) => (
-                            <FormItem><FormLabel>Unidad</FormLabel>
+                            <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Unidad</FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                     <SelectContent>
@@ -332,9 +345,9 @@ export default function ElaboracionFormPage() {
             </Card>
             
             <Card>
-                <CardHeader className="flex-row items-center justify-between py-4">
-                    <div className="space-y-1.5"><CardTitle className="flex items-center gap-2"><ChefHat/>Componentes</CardTitle>
-                    <CardDescription>Añade los ingredientes que forman parte de esta preparación.</CardDescription></div>
+                <CardHeader className="flex-row items-center justify-between py-3">
+                    <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><ChefHat/>Componentes</CardTitle>
+                    <CardDescription className="text-xs">Añade los ingredientes que forman parte de esta preparación.</CardDescription></div>
                     <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                         <DialogTrigger asChild>
                              <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Componente</Button>
@@ -345,7 +358,7 @@ export default function ElaboracionFormPage() {
                 <CardContent>
                      <div className="border rounded-lg">
                         <Table>
-                            <TableHeader><TableRow><TableHead className="p-3">Componente</TableHead><TableHead className="w-40 p-3">Cantidad</TableHead><TableHead className="w-40 p-3">Unidad</TableHead><TableHead className="w-12 p-3"></TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead className="py-2 px-3">Componente</TableHead><TableHead className="w-40 py-2 px-3">Cantidad</TableHead><TableHead className="w-40 py-2 px-3">Unidad</TableHead><TableHead className="w-12 py-2 px-3"></TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {fields.length === 0 && <TableRow><TableCell colSpan={4} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
                                 {fields.map((field, index) => (
@@ -369,10 +382,10 @@ export default function ElaboracionFormPage() {
                 </CardContent>
             </Card>
 
-            <div className="grid lg:grid-cols-2 gap-6 items-start">
+            <div className="grid lg:grid-cols-2 gap-4 items-start">
                  <Card>
-                    <CardHeader className="py-4">
-                        <CardTitle>Instrucciones y Medios</CardTitle>
+                    <CardHeader className="py-3">
+                        <CardTitle className="text-lg">Instrucciones y Medios</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <FormField control={form.control} name="instruccionesPreparacion" render={({ field }) => (
@@ -403,31 +416,41 @@ export default function ElaboracionFormPage() {
                 </Card>
 
                 <Card>
-                    <CardHeader className="py-4">
-                        <CardTitle>Datos de Expedición</CardTitle>
-                        <CardDescription>Define cómo se empaqueta y conserva esta elaboración.</CardDescription>
+                    <CardHeader className="py-3">
+                        <CardTitle className="text-lg">Datos de Expedición</CardTitle>
+                        <CardDescription className="text-xs">Define cómo se empaqueta y conserva esta elaboración.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                       <div className="grid grid-cols-2 gap-4">
-                            <FormField control={form.control} name="formatoExpedicion" render={({ field }) => (
-                                <FormItem><FormLabel>Formato Expedición</FormLabel><FormControl><Input {...field} placeholder="Ej: Barqueta 1kg" /></FormControl><FormMessage /></FormItem>
-                            )} />
+                        <FormField control={form.control} name="formatoExpedicion" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Formato Expedición</FormLabel>
+                                <Combobox
+                                    options={formatosExpedicion.map(f => ({ value: f.nombre, label: f.nombre }))}
+                                    value={field.value || ''}
+                                    onChange={field.onChange}
+                                    onCreated={handleCreateFormato}
+                                    placeholder="Ej: Barqueta 1kg"
+                                />
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <div className="grid grid-cols-2 gap-4">
                              <FormField control={form.control} name="ratioExpedicion" render={({ field }) => (
                                 <FormItem><FormLabel>Ratio Expedición</FormLabel><FormControl><Input type="number" step="any" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
+                             <FormField control={form.control} name="tipoExpedicion" render={({ field }) => (
+                                <FormItem><FormLabel>Tipo de Expedición</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="REFRIGERADO">Refrigerado</SelectItem>
+                                            <SelectItem value="CONGELADO">Congelado</SelectItem>
+                                            <SelectItem value="SECO">Seco</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                <FormMessage /></FormItem>
+                            )} />
                         </div>
-                         <FormField control={form.control} name="tipoExpedicion" render={({ field }) => (
-                            <FormItem><FormLabel>Tipo de Expedición</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="REFRIGERADO">Refrigerado</SelectItem>
-                                        <SelectItem value="CONGELADO">Congelado</SelectItem>
-                                        <SelectItem value="SECO">Seco</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            <FormMessage /></FormItem>
-                        )} />
                     </CardContent>
                 </Card>
             </div>
