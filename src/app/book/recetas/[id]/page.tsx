@@ -536,7 +536,7 @@ export default function RecetaFormPage() {
                                                     <FormItem className="flex items-center gap-2">
                                                         <FormLabel className="text-xs">% Merma:</FormLabel>
                                                         <FormControl>
-                                                            <Input type="number" {...mField} className="h-8 w-20" />
+                                                            <Input type="number" {...mField} value={mField.value ?? ''} className="h-8 w-20" />
                                                         </FormControl>
                                                     </FormItem>
                                                 )} />

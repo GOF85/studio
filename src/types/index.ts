@@ -394,7 +394,7 @@ export type ElaboracionEnReceta = {
   gramaje: number;
   alergenos?: Alergeno[];
   unidad: UnidadMedida;
-  merma: number; // Porcentaje de merma en el emplatado/servicio
+  merma?: number; // Porcentaje de merma en el emplatado/servicio
 };
 
 export type MenajeEnReceta = {
