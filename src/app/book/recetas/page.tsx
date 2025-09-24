@@ -21,7 +21,7 @@ import { formatCurrency } from '@/lib/utils';
 const ITEMS_PER_PAGE = 20;
 
 // Headers for CSV export/import, including all fields of a Receta
-const CSV_HEADERS = [ "id", "nombre", "visibleParaComerciales", "descripcionComercial", "responsableEscandallo", "categoria", "partidaProduccion", "estacionalidad", "tipoDieta", "porcentajeCosteProduccion", "elaboraciones", "menajeAsociado", "instruccionesMiseEnPlace", "instruccionesRegeneracion", "instruccionesEmplatado", "perfilSaborPrincipal", "perfilSaborSecundario", "perfilTextura", "tipoCocina", "temperaturaServicio", "tecnicaCoccionPrincipal", "potencialMiseEnPlace", "formatoServicioIdeal", "equipamientoCritico", "dificultadProduccion", "estabilidadBuffet", "escalabilidad", "etiquetasTendencia", "costeMateriaPrima", "gramajeTotal", "precioVentaRecomendado", "alergenos", "requiereRevision" ];
+const CSV_HEADERS = [ "id", "nombre", "visibleParaComerciales", "descripcionComercial", "responsableEscandallo", "categoria", "partidaProduccion", "estacionalidad", "tipoDieta", "porcentajeCosteProduccion", "elaboraciones", "menajeAsociado", "instruccionesMiseEnPlace", "instruccionesRegeneracion", "instruccionesEmplatado", "perfilSaborPrincipal", "perfilSaborSecundario", "perfilTextura", "tipoCocina", "temperaturaServicio", "tecnicaCoccionPrincipal", "potencialMiseEnPlace", "formatoServicioIdeal", "equipamientoCritico", "dificultadProduccion", "estabilidadBuffet", "escalabilidad", "etiquetasTendencia", "costeMateriaPrima", "gramajeTotal", "precioVenta", "alergenos", "requiereRevision" ];
 
 
 export default function RecetasPage() {
@@ -136,7 +136,7 @@ export default function RecetasPage() {
           porcentajeCosteProduccion: parseFloat(item.porcentajeCosteProduccion) || 0,
           costeMateriaPrima: parseFloat(item.costeMateriaPrima) || 0,
           gramajeTotal: parseFloat(item.gramajeTotal) || 0,
-          precioVentaRecomendado: parseFloat(item.precioVentaRecomendado) || 0,
+          precioVenta: parseFloat(item.precioVenta) || 0,
           dificultadProduccion: parseInt(item.dificultadProduccion) || 3,
           estabilidadBuffet: parseInt(item.estabilidadBuffet) || 3,
           elaboraciones: safeJsonParse(item.elaboraciones),
@@ -261,7 +261,7 @@ export default function RecetasPage() {
                 <TableHead className="py-2">Categoría</TableHead>
                 <TableHead className="py-2">Partida Producción</TableHead>
                 <TableHead className="py-2">Coste M.P.</TableHead>
-                <TableHead className="py-2">Precio Venta Rec.</TableHead>
+                <TableHead className="py-2">Precio Venta</TableHead>
                 <TableHead className="w-12 text-right py-2"></TableHead>
               </TableRow>
             </TableHeader>
@@ -285,7 +285,7 @@ export default function RecetasPage() {
                     <TableCell className="py-2">{item.categoria}</TableCell>
                     <TableCell className="py-2">{item.partidaProduccion}</TableCell>
                     <TableCell className="py-2">{formatCurrency(item.costeMateriaPrima)}</TableCell>
-                    <TableCell className="font-bold text-primary py-2">{formatCurrency(item.precioVentaRecomendado)}</TableCell>
+                    <TableCell className="font-bold text-primary py-2">{formatCurrency(item.precioVenta)}</TableCell>
                     <TableCell className="py-2 text-right">
                         <Tooltip>
                             <TooltipTrigger asChild>

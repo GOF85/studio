@@ -3,6 +3,7 @@
 
 
 
+
 import type { OsFormValues } from "@/app/os/page";
 import { z } from "zod";
 
@@ -432,7 +433,7 @@ export type Receta = {
     // --- Campos de Coste ---
     porcentajeCosteProduccion: number;
     costeMateriaPrima: number; // Calculado
-    precioVentaRecomendado: number; // Calculado
+    precioVenta: number; // Calculado
     alergenos: Alergeno[];
     // --- Atributos Gastronómicos ---
     perfilSaborPrincipal?: SaborPrincipal;

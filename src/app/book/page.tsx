@@ -135,7 +135,7 @@ export default function BookDashboardPage() {
                 <TableHead className="py-2">Categoría</TableHead>
                 <TableHead className="py-2">Partida Producción</TableHead>
                 <TableHead className="py-2">Coste M.P.</TableHead>
-                <TableHead className="py-2">Precio Venta Rec.</TableHead>
+                <TableHead className="py-2">Precio Venta</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -146,7 +146,7 @@ export default function BookDashboardPage() {
                     <TableCell className="py-2">{item.categoria}</TableCell>
                     <TableCell className="py-2">{item.partidaProduccion}</TableCell>
                     <TableCell className="py-2">{(item.costeMateriaPrima || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                    <TableCell className="font-bold text-primary py-2">{(item.precioVentaRecomendado || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell className="font-bold text-primary py-2">{(item.precioVenta || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                   </TableRow>
                 ))
               ) : (
