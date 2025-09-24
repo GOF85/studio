@@ -37,6 +37,7 @@ import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { formatCurrency } from '@/lib/utils';
 
 const CSV_HEADERS = ["id", "concepto", "precioAlquiler", "precioReposicion", "imagen"];
 
@@ -212,8 +213,8 @@ export default function AlquilerDBPage() {
                     <TableCell>
                       {item.imagen && <Image src={item.imagen} alt={item.concepto} width={40} height={40} className="rounded-md object-cover"/>}
                     </TableCell>
-                    <TableCell>{item.precioAlquiler.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                    <TableCell>{item.precioReposicion.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell>{formatCurrency(item.precioAlquiler)}</TableCell>
+                    <TableCell>{formatCurrency(item.precioReposicion)}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

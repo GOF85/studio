@@ -37,6 +37,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { formatCurrency } from '@/lib/utils';
 
 const CSV_HEADERS = ["id", "nombre", "departamento", "categoria", "telefono", "mail", "dni", "precioHora"];
 
@@ -244,7 +245,7 @@ export default function PersonalPage() {
                     <TableCell>{p.categoria}</TableCell>
                     <TableCell>{p.telefono}</TableCell>
                     <TableCell>{p.mail}</TableCell>
-                    <TableCell>{(p.precioHora || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell>{formatCurrency(p.precioHora)}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -6,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Package, Menu } from 'lucide-react';
 import type { IngredienteERP, UnidadMedida } from '@/types';
+import { UNIDADES_MEDIDA } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +39,7 @@ import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { formatCurrency, formatUnit } from '@/lib/utils';
 
 const CSV_REQUIRED_HEADERS = ["nombreProductoERP", "referenciaProveedor", "nombreProveedor", "familiaCategoria", "precio", "unidad"];
 
@@ -94,8 +97,7 @@ export default function IngredientesERPPage() {
   const parseCurrency = (value: string | number) => {
     if (typeof value === 'number') return value;
     if (typeof value === 'string') {
-        // First, remove quotes, then spaces, then replace comma with dot.
-        const cleaned = value.replace(/"/g, '').replace(/\s/g, '').replace(',', '.');
+        const cleaned = value.replace(/"/g, '').replace(/\./g, '').replace(/\s/g, '').replace(',', '.');
         const number = parseFloat(cleaned);
         return isNaN(number) ? 0 : number;
     }
@@ -241,8 +243,8 @@ export default function IngredientesERPPage() {
                     <TableCell>{item.nombreProveedor}</TableCell>
                     <TableCell>{item.referenciaProveedor}</TableCell>
                     <TableCell>{item.familiaCategoria}</TableCell>
-                    <TableCell>{item.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                    <TableCell>{item.unidad}</TableCell>
+                    <TableCell>{formatCurrency(item.precio)}</TableCell>
+                    <TableCell>{formatUnit(item.unidad)}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

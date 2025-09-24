@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -25,6 +26,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Combobox } from '@/components/ui/combobox';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { formatNumber, formatUnit } from '@/lib/utils';
 
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -219,9 +221,8 @@ export default function OfDetailPage() {
     const canFinish = orden?.estado === 'En Proceso';
 
     const ceilToTwoDecimals = (num?: number | null) => {
-        if (num === null || num === undefined) return '0.00';
-        const factor = Math.pow(10, 2);
-        return (Math.ceil(num * factor) / factor).toFixed(2);
+        if (num === null || num === undefined) return '0,00';
+        return formatNumber(num, 2);
     }
     
     const pageTitle = isEditing ? `Orden de Fabricación: ${orden?.id}` : 'Nueva Orden de Fabricación Manual';
@@ -272,7 +273,7 @@ export default function OfDetailPage() {
                                     )} />
                                     <FormField control={form.control} name="cantidadTotal" render={({ field }) => (
                                         <FormItem>
-                                            <Label>Cantidad a Producir ({elabUnidad})</Label>
+                                            <Label>Cantidad a Producir ({elabUnidad ? formatUnit(elabUnidad) : 'uds'})</Label>
                                             <FormControl>
                                                 <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
                                             </FormControl>
@@ -294,7 +295,7 @@ export default function OfDetailPage() {
                                 <>
                                     <div className="space-y-1">
                                         <h4 className="font-semibold text-muted-foreground">Cantidad a Producir</h4>
-                                        <p className="font-bold text-2xl">{ceilToTwoDecimals(elabCantidad)} <span className="text-lg font-normal">{elabUnidad}</span></p>
+                                        <p className="font-bold text-2xl">{ceilToTwoDecimals(elabCantidad)} <span className="text-lg font-normal">{elabUnidad ? formatUnit(elabUnidad) : 'uds'}</span></p>
                                     </div>
                                     {orden && orden.osIDs.length > 0 && 
                                         <div className="space-y-1">
@@ -326,7 +327,7 @@ export default function OfDetailPage() {
                     <Separator className="my-6" />
                      <div className="grid md:grid-cols-2 gap-6">
                          <div>
-                            <h4 className="font-semibold mb-4">Escandallo para {ceilToTwoDecimals(elabCantidad)} {elabUnidad}</h4>
+                            <h4 className="font-semibold mb-4">Escandallo para {ceilToTwoDecimals(elabCantidad)} {elabUnidad ? formatUnit(elabUnidad) : 'uds'}</h4>
                             <div className="p-4 border rounded-lg bg-muted/50">
                                 {elaboracion ? (
                                     <Table>
@@ -334,11 +335,11 @@ export default function OfDetailPage() {
                                         <TableBody>
                                             {elaboracion.componentes.map(comp => {
                                                 const ingrediente = ingredientesData.get(comp.componenteId);
-                                                const unidad = ingrediente?.erp?.unidad || 'uds';
+                                                const unidad = ingrediente?.erp?.unidad || 'UNIDAD';
                                                 return (
                                                     <TableRow key={comp.id}>
                                                         <TableCell>{comp.nombre}</TableCell>
-                                                        <TableCell className="text-right font-mono">{ceilToTwoDecimals(comp.cantidad * ratioProduccion)} {unidad}</TableCell>
+                                                        <TableCell className="text-right font-mono">{ceilToTwoDecimals(comp.cantidad * ratioProduccion)} {formatUnit(unidad)}</TableCell>
                                                     </TableRow>
                                                 )
                                             })}
@@ -376,7 +377,7 @@ export default function OfDetailPage() {
                                 <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2"><Check />2. Finalizar Producción</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="space-y-1">
-                                        <Label htmlFor="cantidadReal">Cantidad Real Producida ({orden?.unidad})</Label>
+                                        <Label htmlFor="cantidadReal">Cantidad Real Producida ({orden?.unidad ? formatUnit(orden.unidad) : 'uds'})</Label>
                                         <Controller name="cantidadReal" control={form.control} render={({ field }) => <Input id="cantidadReal" type="number" step="0.01" {...field} value={field.value ?? ''} disabled={!canFinish}/>}/>
                                     </div>
                                     <Button className="w-full" variant="default" disabled={!canFinish} onClick={() => handleSave('Finalizado')}>Marcar como Finalizada</Button>

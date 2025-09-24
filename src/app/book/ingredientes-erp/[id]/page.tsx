@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Package } from 'lucide-react';
 import type { IngredienteERP, UnidadMedida } from '@/types';
-
+import { UNIDADES_MEDIDA } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatUnit } from '@/lib/utils';
 
 export const ingredienteErpSchema = z.object({
   id: z.string(),
@@ -24,7 +25,7 @@ export const ingredienteErpSchema = z.object({
   nombreProveedor: z.string().optional().default(''),
   familiaCategoria: z.string().optional().default(''),
   precio: z.coerce.number().min(0, 'El precio debe ser positivo'),
-  unidad: z.enum(['KILO', 'LITRO', 'UNIDAD']),
+  unidad: z.enum(UNIDADES_MEDIDA),
 });
 
 type IngredienteErpFormValues = z.infer<typeof ingredienteErpSchema>;
@@ -149,9 +150,7 @@ export default function IngredienteErpFormPage() {
                              <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                 <SelectContent>
-                                    <SelectItem value="KILO">KILO</SelectItem>
-                                    <SelectItem value="LITRO">LITRO</SelectItem>
-                                    <SelectItem value="UNIDAD">UNIDAD</SelectItem>
+                                    {UNIDADES_MEDIDA.map(u => <SelectItem key={u} value={u}>{formatUnit(u)}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                             <FormMessage />

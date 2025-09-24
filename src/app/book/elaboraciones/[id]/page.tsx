@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { formatCurrency, formatUnit } from '@/lib/utils';
 
 const componenteSchema = z.object({
     id: z.string(),
@@ -82,7 +83,7 @@ function IngredienteSelector({ onSelect }: { onSelect: (ingrediente: Ingrediente
                         {filtered.map(ing => (
                             <TableRow key={ing.id}>
                                 <TableCell>{ing.nombreIngrediente}</TableCell>
-                                <TableCell>{ing.erp?.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} / {ing.erp?.unidad}</TableCell>
+                                <TableCell>{formatCurrency(ing.erp?.precio)} / {ing.erp ? formatUnit(ing.erp.unidad) : 'Ud'}</TableCell>
                                 <TableCell className="text-right">
                                     <Button size="sm" type="button" onClick={() => onSelect(ing)}>Añadir</Button>
                                 </TableCell>
@@ -272,8 +273,8 @@ export default function ElaboracionFormPage() {
                         <CardTitle>Información General</CardTitle>
                     </div>
                     <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Coste / {form.watch('unidadProduccion')}</p>
-                        <p className="font-bold text-2xl text-primary">{costePorUnidad.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
+                        <p className="text-sm text-muted-foreground">Coste / {formatUnit(form.watch('unidadProduccion'))}</p>
+                        <p className="font-bold text-2xl text-primary">{formatCurrency(costePorUnidad)}</p>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -304,7 +305,7 @@ export default function ElaboracionFormPage() {
                                 <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                     <SelectContent>
-                                        {UNIDADES_MEDIDA.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                                        {UNIDADES_MEDIDA.map(u => <SelectItem key={u} value={u}>{formatUnit(u)}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             <FormMessage /></FormItem>
@@ -339,7 +340,7 @@ export default function ElaboracionFormPage() {
                                             )} />
                                         </TableCell>
                                         <TableCell className="py-1 px-3">
-                                            {ingredientesData.get(field.componenteId)?.erp?.unidad || 'N/A'}
+                                            {formatUnit(ingredientesData.get(field.componenteId)?.erp?.unidad || 'UNIDAD')}
                                         </TableCell>
                                         <TableCell className="py-1 px-3"><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
                                     </TableRow>

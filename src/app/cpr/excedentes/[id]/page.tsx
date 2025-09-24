@@ -18,6 +18,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { formatUnit } from '@/lib/utils';
 
 type FormData = {
     cantidadAjustada: number;
@@ -147,7 +148,7 @@ export default function ExcedenteDetailPage() {
                         <CardContent className="space-y-4">
                             <div className="grid sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="cantidadAjustada">Cantidad Real Actual ({orden.unidad})</Label>
+                                    <Label htmlFor="cantidadAjustada">Cantidad Real Actual ({formatUnit(orden.unidad)})</Label>
                                     <Input id="cantidadAjustada" type="number" step="0.01" {...register('cantidadAjustada', { valueAsNumber: true })} />
                                 </div>
                                 <div className="space-y-2">

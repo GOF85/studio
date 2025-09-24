@@ -31,6 +31,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { formatCurrency } from '@/lib/utils';
 
 const statusOptions: HieloOrder['status'][] = ['Pendiente', 'Confirmado', 'En reparto', 'Entregado'];
 
@@ -88,7 +89,7 @@ function ProductSelector({ onSelectProduct, providerId }: { onSelectProduct: (pr
             {filteredItems.map(product => (
               <TableRow key={product.id}>
                 <TableCell className="font-medium">{product.producto}</TableCell>
-                <TableCell>{product.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                <TableCell>{formatCurrency(product.precio)}</TableCell>
                 <TableCell><Button size="sm" onClick={() => onSelectProduct(product)}>Añadir</Button></TableCell>
               </TableRow>
             ))}
@@ -356,11 +357,11 @@ export default function PedidoHieloPage() {
                                             fields.map((field, index) => (
                                                 <TableRow key={field.key}>
                                                     <TableCell className="font-medium">{field.producto}</TableCell>
-                                                    <TableCell>{field.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                                                    <TableCell>{formatCurrency(field.precio)}</TableCell>
                                                     <TableCell>
                                                         <Input type="number" min="1" className="w-20" {...form.register(`items.${index}.cantidad`)} />
                                                     </TableCell>
-                                                    <TableCell>{(field.precio * form.watch(`items.${index}.cantidad`)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                                                    <TableCell>{formatCurrency(field.precio * form.watch(`items.${index}.cantidad`))}</TableCell>
                                                     <TableCell className="text-right">
                                                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)} type="button">
                                                             <Trash2 className="h-4 w-4" />
@@ -380,7 +381,7 @@ export default function PedidoHieloPage() {
                         {fields.length > 0 && (
                             <CardFooter className="flex justify-end">
                                 <div className="text-xl font-bold">
-                                    Total: {totalPedido.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                                    Total: {formatCurrency(totalPedido)}
                                 </div>
                             </CardFooter>
                         )}

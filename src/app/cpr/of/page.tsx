@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { format, parseISO } from 'date-fns';
 import Link from 'next/link';
+import { formatNumber, formatUnit } from '@/lib/utils';
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente': 'secondary',
@@ -81,8 +82,7 @@ export default function OfPage() {
 
   const ceilToTwoDecimals = (num?: number | null) => {
     if (num === null || num === undefined) return '-';
-    const factor = Math.pow(10, 2);
-    return (Math.ceil(num * factor) / factor).toFixed(2);
+    return formatNumber(num, 2);
   }
 
   return (
@@ -157,8 +157,8 @@ export default function OfPage() {
                 >
                   <TableCell className="font-medium">{of.id}</TableCell>
                   <TableCell>{of.elaboracionNombre}</TableCell>
-                  <TableCell>{ceilToTwoDecimals(of.cantidadTotal)} {of.unidad}</TableCell>
-                  <TableCell>{ceilToTwoDecimals(of.cantidadReal)} {of.cantidadReal ? of.unidad : ''}</TableCell>
+                  <TableCell>{ceilToTwoDecimals(of.cantidadTotal)} {formatUnit(of.unidad)}</TableCell>
+                  <TableCell>{ceilToTwoDecimals(of.cantidadReal)} {of.cantidadReal ? formatUnit(of.unidad) : ''}</TableCell>
                   <TableCell><Badge variant="secondary">{of.partidaAsignada}</Badge></TableCell>
                   <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
                   <TableCell>

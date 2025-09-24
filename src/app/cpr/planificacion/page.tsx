@@ -26,8 +26,9 @@ import { Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from '@/lib/utils';
+import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
 
-import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta } from '@/types';
+import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta, ComercialBriefingItem } from '@/types';
 
 // --- DATA STRUCTURES ---
 
@@ -101,6 +102,9 @@ type MatrizHeader = {
     day: Date;
     totalRecetaUnits: number;
     totalElaboracionUnits: number;
+    totalPax: number;
+    totalContratos: number;
+    totalServicios: number;
 }
 
 const partidaColorClasses: Record<PartidaProduccion, string> = {
@@ -128,6 +132,7 @@ export default function PlanificacionPage() {
     // State for Matrix view
     const [matrizData, setMatrizData] = useState<MatrizRow[]>([]);
     const [matrizHeaders, setMatrizHeaders] = useState<MatrizHeader[]>([]);
+    const [matrizTotals, setMatrizTotals] = useState({ totalPax: 0, totalContratos: 0, totalServicios: 0 });
 
 
     const [isLoading, setIsLoading] = useState(false);
@@ -135,12 +140,14 @@ export default function PlanificacionPage() {
 
     const calcularNecesidades = useCallback(() => {
         setIsLoading(true);
+        // Reset all states
         setPlanificacionItems([]);
         setRecetasAgregadas([]);
         setDesgloseEventosRecetas([]);
         setMatrizData([]);
         setMatrizHeaders([]);
         setSelectedRows(new Set());
+        setMatrizTotals({ totalPax: 0, totalContratos: 0, totalServicios: 0 });
 
         if (!dateRange?.from || !dateRange?.to) {
             setIsLoading(false);
@@ -153,6 +160,7 @@ export default function PlanificacionPage() {
         // --- DATA LOADING ---
         const allServiceOrders: ServiceOrder[] = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const allGastroOrders: GastronomyOrder[] = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+        const allBriefings: ComercialBriefing[] = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
         const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
         const allElaboraciones: Elaboracion[] = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
         const allOrdenesFabricacion: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
@@ -174,10 +182,11 @@ export default function PlanificacionPage() {
             setIsLoading(false);
             return;
         }
-
+        
         const ofsEnRango = allOrdenesFabricacion.filter(of => of.osIDs.some(osId => osIdsEnRango.has(osId)));
         
         const gastroOrdersEnRango = allGastroOrders.filter(go => osIdsEnRango.has(go.osId));
+        const briefingsEnRango = allBriefings.filter(b => osIdsEnRango.has(b.osId));
 
         // --- CALCULATIONS ---
         
@@ -307,7 +316,7 @@ export default function PlanificacionPage() {
              const row: MatrizRow = {
                 id: recetaId,
                 nombre: registro.receta.nombre,
-                unidad: 'uds',
+                unidad: 'UNIDAD',
                 total: registro.necesidadBruta,
                 type: 'receta',
                 receta: registro.receta
@@ -338,24 +347,48 @@ export default function PlanificacionPage() {
             matrixRows.push(row);
         });
 
+        let totalPax = 0;
+        let totalServicios = 0;
+        
         const matrixHeaders: MatrizHeader[] = days.map(day => {
             const dayKey = format(day, 'yyyy-MM-dd');
             let totalRecetas = 0;
             let totalElaboraciones = 0;
+            let paxDia = 0;
+            const contratosDia = new Set<string>();
+            let serviciosDia = 0;
+
+            const osDelDia = osEnRango.filter(os => isSameDay(new Date(os.startDate), day));
+            osDelDia.forEach(os => contratosDia.add(os.id));
+
+            briefingsEnRango.forEach(briefing => {
+                briefing.items.forEach(item => {
+                    if (isSameDay(new Date(item.fecha), day)) {
+                        paxDia += item.asistentes;
+                        serviciosDia++;
+                    }
+                })
+            });
 
             matrixRows.forEach(row => {
+                const value = row[dayKey] || 0;
                 if (row.type === 'receta') {
-                    totalRecetas += row[dayKey] || 0;
+                    totalRecetas += value;
                 } else if (row.type === 'elaboracion') {
-                    totalElaboraciones += row[dayKey] || 0;
+                    totalElaboraciones += value;
                 }
             });
 
-            return { day, totalRecetaUnits: totalRecetas, totalElaboracionUnits: totalElaboraciones };
+            totalPax += paxDia;
+            totalServicios += serviciosDia;
+
+            return { day, totalRecetaUnits: totalRecetas, totalElaboracionUnits: totalElaboraciones, totalPax: paxDia, totalContratos: contratosDia.size, totalServicios: serviciosDia };
         });
 
         setMatrizData(matrixRows);
         setMatrizHeaders(matrixHeaders);
+        setMatrizTotals({ totalPax, totalContratos: osIdsEnRango.size, totalServicios });
+
 
         setPlanificacionItems(itemsFinales);
         setRecetasAgregadas(Array.from(agregadoRecetasMap.values()));
@@ -527,26 +560,43 @@ export default function PlanificacionPage() {
                                         <TableHeader>
                                             <TableRow className="bg-muted/50">
                                                 <TableHead className="p-1 sticky left-0 bg-muted z-10 w-64">Resumen Diario</TableHead>
-                                                <TableHead className="p-1 text-center w-32 sticky left-[256px] bg-muted z-10"></TableHead>
+                                                <TableHead className="p-1 text-center w-32 sticky left-[256px] bg-muted z-10">TOTAL</TableHead>
                                                 {matrizHeaders.map(h => (
                                                     <TableHead key={h.day.toISOString()} className="p-1 text-center border-l">
-                                                        <div className="font-bold">{format(h.day, 'EEE', {locale: es})}</div>
+                                                        <div className="font-bold capitalize">{format(h.day, 'EEE', {locale: es})}</div>
                                                         <div className="text-xs">{format(h.day, 'dd/MM')}</div>
                                                     </TableHead>
                                                 ))}
                                             </TableRow>
                                             <TableRow>
-                                                <TableHead className="p-1 sticky left-0 bg-background z-10" colSpan={2}><BookOpen className="inline-block mr-2"/>Uds. de Receta</TableHead>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{h.totalRecetaUnits.toFixed(0)}</TableCell>)}
+                                                <TableHead className="p-1 sticky left-0 bg-background z-10"><FileDigit className="inline-block mr-2"/>Nº de Contratos (OS)</TableHead>
+                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizTotals.totalContratos)}</TableCell>
+                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalContratos)}</TableCell>)}
                                             </TableRow>
-                                             <TableRow>
-                                                <TableHead className="p-1 sticky left-0 bg-background z-10" colSpan={2}><Component className="inline-block mr-2"/>Uds. de Elaboración</TableHead>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{h.totalElaboracionUnits.toFixed(0)}</TableCell>)}
+                                            <TableRow>
+                                                <TableHead className="p-1 sticky left-0 bg-background z-10"><Utensils className="inline-block mr-2"/>Nº de Servicios</TableHead>
+                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizTotals.totalServicios)}</TableCell>
+                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalServicios)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableHead className="p-1 sticky left-0 bg-background z-10"><Users className="inline-block mr-2"/>Nº de Asistentes (PAX)</TableHead>
+                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizTotals.totalPax)}</TableCell>
+                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalPax)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableHead className="p-1 sticky left-0 bg-background z-10"><BookOpen className="inline-block mr-2"/>Uds. de Receta</TableHead>
+                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizHeaders.reduce((acc, h) => acc + h.totalRecetaUnits, 0))}</TableCell>
+                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalRecetaUnits)}</TableCell>)}
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableHead className="p-1 sticky left-0 bg-background z-10"><Component className="inline-block mr-2"/>Uds. de Elaboración</TableHead>
+                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizHeaders.reduce((acc, h) => acc + h.totalElaboracionUnits, 0))}</TableCell>
+                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalElaboracionUnits)}</TableCell>)}
                                             </TableRow>
                                             <TableRow className="bg-muted/50">
                                                 <TableHead className="p-1 font-semibold sticky left-0 bg-muted z-10">Producto</TableHead>
                                                 <TableHead className="p-1 font-semibold text-center w-32 sticky left-[256px] bg-muted z-10">Total</TableHead>
-                                                {matrizHeaders.map(h => <TableHead key={h.day.toISOString()} className="p-1 text-center border-l">{format(h.day, 'EEE dd/MM', {locale: es})}</TableHead>)}
+                                                {matrizHeaders.map(h => <TableHead key={h.day.toISOString()} className="p-1 text-center border-l capitalize">{format(h.day, 'EEE dd/MM', {locale: es})}</TableHead>)}
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -566,7 +616,7 @@ export default function PlanificacionPage() {
                                                                         <h4 className="font-bold mb-1">Elaboraciones de la receta:</h4>
                                                                         <ul className="list-disc pl-4 text-xs">
                                                                             {row.receta.elaboraciones.map((e: ElaboracionEnReceta) => (
-                                                                                <li key={e.id}>{e.cantidad.toFixed(2)} {e.nombre}</li>
+                                                                                <li key={e.id}>{formatNumber(e.cantidad, 2)} {formatUnit(e.unidad)} - {e.nombre}</li>
                                                                             ))}
                                                                         </ul>
                                                                     </div>
@@ -574,10 +624,10 @@ export default function PlanificacionPage() {
                                                             )}
                                                         </Tooltip>
                                                     </TableCell>
-                                                    <TableCell className="p-1 text-center font-bold font-mono sticky left-[256px] bg-background z-10">{row.total.toFixed(0)} {row.unidad}</TableCell>
+                                                    <TableCell className="p-1 text-center font-bold font-mono sticky left-[256px] bg-background z-10">{formatNumber(row.total)} {formatUnit(row.unidad)}</TableCell>
                                                     {matrizHeaders.map(h => (
                                                         <TableCell key={h.day.toISOString()} className={cn("p-1 text-center font-mono border-l", row[format(h.day, 'yyyy-MM-dd')] === 0 && 'bg-slate-50')}>
-                                                            {row[format(h.day, 'yyyy-MM-dd')] > 0 ? row[format(h.day, 'yyyy-MM-dd')].toFixed(0) : '-'}
+                                                            {row[format(h.day, 'yyyy-MM-dd')] > 0 ? formatNumber(row[format(h.day, 'yyyy-MM-dd')]) : '-'}
                                                         </TableCell>
                                                     ))}
                                                 </TableRow>
@@ -595,6 +645,7 @@ export default function PlanificacionPage() {
                                                              {row.necesidad && (
                                                                 <TooltipContent>
                                                                     <div className="p-1 max-w-xs">
+                                                                        {row.partida && <p className="text-xs font-bold mb-1">Partida: {row.partida}</p>}
                                                                         <h4 className="font-bold mb-1">Necesario para:</h4>
                                                                         <ul className="list-disc pl-4 text-xs">
                                                                             {row.necesidad.recetas.map((r: RecetaNecesidad) => (
@@ -606,10 +657,10 @@ export default function PlanificacionPage() {
                                                             )}
                                                         </Tooltip>
                                                     </TableCell>
-                                                    <TableCell className="p-1 text-center font-bold font-mono sticky left-[256px] z-10">{row.total.toFixed(2)} {row.unidad}</TableCell>
+                                                    <TableCell className="p-1 text-center font-bold font-mono sticky left-[256px] z-10">{formatNumber(row.total, 2)} {formatUnit(row.unidad)}</TableCell>
                                                     {matrizHeaders.map(h => (
                                                         <TableCell key={h.day.toISOString()} className={cn("p-1 text-center font-mono border-l", row[format(h.day, 'yyyy-MM-dd')] === 0 && 'bg-slate-50/50')}>
-                                                            {row[format(h.day, 'yyyy-MM-dd')] > 0 ? row[format(h.day, 'yyyy-MM-dd')].toFixed(2) : '-'}
+                                                            {row[format(h.day, 'yyyy-MM-dd')] > 0 ? formatNumber(row[format(h.day, 'yyyy-MM-dd')], 2) : '-'}
                                                         </TableCell>
                                                     ))}
                                                 </TableRow>
@@ -640,7 +691,7 @@ export default function PlanificacionPage() {
                                                 recetasAgregadas.map(receta => (
                                                     <TableRow key={receta.id}>
                                                         <TableCell className="font-medium">{receta.nombre}</TableCell>
-                                                        <TableCell className="text-right font-mono">{receta.cantidadTotal}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatNumber(receta.cantidadTotal)}</TableCell>
                                                     </TableRow>
                                                 ))
                                             ) : (
@@ -686,11 +737,11 @@ export default function PlanificacionPage() {
                                                                         {hito.recetas.map(receta => (
                                                                             <TableRow key={receta.id}>
                                                                                 <TableCell className="font-medium">{receta.nombre}</TableCell>
-                                                                                <TableCell>{receta.cantidad}</TableCell>
+                                                                                <TableCell>{formatNumber(receta.cantidad)}</TableCell>
                                                                                 <TableCell>
                                                                                     <ul className="list-disc pl-5 text-xs text-muted-foreground">
                                                                                         {receta.elaboraciones.map(elab => (
-                                                                                            <li key={elab.id}>{elab.cantidadPorReceta.toFixed(2)} {elab.unidad} - {elab.nombre}</li>
+                                                                                            <li key={elab.id}>{formatNumber(elab.cantidadPorReceta, 2)} {formatUnit(elab.unidad)} - {elab.nombre}</li>
                                                                                         ))}
                                                                                     </ul>
                                                                                 </TableCell>
@@ -763,7 +814,7 @@ export default function PlanificacionPage() {
                                                         <TableCell className={cn("text-right font-mono", item.type === 'excedente' && 'text-green-600')}>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <span>{item.type === 'excedente' && '+ '}{item.cantidad.toFixed(2)}</span>
+                                                                    <span>{item.type === 'excedente' && '+ '}{formatNumber(item.cantidad, 2)}</span>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
                                                                     <div className="p-1">
@@ -771,14 +822,14 @@ export default function PlanificacionPage() {
                                                                         {item.recetas!.map((r, i) => (
                                                                             <div key={i} className="flex justify-between gap-4 text-xs">
                                                                                 <span>{r.recetaNombre}:</span>
-                                                                                <span className="font-semibold">{r.cantidad.toFixed(2)} {item.unidad}</span>
+                                                                                <span className="font-semibold">{formatNumber(r.cantidad, 2)} {formatUnit(item.unidad)}</span>
                                                                             </div>
                                                                         ))}
                                                                     </div>
                                                                 </TooltipContent>
                                                             </Tooltip>
                                                         </TableCell>
-                                                        <TableCell>{item.unidad}</TableCell>
+                                                        <TableCell>{formatUnit(item.unidad)}</TableCell>
                                                         <TableCell>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
@@ -814,4 +865,3 @@ export default function PlanificacionPage() {
         </TooltipProvider>
     );
 }
-

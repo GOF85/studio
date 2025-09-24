@@ -16,6 +16,7 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import Papa from 'papaparse';
 import { useToast } from '@/hooks/use-toast';
+import { formatCurrency } from '@/lib/utils';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -283,8 +284,8 @@ export default function RecetasPage() {
                     </TableCell>
                     <TableCell className="py-2">{item.categoria}</TableCell>
                     <TableCell className="py-2">{item.partidaProduccion}</TableCell>
-                    <TableCell className="py-2">{(item.costeMateriaPrima || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                    <TableCell className="font-bold text-primary py-2">{(item.precioVentaRecomendado || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell className="py-2">{formatCurrency(item.costeMateriaPrima)}</TableCell>
+                    <TableCell className="font-bold text-primary py-2">{formatCurrency(item.precioVentaRecomendado)}</TableCell>
                     <TableCell className="py-2 text-right">
                         <Tooltip>
                             <TooltipTrigger asChild>

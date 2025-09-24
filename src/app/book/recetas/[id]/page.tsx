@@ -35,9 +35,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Combobox } from '@/components/ui/combobox';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Slider } from '@/components/ui/slider';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { formatCurrency, formatUnit } from '@/lib/utils';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -122,7 +123,7 @@ function SelectorDialog({ trigger, title, items, columns, onSelect }: { trigger:
                                 <TableRow key={item.id}>
                                     {columns.map(c => <TableCell key={c.key as string}>{
                                         c.key === 'costePorUnidad' && typeof item[c.key] === 'number'
-                                          ? (item[c.key] as number).toLocaleString('es-ES', {style:'currency', currency: 'EUR'})
+                                          ? formatCurrency(item[c.key])
                                           : String(item[c.key])
                                     }</TableCell>)}
                                     <TableCell><Button size="sm" onClick={() => { onSelect(item); setOpen(false); }}>Añadir</Button></TableCell>
@@ -721,12 +722,12 @@ export default function RecetaFormPage() {
                         <AccordionContent>
                             <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
                                 <FormItem><FormLabel>Gramaje Total (g)</FormLabel><Input readOnly value={gramajeTotal.toFixed(2)} className="font-bold h-9" /></FormItem>
-                                <FormItem><FormLabel>Coste Materia Prima</FormLabel><Input readOnly value={costeMateriaPrima.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="font-bold h-9" /></FormItem>
+                                <FormItem><FormLabel>Coste Materia Prima</FormLabel><Input readOnly value={formatCurrency(costeMateriaPrima)} className="font-bold h-9" /></FormItem>
                                 <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => ( <FormItem>
                                     <FormLabel className="flex items-center gap-1.5">% Coste Objetivo <InfoTooltip text="Porcentaje del precio de venta que debe representar el coste de la materia prima." /></FormLabel>
                                     <FormControl><Input type="number" {...field} className="h-9" /></FormControl>
                                 </FormItem> )} />
-                                <FormItem><FormLabel>Precio Venta Rec.</FormLabel><Input readOnly value={precioVentaRecomendado.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="font-bold text-primary h-9" /></FormItem>
+                                <FormItem><FormLabel>Precio Venta Rec.</FormLabel><Input readOnly value={formatCurrency(precioVentaRecomendado)} className="font-bold text-primary h-9" /></FormItem>
                             </CardContent>
                             <CardFooter>
                                 <div className="border rounded-md p-3 w-full bg-muted/30">

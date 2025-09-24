@@ -36,6 +36,7 @@ import Papa from 'papaparse';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { formatCurrency } from '@/lib/utils';
 
 const CSV_HEADERS = ["id", "nombreProveedor", "tipoTransporte", "precio"];
 
@@ -208,7 +209,7 @@ export default function ProveedoresTransportePage() {
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.nombreProveedor}</TableCell>
                     <TableCell>{item.tipoTransporte}</TableCell>
-                    <TableCell>{item.precio.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell>{formatCurrency(item.precio)}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

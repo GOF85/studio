@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { formatNumber, formatUnit } from '@/lib/utils';
 
 type Excedente = {
   ofId: string;
@@ -241,7 +242,7 @@ export default function ExcedentesPage() {
                             {item.elaboracionNombre}
                         </TableCell>
                         <TableCell><Badge variant="secondary">{item.ofId}</Badge></TableCell>
-                        <TableCell>{item.cantidadExcedente.toFixed(2)} {item.unidad}</TableCell>
+                        <TableCell>{formatNumber(item.cantidadExcedente, 2)} {formatUnit(item.unidad)}</TableCell>
                         <TableCell>{format(new Date(item.fechaProduccion), 'dd/MM/yyyy')}</TableCell>
                         <TableCell className={cn(item.estado === 'Revisar' && 'font-bold text-destructive')}>{item.fechaExpiracion || 'No definida'}</TableCell>
                         <TableCell>

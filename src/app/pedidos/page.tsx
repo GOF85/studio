@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -265,7 +266,7 @@ export default function PedidosPage() {
       </main>
       <footer className="py-4 border-t">
         <div className="container mx-auto text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} CateringStock. Todos los derechos reservados.
+          © {new Date().getFullYear()} MICE Catering. Todos los derechos reservados.
         </div>
       </footer>
     </div>

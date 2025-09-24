@@ -36,6 +36,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { formatCurrency } from '@/lib/utils';
 
 const statusVariant: { [key in HieloOrder['status']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   Pendiente: 'secondary',
@@ -142,7 +143,7 @@ export default function HieloPage() {
                                 <TableCell className="font-medium">{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
                                 <TableCell>{order.proveedorNombre}</TableCell>
                                 <TableCell>{order.items?.length || 0}</TableCell>
-                                <TableCell>{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                                <TableCell>{formatCurrency(order.total)}</TableCell>
                                 <TableCell>
                                 <Badge variant={statusVariant[order.status]}>
                                     {order.status}
@@ -182,7 +183,7 @@ export default function HieloPage() {
                 </div>
                 {hieloOrders.length > 0 && (
                     <div className="flex justify-end mt-4 text-xl font-bold">
-                        Importe Total: {totalAmount.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                        Importe Total: {formatCurrency(totalAmount)}
                     </div>
                 )}
             </CardContent>
