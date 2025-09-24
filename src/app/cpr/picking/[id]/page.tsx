@@ -32,7 +32,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
+import { formatNumber, formatUnit } from '@/lib/utils';
 
 type LotePendiente = {
     ofId: string;
@@ -135,7 +135,6 @@ export default function PickingDetailPage() {
     const [hitosConNecesidades, setHitosConNecesidades] = useState<ComercialBriefingItem[]>([]);
     const [dbContainers, setDbContainers] = useState<ContenedorIsotermo[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: {}, itemStates: [] });
-    const [lotesPendientes, setLotesPendientes] = useState<LotePendiente[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -205,7 +204,7 @@ export default function PickingDetailPage() {
             }
         }
         setIsMounted(true);
-    }, [osId]); 
+    }, [osId, savePickingState]); 
 
     const { lotesPendientesPorHito, isPickingComplete } = useMemo(() => {
         if(!isMounted) return { lotesPendientesPorHito: new Map(), isPickingComplete: false };
@@ -269,8 +268,8 @@ export default function PickingDetailPage() {
 
             lotesPorHito.set(hito.id, lotesPendientesHito);
         });
-
-        return { lotesPendientesPorHito, isPickingComplete: allComplete };
+        
+        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete };
 
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates]);
     
