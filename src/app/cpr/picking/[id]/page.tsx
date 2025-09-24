@@ -62,7 +62,7 @@ export const statusVariant: { [key in PickingStatus]: 'default' | 'secondary' | 
 
 function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendiente, containers: ContenedorIsotermo[], onAllocate: (ofId: string, containerId: string, quantity: number) => void }) {
     const cantidadPendiente = Number(lote.cantidadNecesaria) - Number(lote.cantidadAsignada);
-    const [quantity, setQuantity] = useState(cantidadPendiente);
+    const [quantity, setQuantity] = useState(parseFloat(cantidadPendiente.toFixed(2)));
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
     const [open, setOpen] = useState(false);
 
@@ -229,6 +229,8 @@ export default function PickingDetailPage() {
                                 const elabInfo = allElaboraciones.find(e => e.id === elabEnReceta.elaboracionId);
                                 if (elabInfo) {
                                     const cantidadNecesaria = Number(item.quantity || 0) * elabEnReceta.cantidad;
+                                    if(cantidadNecesaria < 0.01) return;
+
                                     const existing = necesidadesHito.get(elabInfo.id);
                                     if(existing) {
                                         existing.cantidadNecesaria += cantidadNecesaria;
@@ -437,7 +439,7 @@ const handlePrint = async () => {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-start justify-between mb-6">
                 <div>
                     <Button variant="ghost" size="sm" onClick={() => router.push('/cpr/picking')} className="mb-2 no-print">
                         <ArrowLeft className="mr-2" /> Volver al listado
