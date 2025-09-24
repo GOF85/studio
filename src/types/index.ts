@@ -1,6 +1,9 @@
 
 
+
+
 import type { OsFormValues } from "@/app/os/page";
+import { z } from "zod";
 
 export type CateringItem = {
   itemCode: string;
@@ -329,16 +332,19 @@ export type Alergeno = typeof ALERGENOS[number];
 export const UNIDADES_MEDIDA = ['KILO', 'LITRO', 'UNIDAD'] as const;
 export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
 
-export type IngredienteERP = {
-    id: string;
-    IdERP: string;
-    nombreProductoERP: string;
-    referenciaProveedor: string;
-    nombreProveedor: string;
-    familiaCategoria: string;
-    precio: number;
-    unidad: UnidadMedida;
-};
+export const ingredienteErpSchema = z.object({
+  id: z.string(),
+  IdERP: z.string(),
+  nombreProductoERP: z.string().min(1, 'El nombre del producto es obligatorio'),
+  referenciaProveedor: z.string(),
+  nombreProveedor: z.string(),
+  familiaCategoria: z.string(),
+  precio: z.coerce.number(),
+  unidad: z.enum(UNIDADES_MEDIDA),
+});
+
+export type IngredienteERP = z.infer<typeof ingredienteErpSchema>;
+
 
 export type IngredienteInterno = {
     id: string;
