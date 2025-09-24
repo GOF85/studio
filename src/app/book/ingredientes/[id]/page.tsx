@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, ChefHat, Link as LinkIcon, Check, CircleX, Trash2, AlertTriangle } from 'lucide-react';
-import type { IngredienteInterno, IngredienteERP, Alergeno, Elaboracion } from '@/types';
+import type { IngredienteInterno, IngredienteERP, Alergeno, Elaboracion, Receta } from '@/types';
 import { ALERGENOS } from '@/types';
 import * as React from 'react';
 
@@ -33,6 +34,35 @@ export const ingredienteFormSchema = z.object({
 
 type IngredienteFormValues = z.infer<typeof ingredienteFormSchema>;
 
+function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProducts }: { onSelect: (id: string) => void, searchTerm: string, setSearchTerm: (term: string) => void, filteredProducts: IngredienteERP[] }) {
+    return (
+        <DialogContent className="max-w-3xl">
+            <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
+            <Input placeholder="Buscar por nombre, proveedor, referencia..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <div className="max-h-[60vh] overflow-y-auto border rounded-md">
+                <Table>
+                    <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Proveedor</TableHead><TableHead>Precio</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {filteredProducts.map(p => (
+                            <TableRow key={p.id}>
+                                <TableCell>{p.nombreProductoERP}</TableCell>
+                                <TableCell>{p.nombreProveedor}</TableCell>
+                                <TableCell>{p.precio.toLocaleString('es-ES', {style:'currency', currency: 'EUR'})}/{p.unidad}</TableCell>
+                                <TableCell>
+                                    <Button size="sm" onClick={() => onSelect(p.id)}>
+                                        <Check className="mr-2" />
+                                        Seleccionar
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+        </DialogContent>
+    );
+}
+
 export default function IngredienteFormPage() {
   const router = useRouter();
   const params = useParams();
@@ -55,6 +85,14 @@ export default function IngredienteFormPage() {
   
   const selectedErpId = form.watch('productoERPlinkId');
   const selectedErpProduct = ingredientesERP.find(p => p.id === selectedErpId);
+
+  const filteredErpProducts = useMemo(() => {
+    return ingredientesERP.filter(p => 
+        p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
+        p.nombreProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
+        p.referenciaProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase())
+    );
+  }, [ingredientesERP, erpSearchTerm]);
   
   const alergenosColumns = React.useMemo(() => {
     const half = Math.ceil(ALERGENOS.length / 2);
@@ -64,7 +102,6 @@ export default function IngredienteFormPage() {
   }, []);
 
   useEffect(() => {
-    // Cargar datos ERP
     const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
     setIngredientesERP(storedErp);
 
@@ -155,6 +192,11 @@ export default function IngredienteFormPage() {
     localStorage.setItem('ingredientesInternos', JSON.stringify(updatedItems));
     toast({ title: 'Ingrediente eliminado' });
     router.push('/book/ingredientes');
+  }
+
+  const handleErpSelect = (erpId: string) => {
+    form.setValue('productoERPlinkId', erpId, { shouldDirty: true });
+    setIsDialogOpen(false);
   }
 
   const AlergenosTable = ({ alergenosList }: { alergenosList: readonly Alergeno[] }) => (
@@ -280,30 +322,12 @@ export default function IngredienteFormPage() {
                                         <DialogTrigger asChild>
                                             <Button variant="secondary" className="w-full h-16 border-dashed border-2"><LinkIcon className="mr-2"/>Vincular Producto ERP</Button>
                                         </DialogTrigger>
-                                        <DialogContent className="max-w-3xl">
-                                            <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
-                                            <Input placeholder="Buscar por nombre, proveedor, referencia..." value={erpSearchTerm} onChange={e => setErpSearchTerm(e.target.value)} />
-                                            <div className="max-h-[60vh] overflow-y-auto border rounded-md">
-                                                <Table>
-                                                    <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Proveedor</TableHead><TableHead>Precio</TableHead><TableHead></TableHead></TableRow></TableHeader>
-                                                    <TableBody>
-                                                        {ingredientesERP.filter(p => p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase())).map(p => (
-                                                            <TableRow key={p.id}>
-                                                                <TableCell>{p.nombreProductoERP}</TableCell>
-                                                                <TableCell>{p.nombreProveedor}</TableCell>
-                                                                <TableCell>{p.precio.toLocaleString('es-ES', {style:'currency', currency: 'EUR'})}/{p.unidad}</TableCell>
-                                                                <TableCell>
-                                                                    <Button size="sm" onClick={() => {form.setValue('productoERPlinkId', p.id, { shouldDirty: true }); setIsDialogOpen(false)}}>
-                                                                        <Check className="mr-2" />
-                                                                        Seleccionar
-                                                                    </Button>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
-                                            </div>
-                                        </DialogContent>
+                                        <ErpSelectorDialog 
+                                            onSelect={handleErpSelect}
+                                            searchTerm={erpSearchTerm}
+                                            setSearchTerm={setErpSearchTerm}
+                                            filteredProducts={filteredErpProducts}
+                                        />
                                     </Dialog>
                                 )}
                                 <FormMessage className="mt-2 text-red-500">{form.formState.errors.productoERPlinkId?.message}</FormMessage>
