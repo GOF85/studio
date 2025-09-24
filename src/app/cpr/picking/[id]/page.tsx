@@ -9,7 +9,7 @@ import { format } from 'date-fns';
 import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -328,6 +328,7 @@ const handlePrint = async () => {
 
             doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
+            doc.setTextColor('#059669'); // Primary color
             doc.text(container.nombre, margin, finalY + 2);
             doc.text(`${index + 1}/${allAssignedContainers.length}`, pageWidth - margin, finalY + 2, { align: 'right' });
             finalY += 4;
@@ -338,7 +339,7 @@ const handlePrint = async () => {
 
             doc.setFontSize(8);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151');
+            doc.setTextColor('#374151'); // Gris oscuro
             
             const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
             const hitoId = containerItems.length > 0 ? containerItems[0].hitoId : null;
