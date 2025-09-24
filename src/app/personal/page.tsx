@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Users } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Users, ArrowLeft } from 'lucide-react';
 import type { Personal } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -167,7 +168,13 @@ export default function PersonalPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal</h1>
+            <div>
+                <Button variant="ghost" size="sm" onClick={() => router.push('/bd')} className="mb-2">
+                    <ArrowLeft className="mr-2" />
+                    Volver a Bases de Datos
+                </Button>
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal</h1>
+            </div>
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/personal/nuevo">
@@ -227,26 +234,26 @@ export default function PersonalPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Departamento</TableHead>
-                <TableHead>Categoría</TableHead>
-                <TableHead>Teléfono</TableHead>
-                <TableHead>Mail</TableHead>
-                <TableHead>Precio/Hora</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="p-2">Nombre</TableHead>
+                <TableHead className="p-2">Departamento</TableHead>
+                <TableHead className="p-2">Categoría</TableHead>
+                <TableHead className="p-2">Teléfono</TableHead>
+                <TableHead className="p-2">Mail</TableHead>
+                <TableHead className="p-2">Precio/Hora</TableHead>
+                <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredPersonal.length > 0 ? (
                 filteredPersonal.map(p => (
                   <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.nombre}</TableCell>
-                    <TableCell>{p.departamento}</TableCell>
-                    <TableCell>{p.categoria}</TableCell>
-                    <TableCell>{p.telefono}</TableCell>
-                    <TableCell>{p.mail}</TableCell>
-                    <TableCell>{formatCurrency(p.precioHora)}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="font-medium p-2">{p.nombre}</TableCell>
+                    <TableCell className="p-2">{p.departamento}</TableCell>
+                    <TableCell className="p-2">{p.categoria}</TableCell>
+                    <TableCell className="p-2">{p.telefono}</TableCell>
+                    <TableCell className="p-2">{p.mail}</TableCell>
+                    <TableCell className="p-2">{formatCurrency(p.precioHora)}</TableCell>
+                    <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">

@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Package as PackageIcon } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Package as PackageIcon, ArrowLeft } from 'lucide-react';
 import type { ContenedorIsotermo } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -76,7 +77,13 @@ export default function ContenedoresDBPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><PackageIcon />Contenedores Isotérmicos</h1>
+            <div>
+                <Button variant="ghost" size="sm" onClick={() => router.push('/bd')} className="mb-2">
+                    <ArrowLeft className="mr-2" />
+                    Volver a Bases de Datos
+                </Button>
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><PackageIcon />Contenedores Isotérmicos</h1>
+            </div>
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/contenedores-db/nuevo">
@@ -100,18 +107,18 @@ export default function ContenedoresDBPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID Contenedor</TableHead>
-                <TableHead>Nombre / Descripción</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="p-2">ID Contenedor</TableHead>
+                <TableHead className="p-2">Nombre / Descripción</TableHead>
+                <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium font-mono">{item.id}</TableCell>
-                    <TableCell>{item.nombre}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="font-medium font-mono p-2">{item.id}</TableCell>
+                    <TableCell className="p-2">{item.nombre}</TableCell>
+                    <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">

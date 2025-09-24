@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Building } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Building, ArrowLeft } from 'lucide-react';
 import type { Espacio } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -196,7 +197,13 @@ export default function EspaciosPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Building />Gestión de Espacios</h1>
+          <div>
+                <Button variant="ghost" size="sm" onClick={() => router.push('/bd')} className="mb-2">
+                    <ArrowLeft className="mr-2" />
+                    Volver a Bases de Datos
+                </Button>
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Building />Gestión de Espacios</h1>
+            </div>
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/espacios/nuevo">
@@ -256,24 +263,24 @@ export default function EspaciosPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Espacio</TableHead>
-                <TableHead>Ciudad</TableHead>
-                <TableHead>Tipo de Espacio</TableHead>
-                <TableHead>Contacto</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="p-2">Espacio</TableHead>
+                <TableHead className="p-2">Ciudad</TableHead>
+                <TableHead className="p-2">Tipo de Espacio</TableHead>
+                <TableHead className="p-2">Contacto</TableHead>
+                <TableHead className="p-2">Email</TableHead>
+                <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredEspacios.length > 0 ? (
                 filteredEspacios.map(e => (
                   <TableRow key={e.id}>
-                    <TableCell className="font-medium">{e.espacio}</TableCell>
-                    <TableCell>{e.ciudad}</TableCell>
-                    <TableCell>{e.tipoDeEspacio}</TableCell>
-                    <TableCell>{e.nombreContacto1}</TableCell>
-                    <TableCell>{e.emailContacto1}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="font-medium p-2">{e.espacio}</TableCell>
+                    <TableCell className="p-2">{e.ciudad}</TableCell>
+                    <TableCell className="p-2">{e.tipoDeEspacio}</TableCell>
+                    <TableCell className="p-2">{e.nombreContacto1}</TableCell>
+                    <TableCell className="p-2">{e.emailContacto1}</TableCell>
+                    <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">

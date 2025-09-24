@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Snowflake } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Snowflake, ArrowLeft } from 'lucide-react';
 import type { ProveedorHielo } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -150,7 +151,13 @@ export default function ProveedorHieloPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Snowflake />Base de Datos de Proveedores de Hielo</h1>
+            <div>
+                <Button variant="ghost" size="sm" onClick={() => router.push('/bd')} className="mb-2">
+                    <ArrowLeft className="mr-2" />
+                    Volver a Bases de Datos
+                </Button>
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Snowflake />Base de Datos de Proveedores de Hielo</h1>
+            </div>
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/proveedor-hielo/nuevo">
@@ -197,20 +204,20 @@ export default function ProveedorHieloPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nombre Proveedor</TableHead>
-                <TableHead>Producto</TableHead>
-                <TableHead>Precio</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="p-2">Nombre Proveedor</TableHead>
+                <TableHead className="p-2">Producto</TableHead>
+                <TableHead className="p-2">Precio</TableHead>
+                <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.nombreProveedor}</TableCell>
-                    <TableCell>{item.producto}</TableCell>
-                    <TableCell>{formatCurrency(item.precio)}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="font-medium p-2">{item.nombreProveedor}</TableCell>
+                    <TableCell className="p-2">{item.producto}</TableCell>
+                    <TableCell className="p-2">{formatCurrency(item.precio)}</TableCell>
+                    <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">

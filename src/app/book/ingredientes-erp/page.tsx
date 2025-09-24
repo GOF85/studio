@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Package, Menu } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Package, Menu, ArrowLeft } from 'lucide-react';
 import type { IngredienteERP, UnidadMedida } from '@/types';
 import { UNIDADES_MEDIDA } from '@/types';
 import { Header } from '@/components/layout/header';
@@ -178,7 +178,13 @@ export default function IngredientesERPPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Package />Materia Prima (ERP)</h1>
+            <div>
+                <Button variant="ghost" size="sm" onClick={() => router.push('/bd')} className="mb-2">
+                    <ArrowLeft className="mr-2" />
+                    Volver a Bases de Datos
+                </Button>
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Package />Materia Prima (ERP)</h1>
+            </div>
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/book/ingredientes-erp/nuevo">
@@ -224,28 +230,28 @@ export default function IngredientesERPPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Producto</TableHead>
-                <TableHead>Id. ERP</TableHead>
-                <TableHead>Proveedor</TableHead>
-                <TableHead>Ref. Proveedor</TableHead>
-                <TableHead>Categoría</TableHead>
-                <TableHead>Precio</TableHead>
-                <TableHead>Unidad</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="p-2">Producto</TableHead>
+                <TableHead className="p-2">Id. ERP</TableHead>
+                <TableHead className="p-2">Proveedor</TableHead>
+                <TableHead className="p-2">Ref. Proveedor</TableHead>
+                <TableHead className="p-2">Categoría</TableHead>
+                <TableHead className="p-2">Precio</TableHead>
+                <TableHead className="p-2">Unidad</TableHead>
+                <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.nombreProductoERP}</TableCell>
-                    <TableCell>{item.IdERP}</TableCell>
-                    <TableCell>{item.nombreProveedor}</TableCell>
-                    <TableCell>{item.referenciaProveedor}</TableCell>
-                    <TableCell>{item.familiaCategoria}</TableCell>
-                    <TableCell>{formatCurrency(item.precio)}</TableCell>
-                    <TableCell>{formatUnit(item.unidad)}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="font-medium p-2">{item.nombreProductoERP}</TableCell>
+                    <TableCell className="p-2">{item.IdERP}</TableCell>
+                    <TableCell className="p-2">{item.nombreProveedor}</TableCell>
+                    <TableCell className="p-2">{item.referenciaProveedor}</TableCell>
+                    <TableCell className="p-2">{item.familiaCategoria}</TableCell>
+                    <TableCell className="p-2">{formatCurrency(item.precio)}</TableCell>
+                    <TableCell className="p-2">{formatUnit(item.unidad)}</TableCell>
+                    <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">

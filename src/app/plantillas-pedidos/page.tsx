@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, FilePlus2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { PlusCircle, FilePlus2, MoreHorizontal, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import type { PedidoPlantilla } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -66,7 +67,13 @@ export default function PlantillasPedidosPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><FilePlus2 />Plantillas de Pedidos</h1>
+            <div>
+                <Button variant="ghost" size="sm" onClick={() => router.push('/configuracion')} className="mb-2">
+                    <ArrowLeft className="mr-2" />
+                    Volver a Configuración
+                </Button>
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><FilePlus2 />Plantillas de Pedidos</h1>
+            </div>
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/plantillas-pedidos/nuevo">
@@ -81,20 +88,20 @@ export default function PlantillasPedidosPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nombre de la Plantilla</TableHead>
-                <TableHead>Tipo de Pedido</TableHead>
-                <TableHead>Nº de Artículos</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="p-2">Nombre de la Plantilla</TableHead>
+                <TableHead className="p-2">Tipo de Pedido</TableHead>
+                <TableHead className="p-2">Nº de Artículos</TableHead>
+                <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {plantillas.length > 0 ? (
                 plantillas.map(item => (
                   <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/plantillas-pedidos/${item.id}`)}>
-                    <TableCell className="font-medium">{item.nombre}</TableCell>
-                    <TableCell><Badge variant="outline">{item.tipo}</Badge></TableCell>
-                    <TableCell>{item.items.length}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="font-medium p-2">{item.nombre}</TableCell>
+                    <TableCell className="p-2"><Badge variant="outline">{item.tipo}</Badge></TableCell>
+                    <TableCell className="p-2">{item.items.length}</TableCell>
+                    <TableCell className="text-right p-2">
                        <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>

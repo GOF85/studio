@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Target } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Target, ArrowLeft } from 'lucide-react';
 import type { ObjetivosGasto } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -74,7 +75,13 @@ export default function ObjetivosGastoPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Target />Plantillas de Objetivos de Gasto</h1>
+            <div>
+                <Button variant="ghost" size="sm" onClick={() => router.push('/configuracion')} className="mb-2">
+                    <ArrowLeft className="mr-2" />
+                    Volver a Configuración
+                </Button>
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Target />Plantillas de Objetivos de Gasto</h1>
+            </div>
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/objetivos-gasto/nuevo">
@@ -98,16 +105,16 @@ export default function ObjetivosGastoPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nombre de la Plantilla</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="p-2">Nombre de la Plantilla</TableHead>
+                <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="font-medium p-2">{item.name}</TableCell>
+                    <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">

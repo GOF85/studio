@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, DollarSign } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, DollarSign, ArrowLeft } from 'lucide-react';
 import type { Precio, PrecioCategoria } from '@/types';
 import { PRECIO_CATEGORIAS } from '@/types';
 import { Header } from '@/components/layout/header';
@@ -158,7 +159,13 @@ export default function PreciosPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><DollarSign />Gestión de Precios</h1>
+            <div>
+                <Button variant="ghost" size="sm" onClick={() => router.push('/bd')} className="mb-2">
+                    <ArrowLeft className="mr-2" />
+                    Volver a Bases de Datos
+                </Button>
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><DollarSign />Gestión de Precios</h1>
+            </div>
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/precios/nuevo">
@@ -219,24 +226,24 @@ export default function PreciosPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Producto</TableHead>
-                <TableHead>Categoría</TableHead>
-                <TableHead>Localización</TableHead>
-                <TableHead>Precio Ud.</TableHead>
-                <TableHead>Precio Alquiler Ud.</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="p-2">Producto</TableHead>
+                <TableHead className="p-2">Categoría</TableHead>
+                <TableHead className="p-2">Localización</TableHead>
+                <TableHead className="p-2">Precio Ud.</TableHead>
+                <TableHead className="p-2">Precio Alquiler Ud.</TableHead>
+                <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredPrecios.length > 0 ? (
                 filteredPrecios.map(p => (
                   <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.producto}</TableCell>
-                    <TableCell>{p.categoria}</TableCell>
-                    <TableCell>{p.loc}</TableCell>
-                    <TableCell>{p.precioUd.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                    <TableCell>{p.precioAlquilerUd.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="font-medium p-2">{p.producto}</TableCell>
+                    <TableCell className="p-2">{p.categoria}</TableCell>
+                    <TableCell className="p-2">{p.loc}</TableCell>
+                    <TableCell className="p-2">{p.precioUd.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell className="p-2">{p.precioAlquilerUd.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">

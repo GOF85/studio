@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Truck } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Truck, ArrowLeft } from 'lucide-react';
 import type { AlquilerDBItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -151,7 +152,13 @@ export default function AlquilerDBPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Truck />Base de Datos de Alquiler</h1>
+            <div>
+                <Button variant="ghost" size="sm" onClick={() => router.push('/bd')} className="mb-2">
+                    <ArrowLeft className="mr-2" />
+                    Volver a Bases de Datos
+                </Button>
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Truck />Base de Datos de Alquiler</h1>
+            </div>
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/alquiler-db/nuevo">
@@ -198,24 +205,24 @@ export default function AlquilerDBPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Concepto</TableHead>
-                <TableHead>Imagen</TableHead>
-                <TableHead>Precio Alquiler</TableHead>
-                <TableHead>Precio Reposición</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="p-2">Concepto</TableHead>
+                <TableHead className="p-2">Imagen</TableHead>
+                <TableHead className="p-2">Precio Alquiler</TableHead>
+                <TableHead className="p-2">Precio Reposición</TableHead>
+                <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.concepto}</TableCell>
-                    <TableCell>
+                    <TableCell className="font-medium p-2">{item.concepto}</TableCell>
+                    <TableCell className="p-2">
                       {item.imagen && <Image src={item.imagen} alt={item.concepto} width={40} height={40} className="rounded-md object-cover"/>}
                     </TableCell>
-                    <TableCell>{formatCurrency(item.precioAlquiler)}</TableCell>
-                    <TableCell>{formatCurrency(item.precioReposicion)}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="p-2">{formatCurrency(item.precioAlquiler)}</TableCell>
+                    <TableCell className="p-2">{formatCurrency(item.precioReposicion)}</TableCell>
+                    <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
