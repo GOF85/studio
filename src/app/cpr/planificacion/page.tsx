@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday, eachDayOfInterval, isSameDay } from 'date-fns';
-import { ClipboardList, Calendar as CalendarIcon, Factory, Info, AlertTriangle, PackageCheck, ChevronRight, ChevronDown, Utensils, Component, Users, FileDigit } from 'lucide-react';
+import { ClipboardList, Calendar as CalendarIcon, Factory, Info, AlertTriangle, PackageCheck, ChevronRight, ChevronDown, Utensils, Component, Users, FileDigit, Soup, BookOpen } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -87,18 +87,18 @@ type DesgloseEventoRecetas = {
 
 // For Production Matrix
 type MatrizRow = {
-    id: string; // elaboracionId
+    id: string; // recetaId o elaboracionId
     nombre: string;
-    partida: PartidaProduccion;
+    partida?: PartidaProduccion; // solo para elaboraciones
     unidad: UnidadMedida;
     total: number;
+    type: 'receta' | 'elaboracion';
     [day: string]: any; // day-YYYY-MM-DD: number
 }
 type MatrizHeader = {
     day: Date;
-    totalPax: number;
-    totalOs: number;
-    totalUnits: number;
+    totalRecetaUnits: number;
+    totalElaboracionUnits: number;
 }
 
 
@@ -172,14 +172,8 @@ export default function PlanificacionPage() {
 
         // --- CALCULATIONS ---
         
-        const necesidadesPorElaboracion = new Map<string, {
-            necesidadBruta: number;
-            produccionAcumulada: number;
-            elaboracion: Elaboracion;
-            eventos: EventoAfectado[];
-            recetas: RecetaNecesidad[];
-            necesidadesPorDia: Map<string, number>; // key: YYYY-MM-DD
-        }>();
+        const necesidadesPorReceta = new Map<string, { necesidadBruta: number; receta: Receta; necesidadesPorDia: Map<string, number> }>();
+        const necesidadesPorElaboracion = new Map<string, { necesidadBruta: number; produccionAcumulada: number; elaboracion: Elaboracion; eventos: EventoAfectado[]; recetas: RecetaNecesidad[]; necesidadesPorDia: Map<string, number>}>();
         
         const desgloseEventosMap: Map<string, DesgloseEventoRecetas> = new Map();
         const agregadoRecetasMap: Map<string, RecetaAgregada> = new Map();
@@ -221,6 +215,18 @@ export default function PlanificacionPage() {
                         };
                         hito.recetas.push(detalleRecetaEnHito);
 
+                        // --- Populate recipe needs for matrix ---
+                        const diaKey = format(new Date(serviceOrder.startDate), 'yyyy-MM-dd');
+                        let registroReceta = necesidadesPorReceta.get(receta.id);
+                        if (!registroReceta) {
+                            registroReceta = { necesidadBruta: 0, receta, necesidadesPorDia: new Map() };
+                            necesidadesPorReceta.set(receta.id, registroReceta);
+                        }
+                        registroReceta.necesidadBruta += cantidadReceta;
+                        const necesidadRecetaDia = registroReceta.necesidadesPorDia.get(diaKey) || 0;
+                        registroReceta.necesidadesPorDia.set(diaKey, necesidadRecetaDia + cantidadReceta);
+
+
                         receta.elaboraciones.forEach(elabEnReceta => {
                             const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
                             if (elaboracion) {
@@ -237,7 +243,6 @@ export default function PlanificacionPage() {
                                 }
                                 registro.necesidadBruta += cantidadNecesaria;
                                 
-                                const diaKey = format(new Date(serviceOrder.startDate), 'yyyy-MM-dd');
                                 const necesidadDiaActual = registro.necesidadesPorDia.get(diaKey) || 0;
                                 registro.necesidadesPorDia.set(diaKey, necesidadDiaActual + cantidadNecesaria);
                                 
@@ -287,7 +292,24 @@ export default function PlanificacionPage() {
         // --- MATRIX CALCULATION ---
         const days = eachDayOfInterval({ start: from, end: to });
         const matrixRows: MatrizRow[] = [];
-        
+
+        // Add recipes to matrix
+        necesidadesPorReceta.forEach((registro, recetaId) => {
+             const row: MatrizRow = {
+                id: recetaId,
+                nombre: registro.receta.nombre,
+                unidad: 'uds',
+                total: registro.necesidadBruta,
+                type: 'receta',
+            };
+            days.forEach(day => {
+                const dayKey = format(day, 'yyyy-MM-dd');
+                row[dayKey] = registro.necesidadesPorDia.get(dayKey) || 0;
+            });
+            matrixRows.push(row);
+        });
+
+        // Add elaborations to matrix
         necesidadesPorElaboracion.forEach((registro, elabId) => {
             const row: MatrizRow = {
                 id: elabId,
@@ -295,6 +317,7 @@ export default function PlanificacionPage() {
                 partida: registro.elaboracion.partidaProduccion,
                 unidad: registro.elaboracion.unidadProduccion,
                 total: registro.necesidadBruta,
+                type: 'elaboracion',
             };
             days.forEach(day => {
                 const dayKey = format(day, 'yyyy-MM-dd');
@@ -305,22 +328,18 @@ export default function PlanificacionPage() {
 
         const matrixHeaders: MatrizHeader[] = days.map(day => {
             const dayKey = format(day, 'yyyy-MM-dd');
-            const osDelDia = new Set<string>();
-            let paxTotal = 0;
-            let unidadesTotales = 0;
+            let totalRecetas = 0;
+            let totalElaboraciones = 0;
 
-            osEnRango.forEach(os => {
-                if (isSameDay(new Date(os.startDate), day)) {
-                    osDelDia.add(os.id);
-                    paxTotal += os.asistentes;
+            matrixRows.forEach(row => {
+                if (row.type === 'receta') {
+                    totalRecetas += row[dayKey] || 0;
+                } else if (row.type === 'elaboracion') {
+                    totalElaboraciones += row[dayKey] || 0;
                 }
             });
-            
-            matrixRows.forEach(row => {
-                unidadesTotales += row[dayKey];
-            });
 
-            return { day, totalPax: paxTotal, totalOs: osDelDia.size, totalUnits: unidadesTotales };
+            return { day, totalRecetaUnits: totalRecetas, totalElaboracionUnits: totalElaboraciones };
         });
 
         setMatrizData(matrixRows);
@@ -420,7 +439,7 @@ export default function PlanificacionPage() {
             <div>
                 <div className="flex items-start justify-between mb-6">
                     <div>
-                        <h1 className="text-3xl font.headline font-bold flex items-center gap-3">
+                        <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
                             <ClipboardList />
                             Planificación de Producción
                         </h1>
@@ -505,26 +524,40 @@ export default function PlanificacionPage() {
                                                 ))}
                                             </TableRow>
                                             <TableRow>
-                                                <TableHead className="p-2 sticky left-0 bg-background z-10" colSpan={3}><Users className="inline-block mr-2"/>Comensales</TableHead>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l">{h.totalPax}</TableCell>)}
+                                                <TableHead className="p-2 sticky left-0 bg-background z-10" colSpan={3}><BookOpen className="inline-block mr-2"/>Uds. de Receta</TableHead>
+                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l">{h.totalRecetaUnits.toFixed(0)}</TableCell>)}
                                             </TableRow>
                                              <TableRow>
-                                                <TableHead className="p-2 sticky left-0 bg-background z-10" colSpan={3}><FileDigit className="inline-block mr-2"/>Contratos (OS)</TableHead>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l">{h.totalOs}</TableCell>)}
-                                            </TableRow>
-                                             <TableRow>
-                                                <TableHead className="p-2 sticky left-0 bg-background z-10" colSpan={3}><Component className="inline-block mr-2"/>Unidades Totales</TableHead>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l">{h.totalUnits.toFixed(0)}</TableCell>)}
+                                                <TableHead className="p-2 sticky left-0 bg-background z-10" colSpan={3}><Component className="inline-block mr-2"/>Uds. de Elaboración</TableHead>
+                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l">{h.totalElaboracionUnits.toFixed(0)}</TableCell>)}
                                             </TableRow>
                                             <TableRow className="bg-muted/50">
-                                                <TableHead className="p-2 font-semibold sticky left-0 bg-muted z-10">Elaboración</TableHead>
+                                                <TableHead className="p-2 font-semibold sticky left-0 bg-muted z-10">Producto</TableHead>
                                                 <TableHead className="p-2 font-semibold w-24 sticky left-[200px] bg-muted z-10">Partida</TableHead>
                                                 <TableHead className="p-2 font-semibold text-center w-32 sticky left-[300px] bg-muted z-10">Total</TableHead>
                                                 {matrizHeaders.map(h => <TableHead key={h.day.toISOString()} className="p-2 text-center border-l">{format(h.day, 'EEE dd/MM', {locale: es})}</TableHead>)}
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {matrizData.map(row => (
+                                            {matrizData.filter(r => r.type === 'receta').length > 0 && (
+                                                <TableRow className="bg-primary/10 hover:bg-primary/20"><TableCell colSpan={matrizHeaders.length + 3} className="p-2 font-bold text-primary sticky left-0 z-10">RECETAS</TableCell></TableRow>
+                                            )}
+                                            {matrizData.filter(r => r.type === 'receta').map(row => (
+                                                <TableRow key={row.id}>
+                                                    <TableCell className="p-2 font-medium sticky left-0 bg-background z-10">{row.nombre}</TableCell>
+                                                    <TableCell className="p-2 sticky left-[200px] bg-background z-10"></TableCell>
+                                                    <TableCell className="p-2 text-center font-bold font-mono sticky left-[300px] bg-background z-10">{row.total.toFixed(0)} {row.unidad}</TableCell>
+                                                    {matrizHeaders.map(h => (
+                                                        <TableCell key={h.day.toISOString()} className={cn("p-2 text-center font-mono border-l", row[format(h.day, 'yyyy-MM-dd')] === 0 && 'bg-slate-50')}>
+                                                            {row[format(h.day, 'yyyy-MM-dd')] > 0 ? row[format(h.day, 'yyyy-MM-dd')].toFixed(0) : '-'}
+                                                        </TableCell>
+                                                    ))}
+                                                </TableRow>
+                                            ))}
+                                            {matrizData.filter(r => r.type === 'elaboracion').length > 0 && (
+                                                <TableRow className="bg-primary/10 hover:bg-primary/20"><TableCell colSpan={matrizHeaders.length + 3} className="p-2 font-bold text-primary sticky left-0 z-10">ELABORACIONES</TableCell></TableRow>
+                                            )}
+                                            {matrizData.filter(r => r.type === 'elaboracion').map(row => (
                                                 <TableRow key={row.id}>
                                                     <TableCell className="p-2 font-medium sticky left-0 bg-background z-10">{row.nombre}</TableCell>
                                                     <TableCell className="p-2 sticky left-[200px] bg-background z-10"><Badge variant="outline">{row.partida}</Badge></TableCell>
