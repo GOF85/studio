@@ -52,25 +52,27 @@ export default function UserManualPage() {
                 <h2 className="flex items-center gap-3"><Factory />Capítulo 4: Planificación CPR y Producción (El Flujo Maestro)</h2>
                 <h3>4.1. Visión General del Ciclo de Producción</h3>
                 <p>El ciclo completo es: Agregación de Necesidades &rarr; Orden de Fabricación (OF) &rarr; Producción en Partida &rarr; Control de Calidad &rarr; Picking Logístico &rarr; Servicio en Evento.</p>
-                <h3>4.2. Paso 1: La Orden de Fabricación (OF)</h3>
-                <p>El sistema consolidará todas las elaboraciones necesarias para los próximos eventos. El Jefe de Cocina revisará esta lista, verá el coste teórico, y generará las Órdenes de Fabricación, asignándolas a una partida y generando un **número de lote único**.</p>
-                <h3>4.3. Paso 2: El Proceso en Cocina y Control de Calidad</h3>
-                <p>Cada partida tendrá un panel con sus OF pendientes. El cocinero tomará una, cambiará su estado a "En Proceso" y, al finalizar, registrará la **cantidad real producida** para control de mermas. La OF pasará entonces a "Control de Calidad", donde un responsable la validará antes de que esté disponible para logística.</p>
-                <h3>4.4. Paso 3: El Picking y la Logística</h3>
-                <p>El operario de logística, desde la **"Orden de Picking"** de un evento, verá los "kits de receta" a preparar, agrupados por tipo (refrigerado, seco). Recogerá las elaboraciones y las asignará a **contenedores isotérmicos o cajas**, indicando qué kit va en qué contenedor para una trazabilidad perfecta.</p>
+                <h3>4.2. Paso 1: Planificación y Generación de OF</h3>
+                <p>En el módulo **"Planificación"** de CPR, selecciona un rango de fechas. El sistema calculará automáticamente todas las elaboraciones necesarias y las mostrará en tres vistas: **Matriz de Producción**, **Planificación por Recetas** y **Planificación de Elaboraciones**. Desde la vista de elaboraciones, selecciona las necesidades que quieres producir y genera las Órdenes de Fabricación (OF). El sistema les asignará un número de lote único.</p>
+                <h3>4.3. Paso 2: Producción y Control de Calidad</h3>
+                <p>En **"Órdenes de Fabricación"**, cada partida verá sus OF pendientes. El cocinero la tomará, cambiará su estado a "En Proceso" y, al finalizar, registrará la **cantidad real producida**. La OF pasará entonces a "Control de Calidad", donde un responsable la validará antes de que esté disponible para logística.</p>
+                <h3>4.4. Paso 3: Picking y Etiquetado</h3>
+                <p>En **"Picking y Logística"**, selecciona un evento. Verás todos los servicios (hitos) que requieren gastronomía. Dentro de cada hito, podrás asignar las elaboraciones validadas a contenedores isotérmicos. Una vez completado el picking para un hito, podrás generar e imprimir las **etiquetas** para cada contenedor, detallando su contenido y destino.</p>
                 <h3>4.5. Paso 4: La Hoja de Pase en el Evento</h3>
-                <p>El equipo de sala, desde la OS, consultará la **"Hoja de Pase"** para ver las instrucciones de emplatado, regeneración, **alérgenos** y en qué isotermo se encuentra cada kit de receta, asegurando un servicio eficiente y sin errores.</p>
+                <p>El equipo de sala, desde la OS, consultará la **"Hoja de Pase"** (Próximamente) para ver las instrucciones de emplatado, regeneración, **alérgenos** y en qué isotermo se encuentra cada kit de receta, asegurando un servicio eficiente y sin errores.</p>
             </section>
             
             <section id="c5">
                 <h2 className="flex items-center gap-3"><BarChart3 />Capítulo 5: Informes y Análisis</h2>
                 <p>MICE Catering no solo gestiona, sino que también proporciona inteligencia de negocio para tomar decisiones estratégicas.</p>
-                <h3>5.1. Informes de Rentabilidad</h3>
-                <p>El sistema permitirá analizar la rentabilidad histórica por cliente o tipo de evento para identificar las áreas más rentables del negocio.</p>
-                <h3>5.2. Análisis de Producción</h3>
-                <p>Se podrán generar informes para analizar las mermas por elaboración, ayudando a optimizar recetas y procesos. También se podrá ver qué recetas son las más utilizadas y cuáles no, para refinar la oferta gastronómica.</p>
-                 <h3>5.3. Trazabilidad Inversa y Alertas</h3>
-                <p>Ante una incidencia con un lote de producción, el sistema permitirá identificar al instante todas las recetas, eventos e isotermos afectados, y notificar a los responsables.</p>
+                <h3>5.1. Informe de Productividad</h3>
+                <p>Analiza los tiempos de producción por responsable, desde que una OF es asignada hasta que se finaliza. Permite detectar cuellos de botella y optimizar flujos de trabajo.</p>
+                <h3>5.2. Gestión de Excedentes</h3>
+                <p>Controla el sobrante de producción, ajusta su cantidad real y define su vida útil para facilitar su reaprovechamiento y reducir mermas.</p>
+                <h3>5.3. Trazabilidad de Lotes</h3>
+                <p>Consulta el historial completo de cualquier lote de producción (OF), desde su creación hasta los eventos en los que fue servido, para una trazabilidad total.</p>
+                <h3>5.4. Informe de Incidencias</h3>
+                <p>Revisa un listado centralizado de todas las OF que han sido marcadas con incidencias, facilitando su seguimiento y resolución.</p>
             </section>
         </>
     );
