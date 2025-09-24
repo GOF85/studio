@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Save, X, Component, ChefHat, PlusCircle, Trash2, DollarSign } from 'lucide-react';
+import { Loader2, Save, X, Component, ChefHat, PlusCircle, Trash2, DollarSign, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
 import type { Elaboracion, IngredienteInterno, UnidadMedida, IngredienteERP, PartidaProduccion, Receta } from '@/types';
 import { UNIDADES_MEDIDA } from '@/types';
 
@@ -21,6 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatCurrency, formatUnit } from '@/lib/utils';
+import Image from 'next/image';
 
 const componenteSchema = z.object({
     id: z.string(),
@@ -39,7 +40,7 @@ const elaboracionFormSchema = z.object({
   partidaProduccion: z.enum(['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION']),
   componentes: z.array(componenteSchema).min(1, 'Debe tener al menos un componente'),
   instruccionesPreparacion: z.string().optional().default(''),
-  fotosProduccionURLs: z.array(z.string()).optional().default([]), // Placeholder for multi-image
+  fotosProduccionURLs: z.array(z.string().url("Debe ser una URL válida")).optional().default([]),
   videoProduccionURL: z.string().url().or(z.literal('')).optional(),
   formatoExpedicion: z.string().optional().default(''),
   ratioExpedicion: z.coerce.number().optional().default(0),
@@ -109,6 +110,7 @@ export default function ElaboracionFormPage() {
   const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
   const [affectedRecipes, setAffectedRecipes] = useState<Receta[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [newImageUrl, setNewImageUrl] = useState('');
 
   const { toast } = useToast();
 
@@ -124,6 +126,11 @@ export default function ElaboracionFormPage() {
   const { fields, append, remove, control } = useFieldArray({
       control: form.control,
       name: 'componentes',
+  });
+  
+  const { fields: fotosFields, append: appendFoto, remove: removeFoto } = useFieldArray({
+      control: form.control,
+      name: 'fotosProduccionURLs',
   });
 
   const watchedComponentes = form.watch('componentes');
@@ -176,6 +183,16 @@ export default function ElaboracionFormPage() {
       setIsSelectorOpen(false);
   }
   
+  const handleAddImageUrl = () => {
+    try {
+        const url = new URL(newImageUrl);
+        appendFoto(url.href);
+        setNewImageUrl('');
+    } catch(e) {
+        toast({ variant: 'destructive', title: 'URL inválida', description: 'Por favor, introduce una URL de imagen válida.'});
+    }
+  }
+
   const { costeTotal, costePorUnidad } = useMemo(() => {
     let total = 0;
     watchedComponentes.forEach(componente => {
@@ -364,14 +381,24 @@ export default function ElaboracionFormPage() {
                         <FormField control={form.control} name="videoProduccionURL" render={({ field }) => (
                             <FormItem><FormLabel>URL Vídeo Producción</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <FormItem>
-                            <FormLabel>Fotos Producción</FormLabel>
-                            <FormControl>
-                                <div className="border-dashed border-2 rounded-md p-4 text-center text-muted-foreground h-24 flex items-center justify-center">
-                                    Carga de imágenes (Próximamente)
-                                </div>
-                            </FormControl>
-                        </FormItem>
+                        <div className="space-y-2">
+                            <FormLabel>Fotos de Producción</FormLabel>
+                            <div className="flex gap-2">
+                                <Input value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="Pega una URL de imagen..."/>
+                                <Button type="button" variant="outline" onClick={handleAddImageUrl}><LinkIcon className="mr-2"/>Añadir URL</Button>
+                            </div>
+                            {form.formState.errors.fotosProduccionURLs && <p className="text-sm font-medium text-destructive">{form.formState.errors.fotosProduccionURLs.message}</p>}
+                            <div className="grid grid-cols-3 gap-2 pt-2">
+                                {fotosFields.map((field, index) => (
+                                    <div key={field.id} className="relative aspect-video rounded-md overflow-hidden group">
+                                        <Image src={field.value} alt={`Foto de producción ${index+1}`} fill className="object-cover" />
+                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <Button type="button" variant="destructive" size="icon" onClick={() => removeFoto(index)}><Trash2/></Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
 

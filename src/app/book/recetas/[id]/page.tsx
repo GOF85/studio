@@ -73,6 +73,7 @@ const recetaFormSchema = z.object({
   instruccionesMiseEnPlace: z.string().optional().default(''),
   instruccionesRegeneracion: z.string().optional().default(''),
   instruccionesEmplatado: z.string().optional().default(''),
+  fotosEmplatadoURLs: z.array(z.string().url("Debe ser una URL válida")).optional().default([]),
   perfilSaborPrincipal: z.enum(SABORES_PRINCIPALES).optional(),
   perfilSaborSecundario: z.array(z.string()).optional().default([]),
   perfilTextura: z.array(z.string()).optional().default([]),
@@ -188,7 +189,7 @@ export default function RecetaFormPage() {
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
-    defaultValues: { nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] }
+    defaultValues: { nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] }
   });
 
   const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab } = useFieldArray({ control: form.control, name: "elaboraciones" });
@@ -294,7 +295,7 @@ export default function RecetaFormPage() {
     if (initialValues) {
         form.reset(initialValues);
     } else if (!isEditing) {
-        form.reset({ id: Date.now().toString(), nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] });
+        form.reset({ id: Date.now().toString(), nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', partidaProduccion: 'FRIO', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], perfilSaborSecundario: [], perfilTextura: [], etiquetasTendencia: [] });
     }
     
     setIsDataLoaded(true);
