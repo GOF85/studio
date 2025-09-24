@@ -317,7 +317,7 @@ const handlePrint = async () => {
             let finalY = margin;
 
             // --- HEADER ---
-            doc.setFontSize(16);
+            doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
             doc.text(container.nombre, margin, finalY + 2);
             doc.text(`${index + 1}/${allAssignedContainers.length}`, pageWidth - margin, finalY + 2, { align: 'right' });
@@ -328,22 +328,24 @@ const handlePrint = async () => {
             finalY += 2;
 
             // --- EVENT INFO ---
-            doc.setFontSize(8);
+            doc.setFontSize(10);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151'); // Gris oscuro
+            doc.setTextColor('#374151');
             
             const serviceData = [
-                ['Nº Serv:', serviceOrder.serviceNumber, 'Fecha:', format(new Date(hito.fecha), 'dd/MM/yy')],
-                ['Cliente:', serviceOrder.client, 'PAX:', String(hito.asistentes)],
-                ['Servicio:', hito.descripcion, 'Hora:', hito.horaInicio],
+                ['Nº Serv:', serviceOrder.serviceNumber],
+                ['Cliente:', serviceOrder.finalClient || serviceOrder.client],
+                ['Espacio:', serviceOrder.space || '-'],
+                ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
+                ['Servicio:', hito.descripcion]
             ];
 
              autoTable(doc, {
                 body: serviceData,
                 startY: finalY,
                 theme: 'plain',
-                styles: { fontSize: 8, cellPadding: 0.2 },
-                columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } }
+                styles: { fontSize: 9, cellPadding: 0.2 },
+                columnStyles: { 0: { fontStyle: 'bold' } }
             });
             finalY = (doc as any).lastAutoTable.finalY + 2;
 
@@ -353,27 +355,27 @@ const handlePrint = async () => {
 
             // --- CONTENT TABLE ---
             const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id && item.hitoId === hitoId);
-            const itemsGrouped = new Map<string, { totalQuantity: number, lotes: string[], unidad: string, serviceTypes: Set<string> }>();
+            const itemsGrouped = new Map<string, { totalQuantity: number, lotes: string[], unidad: string, receta: string }>();
 
             containerItems.forEach(assignedLote => {
                 const loteInfo = lotesNecesarios.find(l => l.id === assignedLote.ofId);
                 if (loteInfo) {
                     const key = loteInfo.elaboracionNombre;
+                    const recetaNombre = getRecetaForElaboracion(loteInfo.elaboracionId, osId);
+
                     if (!itemsGrouped.has(key)) {
-                        itemsGrouped.set(key, { totalQuantity: 0, lotes: [], unidad: loteInfo.unidad, serviceTypes: new Set() });
+                        itemsGrouped.set(key, { totalQuantity: 0, lotes: [], unidad: loteInfo.unidad, receta: recetaNombre });
                     }
                     const entry = itemsGrouped.get(key)!;
                     entry.totalQuantity += assignedLote.quantity;
                     if(!entry.lotes.includes(loteInfo.id)) entry.lotes.push(loteInfo.id);
-
-                    entry.serviceTypes.add(getRecetaForElaboracion(loteInfo.elaboracionId, osId));
                 }
             });
 
             const body: any[] = [];
             itemsGrouped.forEach((data, elabName) => {
                  body.push([
-                    { content: `${elabName}\n(${Array.from(data.serviceTypes).join(', ')})`, styles: { fontSize: 8 } },
+                    { content: `${elabName}\n(${data.receta})`, styles: { fontSize: 9 } },
                     `${formatNumber(data.totalQuantity, 2)} ${formatUnit(data.unidad)}`, 
                     data.lotes.join(', ')
                 ]);
@@ -384,12 +386,12 @@ const handlePrint = async () => {
                 head: [['Elaboración (Receta)', 'Cant. Tot.', 'Lote']],
                 body,
                 theme: 'grid',
-                headStyles: { fontStyle: 'bold', fontSize: 10, halign: 'center', cellPadding: 1, fillColor: [230, 230, 230], textColor: [0,0,0] },
-                styles: { fontSize: 9, cellPadding: 1.5, lineColor: '#000', lineWidth: 0.1 },
+                headStyles: { fontStyle: 'bold', fontSize: 10, halign: 'center', cellPadding: 1.5, fillColor: [230, 230, 230], textColor: [0,0,0] },
+                styles: { fontSize: 10, cellPadding: 1.5, lineColor: '#000', lineWidth: 0.1, valign: 'middle' },
                 columnStyles: {
-                    0: { cellWidth: 30 },
+                    0: { cellWidth: 35 },
                     1: { cellWidth: 20, halign: 'right' },
-                    2: { cellWidth: 40, halign: 'right' },
+                    2: { cellWidth: 'auto', halign: 'right' },
                 }
             });
         });
@@ -578,3 +580,6 @@ const handlePrint = async () => {
         </div>
     );
 }
+
+
+    
