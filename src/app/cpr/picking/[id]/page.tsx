@@ -334,7 +334,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
         containersForHito.forEach((container, index) => {
             if (index > 0) doc.addPage();
 
-            const margin = 4;
+            const margin = 5;
             const pageWidth = doc.internal.pageSize.getWidth();
             let finalY = margin;
 
