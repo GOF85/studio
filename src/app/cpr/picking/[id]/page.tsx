@@ -132,7 +132,7 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
 
 export default function PickingDetailPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-    const [hito, setHito] = useState<GastronomyOrder | null>(null);
+    const [hito, setHito] = useState<ComercialBriefingItem | null>(null);
     const [dbContainers, setDbContainers] = useState<ContenedorIsotermo[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: {}, itemStates: [] });
     const [lotesPendientes, setLotesPendientes] = useState<LotePendiente[]>([]);
@@ -192,8 +192,9 @@ export default function PickingDetailPage() {
             const currentOS = allServiceOrders.find(os => os.id === osId);
             setServiceOrder(currentOS || null);
             
-            const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
-            const currentHito = allGastroOrders.find(g => g.osId === osId && g.id === hitoId);
+            const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
+            const currentBriefing = allBriefings.find(b => b.osId === osId);
+            const currentHito = currentBriefing?.items.find(i => i.id === hitoId);
             setHito(currentHito || null);
 
             const allContainers = JSON.parse(localStorage.getItem('contenedoresDB') || '[]') as ContenedorIsotermo[];
@@ -216,37 +217,42 @@ export default function PickingDetailPage() {
         const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
         const allRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
         const allElaboraciones = (JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[]);
-        
-        const necesidadesHito: Map<string, LotePendiente> = new Map();
+        const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
 
-        (hito.items || []).forEach(item => {
-            if (item.type === 'item') {
-                const receta = allRecetas.find(r => r.id === item.id);
-                if (receta) {
-                    receta.elaboraciones.forEach(elabEnReceta => {
-                        const elabInfo = allElaboraciones.find(e => e.id === elabEnReceta.elaboracionId);
-                        if (elabInfo) {
-                            const cantidadNecesaria = Number(item.quantity || 0) * elabEnReceta.cantidad;
-                            const existing = necesidadesHito.get(elabInfo.id);
-                            if(existing) {
-                                existing.cantidadNecesaria += cantidadNecesaria;
-                            } else {
-                                const of = allOFs.find(o => o.osIDs.includes(osId) && o.elaboracionId === elabInfo.id);
-                                necesidadesHito.set(elabInfo.id, {
-                                    ofId: of?.id || 'NO-OF',
-                                    elaboracionId: elabInfo.id,
-                                    elaboracionNombre: elabInfo.nombre,
-                                    cantidadNecesaria: cantidadNecesaria,
-                                    cantidadAsignada: 0, // se calculará luego
-                                    unidad: elabInfo.unidadProduccion,
-                                    tipoExpedicion: elabInfo.partidaProduccion
-                                });
+        const necesidadesHito: Map<string, LotePendiente> = new Map();
+        
+        const gastroOrder = allGastroOrders.find(go => go.id === hito.id);
+
+        if (gastroOrder && gastroOrder.items) {
+            gastroOrder.items.forEach(item => {
+                if (item.type === 'item') {
+                    const receta = allRecetas.find(r => r.id === item.id);
+                    if (receta) {
+                        receta.elaboraciones.forEach(elabEnReceta => {
+                            const elabInfo = allElaboraciones.find(e => e.id === elabEnReceta.elaboracionId);
+                            if (elabInfo) {
+                                const cantidadNecesaria = Number(item.quantity || 0) * elabEnReceta.cantidad;
+                                const existing = necesidadesHito.get(elabInfo.id);
+                                if(existing) {
+                                    existing.cantidadNecesaria += cantidadNecesaria;
+                                } else {
+                                    const of = allOFs.find(o => o.osIDs.includes(osId) && o.elaboracionId === elabInfo.id);
+                                    necesidadesHito.set(elabInfo.id, {
+                                        ofId: of?.id || 'NO-OF',
+                                        elaboracionId: elabInfo.id,
+                                        elaboracionNombre: elabInfo.nombre,
+                                        cantidadNecesaria: cantidadNecesaria,
+                                        cantidadAsignada: 0, // se calculará luego
+                                        unidad: elabInfo.unidadProduccion,
+                                        tipoExpedicion: elabInfo.partidaProduccion
+                                    });
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
                 }
-            }
-        });
+            });
+        }
         
         const lotesPendientesHito = Array.from(necesidadesHito.values()).map(necesidad => {
             const cantidadAsignadaTotal = pickingState.itemStates
@@ -261,7 +267,7 @@ export default function PickingDetailPage() {
         
         setLotesPendientes(lotesPendientesHito);
 
-    }, [osId, hitoId, isMounted, hito, pickingState.itemStates]);
+    }, [osId, hito, isMounted, pickingState.itemStates]);
     
     const lotesPendientesCalidad = useMemo(() => {
         return lotesNecesarios.filter(of => 
@@ -312,7 +318,7 @@ const handlePrint = async () => {
         allAssignedContainers.forEach((container, index) => {
             if (index > 0) doc.addPage();
 
-            const margin = 5;
+            const margin = 4;
             const pageWidth = doc.internal.pageSize.getWidth();
             let finalY = margin;
 
@@ -328,9 +334,9 @@ const handlePrint = async () => {
             finalY += 2;
 
             // --- EVENT INFO ---
-            doc.setFontSize(10);
+            doc.setFontSize(8);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151');
+            doc.setTextColor('#374151'); // Gris oscuro
             
             const serviceData = [
                 ['Nº Serv:', serviceOrder.serviceNumber],
@@ -344,14 +350,14 @@ const handlePrint = async () => {
                 body: serviceData,
                 startY: finalY,
                 theme: 'plain',
-                styles: { fontSize: 9, cellPadding: 0.2 },
+                styles: { fontSize: 8, cellPadding: 0.1 },
                 columnStyles: { 0: { fontStyle: 'bold' } }
             });
-            finalY = (doc as any).lastAutoTable.finalY + 2;
+            finalY = (doc as any).lastAutoTable.finalY;
 
             doc.setLineWidth(0.2);
             doc.line(margin, finalY, pageWidth - margin, finalY);
-            finalY += 3;
+            finalY += 2;
 
             // --- CONTENT TABLE ---
             const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id && item.hitoId === hitoId);
@@ -375,9 +381,9 @@ const handlePrint = async () => {
             const body: any[] = [];
             itemsGrouped.forEach((data, elabName) => {
                  body.push([
-                    { content: `${elabName}\n(${data.receta})`, styles: { fontSize: 9 } },
-                    `${formatNumber(data.totalQuantity, 2)} ${formatUnit(data.unidad)}`, 
-                    data.lotes.join(', ')
+                    { content: `${elabName}\n(${data.receta})`, styles: { fontSize: 8, cellPadding: 1 } },
+                    { content: `${formatNumber(data.totalQuantity, 2)} ${formatUnit(data.unidad)}`, styles: { halign: 'right' } }, 
+                    { content: data.lotes.join(', '), styles: { halign: 'right' } }
                 ]);
             });
 
@@ -386,11 +392,11 @@ const handlePrint = async () => {
                 head: [['Elaboración (Receta)', 'Cant. Tot.', 'Lote']],
                 body,
                 theme: 'grid',
-                headStyles: { fontStyle: 'bold', fontSize: 10, halign: 'center', cellPadding: 1.5, fillColor: [230, 230, 230], textColor: [0,0,0] },
-                styles: { fontSize: 10, cellPadding: 1.5, lineColor: '#000', lineWidth: 0.1, valign: 'middle' },
+                headStyles: { fontStyle: 'bold', fontSize: 9, halign: 'center', cellPadding: 1, fillColor: [230, 230, 230], textColor: [0,0,0] },
+                styles: { fontSize: 8, cellPadding: 1, lineColor: '#000', lineWidth: 0.1, valign: 'middle' },
                 columnStyles: {
-                    0: { cellWidth: 35 },
-                    1: { cellWidth: 20, halign: 'right' },
+                    0: { cellWidth: 38 },
+                    1: { cellWidth: 22, halign: 'right' },
                     2: { cellWidth: 'auto', halign: 'right' },
                 }
             });
@@ -580,6 +586,3 @@ const handlePrint = async () => {
         </div>
     );
 }
-
-
-    
