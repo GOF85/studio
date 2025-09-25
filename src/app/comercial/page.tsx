@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -42,6 +43,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Combobox } from '@/components/ui/combobox';
 
 const briefingItemSchema = z.object({
   id: z.string(),
@@ -293,8 +295,27 @@ export default function ComercialPage() {
       const newAjustes = ajustes.filter(a => a.id !== id);
       saveAjustes(newAjustes);
   }
+  
+  const handleAddLocation = (newLocation: string) => {
+    if (!serviceOrder) return;
+    
+    const updatedOS = {
+        ...serviceOrder,
+        deliveryLocations: [...(serviceOrder.deliveryLocations || []), newLocation]
+    };
+    
+    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    const osIndex = allServiceOrders.findIndex(os => os.id === serviceOrder.id);
+    
+    if (osIndex !== -1) {
+        allServiceOrders[osIndex] = updatedOS;
+        localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
+        setServiceOrder(updatedOS);
+        toast({ title: 'Localización añadida', description: `Se ha guardado "${newLocation}" en la Orden de Servicio.`})
+    }
+  }
 
-  const BriefingItemDialog = ({ open, onOpenChange, item, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, item: Partial<ComercialBriefingItem> | null, onSave: (data: BriefingItemFormValues) => boolean }) => {
+  const BriefingItemDialog = ({ open, onOpenChange, item, onSave, serviceOrder, onAddLocation }: { open: boolean, onOpenChange: (open: boolean) => void, item: Partial<ComercialBriefingItem> | null, onSave: (data: BriefingItemFormValues) => boolean, serviceOrder: ServiceOrder | null, onAddLocation: (location: string) => void }) => {
     const form = useForm<BriefingItemFormValues>({
       resolver: zodResolver(briefingItemSchema),
       defaultValues: {
@@ -342,6 +363,18 @@ export default function ComercialPage() {
     const importeFijo = form.watch('importeFijo');
     const total = useMemo(() => (asistentes * precioUnitario) + (importeFijo || 0), [asistentes, precioUnitario, importeFijo]);
     
+    const locationOptions = useMemo(() => {
+      return serviceOrder?.deliveryLocations?.map(loc => ({ label: loc, value: loc })) || [];
+    }, [serviceOrder]);
+
+    const handleLocationChange = (value: string) => {
+      const isNew = !locationOptions.some(opt => opt.value === value);
+      if (isNew && value) {
+        onAddLocation(value);
+      }
+      form.setValue('sala', value, { shouldDirty: true });
+    }
+
     const onSubmit = (data: BriefingItemFormValues) => {
       if (onSave(data)) {
         onOpenChange(false);
@@ -361,10 +394,22 @@ export default function ComercialPage() {
                 <FormField control={form.control} name="fecha" render={({field}) => <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem> } />
                 <FormField control={form.control} name="horaInicio" render={({field}) => <FormItem><FormLabel>Hora Inicio</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem> } />
                 <FormField control={form.control} name="horaFin" render={({field}) => <FormItem><FormLabel>Hora Fin</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem> } />
-                <FormField control={form.control} name="sala" render={({field}) => <FormItem><FormLabel>Sala</FormLabel><FormControl><Input placeholder="Sala" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="sala" render={({field}) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Sala</FormLabel>
+                       <Combobox
+                          options={locationOptions}
+                          value={field.value || ''}
+                          onChange={handleLocationChange}
+                          placeholder="Busca o crea una sala..."
+                          searchPlaceholder="Buscar sala..."
+                      />
+                      <FormMessage />
+                    </FormItem>
+                 )} />
                 <FormField control={form.control} name="asistentes" render={({field}) => <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input placeholder="Nº Asistentes" type="number" {...field} /></FormControl></FormItem> } />
                 <FormField control={form.control} name="precioUnitario" render={({field}) => <FormItem><FormLabel>Precio Unitario</FormLabel><FormControl><Input placeholder="Precio Unitario" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
-                <FormField control={form.control} name="importeFijo" render={({field}) => <FormItem><FormLabel>Importe Fijo</FormLabel><FormControl><Input placeholder="Importe Fijo" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
+                 <FormField control={form.control} name="importeFijo" render={({field}) => <FormItem><FormLabel>Importe Fijo</FormLabel><FormControl><Input placeholder="Importe Fijo" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
                 <FormItem>
                   <FormLabel>Total</FormLabel>
                   <FormControl>
@@ -444,7 +489,7 @@ export default function ComercialPage() {
         </div>
         
         <FormProvider {...financialForm}>
-             <Accordion type="single" defaultValue="finanzas" collapsible className="w-full mb-8">
+             <Accordion type="single" collapsible className="w-full mb-8" defaultValue="finanzas">
                 <AccordionItem value="finanzas" className="border-none">
                     <Card>
                         <AccordionTrigger className="p-4">
@@ -500,7 +545,7 @@ export default function ComercialPage() {
                                             </TableBody>
                                             <TableFooter>
                                             <TableRow>
-                                                <TableCell colSpan={2} className="p-1">
+                                                <TableCell className="p-1">
                                                     <Input ref={nuevoAjusteConceptoRef} placeholder="Nuevo concepto" className="h-8 text-xs"/>
                                                 </TableCell>
                                                 <TableCell className="text-right p-1 pr-2">
@@ -582,7 +627,7 @@ export default function ComercialPage() {
           </CardContent>
         </Card>
       </main>
-      <BriefingItemDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} item={editingItem} onSave={handleSaveItem} />
+      <BriefingItemDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} item={editingItem} onSave={handleSaveItem} serviceOrder={serviceOrder} onAddLocation={handleAddLocation} />
     </>
   );
 }

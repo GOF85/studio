@@ -355,6 +355,7 @@ export type IngredienteInterno = {
     productoERPlinkId: string;
     alergenosPresentes: Alergeno[];
     alergenosTrazas: Alergeno[];
+    mermaPorcentaje: number;
 };
 
 export type ComponenteElaboracion = {
@@ -363,7 +364,7 @@ export type ComponenteElaboracion = {
     componenteId: string;
     nombre: string;
     cantidad: number;
-    mermaPorcentaje: number;
+    costePorUnidad?: number;
 };
 
 export type FormatoExpedicion = {
