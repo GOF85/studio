@@ -21,6 +21,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -303,7 +304,7 @@ export default function ComercialPage() {
         descripcion: item?.descripcion || '',
         comentarios: item?.comentarios || '',
         sala: item?.sala || '',
-        asistentes: item?.asistentes || serviceOrder?.pax || 0,
+        asistentes: item?.asistentes || serviceOrder?.asistentes || 0,
         precioUnitario: item?.precioUnitario || 0,
         bebidas: item?.bebidas || '',
         matBebida: item?.matBebida || '',
@@ -322,7 +323,7 @@ export default function ComercialPage() {
             descripcion: item?.descripcion || '',
             comentarios: item?.comentarios || '',
             sala: item?.sala || '',
-            asistentes: item?.asistentes || serviceOrder?.pax || 0,
+            asistentes: item?.asistentes || serviceOrder?.asistentes || 0,
             precioUnitario: item?.precioUnitario || 0,
             bebidas: item?.bebidas || '',
             matBebida: item?.matBebida || '',
