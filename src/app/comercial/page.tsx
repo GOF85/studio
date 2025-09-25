@@ -57,10 +57,6 @@ const briefingItemSchema = z.object({
   asistentes: z.coerce.number().min(0),
   precioUnitario: z.coerce.number().min(0),
   importeFijo: z.coerce.number().optional().default(0),
-  bebidas: z.string().optional(),
-  matBebida: z.string().optional(),
-  materialGastro: z.string().optional(),
-  manteleria: z.string().optional(),
 });
 
 type BriefingItemFormValues = z.infer<typeof briefingItemSchema>;
@@ -110,7 +106,6 @@ export default function ComercialPage() {
     const [editingItem, setEditingItem] = useState<ComercialBriefingItem | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
-    const [facturacionNeta, setFacturacionNeta] = useState(0);
 
     const nuevoAjusteConceptoRef = useRef<HTMLInputElement>(null);
     const nuevoAjusteImporteRef = useRef<HTMLInputElement>(null);
@@ -137,6 +132,15 @@ export default function ComercialPage() {
             spacePercentage: 0,
         }
     });
+
+    const watchedAgencyPercentage = financialForm.watch('agencyPercentage');
+    const watchedSpacePercentage = financialForm.watch('spacePercentage');
+
+    const facturacionNeta = useMemo(() => {
+        const totalPercentage = (watchedAgencyPercentage || 0) + (watchedSpacePercentage || 0);
+        return facturacionFinal * (1 - totalPercentage / 100);
+    }, [facturacionFinal, watchedAgencyPercentage, watchedSpacePercentage]);
+
 
    const saveFinancials = useCallback((data: { facturacion: number, agencyPercentage: number, spacePercentage: number }) => {
     if (!serviceOrder) return;
@@ -491,7 +495,7 @@ export default function ComercialPage() {
                             <div className="flex items-center justify-between w-full">
                                 <CardTitle className="text-lg">Información Financiera y Ajustes</CardTitle>
                                  <div className="text-base font-bold pr-4">
-                                    <span className="text-black">Facturación Neta: </span>
+                                    <span className="text-black dark:text-white">Facturación Neta: </span>
                                     <span className="text-green-600">{facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
                                 </div>
                             </div>
@@ -522,7 +526,16 @@ export default function ComercialPage() {
                                             </FormItem>
                                         )} />
                                     </div>
-                                    <FinancialCalculator totalFacturacion={facturacionFinal} onNetChange={setFacturacionNeta}/>
+                                    <FormItem className="mt-auto">
+                                        <FormLabel className="text-lg">Facturación Neta</FormLabel>
+                                        <FormControl>
+                                        <Input
+                                            readOnly
+                                            value={facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                                            className="font-bold text-primary h-12 text-xl"
+                                        />
+                                        </FormControl>
+                                    </FormItem>
                                 </form>
                                 <div className="space-y-4">
                                     <h3 className="text-lg font-semibold border-b pb-2">Ajustes a la Facturación</h3>
@@ -565,7 +578,7 @@ export default function ComercialPage() {
         </FormProvider>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between py-4">
+          <CardHeader className="flex flex-row items-center justify-between py-2">
             <CardTitle className="text-lg">Briefing del Contrato</CardTitle>
             <Button onClick={handleNewClick}><PlusCircle className="mr-2" /> Nuevo Hito</Button>
           </CardHeader>
