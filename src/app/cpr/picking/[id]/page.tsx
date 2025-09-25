@@ -64,7 +64,7 @@ export const statusVariant: { [key in PickingStatus]: 'default' | 'secondary' | 
 };
 
 function AllocationDialog({ lote, containers, onAllocate, onAddContainer }: { lote: LotePendiente, containers: ContenedorDinamico[], onAllocate: (containerId: string, quantity: number) => void, onAddContainer: () => string }) {
-    const cantidadPendiente = Math.ceil(lote.cantidadNecesaria * 100) / 100 - Math.ceil(lote.cantidadAsignada * 100) / 100;
+    const cantidadPendiente = Math.ceil((lote.cantidadNecesaria - lote.cantidadAsignada) * 100) / 100;
     const [quantity, setQuantity] = useState(Math.max(0, cantidadPendiente));
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
     const [open, setOpen] = useState(false);
@@ -213,7 +213,7 @@ export default function PickingDetailPage() {
     }, [osId, savePickingState]); 
 
     const { lotesPendientesPorHito, isPickingComplete } = useMemo(() => {
-        const lotesPorHito = new Map<string, LotePendiente[]>();
+        const lotesPendientesPorHito = new Map<string, LotePendiente[]>();
         if (!isMounted || !hitosConNecesidades.length) {
             return { lotesPendientesPorHito, isPickingComplete: true };
         }
@@ -290,11 +290,11 @@ export default function PickingDetailPage() {
                 allComplete = false;
             }
     
-            lotesPorHito.set(hito.id, lotesPendientesHito);
+            lotesPendientesPorHito.set(hito.id, lotesPendientesHito);
         });
         
         return { lotesPendientesPorHito, isPickingComplete: allComplete };
-    
+
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, lotesNecesarios]);
     
     const lotesPendientesCalidad = useMemo(() => {
@@ -345,159 +345,109 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
     setIsPrinting(hito.id);
 
     try {
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [100, 150] });
-        let firstPage = true;
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        let finalY = 15;
+        
+        const addHeader = () => {
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor('#059669'); // Primary color
+            doc.text('Hoja de Carga - Picking', 15, finalY);
+            finalY += 10;
+            
+            // --- DATOS SERVICIO Y EVENTO ---
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor('#374151'); // Gris oscuro
+            
+            const serviceData = [
+                ['Nº Serv:', serviceOrder.serviceNumber],
+                ['Comercial:', serviceOrder.comercial || '-'],
+                ['Cliente:', serviceOrder.client],
+                ['Cliente Final:', serviceOrder.finalClient || '-']
+            ];
+            const eventData = [
+                ['Servicio:', hito.descripcion],
+                ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
+                ['Asistentes:', String(serviceOrder.asistentes)],
+                ['Espacio:', serviceOrder.space || '-']
+            ];
+
+            autoTable(doc, {
+                body: serviceData,
+                startY: finalY,
+                theme: 'plain',
+                tableWidth: (doc.internal.pageSize.getWidth() - 30) / 2 - 5,
+                styles: { fontSize: 9, cellPadding: 0.5 },
+                columnStyles: { 0: { fontStyle: 'bold' } }
+            });
+            autoTable(doc, {
+                body: eventData,
+                startY: finalY,
+                theme: 'plain',
+                tableWidth: (doc.internal.pageSize.getWidth() - 30) / 2 - 5,
+                margin: { left: doc.internal.pageSize.getWidth() / 2 + 5 },
+                styles: { fontSize: 9, cellPadding: 0.5 },
+                columnStyles: { 0: { fontStyle: 'bold' } }
+            });
+            finalY = (doc as any).lastAutoTable.finalY + 10;
+        }
+
+        addHeader();
 
         for (const tipo of Object.keys(expeditionTypeMap) as Array<keyof typeof expeditionTypeMap>) {
             const containersForType = pickingState.assignedContainers.filter(c => c.hitoId === hito.id && c.tipo === tipo);
             if (containersForType.length === 0) continue;
 
-            if (!firstPage) {
+            if (finalY + 20 > doc.internal.pageSize.getHeight()) { // Check if new section fits
                 doc.addPage();
+                finalY = 15;
             }
-            firstPage = false;
             
-            let finalY = 5; // margin
-
-            // --- HEADER ---
-            doc.setFontSize(16);
+            doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
-            doc.setTextColor('#059669'); // Primary color
-            doc.text(`${expeditionTypeMap[tipo].title}`, 5, finalY + 2);
-            finalY += 6;
-            
-            doc.setLineWidth(0.5);
-            doc.setDrawColor('#000000');
-            doc.line(5, finalY, 95, finalY);
-            finalY += 4;
-            
-            // --- INFO ---
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151');
-            autoTable(doc, {
-                body: [
-                    ['Nº Serv:', serviceOrder.serviceNumber],
-                    ['Servicio:', hito.descripcion],
-                    ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
-                    ['Cliente:', serviceOrder.finalClient || serviceOrder.client]
-                ],
-                startY: finalY,
-                theme: 'plain',
-                styles: { fontSize: 9, cellPadding: 0.5 },
-                columnStyles: { 0: { fontStyle: 'bold' } }
-            });
-            finalY = (doc as any).lastAutoTable.finalY + 2;
+            doc.setTextColor('#1f2937');
+            doc.text(expeditionTypeMap[tipo].title, 15, finalY);
+            finalY += 8;
 
-            doc.setFont('helvetica', 'bold');
-            doc.text('Espacio:', 5, finalY);
-            doc.setFont('helvetica', 'normal');
-            doc.text(serviceOrder.space || '-', 20, finalY);
-            finalY += 5;
-
-            // --- SEPARATOR ---
-            doc.setLineWidth(0.2);
-            doc.line(5, finalY, 95, finalY);
-            finalY += 4;
-            
-            // --- SUMMARY TABLE ---
-            const itemsGrouped = new Map<string, { totalQuantity: number, lotes: string[], unidad: string, receta: string }>();
-            const itemsForType = pickingState.itemStates.filter(item => {
-                const container = pickingState.assignedContainers.find(c => c.id === item.containerId);
-                return container?.tipo === tipo && container?.hitoId === hito.id;
-            });
-            
-            itemsForType.forEach(assignedLote => {
-                const loteInfo = lotesNecesarios.find(l => l.id === assignedLote.ofId);
-                if (loteInfo) {
-                    const key = loteInfo.elaboracionNombre;
-                    const recetaNombre = getRecetaForElaboracion(loteInfo.elaboracionId, osId);
-                    if (!itemsGrouped.has(key)) {
-                        itemsGrouped.set(key, { totalQuantity: 0, lotes: [], unidad: loteInfo.unidad, receta: recetaNombre });
-                    }
-                    const entry = itemsGrouped.get(key)!;
-                    entry.totalQuantity += assignedLote.quantity;
-                    if(!entry.lotes.includes(loteInfo.id)) entry.lotes.push(loteInfo.id);
-                }
-            });
-
-            const body: any[] = [];
-            itemsGrouped.forEach((data, elabName) => {
-                 body.push([
-                    { content: `${elabName}\n(${data.receta})`, styles: { fontSize: 8, cellPadding: 1 } },
-                    { content: `${formatNumber(data.totalQuantity, 2)} ${formatUnit(data.unidad)}`, styles: { halign: 'right' } },
-                ]);
-            });
-
-            autoTable(doc, {
-                startY: finalY,
-                head: [['Elaboración (Receta)', 'Cant. Tot.']],
-                body,
-                theme: 'grid',
-                headStyles: { fontStyle: 'bold', fontSize: 9, halign: 'center', cellPadding: 1, fillColor: [230, 230, 230], textColor: [0,0,0] },
-                styles: { fontSize: 8, cellPadding: 1, lineColor: '#000', lineWidth: 0.1, valign: 'middle' },
-                columnStyles: {
-                    0: { cellWidth: 50 },
-                    1: { cellWidth: 30, halign: 'right' },
-                }
-            });
-
-            // Generate individual labels for each container
-            containersForType.forEach((container) => {
-                doc.addPage();
-                // Re-add header and info for each label page
-                finalY = 5;
-                doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor('#059669');
-                doc.text(`${container.tipo} - ${container.numero} de ${containersForType.length}`, 5, finalY + 2);
-                finalY += 10;
-                doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor('#374151');
-                autoTable(doc, { body: serviceData, startY: finalY, theme: 'plain', tableWidth: 45-5, styles: { fontSize: 9, cellPadding: 0.5 }, columnStyles: { 0: { fontStyle: 'bold' } }});
-                autoTable(doc, { body: eventData, startY: finalY, theme: 'plain', tableWidth: 45-5, margin: { left: 50 + 5 }, styles: { fontSize: 9, cellPadding: 0.5 }, columnStyles: { 0: { fontStyle: 'bold' } }});
-                finalY = (doc as any).lastAutoTable.finalY + 2;
-                doc.setFont('helvetica', 'bold'); doc.text('Espacio:', 5, finalY); doc.setFont('helvetica', 'normal'); doc.text(serviceOrder.space || '-', 20, finalY);
-                finalY += 8;
-                doc.setLineWidth(0.2); doc.line(5, 95, 5, finalY); finalY += 4;
-                
+            containersForType.forEach(container => {
                 const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
-                const containerItemsGrouped = new Map<string, { totalQuantity: number, lotes: string[], unidad: string, receta: string }>();
-                containerItems.forEach(assignedLote => {
-                    const loteInfo = lotesNecesarios.find(l => l.id === assignedLote.ofId);
-                    if (loteInfo) {
-                        const key = loteInfo.elaboracionNombre;
-                        const recetaNombre = getRecetaForElaboracion(loteInfo.elaboracionId, osId);
-                        if (!containerItemsGrouped.has(key)) {
-                            containerItemsGrouped.set(key, { totalQuantity: 0, lotes: [], unidad: loteInfo.unidad, receta: recetaNombre });
-                        }
-                        const entry = containerItemsGrouped.get(key)!;
-                        entry.totalQuantity += assignedLote.quantity;
-                        if(!entry.lotes.includes(loteInfo.id)) entry.lotes.push(loteInfo.id);
-                    }
-                });
+                if(containerItems.length === 0) return;
 
-                const containerBody: any[] = [];
-                containerItemsGrouped.forEach((data, elabName) => {
-                     containerBody.push([
-                        { content: `${elabName}\n(${data.receta})`, styles: { fontSize: 8, cellPadding: 1 } },
-                        { content: `${formatNumber(data.totalQuantity, 2)} ${formatUnit(data.unidad)}`, styles: { halign: 'right' } }, 
-                        { content: data.lotes.join(', '), styles: { halign: 'right' } }
-                    ]);
+                if (finalY + 20 > doc.internal.pageSize.getHeight()) {
+                    doc.addPage();
+                    finalY = 15;
+                }
+                
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`Contenedor: ${container.tipo} #${container.numero}`, 16, finalY);
+                finalY += 6;
+
+                const tableBody = containerItems.map(assignedLote => {
+                    const loteInfo = lotesNecesarios.find(of => of.id === assignedLote.ofId);
+                    const recetaNombre = loteInfo ? getRecetaForElaboracion(loteInfo.elaboracionId, osId) : '-';
+                    return [
+                        loteInfo?.elaboracionNombre || 'Desconocido',
+                        recetaNombre,
+                        assignedLote.ofId,
+                        `${formatNumber(assignedLote.quantity, 2)} ${formatUnit(loteInfo?.unidad || 'Uds')}`
+                    ];
                 });
 
                 autoTable(doc, {
                     startY: finalY,
-                    head: [['Elaboración (Receta)', 'Cant. Tot.', 'Lote']],
-                    body: containerBody,
+                    head: [['Elaboración', 'Receta', 'Lote (OF)', 'Cantidad']],
+                    body: tableBody,
                     theme: 'grid',
-                    tableWidth: 90,
-                    headStyles: { fontStyle: 'bold', fontSize: 9, halign: 'center', cellPadding: 1, fillColor: [230, 230, 230], textColor: [0,0,0] },
-                    styles: { fontSize: 8, cellPadding: 1, lineColor: '#000', lineWidth: 0.1, valign: 'middle' },
-                    columnStyles: { 0: { cellWidth: 35 }, 1: { cellWidth: 20, halign: 'right' }, 2: { cellWidth: 'auto', halign: 'right' } }
+                    headStyles: { fillColor: [230, 230, 230], textColor: 20 },
+                    styles: { fontSize: 9 },
                 });
+                finalY = (doc as any).lastAutoTable.finalY + 10;
             });
         }
         
-        doc.save(`Etiquetas_Picking_${serviceOrder.serviceNumber}_${hito.descripcion.replace(/\s+/g, '_')}.pdf`);
-
+        doc.save(`HojaCarga_${serviceOrder.serviceNumber}_${hito.descripcion.replace(/\s+/g, '_')}.pdf`);
     } catch (error) {
         console.error("Error generating PDF:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
