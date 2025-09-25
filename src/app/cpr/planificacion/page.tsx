@@ -58,6 +58,12 @@ type Necesidad = {
     loteOrigen?: string;
 };
 
+type Desviacion = {
+    id: string; // of.id
+    of: OrdenFabricacion;
+    necesidadActual: number;
+    diferencia: number;
+}
 
 // For the detailed recipe view
 type RecetaAgregada = {
@@ -124,6 +130,7 @@ export default function PlanificacionPage() {
     
     // Unified state for both needs and surpluses
     const [planificacionItems, setPlanificacionItems] = useState<Necesidad[]>([]);
+    const [desviaciones, setDesviaciones] = useState<Desviacion[]>([]);
     
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [partidaFilter, setPartidaFilter] = useState('all');
@@ -147,6 +154,7 @@ export default function PlanificacionPage() {
         setIsLoading(true);
         // Reset all states
         setPlanificacionItems([]);
+        setDesviaciones([]);
         setRecetasAgregadas([]);
         setDesgloseEventosRecetas([]);
         setMatrizData([]);
@@ -290,8 +298,16 @@ export default function PlanificacionPage() {
             });
         });
         
+        const ofsProducidasEnRango = allOrdenesFabricacion.filter(of => {
+             const fechaProduccion = of.fechaFinalizacion || of.fechaCreacion;
+             try {
+                const ofDate = new Date(fechaProduccion);
+                return ofDate >= from && ofDate <= to;
+             } catch(e) { return false; }
+        });
+
         // Sumar producción
-        ofsEnRango.forEach(of => {
+        ofsProducidasEnRango.forEach(of => {
             const registro = necesidadesPorElaboracion.get(of.elaboracionId);
             if (registro) {
                 const cantidadProducida = (of.estado === 'Finalizado' || of.estado === 'Validado' || of.estado === 'Incidencia') && of.cantidadReal !== null ? Number(of.cantidadReal) : Number(of.cantidadTotal);
@@ -319,6 +335,23 @@ export default function PlanificacionPage() {
                 });
             }
         });
+
+        // Detectar desviaciones
+        const desviacionesDetectadas: Desviacion[] = [];
+        ofsEnRango.forEach(of => {
+            const necesidadRegistro = necesidadesPorElaboracion.get(of.elaboracionId);
+            const necesidadActual = necesidadRegistro ? necesidadRegistro.necesidadBruta : 0;
+            // For now, let's assume `necesidadTotal` was stored in the OF when it was created
+            const necesidadOriginal = of.necesidadTotal || 0;
+            if (necesidadActual !== necesidadOriginal) {
+                desviacionesDetectadas.push({
+                    id: of.id,
+                    of,
+                    necesidadActual,
+                    diferencia: necesidadActual - necesidadOriginal
+                })
+            }
+        })
         
         // --- MATRIX CALCULATION ---
         const days = eachDayOfInterval({ start: from, end: to });
@@ -406,6 +439,7 @@ export default function PlanificacionPage() {
 
 
         setPlanificacionItems(itemsFinales);
+        setDesviaciones(desviacionesDetectadas);
         setRecetasAgregadas(Array.from(agregadoRecetasMap.values()));
         setDesgloseEventosRecetas(Array.from(desgloseEventosMap.values()));
         setIsLoading(false);
@@ -468,6 +502,7 @@ export default function PlanificacionPage() {
                     elaboracionId: necesidad.id,
                     elaboracionNombre: necesidad.nombre,
                     cantidadTotal: necesidad.cantidad,
+                    necesidadTotal: necesidad.cantidad, // Guardamos la necesidad en el momento de la creación
                     unidad: necesidad.unidad,
                     partidaAsignada: necesidad.partidaProduccion,
                     estado: 'Pendiente',
@@ -557,6 +592,10 @@ export default function PlanificacionPage() {
                     <div className="flex justify-between items-center">
                         <TabsList>
                             <TabsTrigger value="matriz-produccion">Matriz de Producción</TabsTrigger>
+                            <TabsTrigger value="desviaciones" className="relative">
+                                Desviaciones
+                                {desviaciones.length > 0 && <span className="absolute -top-1 -right-1 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-destructive"></span></span>}
+                            </TabsTrigger>
                             <TabsTrigger value="recetas">Planificación por Recetas</TabsTrigger>
                             <TabsTrigger value="elaboraciones">Planificación de Elaboraciones</TabsTrigger>
                         </TabsList>
@@ -691,6 +730,39 @@ export default function PlanificacionPage() {
                                 ) : (
                                     <p className="text-center text-muted-foreground py-8">No hay datos para el rango de fechas seleccionado.</p>
                                 )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="desviaciones">
+                        <Card className="mt-4">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><AlertTriangle className="text-amber-500" />Panel de Desviaciones</CardTitle>
+                                <CardDescription>Aquí aparecen las Órdenes de Fabricación que no coinciden con las necesidades actuales de los eventos. Esto puede ocurrir si se modificó un evento después de generar la producción.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>OF</TableHead><TableHead>Elaboración</TableHead><TableHead>Cant. Original</TableHead><TableHead>Cant. Nueva</TableHead><TableHead>Desviación</TableHead><TableHead>Estado OF</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {isLoading ? <TableRow><TableCell colSpan={7} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow> 
+                                        : desviaciones.length > 0 ? desviaciones.map(d => (
+                                            <TableRow key={d.id} className={d.diferencia > 0 ? 'bg-orange-50' : 'bg-blue-50'}>
+                                                <TableCell><Badge variant="outline">{d.of.id}</Badge></TableCell>
+                                                <TableCell className="font-semibold">{d.of.elaboracionNombre}</TableCell>
+                                                <TableCell>{formatNumber(d.of.necesidadTotal || 0, 2)}</TableCell>
+                                                <TableCell>{formatNumber(d.necesidadActual, 2)}</TableCell>
+                                                <TableCell className={cn("font-bold", d.diferencia > 0 ? 'text-orange-600' : 'text-blue-600')}>
+                                                    {d.diferencia > 0 ? '+' : ''}{formatNumber(d.diferencia, 2)}
+                                                </TableCell>
+                                                <TableCell><Badge variant="secondary">{d.of.estado}</Badge></TableCell>
+                                                <TableCell className="text-right">
+                                                    {d.diferencia > 0 
+                                                        ? <Button size="sm" variant="outline">Generar OF de Ajuste</Button> 
+                                                        : <Button size="sm" variant="outline">Marcar como Excedente</Button>}
+                                                </TableCell>
+                                            </TableRow>
+                                        )) : <TableRow><TableCell colSpan={7} className="h-24 text-center">No se han encontrado desviaciones.</TableCell></TableRow>}
+                                    </TableBody>
+                                </Table>
                             </CardContent>
                         </Card>
                     </TabsContent>
