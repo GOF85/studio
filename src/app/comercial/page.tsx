@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Separator } from '@/components/ui/separator';
@@ -71,6 +71,35 @@ const financialSchema = osFormSchema.pick({
 });
 
 type FinancialFormValues = z.infer<typeof financialSchema>;
+
+function FinancialCalculator ({ totalFacturacion, onNetChange }: { totalFacturacion: number, onNetChange: (net:number) => void }) {
+    const agencyPercentage = useWatch({ name: 'agencyPercentage' });
+    const spacePercentage = useWatch({ name: 'spacePercentage' });
+  
+    const facturacionNeta = useMemo(() => {
+      const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
+      const net = totalFacturacion * (1 - totalPercentage / 100);
+      return net;
+    }, [totalFacturacion, agencyPercentage, spacePercentage]);
+  
+    useEffect(() => {
+      onNetChange(facturacionNeta);
+    }, [facturacionNeta, onNetChange]);
+  
+  
+    return (
+      <FormItem className="mt-auto">
+        <FormLabel className="text-lg">Facturación Neta</FormLabel>
+        <FormControl>
+          <Input
+            readOnly
+            value={facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+            className="font-bold text-primary h-12 text-xl"
+          />
+        </FormControl>
+      </FormItem>
+    );
+  }
 
 export default function ComercialPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
@@ -118,35 +147,6 @@ export default function ComercialPage() {
         setServiceOrder(allServiceOrders[index]);
     }
   }, [serviceOrder, osId]);
-
-  const FinancialCalculator = ({ totalFacturacion, onNetChange }: { totalFacturacion: number, onNetChange: (net:number) => void }) => {
-    const agencyPercentage = useWatch({ control: financialForm.control, name: 'agencyPercentage' });
-    const spacePercentage = useWatch({ control: financialForm.control, name: 'spacePercentage' });
-  
-    const facturacionNeta = useMemo(() => {
-      const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
-      const net = totalFacturacion * (1 - totalPercentage / 100);
-      return net;
-    }, [totalFacturacion, agencyPercentage, spacePercentage]);
-  
-    useEffect(() => {
-      onNetChange(facturacionNeta);
-    }, [facturacionNeta, onNetChange]);
-  
-  
-    return (
-      <FormItem className="mt-auto">
-        <FormLabel className="text-lg">Facturación Neta</FormLabel>
-        <FormControl>
-          <Input
-            readOnly
-            value={facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-            className="font-bold text-primary h-12 text-xl"
-          />
-        </FormControl>
-      </FormItem>
-    );
-  }
 
   useEffect(() => {
     const storedTipos = localStorage.getItem('tipoServicio');
@@ -548,7 +548,7 @@ export default function ComercialPage() {
                                                 <TableCell className="p-1">
                                                     <Input ref={nuevoAjusteConceptoRef} placeholder="Nuevo concepto" className="h-8 text-xs"/>
                                                 </TableCell>
-                                                <TableCell className="text-right p-1 pr-2">
+                                                <TableCell className="text-right p-1">
                                                     <Input ref={nuevoAjusteImporteRef} type="number" step="0.01" placeholder="Importe" className="text-right h-8 w-24 text-xs"/>
                                                 </TableCell>
                                                 <TableCell className="text-right p-1">
@@ -631,3 +631,4 @@ export default function ComercialPage() {
     </>
   );
 }
+
