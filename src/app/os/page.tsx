@@ -8,6 +8,7 @@
 
 
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -172,18 +173,17 @@ const ResponsablesTitle = () => {
 
     return (
         <h3 className="text-lg font-semibold">
-          Responsables
-          {' - '}
+          Responsables - 
           {metre && (
               <>
-                  <span>Metre: </span>
+                  <span> Metre: </span>
                   <span className="text-primary">{metre}</span>
               </>
           )}
           {metre && pase && <span> / </span>}
           {pase && (
               <>
-                  <span>Pase: </span>
+                  <span> Pase: </span>
                   <span className="text-primary">{pase}</span>
               </>
           )}
@@ -228,7 +228,7 @@ export default function OsPage() {
     defaultValues,
   });
 
-  const { formState: { isDirty }, setValue } = form;
+  const { formState: { isDirty }, setValue, watch } = form;
   
   const handlePersonalChange = (name: string, phoneField: keyof OsFormValues, mailField: keyof OsFormValues) => {
     const person = personal.find(p => p.nombre === name);
@@ -383,6 +383,8 @@ export default function OsPage() {
     toast({ title: 'Orden de Servicio eliminada', description: 'Se han eliminado todos los datos asociados.' });
     router.push('/pes');
   };
+
+  const statusValue = watch("status");
 
   if (!isMounted) {
     return <LoadingSkeleton title={osId ? 'Editando Orden de Servicio...' : 'Creando Orden de Servicio...'} />;
@@ -593,7 +595,7 @@ export default function OsPage() {
                             <FormItem>
                             <FormLabel>Estado</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger className={cn(statusValue === 'Confirmado' && 'bg-green-100 dark:bg-green-900 border-green-400')}><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                 <SelectContent>
                                 <SelectItem value="Borrador">Borrador</SelectItem>
                                 <SelectItem value="Pendiente">Pendiente</SelectItem>
@@ -604,7 +606,7 @@ export default function OsPage() {
                         )} />
                     </div>
 
-                   {accordionDefaultValue && <Accordion type="multiple" defaultValue={accordionDefaultValue} className="w-full space-y-3 pt-3">
+                   <Accordion type="multiple" defaultValue={accordionDefaultValue} className="w-full space-y-3 pt-3">
                       <AccordionItem value="cliente" className="border-none">
                        <Card>
                         <AccordionTrigger className="p-4"><ClienteTitle /></AccordionTrigger>
@@ -921,3 +923,4 @@ export default function OsPage() {
     
 
     
+
