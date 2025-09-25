@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -30,7 +29,7 @@ import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
-import type { ServiceOrder, GastronomyOrder, GastronomyOrderItem, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import type { ServiceOrder, GastronomyOrder, GastronomyOrderItem, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta, ComercialBriefing, ComercialBriefingItem, ExcedenteProduccion } from '@/types';
 
 // --- DATA STRUCTURES ---
 
@@ -155,6 +154,7 @@ export default function PlanificacionPage() {
     // Unified state for both needs and surpluses
     const [planificacionItems, setPlanificacionItems] = useState<Necesidad[]>([]);
     const [desviaciones, setDesviaciones] = useState<DesviacionOS[]>([]);
+    const [excedentes, setExcedentes] = useState<Necesidad[]>([]);
     
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [partidaFilter, setPartidaFilter] = useState('all');
@@ -185,6 +185,7 @@ export default function PlanificacionPage() {
         setMatrizHeaders([]);
         setSelectedRows(new Set());
         setMatrizTotals({ totalPax: 0, totalContratos: 0, totalServicios: 0 });
+        setExcedentes([]);
 
         if (!dateRange?.from || !dateRange?.to) {
             setIsLoading(false);
@@ -201,6 +202,7 @@ export default function PlanificacionPage() {
         const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
         const allElaboraciones: Elaboracion[] = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
         const allOrdenesFabricacion: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+        const allExcedentesData: {[key: string]: ExcedenteProduccion} = JSON.parse(localStorage.getItem('excedentesProduccion') || '{}');
         
         const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
         const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
@@ -223,7 +225,7 @@ export default function PlanificacionPage() {
         const ofsEnRango = allOrdenesFabricacion.filter(of => of.osIDs.some(osId => osIdsEnRango.has(osId)));
         
         const gastroOrdersEnRango = allGastroOrders.filter(go => osIdsEnRango.has(go.osId));
-        const briefingsEnRango = allBriefings.filter(b => osIdsEnRango.has(b.osId));
+        const briefingsEnRango = allBriefings.filter(b => b.osId === b.osId);
 
         // --- CALCULATIONS ---
         
@@ -233,7 +235,7 @@ export default function PlanificacionPage() {
         const desgloseEventosMap: Map<string, DesgloseEventoRecetas> = new Map();
         const agregadoRecetasMap: Map<string, RecetaAgregada> = new Map();
 
-
+        // 1. Calculate Gross Needs
         briefingsEnRango.forEach(briefing => {
             const serviceOrder = serviceOrderMap.get(briefing.osId);
             if (!serviceOrder) return;
@@ -277,7 +279,6 @@ export default function PlanificacionPage() {
                             };
                             hito.recetas.push(detalleRecetaEnHito);
 
-                            // --- Populate recipe needs for matrix ---
                             const diaKey = format(new Date(serviceOrder.startDate), 'yyyy-MM-dd');
                             let registroReceta = necesidadesPorReceta.get(receta.id);
                             if (!registroReceta) {
@@ -287,7 +288,6 @@ export default function PlanificacionPage() {
                             registroReceta.necesidadBruta += cantidadReceta;
                             const necesidadRecetaDia = registroReceta.necesidadesPorDia.get(diaKey) || 0;
                             registroReceta.necesidadesPorDia.set(diaKey, necesidadRecetaDia + cantidadReceta);
-
 
                             receta.elaboraciones.forEach(elabEnReceta => {
                                 const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
@@ -308,8 +308,8 @@ export default function PlanificacionPage() {
                                     const necesidadDiaActual = registro.necesidadesPorDia.get(diaKey) || 0;
                                     registro.necesidadesPorDia.set(diaKey, necesidadDiaActual + cantidadNecesaria);
                                     
-                                    if (!registro.eventos!.find(e => e.osId === gastroOrder.osId && e.serviceType === gastroOrder.descripcion)) {
-                                        registro.eventos!.push({ osId: gastroOrder.osId, serviceNumber: serviceOrder.serviceNumber, serviceType: gastroOrder.descripcion });
+                                    if (!registro.eventos.find(e => e.osId === gastroOrder.osId && e.serviceType === gastroOrder.descripcion)) {
+                                        registro.eventos.push({ osId: gastroOrder.osId, serviceNumber: serviceOrder.serviceNumber, serviceType: gastroOrder.descripcion });
                                     }
                                     const recetaExistente = registro.recetas.find(r => r.recetaId === receta.id);
                                     if (recetaExistente) recetaExistente.cantidad += cantidadNecesaria;
@@ -322,16 +322,23 @@ export default function PlanificacionPage() {
             });
         });
         
-        const ofsProducidasEnRango = allOrdenesFabricacion.filter(of => {
-             const fechaProduccion = of.fechaFinalizacion || of.fechaCreacion;
-             try {
-                const ofDate = new Date(fechaProduccion);
-                return ofDate >= from && ofDate <= to;
-             } catch(e) { return false; }
-        });
+        // 2. Calculate Surpluses
+        const surplusByElabId = new Map<string, number>();
+        Object.values(allExcedentesData).forEach(excedente => {
+            const ofOrigen = allOrdenesFabricacion.find(of => of.id === excedente.ofId);
+            if (!ofOrigen) return;
 
-        // Sumar producción
-        ofsProducidasEnRango.forEach(of => {
+            const diasCaducidad = excedente.diasCaducidad ?? 7;
+            const fechaCaducidad = addDays(new Date(excedente.fechaProduccion), diasCaducidad);
+
+            if (isBefore(startOfToday(), fechaCaducidad)) { // Only consider non-expired surpluses
+                const currentSurplus = surplusByElabId.get(ofOrigen.elaboracionId) || 0;
+                surplusByElabId.set(ofOrigen.elaboracionId, currentSurplus + excedente.cantidadAjustada);
+            }
+        });
+        
+        // 3. Sum up all existing production
+        allOrdenesFabricacion.forEach(of => {
             const registro = necesidadesPorElaboracion.get(of.elaboracionId);
             if (registro) {
                 const cantidadProducida = (of.estado === 'Finalizado' || of.estado === 'Validado' || of.estado === 'Incidencia') && of.cantidadReal !== null ? Number(of.cantidadReal) : Number(of.cantidadTotal);
@@ -341,22 +348,41 @@ export default function PlanificacionPage() {
             }
         });
 
+        // 4. Calculate Net Needs and Final Items List
         const itemsFinales: Necesidad[] = [];
+        const excedentesFinales: Necesidad[] = [];
+
         necesidadesPorElaboracion.forEach((registro, elabId) => {
-            const diferencia = registro.necesidadBruta - registro.produccionAcumulada;
-            
-            if (Math.abs(diferencia) > 0.001) { 
+            const excedenteDisponible = surplusByElabId.get(elabId) || 0;
+            const necesidadNeta = registro.necesidadBruta - excedenteDisponible - registro.produccionAcumulada;
+
+            if (necesidadNeta > 0.001) {
                  itemsFinales.push({
                     id: elabId,
                     nombre: registro.elaboracion.nombre,
-                    cantidad: Math.abs(diferencia),
+                    cantidad: necesidadNeta,
                     unidad: registro.elaboracion.unidadProduccion,
                     partidaProduccion: registro.elaboracion.partidaProduccion,
                     eventos: registro.eventos,
                     recetas: registro.recetas,
-                    type: diferencia > 0 ? 'necesidad' : 'excedente',
-                    loteOrigen: diferencia < 0 ? ofsEnRango.find(of => of.elaboracionId === elabId)?.id : undefined
+                    type: 'necesidad',
                 });
+            }
+        });
+        
+        surplusByElabId.forEach((cantidad, elabId) => {
+            const elaboracion = elaboracionesMap.get(elabId);
+            if (elaboracion) {
+                 excedentesFinales.push({
+                    id: elabId,
+                    nombre: elaboracion.nombre,
+                    cantidad: cantidad,
+                    unidad: elaboracion.unidadProduccion,
+                    partidaProduccion: elaboracion.partidaProduccion,
+                    eventos: [],
+                    recetas: [],
+                    type: 'excedente',
+                 });
             }
         });
 
@@ -387,7 +413,6 @@ export default function PlanificacionPage() {
                         desviacionesMap.set(os.id, osConDesviacion);
                     }
                     
-                    // Find which Hito and Receta this OF deviation belongs to
                     briefingDeLaOS?.items.forEach(hito => {
                         const gastroOrder = gastroOrdersDeLaOS.find(go => go.id === hito.id);
                         gastroOrder?.items?.forEach(gastroItem => {
@@ -442,7 +467,6 @@ export default function PlanificacionPage() {
         const days = eachDayOfInterval({ start: from, end: to });
         const matrixRows: MatrizRow[] = [];
 
-        // Add recipes to matrix
         necesidadesPorReceta.forEach((registro, recetaId) => {
              const row: MatrizRow = {
                 id: recetaId,
@@ -459,7 +483,6 @@ export default function PlanificacionPage() {
             matrixRows.push(row);
         });
 
-        // Add elaborations to matrix
         necesidadesPorElaboracion.forEach((registro, elabId) => {
             const necesidad = itemsFinales.find(item => item.id === elabId);
             const row: MatrizRow = {
@@ -524,6 +547,7 @@ export default function PlanificacionPage() {
 
 
         setPlanificacionItems(itemsFinales);
+        setExcedentes(excedentesFinales);
         setDesviaciones(desviacionesAgrupadas);
         setRecetasAgregadas(Array.from(agregadoRecetasMap.values()));
         setDesgloseEventosRecetas(Array.from(desgloseEventosMap.values()));
@@ -532,7 +556,6 @@ export default function PlanificacionPage() {
 
     useEffect(() => {
         setIsMounted(true);
-        // Set initial date range only on client to avoid hydration errors
         setDateRange({
             from: startOfToday(),
             to: addDays(startOfToday(), 7),
@@ -547,7 +570,7 @@ export default function PlanificacionPage() {
 
     const handleSelectRow = (id: string) => {
         const item = planificacionItems.find(i => i.id === id);
-        if (item?.type !== 'necesidad') return; // Only allow selecting needs
+        if (item?.type !== 'necesidad') return;
 
         setSelectedRows(prev => {
             const newSelection = new Set(prev);
@@ -587,10 +610,10 @@ export default function PlanificacionPage() {
                     elaboracionId: necesidad.id,
                     elaboracionNombre: necesidad.nombre,
                     cantidadTotal: necesidad.cantidad,
-                    necesidadTotal: necesidad.cantidad, // Guardamos la necesidad en el momento de la creación
+                    necesidadTotal: necesidad.cantidad,
                     unidad: necesidad.unidad,
                     partidaAsignada: necesidad.partidaProduccion,
-                    tipoExpedicion: 'REFRIGERADO', // Default, should be on elaboracion
+                    tipoExpedicion: 'REFRIGERADO', // Default
                     estado: 'Pendiente',
                     osIDs: Array.from(new Set(necesidad.eventos!.map(e => e.osId))),
                     incidencia: false,
@@ -633,7 +656,7 @@ export default function PlanificacionPage() {
             partidaAsignada: desviacion.of.partidaAsignada,
             tipoExpedicion: desviacion.of.tipoExpedicion,
             estado: 'Pendiente',
-            osIDs: desviacion.of.osIDs, // Asign to same events
+            osIDs: desviacion.of.osIDs,
             incidencia: false,
             okCalidad: false,
         };
@@ -642,16 +665,14 @@ export default function PlanificacionPage() {
         localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
         
         toast({ title: 'OF de Ajuste Generada', description: `Se ha creado la OF ${newOF.id} por ${formatNumber(newOF.cantidadTotal,2)} ${newOF.unidad}.`});
-        calcularNecesidades(); // Recalculate everything
+        calcularNecesidades();
     };
 
     const handleMarkAsExcedente = (desviacion: DesviacionElaboracion) => {
-        // This is a conceptual action for now. We remove it from the list.
-        // A full implementation would create a record in an 'excedentes' table.
         const updatedOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
         const index = updatedOFs.findIndex(of => of.id === desviacion.of.id);
         if (index !== -1) {
-            updatedOFs[index].necesidadTotal = desviacion.necesidadActual; // Update original OF need
+            updatedOFs[index].necesidadTotal = desviacion.necesidadActual;
             localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
         }
 
@@ -732,6 +753,7 @@ export default function PlanificacionPage() {
                             </TabsTrigger>
                             <TabsTrigger value="recetas">Planificación por Recetas</TabsTrigger>
                             <TabsTrigger value="elaboraciones">Planificación de Elaboraciones</TabsTrigger>
+                            <TabsTrigger value="excedentes">Excedentes Disponibles</TabsTrigger>
                         </TabsList>
                          <div className="flex-grow text-right">
                            <Button onClick={handleGenerateOF} disabled={selectedRows.size === 0}>
@@ -1124,6 +1146,40 @@ export default function PlanificacionPage() {
                                         </TableBody>
                                     </Table>
                                 </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="excedentes">
+                        <Card className="mt-4">
+                            <CardHeader>
+                                <CardTitle>Excedentes de Producción Disponibles</CardTitle>
+                                <CardDescription>Sobrantes de producciones anteriores que pueden ser utilizados para cubrir nuevas necesidades.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Elaboración</TableHead>
+                                            <TableHead className="text-right">Cantidad Disponible</TableHead>
+                                            <TableHead>Unidad</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {isLoading ? (
+                                            <TableRow><TableCell colSpan={3} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow>
+                                        ) : excedentes.length > 0 ? (
+                                            excedentes.map(item => (
+                                                <TableRow key={item.id}>
+                                                    <TableCell className="font-medium">{item.nombre}</TableCell>
+                                                    <TableCell className="text-right font-mono text-green-600">+{formatNumber(item.cantidad, 2)}</TableCell>
+                                                    <TableCell>{formatUnit(item.unidad)}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay excedentes disponibles.</TableCell></TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
                             </CardContent>
                         </Card>
                     </TabsContent>
