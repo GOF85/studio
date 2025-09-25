@@ -111,7 +111,6 @@ export default function OfPage() {
             <Factory />
             Órdenes de Fabricación
           </h1>
-          <p className="text-muted-foreground mt-1">Gestiona el estado y la asignación de la producción.</p>
         </div>
          <Button asChild>
             <Link href="/cpr/of/nuevo">
