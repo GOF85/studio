@@ -365,7 +365,9 @@ export default function PlanificacionPage() {
                 briefing.items.forEach(item => {
                     if (isSameDay(new Date(item.fecha), day)) {
                         paxDia += item.asistentes;
-                        serviciosDia++;
+                        if (item.conGastronomia) {
+                            serviciosDia++;
+                        }
                     }
                 })
             });
