@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -82,6 +83,8 @@ type DesviacionHito = {
 type DesviacionOS = {
     osId: string;
     serviceNumber: string;
+    fecha: string;
+    espacio: string;
     hitos: DesviacionHito[];
 };
 
@@ -220,7 +223,7 @@ export default function PlanificacionPage() {
         const ofsEnRango = allOrdenesFabricacion.filter(of => of.osIDs.some(osId => osIdsEnRango.has(osId)));
         
         const gastroOrdersEnRango = allGastroOrders.filter(go => osIdsEnRango.has(go.osId));
-        const briefingsEnRango = allBriefings.filter(b => b.osId === Array.from(osIdsEnRango)[0]);
+        const briefingsEnRango = allBriefings.filter(b => osIdsEnRango.has(b.osId));
 
         // --- CALCULATIONS ---
         
@@ -380,7 +383,7 @@ export default function PlanificacionPage() {
 
                 if (Math.abs(diferencia) > 0.001) {
                     if (!osConDesviacion) {
-                        osConDesviacion = { osId: os.id, serviceNumber: os.serviceNumber, hitos: [] };
+                        osConDesviacion = { osId: os.id, serviceNumber: os.serviceNumber, hitos: [], fecha: os.startDate, espacio: os.space || '' };
                         desviacionesMap.set(os.id, osConDesviacion);
                     }
                     
@@ -877,7 +880,7 @@ export default function PlanificacionPage() {
                                 {desviaciones.map(os => (
                                     <Collapsible key={os.osId} className="border rounded-lg p-3">
                                         <CollapsibleTrigger className="w-full flex justify-between items-center group">
-                                            <div className="font-semibold">{os.serviceNumber}</div>
+                                            <div className="font-semibold">{os.serviceNumber} - {format(new Date(os.fecha), 'dd/MM/yyyy')} - {os.espacio}</div>
                                             <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180"/>
                                         </CollapsibleTrigger>
                                         <CollapsibleContent className="pt-3 space-y-2">
@@ -890,16 +893,18 @@ export default function PlanificacionPage() {
                                                                 {receta.recetaNombre} <Badge variant="secondary" className={cn(receta.diferenciaUnidades > 0 ? 'text-orange-600' : 'text-blue-600')}>{receta.diferenciaUnidades > 0 ? '+' : ''}{receta.diferenciaUnidades} uds.</Badge>
                                                             </div>
                                                             <Table>
-                                                                <TableHeader><TableRow><TableHead className="h-8">Elaboración</TableHead><TableHead className="h-8">Cant. Original</TableHead><TableHead className="h-8">Cant. Nueva</TableHead><TableHead className="h-8">Desviación</TableHead><TableHead className="h-8">Acciones</TableHead></TableRow></TableHeader>
+                                                                <TableHeader><TableRow><TableHead className="h-8">OF</TableHead><TableHead className="h-8">Elaboración</TableHead><TableHead className="h-8">Cant. Original</TableHead><TableHead className="h-8">Cant. Nueva</TableHead><TableHead className="h-8">Desviación</TableHead><TableHead className="h-8">Estado OF</TableHead><TableHead className="h-8">Acciones</TableHead></TableRow></TableHeader>
                                                                 <TableBody>
                                                                     {receta.elaboraciones.map(d => (
                                                                         <TableRow key={d.id}>
+                                                                            <TableCell>{d.of.id}</TableCell>
                                                                             <TableCell>{d.of.elaboracionNombre}</TableCell>
                                                                             <TableCell>{formatNumber(d.of.necesidadTotal || 0, 2)}</TableCell>
                                                                             <TableCell>{formatNumber(d.necesidadActual, 2)}</TableCell>
                                                                             <TableCell className={cn("font-bold", d.diferencia > 0 ? 'text-orange-600' : 'text-blue-600')}>
                                                                                 {d.diferencia > 0 ? '+' : ''}{formatNumber(d.diferencia, 2)}
                                                                             </TableCell>
+                                                                             <TableCell><Badge variant="outline">{d.of.estado}</Badge></TableCell>
                                                                             <TableCell>
                                                                                  {d.diferencia > 0 
                                                                                     ? <Button size="sm" variant="outline" onClick={() => handleGenerateOfAjuste(d)}>Generar OF de Ajuste</Button> 
