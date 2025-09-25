@@ -6,6 +6,7 @@
 
 
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -500,7 +501,7 @@ export default function OsPage() {
                     <CardTitle className="text-xl">Datos del Servicio</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 pt-2">
-                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="grid md:grid-cols-3 lg:grid-cols-3 gap-3">
                       <FormField control={form.control} name="serviceNumber" render={({ field }) => (
                         <FormItem className="flex flex-col">
                           <FormLabel>Nº Servicio</FormLabel>
@@ -558,22 +559,43 @@ export default function OsPage() {
                             <FormMessage />
                           </FormItem>
                       )} />
-                      <FormField control={form.control} name="status" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Estado</FormLabel>
-                           <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                            <SelectContent>
-                              <SelectItem value="Borrador">Borrador</SelectItem>
-                              <SelectItem value="Pendiente">Pendiente</SelectItem>
-                              <SelectItem value="Confirmado">Confirmado</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormItem>
-                      )} />
+                    </div>
+                     <div className="grid md:grid-cols-3 lg:grid-cols-3 gap-3">
+                         <FormField control={form.control} name="asistentes" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Asistentes</FormLabel>
+                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="vertical" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Vertical</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                    {VERTICALES.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage/>
+                                </FormItem>
+                            )} />
+                         <FormField control={form.control} name="status" render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Estado</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                <SelectItem value="Borrador">Borrador</SelectItem>
+                                <SelectItem value="Pendiente">Pendiente</SelectItem>
+                                <SelectItem value="Confirmado">Confirmado</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            </FormItem>
+                        )} />
                     </div>
 
-                   {accordionDefaultValue && <Accordion type="multiple" defaultValue={accordionDefaultValue} className="w-full space-y-3">
+                   {accordionDefaultValue && <Accordion type="multiple" defaultValue={accordionDefaultValue} className="w-full space-y-3 pt-3">
                       <AccordionItem value="cliente" className="border-none">
                        <Card>
                         <AccordionTrigger className="p-4"><ClienteTitle /></AccordionTrigger>
@@ -604,25 +626,6 @@ export default function OsPage() {
                                 <FormLabel>Cliente Final</FormLabel>
                                 <FormControl><Input {...field} /></FormControl>
                             </FormItem>
-                            )} />
-                             <FormField control={form.control} name="asistentes" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Asistentes</FormLabel>
-                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )} />
-                            <FormField control={form.control} name="vertical" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Vertical</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                    {VERTICALES.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage/>
-                                </FormItem>
                             )} />
                             <FormField control={form.control} name="contact" render={({ field }) => (
                               <FormItem>
@@ -909,3 +912,4 @@ export default function OsPage() {
     
 
     
+
