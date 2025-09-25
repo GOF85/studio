@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -55,6 +53,7 @@ const briefingItemSchema = z.object({
   sala: z.string().optional(),
   asistentes: z.coerce.number().min(0),
   precioUnitario: z.coerce.number().min(0),
+  importeFijo: z.coerce.number().optional().default(0),
   bebidas: z.string().optional(),
   matBebida: z.string().optional(),
   materialGastro: z.string().optional(),
@@ -119,7 +118,7 @@ export default function ComercialPage() {
   const { toast } = useToast();
   
   const totalBriefing = useMemo(() => {
-    return briefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario), 0) || 0;
+    return briefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario) + (item.importeFijo || 0), 0) || 0;
   }, [briefing]);
 
   const totalAjustes = useMemo(() => {
@@ -310,6 +309,7 @@ export default function ComercialPage() {
         sala: item?.sala || '',
         asistentes: item?.asistentes || serviceOrder?.asistentes || 0,
         precioUnitario: item?.precioUnitario || 0,
+        importeFijo: item?.importeFijo || 0,
         bebidas: item?.bebidas || '',
         matBebida: item?.matBebida || '',
         materialGastro: item?.materialGastro || '',
@@ -329,6 +329,7 @@ export default function ComercialPage() {
             sala: item?.sala || '',
             asistentes: item?.asistentes || serviceOrder?.asistentes || 0,
             precioUnitario: item?.precioUnitario || 0,
+            importeFijo: item?.importeFijo || 0,
             bebidas: item?.bebidas || '',
             matBebida: item?.matBebida || '',
             materialGastro: item?.materialGastro || '',
@@ -339,7 +340,8 @@ export default function ComercialPage() {
 
     const asistentes = form.watch('asistentes');
     const precioUnitario = form.watch('precioUnitario');
-    const total = useMemo(() => asistentes * precioUnitario, [asistentes, precioUnitario]);
+    const importeFijo = form.watch('importeFijo');
+    const total = useMemo(() => (asistentes * precioUnitario) + (importeFijo || 0), [asistentes, precioUnitario, importeFijo]);
     
     const onSubmit = (data: BriefingItemFormValues) => {
       if (onSave(data)) {
@@ -363,6 +365,7 @@ export default function ComercialPage() {
                 <FormField control={form.control} name="sala" render={({field}) => <FormItem><FormLabel>Sala</FormLabel><FormControl><Input placeholder="Sala" {...field} /></FormControl></FormItem> } />
                 <FormField control={form.control} name="asistentes" render={({field}) => <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input placeholder="Nº Asistentes" type="number" {...field} /></FormControl></FormItem> } />
                 <FormField control={form.control} name="precioUnitario" render={({field}) => <FormItem><FormLabel>Precio Unitario</FormLabel><FormControl><Input placeholder="Precio Unitario" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="importeFijo" render={({field}) => <FormItem><FormLabel>Importe Fijo</FormLabel><FormControl><Input placeholder="Importe Fijo" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
                 <FormItem>
                   <FormLabel>Total</FormLabel>
                   <FormControl>
@@ -539,6 +542,7 @@ export default function ComercialPage() {
                     <TableHead className="py-2 px-3">Sala</TableHead>
                     <TableHead className="py-2 px-3">Asistentes</TableHead>
                     <TableHead className="py-2 px-3">P.Unitario</TableHead>
+                    <TableHead className="py-2 px-3">Imp. Fijo</TableHead>
                     <TableHead className="py-2 px-3">Total</TableHead>
                     <TableHead className="py-2 px-3">Bebidas</TableHead>
                     <TableHead className="py-2 px-3">Mat. Bebida</TableHead>
@@ -561,7 +565,8 @@ export default function ComercialPage() {
                         <TableCell className="py-2 px-3">{item.sala}</TableCell>
                         <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
                         <TableCell className="py-2 px-3">{item.precioUnitario.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                        <TableCell className="py-2 px-3">{(item.asistentes * item.precioUnitario).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                        <TableCell className="py-2 px-3">{(item.importeFijo || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                        <TableCell className="py-2 px-3">{((item.asistentes * item.precioUnitario) + (item.importeFijo || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                         <TableCell className="py-2 px-3">{item.bebidas}</TableCell>
                         <TableCell className="py-2 px-3">{item.matBebida}</TableCell>
                         <TableCell className="py-2 px-3">{item.materialGastro}</TableCell>
@@ -575,7 +580,7 @@ export default function ComercialPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={16} className="h-24 text-center">
+                      <TableCell colSpan={17} className="h-24 text-center">
                         No hay hitos en el briefing. Añade uno para empezar.
                       </TableCell>
                     </TableRow>
@@ -590,4 +595,3 @@ export default function ComercialPage() {
     </>
   );
 }
-

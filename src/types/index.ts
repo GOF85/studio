@@ -117,6 +117,7 @@ export type ComercialBriefingItem = {
     sala: string;
     asistentes: number;
     precioUnitario: number;
+    importeFijo?: number;
     bebidas: string;
     matBebida: string;
     materialGastro: string;
@@ -145,7 +146,7 @@ export type GastronomyOrderItem = {
     costeMateriaPrima?: number;
     quantity?: number;
 }
-export type GastronomyOrder = Omit<ComercialBriefingItem, 'precioUnitario' | 'conGastronomia'> & {
+export type GastronomyOrder = Omit<ComercialBriefingItem, 'precioUnitario' | 'conGastronomia' | 'importeFijo'> & {
     osId: string;
     status: GastronomyOrderStatus;
     items?: GastronomyOrderItem[]; // The actual food items ordered
