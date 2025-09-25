@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Printer, Search } from 'lucide-react';
-import type { ServiceOrder, PickingState, OrdenFabricacion, Elaboracion } from '@/types';
+import type { ServiceOrder, PickingState, OrdenFabricacion, Elaboracion, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -21,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 type PickingReportItem = {
     os: ServiceOrder;
@@ -56,8 +58,73 @@ export default function InformePickingPage() {
   }, [reportItems, searchTerm]);
   
   const handlePrint = (item: PickingReportItem) => {
-    // This would contain the full logic to generate a multi-page PDF report for the entire OS
-    alert(`Imprimiendo informe completo para OS ${item.os.serviceNumber}`);
+    const doc = new jsPDF();
+    const allBriefings: ComercialBriefing[] = JSON.parse(localStorage.getItem('comercialBriefings') || '[]');
+    const allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]');
+    
+    const currentBriefing = allBriefings.find(b => b.osId === item.os.id);
+    if (!currentBriefing) return;
+
+    doc.setFontSize(18);
+    doc.text(`Informe de Picking: OS ${item.os.serviceNumber}`, 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Cliente: ${item.os.client}`, 14, 30);
+    doc.text(`Fecha: ${format(new Date(item.os.startDate), 'dd/MM/yyyy', {locale: es})}`, 14, 36);
+
+    let finalY = 45;
+
+    const hitos = currentBriefing.items.filter(i => item.state.assignedContainers.some(c => c.hitoId === i.id));
+    
+    hitos.forEach(hito => {
+        if (finalY > 250) {
+            doc.addPage();
+            finalY = 20;
+        }
+
+        doc.setFontSize(14);
+        doc.setTextColor(40);
+        doc.text(`Hito: ${hito.descripcion} (${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio})`, 14, finalY);
+        finalY += 8;
+
+        const containersForHito = item.state.assignedContainers.filter(c => c.hitoId === hito.id);
+        
+        containersForHito.forEach(container => {
+            const containerItems = item.state.itemStates.filter(i => i.containerId === container.id);
+            if(containerItems.length === 0) return;
+
+            if (finalY > 260) {
+                doc.addPage();
+                finalY = 20;
+            }
+            
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Contenedor: ${container.tipo} #${container.numero}`, 16, finalY);
+            finalY += 6;
+
+            const tableBody = containerItems.map(assignedLote => {
+                const loteInfo = allOFs.find(of => of.id === assignedLote.ofId);
+                return [
+                    loteInfo?.elaboracionNombre || 'Desconocido',
+                    assignedLote.ofId,
+                    `${formatNumber(assignedLote.quantity, 2)} ${formatUnit(loteInfo?.unidad || 'Uds')}`
+                ];
+            });
+
+            autoTable(doc, {
+                startY: finalY,
+                head: [['Elaboración', 'Lote (OF)', 'Cantidad']],
+                body: tableBody,
+                theme: 'grid',
+                headStyles: { fillColor: [230, 230, 230], textColor: 20 },
+                styles: { fontSize: 9 },
+            });
+
+            finalY = (doc as any).lastAutoTable.finalY + 10;
+        });
+    });
+
+    doc.save(`Informe_Picking_${item.os.serviceNumber}.pdf`);
   }
 
   if (!isMounted) {
