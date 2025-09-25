@@ -5,6 +5,7 @@
 
 
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -17,7 +18,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck } from 'lucide-react';
 
-import type { OrderItem, ServiceOrder, MaterialOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import type { OrderItem, ServiceOrder, MaterialOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem, Vertical } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -64,6 +65,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Combobox } from '@/components/ui/combobox';
+import { VERTICALES } from '@/types';
 
 
 export const osFormSchema = z.object({
@@ -71,10 +73,11 @@ export const osFormSchema = z.object({
   startDate: z.date({ required_error: 'La fecha de inicio es obligatoria.' }),
   client: z.string().min(1, 'El cliente es obligatorio.'),
   tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
+  asistentes: z.coerce.number().min(1, 'El número de asistentes es obligatorio.'),
+  vertical: z.enum(VERTICALES, { errorMap: () => ({ message: 'Debes seleccionar una vertical' }) }),
   contact: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
-  asistentes: z.coerce.number().min(1, 'El número de asistentes es obligatorio.'),
   endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
   space: z.string().optional().default(''),
   spaceAddress: z.string().optional().default(''),
@@ -497,7 +500,7 @@ export default function OsPage() {
                     <CardTitle className="text-xl">Datos del Servicio</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 pt-2">
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
                       <FormField control={form.control} name="serviceNumber" render={({ field }) => (
                         <FormItem className="flex flex-col">
                           <FormLabel>Nº Servicio</FormLabel>
@@ -555,14 +558,7 @@ export default function OsPage() {
                             <FormMessage />
                           </FormItem>
                       )} />
-                       <FormField control={form.control} name="asistentes" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Asistentes</FormLabel>
-                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                       <FormField control={form.control} name="status" render={({ field }) => (
+                      <FormField control={form.control} name="status" render={({ field }) => (
                         <FormItem>
                           <FormLabel>Estado</FormLabel>
                            <Select onValueChange={field.onChange} value={field.value}>
@@ -582,16 +578,14 @@ export default function OsPage() {
                        <Card>
                         <AccordionTrigger className="p-4"><ClienteTitle /></AccordionTrigger>
                         <AccordionContent>
-                           <div className="grid grid-cols-3 gap-4 px-4 pb-4">
-                            <div className="col-span-2">
-                                <FormField control={form.control} name="client" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Cliente</FormLabel>
-                                    <FormControl><Input {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )} />
-                            </div>
+                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 px-4 pb-4">
+                            <FormField control={form.control} name="client" render={({ field }) => (
+                            <FormItem className="md:col-span-2">
+                                <FormLabel>Cliente</FormLabel>
+                                <FormControl><Input {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )} />
                              <FormField control={form.control} name="tipoCliente" render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Tipo Cliente</FormLabel>
@@ -605,14 +599,31 @@ export default function OsPage() {
                                 </Select>
                                 </FormItem>
                             )} />
-                            <div className="col-span-3">
-                                 <FormField control={form.control} name="finalClient" render={({ field }) => (
+                            <FormField control={form.control} name="finalClient" render={({ field }) => (
+                            <FormItem className="md:col-span-3">
+                                <FormLabel>Cliente Final</FormLabel>
+                                <FormControl><Input {...field} /></FormControl>
+                            </FormItem>
+                            )} />
+                             <FormField control={form.control} name="asistentes" render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Cliente Final</FormLabel>
-                                    <FormControl><Input {...field} /></FormControl>
+                                <FormLabel>Asistentes</FormLabel>
+                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                                <FormMessage />
                                 </FormItem>
-                                )} />
-                            </div>
+                            )} />
+                            <FormField control={form.control} name="vertical" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Vertical</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                    {VERTICALES.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage/>
+                                </FormItem>
+                            )} />
                             <FormField control={form.control} name="contact" render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Contacto</FormLabel>
@@ -898,4 +909,3 @@ export default function OsPage() {
     
 
     
-

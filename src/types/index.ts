@@ -32,6 +32,9 @@ export type MaterialOrder = {
   deliveryLocation?: string;
 };
 
+export const VERTICALES = ['Recurrente', 'Grandes Eventos', 'Grandes Cuentas', 'Premium', 'Entregas'] as const;
+export type Vertical = typeof VERTICALES[number];
+
 // We need to allow string dates because they come from localStorage
 export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate'> & {
     id: string;
