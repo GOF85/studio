@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
-import { addDays, startOfToday, eachDayOfInterval, isSameDay } from 'date-fns';
+import { addDays, startOfToday, eachDayOfInterval, isSameDay, isBefore } from 'date-fns';
 import { ClipboardList, Calendar as CalendarIcon, Factory, Info, AlertTriangle, PackageCheck, ChevronRight, ChevronDown, Utensils, Component, Users, FileDigit, Soup, BookOpen } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -388,68 +389,48 @@ export default function PlanificacionPage() {
 
         // Detectar desviaciones y agruparlas
         const desviacionesAgrupadas: DesviacionOS[] = [];
-        const desviacionesMap = new Map<string, DesviacionOS>();
-
         osEnRango.forEach(os => {
             const ofsDeLaOS = ofsEnRango.filter(of => of.osIDs.includes(os.id));
             if (ofsDeLaOS.length === 0) return;
 
             let osConDesviacion: DesviacionOS | undefined;
             const hitosConDesviacion = new Map<string, DesviacionHito>();
-            
-            const gastroOrdersDeLaOS = gastroOrdersEnRango.filter(g => g.osId === os.id);
+
             const briefingDeLaOS = briefingsEnRango.find(b => b.osId === os.id);
+            
+            // Group elaborations by OF
+            const desviacionesPorReceta = new Map<string, { receta: Receta; gastroItem: GastronomyOrderItem; desviaciones: DesviacionElaboracion[] }>();
 
             ofsDeLaOS.forEach(of => {
                 const necesidadRegistro = necesidadesPorElaboracion.get(of.elaboracionId);
                 const necesidadActualOS = necesidadRegistro?.necesidadBruta || 0;
-
                 const necesidadOriginalOF = of.necesidadTotal || 0;
                 const diferencia = necesidadActualOS - necesidadOriginalOF;
 
                 if (Math.abs(diferencia) > 0.001) {
                     if (!osConDesviacion) {
-                        osConDesviacion = { osId: os.id, serviceNumber: os.serviceNumber, hitos: [], fecha: os.startDate, espacio: os.space || '' };
-                        desviacionesMap.set(os.id, osConDesviacion);
+                        osConDesviacion = { osId: os.id, serviceNumber: os.serviceNumber, fecha: os.startDate, espacio: os.space || '', hitos: [] };
                     }
                     
+                    const desviacionElab: DesviacionElaboracion = {
+                        id: of.id,
+                        of: of,
+                        necesidadActual: necesidadActualOS,
+                        diferencia: diferencia
+                    };
+
+                    // Find which recipe this deviation belongs to
                     briefingDeLaOS?.items.forEach(hito => {
-                        const gastroOrder = gastroOrdersDeLaOS.find(go => go.id === hito.id);
+                        const gastroOrder = gastroOrdersEnRango.find(go => go.id === hito.id);
                         gastroOrder?.items?.forEach(gastroItem => {
                             if (gastroItem.type === 'item') {
                                 const receta = recetasMap.get(gastroItem.id);
                                 if (receta && receta.elaboraciones.some(e => e.elaboracionId === of.elaboracionId)) {
-                                    
-                                    let hitoDesviacion = hitosConDesviacion.get(gastroOrder.id);
-                                    if (!hitoDesviacion) {
-                                        hitoDesviacion = { hitoId: gastroOrder.id, hitoDescripcion: gastroOrder.descripcion, recetas: [] };
-                                        hitosConDesviacion.set(gastroOrder.id, hitoDesviacion);
+                                    const key = `${gastroOrder.id}-${receta.id}`;
+                                    if (!desviacionesPorReceta.has(key)) {
+                                        desviacionesPorReceta.set(key, { receta, gastroItem, desviaciones: [] });
                                     }
-
-                                    let recetaDesviacion = hitoDesviacion.recetas.find(r => r.recetaId === receta.id);
-                                    if (!recetaDesviacion) {
-                                        const originalGastroOrder = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]').find((go: GastronomyOrder) => go.id === hito.id);
-                                        const originalItem = originalGastroOrder?.items?.find((i: GastronomyOrderItem) => i.id === receta.id);
-                                        const cantidadOriginal = originalItem?.quantity || 0;
-                                        const cantidadActual = gastroItem.quantity || 0;
-                                        
-                                        recetaDesviacion = { 
-                                            recetaId: receta.id, 
-                                            recetaNombre: receta.nombre, 
-                                            cantidadOriginal: cantidadOriginal,
-                                            cantidadActual: cantidadActual,
-                                            diferenciaUnidades: cantidadActual - cantidadOriginal,
-                                            elaboraciones: [] 
-                                        };
-                                        hitoDesviacion.recetas.push(recetaDesviacion);
-                                    }
-
-                                    recetaDesviacion.elaboraciones.push({
-                                        id: of.id,
-                                        of: of,
-                                        necesidadActual: necesidadActualOS,
-                                        diferencia: diferencia
-                                    });
+                                    desviacionesPorReceta.get(key)!.desviaciones.push(desviacionElab);
                                 }
                             }
                         });
@@ -458,8 +439,38 @@ export default function PlanificacionPage() {
             });
 
             if (osConDesviacion) {
-                osConDesviacion.hitos = Array.from(hitosConDesviacion.values());
-                desviacionesAgrupadas.push(osConDesviacion);
+                briefingDeLaOS?.items.forEach(hito => {
+                    const hitoDesviacion: DesviacionHito = { hitoId: hito.id, hitoDescripcion: hito.descripcion, recetas: []};
+                    let hitoHasDesviacion = false;
+
+                    desviacionesPorReceta.forEach(({ receta, gastroItem, desviaciones }, key) => {
+                         if (key.startsWith(hito.id)) {
+                             // Assuming we can find the original quantity. This is a simplification.
+                             // For a robust solution, original quantities should be stored with the OF.
+                            const elabEnReceta = receta.elaboraciones.find(e => e.elaboracionId === desviaciones[0].of.elaboracionId);
+                            const ratio = elabEnReceta ? elabEnReceta.cantidad : 1;
+                            const diferenciaUnidades = ratio > 0 ? desviaciones[0].diferencia / ratio : 0;
+                            
+                             hitoDesviacion.recetas.push({
+                                 recetaId: receta.id,
+                                 recetaNombre: receta.nombre,
+                                 cantidadOriginal: (gastroItem.quantity || 0) - diferenciaUnidades,
+                                 cantidadActual: gastroItem.quantity || 0,
+                                 diferenciaUnidades: diferenciaUnidades,
+                                 elaboraciones: desviaciones
+                             });
+                             hitoHasDesviacion = true;
+                         }
+                    });
+
+                    if (hitoHasDesviacion) {
+                        osConDesviacion.hitos.push(hitoDesviacion);
+                    }
+                });
+
+                if (osConDesviacion.hitos.length > 0) {
+                    desviacionesAgrupadas.push(osConDesviacion);
+                }
             }
         });
         
@@ -912,7 +923,7 @@ export default function PlanificacionPage() {
                                                      {hito.recetas.map(receta => (
                                                         <div key={receta.recetaId} className="pl-4 mt-1">
                                                             <div className="text-sm text-muted-foreground">
-                                                                {receta.recetaNombre} <Badge variant="secondary" className={cn(receta.diferenciaUnidades > 0 ? 'text-orange-600' : 'text-blue-600')}>{receta.diferenciaUnidades > 0 ? '+' : ''}{receta.diferenciaUnidades} uds.</Badge>
+                                                                {receta.recetaNombre} <Badge variant="secondary" className={cn(receta.diferenciaUnidades > 0 ? 'text-orange-600' : 'text-blue-600')}>{receta.diferenciaUnidades > 0 ? '+' : ''}{formatNumber(receta.diferenciaUnidades, 2)} uds.</Badge>
                                                             </div>
                                                             <Table>
                                                                 <TableHeader><TableRow><TableHead className="h-8">OF</TableHead><TableHead className="h-8">Elaboración</TableHead><TableHead className="h-8">Cant. Original</TableHead><TableHead className="h-8">Cant. Nueva</TableHead><TableHead className="h-8">Desviación</TableHead><TableHead className="h-8">Estado OF</TableHead><TableHead className="h-8">Acciones</TableHead></TableRow></TableHeader>
