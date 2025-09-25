@@ -4,6 +4,7 @@
 
 
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -159,7 +160,11 @@ const EspacioTitle = () => {
 const ResponsablesTitle = () => {
     const metre = useWatch({ name: 'respMetre' });
     const pase = useWatch({ name: 'respPase' });
-    let details = [metre, pase].filter(Boolean).join(' - ');
+    const details = [
+        metre ? `Metre: ${metre}` : '',
+        pase ? `Pase: ${pase}` : ''
+    ].filter(Boolean).join(' / ');
+
     return (
         <h3 className="text-lg font-semibold">
           Responsables
@@ -893,3 +898,4 @@ export default function OsPage() {
     
 
     
+
