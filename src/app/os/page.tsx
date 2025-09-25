@@ -10,6 +10,8 @@
 
 
 
+
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -174,17 +176,17 @@ const ResponsablesTitle = () => {
 
   return (
     <h3 className="text-lg font-semibold">
-      Responsables -
+      <span className="text-foreground">Responsables - </span>
       {metre && (
         <>
-          <span className="text-foreground"> Metre: </span>
+          <span className="text-foreground">Metre: </span>
           <span className="text-primary">{metre}</span>
         </>
       )}
       {metre && pase && <span className="text-foreground"> / </span>}
       {pase && (
         <>
-          <span className="text-foreground"> Pase: </span>
+          <span className="text-foreground">Pase: </span>
           <span className="text-primary">{pase}</span>
         </>
       )}
@@ -596,7 +598,7 @@ export default function OsPage() {
                             <FormItem>
                             <FormLabel>Estado</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl><SelectTrigger className={cn(statusValue === 'Confirmado' && 'bg-green-100 dark:bg-green-900 border-green-400')}><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger className={cn(statusValue === 'Confirmado' && 'bg-green-100 dark:bg-green-900 border-green-400', statusValue === 'Pendiente' && 'bg-red-100 dark:bg-red-900 border-red-400')}><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                 <SelectContent>
                                 <SelectItem value="Borrador">Borrador</SelectItem>
                                 <SelectItem value="Pendiente">Pendiente</SelectItem>
