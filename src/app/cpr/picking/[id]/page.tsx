@@ -281,7 +281,7 @@ export default function PickingDetailPage() {
             lotesPorHito.set(hito.id, lotesPendientesHito);
         });
         
-        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete };
+        return { lotesPendientesPorHito, isPickingComplete: allComplete };
 
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, lotesNecesarios]);
     
@@ -541,12 +541,13 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                         {lotesDePartida.length > 0 && (
                                                             <div className="mb-4">
                                                                 <h3 className="font-semibold mb-2">Lotes pendientes de asignar para este servicio</h3>
-                                                                <Table className="bg-white"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
+                                                                <Table className="bg-white"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Receta</TableHead><TableHead>Elaboración</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
                                                                     <TableBody>
                                                                         {lotesDePartida.map(lote => (
                                                                             <TableRow key={lote.ofId}>
                                                                                 <TableCell className="font-medium font-mono">{lote.ofId}</TableCell>
-                                                                                <TableCell>
+                                                                                <TableCell className="text-xs text-muted-foreground">{lote.recetas.map(r => r.nombre).join(', ')}</TableCell>
+                                                                                <TableCell className="font-bold">
                                                                                     <Tooltip>
                                                                                         <TooltipTrigger>{lote.elaboracionNombre}</TooltipTrigger>
                                                                                         <TooltipContent>
