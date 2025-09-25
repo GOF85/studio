@@ -255,7 +255,10 @@ export default function PickingDetailPage() {
                 
                 return { ...necesidad, cantidadAsignada: cantidadAsignadaTotal };
             }).filter(lote => {
-                const ofState = allOFs.find(of => of.id === lote.ofId)?.estado;
+                const of = allOFs.find(o => o.id === lote.ofId);
+                if (!of) return false;
+                
+                const ofState = of.estado;
                 const isReadyForPicking = ofState === 'Validado' || ofState === 'Finalizado';
                 const cantidadPendiente = lote.cantidadNecesaria - lote.cantidadAsignada;
                 return cantidadPendiente > 0.001 && isReadyForPicking;
@@ -266,7 +269,7 @@ export default function PickingDetailPage() {
             lotesPorHito.set(hito.id, lotesPendientesHito);
         });
         
-        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete };
+        return { lotesPendientesPorHito, isPickingComplete: allComplete };
 
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, lotesNecesarios]);
     
@@ -600,3 +603,4 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
         </div>
     );
 }
+
