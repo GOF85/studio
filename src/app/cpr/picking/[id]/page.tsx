@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -317,62 +316,63 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
         const containersForHito = pickingState.assignedContainers.filter(c => c.hitoId === hito.id);
         
         containersForHito.forEach((container, index) => {
+            const totalContainersOfType = containersForHito.filter(c => c.tipo === container.tipo).length;
             if (index > 0) doc.addPage();
 
             const margin = 5;
             const pageWidth = doc.internal.pageSize.getWidth();
             let finalY = margin;
-
-            doc.setFontSize(18);
+            
+            // --- HEADER ---
+            doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
-            doc.setTextColor('#059669'); // Primary color
-            doc.text(`${expeditionTypeMap[container.tipo].title} - Contenedor ${container.numero}`, margin, finalY + 2);
-            finalY += 4;
+            doc.setTextColor('#000000');
+            const headerText = `${container.tipo} - ${container.numero} de ${totalContainersOfType}`;
+            doc.text(headerText, margin, finalY + 2);
+            finalY += 6;
             
             doc.setLineWidth(0.5);
+            doc.setDrawColor('#000000');
             doc.line(margin, finalY, pageWidth - margin, finalY);
-            finalY += 2;
+            finalY += 4;
 
-            doc.setFontSize(8);
+            // --- INFO SECTION ---
+            doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151'); // Dark gray
+            doc.setTextColor('#374151'); 
             
-            const serviceData = [
+            const leftCol = [
                 ['Nº Serv:', serviceOrder.serviceNumber],
-                ['Cliente:', serviceOrder.finalClient || serviceOrder.client],
-            ];
-            autoTable(doc, {
-                body: serviceData,
-                startY: finalY,
-                theme: 'plain',
-                tableWidth: (pageWidth - margin * 2) / 2 - 2,
-                styles: { fontSize: 8, cellPadding: 0.1 },
-                columnStyles: { 0: { fontStyle: 'bold' } },
-                margin: { left: margin },
-            });
-
-            const eventData = [
-                ['Espacio:', serviceOrder.space || '-'],
-                ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
                 ['Servicio:', hito.descripcion]
             ];
+            const rightCol = [
+                ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
+                ['Cliente:', serviceOrder.finalClient || serviceOrder.client]
+            ];
+
             autoTable(doc, {
-                body: eventData,
-                startY: finalY,
-                theme: 'plain',
-                tableWidth: (pageWidth - margin * 2) / 2 - 2,
-                margin: { left: pageWidth / 2 + 2 },
-                styles: { fontSize: 8, cellPadding: 0.1 },
-                columnStyles: { 0: { fontStyle: 'bold' } }
+                body: leftCol, startY: finalY, theme: 'plain', tableWidth: (pageWidth - margin * 2) / 2 - 2,
+                styles: { fontSize: 9, cellPadding: 0.2 }, columnStyles: { 0: { fontStyle: 'bold' } }, margin: { left: margin },
             });
+            autoTable(doc, {
+                body: rightCol, startY: finalY, theme: 'plain', tableWidth: (pageWidth - margin * 2) / 2 - 2,
+                margin: { left: pageWidth / 2 + 2 }, styles: { fontSize: 9, cellPadding: 0.2 }, columnStyles: { 0: { fontStyle: 'bold' } }
+            });
+            
+            finalY = (doc as any).lastAutoTable.finalY;
+            
+            doc.setFont('helvetica', 'bold');
+            doc.text('Espacio:', margin, finalY + 5);
+            doc.setFont('helvetica', 'normal');
+            doc.text(serviceOrder.space || '-', margin + 15, finalY + 5);
+            finalY += 8;
 
-            finalY = (doc as any).lastAutoTable.finalY + 2;
-
-
+            // --- SEPARATOR ---
             doc.setLineWidth(0.2);
             doc.line(margin, finalY, pageWidth - margin, finalY);
-            finalY += 2;
+            finalY += 4;
 
+            // --- ITEMS TABLE ---
             const itemsGrouped = new Map<string, { totalQuantity: number, lotes: string[], unidad: string, receta: string }>();
             const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
 
@@ -381,7 +381,6 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                 if (loteInfo) {
                     const key = loteInfo.elaboracionNombre;
                     const recetaNombre = getRecetaForElaboracion(loteInfo.elaboracionId, osId);
-
                     if (!itemsGrouped.has(key)) {
                         itemsGrouped.set(key, { totalQuantity: 0, lotes: [], unidad: loteInfo.unidad, receta: recetaNombre });
                     }
@@ -491,7 +490,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                 <CardDescription>Fecha: {format(new Date(hito.fecha), 'dd/MM/yyyy')} a las {hito.horaInicio}</CardDescription>
                                </div>
                                 <Button onClick={() => handlePrintHito(hito)} disabled={!hasContentToPrint || !!isPrinting} className="no-print">
-                                    {isPrinting === hito.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2"/>}
+                                    {isPrinting === hito.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2" />}
                                     {isPrinting === hito.id ? 'Generando...' : 'Generar etiquetas'}
                                 </Button>
                             </CardHeader>
@@ -596,3 +595,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
     );
 }
 
+
+    
+
+    
