@@ -7,6 +7,7 @@
 
 
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -164,19 +165,27 @@ const EspacioTitle = () => {
 const ResponsablesTitle = () => {
     const metre = useWatch({ name: 'respMetre' });
     const pase = useWatch({ name: 'respPase' });
-    const details = [
-        metre ? `Metre: ${metre}` : '',
-        pase ? `Pase: ${pase}` : ''
-    ].filter(Boolean).join(' / ');
+
+    if (!metre && !pase) {
+        return <h3 className="text-lg font-semibold">Responsables</h3>;
+    }
 
     return (
         <h3 className="text-lg font-semibold">
           Responsables
-          {details && (
-            <>
-              {' - '}
-              <span className="text-primary">{details}</span>
-            </>
+          {' - '}
+          {metre && (
+              <>
+                  <span>Metre: </span>
+                  <span className="text-primary">{metre}</span>
+              </>
+          )}
+          {metre && pase && <span> / </span>}
+          {pase && (
+              <>
+                  <span>Pase: </span>
+                  <span className="text-primary">{pase}</span>
+              </>
           )}
         </h3>
       );
@@ -912,4 +921,3 @@ export default function OsPage() {
     
 
     
-
