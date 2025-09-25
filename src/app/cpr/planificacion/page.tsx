@@ -509,7 +509,6 @@ export default function PlanificacionPage() {
                             <ClipboardList />
                             Planificación de Producción
                         </h1>
-                        <p className="text-muted-foreground mt-1">Agrega las necesidades de elaboración para los eventos confirmados.</p>
                     </div>
                 </div>
 
@@ -788,7 +787,7 @@ export default function PlanificacionPage() {
                             <CardHeader>
                                 <CardTitle>Planificación de Elaboraciones</CardTitle>
                                 <div className="flex justify-between items-center">
-                                    <CardDescription>Vista consolidada de todas las elaboraciones necesarias para producir. Selecciona las filas para generar Órdenes de Fabricación.</CardDescription>
+                                    <div></div>
                                      <Select value={partidaFilter} onValueChange={setPartidaFilter}>
                                         <SelectTrigger className="w-[240px]">
                                             <SelectValue placeholder="Filtrar por partida" />
