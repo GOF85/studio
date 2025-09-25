@@ -506,7 +506,14 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
 
                 <div className="space-y-8">
                     {hitosConNecesidades.map(hito => {
-                        const lotesPendientesHito = lotesPendientesPorHito.get(hito.id) || [];
+                        const lotesPendientesHito = (lotesPendientesPorHito.get(hito.id) || []).sort((a, b) => {
+                            const recetaA = a.recetas[0]?.nombre || '';
+                            const recetaB = b.recetas[0]?.nombre || '';
+                            if (recetaA.localeCompare(recetaB) !== 0) {
+                                return recetaA.localeCompare(recetaB);
+                            }
+                            return a.elaboracionNombre.localeCompare(b.elaboracionNombre);
+                        });
                         const hasContentToPrint = pickingState.itemStates.some(item => item.hitoId === hito.id);
                         
                         return (
@@ -545,7 +552,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                         {lotesDePartida.length > 0 && (
                                                             <div className="mb-4">
                                                                 <h3 className="font-semibold mb-2">Lotes pendientes de asignar para este servicio</h3>
-                                                                <Table className="bg-white"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Receta</TableHead><TableHead>Elaboración</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
+                                                                <Table className="bg-white"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead className="w-[20%]">Receta</TableHead><TableHead className="font-bold">Elaboración</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
                                                                     <TableBody>
                                                                         {lotesDePartida.map(lote => (
                                                                             <TableRow key={lote.ofId}>
