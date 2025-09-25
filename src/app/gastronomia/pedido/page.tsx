@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -135,7 +136,7 @@ function SortableTableRow({ field, index, remove, form }: { field: GastronomyOrd
     return (
         <TableRow ref={setNodeRef} style={style} {...attributes}>
              <TableCell className="py-1 px-2 w-10">
-                <Button variant="ghost" size="icon" {...listeners} className="cursor-grab h-8 w-8">
+                <Button type="button" variant="ghost" size="icon" {...listeners} className="cursor-grab h-8 w-8">
                     <GripVertical className="h-4 w-4 text-muted-foreground"/>
                 </Button>
             </TableCell>
@@ -246,7 +247,7 @@ export default function PedidoGastronomiaPage() {
     append({
         id: Date.now().toString(),
         type: 'separator',
-        nombre: 'Nuevo Separador',
+        nombre: '',
         categoria: '',
         costeMateriaPrima: 0,
         quantity: 0
@@ -260,7 +261,7 @@ export default function PedidoGastronomiaPage() {
         }
         return acc;
     }, 0);
-  }, [fields, form.watch('items')]);
+  }, [fields, form.watch('items')]); // watch items for changes
 
   const onSubmit = (data: GastronomyOrderFormValues) => {
     const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
