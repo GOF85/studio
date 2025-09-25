@@ -489,7 +489,7 @@ export default function ComercialPage() {
         
         <FormProvider {...financialForm}>
              <Accordion type="single" collapsible className="w-full mb-8">
-                <AccordionItem value="finanzas" className="border-none">
+                <AccordionItem value="item-1" className="border-none">
                     <Card>
                         <AccordionTrigger className="py-2 px-4">
                             <div className="flex items-center justify-between w-full">
@@ -526,16 +526,6 @@ export default function ComercialPage() {
                                             </FormItem>
                                         )} />
                                     </div>
-                                    <FormItem className="mt-auto invisible">
-                                        <FormLabel className="text-lg">Facturación Neta</FormLabel>
-                                        <FormControl>
-                                        <Input
-                                            readOnly
-                                            value={facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                                            className="font-bold text-primary h-12 text-xl"
-                                        />
-                                        </FormControl>
-                                    </FormItem>
                                 </form>
                                 <div className="space-y-4">
                                     <h3 className="text-lg font-semibold border-b pb-2">Ajustes a la Facturación</h3>
