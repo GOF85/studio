@@ -63,7 +63,7 @@ export const statusVariant: { [key in PickingStatus]: 'default' | 'secondary' | 
   Retornado: 'destructive',
 };
 
-function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendiente, containers: ContenedorDinamico[], onAllocate: (containerId: string, quantity: number) => void }) {
+function AllocationDialog({ lote, containers, onAllocate, onAddContainer }: { lote: LotePendiente, containers: ContenedorDinamico[], onAllocate: (containerId: string, quantity: number) => void, onAddContainer: () => string }) {
     const cantidadPendiente = parseFloat((lote.cantidadNecesaria - lote.cantidadAsignada).toFixed(2));
     const [quantity, setQuantity] = useState(cantidadPendiente);
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
@@ -83,6 +83,11 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
         setOpen(false);
     }
     
+    const handleAddNewContainer = () => {
+      const newContainerId = onAddContainer();
+      setSelectedContainerId(newContainerId);
+    }
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -102,14 +107,17 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
                     </div>
                     <div className="space-y-2">
                         <Label>Contenedor de Destino</Label>
-                        <Select onValueChange={setSelectedContainerId} value={selectedContainerId || undefined}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Seleccionar contenedor..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {containers.map(c => <SelectItem key={c.id} value={c.id}>Contenedor {c.numero}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex gap-2">
+                            <Select onValueChange={setSelectedContainerId} value={selectedContainerId || undefined}>
+                                <SelectTrigger className="flex-grow">
+                                    <SelectValue placeholder="Seleccionar contenedor..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {containers.map(c => <SelectItem key={c.id} value={c.id}>Contenedor {c.numero}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Button variant="outline" type="button" onClick={handleAddNewContainer}><PlusCircle className="mr-2"/>Añadir Contenedor</Button>
+                        </div>
                     </div>
                 </div>
                  <DialogFooter>
@@ -297,7 +305,7 @@ export default function PickingDetailPage() {
         );
     }, [lotesNecesarios]);
 
-    const addContainer = (tipo: keyof typeof expeditionTypeMap, hitoId: string) => {
+    const addContainer = (tipo: keyof typeof expeditionTypeMap, hitoId: string): string => {
       const newContainer: ContenedorDinamico = {
         id: `cont-${Date.now()}`,
         hitoId: hitoId,
@@ -305,6 +313,7 @@ export default function PickingDetailPage() {
         numero: (pickingState.assignedContainers.filter(c => c.hitoId === hitoId && c.tipo === tipo).length) + 1
       }
       savePickingState({ assignedContainers: [...pickingState.assignedContainers, newContainer] });
+      return newContainer.id;
     }
 
     const removeContainer = (containerId: string) => {
@@ -552,11 +561,10 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                         {lotesDePartida.length > 0 && (
                                                             <div className="mb-4">
                                                                 <h3 className="font-semibold mb-2">Lotes pendientes de asignar para este servicio</h3>
-                                                                <Table className="bg-white"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead className="w-[20%]">Receta</TableHead><TableHead className="font-bold">Elaboración</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
+                                                                <Table className="bg-white"><TableHeader><TableRow><TableHead className="w-[20%]">Receta</TableHead><TableHead className="font-bold">Elaboración</TableHead><TableHead>Lote (OF)</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
                                                                     <TableBody>
                                                                         {lotesDePartida.map(lote => (
                                                                             <TableRow key={lote.ofId}>
-                                                                                <TableCell className="font-medium font-mono">{lote.ofId}</TableCell>
                                                                                 <TableCell className="text-xs text-muted-foreground">{lote.recetas.map(r => r.nombre).join(', ')}</TableCell>
                                                                                 <TableCell className="font-bold">
                                                                                     <Tooltip>
@@ -573,8 +581,9 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                                                         </TooltipContent>
                                                                                     </Tooltip>
                                                                                 </TableCell>
+                                                                                <TableCell className="font-medium font-mono">{lote.ofId}</TableCell>
                                                                                 <TableCell className="text-right font-mono">{formatNumber(lote.cantidadNecesaria - lote.cantidadAsignada, 2)} {formatUnit(lote.unidad)}</TableCell>
-                                                                                <TableCell className="text-right no-print"><AllocationDialog lote={lote} containers={contenedoresDePartida} onAllocate={(contId, qty) => allocateLote(lote.ofId, contId, qty, hito.id)} /></TableCell>
+                                                                                <TableCell className="text-right no-print"><AllocationDialog lote={lote} containers={contenedoresDePartida} onAllocate={(contId, qty) => allocateLote(lote.ofId, contId, qty, hito.id)} onAddContainer={() => addContainer(tipo, hito.id)} /></TableCell>
                                                                             </TableRow>
                                                                         ))}
                                                                     </TableBody>
