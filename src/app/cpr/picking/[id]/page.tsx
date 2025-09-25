@@ -64,8 +64,8 @@ export const statusVariant: { [key in PickingStatus]: 'default' | 'secondary' | 
 };
 
 function AllocationDialog({ lote, containers, onAllocate, onAddContainer }: { lote: LotePendiente, containers: ContenedorDinamico[], onAllocate: (containerId: string, quantity: number) => void, onAddContainer: () => string }) {
-    const cantidadPendiente = Math.ceil((lote.cantidadNecesaria - lote.cantidadAsignada) * 100) / 100;
-    const [quantity, setQuantity] = useState(cantidadPendiente);
+    const cantidadPendiente = Math.ceil(lote.cantidadNecesaria * 100) / 100 - Math.ceil(lote.cantidadAsignada * 100) / 100;
+    const [quantity, setQuantity] = useState(Math.max(0, cantidadPendiente));
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
     const [open, setOpen] = useState(false);
     const { toast } = useToast();
@@ -215,7 +215,7 @@ export default function PickingDetailPage() {
     const { lotesPendientesPorHito, isPickingComplete } = useMemo(() => {
         const lotesPorHito = new Map<string, LotePendiente[]>();
         if (!isMounted || !hitosConNecesidades.length) {
-            return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: true };
+            return { lotesPendientesPorHito, isPickingComplete: true };
         }
     
         const allOFs = lotesNecesarios;
@@ -293,7 +293,7 @@ export default function PickingDetailPage() {
             lotesPorHito.set(hito.id, lotesPendientesHito);
         });
         
-        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete };
+        return { lotesPendientesPorHito, isPickingComplete: allComplete };
     
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, lotesNecesarios]);
     
@@ -346,71 +346,68 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
 
     try {
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [100, 150] });
-        
-        const containersForHito = pickingState.assignedContainers.filter(c => c.hitoId === hito.id);
-        
-        containersForHito.forEach((container, index) => {
-            const totalContainersOfType = containersForHito.filter(c => c.tipo === container.tipo).length;
-            if (index > 0) doc.addPage();
+        let firstPage = true;
 
-            const margin = 5;
-            const pageWidth = doc.internal.pageSize.getWidth();
-            let finalY = margin;
+        for (const tipo of Object.keys(expeditionTypeMap) as Array<keyof typeof expeditionTypeMap>) {
+            const containersForType = pickingState.assignedContainers.filter(c => c.hitoId === hito.id && c.tipo === tipo);
+            if (containersForType.length === 0) continue;
+
+            if (!firstPage) {
+                doc.addPage();
+            }
+            firstPage = false;
             
+            let finalY = 5; // margin
+
             // --- HEADER ---
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor('#059669'); // Primary color
-            const headerText = `${container.tipo} - ${container.numero} de ${totalContainersOfType}`;
-            doc.text(headerText, margin, finalY + 2);
+            doc.text(`${expeditionTypeMap[tipo].title}`, 5, finalY + 2);
             finalY += 6;
             
             doc.setLineWidth(0.5);
             doc.setDrawColor('#000000');
-            doc.line(margin, finalY, pageWidth - margin, finalY);
+            doc.line(5, finalY, 95, finalY);
             finalY += 4;
-
-            // --- INFO SECTION ---
+            
+            // --- INFO ---
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151'); // Gris oscuro
-            
-            const leftCol = [
-                ['Nº Serv:', serviceOrder.serviceNumber],
-                ['Servicio:', hito.descripcion]
-            ];
-            const rightCol = [
-                ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
-                ['Cliente:', serviceOrder.finalClient || serviceOrder.client]
-            ];
+            doc.setTextColor('#374151');
+            autoTable(doc, {
+                body: [
+                    ['Nº Serv:', serviceOrder.serviceNumber],
+                    ['Servicio:', hito.descripcion],
+                    ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
+                    ['Cliente:', serviceOrder.finalClient || serviceOrder.client]
+                ],
+                startY: finalY,
+                theme: 'plain',
+                styles: { fontSize: 9, cellPadding: 0.5 },
+                columnStyles: { 0: { fontStyle: 'bold' } }
+            });
+            finalY = (doc as any).lastAutoTable.finalY + 2;
 
-            autoTable(doc, {
-                body: leftCol, startY: finalY, theme: 'plain', tableWidth: (pageWidth - margin * 2) / 2 - 2,
-                styles: { fontSize: 9, cellPadding: 0.5 }, columnStyles: { 0: { fontStyle: 'bold' } }, margin: { left: margin },
-            });
-            autoTable(doc, {
-                body: rightCol, startY: finalY, theme: 'plain', tableWidth: (pageWidth - margin * 2) / 2 - 2,
-                margin: { left: pageWidth / 2 + 2 }, styles: { fontSize: 9, cellPadding: 0.5 }, columnStyles: { 0: { fontStyle: 'bold' } }
-            });
-            
-            finalY = (doc as any).lastAutoTable.finalY;
-            
             doc.setFont('helvetica', 'bold');
-            doc.text('Espacio:', margin, finalY + 5);
+            doc.text('Espacio:', 5, finalY);
             doc.setFont('helvetica', 'normal');
-            doc.text(serviceOrder.space || '-', margin + 15, finalY + 5);
-            finalY += 8;
+            doc.text(serviceOrder.space || '-', 20, finalY);
+            finalY += 5;
 
             // --- SEPARATOR ---
             doc.setLineWidth(0.2);
-            doc.line(margin, finalY, pageWidth - margin, finalY);
+            doc.line(5, finalY, 95, finalY);
             finalY += 4;
-
-            // --- ITEMS TABLE ---
+            
+            // --- SUMMARY TABLE ---
             const itemsGrouped = new Map<string, { totalQuantity: number, lotes: string[], unidad: string, receta: string }>();
-            const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
-
-            containerItems.forEach(assignedLote => {
+            const itemsForType = pickingState.itemStates.filter(item => {
+                const container = pickingState.assignedContainers.find(c => c.id === item.containerId);
+                return container?.tipo === tipo && container?.hitoId === hito.id;
+            });
+            
+            itemsForType.forEach(assignedLote => {
                 const loteInfo = lotesNecesarios.find(l => l.id === assignedLote.ofId);
                 if (loteInfo) {
                     const key = loteInfo.elaboracionNombre;
@@ -428,28 +425,77 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
             itemsGrouped.forEach((data, elabName) => {
                  body.push([
                     { content: `${elabName}\n(${data.receta})`, styles: { fontSize: 8, cellPadding: 1 } },
-                    { content: `${formatNumber(data.totalQuantity, 2)} ${formatUnit(data.unidad)}`, styles: { halign: 'right' } }, 
-                    { content: data.lotes.join(', '), styles: { halign: 'right' } }
+                    { content: `${formatNumber(data.totalQuantity, 2)} ${formatUnit(data.unidad)}`, styles: { halign: 'right' } },
                 ]);
             });
 
             autoTable(doc, {
                 startY: finalY,
-                head: [['Elaboración (Receta)', 'Cant. Tot.', 'Lote']],
+                head: [['Elaboración (Receta)', 'Cant. Tot.']],
                 body,
                 theme: 'grid',
-                tableWidth: pageWidth - margin * 2,
                 headStyles: { fontStyle: 'bold', fontSize: 9, halign: 'center', cellPadding: 1, fillColor: [230, 230, 230], textColor: [0,0,0] },
                 styles: { fontSize: 8, cellPadding: 1, lineColor: '#000', lineWidth: 0.1, valign: 'middle' },
-                margin: { left: margin },
                 columnStyles: {
-                    0: { cellWidth: 35 },
-                    1: { cellWidth: 20, halign: 'right' },
-                    2: { cellWidth: 'auto', halign: 'right' },
+                    0: { cellWidth: 50 },
+                    1: { cellWidth: 30, halign: 'right' },
                 }
             });
-        });
 
+            // Generate individual labels for each container
+            containersForType.forEach((container) => {
+                doc.addPage();
+                // Re-add header and info for each label page
+                finalY = 5;
+                doc.setFontSize(16); doc.setFont('helvetica', 'bold'); doc.setTextColor('#059669');
+                doc.text(`${container.tipo} - ${container.numero} de ${containersForType.length}`, 5, finalY + 2);
+                finalY += 10;
+                doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor('#374151');
+                autoTable(doc, { body: serviceData, startY: finalY, theme: 'plain', tableWidth: 45-5, styles: { fontSize: 9, cellPadding: 0.5 }, columnStyles: { 0: { fontStyle: 'bold' } }});
+                autoTable(doc, { body: eventData, startY: finalY, theme: 'plain', tableWidth: 45-5, margin: { left: 50 + 5 }, styles: { fontSize: 9, cellPadding: 0.5 }, columnStyles: { 0: { fontStyle: 'bold' } }});
+                finalY = (doc as any).lastAutoTable.finalY + 2;
+                doc.setFont('helvetica', 'bold'); doc.text('Espacio:', 5, finalY); doc.setFont('helvetica', 'normal'); doc.text(serviceOrder.space || '-', 20, finalY);
+                finalY += 8;
+                doc.setLineWidth(0.2); doc.line(5, 95, 5, finalY); finalY += 4;
+                
+                const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
+                const containerItemsGrouped = new Map<string, { totalQuantity: number, lotes: string[], unidad: string, receta: string }>();
+                containerItems.forEach(assignedLote => {
+                    const loteInfo = lotesNecesarios.find(l => l.id === assignedLote.ofId);
+                    if (loteInfo) {
+                        const key = loteInfo.elaboracionNombre;
+                        const recetaNombre = getRecetaForElaboracion(loteInfo.elaboracionId, osId);
+                        if (!containerItemsGrouped.has(key)) {
+                            containerItemsGrouped.set(key, { totalQuantity: 0, lotes: [], unidad: loteInfo.unidad, receta: recetaNombre });
+                        }
+                        const entry = containerItemsGrouped.get(key)!;
+                        entry.totalQuantity += assignedLote.quantity;
+                        if(!entry.lotes.includes(loteInfo.id)) entry.lotes.push(loteInfo.id);
+                    }
+                });
+
+                const containerBody: any[] = [];
+                containerItemsGrouped.forEach((data, elabName) => {
+                     containerBody.push([
+                        { content: `${elabName}\n(${data.receta})`, styles: { fontSize: 8, cellPadding: 1 } },
+                        { content: `${formatNumber(data.totalQuantity, 2)} ${formatUnit(data.unidad)}`, styles: { halign: 'right' } }, 
+                        { content: data.lotes.join(', '), styles: { halign: 'right' } }
+                    ]);
+                });
+
+                autoTable(doc, {
+                    startY: finalY,
+                    head: [['Elaboración (Receta)', 'Cant. Tot.', 'Lote']],
+                    body: containerBody,
+                    theme: 'grid',
+                    tableWidth: 90,
+                    headStyles: { fontStyle: 'bold', fontSize: 9, halign: 'center', cellPadding: 1, fillColor: [230, 230, 230], textColor: [0,0,0] },
+                    styles: { fontSize: 8, cellPadding: 1, lineColor: '#000', lineWidth: 0.1, valign: 'middle' },
+                    columnStyles: { 0: { cellWidth: 35 }, 1: { cellWidth: 20, halign: 'right' }, 2: { cellWidth: 'auto', halign: 'right' } }
+                });
+            });
+        }
+        
         doc.save(`Etiquetas_Picking_${serviceOrder.serviceNumber}_${hito.descripcion.replace(/\s+/g, '_')}.pdf`);
 
     } catch (error) {
