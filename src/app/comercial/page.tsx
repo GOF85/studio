@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -116,9 +117,9 @@ export default function ComercialPage() {
     }
   }, [serviceOrder, osId]);
 
-  function FinancialCalculator({ totalFacturacion, onNetChange }: { totalFacturacion: number, onNetChange: (net:number) => void }) {
-    const agencyPercentage = useWatch({ name: 'agencyPercentage' });
-    const spacePercentage = useWatch({ name: 'spacePercentage' });
+  const FinancialCalculator = ({ totalFacturacion, onNetChange }: { totalFacturacion: number, onNetChange: (net:number) => void }) => {
+    const agencyPercentage = useWatch({ control: financialForm.control, name: 'agencyPercentage' });
+    const spacePercentage = useWatch({ control: financialForm.control, name: 'spacePercentage' });
   
     const facturacionNeta = useMemo(() => {
       const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
@@ -499,11 +500,11 @@ export default function ComercialPage() {
                                             </TableBody>
                                             <TableFooter>
                                             <TableRow>
-                                                <TableCell className="p-1">
+                                                <TableCell colSpan={2} className="p-1">
                                                     <Input ref={nuevoAjusteConceptoRef} placeholder="Nuevo concepto" className="h-8 text-xs"/>
                                                 </TableCell>
-                                                <TableCell className="text-right p-1">
-                                                    <Input ref={nuevoAjusteImporteRef} type="number" step="0.01" placeholder="Importe" className="text-right h-8 w-28 text-xs"/>
+                                                <TableCell className="text-right p-1 pr-2">
+                                                    <Input ref={nuevoAjusteImporteRef} type="number" step="0.01" placeholder="Importe" className="text-right h-8 w-24 text-xs"/>
                                                 </TableCell>
                                                 <TableCell className="text-right p-1">
                                                     <Button type="button" onClick={handleAddAjuste} size="sm" className="h-8 text-xs">Añadir</Button>
@@ -542,10 +543,6 @@ export default function ComercialPage() {
                     <TableHead className="py-2 px-3">P.Unitario</TableHead>
                     <TableHead className="py-2 px-3">Imp. Fijo</TableHead>
                     <TableHead className="py-2 px-3">Total</TableHead>
-                    <TableHead className="py-2 px-3">Bebidas</TableHead>
-                    <TableHead className="py-2 px-3">Mat. Bebida</TableHead>
-                    <TableHead className="py-2 px-3">Mat. Gastro</TableHead>
-                    <TableHead className="py-2 px-3">Mantelería</TableHead>
                     <TableHead className="py-2 px-3 text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -565,10 +562,6 @@ export default function ComercialPage() {
                         <TableCell className="py-2 px-3">{item.precioUnitario.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                         <TableCell className="py-2 px-3">{(item.importeFijo || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                         <TableCell className="py-2 px-3">{((item.asistentes * item.precioUnitario) + (item.importeFijo || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                        <TableCell className="py-2 px-3">{item.bebidas}</TableCell>
-                        <TableCell className="py-2 px-3">{item.matBebida}</TableCell>
-                        <TableCell className="py-2 px-3">{item.materialGastro}</TableCell>
-                        <TableCell className="py-2 px-3">{item.manteleria}</TableCell>
                         <TableCell className="py-2 px-3 text-right" onClick={(e) => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem(item.id)}>
                             <Trash2 className="h-4 w-4" />
@@ -578,7 +571,7 @@ export default function ComercialPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={17} className="h-24 text-center">
+                      <TableCell colSpan={13} className="h-24 text-center">
                         No hay hitos en el briefing. Añade uno para empezar.
                       </TableCell>
                     </TableRow>
