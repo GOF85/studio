@@ -73,8 +73,9 @@ const financialSchema = osFormSchema.pick({
 type FinancialFormValues = z.infer<typeof financialSchema>;
 
 function FinancialCalculator ({ totalFacturacion, onNetChange }: { totalFacturacion: number, onNetChange: (net:number) => void }) {
-    const agencyPercentage = useWatch({ name: 'agencyPercentage' });
-    const spacePercentage = useWatch({ name: 'spacePercentage' });
+    const { control } = useFormContext();
+    const agencyPercentage = useWatch({ control, name: 'agencyPercentage' });
+    const spacePercentage = useWatch({ control, name: 'spacePercentage' });
   
     const facturacionNeta = useMemo(() => {
       const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
@@ -483,7 +484,7 @@ export default function ComercialPage() {
         </div>
         
         <FormProvider {...financialForm}>
-             <Accordion type="single" collapsible className="w-full mb-8" defaultValue="finanzas">
+             <Accordion type="single" collapsible className="w-full mb-8">
                 <AccordionItem value="finanzas" className="border-none">
                     <Card>
                         <AccordionTrigger className="py-2 px-4">
