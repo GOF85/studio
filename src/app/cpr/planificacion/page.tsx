@@ -58,12 +58,31 @@ type Necesidad = {
     loteOrigen?: string;
 };
 
-type Desviacion = {
+type DesviacionElaboracion = {
     id: string; // of.id
     of: OrdenFabricacion;
     necesidadActual: number;
     diferencia: number;
 }
+
+type DesviacionReceta = {
+    recetaId: string;
+    recetaNombre: string;
+    elaboraciones: DesviacionElaboracion[];
+};
+
+type DesviacionHito = {
+    hitoId: string;
+    hitoDescripcion: string;
+    recetas: DesviacionReceta[];
+};
+
+type DesviacionOS = {
+    osId: string;
+    serviceNumber: string;
+    hitos: DesviacionHito[];
+};
+
 
 // For the detailed recipe view
 type RecetaAgregada = {
@@ -130,7 +149,7 @@ export default function PlanificacionPage() {
     
     // Unified state for both needs and surpluses
     const [planificacionItems, setPlanificacionItems] = useState<Necesidad[]>([]);
-    const [desviaciones, setDesviaciones] = useState<Desviacion[]>([]);
+    const [desviaciones, setDesviaciones] = useState<DesviacionOS[]>([]);
     
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [partidaFilter, setPartidaFilter] = useState('all');
@@ -336,22 +355,74 @@ export default function PlanificacionPage() {
             }
         });
 
-        // Detectar desviaciones
-        const desviacionesDetectadas: Desviacion[] = [];
-        ofsEnRango.forEach(of => {
-            const necesidadRegistro = necesidadesPorElaboracion.get(of.elaboracionId);
-            const necesidadActual = necesidadRegistro ? necesidadRegistro.necesidadBruta : 0;
-            // For now, let's assume `necesidadTotal` was stored in the OF when it was created
-            const necesidadOriginal = of.necesidadTotal || 0;
-            if (necesidadActual !== necesidadOriginal) {
-                desviacionesDetectadas.push({
-                    id: of.id,
-                    of,
-                    necesidadActual,
-                    diferencia: necesidadActual - necesidadOriginal
-                })
+        // Detectar desviaciones y agruparlas
+        const desviacionesAgrupadas: DesviacionOS[] = [];
+        const desviacionesMap = new Map<string, DesviacionOS>();
+
+        osEnRango.forEach(os => {
+            const ofsDeLaOS = ofsEnRango.filter(of => of.osIDs.includes(os.id));
+            if (ofsDeLaOS.length === 0) return;
+
+            let osConDesviacion: DesviacionOS | undefined;
+            const hitosConDesviacion = new Map<string, DesviacionHito>();
+
+            ofsDeLaOS.forEach(of => {
+                const necesidadRegistro = necesidadesPorElaboracion.get(of.elaboracionId);
+                const necesidadActualOS = Array.from(necesidadRegistro?.necesidadesPorDia.entries() || [])
+                    .filter(([dayKey]) => {
+                        const osDelDia = osEnRango.find(o => o.id === os.id && format(new Date(o.startDate), 'yyyy-MM-dd') === dayKey);
+                        return !!osDelDia;
+                    })
+                    .reduce((sum, [, cant]) => sum + cant, 0);
+
+                const necesidadOriginalOF = of.necesidadTotal || 0;
+                const diferencia = necesidadActualOS - necesidadOriginalOF;
+
+                if (Math.abs(diferencia) > 0.001) {
+                    if (!osConDesviacion) {
+                        osConDesviacion = { osId: os.id, serviceNumber: os.serviceNumber, hitos: [] };
+                        desviacionesMap.set(os.id, osConDesviacion);
+                    }
+
+                    // Find which Hito and Receta this OF deviation belongs to
+                    const briefing = briefingsEnRango.find(b => b.osId === os.id);
+                    briefing?.items.forEach(hito => {
+                        const gastroOrder = gastroOrdersEnRango.find(go => go.id === hito.id);
+                        gastroOrder?.items?.forEach(gastroItem => {
+                            if (gastroItem.type === 'item') {
+                                const receta = recetasMap.get(gastroItem.id);
+                                if (receta && receta.elaboraciones.some(e => e.elaboracionId === of.elaboracionId)) {
+                                    
+                                    let hito = hitosConDesviacion.get(gastroOrder.id);
+                                    if (!hito) {
+                                        hito = { hitoId: gastroOrder.id, hitoDescripcion: gastroOrder.descripcion, recetas: [] };
+                                        hitosConDesviacion.set(gastroOrder.id, hito);
+                                    }
+
+                                    let recetaEnHito = hito.recetas.find(r => r.recetaId === receta.id);
+                                    if (!recetaEnHito) {
+                                        recetaEnHito = { recetaId: receta.id, recetaNombre: receta.nombre, elaboraciones: [] };
+                                        hito.recetas.push(recetaEnHito);
+                                    }
+
+                                    recetaEnHito.elaboraciones.push({
+                                        id: of.id,
+                                        of: of,
+                                        necesidadActual: necesidadActualOS,
+                                        diferencia: diferencia
+                                    });
+                                }
+                            }
+                        });
+                    });
+                }
+            });
+
+            if (osConDesviacion) {
+                osConDesviacion.hitos = Array.from(hitosConDesviacion.values());
+                desviacionesAgrupadas.push(osConDesviacion);
             }
-        })
+        });
         
         // --- MATRIX CALCULATION ---
         const days = eachDayOfInterval({ start: from, end: to });
@@ -439,7 +510,7 @@ export default function PlanificacionPage() {
 
 
         setPlanificacionItems(itemsFinales);
-        setDesviaciones(desviacionesDetectadas);
+        setDesviaciones(desviacionesAgrupadas);
         setRecetasAgregadas(Array.from(agregadoRecetasMap.values()));
         setDesgloseEventosRecetas(Array.from(desgloseEventosMap.values()));
         setIsLoading(false);
@@ -526,7 +597,7 @@ export default function PlanificacionPage() {
         calcularNecesidades();
     };
 
-    const handleGenerateOfAjuste = (desviacion: Desviacion) => {
+    const handleGenerateOfAjuste = (desviacion: DesviacionElaboracion) => {
         if (!dateRange?.from) return;
 
         const allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
@@ -560,7 +631,7 @@ export default function PlanificacionPage() {
         calcularNecesidades(); // Recalculate everything
     };
 
-    const handleMarkAsExcedente = (desviacion: Desviacion) => {
+    const handleMarkAsExcedente = (desviacion: DesviacionElaboracion) => {
         // This is a conceptual action for now. We remove it from the list.
         // A full implementation would create a record in an 'excedentes' table.
         const updatedOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
@@ -789,29 +860,51 @@ export default function PlanificacionPage() {
                                 <CardDescription>Aquí aparecen las Órdenes de Fabricación que no coinciden con las necesidades actuales de los eventos. Esto puede ocurrir si se modificó un evento después de generar la producción.</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <Table>
-                                    <TableHeader><TableRow><TableHead>OF</TableHead><TableHead>Elaboración</TableHead><TableHead>Cant. Original</TableHead><TableHead>Cant. Nueva</TableHead><TableHead>Desviación</TableHead><TableHead>Estado OF</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {isLoading ? <TableRow><TableCell colSpan={7} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow> 
-                                        : desviaciones.length > 0 ? desviaciones.map(d => (
-                                            <TableRow key={d.id} className={d.diferencia > 0 ? 'bg-orange-50' : 'bg-blue-50'}>
-                                                <TableCell><Badge variant="outline">{d.of.id}</Badge></TableCell>
-                                                <TableCell className="font-semibold">{d.of.elaboracionNombre}</TableCell>
-                                                <TableCell>{formatNumber(d.of.necesidadTotal || 0, 2)}</TableCell>
-                                                <TableCell>{formatNumber(d.necesidadActual, 2)}</TableCell>
-                                                <TableCell className={cn("font-bold", d.diferencia > 0 ? 'text-orange-600' : 'text-blue-600')}>
-                                                    {d.diferencia > 0 ? '+' : ''}{formatNumber(d.diferencia, 2)}
-                                                </TableCell>
-                                                <TableCell><Badge variant="secondary">{d.of.estado}</Badge></TableCell>
-                                                <TableCell className="text-right">
-                                                    {d.diferencia > 0 
-                                                        ? <Button size="sm" variant="outline" onClick={() => handleGenerateOfAjuste(d)}>Generar OF de Ajuste</Button> 
-                                                        : <Button size="sm" variant="outline" onClick={() => handleMarkAsExcedente(d)}>Marcar como Excedente</Button>}
-                                                </TableCell>
-                                            </TableRow>
-                                        )) : <TableRow><TableCell colSpan={7} className="h-24 text-center">No se han encontrado desviaciones.</TableCell></TableRow>}
-                                    </TableBody>
-                                </Table>
+                               {isLoading ? <div className="flex justify-center items-center h-24"><Loader2 className="mx-auto animate-spin" /></div> 
+                               : desviaciones.length > 0 ? (
+                                <div className="space-y-4">
+                                {desviaciones.map(os => (
+                                    <Collapsible key={os.osId} className="border rounded-lg p-3">
+                                        <CollapsibleTrigger className="w-full flex justify-between items-center group">
+                                            <div className="font-semibold">{os.serviceNumber}</div>
+                                            <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180"/>
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent className="pt-3 space-y-2">
+                                            {os.hitos.map(hito => (
+                                                <div key={hito.hitoId} className="border rounded-md p-2 bg-background">
+                                                    <h4 className="font-semibold text-sm">{hito.hitoDescripcion}</h4>
+                                                     {hito.recetas.map(receta => (
+                                                        <div key={receta.recetaId} className="pl-4 mt-1">
+                                                            <p className="text-sm text-muted-foreground">{receta.recetaNombre}</p>
+                                                            <Table>
+                                                                <TableHeader><TableRow><TableHead className="h-8">Elaboración</TableHead><TableHead className="h-8">Cant. Original</TableHead><TableHead className="h-8">Cant. Nueva</TableHead><TableHead className="h-8">Desviación</TableHead><TableHead className="h-8">Acciones</TableHead></TableRow></TableHeader>
+                                                                <TableBody>
+                                                                    {receta.elaboraciones.map(d => (
+                                                                        <TableRow key={d.id}>
+                                                                            <TableCell>{d.of.elaboracionNombre}</TableCell>
+                                                                            <TableCell>{formatNumber(d.of.necesidadTotal || 0, 2)}</TableCell>
+                                                                            <TableCell>{formatNumber(d.necesidadActual, 2)}</TableCell>
+                                                                            <TableCell className={cn("font-bold", d.diferencia > 0 ? 'text-orange-600' : 'text-blue-600')}>
+                                                                                {d.diferencia > 0 ? '+' : ''}{formatNumber(d.diferencia, 2)}
+                                                                            </TableCell>
+                                                                            <TableCell>
+                                                                                 {d.diferencia > 0 
+                                                                                    ? <Button size="sm" variant="outline" onClick={() => handleGenerateOfAjuste(d)}>Generar OF de Ajuste</Button> 
+                                                                                    : <Button size="sm" variant="outline" onClick={() => handleMarkAsExcedente(d)}>Marcar como Excedente</Button>}
+                                                                            </TableCell>
+                                                                        </TableRow>
+                                                                    ))}
+                                                                </TableBody>
+                                                            </Table>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </CollapsibleContent>
+                                    </Collapsible>
+                                ))}
+                                </div>
+                               ) : <p className="text-center text-muted-foreground py-8">No se han encontrado desviaciones.</p>}
                             </CardContent>
                         </Card>
                     </TabsContent>
