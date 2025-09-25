@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -164,7 +165,13 @@ export default function PickingDetailPage() {
     const lotesNecesarios = useMemo(() => {
         if (!isMounted) return [];
         const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        return allOFs.filter(of => of.osIDs.includes(osId));
+        const allElabs = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+        const elabsMap = new Map(allElabs.map(e => [e.id, e]));
+
+        return allOFs
+            .filter(of => of.osIDs.includes(osId))
+            .map(of => ({...of, tipoExpedicion: elabsMap.get(of.elaboracionId)?.tipoExpedicion || 'SECO'}));
+
     }, [osId, isMounted]);
 
     useEffect(() => {
@@ -196,7 +203,7 @@ export default function PickingDetailPage() {
     const { lotesPendientesPorHito, isPickingComplete } = useMemo(() => {
         if(!isMounted) return { lotesPendientesPorHito: new Map(), isPickingComplete: false };
 
-        const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
+        const allOFs = lotesNecesarios;
         const allRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
         const allElaboraciones = (JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[]);
         const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
@@ -223,7 +230,7 @@ export default function PickingDetailPage() {
                                     if(existing) {
                                         existing.cantidadNecesaria += cantidadNecesaria;
                                     } else {
-                                        const of = allOFs.find(o => o.osIDs.includes(osId) && o.elaboracionId === elabInfo.id);
+                                        const of = allOFs.find(o => o.elaboracionId === elabInfo.id);
                                         necesidadesHito.set(elabInfo.id, {
                                             ofId: of?.id || 'NO-OF',
                                             elaboracionId: elabInfo.id,
@@ -261,7 +268,7 @@ export default function PickingDetailPage() {
         
         return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete };
 
-    }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates]);
+    }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, lotesNecesarios]);
     
     const lotesPendientesCalidad = useMemo(() => {
         return lotesNecesarios.filter(of => 
@@ -282,7 +289,6 @@ export default function PickingDetailPage() {
     }
 
     const removeContainer = (containerId: string) => {
-      // Return items to pending
       const newItems = pickingState.itemStates.filter(item => item.containerId !== containerId);
       const newContainers = pickingState.assignedContainers.filter(c => c.id !== containerId);
       savePickingState({ itemStates: newItems, assignedContainers: newContainers });
@@ -594,8 +600,3 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
         </div>
     );
 }
-
-
-    
-
-    
