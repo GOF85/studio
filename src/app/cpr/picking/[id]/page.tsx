@@ -3,52 +3,52 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Package, ArrowLeft, ThermometerSnowflake, Archive, PlusCircle, ChevronsUpDown, Printer, Loader2, Trash2, Check, X, Utensils, Building, Phone } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { Package, ArrowLeft, Thermometer, Box, Snowflake, PlusCircle, Printer, Loader2, Trash2, Check, Utensils, Building, Phone } from 'lucide-react';
 import { format } from 'date-fns';
-import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio, ComercialBriefingItem } from '@/types';
+import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio, ComercialBriefingItem, ContenedorDinamico } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatNumber, formatUnit } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { ChevronsUpDown } from 'lucide-react';
 
 type LotePendiente = {
     ofId: string;
     elaboracionId: string;
     elaboracionNombre: string;
-    cantidadNecesaria: number; // Necesidad para este hito
-    cantidadAsignada: number; // Asignado a este hito
+    cantidadNecesaria: number; // Necesidad total para este hito
+    cantidadAsignada: number; // Total asignado a contenedores para este hito
     unidad: string;
-    tipoExpedicion: 'FRIO' | 'CALIENTE' | 'PASTELERIA' | 'EXPEDICION';
+    tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
 };
 
 const expeditionTypeMap = {
-    FRIO: { title: "Partida Frío", icon: ThermometerSnowflake, className: "bg-blue-100 border-blue-200" },
-    CALIENTE: { title: "Partida Caliente", icon: ThermometerSnowflake, className: "bg-red-100 border-red-200" },
-    PASTELERIA: { title: "Partida Pastelería", icon: Archive, className: "bg-pink-100 border-pink-200" },
-    EXPEDICION: { title: "Partida Expedición", icon: Package, className: "bg-gray-100 border-gray-200" },
+    REFRIGERADO: { title: "Partida Refrigerado", icon: Thermometer, className: "bg-blue-100 border-blue-200" },
+    CONGELADO: { title: "Partida Congelado", icon: Snowflake, className: "bg-sky-100 border-sky-200" },
+    SECO: { title: "Partida Seco", icon: Box, className: "bg-yellow-100 border-yellow-200" },
 };
 
 export const statusOptions: PickingStatus[] = ['Pendiente', 'Preparado', 'Enviado', 'Entregado', 'Retornado'];
@@ -60,22 +60,22 @@ export const statusVariant: { [key in PickingStatus]: 'default' | 'secondary' | 
   Retornado: 'destructive',
 };
 
-function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendiente, containers: ContenedorIsotermo[], onAllocate: (ofId: string, containerId: string, quantity: number) => void }) {
-    const cantidadPendiente = parseFloat((Number(lote.cantidadNecesaria) - Number(lote.cantidadAsignada)).toFixed(2));
+function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendiente, containers: ContenedorDinamico[], onAllocate: (containerId: string, quantity: number) => void }) {
+    const cantidadPendiente = parseFloat((lote.cantidadNecesaria - lote.cantidadAsignada).toFixed(2));
     const [quantity, setQuantity] = useState(cantidadPendiente);
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
     const [open, setOpen] = useState(false);
 
     const handleAllocate = () => {
         if (!selectedContainerId) {
-            alert("Por favor, selecciona un contenedor.");
+            toast({variant: 'destructive', title: 'Error', description: "Por favor, selecciona un contenedor."});
             return;
         }
-        if (quantity <= 0 || quantity > cantidadPendiente + 0.001) { // Add tolerance for float issues
-            alert(`La cantidad debe estar entre 0.01 y ${formatNumber(cantidadPendiente, 2)}.`);
+        if (quantity <= 0 || quantity > cantidadPendiente + 0.001) {
+            toast({variant: 'destructive', title: 'Error', description: `La cantidad debe estar entre 0.01 y ${formatNumber(cantidadPendiente, 2)}.`});
             return;
         }
-        onAllocate(lote.ofId, selectedContainerId, quantity);
+        onAllocate(selectedContainerId, quantity);
         setOpen(false);
     }
     
@@ -98,27 +98,14 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
                     </div>
                     <div className="space-y-2">
                         <Label>Contenedor de Destino</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" role="combobox" className="w-full justify-between">
-                                    {selectedContainerId ? containers.find(c => c.id === selectedContainerId)?.nombre : "Seleccionar contenedor..."}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                <Command>
-                                    <CommandInput placeholder="Buscar contenedor..." />
-                                    <CommandList>
-                                        <CommandEmpty>No hay contenedores.</CommandEmpty>
-                                        <CommandGroup>
-                                            {containers.map(c => (
-                                                <CommandItem key={c.id} onSelect={() => setSelectedContainerId(c.id)}>{c.nombre} ({c.id})</CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                            </PopoverContent>
-                        </Popover>
+                        <Select onValueChange={setSelectedContainerId} value={selectedContainerId || undefined}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Seleccionar contenedor..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {containers.map(c => <SelectItem key={c.id} value={c.id}>Contenedor {c.numero}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
                  <DialogFooter>
@@ -134,22 +121,20 @@ export default function PickingDetailPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [spaceAddress, setSpaceAddress] = useState<string>('');
     const [hitosConNecesidades, setHitosConNecesidades] = useState<ComercialBriefingItem[]>([]);
-    const [dbContainers, setDbContainers] = useState<ContenedorIsotermo[]>([]);
-    const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: {}, itemStates: [] });
+    const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: [], itemStates: [] });
     const [isMounted, setIsMounted] = useState(false);
     const [isPrinting, setIsPrinting] = useState<string | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     
     const router = useRouter();
     const params = useParams();
-    const searchParams = useSearchParams();
     const osId = params.id as string;
     const { toast } = useToast();
 
     const savePickingState = useCallback((newState: Partial<PickingState>) => {
         if (!osId) return;
         const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
-        const currentState = allPickingStates[osId] || { osId, status: 'Pendiente', assignedContainers: {}, itemStates: [] };
+        const currentState = allPickingStates[osId] || { osId, status: 'Pendiente', assignedContainers: [], itemStates: [] };
         const updatedState = { ...currentState, ...newState };
         allPickingStates[osId] = updatedState;
         localStorage.setItem('pickingStates', JSON.stringify(allPickingStates));
@@ -199,9 +184,6 @@ export default function PickingDetailPage() {
             const currentBriefing = allBriefings.find(b => b.osId === osId);
             const gastronomicHitos = currentBriefing?.items.filter(i => i.conGastronomia) || [];
             setHitosConNecesidades(gastronomicHitos);
-
-            const allContainers = JSON.parse(localStorage.getItem('contenedoresDB') || '[]') as ContenedorIsotermo[];
-            setDbContainers(allContainers);
             
             const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
             const savedState = allPickingStates[osId];
@@ -250,7 +232,7 @@ export default function PickingDetailPage() {
                                             cantidadNecesaria: cantidadNecesaria,
                                             cantidadAsignada: 0,
                                             unidad: elabInfo.unidadProduccion,
-                                            tipoExpedicion: elabInfo.partidaProduccion
+                                            tipoExpedicion: elabInfo.tipoExpedicion
                                         });
                                     }
                                 }
@@ -290,16 +272,22 @@ export default function PickingDetailPage() {
         );
     }, [lotesNecesarios]);
 
-    const addContainerToSection = (tipo: keyof typeof expeditionTypeMap, container: ContenedorIsotermo) => {
-        const newAssignedContainers = { ...pickingState.assignedContainers };
-        const currentSectionContainers = newAssignedContainers[tipo] || [];
-        if(currentSectionContainers.some(c => c.id === container.id)) {
-            toast({variant: 'destructive', title: "Contenedor ya asignado", description: "Este contenedor ya está en la lista."})
-            return;
-        };
-        newAssignedContainers[tipo] = [...currentSectionContainers, container];
-        savePickingState({ assignedContainers: newAssignedContainers });
-    };
+    const addContainer = (tipo: keyof typeof expeditionTypeMap, hitoId: string) => {
+      const newContainer: ContenedorDinamico = {
+        id: `cont-${Date.now()}`,
+        hitoId: hitoId,
+        tipo: tipo,
+        numero: (pickingState.assignedContainers.filter(c => c.hitoId === hitoId && c.tipo === tipo).length) + 1
+      }
+      savePickingState({ assignedContainers: [...pickingState.assignedContainers, newContainer] });
+    }
+
+    const removeContainer = (containerId: string) => {
+      // Return items to pending
+      const newItems = pickingState.itemStates.filter(item => item.containerId !== containerId);
+      const newContainers = pickingState.assignedContainers.filter(c => c.id !== containerId);
+      savePickingState({ itemStates: newItems, assignedContainers: newContainers });
+    }
 
     const allocateLote = (ofId: string, containerId: string, quantity: number, hitoId: string) => {
         const newAllocation: LoteAsignado = { allocationId: Date.now().toString(), ofId, containerId, quantity, hitoId };
@@ -314,7 +302,7 @@ export default function PickingDetailPage() {
     }
     
      const handleDeletePicking = () => {
-        savePickingState({ status: 'Pendiente', assignedContainers: {}, itemStates: [] });
+        savePickingState({ status: 'Pendiente', assignedContainers: [], itemStates: [] });
         toast({ title: "Picking Reiniciado", description: "Se han desasignado todos los lotes y contenedores."});
         setShowDeleteConfirm(false);
     }
@@ -326,10 +314,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
     try {
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [100, 150] });
         
-        const allocationsForHito = pickingState.itemStates.filter(item => item.hitoId === hito.id);
-        const containerIdsForHito = new Set(allocationsForHito.map(item => item.containerId));
-        const allAssignedContainers = Object.values(pickingState.assignedContainers).flat();
-        const containersForHito = allAssignedContainers.filter(c => containerIdsForHito.has(c.id));
+        const containersForHito = pickingState.assignedContainers.filter(c => c.hitoId === hito.id);
         
         containersForHito.forEach((container, index) => {
             if (index > 0) doc.addPage();
@@ -341,8 +326,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
             doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor('#059669'); // Primary color
-            doc.text(container.nombre, margin, finalY + 2);
-            doc.text(`${index + 1}/${containersForHito.length}`, pageWidth - margin, finalY + 2, { align: 'right' });
+            doc.text(`${expeditionTypeMap[container.tipo].title} - Contenedor ${container.numero}`, margin, finalY + 2);
             finalY += 4;
             
             doc.setLineWidth(0.5);
@@ -390,7 +374,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
             finalY += 2;
 
             const itemsGrouped = new Map<string, { totalQuantity: number, lotes: string[], unidad: string, receta: string }>();
-            const containerItems = allocationsForHito.filter(item => item.containerId === container.id);
+            const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
 
             containerItems.forEach(assignedLote => {
                 const loteInfo = lotesNecesarios.find(l => l.id === assignedLote.ofId);
@@ -514,9 +498,9 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                             <CardContent className="space-y-6">
                                 {(Object.keys(expeditionTypeMap) as Array<keyof typeof expeditionTypeMap>).map(tipo => {
                                     const lotesDePartida = lotesPendientesHito.filter(l => l.tipoExpedicion === tipo);
-                                    const contenedoresDePartida = pickingState.assignedContainers[tipo] || [];
+                                    const contenedoresDePartida = pickingState.assignedContainers.filter(c => c.hitoId === hito.id && c.tipo === tipo);
                                     
-                                    const allocationsForPartida = pickingState.itemStates.filter(alloc => lotesNecesarios.find(ln => ln.id === alloc.ofId)?.partidaAsignada === tipo && alloc.hitoId === hito.id);
+                                    const allocationsForPartida = pickingState.itemStates.filter(alloc => lotesNecesarios.find(ln => ln.id === alloc.ofId)?.tipoExpedicion === tipo && alloc.hitoId === hito.id);
 
                                     if (lotesDePartida.length === 0 && allocationsForPartida.length === 0) {
                                         return null;
@@ -528,22 +512,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                         <Card key={`${hito.id}-${tipo}`} className={cn(info.className)}>
                                             <CardHeader className="flex-row items-start justify-between">
                                                 <CardTitle className="flex items-center gap-3 text-lg"><info.icon />{info.title}</CardTitle>
-                                                <Dialog>
-                                                    <DialogTrigger asChild><Button size="sm" variant="outline" className="no-print bg-white/50"><PlusCircle className="mr-2"/>Asignar Contenedor</Button></DialogTrigger>
-                                                    <DialogContent>
-                                                        <DialogHeader><DialogTitle>Seleccionar Contenedores para {info.title}</DialogTitle></DialogHeader>
-                                                        <Popover>
-                                                            <PopoverTrigger asChild><Button variant="outline" role="combobox" className="w-full justify-between">Añadir contenedor...<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></PopoverTrigger>
-                                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                                                <Command>
-                                                                    <CommandInput placeholder="Buscar contenedor..." /><CommandList><CommandEmpty>No hay contenedores.</CommandEmpty><CommandGroup>
-                                                                    {dbContainers.map(c => (<CommandItem key={c.id} onSelect={() => addContainerToSection(tipo, c)}>{c.nombre} ({c.id})</CommandItem>))}
-                                                                    </CommandGroup></CommandList>
-                                                                </Command>
-                                                            </PopoverContent>
-                                                        </Popover>
-                                                    </DialogContent>
-                                                </Dialog>
+                                                <Button size="sm" variant="outline" className="no-print bg-white/50" onClick={() => addContainer(tipo, hito.id)}><PlusCircle className="mr-2"/>Añadir Contenedor</Button>
                                             </CardHeader>
                                             <CardContent>
                                                 {lotesDePartida.length > 0 && (
@@ -556,7 +525,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                                         <TableCell className="font-medium font-mono">{lote.ofId}</TableCell>
                                                                         <TableCell>{lote.elaboracionNombre}</TableCell>
                                                                         <TableCell className="text-right font-mono">{formatNumber(lote.cantidadNecesaria - lote.cantidadAsignada, 2)} {formatUnit(lote.unidad)}</TableCell>
-                                                                        <TableCell className="text-right no-print"><AllocationDialog lote={lote} containers={contenedoresDePartida} onAllocate={(of, cont, qty) => allocateLote(of, cont, qty, hito.id)} /></TableCell>
+                                                                        <TableCell className="text-right no-print"><AllocationDialog lote={lote} containers={contenedoresDePartida} onAllocate={(contId, qty) => allocateLote(lote.ofId, contId, qty, hito.id)} /></TableCell>
                                                                     </TableRow>
                                                                 ))}
                                                             </TableBody>
@@ -565,11 +534,13 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                 )}
                                                 <div className="space-y-4">
                                                     {contenedoresDePartida.map(container => {
-                                                        const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id && item.hitoId === hito.id);
-                                                        if(containerItems.length === 0) return null;
+                                                        const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
                                                         return (
                                                             <div key={container.id}>
-                                                                <h3 className="font-semibold mb-2 flex items-center gap-2">Contenedor: <Badge variant="secondary" className="text-base">{container.nombre} ({container.id})</Badge></h3>
+                                                                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                                                                  Contenedor {container.numero}
+                                                                  <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeContainer(container.id)}><Trash2 size={14} /></Button>
+                                                                </h3>
                                                                 <Table className="bg-white/70"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead>Receta</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-16 no-print"></TableHead></TableRow></TableHeader>
                                                                     <TableBody>
                                                                         {containerItems.length > 0 ? (
@@ -624,3 +595,4 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
         </div>
     );
 }
+

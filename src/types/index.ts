@@ -487,6 +487,7 @@ export type OrdenFabricacion = {
     necesidadTotal?: number;
     unidad: UnidadMedida;
     partidaAsignada: PartidaProduccion;
+    tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
     estado: 'Pendiente' | 'Asignada' | 'En Proceso' | 'Finalizado' | 'Validado' | 'Incidencia';
     incidencia: boolean;
     incidenciaObservaciones?: string;
@@ -518,6 +519,13 @@ export type ContenedorIsotermo = {
     nombre: string;
 }
 
+export type ContenedorDinamico = {
+    id: string; // 'cont-timestamp'
+    hitoId: string;
+    tipo: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+    numero: number;
+}
+
 export type LoteAsignado = {
     allocationId: string;
     ofId: string;
@@ -531,7 +539,7 @@ export type PickingStatus = 'Pendiente' | 'Preparado' | 'Enviado' | 'Entregado' 
 export type PickingState = {
     osId: string;
     status: PickingStatus;
-    assignedContainers: { [key in PartidaProduccion]?: ContenedorIsotermo[] };
+    assignedContainers: ContenedorDinamico[];
     itemStates: LoteAsignado[];
 }
 
