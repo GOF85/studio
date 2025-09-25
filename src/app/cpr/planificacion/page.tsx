@@ -505,6 +505,7 @@ export default function PlanificacionPage() {
                     necesidadTotal: necesidad.cantidad, // Guardamos la necesidad en el momento de la creación
                     unidad: necesidad.unidad,
                     partidaAsignada: necesidad.partidaProduccion,
+                    tipoExpedicion: 'REFRIGERADO', // Default, should be on elaboracion
                     estado: 'Pendiente',
                     osIDs: Array.from(new Set(necesidad.eventos!.map(e => e.osId))),
                     incidencia: false,
@@ -523,7 +524,55 @@ export default function PlanificacionPage() {
         });
         
         calcularNecesidades();
-    }
+    };
+
+    const handleGenerateOfAjuste = (desviacion: Desviacion) => {
+        if (!dateRange?.from) return;
+
+        const allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+        const lastIdNumber = allOFs.reduce((max, of) => {
+            const numPart = of.id.split('-')[2];
+            const num = numPart ? parseInt(numPart) : 0;
+            return isNaN(num) ? max : Math.max(max, num);
+        }, 0);
+        
+        const newOF: OrdenFabricacion = {
+            id: `OF-${new Date().getFullYear()}-${(lastIdNumber + 1).toString().padStart(3, '0')}`,
+            fechaCreacion: new Date().toISOString(),
+            fechaProduccionPrevista: dateRange.from.toISOString(),
+            elaboracionId: desviacion.of.elaboracionId,
+            elaboracionNombre: desviacion.of.elaboracionNombre,
+            cantidadTotal: desviacion.diferencia,
+            necesidadTotal: desviacion.diferencia,
+            unidad: desviacion.of.unidad,
+            partidaAsignada: desviacion.of.partidaAsignada,
+            tipoExpedicion: desviacion.of.tipoExpedicion,
+            estado: 'Pendiente',
+            osIDs: desviacion.of.osIDs, // Asign to same events
+            incidencia: false,
+            okCalidad: false,
+        };
+
+        const updatedOFs = [...allOFs, newOF];
+        localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
+        
+        toast({ title: 'OF de Ajuste Generada', description: `Se ha creado la OF ${newOF.id} por ${formatNumber(newOF.cantidadTotal,2)} ${newOF.unidad}.`});
+        calcularNecesidades(); // Recalculate everything
+    };
+
+    const handleMarkAsExcedente = (desviacion: Desviacion) => {
+        // This is a conceptual action for now. We remove it from the list.
+        // A full implementation would create a record in an 'excedentes' table.
+        const updatedOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+        const index = updatedOFs.findIndex(of => of.id === desviacion.of.id);
+        if (index !== -1) {
+            updatedOFs[index].necesidadTotal = desviacion.necesidadActual; // Update original OF need
+            localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
+        }
+
+        toast({ title: 'Excedente Confirmado', description: `Se ha registrado un excedente de ${formatNumber(Math.abs(desviacion.diferencia),2)} ${desviacion.of.unidad}.`});
+        calcularNecesidades();
+    };
     
     const filteredPlanificacionItems = useMemo(() => {
         if (partidaFilter === 'all') return planificacionItems;
@@ -756,8 +805,8 @@ export default function PlanificacionPage() {
                                                 <TableCell><Badge variant="secondary">{d.of.estado}</Badge></TableCell>
                                                 <TableCell className="text-right">
                                                     {d.diferencia > 0 
-                                                        ? <Button size="sm" variant="outline">Generar OF de Ajuste</Button> 
-                                                        : <Button size="sm" variant="outline">Marcar como Excedente</Button>}
+                                                        ? <Button size="sm" variant="outline" onClick={() => handleGenerateOfAjuste(d)}>Generar OF de Ajuste</Button> 
+                                                        : <Button size="sm" variant="outline" onClick={() => handleMarkAsExcedente(d)}>Marcar como Excedente</Button>}
                                                 </TableCell>
                                             </TableRow>
                                         )) : <TableRow><TableCell colSpan={7} className="h-24 text-center">No se han encontrado desviaciones.</TableCell></TableRow>}
