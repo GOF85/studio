@@ -12,6 +12,7 @@
 
 
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -138,6 +139,7 @@ const defaultValues: Partial<OsFormValues> = {
 
 const ClienteTitle = () => {
   const client = useWatch({ name: 'client' });
+  const finalClient = useWatch({ name: 'finalClient' });
   return (
     <h3 className="text-lg font-semibold">
       Cliente
@@ -145,6 +147,12 @@ const ClienteTitle = () => {
         <>
           {' - '}
           <span className="text-primary">{client}</span>
+        </>
+      )}
+      {finalClient && (
+        <>
+          <span className="font-bold"> / </span>
+          <span className="text-primary">{finalClient}</span>
         </>
       )}
     </h3>
@@ -926,4 +934,3 @@ export default function OsPage() {
     
 
     
-
