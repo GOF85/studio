@@ -438,7 +438,6 @@ export default function ComercialPage() {
             <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Briefcase />Módulo Comercial</h1>
             <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
           </div>
-          <Button onClick={handleNewClick}><PlusCircle className="mr-2" /> Nuevo Hito</Button>
         </div>
         
         <FormProvider {...financialForm}>
@@ -511,7 +510,10 @@ export default function ComercialPage() {
         </FormProvider>
 
         <Card>
-          <CardHeader><CardTitle>Briefing del Contrato</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Briefing del Contrato</CardTitle>
+            <Button onClick={handleNewClick}><PlusCircle className="mr-2" /> Nuevo Hito</Button>
+          </CardHeader>
           <CardContent>
             <div className="border rounded-lg overflow-x-auto">
               <Table>
