@@ -9,6 +9,7 @@
 
 
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -164,31 +165,31 @@ const EspacioTitle = () => {
 };
 
 const ResponsablesTitle = () => {
-    const metre = useWatch({ name: 'respMetre' });
-    const pase = useWatch({ name: 'respPase' });
+  const metre = useWatch({ name: 'respMetre' });
+  const pase = useWatch({ name: 'respPase' });
 
-    if (!metre && !pase) {
-        return <h3 className="text-lg font-semibold">Responsables</h3>;
-    }
+  if (!metre && !pase) {
+    return <h3 className="text-lg font-semibold">Responsables</h3>;
+  }
 
-    return (
-        <h3 className="text-lg font-semibold">
-          Responsables - 
-          {metre && (
-              <>
-                  <span> Metre: </span>
-                  <span className="text-primary">{metre}</span>
-              </>
-          )}
-          {metre && pase && <span> / </span>}
-          {pase && (
-              <>
-                  <span> Pase: </span>
-                  <span className="text-primary">{pase}</span>
-              </>
-          )}
-        </h3>
-      );
+  return (
+    <h3 className="text-lg font-semibold">
+      Responsables -
+      {metre && (
+        <>
+          <span className="text-foreground"> Metre: </span>
+          <span className="text-primary">{metre}</span>
+        </>
+      )}
+      {metre && pase && <span className="text-foreground"> / </span>}
+      {pase && (
+        <>
+          <span className="text-foreground"> Pase: </span>
+          <span className="text-primary">{pase}</span>
+        </>
+      )}
+    </h3>
+  );
 };
 
 export default function OsPage() {
@@ -863,7 +864,7 @@ export default function OsPage() {
                         </AccordionContent>
                         </Card>
                        </AccordionItem>
-                    </Accordion>}
+                    </Accordion>
                     
                     <div className="space-y-4 pt-4 border-t">
                       <FormField control={form.control} name="comments" render={({ field }) => (
