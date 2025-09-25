@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -84,13 +85,13 @@ function FinancialCalculator({ totalFacturacion, onNetChange }: { totalFacturaci
 
 
   return (
-    <FormItem>
-      <FormLabel>Facturación Neta</FormLabel>
+    <FormItem className="mt-auto">
+      <FormLabel className="text-lg">Facturación Neta</FormLabel>
       <FormControl>
         <Input
           readOnly
           value={facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-          className="font-bold text-primary h-8"
+          className="font-bold text-primary h-12 text-xl"
         />
       </FormControl>
     </FormItem>
@@ -441,13 +442,14 @@ export default function ComercialPage() {
         </div>
         
         <FormProvider {...financialForm}>
-            <form onChange={() => financialForm.handleSubmit(handleSaveFinancials)()}>
-                <Card className="mb-8">
-                    <CardHeader>
-                        <CardTitle>Información Financiera y Ajustes</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 items-end">
+             <Card className="mb-8">
+                <CardHeader>
+                    <CardTitle>Información Financiera y Ajustes</CardTitle>
+                </CardHeader>
+                <CardContent className="grid lg:grid-cols-2 gap-8">
+                    <form onChange={() => financialForm.handleSubmit(handleSaveFinancials)()} className="flex flex-col space-y-4">
+                         <h3 className="text-lg font-semibold border-b pb-2">Información Financiera</h3>
+                        <div className="grid grid-cols-2 gap-4 items-end">
                             <FormItem>
                                 <FormLabel>Fact. Briefing</FormLabel>
                                 <FormControl><Input readOnly value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8" /></FormControl>
@@ -468,10 +470,11 @@ export default function ComercialPage() {
                                 <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8" /></FormControl>
                                 </FormItem>
                             )} />
-                            <FinancialCalculator totalFacturacion={facturacionFinal} onNetChange={setFacturacionNeta}/>
                         </div>
-                        <Separator className="my-4"/>
-                        <h3 className="text-md font-semibold">Ajustes a la Facturación</h3>
+                        <FinancialCalculator totalFacturacion={facturacionFinal} onNetChange={setFacturacionNeta}/>
+                    </form>
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-semibold border-b pb-2">Ajustes a la Facturación</h3>
                         <div className="border rounded-lg">
                             <Table>
                                 <TableBody>
@@ -502,9 +505,9 @@ export default function ComercialPage() {
                             </TableFooter>
                             </Table>
                         </div>
-                    </CardContent>
-                </Card>
-            </form>
+                    </div>
+                </CardContent>
+            </Card>
         </FormProvider>
 
         <Card>
