@@ -40,6 +40,13 @@ const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'seconda
   'Validado': 'default',
 };
 
+const partidaColorClasses: Record<PartidaProduccion, string> = {
+    FRIO: 'bg-green-100/50 hover:bg-green-100/80',
+    CALIENTE: 'bg-red-100/50 hover:bg-red-100/80',
+    PASTELERIA: 'bg-blue-100/50 hover:bg-blue-100/80',
+    EXPEDICION: 'bg-yellow-100/50 hover:bg-yellow-100/80'
+};
+
 const partidas: PartidaProduccion[] = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'];
 const statusOptions = Object.keys(statusVariant) as OrdenFabricacion['estado'][];
 
@@ -126,7 +133,7 @@ export default function OfPage() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
-            <Select value={partidaFilter} onValueChange={setPartidaFilter}>
+             <Select value={partidaFilter} onValueChange={setPartidaFilter}>
                 <SelectTrigger className="w-full sm:w-[240px]">
                     <SelectValue placeholder="Filtrar por partida" />
                 </SelectTrigger>
@@ -167,7 +174,7 @@ export default function OfPage() {
                 <TableRow
                   key={of.id}
                   onClick={() => router.push(`/cpr/of/${of.id}`)}
-                  className="cursor-pointer"
+                  className={cn("cursor-pointer", partidaColorClasses[of.partidaAsignada])}
                 >
                   <TableCell className="font-medium">{of.id}</TableCell>
                   <TableCell>{of.elaboracionNombre}</TableCell>
