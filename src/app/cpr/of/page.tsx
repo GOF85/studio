@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -26,6 +27,8 @@ import {
 import { format, parseISO } from 'date-fns';
 import Link from 'next/link';
 import { formatNumber, formatUnit } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente': 'secondary',
@@ -37,6 +40,7 @@ const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'seconda
 };
 
 const partidas: PartidaProduccion[] = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'];
+const statusOptions = Object.keys(statusVariant) as OrdenFabricacion['estado'][];
 
 export default function OfPage() {
   const [ordenes, setOrdenes] = useState<OrdenFabricacion[]>([]);
@@ -75,6 +79,12 @@ export default function OfPage() {
         return dateB.getTime() - dateA.getTime();
       });
   }, [ordenes, searchTerm, statusFilter, partidaFilter]);
+  
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('Pendiente');
+    setPartidaFilter('all');
+  };
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Órdenes de Fabricación..." />;
@@ -103,7 +113,7 @@ export default function OfPage() {
         </Button>
       </div>
 
-       <div className="flex flex-col md:flex-row gap-4 mb-6">
+       <div className="flex flex-col gap-4 mb-6">
         <div className="relative flex-grow">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -114,24 +124,28 @@ export default function OfPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-         <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Filtrar por estado" />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="all">Todos los Estados</SelectItem>
-                {Object.keys(statusVariant).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-            </SelectContent>
-        </Select>
-        <Select value={partidaFilter} onValueChange={setPartidaFilter}>
-            <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Filtrar por partida" />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="all">Todas las Partidas</SelectItem>
-                {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-            </SelectContent>
-        </Select>
+        <div className="flex flex-col sm:flex-row gap-6">
+            <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm">Estado:</span>
+                <div className="flex flex-wrap gap-1">
+                    <Button variant={statusFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('all')}>Todos</Button>
+                    {statusOptions.map(s => (
+                        <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(s)}>{s}</Button>
+                    ))}
+                </div>
+            </div>
+             <Separator orientation="vertical" className="h-auto hidden sm:block"/>
+            <div className="flex items-center gap-2">
+                 <span className="font-semibold text-sm">Partida:</span>
+                <div className="flex flex-wrap gap-1">
+                    <Button variant={partidaFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setPartidaFilter('all')}>Todas</Button>
+                    {partidas.map(p => (
+                        <Button key={p} variant={partidaFilter === p ? 'default' : 'outline'} size="sm" onClick={() => setPartidaFilter(p)}>{p}</Button>
+                    ))}
+                </div>
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground">Limpiar Filtros</Button>
+        </div>
       </div>
 
       <div className="border rounded-lg">
