@@ -390,48 +390,36 @@ export default function PlanificacionPage() {
         
         // --- DEVIATIONS CALCULATION ---
         const desviacionesAgrupadas: DesviacionOS[] = [];
-        
-        const allRelevantOFs = allOrdenesFabricacion.filter(of => {
-            // Include OFs created for the date range, or OFs that are not fully consumed and could be affected
-            return of.osIDs.some(osId => osIdsEnRango.has(osId)) || (of.necesidadTotal && of.necesidadTotal > 0);
-        });
+        const ofsConNecesidadOriginal = allOrdenesFabricacion.filter(of => of.necesidadTotal !== undefined && of.necesidadTotal > 0);
 
-
-        allRelevantOFs.forEach(of => {
-            const elabId = of.elaboracionId;
-            const registroElaboracionActual = necesidadesPorElaboracion.get(elabId);
-            const necesidadActualTotal = registroElaboracionActual?.necesidadBruta ?? 0;
-            
-            // If an OF was created for a need that now is 0, we must catch it.
-            const necesidadOriginal = of.necesidadTotal || 0; 
-            
-            // Recalculate what this specific OF is responsible for in the current scenario
-            let necesidadActualParaEstaOF = 0;
-            if(registroElaboracionActual) {
-                const osIDsDeEstaOF = new Set(of.osIDs);
-                briefingsEnRango.forEach(briefing => {
-                    if (osIDsDeEstaOF.has(briefing.osId)) {
-                        const gastroOrder = gastroOrdersEnRango.find(go => go.id === briefing.items.find(i => i.conGastronomia)?.id);
-                        gastroOrder?.items?.forEach(item => {
-                            if (item.type === 'item') {
-                                const receta = recetasMap.get(item.id);
-                                if (receta) {
-                                    receta.elaboraciones.forEach(elabEnReceta => {
-                                        if (elabEnReceta.elaboracionId === elabId) {
-                                            necesidadActualParaEstaOF += (item.quantity || 0) * elabEnReceta.cantidad;
+        ofsConNecesidadOriginal.forEach(of => {
+            // Find all current needs for the elaboration of this OF within the selected date range
+            let necesidadActualParaOF = 0;
+            of.osIDs.forEach(osId => {
+                if (osIdsEnRango.has(osId)) { // Only consider OS within the current planning range
+                    const briefing = briefingsEnRango.find(b => b.osId === osId);
+                    briefing?.items.forEach(hito => {
+                        if (hito.conGastronomia) {
+                            const gastroOrder = gastroOrdersEnRango.find(go => go.id === hito.id);
+                            gastroOrder?.items?.forEach(item => {
+                                if (item.type === 'item') {
+                                    const receta = recetasMap.get(item.id);
+                                    receta?.elaboraciones.forEach(elabEnReceta => {
+                                        if (elabEnReceta.elaboracionId === of.elaboracionId) {
+                                            necesidadActualParaOF += (item.quantity || 0) * elabEnReceta.cantidad;
                                         }
                                     });
                                 }
-                            }
-                        });
-                    }
-                });
-            }
+                            });
+                        }
+                    });
+                }
+            });
 
-            const diferencia = necesidadActualParaEstaOF - necesidadOriginal;
+            const diferencia = necesidadActualParaOF - of.necesidadTotal!;
 
-            if (Math.abs(diferencia) > 0.001) { // Only if there's a significant deviation
-                 of.osIDs.forEach(osId => {
+            if (Math.abs(diferencia) > 0.001) {
+                of.osIDs.forEach(osId => {
                     const os = serviceOrderMap.get(osId);
                     if (!os || !osIdsEnRango.has(osId)) return;
 
@@ -441,16 +429,15 @@ export default function PlanificacionPage() {
                         desviacionesAgrupadas.push(osConDesviacion);
                     }
 
-                    const desviacionElab: DesviacionElaboracion = { id: of.id, of, necesidadActual: necesidadActualParaEstaOF, diferencia };
-
-                    // Find which recipe and hito this deviation belongs to
+                    const desviacionElab: DesviacionElaboracion = { id: of.id, of, necesidadActual: necesidadActualParaOF, diferencia };
+                    
                     const briefing = briefingsEnRango.find(b => b.osId === osId);
                     briefing?.items.forEach(hito => {
                         const gastroOrder = gastroOrdersEnRango.find(g => g.id === hito.id);
                         gastroOrder?.items?.forEach(item => {
-                             const receta = recetasMap.get(item.id);
-                             if (receta && receta.elaboraciones.some(e => e.elaboracionId === of.elaboracionId)) {
-                                 let hitoDesviacion = osConDesviacion!.hitos.find(h => h.hitoId === hito.id);
+                            const receta = recetasMap.get(item.id);
+                            if (receta && receta.elaboraciones.some(e => e.elaboracionId === of.elaboracionId)) {
+                                let hitoDesviacion = osConDesviacion!.hitos.find(h => h.hitoId === hito.id);
                                 if (!hitoDesviacion) {
                                     hitoDesviacion = { hitoId: hito.id, hitoDescripcion: hito.descripcion, recetas: [] };
                                     osConDesviacion!.hitos.push(hitoDesviacion);
@@ -473,7 +460,7 @@ export default function PlanificacionPage() {
                                 if (!recetaDesviacion.elaboraciones.find(e => e.id === of.id)) {
                                    recetaDesviacion.elaboraciones.push(desviacionElab);
                                 }
-                             }
+                            }
                         })
                     })
                 });
@@ -687,12 +674,20 @@ export default function PlanificacionPage() {
     };
 
     const handleMarkAsExcedente = (desviacion: DesviacionElaboracion) => {
-        const updatedOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        const index = updatedOFs.findIndex(of => of.id === desviacion.of.id);
-        if (index !== -1) {
-            updatedOFs[index].necesidadTotal = desviacion.necesidadActual;
-            localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
-        }
+        if (Math.abs(desviacion.diferencia) <= 0) return;
+
+        let allExcedentes = JSON.parse(localStorage.getItem('excedentesProduccion') || '{}') as {[key: string]: ExcedenteProduccion};
+
+        const newExcedente: ExcedenteProduccion = {
+            ofId: desviacion.of.id,
+            fechaProduccion: desviacion.of.fechaFinalizacion || desviacion.of.fechaCreacion,
+            cantidadAjustada: Math.abs(desviacion.diferencia),
+            motivoAjuste: 'Reducción de necesidad en evento.',
+            fechaAjuste: new Date().toISOString(),
+        };
+
+        allExcedentes[desviacion.of.id] = newExcedente;
+        localStorage.setItem('excedentesProduccion', JSON.stringify(allExcedentes));
 
         toast({ title: 'Excedente Confirmado', description: `Se ha registrado un excedente de ${formatNumber(Math.abs(desviacion.diferencia),2)} ${desviacion.of.unidad}.`});
         calcularNecesidades();
