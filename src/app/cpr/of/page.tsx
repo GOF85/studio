@@ -162,7 +162,6 @@ export default function OfPage() {
               <TableHead>Elaboración</TableHead>
               <TableHead>Cant. Planificada</TableHead>
               <TableHead>Cant. Producida</TableHead>
-              <TableHead>Partida</TableHead>
               <TableHead>Fecha Prevista</TableHead>
               <TableHead>Fecha Asignación</TableHead>
               <TableHead>Estado</TableHead>
@@ -180,7 +179,6 @@ export default function OfPage() {
                   <TableCell>{of.elaboracionNombre}</TableCell>
                   <TableCell>{ceilToTwoDecimals(of.cantidadTotal)} {formatUnit(of.unidad)}</TableCell>
                   <TableCell>{ceilToTwoDecimals(of.cantidadReal)} {of.cantidadReal ? formatUnit(of.unidad) : ''}</TableCell>
-                  <TableCell><Badge variant="secondary">{of.partidaAsignada}</Badge></TableCell>
                   <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
                   <TableCell>{of.fechaAsignacion ? format(new Date(of.fechaAsignacion), 'dd/MM/yy HH:mm') : '-'}</TableCell>
                   <TableCell>
@@ -190,7 +188,7 @@ export default function OfPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   No se encontraron órdenes de fabricación.
                 </TableCell>
               </TableRow>
