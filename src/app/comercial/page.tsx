@@ -452,7 +452,7 @@ export default function ComercialPage() {
                             </div>
                         </AccordionTrigger>
                         <AccordionContent>
-                            <CardContent className="grid lg:grid-cols-2 gap-6 pt-2">
+                             <div className="grid lg:grid-cols-2 gap-6 p-4 pt-2">
                                 <form onChange={() => financialForm.handleSubmit(handleSaveFinancials)()} className="flex flex-col space-y-4">
                                     <h3 className="text-lg font-semibold border-b pb-2">Información Financiera</h3>
                                     <div className="grid grid-cols-2 gap-4 items-end">
@@ -498,7 +498,7 @@ export default function ComercialPage() {
                                             </TableBody>
                                             <TableFooter>
                                             <TableRow>
-                                                <TableCell className="p-1 pr-2">
+                                                <TableCell className="p-1">
                                                     <Input ref={nuevoAjusteConceptoRef} placeholder="Nuevo concepto" className="h-8 text-xs"/>
                                                 </TableCell>
                                                 <TableCell className="text-right p-1">
@@ -512,7 +512,7 @@ export default function ComercialPage() {
                                         </Table>
                                     </div>
                                 </div>
-                            </CardContent>
+                            </div>
                         </AccordionContent>
                     </Card>
                 </AccordionItem>
