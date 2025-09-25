@@ -258,8 +258,8 @@ export default function PedidoHieloPage() {
                         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Snowflake />{isEditing ? 'Editar' : 'Nuevo'} Pedido de Hielo</h1>
                         <p className="text-muted-foreground">Para la OS: {serviceOrder.serviceNumber}</p>
                     </div>
-                    <div className="flex gap-2">
-                         <Button variant="outline" type="button" onClick={() => router.push(`/hielo?osId=${osId}`)}>
+                     <div className="flex gap-2">
+                        <Button variant="outline" type="button" onClick={() => router.push(`/hielo?osId=${osId}`)}>
                             <X className="mr-2 h-4 w-4" />
                             Cancelar
                         </Button>

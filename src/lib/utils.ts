@@ -8,12 +8,20 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(value: number | null | undefined): string {
   if (value === null || value === undefined) return '0,00 €';
-  return value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+  return value.toLocaleString('es-ES', { 
+    style: 'currency', 
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 export function formatNumber(value: number | null | undefined, decimals = 0): string {
     if (value === null || value === undefined) return '0';
-    return value.toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    return value.toLocaleString('es-ES', { 
+        minimumFractionDigits: decimals, 
+        maximumFractionDigits: decimals 
+    });
 }
 
 export function formatUnit(unit: UnidadMedida | string): string {
