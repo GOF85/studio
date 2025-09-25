@@ -68,6 +68,7 @@ function AllocationDialog({ lote, containers, onAllocate }: { lote: LotePendient
     const [quantity, setQuantity] = useState(cantidadPendiente);
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
     const [open, setOpen] = useState(false);
+    const { toast } = useToast();
 
     const handleAllocate = () => {
         if (!selectedContainerId) {
@@ -280,7 +281,7 @@ export default function PickingDetailPage() {
             lotesPorHito.set(hito.id, lotesPendientesHito);
         });
         
-        return { lotesPendientesPorHito, isPickingComplete: allComplete };
+        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete };
 
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, lotesNecesarios]);
     
@@ -437,6 +438,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
         });
 
         doc.save(`Etiquetas_Picking_${serviceOrder.serviceNumber}_${hito.descripcion.replace(/\s+/g, '_')}.pdf`);
+
     } catch (error) {
         console.error("Error generating PDF:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
@@ -515,93 +517,95 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                         {isPrinting === hito.id ? 'Generando...' : 'Generar etiquetas'}
                                     </Button>
                                 </CardHeader>
-                                <CardContent className="space-y-6">
-                                    {(Object.keys(expeditionTypeMap) as Array<keyof typeof expeditionTypeMap>).map(tipo => {
-                                        const lotesDePartida = lotesPendientesHito.filter(l => l.tipoExpedicion === tipo);
-                                        const contenedoresDePartida = pickingState.assignedContainers.filter(c => c.hitoId === hito.id && c.tipo === tipo);
-                                        
-                                        const allocationsForPartida = pickingState.itemStates.filter(alloc => lotesNecesarios.find(ln => ln.id === alloc.ofId)?.tipoExpedicion === tipo && alloc.hitoId === hito.id);
+                                <CardContent>
+                                    <div className="space-y-6">
+                                        {(Object.keys(expeditionTypeMap) as Array<keyof typeof expeditionTypeMap>).map(tipo => {
+                                            const lotesDePartida = lotesPendientesHito.filter(l => l.tipoExpedicion === tipo);
+                                            const contenedoresDePartida = pickingState.assignedContainers.filter(c => c.hitoId === hito.id && c.tipo === tipo);
+                                            
+                                            const allocationsForPartida = pickingState.itemStates.filter(alloc => lotesNecesarios.find(ln => ln.id === alloc.ofId)?.tipoExpedicion === tipo && alloc.hitoId === hito.id);
 
-                                        if (lotesDePartida.length === 0 && allocationsForPartida.length === 0) {
-                                            return null;
-                                        }
-                                        
-                                        const info = expeditionTypeMap[tipo];
+                                            if (lotesDePartida.length === 0 && allocationsForPartida.length === 0) {
+                                                return null;
+                                            }
+                                            
+                                            const info = expeditionTypeMap[tipo];
 
-                                        return (
-                                            <Card key={`${hito.id}-${tipo}`} className={cn(info.className)}>
-                                                <CardHeader className="flex-row items-start justify-between">
-                                                    <CardTitle className="flex items-center gap-3 text-lg"><info.icon />{info.title}</CardTitle>
-                                                    <Button size="sm" variant="outline" className="no-print bg-white/50" onClick={() => addContainer(tipo, hito.id)}><PlusCircle className="mr-2"/>Añadir Contenedor</Button>
-                                                </CardHeader>
-                                                <CardContent>
-                                                    {lotesDePartida.length > 0 && (
-                                                        <div className="mb-4">
-                                                            <h3 className="font-semibold mb-2">Lotes pendientes de asignar para este servicio</h3>
-                                                            <Table className="bg-white"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
-                                                                <TableBody>
-                                                                    {lotesDePartida.map(lote => (
-                                                                        <TableRow key={lote.ofId}>
-                                                                            <TableCell className="font-medium font-mono">{lote.ofId}</TableCell>
-                                                                            <TableCell>
-                                                                                <Tooltip>
-                                                                                    <TooltipTrigger>{lote.elaboracionNombre}</TooltipTrigger>
-                                                                                    <TooltipContent>
-                                                                                        <div className="p-1 max-w-xs">
-                                                                                            <h4 className="font-bold mb-1">Necesario para:</h4>
-                                                                                            <ul className="list-disc pl-4 text-xs">
-                                                                                                {lote.recetas.map((r, i) => (
-                                                                                                    <li key={i}>{r.nombre}: {formatNumber(r.cantidad, 2)} {formatUnit(lote.unidad)}</li>
-                                                                                                ))}
-                                                                                            </ul>
-                                                                                        </div>
-                                                                                    </TooltipContent>
-                                                                                </Tooltip>
-                                                                            </TableCell>
-                                                                            <TableCell className="text-right font-mono">{formatNumber(lote.cantidadNecesaria - lote.cantidadAsignada, 2)} {formatUnit(lote.unidad)}</TableCell>
-                                                                            <TableCell className="text-right no-print"><AllocationDialog lote={lote} containers={contenedoresDePartida} onAllocate={(contId, qty) => allocateLote(lote.ofId, contId, qty, hito.id)} /></TableCell>
-                                                                        </TableRow>
-                                                                    ))}
-                                                                </TableBody>
-                                                            </Table>
+                                            return (
+                                                <Card key={`${hito.id}-${tipo}`} className={cn(info.className)}>
+                                                    <CardHeader className="flex-row items-start justify-between">
+                                                        <CardTitle className="flex items-center gap-3 text-lg"><info.icon />{info.title}</CardTitle>
+                                                        <Button size="sm" variant="outline" className="no-print bg-white/50" onClick={() => addContainer(tipo, hito.id)}><PlusCircle className="mr-2"/>Añadir Contenedor</Button>
+                                                    </CardHeader>
+                                                    <CardContent>
+                                                        {lotesDePartida.length > 0 && (
+                                                            <div className="mb-4">
+                                                                <h3 className="font-semibold mb-2">Lotes pendientes de asignar para este servicio</h3>
+                                                                <Table className="bg-white"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
+                                                                    <TableBody>
+                                                                        {lotesDePartida.map(lote => (
+                                                                            <TableRow key={lote.ofId}>
+                                                                                <TableCell className="font-medium font-mono">{lote.ofId}</TableCell>
+                                                                                <TableCell>
+                                                                                    <Tooltip>
+                                                                                        <TooltipTrigger>{lote.elaboracionNombre}</TooltipTrigger>
+                                                                                        <TooltipContent>
+                                                                                            <div className="p-1 max-w-xs">
+                                                                                                <h4 className="font-bold mb-1">Necesario para:</h4>
+                                                                                                <ul className="list-disc pl-4 text-xs">
+                                                                                                    {lote.recetas.map((r, i) => (
+                                                                                                        <li key={i}>{r.nombre}: {formatNumber(r.cantidad, 2)} {formatUnit(lote.unidad)}</li>
+                                                                                                    ))}
+                                                                                                </ul>
+                                                                                            </div>
+                                                                                        </TooltipContent>
+                                                                                    </Tooltip>
+                                                                                </TableCell>
+                                                                                <TableCell className="text-right font-mono">{formatNumber(lote.cantidadNecesaria - lote.cantidadAsignada, 2)} {formatUnit(lote.unidad)}</TableCell>
+                                                                                <TableCell className="text-right no-print"><AllocationDialog lote={lote} containers={contenedoresDePartida} onAllocate={(contId, qty) => allocateLote(lote.ofId, contId, qty, hito.id)} /></TableCell>
+                                                                            </TableRow>
+                                                                        ))}
+                                                                    </TableBody>
+                                                                </Table>
+                                                            </div>
+                                                        )}
+                                                        <div className="space-y-4">
+                                                            {contenedoresDePartida.map(container => {
+                                                                const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
+                                                                return (
+                                                                    <div key={container.id}>
+                                                                        <h3 className="font-semibold mb-2 flex items-center gap-2">
+                                                                        Contenedor {container.numero}
+                                                                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeContainer(container.id)}><Trash2 size={14} /></Button>
+                                                                        </h3>
+                                                                        <Table className="bg-white/70"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead>Receta</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-16 no-print"></TableHead></TableRow></TableHeader>
+                                                                            <TableBody>
+                                                                                {containerItems.length > 0 ? (
+                                                                                    containerItems.map(item => {
+                                                                                        const loteInfo = lotesNecesarios.find(l => l.id === item.ofId);
+                                                                                        return (
+                                                                                        <TableRow key={item.allocationId}>
+                                                                                            <TableCell className="font-medium font-mono">{item.ofId}</TableCell>
+                                                                                            <TableCell>{loteInfo?.elaboracionNombre}</TableCell>
+                                                                                            <TableCell className="text-xs text-muted-foreground">({getRecetaForElaboracion(loteInfo?.elaboracionId || '', osId)})</TableCell>
+                                                                                            <TableCell className="text-right font-mono">{formatNumber(item.quantity || 0, 2)} {loteInfo ? formatUnit(loteInfo.unidad) : ''}</TableCell>
+                                                                                            <TableCell className="no-print"><Button variant="ghost" size="sm" onClick={() => deallocateLote(item.allocationId)}>Quitar</Button></TableCell>
+                                                                                        </TableRow>
+                                                                                    )})
+                                                                                ) : (
+                                                                                    <TableRow><TableCell colSpan={5} className="text-center h-20 text-muted-foreground">Vacío</TableCell></TableRow>
+                                                                                )}
+                                                                            </TableBody>
+                                                                        </Table>
+                                                                    </div>
+                                                                )
+                                                            })}
                                                         </div>
-                                                    )}
-                                                    <div className="space-y-4">
-                                                        {contenedoresDePartida.map(container => {
-                                                            const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
-                                                            return (
-                                                                <div key={container.id}>
-                                                                    <h3 className="font-semibold mb-2 flex items-center gap-2">
-                                                                    Contenedor {container.numero}
-                                                                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeContainer(container.id)}><Trash2 size={14} /></Button>
-                                                                    </h3>
-                                                                    <Table className="bg-white/70"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead>Receta</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-16 no-print"></TableHead></TableRow></TableHeader>
-                                                                        <TableBody>
-                                                                            {containerItems.length > 0 ? (
-                                                                                containerItems.map(item => {
-                                                                                    const loteInfo = lotesNecesarios.find(l => l.id === item.ofId);
-                                                                                    return (
-                                                                                    <TableRow key={item.allocationId}>
-                                                                                        <TableCell className="font-medium font-mono">{item.ofId}</TableCell>
-                                                                                        <TableCell>{loteInfo?.elaboracionNombre}</TableCell>
-                                                                                        <TableCell className="text-xs text-muted-foreground">({getRecetaForElaboracion(loteInfo?.elaboracionId || '', osId)})</TableCell>
-                                                                                        <TableCell className="text-right font-mono">{formatNumber(item.quantity || 0, 2)} {loteInfo ? formatUnit(loteInfo.unidad) : ''}</TableCell>
-                                                                                        <TableCell className="no-print"><Button variant="ghost" size="sm" onClick={() => deallocateLote(item.allocationId)}>Quitar</Button></TableCell>
-                                                                                    </TableRow>
-                                                                                )})
-                                                                            ) : (
-                                                                                <TableRow><TableCell colSpan={5} className="text-center h-20 text-muted-foreground">Vacío</TableCell></TableRow>
-                                                                            )}
-                                                                        </TableBody>
-                                                                    </Table>
-                                                                </div>
-                                                            )
-                                                        })}
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        )
-                                    })}
+                                                    </CardContent>
+                                                </Card>
+                                            )
+                                        })}
+                                    </div>
                                 </CardContent>
                             </Card>
                         );
@@ -630,4 +634,3 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
         </TooltipProvider>
     );
 }
-
