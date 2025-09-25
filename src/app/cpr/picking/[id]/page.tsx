@@ -75,7 +75,7 @@ function AllocationDialog({ lote, containers, onAllocate, onAddContainer }: { lo
             toast({variant: 'destructive', title: 'Error', description: "Por favor, selecciona un contenedor."});
             return;
         }
-        if (quantity <= 0 || quantity > cantidadPendiente + 0.001) {
+        if (quantity <= 0 || quantity > cantidadPendiente + 0.001) { // Add tolerance for float issues
             toast({variant: 'destructive', title: 'Error', description: `La cantidad debe estar entre 0.01 y ${formatNumber(cantidadPendiente, 2)}.`});
             return;
         }
@@ -214,8 +214,8 @@ export default function PickingDetailPage() {
 
     const { lotesPendientesPorHito, isPickingComplete } = useMemo(() => {
         const lotesPendientesPorHito = new Map<string, LotePendiente[]>();
-        if (!isMounted) {
-            return { lotesPendientesPorHito, isPickingComplete: false };
+        if (!isMounted || !hitosConNecesidades.length) {
+            return { lotesPendientesPorHito, isPickingComplete: true };
         }
     
         const allOFs = lotesNecesarios;
@@ -360,7 +360,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
             // --- HEADER ---
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
-            doc.setTextColor('#000000'); // Primary color
+            doc.setTextColor('#059669'); // Primary color
             const headerText = `${container.tipo} - ${container.numero} de ${totalContainersOfType}`;
             doc.text(headerText, margin, finalY + 2);
             finalY += 6;
