@@ -1,10 +1,9 @@
 
-
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { OrdenFabricacion, Personal, Elaboracion, ComponenteElaboracion, IngredienteInterno, IngredienteERP } from '@/types';
+import type { OrdenFabricacion, Personal, Elaboracion, ComponenteElaboracion, IngredienteInterno, IngredienteERP, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { ArrowLeft, Save, Factory, Info, Check, X, AlertTriangle, Trash2, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,7 +16,7 @@ import { es } from 'date-fns/locale';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -27,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { Combobox } from '@/components/ui/combobox';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { formatNumber, formatUnit } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -38,6 +38,22 @@ const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'seconda
   'Validado': 'default',
 };
 
+type DetalleNecesidad = {
+    osId: string;
+    osNumber: string;
+    hitoId: string;
+    hitoDescripcion: string;
+    recetaId: string;
+    recetaNombre: string;
+    cantidadNecesaria: number;
+}
+
+type DesgloseProduccionItem = {
+    id: string; // combination of osId-hitoId-recetaId
+    cantidadReal: number | null;
+    check: boolean;
+};
+
 type FormData = {
     elaboracionId: string;
     cantidadTotal: number;
@@ -45,6 +61,7 @@ type FormData = {
     responsable?: string;
     cantidadReal: number | null;
     incidenciaObservaciones?: string;
+    desgloseProduccion: DesgloseProduccionItem[];
 }
 
 type IngredienteConERP = IngredienteInterno & { erp?: IngredienteERP };
@@ -55,6 +72,7 @@ export default function OfDetailPage() {
     const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
     const [dbElaboraciones, setDbElaboraciones] = useState<Elaboracion[]>([]);
     const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
+    const [detallesNecesidad, setDetallesNecesidad] = useState<DetalleNecesidad[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const router = useRouter();
@@ -69,11 +87,89 @@ export default function OfDetailPage() {
             cantidadReal: null,
             incidenciaObservaciones: '',
             fechaProduccionPrevista: new Date(),
+            desgloseProduccion: []
         }
     });
+    
+    const { control, watch, setValue, getValues } = form;
+    const { fields, append, remove, update } = useFieldArray({
+        control,
+        name: "desgloseProduccion"
+    });
 
-    const selectedElaboracionId = form.watch('elaboracionId');
+    const selectedElaboracionId = watch('elaboracionId');
+    const desgloseWatch = watch('desgloseProduccion');
+
+    const isDesgloseComplete = useMemo(() => {
+        if (!desgloseWatch || desgloseWatch.length === 0) return false;
+        return desgloseWatch.every(item => item.cantidadReal !== null && item.cantidadReal >= 0 && item.check);
+    }, [desgloseWatch]);
+
+    const totalDesglose = useMemo(() => {
+        return desgloseWatch?.reduce((sum, item) => sum + (item.cantidadReal || 0), 0) || 0;
+    }, [desgloseWatch]);
+    
+    useEffect(() => {
+      setValue('cantidadReal', totalDesglose);
+    }, [totalDesglose, setValue]);
+
     const selectedElaboracion = useMemo(() => dbElaboraciones.find(e => e.id === selectedElaboracionId), [dbElaboraciones, selectedElaboracionId]);
+
+    const loadNecesidades = useCallback((of: OrdenFabricacion | null) => {
+        if (!of) return;
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+        const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+        const allElabs = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+
+        const necesidades: DetalleNecesidad[] = [];
+        
+        for (const osId of of.osIDs) {
+            const os = allServiceOrders.find(o => o.id === osId);
+            if (!os) continue;
+
+            const briefing = allBriefings.find(b => b.osId === osId);
+            if (!briefing) continue;
+            
+            const gastroOrders = allGastroOrders.filter(g => g.osId === osId);
+
+            for (const gastroOrder of gastroOrders) {
+                const hito = briefing.items.find(i => i.id === gastroOrder.id);
+                if (!hito) continue;
+
+                for (const item of (gastroOrder.items || [])) {
+                    if (item.type === 'item') {
+                        const receta = allRecetas.find(r => r.id === item.id);
+                        if (receta) {
+                            const elabEnReceta = receta.elaboraciones.find(e => e.elaboracionId === of.elaboracionId);
+                            if (elabEnReceta) {
+                                necesidades.push({
+                                    osId: os.id,
+                                    osNumber: os.serviceNumber,
+                                    hitoId: hito.id,
+                                    hitoDescripcion: hito.descripcion,
+                                    recetaId: receta.id,
+                                    recetaNombre: receta.nombre,
+                                    cantidadNecesaria: (item.quantity || 0) * elabEnReceta.cantidad
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        setDetallesNecesidad(necesidades);
+        // Initialize desgloseProduccion in the form
+        const initialDesglose = necesidades.map(n => ({
+            id: `${n.osId}-${n.hitoId}-${n.recetaId}`,
+            cantidadReal: null,
+            check: false
+        }));
+        setValue('desgloseProduccion', initialDesglose);
+        
+    }, [setValue]);
+
 
     useEffect(() => {
         const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
@@ -82,7 +178,6 @@ export default function OfDetailPage() {
         const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
         setDbElaboraciones(allElaboraciones);
         
-        // Cargar datos de ingredientes para el escandallo
         const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
         const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
         const erpMap = new Map(storedErp.map(i => [i.id, i]));
@@ -102,13 +197,15 @@ export default function OfDetailPage() {
                     responsable: currentOF.responsable,
                     cantidadReal: currentOF.cantidadReal ?? null,
                     incidenciaObservaciones: currentOF.incidenciaObservaciones || '',
+                    desgloseProduccion: [],
                 });
                 const elabData = allElaboraciones.find(e => e.id === currentOF.elaboracionId);
                 setElaboracion(elabData || null);
+                loadNecesidades(currentOF);
             }
         }
         setIsMounted(true);
-    }, [id, form, isEditing]);
+    }, [id, form, isEditing, loadNecesidades]);
 
     const ratioProduccion = useMemo(() => {
         if (!isEditing || !orden || !elaboracion || !elaboracion.produccionTotal) return 1;
@@ -118,7 +215,7 @@ export default function OfDetailPage() {
     const handleSave = (newStatus?: OrdenFabricacion['estado'], newResponsable?: string) => {
         if (!isEditing || !orden) return;
 
-        const formData = form.getValues();
+        const formData = getValues();
         let updatedOF: OrdenFabricacion = { ...orden };
 
         if (newStatus) {
@@ -153,7 +250,7 @@ export default function OfDetailPage() {
             allOFs[index] = updatedOF;
             localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
             setOrden(updatedOF);
-            form.reset({ ...form.getValues(), responsable: updatedOF.responsable, cantidadReal: updatedOF.cantidadReal, incidenciaObservaciones: updatedOF.incidenciaObservaciones || '' });
+            form.reset({ ...getValues(), responsable: updatedOF.responsable, cantidadReal: updatedOF.cantidadReal, incidenciaObservaciones: updatedOF.incidenciaObservaciones || '' });
             toast({ title: 'Guardado', description: `La Orden de Fabricación ha sido actualizada.` });
         }
     };
@@ -180,8 +277,11 @@ export default function OfDetailPage() {
             cantidadTotal: data.cantidadTotal,
             unidad: selectedElaboracion.unidadProduccion,
             partidaAsignada: selectedElaboracion.partidaProduccion,
+            tipoExpedicion: selectedElaboracion.tipoExpedicion,
             estado: 'Pendiente',
             osIDs: [],
+            incidencia: false,
+            okCalidad: false,
         };
         
         allOFs.push(newOF);
@@ -229,7 +329,7 @@ export default function OfDetailPage() {
     const elabNombre = isEditing ? orden?.elaboracionNombre : selectedElaboracion?.nombre;
     const elabPartida = isEditing ? orden?.partidaAsignada : selectedElaboracion?.partidaProduccion;
     const elabUnidad = isEditing ? orden?.unidad : selectedElaboracion?.unidadProduccion;
-    const elabCantidad = form.watch('cantidadTotal') || (isEditing ? orden?.cantidadTotal : 0);
+    const elabCantidad = watch('cantidadTotal') || (isEditing ? orden?.cantidadTotal : 0);
 
     return (
         <div>
@@ -257,7 +357,7 @@ export default function OfDetailPage() {
                 <CardHeader>
                     <CardTitle>{elabNombre || 'Seleccione una elaboración'}</CardTitle>
                     <CardDescription>
-                        {elabPartida ? `Planificada para el ${format(form.watch('fechaProduccionPrevista'), 'dd/MM/yyyy')} en la partida de ${elabPartida}` : 'Complete los datos de la OF'}
+                        {elabPartida ? `Planificada para el ${format(watch('fechaProduccionPrevista'), 'dd/MM/yyyy')} en la partida de ${elabPartida}` : 'Complete los datos de la OF'}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -265,13 +365,13 @@ export default function OfDetailPage() {
                         <div className={cn("grid md:grid-cols-3 gap-6", !isEditing && "items-end")}>
                             {!isEditing ? (
                                 <>
-                                    <FormField control={form.control} name="elaboracionId" render={({ field }) => (
+                                    <FormField control={control} name="elaboracionId" render={({ field }) => (
                                         <FormItem>
                                             <Label>Elaboración</Label>
                                             <Combobox options={dbElaboraciones.map(e => ({ value: e.id, label: e.nombre }))} value={field.value} onChange={field.onChange} placeholder="Buscar elaboración..." />
                                         </FormItem>
                                     )} />
-                                    <FormField control={form.control} name="cantidadTotal" render={({ field }) => (
+                                    <FormField control={control} name="cantidadTotal" render={({ field }) => (
                                         <FormItem>
                                             <Label>Cantidad a Producir ({elabUnidad ? formatUnit(elabUnidad) : 'uds'})</Label>
                                             <FormControl>
@@ -279,7 +379,7 @@ export default function OfDetailPage() {
                                             </FormControl>
                                         </FormItem>
                                     )} />
-                                    <FormField control={form.control} name="fechaProduccionPrevista" render={({ field }) => (
+                                    <FormField control={control} name="fechaProduccionPrevista" render={({ field }) => (
                                         <FormItem className="flex flex-col">
                                             <Label>Fecha Prevista</Label>
                                             <Popover><PopoverTrigger asChild>
@@ -305,7 +405,7 @@ export default function OfDetailPage() {
                                     }
                                     <div className="space-y-1">
                                         <Label htmlFor="responsable">Responsable</Label>
-                                        <Controller name="responsable" control={form.control} render={({ field }) => (
+                                        <Controller name="responsable" control={control} render={({ field }) => (
                                             <Select onValueChange={(value) => { field.onChange(value); if(canBeAssigned) { handleSave('Asignada', value); }}} value={field.value} disabled={!canBeAssigned}>
                                                 <SelectTrigger id="responsable"><SelectValue placeholder="Asignar responsable..." /></SelectTrigger>
                                                 <SelectContent>{personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}</SelectContent>
@@ -364,8 +464,16 @@ export default function OfDetailPage() {
                     <CardFooter className="flex-col items-start gap-4">
                         <h4 className="font-semibold">Registro de Producción</h4>
                         <div className="grid md:grid-cols-3 gap-6 w-full">
+                            <Card className={!canBeAssigned ? 'bg-muted/30' : ''}>
+                                <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2">1. Asignar</CardTitle></CardHeader>
+                                <CardContent>
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        Asigna la producción a un responsable para que pueda empezar a trabajar.
+                                    </p>
+                                </CardContent>
+                            </Card>
                             <Card className={!canStart ? 'bg-muted/30' : ''}>
-                                <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2">1. Iniciar Producción</CardTitle></CardHeader>
+                                <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2">2. Iniciar</CardTitle></CardHeader>
                                 <CardContent>
                                     <p className="text-sm text-muted-foreground mb-4">
                                         Pulsa para cambiar el estado a "En Proceso" una vez asignado el responsable.
@@ -374,16 +482,50 @@ export default function OfDetailPage() {
                                 </CardContent>
                             </Card>
                             <Card className={!canFinish ? 'bg-muted/30' : ''}>
-                                <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2"><Check />2. Finalizar Producción</CardTitle></CardHeader>
+                                <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2"><Check />3. Finalizar</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
-                                    <div className="space-y-1">
+                                     <div className="space-y-1">
                                         <Label htmlFor="cantidadReal">Cantidad Real Producida ({orden?.unidad ? formatUnit(orden.unidad) : 'uds'})</Label>
-                                        <Controller name="cantidadReal" control={form.control} render={({ field }) => <Input id="cantidadReal" type="number" step="0.01" {...field} value={field.value ?? ''} disabled={!canFinish}/>}/>
+                                        <Controller name="cantidadReal" control={control} render={({ field }) => <Input id="cantidadReal" type="number" step="0.01" {...field} value={field.value ?? ''} disabled={!canFinish} readOnly className="font-bold bg-secondary"/>}/>
                                     </div>
-                                    <Button className="w-full" variant="default" disabled={!canFinish} onClick={() => handleSave('Finalizado')}>Marcar como Finalizada</Button>
+                                    <Button className="w-full" variant="default" disabled={!canFinish || !isDesgloseComplete} onClick={() => handleSave('Finalizado')}>Marcar como Finalizada</Button>
                                 </CardContent>
                             </Card>
-                            <Card>
+                        </div>
+                        {canFinish && (
+                            <Card className="w-full mt-4">
+                                <CardHeader>
+                                    <CardTitle>Desglose de Producción por Necesidad</CardTitle>
+                                    <CardDescription>Especifica la cantidad producida para cada necesidad antes de finalizar.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>OS</TableHead><TableHead>Hito</TableHead><TableHead>Receta</TableHead><TableHead>Cant. Necesaria</TableHead><TableHead className="w-40">Cant. Real</TableHead><TableHead className="w-16">OK</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {detallesNecesidad.map((detalle, index) => (
+                                                <TableRow key={detalle.osId + detalle.hitoId + detalle.recetaId}>
+                                                    <TableCell>{detalle.osNumber}</TableCell>
+                                                    <TableCell>{detalle.hitoDescripcion}</TableCell>
+                                                    <TableCell>{detalle.recetaNombre}</TableCell>
+                                                    <TableCell>{formatNumber(detalle.cantidadNecesaria, 2)} {elabUnidad ? formatUnit(elabUnidad) : 'uds'}</TableCell>
+                                                    <TableCell>
+                                                        <FormField control={control} name={`desgloseProduccion.${index}.cantidadReal`} render={({field}) => (
+                                                            <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || null)} />
+                                                        )} />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <FormField control={control} name={`desgloseProduccion.${index}.check`} render={({field}) => (
+                                                            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                                        )} />
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        )}
+                         <Card className="w-full">
                                 <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2 text-destructive"><AlertTriangle/>Registrar Incidencia</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
                                     <p className="text-sm text-muted-foreground">
@@ -400,7 +542,7 @@ export default function OfDetailPage() {
                                                     Explica brevemente qué ha ocurrido con esta producción. Esta información quedará registrada.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
-                                            <Controller name="incidenciaObservaciones" control={form.control} render={({ field }) => <Textarea {...field} placeholder="Ej: Se quemó parte de la producción, solo se pudieron salvar 5kg..." />}/>
+                                            <Controller name="incidenciaObservaciones" control={control} render={({ field }) => <Textarea {...field} placeholder="Ej: Se quemó parte de la producción, solo se pudieron salvar 5kg..." />}/>
                                             <AlertDialogFooter>
                                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                                 <AlertDialogAction onClick={() => handleSave('Incidencia')}>Guardar Incidencia</AlertDialogAction>
@@ -409,7 +551,6 @@ export default function OfDetailPage() {
                                     </AlertDialog>
                                 </CardContent>
                             </Card>
-                        </div>
                     </CardFooter>
                 )}
             </Card>
@@ -438,3 +579,5 @@ export default function OfDetailPage() {
         </div>
     );
 }
+
+    
