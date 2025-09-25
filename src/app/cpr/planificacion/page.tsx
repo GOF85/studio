@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -219,7 +220,7 @@ export default function PlanificacionPage() {
         const ofsEnRango = allOrdenesFabricacion.filter(of => of.osIDs.some(osId => osIdsEnRango.has(osId)));
         
         const gastroOrdersEnRango = allGastroOrders.filter(go => osIdsEnRango.has(go.osId));
-        const briefingsEnRango = allBriefings.filter(b => osIdsEnRango.has(b.osId));
+        const briefingsEnRango = allBriefings.filter(b => b.osId === Array.from(osIdsEnRango)[0]);
 
         // --- CALCULATIONS ---
         
@@ -634,7 +635,7 @@ export default function PlanificacionPage() {
             okCalidad: false,
         };
 
-        const updatedOFs = [...allOFs, newOF];
+        const updatedOFs = [...allOFs, ...newOF];
         localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
         
         toast({ title: 'OF de Ajuste Generada', description: `Se ha creado la OF ${newOF.id} por ${formatNumber(newOF.cantidadTotal,2)} ${newOF.unidad}.`});
@@ -885,7 +886,9 @@ export default function PlanificacionPage() {
                                                     <h4 className="font-semibold text-sm">{hito.hitoDescripcion}</h4>
                                                      {hito.recetas.map(receta => (
                                                         <div key={receta.recetaId} className="pl-4 mt-1">
-                                                            <p className="text-sm text-muted-foreground">{receta.recetaNombre} <Badge variant="secondary" className={cn(receta.diferenciaUnidades > 0 ? 'text-orange-600' : 'text-blue-600')}>{receta.diferenciaUnidades > 0 ? '+' : ''}{receta.diferenciaUnidades} uds.</Badge></p>
+                                                            <div className="text-sm text-muted-foreground">
+                                                                {receta.recetaNombre} <Badge variant="secondary" className={cn(receta.diferenciaUnidades > 0 ? 'text-orange-600' : 'text-blue-600')}>{receta.diferenciaUnidades > 0 ? '+' : ''}{receta.diferenciaUnidades} uds.</Badge>
+                                                            </div>
                                                             <Table>
                                                                 <TableHeader><TableRow><TableHead className="h-8">Elaboración</TableHead><TableHead className="h-8">Cant. Original</TableHead><TableHead className="h-8">Cant. Nueva</TableHead><TableHead className="h-8">Desviación</TableHead><TableHead className="h-8">Acciones</TableHead></TableRow></TableHeader>
                                                                 <TableBody>
