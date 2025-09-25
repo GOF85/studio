@@ -205,20 +205,22 @@ export default function PickingDetailPage() {
     }, [osId, savePickingState]); 
 
     const { lotesPendientesPorHito, isPickingComplete } = useMemo(() => {
-        if(!isMounted) return { lotesPendientesPorHito: new Map(), isPickingComplete: false };
-
+        const lotesPendientesPorHito = new Map<string, LotePendiente[]>();
+        if (!isMounted) {
+            return { lotesPendientesPorHito, isPickingComplete: false };
+        }
+    
         const allOFs = lotesNecesarios;
-        const allRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
-        const allElaboraciones = (JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[]);
-        const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
-
+        const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+        const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+        const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+    
         let allComplete = true;
-        const lotesPorHito = new Map<string, LotePendiente[]>();
-
+    
         hitosConNecesidades.forEach(hito => {
             const necesidadesHito: Map<string, LotePendiente> = new Map();
             const gastroOrder = allGastroOrders.find(go => go.id === hito.id);
-
+    
             if (gastroOrder && gastroOrder.items) {
                 gastroOrder.items.forEach(item => {
                     if (item.type === 'item') {
@@ -229,7 +231,7 @@ export default function PickingDetailPage() {
                                 if (elabInfo) {
                                     const cantidadNecesaria = Number(item.quantity || 0) * elabEnReceta.cantidad;
                                     if(cantidadNecesaria < 0.01) return;
-
+    
                                     let existing = necesidadesHito.get(elabInfo.id);
                                     if(!existing) {
                                         const of = allOFs.find(o => o.elaboracionId === elabInfo.id);
@@ -245,7 +247,7 @@ export default function PickingDetailPage() {
                                         };
                                         necesidadesHito.set(elabInfo.id, existing);
                                     }
-
+    
                                     existing.cantidadNecesaria += cantidadNecesaria;
                                     const recetaEnNecesidad = existing.recetas.find(r => r.nombre === receta.nombre);
                                     if (recetaEnNecesidad) {
@@ -259,7 +261,7 @@ export default function PickingDetailPage() {
                     }
                 });
             }
-
+    
             const lotesPendientesHito = Array.from(necesidadesHito.values()).map(necesidad => {
                 const cantidadAsignadaTotal = pickingState.itemStates
                     .filter(a => a.ofId === necesidad.ofId && a.hitoId === hito.id)
@@ -276,13 +278,15 @@ export default function PickingDetailPage() {
                 return cantidadPendiente > 0.001 && isReadyForPicking;
             });
             
-            if (lotesPendientesHito.length > 0) allComplete = false;
-
-            lotesPorHito.set(hito.id, lotesPendientesHito);
+            if (lotesPendientesHito.length > 0) {
+                allComplete = false;
+            }
+    
+            lotesPendientesPorHito.set(hito.id, lotesPendientesHito);
         });
         
         return { lotesPendientesPorHito, isPickingComplete: allComplete };
-
+    
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, lotesNecesarios]);
     
     const lotesPendientesCalidad = useMemo(() => {
