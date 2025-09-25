@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Printer, Search } from 'lucide-react';
-import type { ServiceOrder, PickingState, OrdenFabricacion, Elaboracion, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import type { ServiceOrder, PickingState, OrdenFabricacion, Elaboracion, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -59,9 +59,27 @@ export default function InformePickingPage() {
   
   const handlePrint = (item: PickingReportItem) => {
     const doc = new jsPDF();
-    const allBriefings: ComercialBriefing[] = JSON.parse(localStorage.getItem('comercialBriefings') || '[]');
-    const allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]');
+    const allBriefings: ComercialBriefing[] = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+    const allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+    const allGastroOrders: GastronomyOrder[] = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+    const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     
+    const getRecetaForElaboracion = (elaboracionId: string, osId: string): string => {
+        const gastroOrders = allGastroOrders.filter(o => o.osId === osId);
+        for (const order of gastroOrders) {
+            for (const item of (order.items || [])) {
+                if(item.type === 'item') {
+                    const receta = allRecetas.find(r => r.id === item.id);
+                    if(receta && receta.elaboraciones.some(e => e.elaboracionId === elaboracionId)) {
+                        return receta.nombre;
+                    }
+                }
+            }
+        }
+        return 'Directa';
+    };
+
+
     const currentBriefing = allBriefings.find(b => b.osId === item.os.id);
     if (!currentBriefing) return;
 
@@ -104,8 +122,10 @@ export default function InformePickingPage() {
 
             const tableBody = containerItems.map(assignedLote => {
                 const loteInfo = allOFs.find(of => of.id === assignedLote.ofId);
+                const recetaNombre = loteInfo ? getRecetaForElaboracion(loteInfo.elaboracionId, item.os.id) : '-';
                 return [
                     loteInfo?.elaboracionNombre || 'Desconocido',
+                    recetaNombre,
                     assignedLote.ofId,
                     `${formatNumber(assignedLote.quantity, 2)} ${formatUnit(loteInfo?.unidad || 'Uds')}`
                 ];
@@ -113,7 +133,7 @@ export default function InformePickingPage() {
 
             autoTable(doc, {
                 startY: finalY,
-                head: [['Elaboración', 'Lote (OF)', 'Cantidad']],
+                head: [['Elaboración', 'Receta', 'Lote (OF)', 'Cantidad']],
                 body: tableBody,
                 theme: 'grid',
                 headStyles: { fillColor: [230, 230, 230], textColor: 20 },
