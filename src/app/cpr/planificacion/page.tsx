@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -30,7 +28,7 @@ import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
-import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import type { ServiceOrder, GastronomyOrder, GastronomyOrderItem, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta, ComercialBriefing, ComercialBriefingItem } from '@/types';
 
 // --- DATA STRUCTURES ---
 
@@ -68,6 +66,9 @@ type DesviacionElaboracion = {
 type DesviacionReceta = {
     recetaId: string;
     recetaNombre: string;
+    cantidadOriginal: number;
+    cantidadActual: number;
+    diferenciaUnidades: number;
     elaboraciones: DesviacionElaboracion[];
 };
 
@@ -365,15 +366,13 @@ export default function PlanificacionPage() {
 
             let osConDesviacion: DesviacionOS | undefined;
             const hitosConDesviacion = new Map<string, DesviacionHito>();
+            
+            const gastroOrdersDeLaOS = gastroOrdersEnRango.filter(g => g.osId === os.id);
+            const briefingDeLaOS = briefingsEnRango.find(b => b.osId === os.id);
 
             ofsDeLaOS.forEach(of => {
                 const necesidadRegistro = necesidadesPorElaboracion.get(of.elaboracionId);
-                const necesidadActualOS = Array.from(necesidadRegistro?.necesidadesPorDia.entries() || [])
-                    .filter(([dayKey]) => {
-                        const osDelDia = osEnRango.find(o => o.id === os.id && format(new Date(o.startDate), 'yyyy-MM-dd') === dayKey);
-                        return !!osDelDia;
-                    })
-                    .reduce((sum, [, cant]) => sum + cant, 0);
+                const necesidadActualOS = necesidadRegistro?.necesidadBruta || 0;
 
                 const necesidadOriginalOF = of.necesidadTotal || 0;
                 const diferencia = necesidadActualOS - necesidadOriginalOF;
@@ -383,29 +382,40 @@ export default function PlanificacionPage() {
                         osConDesviacion = { osId: os.id, serviceNumber: os.serviceNumber, hitos: [] };
                         desviacionesMap.set(os.id, osConDesviacion);
                     }
-
+                    
                     // Find which Hito and Receta this OF deviation belongs to
-                    const briefing = briefingsEnRango.find(b => b.osId === os.id);
-                    briefing?.items.forEach(hito => {
-                        const gastroOrder = gastroOrdersEnRango.find(go => go.id === hito.id);
+                    briefingDeLaOS?.items.forEach(hito => {
+                        const gastroOrder = gastroOrdersDeLaOS.find(go => go.id === hito.id);
                         gastroOrder?.items?.forEach(gastroItem => {
                             if (gastroItem.type === 'item') {
                                 const receta = recetasMap.get(gastroItem.id);
                                 if (receta && receta.elaboraciones.some(e => e.elaboracionId === of.elaboracionId)) {
                                     
-                                    let hito = hitosConDesviacion.get(gastroOrder.id);
-                                    if (!hito) {
-                                        hito = { hitoId: gastroOrder.id, hitoDescripcion: gastroOrder.descripcion, recetas: [] };
-                                        hitosConDesviacion.set(gastroOrder.id, hito);
+                                    let hitoDesviacion = hitosConDesviacion.get(gastroOrder.id);
+                                    if (!hitoDesviacion) {
+                                        hitoDesviacion = { hitoId: gastroOrder.id, hitoDescripcion: gastroOrder.descripcion, recetas: [] };
+                                        hitosConDesviacion.set(gastroOrder.id, hitoDesviacion);
                                     }
 
-                                    let recetaEnHito = hito.recetas.find(r => r.recetaId === receta.id);
-                                    if (!recetaEnHito) {
-                                        recetaEnHito = { recetaId: receta.id, recetaNombre: receta.nombre, elaboraciones: [] };
-                                        hito.recetas.push(recetaEnHito);
+                                    let recetaDesviacion = hitoDesviacion.recetas.find(r => r.recetaId === receta.id);
+                                    if (!recetaDesviacion) {
+                                        const originalGastroOrder = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]').find((go: GastronomyOrder) => go.id === hito.id);
+                                        const originalItem = originalGastroOrder?.items?.find((i: GastronomyOrderItem) => i.id === receta.id);
+                                        const cantidadOriginal = originalItem?.quantity || 0;
+                                        const cantidadActual = gastroItem.quantity || 0;
+                                        
+                                        recetaDesviacion = { 
+                                            recetaId: receta.id, 
+                                            recetaNombre: receta.nombre, 
+                                            cantidadOriginal: cantidadOriginal,
+                                            cantidadActual: cantidadActual,
+                                            diferenciaUnidades: cantidadActual - cantidadOriginal,
+                                            elaboraciones: [] 
+                                        };
+                                        hitoDesviacion.recetas.push(recetaDesviacion);
                                     }
 
-                                    recetaEnHito.elaboraciones.push({
+                                    recetaDesviacion.elaboraciones.push({
                                         id: of.id,
                                         of: of,
                                         necesidadActual: necesidadActualOS,
@@ -769,8 +779,8 @@ export default function PlanificacionPage() {
                                             </TableRow>
                                             <TableRow>
                                                 <TableHead className="p-1 sticky left-0 bg-background z-10"><Component className="inline-block mr-2"/>Uds. de Elaboración</TableHead>
-                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizHeaders.reduce((acc, h) => acc + h.totalElaboracionUnits, 0))}</TableCell>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalElaboracionUnits)}</TableCell>)}
+                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizHeaders.reduce((acc, h) => acc + h.totalElaboracionUnits, 0), 2)}</TableCell>
+                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalElaboracionUnits, 2)}</TableCell>)}
                                             </TableRow>
                                             <TableRow className="bg-muted/50">
                                                 <TableHead className="p-1 font-semibold sticky left-0 bg-muted z-10">Producto</TableHead>
@@ -875,7 +885,7 @@ export default function PlanificacionPage() {
                                                     <h4 className="font-semibold text-sm">{hito.hitoDescripcion}</h4>
                                                      {hito.recetas.map(receta => (
                                                         <div key={receta.recetaId} className="pl-4 mt-1">
-                                                            <p className="text-sm text-muted-foreground">{receta.recetaNombre}</p>
+                                                            <p className="text-sm text-muted-foreground">{receta.recetaNombre} <Badge variant="secondary" className={cn(receta.diferenciaUnidades > 0 ? 'text-orange-600' : 'text-blue-600')}>{receta.diferenciaUnidades > 0 ? '+' : ''}{receta.diferenciaUnidades} uds.</Badge></p>
                                                             <Table>
                                                                 <TableHeader><TableRow><TableHead className="h-8">Elaboración</TableHead><TableHead className="h-8">Cant. Original</TableHead><TableHead className="h-8">Cant. Nueva</TableHead><TableHead className="h-8">Desviación</TableHead><TableHead className="h-8">Acciones</TableHead></TableRow></TableHeader>
                                                                 <TableBody>
