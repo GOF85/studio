@@ -163,7 +163,7 @@ export default function PickingPage() {
               paginatedHitos.map(hito => (
                 <TableRow
                   key={hito.id}
-                  onClick={() => router.push(`/cpr/picking/${hito.osId}?hitoId=${hito.id}`)}
+                  onClick={() => router.push(`/cpr/picking/${hito.osId}`)}
                   className="cursor-pointer"
                 >
                   <TableCell className="font-medium">{hito.descripcion}</TableCell>
