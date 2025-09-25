@@ -27,6 +27,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 import type { ServiceOrder, GastronomyOrder, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta, ComercialBriefing, ComercialBriefingItem } from '@/types';
 
@@ -124,6 +126,7 @@ export default function PlanificacionPage() {
     const [planificacionItems, setPlanificacionItems] = useState<Necesidad[]>([]);
     
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+    const [partidaFilter, setPartidaFilter] = useState('all');
 
     // State for detailed view
     const [recetasAgregadas, setRecetasAgregadas] = useState<RecetaAgregada[]>([]);
@@ -137,6 +140,8 @@ export default function PlanificacionPage() {
 
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
+
+    const partidas: PartidaProduccion[] = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'];
 
     const calcularNecesidades = useCallback(() => {
         setIsLoading(true);
@@ -484,6 +489,12 @@ export default function PlanificacionPage() {
         
         calcularNecesidades();
     }
+    
+    const filteredPlanificacionItems = useMemo(() => {
+        if (partidaFilter === 'all') return planificacionItems;
+        return planificacionItems.filter(item => item.partidaProduccion === partidaFilter);
+    }, [planificacionItems, partidaFilter]);
+
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Planificación de Producción..." />;
@@ -776,7 +787,18 @@ export default function PlanificacionPage() {
                         <Card className="mt-4">
                             <CardHeader>
                                 <CardTitle>Planificación de Elaboraciones</CardTitle>
-                                <CardDescription>Vista consolidada de todas las elaboraciones necesarias para producir. Selecciona las filas para generar Órdenes de Fabricación.</CardDescription>
+                                <div className="flex justify-between items-center">
+                                    <CardDescription>Vista consolidada de todas las elaboraciones necesarias para producir. Selecciona las filas para generar Órdenes de Fabricación.</CardDescription>
+                                     <Select value={partidaFilter} onValueChange={setPartidaFilter}>
+                                        <SelectTrigger className="w-[240px]">
+                                            <SelectValue placeholder="Filtrar por partida" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Todas las Partidas</SelectItem>
+                                            {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </CardHeader>
                             <CardContent>
                                 <div className="border rounded-lg">
@@ -784,9 +806,9 @@ export default function PlanificacionPage() {
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead className="w-12"><Checkbox 
-                                                    checked={selectedRows.size > 0 && planificacionItems.filter(i => i.type === 'necesidad').length > 0 && selectedRows.size === planificacionItems.filter(i => i.type === 'necesidad').length}
+                                                    checked={selectedRows.size > 0 && filteredPlanificacionItems.filter(i => i.type === 'necesidad').length > 0 && selectedRows.size === filteredPlanificacionItems.filter(i => i.type === 'necesidad').length}
                                                     onCheckedChange={(checked) => {
-                                                        const needItems = planificacionItems.filter(i => i.type === 'necesidad').map(i => i.id);
+                                                        const needItems = filteredPlanificacionItems.filter(i => i.type === 'necesidad').map(i => i.id);
                                                         if(checked) {
                                                             setSelectedRows(new Set(needItems))
                                                         } else {
@@ -803,8 +825,8 @@ export default function PlanificacionPage() {
                                         <TableBody>
                                             {isLoading ? (
                                                 <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow>
-                                            ) : planificacionItems.length > 0 ? (
-                                                planificacionItems.map(item => (
+                                            ) : filteredPlanificacionItems.length > 0 ? (
+                                                filteredPlanificacionItems.map(item => (
                                                     <TableRow 
                                                         key={item.id} 
                                                         onClick={() => handleSelectRow(item.id)} 
