@@ -269,7 +269,7 @@ export default function PickingDetailPage() {
             lotesPorHito.set(hito.id, lotesPendientesHito);
         });
         
-        return { lotesPendientesPorHito, isPickingComplete: allComplete };
+        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete };
 
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, lotesNecesarios]);
     
@@ -335,7 +335,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
             // --- HEADER ---
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
-            doc.setTextColor('#000000');
+            doc.setTextColor('#000000'); // Primary color
             const headerText = `${container.tipo} - ${container.numero} de ${totalContainersOfType}`;
             doc.text(headerText, margin, finalY + 2);
             finalY += 6;
@@ -348,7 +348,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
             // --- INFO SECTION ---
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151'); 
+            doc.setTextColor('#374151'); // Gris oscuro
             
             const leftCol = [
                 ['Nº Serv:', serviceOrder.serviceNumber],
