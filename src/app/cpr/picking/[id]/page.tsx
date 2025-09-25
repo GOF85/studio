@@ -64,7 +64,7 @@ export const statusVariant: { [key in PickingStatus]: 'default' | 'secondary' | 
 };
 
 function AllocationDialog({ lote, containers, onAllocate, onAddContainer }: { lote: LotePendiente, containers: ContenedorDinamico[], onAllocate: (containerId: string, quantity: number) => void, onAddContainer: () => string }) {
-    const cantidadPendiente = parseFloat((lote.cantidadNecesaria - lote.cantidadAsignada).toFixed(2));
+    const cantidadPendiente = Math.ceil((lote.cantidadNecesaria - lote.cantidadAsignada) * 100) / 100;
     const [quantity, setQuantity] = useState(cantidadPendiente);
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
     const [open, setOpen] = useState(false);
@@ -213,9 +213,9 @@ export default function PickingDetailPage() {
     }, [osId, savePickingState]); 
 
     const { lotesPendientesPorHito, isPickingComplete } = useMemo(() => {
-        const lotesPendientesPorHito = new Map<string, LotePendiente[]>();
+        const lotesPorHito = new Map<string, LotePendiente[]>();
         if (!isMounted || !hitosConNecesidades.length) {
-            return { lotesPendientesPorHito, isPickingComplete: true };
+            return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: true };
         }
     
         const allOFs = lotesNecesarios;
@@ -290,10 +290,10 @@ export default function PickingDetailPage() {
                 allComplete = false;
             }
     
-            lotesPendientesPorHito.set(hito.id, lotesPendientesHito);
+            lotesPorHito.set(hito.id, lotesPendientesHito);
         });
         
-        return { lotesPendientesPorHito, isPickingComplete: allComplete };
+        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete };
     
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, lotesNecesarios]);
     
@@ -565,7 +565,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                                     <TableBody>
                                                                         {lotesDePartida.map(lote => (
                                                                             <TableRow key={lote.ofId}>
-                                                                                <TableCell className="text-xs text-muted-foreground">{lote.recetas.map(r => r.nombre).join(', ')}</TableCell>
+                                                                                <TableCell className="text-xs text-muted-foreground w-[20%]">{lote.recetas.map(r => r.nombre).join(', ')}</TableCell>
                                                                                 <TableCell className="font-bold">
                                                                                     <Tooltip>
                                                                                         <TooltipTrigger>{lote.elaboracionNombre}</TooltipTrigger>
