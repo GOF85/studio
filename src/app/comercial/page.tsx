@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, useWatch, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, ArrowLeft, Briefcase, Save, Pencil, X, Check } from 'lucide-react';
+import { PlusCircle, Trash2, ArrowLeft, Briefcase, Save, Pencil, X, Check, DollarSign } from 'lucide-react';
 import { format, differenceInMinutes, parse } from 'date-fns';
 
-import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, TipoServicio } from '@/types';
+import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, TipoServicio, ComercialAjuste } from '@/types';
 import { osFormSchema, OsFormValues } from '@/app/os/page';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -38,6 +38,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Separator } from '@/components/ui/separator';
 
 const briefingItemSchema = z.object({
   id: z.string(),
@@ -65,15 +66,15 @@ const financialSchema = osFormSchema.pick({
 
 type FinancialFormValues = z.infer<typeof financialSchema>;
 
-function FinancialCalculator({ totalBriefing, onNetChange }: { totalBriefing: number, onNetChange: (net:number) => void }) {
+function FinancialCalculator({ totalFacturacion, onNetChange }: { totalFacturacion: number, onNetChange: (net:number) => void }) {
   const agencyPercentage = useWatch({ name: 'agencyPercentage' });
   const spacePercentage = useWatch({ name: 'spacePercentage' });
 
   const facturacionNeta = useMemo(() => {
     const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
-    const net = totalBriefing * (1 - totalPercentage / 100);
+    const net = totalFacturacion * (1 - totalPercentage / 100);
     return net;
-  }, [totalBriefing, agencyPercentage, spacePercentage]);
+  }, [totalFacturacion, agencyPercentage, spacePercentage]);
 
   useEffect(() => {
     onNetChange(facturacionNeta);
@@ -98,20 +99,30 @@ function FinancialCalculator({ totalBriefing, onNetChange }: { totalBriefing: nu
 export default function ComercialPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
+  const [ajustes, setAjustes] = useState<ComercialAjuste[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [editingItem, setEditingItem] = useState<ComercialBriefingItem | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
   const [facturacionNeta, setFacturacionNeta] = useState(0);
 
+  const nuevoAjusteConceptoRef = useRef<HTMLInputElement>(null);
+  const nuevoAjusteImporteRef = useRef<HTMLInputElement>(null);
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const osId = searchParams.get('osId');
   const { toast } = useToast();
-
+  
   const totalBriefing = useMemo(() => {
     return briefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario), 0) || 0;
   }, [briefing]);
+
+  const totalAjustes = useMemo(() => {
+    return ajustes.reduce((acc, ajuste) => acc + ajuste.importe, 0);
+  }, [ajustes]);
+
+  const facturacionFinal = useMemo(() => totalBriefing + totalAjustes, [totalBriefing, totalAjustes]);
 
   const financialForm = useForm<FinancialFormValues>({
     resolver: zodResolver(financialSchema),
@@ -138,6 +149,8 @@ export default function ComercialPage() {
     if (storedTipos) {
       setTiposServicio(JSON.parse(storedTipos));
     }
+    
+    const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}') as {[key: string]: ComercialAjuste[]};
 
     if (osId) {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
@@ -153,6 +166,8 @@ export default function ComercialPage() {
       const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
       const currentBriefing = allBriefings.find(b => b.osId === osId);
       setBriefing(currentBriefing || { osId, items: [] });
+      
+      setAjustes(allAjustes[osId] || []);
     } else {
       toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
       router.push('/pes');
@@ -161,14 +176,14 @@ export default function ComercialPage() {
   }, [osId, router, toast, financialForm]);
 
    useEffect(() => {
-    if (serviceOrder && totalBriefing !== serviceOrder.facturacion) {
+    if (serviceOrder && facturacionFinal !== serviceOrder.facturacion) {
       saveFinancials({
-        facturacion: totalBriefing,
+        facturacion: facturacionFinal,
         agencyPercentage: serviceOrder.agencyPercentage,
         spacePercentage: serviceOrder.spacePercentage
       });
     }
-  }, [totalBriefing, serviceOrder, saveFinancials]);
+  }, [facturacionFinal, serviceOrder, saveFinancials]);
 
   const sortedBriefingItems = useMemo(() => {
     if (!briefing?.items) return [];
@@ -248,6 +263,33 @@ export default function ComercialPage() {
       return 'N/A';
     }
   };
+
+  const saveAjustes = (newAjustes: ComercialAjuste[]) => {
+      const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}');
+      allAjustes[osId] = newAjustes;
+      localStorage.setItem('comercialAjustes', JSON.stringify(allAjustes));
+      setAjustes(newAjustes);
+  };
+
+  const handleAddAjuste = () => {
+    const concepto = nuevoAjusteConceptoRef.current?.value;
+    const importe = nuevoAjusteImporteRef.current?.value;
+
+    if (!concepto || !importe) {
+        toast({ variant: 'destructive', title: 'Error', description: 'El concepto y el importe son obligatorios.' });
+        return;
+    }
+    const newAjustes = [...ajustes, { id: Date.now().toString(), concepto, importe: parseFloat(importe) }];
+    saveAjustes(newAjustes);
+
+    if(nuevoAjusteConceptoRef.current) nuevoAjusteConceptoRef.current.value = '';
+    if(nuevoAjusteImporteRef.current) nuevoAjusteImporteRef.current.value = '';
+  };
+  
+  const handleDeleteAjuste = (id: string) => {
+      const newAjustes = ajustes.filter(a => a.id !== id);
+      saveAjustes(newAjustes);
+  }
 
   const BriefingItemDialog = ({ open, onOpenChange, item, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, item: Partial<ComercialBriefingItem> | null, onSave: (data: BriefingItemFormValues) => boolean }) => {
     const form = useForm<BriefingItemFormValues>({
@@ -403,36 +445,90 @@ export default function ComercialPage() {
                             <CardTitle>Información Financiera</CardTitle>
                         </div>
                     </CardHeader>
-                    <CardContent>
-                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                           <FormItem>
-                                <FormLabel>Facturación</FormLabel>
-                                <FormControl>
-                                    <Input 
-                                        type="text" 
-                                        readOnly
-                                        value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} 
-                                    />
-                                </FormControl>
+                    <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
+                       <FormItem>
+                            <FormLabel>Fact. Briefing</FormLabel>
+                            <FormControl>
+                                <Input 
+                                    readOnly
+                                    value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} 
+                                />
+                            </FormControl>
+                        </FormItem>
+                        <FormItem>
+                            <FormLabel>Total Ajustes</FormLabel>
+                            <FormControl>
+                                <Input 
+                                    readOnly
+                                    value={totalAjustes.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} 
+                                />
+                            </FormControl>
+                        </FormItem>
+                        <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>% Agencia</FormLabel>
+                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
                             </FormItem>
-                            <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>% Agencia</FormLabel>
-                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
-                                </FormItem>
-                            )} />
-                            <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>% Espacio</FormLabel>
-                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
-                                </FormItem>
-                            )} />
-                            <FinancialCalculator totalBriefing={totalBriefing} onNetChange={setFacturacionNeta}/>
-                        </div>
+                        )} />
+                        <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>% Espacio</FormLabel>
+                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                            </FormItem>
+                        )} />
+                        <FinancialCalculator totalFacturacion={facturacionFinal} onNetChange={setFacturacionNeta}/>
                     </CardContent>
                 </Card>
             </form>
         </FormProvider>
+
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><DollarSign />Ajustes a la Facturación</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Concepto</TableHead>
+                      <TableHead className="w-48 text-right">Importe</TableHead>
+                      <TableHead className="w-20 text-right"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ajustes.length > 0 ? (
+                      ajustes.map(ajuste => (
+                        <TableRow key={ajuste.id}>
+                          <TableCell className="font-medium">{ajuste.concepto}</TableCell>
+                          <TableCell className="text-right">{ajuste.importe.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}</TableCell>
+                          <TableCell className="text-right">
+                             <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteAjuste(ajuste.id)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} className="h-24 text-center">No hay ajustes en la facturación.</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow>
+                        <TableCell><Input ref={nuevoAjusteConceptoRef} placeholder="Nuevo concepto (ej. Descuento)" /></TableCell>
+                        <TableCell className="text-right"><Input ref={nuevoAjusteImporteRef} type="number" step="0.01" placeholder="Importe" className="text-right"/></TableCell>
+                        <TableCell className="text-right"><Button type="button" onClick={handleAddAjuste}>Añadir</Button></TableCell>
+                    </TableRow>
+                  </TableFooter>
+                </Table>
+            </div>
+             <div className="flex justify-end mt-4 text-xl font-bold">
+              Facturación Final: {facturacionFinal.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader><CardTitle>Briefing del Contrato</CardTitle></CardHeader>

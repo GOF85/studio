@@ -129,6 +129,12 @@ export type ComercialBriefing = {
     items: ComercialBriefingItem[];
 };
 
+export type ComercialAjuste = {
+  id: string;
+  concepto: string;
+  importe: number;
+};
+
 export type GastronomyOrderStatus = 'Pendiente' | 'En preparación' | 'Incidencia' | 'Listo';
 
 export type GastronomyOrderItem = {
@@ -394,7 +400,7 @@ export type ElaboracionEnReceta = {
   gramaje: number;
   alergenos?: Alergeno[];
   unidad: UnidadMedida;
-  merma?: number; // Porcentaje de merma en el emplatado/servicio
+  merma: number; // Porcentaje de merma en el emplatado/servicio
 };
 
 export type MenajeEnReceta = {
@@ -414,7 +420,7 @@ export type Receta = {
     descripcionComercial: string;
     responsableEscandallo: string;
     categoria: string;
-    partidaProduccion: string;
+    partidaProduccion?: string;
     estacionalidad: 'INVIERNO' | 'VERANO' | 'MIXTO';
     tipoDieta: 'VEGETARIANO' | 'VEGANO' | 'AMBOS' | 'NINGUNO';
     gramajeTotal: number; // en gramos
