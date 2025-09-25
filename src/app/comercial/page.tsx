@@ -85,7 +85,7 @@ function FinancialCalculator ({ totalFacturacion, onNetChange }: { totalFacturac
   
   
     return (
-      <FormItem className="mt-auto">
+      <FormItem className="mt-auto invisible">
         <FormLabel className="text-lg">Facturación Neta</FormLabel>
         <FormControl>
           <Input
@@ -526,7 +526,7 @@ export default function ComercialPage() {
                                             </FormItem>
                                         )} />
                                     </div>
-                                    <FormItem className="mt-auto">
+                                    <FormItem className="mt-auto invisible">
                                         <FormLabel className="text-lg">Facturación Neta</FormLabel>
                                         <FormControl>
                                         <Input
