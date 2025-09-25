@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -89,7 +90,7 @@ function FinancialCalculator({ totalFacturacion, onNetChange }: { totalFacturaci
         <Input
           readOnly
           value={facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-          className="font-bold text-primary"
+          className="font-bold text-primary h-8"
         />
       </FormControl>
     </FormItem>
@@ -266,6 +267,7 @@ export default function ComercialPage() {
   };
 
   const saveAjustes = (newAjustes: ComercialAjuste[]) => {
+      if(!osId) return;
       const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}');
       allAjustes[osId] = newAjustes;
       localStorage.setItem('comercialAjustes', JSON.stringify(allAjustes));
@@ -442,94 +444,68 @@ export default function ComercialPage() {
             <form onChange={() => financialForm.handleSubmit(handleSaveFinancials)()}>
                 <Card className="mb-8">
                     <CardHeader>
-                        <div className="flex justify-between items-center">
-                            <CardTitle>Información Financiera</CardTitle>
-                        </div>
+                        <CardTitle>Información Financiera y Ajustes</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
-                       <FormItem>
-                            <FormLabel>Fact. Briefing</FormLabel>
-                            <FormControl>
-                                <Input 
-                                    readOnly
-                                    value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} 
-                                />
-                            </FormControl>
-                        </FormItem>
-                        <FormItem>
-                            <FormLabel>Total Ajustes</FormLabel>
-                            <FormControl>
-                                <Input 
-                                    readOnly
-                                    value={totalAjustes.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} 
-                                />
-                            </FormControl>
-                        </FormItem>
-                        <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 items-end">
                             <FormItem>
-                            <FormLabel>% Agencia</FormLabel>
-                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                                <FormLabel>Fact. Briefing</FormLabel>
+                                <FormControl><Input readOnly value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8" /></FormControl>
                             </FormItem>
-                        )} />
-                        <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>% Espacio</FormLabel>
-                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                             <FormItem>
+                                <FormLabel>Facturación Final</FormLabel>
+                                <FormControl><Input readOnly value={facturacionFinal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8"/></FormControl>
                             </FormItem>
-                        )} />
-                        <FinancialCalculator totalFacturacion={facturacionFinal} onNetChange={setFacturacionNeta}/>
+                            <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>% Agencia</FormLabel>
+                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8" /></FormControl>
+                                </FormItem>
+                            )} />
+                            <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>% Espacio</FormLabel>
+                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8" /></FormControl>
+                                </FormItem>
+                            )} />
+                            <FinancialCalculator totalFacturacion={facturacionFinal} onNetChange={setFacturacionNeta}/>
+                        </div>
+                        <Separator className="my-4"/>
+                        <h3 className="text-md font-semibold">Ajustes a la Facturación</h3>
+                        <div className="border rounded-lg">
+                            <Table>
+                                <TableBody>
+                                    {ajustes.map(ajuste => (
+                                    <TableRow key={ajuste.id}>
+                                        <TableCell className="font-medium p-1">{ajuste.concepto}</TableCell>
+                                        <TableCell className="w-48 text-right p-1">{ajuste.importe.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}</TableCell>
+                                        <TableCell className="w-12 text-right p-0 pr-1">
+                                            <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteAjuste(ajuste.id)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                    ))}
+                                </TableBody>
+                                <TableFooter>
+                                <TableRow>
+                                    <TableCell className="p-1">
+                                        <Input ref={nuevoAjusteConceptoRef} placeholder="Nuevo concepto (ej. Descuento)" className="h-8"/>
+                                    </TableCell>
+                                    <TableCell className="text-right p-1">
+                                        <Input ref={nuevoAjusteImporteRef} type="number" step="0.01" placeholder="Importe" className="text-right h-8 w-48"/>
+                                    </TableCell>
+                                    <TableCell className="text-right p-1">
+                                        <Button type="button" onClick={handleAddAjuste} size="sm">Añadir</Button>
+                                    </TableCell>
+                                </TableRow>
+                            </TableFooter>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
             </form>
         </FormProvider>
-
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><DollarSign />Ajustes a la Facturación</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Concepto</TableHead>
-                      <TableHead className="w-48 text-right">Importe</TableHead>
-                      <TableHead className="w-20 text-right"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ajustes.length > 0 ? (
-                      ajustes.map(ajuste => (
-                        <TableRow key={ajuste.id}>
-                          <TableCell className="font-medium">{ajuste.concepto}</TableCell>
-                          <TableCell className="text-right">{ajuste.importe.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}</TableCell>
-                          <TableCell className="text-right">
-                             <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteAjuste(ajuste.id)}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={3} className="h-24 text-center">No hay ajustes en la facturación.</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                  <TableFooter>
-                    <TableRow>
-                        <TableCell><Input ref={nuevoAjusteConceptoRef} placeholder="Nuevo concepto (ej. Descuento)" /></TableCell>
-                        <TableCell className="text-right"><Input ref={nuevoAjusteImporteRef} type="number" step="0.01" placeholder="Importe" className="text-right"/></TableCell>
-                        <TableCell className="text-right"><Button type="button" onClick={handleAddAjuste}>Añadir</Button></TableCell>
-                    </TableRow>
-                  </TableFooter>
-                </Table>
-            </div>
-             <div className="flex justify-end mt-4 text-xl font-bold">
-              Facturación Final: {facturacionFinal.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}
-            </div>
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader><CardTitle>Briefing del Contrato</CardTitle></CardHeader>
