@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useForm, useFieldArray, useWatch, FormProvider } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PlusCircle, Trash2, ArrowLeft, Briefcase, Save, Pencil, X, Check, DollarSign } from 'lucide-react';
