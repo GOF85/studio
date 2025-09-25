@@ -23,7 +23,7 @@ import {
   TableRow,
   TableFooter,
 } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -69,71 +69,41 @@ const financialSchema = osFormSchema.pick({
 
 type FinancialFormValues = z.infer<typeof financialSchema>;
 
-function FinancialCalculator({ totalFacturacion, onNetChange }: { totalFacturacion: number, onNetChange: (net:number) => void }) {
-  const agencyPercentage = useWatch({ name: 'agencyPercentage' });
-  const spacePercentage = useWatch({ name: 'spacePercentage' });
-
-  const facturacionNeta = useMemo(() => {
-    const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
-    const net = totalFacturacion * (1 - totalPercentage / 100);
-    return net;
-  }, [totalFacturacion, agencyPercentage, spacePercentage]);
-
-  useEffect(() => {
-    onNetChange(facturacionNeta);
-  }, [facturacionNeta, onNetChange]);
-
-
-  return (
-    <FormItem className="mt-auto">
-      <FormLabel className="text-lg">Facturación Neta</FormLabel>
-      <FormControl>
-        <Input
-          readOnly
-          value={facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-          className="font-bold text-primary h-12 text-xl"
-        />
-      </FormControl>
-    </FormItem>
-  );
-}
-
-
 export default function ComercialPage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
-  const [ajustes, setAjustes] = useState<ComercialAjuste[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
-  const [editingItem, setEditingItem] = useState<ComercialBriefingItem | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
-  const [facturacionNeta, setFacturacionNeta] = useState(0);
+    const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+    const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
+    const [ajustes, setAjustes] = useState<ComercialAjuste[]>([]);
+    const [isMounted, setIsMounted] = useState(false);
+    const [editingItem, setEditingItem] = useState<ComercialBriefingItem | null>(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
+    const [facturacionNeta, setFacturacionNeta] = useState(0);
 
-  const nuevoAjusteConceptoRef = useRef<HTMLInputElement>(null);
-  const nuevoAjusteImporteRef = useRef<HTMLInputElement>(null);
+    const nuevoAjusteConceptoRef = useRef<HTMLInputElement>(null);
+    const nuevoAjusteImporteRef = useRef<HTMLInputElement>(null);
 
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const osId = searchParams.get('osId');
-  const { toast } = useToast();
-  
-  const totalBriefing = useMemo(() => {
-    return briefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario) + (item.importeFijo || 0), 0) || 0;
-  }, [briefing]);
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const osId = searchParams.get('osId');
+    const { toast } = useToast();
+    
+    const totalBriefing = useMemo(() => {
+        return briefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario) + (item.importeFijo || 0), 0) || 0;
+    }, [briefing]);
 
-  const totalAjustes = useMemo(() => {
-    return ajustes.reduce((acc, ajuste) => acc + ajuste.importe, 0);
-  }, [ajustes]);
+    const totalAjustes = useMemo(() => {
+        return ajustes.reduce((acc, ajuste) => acc + ajuste.importe, 0);
+    }, [ajustes]);
 
-  const facturacionFinal = useMemo(() => totalBriefing + totalAjustes, [totalBriefing, totalAjustes]);
+    const facturacionFinal = useMemo(() => totalBriefing + totalAjustes, [totalBriefing, totalAjustes]);
 
-  const financialForm = useForm<FinancialFormValues>({
-    resolver: zodResolver(financialSchema),
-    defaultValues: {
-        agencyPercentage: 0,
-        spacePercentage: 0,
-    }
-  });
+    const financialForm = useForm<FinancialFormValues>({
+        resolver: zodResolver(financialSchema),
+        defaultValues: {
+            agencyPercentage: 0,
+            spacePercentage: 0,
+        }
+    });
 
    const saveFinancials = useCallback((data: { facturacion: number, agencyPercentage: number, spacePercentage: number }) => {
     if (!serviceOrder) return;
@@ -146,6 +116,34 @@ export default function ComercialPage() {
     }
   }, [serviceOrder, osId]);
 
+  function FinancialCalculator({ totalFacturacion, onNetChange }: { totalFacturacion: number, onNetChange: (net:number) => void }) {
+    const agencyPercentage = useWatch({ name: 'agencyPercentage' });
+    const spacePercentage = useWatch({ name: 'spacePercentage' });
+  
+    const facturacionNeta = useMemo(() => {
+      const totalPercentage = (agencyPercentage || 0) + (spacePercentage || 0);
+      const net = totalFacturacion * (1 - totalPercentage / 100);
+      return net;
+    }, [totalFacturacion, agencyPercentage, spacePercentage]);
+  
+    useEffect(() => {
+      onNetChange(facturacionNeta);
+    }, [facturacionNeta, onNetChange]);
+  
+  
+    return (
+      <FormItem className="mt-auto">
+        <FormLabel className="text-lg">Facturación Neta</FormLabel>
+        <FormControl>
+          <Input
+            readOnly
+            value={facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+            className="font-bold text-primary h-12 text-xl"
+          />
+        </FormControl>
+      </FormItem>
+    );
+  }
 
   useEffect(() => {
     const storedTipos = localStorage.getItem('tipoServicio');
