@@ -164,6 +164,7 @@ export default function OfPage() {
               <TableHead>Cant. Producida</TableHead>
               <TableHead>Partida</TableHead>
               <TableHead>Fecha Prevista</TableHead>
+              <TableHead>Fecha Asignación</TableHead>
               <TableHead>Estado</TableHead>
             </TableRow>
           </TableHeader>
@@ -173,7 +174,7 @@ export default function OfPage() {
                 <TableRow
                   key={of.id}
                   onClick={() => router.push(`/cpr/of/${of.id}`)}
-                  className={cn("cursor-pointer", partidaColorClasses[of.partidaAsignada])}
+                  className={cn("cursor-pointer", of.partidaAsignada && partidaColorClasses[of.partidaAsignada])}
                 >
                   <TableCell className="font-medium">{of.id}</TableCell>
                   <TableCell>{of.elaboracionNombre}</TableCell>
@@ -181,6 +182,7 @@ export default function OfPage() {
                   <TableCell>{ceilToTwoDecimals(of.cantidadReal)} {of.cantidadReal ? formatUnit(of.unidad) : ''}</TableCell>
                   <TableCell><Badge variant="secondary">{of.partidaAsignada}</Badge></TableCell>
                   <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell>{of.fechaAsignacion ? format(new Date(of.fechaAsignacion), 'dd/MM/yy HH:mm') : '-'}</TableCell>
                   <TableCell>
                     <Badge variant={statusVariant[of.estado]}>{of.estado}</Badge>
                   </TableCell>
@@ -188,7 +190,7 @@ export default function OfPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   No se encontraron órdenes de fabricación.
                 </TableCell>
               </TableRow>
