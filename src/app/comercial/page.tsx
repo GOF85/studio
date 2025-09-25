@@ -451,13 +451,7 @@ export default function ComercialPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="comentarios" render={({field}) => <FormItem><FormLabel>Comentarios</FormLabel><FormControl><Textarea placeholder="Comentarios" {...field} /></FormControl></FormItem> } />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                 <FormField control={form.control} name="bebidas" render={({field}) => <FormItem><FormLabel>Bebidas</FormLabel><FormControl><Input placeholder="Bebidas" {...field} /></FormControl></FormItem> } />
-                 <FormField control={form.control} name="matBebida" render={({field}) => <FormItem><FormLabel>Material Bebida</FormLabel><FormControl><Input placeholder="Material Bebida" {...field} /></FormControl></FormItem> } />
-                 <FormField control={form.control} name="materialGastro" render={({field}) => <FormItem><FormLabel>Material Gastro</FormLabel><FormControl><Input placeholder="Material Gastro" {...field} /></FormControl></FormItem> } />
-                 <FormField control={form.control} name="manteleria" render={({field}) => <FormItem><FormLabel>Mantelería</FormLabel><FormControl><Input placeholder="Mantelería" {...field} /></FormControl></FormItem> } />
-              </div>
-
+              
               <DialogFooter>
                  <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
                  <Button type="submit"><Save className="mr-2" /> Guardar</Button>
@@ -492,10 +486,13 @@ export default function ComercialPage() {
              <Accordion type="single" collapsible className="w-full mb-8" defaultValue="finanzas">
                 <AccordionItem value="finanzas" className="border-none">
                     <Card>
-                        <AccordionTrigger className="p-4">
+                        <AccordionTrigger className="py-2 px-4">
                             <div className="flex items-center justify-between w-full">
                                 <CardTitle className="text-lg">Información Financiera y Ajustes</CardTitle>
-                                <div className="text-lg font-bold text-green-600 pr-4">Fact. Neta: {facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</div>
+                                 <div className="text-base font-bold pr-4">
+                                    <span className="text-black">Facturación Neta: </span>
+                                    <span className="text-green-600">{facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                                </div>
                             </div>
                         </AccordionTrigger>
                         <AccordionContent>
@@ -567,8 +564,8 @@ export default function ComercialPage() {
         </FormProvider>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Briefing del Contrato</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between py-4">
+            <CardTitle className="text-lg">Briefing del Contrato</CardTitle>
             <Button onClick={handleNewClick}><PlusCircle className="mr-2" /> Nuevo Hito</Button>
           </CardHeader>
           <CardContent>
@@ -631,4 +628,3 @@ export default function ComercialPage() {
     </>
   );
 }
-
