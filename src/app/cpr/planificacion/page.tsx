@@ -364,8 +364,8 @@ export default function PlanificacionPage() {
             briefingsEnRango.forEach(briefing => {
                 briefing.items.forEach(item => {
                     if (isSameDay(new Date(item.fecha), day)) {
-                        paxDia += item.asistentes;
                         if (item.conGastronomia) {
+                            paxDia += item.asistentes;
                             serviciosDia++;
                         }
                     }
