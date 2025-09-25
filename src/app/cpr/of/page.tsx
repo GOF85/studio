@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -114,37 +115,36 @@ export default function OfPage() {
       </div>
 
        <div className="flex flex-col gap-4 mb-6">
-        <div className="relative flex-grow">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Buscar por Nº de Lote o Elaboración..."
-            className="pl-8 w-full"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-grow">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Buscar por Nº de Lote o Elaboración..."
+                    className="pl-8 w-full"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+            <Select value={partidaFilter} onValueChange={setPartidaFilter}>
+                <SelectTrigger className="w-full sm:w-[240px]">
+                    <SelectValue placeholder="Filtrar por partida" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Todas las Partidas</SelectItem>
+                    {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+            </Select>
         </div>
-        <div className="flex flex-col sm:flex-row gap-6">
-            <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm">Estado:</span>
-                <div className="flex flex-wrap gap-1">
-                    <Button variant={statusFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('all')}>Todos</Button>
-                    {statusOptions.map(s => (
-                        <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(s)}>{s}</Button>
-                    ))}
-                </div>
+        <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm">Estado:</span>
+            <div className="flex flex-wrap gap-1">
+                <Button variant={statusFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('all')}>Todos</Button>
+                {statusOptions.map(s => (
+                    <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(s)}>{s}</Button>
+                ))}
             </div>
-             <Separator orientation="vertical" className="h-auto hidden sm:block"/>
-            <div className="flex items-center gap-2">
-                 <span className="font-semibold text-sm">Partida:</span>
-                <div className="flex flex-wrap gap-1">
-                    <Button variant={partidaFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setPartidaFilter('all')}>Todas</Button>
-                    {partidas.map(p => (
-                        <Button key={p} variant={partidaFilter === p ? 'default' : 'outline'} size="sm" onClick={() => setPartidaFilter(p)}>{p}</Button>
-                    ))}
-                </div>
-            </div>
-            <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground">Limpiar Filtros</Button>
+            <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground ml-auto">Limpiar Filtros</Button>
         </div>
       </div>
 
