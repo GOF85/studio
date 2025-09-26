@@ -1,18 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -206,6 +191,7 @@ export default function OsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const osId = searchParams.get('id');
+  const verticalParam = searchParams.get('vertical') as Vertical | null;
 
   const [isMounted, setIsMounted] = useState(false);
   const { isLoading, setIsLoading } = useLoadingStore();
@@ -274,7 +260,8 @@ export default function OsPage() {
     if (isDirty) {
       setShowExitConfirm(true);
     } else {
-      router.push('/pes');
+        const currentVertical = form.getValues('vertical');
+        router.push(currentVertical === 'Entregas' ? '/entregas' : '/pes');
     }
   };
 
@@ -307,11 +294,15 @@ export default function OsPage() {
         router.push('/pes');
       }
     } else { // Creating new OS
-      form.reset(defaultValues);
+      const initialValues = {...defaultValues};
+      if (verticalParam) {
+        initialValues.vertical = verticalParam;
+      }
+      form.reset(initialValues);
       setAccordionDefaultValue(['cliente', 'espacio', 'responsables']); // Expand for new
     }
     setIsMounted(true);
-  }, [osId, form, router, toast]);
+  }, [osId, verticalParam, form, router, toast]);
 
   function onSubmit(data: OsFormValues) {
     setIsLoading(true);
@@ -357,7 +348,7 @@ export default function OsPage() {
       setIsLoading(false);
       form.reset(form.getValues()); // Mark form as not dirty
       if (isSubmittingFromDialog) {
-        router.push('/pes');
+        router.push(data.vertical === 'Entregas' ? '/entregas' : '/pes');
       } else if (newId && !osId) { 
         router.push(`/os?id=${newId}`);
       } else {
@@ -373,6 +364,7 @@ export default function OsPage() {
   
   const handleDelete = () => {
     if (!osId) return;
+    const currentVertical = form.getValues('vertical');
     
     // Delete OS
     let allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
@@ -392,14 +384,17 @@ export default function OsPage() {
     });
 
     toast({ title: 'Orden de Servicio eliminada', description: 'Se han eliminado todos los datos asociados.' });
-    router.push('/pes');
+    router.push(currentVertical === 'Entregas' ? '/entregas' : '/pes');
   };
 
   const statusValue = watch("status");
+  const vertical = watch("vertical");
 
   if (!isMounted) {
     return <LoadingSkeleton title={osId ? 'Editando Orden de Servicio...' : 'Creando Orden de Servicio...'} />;
   }
+
+  const isCatering = vertical === 'Grandes Eventos' || vertical === 'Recurrente' || vertical === 'Grandes Cuentas' || vertical === 'Premium';
 
   return (
     <TooltipProvider>
@@ -419,101 +414,103 @@ export default function OsPage() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[120px_1fr] gap-4">
-          <aside className="lg:sticky top-24 self-start flex flex-col">
-            <h2 className="text-base font-semibold mb-2 px-1">Módulos</h2>
-            <nav className="space-y-0.5">
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/comercial?osId=${osId}` : '#'}>
-                    <Briefcase />
-                    <span className="font-medium">Comercial</span>
-                  </Link>
-              </Button>
-               {hasPruebaDeMenu && (
+        <div className={cn("grid gap-4", isCatering && "lg:grid-cols-[120px_1fr]")}>
+          {isCatering && (
+            <aside className="lg:sticky top-24 self-start flex flex-col">
+                <h2 className="text-base font-semibold mb-2 px-1">Módulos</h2>
+                <nav className="space-y-0.5">
                 <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/prueba-menu?osId=${osId}` : '#'}>
-                    <ClipboardCheck />
-                    <span className="font-medium">Prueba Menu</span>
-                  </Link>
+                    <Link href={osId ? `/comercial?osId=${osId}` : '#'}>
+                        <Briefcase />
+                        <span className="font-medium">Comercial</span>
+                    </Link>
                 </Button>
-               )}
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/gastronomia?osId=${osId}` : '#'}>
-                    <Utensils />
-                    <span className="font-medium">Gastronomía</span>
-                  </Link>
-              </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/bodega?osId=${osId}` : '#'}>
-                    <Wine />
-                    <span className="font-medium">Bodega</span>
-                  </Link>
-              </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/hielo?osId=${osId}` : '#'}>
-                    <Snowflake />
-                    <span className="font-medium">Hielo</span>
-                  </Link>
-              </Button>
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/bio?osId=${osId}` : '#'}>
-                    <Leaf />
-                    <span className="font-medium">Bio</span>
-                  </Link>
-              </Button>
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/almacen?osId=${osId}` : '#'}>
-                    <Warehouse />
-                    <span className="font-medium">Almacén</span>
-                  </Link>
-              </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/alquiler?osId=${osId}` : '#'}>
-                    <Archive />
-                    <span className="font-medium">Alquiler</span>
-                  </Link>
-              </Button>
-               
+                {hasPruebaDeMenu && (
+                    <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
+                    <Link href={osId ? `/prueba-menu?osId=${osId}` : '#'}>
+                        <ClipboardCheck />
+                        <span className="font-medium">Prueba Menu</span>
+                    </Link>
+                    </Button>
+                )}
                 <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/decoracion?osId=${osId}` : '#'}>
-                    <Flower2 />
-                    <span className="font-medium">Decoración</span>
-                  </Link>
-              </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/atipicos?osId=${osId}` : '#'}>
-                    <FilePlus />
-                    <span className="font-medium">Atípicos</span>
-                  </Link>
-              </Button>
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/personal-mice/${osId}` : '#'}>
-                    <Users />
-                    <span className="font-medium">Personal MICE</span>
-                  </Link>
-              </Button>
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/personal-externo?osId=${osId}` : '#'}>
-                    <UserPlus />
-                    <span className="font-medium">Personal Ext.</span>
-                  </Link>
-              </Button>
-              <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/transporte?osId=${osId}` : '#'}>
-                    <Truck />
-                    <span className="font-medium">Transporte</span>
-                  </Link>
-              </Button>
-              <Separator className="my-2" />
-               <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                  <Link href={osId ? `/cta-explotacion?osId=${osId}` : '#'}>
-                    <DollarSign />
-                    <span className="font-medium">Cta. Explotación</span>
-                  </Link>
-              </Button>
-              <Separator />
-            </nav>
-          </aside>
+                    <Link href={osId ? `/gastronomia?osId=${osId}` : '#'}>
+                        <Utensils />
+                        <span className="font-medium">Gastronomía</span>
+                    </Link>
+                </Button>
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
+                    <Link href={osId ? `/bodega?osId=${osId}` : '#'}>
+                        <Wine />
+                        <span className="font-medium">Bodega</span>
+                    </Link>
+                </Button>
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
+                    <Link href={osId ? `/hielo?osId=${osId}` : '#'}>
+                        <Snowflake />
+                        <span className="font-medium">Hielo</span>
+                    </Link>
+                </Button>
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
+                    <Link href={osId ? `/bio?osId=${osId}` : '#'}>
+                        <Leaf />
+                        <span className="font-medium">Bio</span>
+                    </Link>
+                </Button>
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
+                    <Link href={osId ? `/almacen?osId=${osId}` : '#'}>
+                        <Warehouse />
+                        <span className="font-medium">Almacén</span>
+                    </Link>
+                </Button>
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
+                    <Link href={osId ? `/alquiler?osId=${osId}` : '#'}>
+                        <Archive />
+                        <span className="font-medium">Alquiler</span>
+                    </Link>
+                </Button>
+                    
+                    <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
+                    <Link href={osId ? `/decoracion?osId=${osId}` : '#'}>
+                        <Flower2 />
+                        <span className="font-medium">Decoración</span>
+                    </Link>
+                </Button>
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
+                    <Link href={osId ? `/atipicos?osId=${osId}` : '#'}>
+                        <FilePlus />
+                        <span className="font-medium">Atípicos</span>
+                    </Link>
+                </Button>
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
+                    <Link href={osId ? `/personal-mice/${osId}` : '#'}>
+                        <Users />
+                        <span className="font-medium">Personal MICE</span>
+                    </Link>
+                </Button>
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
+                    <Link href={osId ? `/personal-externo?osId=${osId}` : '#'}>
+                        <UserPlus />
+                        <span className="font-medium">Personal Ext.</span>
+                    </Link>
+                </Button>
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
+                    <Link href={osId ? `/transporte?osId=${osId}` : '#'}>
+                        <Truck />
+                        <span className="font-medium">Transporte</span>
+                    </Link>
+                </Button>
+                <Separator className="my-2" />
+                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
+                    <Link href={osId ? `/cta-explotacion?osId=${osId}` : '#'}>
+                        <DollarSign />
+                        <span className="font-medium">Cta. Explotación</span>
+                    </Link>
+                </Button>
+                <Separator />
+                </nav>
+            </aside>
+          )}
           
           <main>
             <FormProvider {...form}>
@@ -903,7 +900,7 @@ export default function OsPage() {
           <AlertDialogFooter className="sm:justify-between">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <div className="flex flex-col-reverse sm:flex-row gap-2">
-                <Button variant="destructive" className="bg-orange-500 hover:bg-orange-600" onClick={() => router.push('/pes')}>Descartar</Button>
+                <Button variant="destructive" className="bg-orange-500 hover:bg-orange-600" onClick={() => router.push(vertical === 'Entregas' ? '/entregas' : '/pes')}>Descartar</Button>
                 <Button onClick={handleSaveFromDialog} disabled={isLoading}>
                 {isLoading && isSubmittingFromDialog ? <Loader2 className="animate-spin" /> : 'Guardar y Salir'}
                 </Button>
@@ -928,9 +925,3 @@ export default function OsPage() {
     </TooltipProvider>
   );
 }
-
-    
-
-    
-
-    

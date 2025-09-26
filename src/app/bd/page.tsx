@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Database, PlusCircle, ArrowRight, Users, UserPlus, GlassWater, BookText, FilePlus2, Package as PackageIcon } from 'lucide-react';
+import { Database, PlusCircle, ArrowRight, Users, UserPlus, GlassWater, BookText, FilePlus2, Package as PackageIcon, Percent, ShoppingBag } from 'lucide-react';
 
 // Placeholder type
 type DatabaseEntry = {
@@ -36,6 +36,8 @@ export default function BdPage() {
     { id: '9', name: 'Atípicos (Gastos Varios)', description: 'Gestión de conceptos de gastos varios.', itemCount: 0, path: '/atipicos-db' },
     { id: '12', name: 'Decoración (Gastos Varios)', description: 'Gestión de conceptos de decoración.', itemCount: 0, path: '/decoracion-db' },
     { id: '11', name: 'Proveedores de Personal', description: 'Gestión de proveedores de personal externo.', itemCount: 0, path: '/proveedores-personal' },
+    { id: '20', name: 'Packs de Venta (Entregas)', icon: ShoppingBag, description: 'Define los productos compuestos para la vertical de Entregas.', itemCount: 0, path: '/packs-de-venta' },
+    { id: '21', name: 'Márgenes por Categoría', icon: Percent, description: 'Configura los márgenes de beneficio para el cálculo de PVP.', itemCount: 0, path: '/margenes-categoria' },
     { id: '13', name: 'Book: Materia Prima (ERP)', description: 'Gestión de precios y productos de proveedores.', itemCount: 0, path: '/book/ingredientes-erp' },
     { id: '14', name: 'Book: Menaje', description: 'Gestión del menaje para los emplatados.', itemCount: 0, path: '/menaje-db' },
     { id: '15', name: 'Book: Categorías de Recetas', description: 'Gestión de las categorías para las recetas del book.', itemCount: 0, path: '/categorias-recetas' },
@@ -65,6 +67,8 @@ export default function BdPage() {
     const pedidoPlantillas = JSON.parse(localStorage.getItem('pedidoPlantillas') || '[]').length;
     const contenedores = JSON.parse(localStorage.getItem('contenedoresDB') || '[]').length;
     const formatosExpedicion = JSON.parse(localStorage.getItem('formatosExpedicionDB') || '[]').length;
+    const packsVenta = JSON.parse(localStorage.getItem('packsDeVenta') || '[]').length;
+    const margenes = JSON.parse(localStorage.getItem('margenesCategoria') || '[]').length;
     
     setDatabases(prev => prev.map(db => {
       if (db.id === '1') return { ...db, itemCount: personal };
@@ -84,6 +88,8 @@ export default function BdPage() {
       if (db.id === '17') return { ...db, itemCount: pedidoPlantillas };
       if (db.id === '18') return { ...db, itemCount: contenedores };
       if (db.id === '19') return { ...db, itemCount: formatosExpedicion };
+      if (db.id === '20') return { ...db, itemCount: packsVenta };
+      if (db.id === '21') return { ...db, itemCount: margenes };
       return db;
     }));
   }, []);
