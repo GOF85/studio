@@ -40,7 +40,6 @@ const generalDatabasesList: DatabaseEntry[] = [
     { id: '15', name: 'Book: Categorías de Recetas', description: 'Gestión de las categorías para las recetas del book.', itemCount: 0, path: '/categorias-recetas' },
     { id: '16', name: 'Book: Tipos de Cocina', description: 'Gestión de los tipos de cocina/origen para las recetas.', itemCount: 0, path: '/tipos-cocina' },
     { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', itemCount: 0, path: '/plantillas-pedidos' },
-    { id: '18', name: 'Contenedores Isotérmicos', description: 'Gestión de los contenedores para logística.', itemCount: 0, path: '/contenedores-db' },
     { id: '19', name: 'Formatos de Expedición', description: 'Define los formatos de empaquetado para producción.', itemCount: 0, path: '/formatos-expedicion' },
 ];
 
@@ -75,7 +74,6 @@ export default function BdPage() {
             if (db.path === '/categorias-recetas') count = JSON.parse(localStorage.getItem('categoriasRecetas') || '[]').length;
             if (db.path === '/tipos-cocina') count = JSON.parse(localStorage.getItem('tiposCocina') || '[]').length;
             if (db.path === '/plantillas-pedidos') count = JSON.parse(localStorage.getItem('pedidoPlantillas') || '[]').length;
-            if (db.path === '/contenedores-db') count = JSON.parse(localStorage.getItem('contenedoresDB') || '[]').length;
             if (db.path === '/formatos-expedicion') count = JSON.parse(localStorage.getItem('formatosExpedicionDB') || '[]').length;
             if (db.path === '/packs-de-venta') count = JSON.parse(localStorage.getItem('packsDeVenta') || '[]').length;
             if (db.path === '/margenes-categoria') count = JSON.parse(localStorage.getItem('margenesCategoria') || '[]').length;
