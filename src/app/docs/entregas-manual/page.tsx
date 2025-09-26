@@ -53,7 +53,7 @@ export default function EntregasManualPage() {
                 <p>Para simplificar la venta de productos compuestos (como un "Box de Desayuno"), hemos introducido la entidad **"Pack de Venta"**.</p>
                 <h3>3.1. ¿Qué es un Pack de Venta?</h3>
                 <p>Es un artículo que se vende al cliente como una sola unidad (ej. 1 "Box de Desayuno Completo") pero que, internamente, se desglosa en múltiples componentes para que el almacén sepa exactamente qué preparar. Esto garantiza que no haya olvidos y que el control de stock sea preciso.</p>
-                <p class="border-l-4 border-primary pl-4 py-2 bg-secondary/50"><strong>Ejemplo práctico:</strong> Al añadir 1 "Box Café Natural" al pedido, el sistema no le dice al almacén "prepara 1 caja", sino que le indica: "prepara 50 cápsulas de café, 10 infusiones, 2 bricks de leche, 50 vasos, 50 sobres de azúcar...".</p>
+                <p className="border-l-4 border-primary pl-4 py-2 bg-secondary/50"><strong>Ejemplo práctico:</strong> Al añadir 1 "Box Café Natural" al pedido, el sistema no le dice al almacén "prepara 1 caja", sino que le indica: "prepara 50 cápsulas de café, 10 infusiones, 2 bricks de leche, 50 vasos, 50 sobres de azúcar...".</p>
                 <h3>3.2. Creación y Gestión</h3>
                 <p>Puedes crear y gestionar estos packs desde `Configuración > Bases de Datos > Packs de Venta`. Para cada pack, defines su nombre, su PVP (Precio de Venta al Público) y todos los artículos del inventario que lo componen con sus cantidades.</p>
             </section>
