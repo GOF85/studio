@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -31,6 +30,8 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { cn } from '@/lib/utils';
 
+const statusOptions: TransporteOrder['status'][] = ['Pendiente', 'Confirmado', 'En Ruta', 'Entregado'];
+
 const transporteOrderSchema = z.object({
   id: z.string(),
   fecha: z.date({ required_error: 'La fecha es obligatoria.' }),
@@ -40,6 +41,7 @@ const transporteOrderSchema = z.object({
   lugarEntrega: z.string().min(1, 'El lugar de entrega es obligatorio'),
   horaEntrega: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   observaciones: z.string().optional(),
+  status: z.enum(statusOptions).default('Pendiente'),
 });
 
 type TransporteOrderFormValues = z.infer<typeof transporteOrderSchema>;
@@ -64,6 +66,7 @@ export default function PedidoTransportePage() {
       lugarRecogida: 'Avda. de la Industria, 38, 28108 Alcobendas, Madrid',
       horaRecogida: '09:00',
       horaEntrega: '10:00',
+      status: 'Pendiente',
     }
   });
 
@@ -81,6 +84,7 @@ export default function PedidoTransportePage() {
       if (order) {
         form.reset({
           ...order,
+          observaciones: order.observaciones || '',
           fecha: new Date(order.fecha),
         });
       }
@@ -91,9 +95,10 @@ export default function PedidoTransportePage() {
         proveedorId: '',
         lugarRecogida: 'Avda. de la Industria, 38, 28108 Alcobendas, Madrid',
         horaRecogida: '09:00',
-        lugarEntrega: currentOS?.space || '',
-        horaEntrega: '10:00',
+        lugarEntrega: currentOS?.spaceAddress || currentOS?.space || '',
+        horaEntrega: currentOS?.deliveryTime || '10:00',
         observaciones: '',
+        status: 'Pendiente',
       })
     }
     
@@ -113,9 +118,7 @@ export default function PedidoTransportePage() {
 
     const allOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
     
-    const finalOrder: TransporteOrder = {
-      id: data.id,
-      osId,
+    const finalOrder: Omit<TransporteOrder, 'id' | 'osId'> = {
       fecha: format(data.fecha, 'yyyy-MM-dd'),
       proveedorId: selectedProvider.id,
       proveedorNombre: selectedProvider.nombreProveedor,
@@ -126,7 +129,7 @@ export default function PedidoTransportePage() {
       lugarEntrega: data.lugarEntrega,
       horaEntrega: data.horaEntrega,
       observaciones: data.observaciones || '',
-      status: 'Pendiente',
+      status: data.status,
     };
 
     if (isEditing) {
@@ -136,7 +139,7 @@ export default function PedidoTransportePage() {
         toast({ title: "Pedido actualizado" });
       }
     } else {
-      allOrders.push(finalOrder);
+      allOrders.push({ id: data.id, osId, ...finalOrder });
       toast({ title: "Pedido de transporte creado" });
     }
 
@@ -253,6 +256,19 @@ export default function PedidoTransportePage() {
                             <FormMessage />
                             </FormItem>
                         )} />
+                        {isEditing && 
+                             <FormField control={form.control} name="status" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Estado</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger className="w-[180px]"><SelectValue placeholder="Estado..." /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            {statusOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </FormItem>
+                            )} />
+                        }
                     </CardContent>
                 </Card>
             </form>

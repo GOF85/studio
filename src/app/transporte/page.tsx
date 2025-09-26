@@ -42,7 +42,7 @@ const statusVariant: { [key in TransporteOrder['status']]: 'default' | 'secondar
   Pendiente: 'secondary',
   Confirmado: 'default',
   'En Ruta': 'outline',
-  Finalizado: 'outline',
+  Entregado: 'outline',
 };
 
 export default function TransportePage() {
@@ -112,7 +112,7 @@ export default function TransportePage() {
                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Truck />Módulo de Transporte</h1>
                 <div className="text-muted-foreground mt-2 space-y-1">
                     <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-                    {serviceOrder.space && (
+                     {serviceOrder.space && (
                         <p className="flex items-center gap-2">
                             <Building className="h-3 w-3" /> {serviceOrder.space} {spaceAddress && `(${spaceAddress})`}
                         </p>

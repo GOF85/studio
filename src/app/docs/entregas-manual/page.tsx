@@ -60,7 +60,7 @@ export default function EntregasManualPage() {
                 <h2 className="flex items-center gap-3"><ShieldCheck />Capítulo 5: Logística, Albaranes y Firma Digital</h2>
                 <h3>5.1. Asignación a Transportista</h3>
                 <p>Una vez el pedido está preparado, desde la propia OS-E se puede asignar la entrega a un transportista de la base de datos.</p>
-                <h3>5.2. Portal del Transportista (App Móvil)</h3>
+                <h3>5.2. Portal del Transportista</h3>
                 <p>El transportista, desde su móvil (`/portal/transporte`), accede a un portal donde ve sus entregas del día. Para cada una, tiene una "Hoja de Ruta Digital" con la información de recogida y entrega.</p>
                 <h3>5.3. Albarán y Firma Digital</h3>
                 <p>Al llegar al cliente, el transportista abre el albarán en su dispositivo. El cliente puede revisar el pedido y firmar con el dedo directamente en la pantalla. Esta firma queda registrada en el sistema y el pedido se marca automáticamente como "Entregado". Se envía una copia del albarán firmado por email tanto al cliente como al comercial.</p>

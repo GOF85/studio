@@ -191,7 +191,9 @@ export type TransporteOrder = {
     lugarEntrega: string;
     horaEntrega: string;
     observaciones: string;
-    status: 'Pendiente' | 'Confirmado' | 'En Ruta' | 'Finalizado';
+    status: 'Pendiente' | 'Confirmado' | 'En Ruta' | 'Entregado';
+    firmaUrl?: string; // URL de la imagen de la firma
+    firmadoPor?: string; // Nombre de quien firma
 }
     
 export type ProveedorHielo = {

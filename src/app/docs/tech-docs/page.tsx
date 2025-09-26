@@ -111,6 +111,8 @@ export default function TechDocsPage() {
                 <p>Cada `OrdenFabricacion` actúa como un lote único. Esto permite asociar una producción específica (un día, un cocinero) con su fecha de caducidad y los eventos a los que se sirve.</p>
                 <h3>6.2. Trazabilidad Inversa</h3>
                 <p>El modelo de datos permitirá una trazabilidad inversa. Ante una incidencia en un lote, el sistema podrá identificar rápidamente todas las recetas, Órdenes de Servicio (eventos/entregas) y contenedores isotérmicos afectados.</p>
+                <h3>6.3. Albaranes y Firma Digital</h3>
+                <p>La firma del cliente en el portal del transportista se captura como una imagen (data URL) y se almacena asociada al albarán. Esto proporciona una prueba de entrega segura e irrefutable, eliminando la necesidad de papel. El estado del pedido se actualiza atómicamente al guardar la firma.</p>
             </section>
 
             <section id="c7-tech">

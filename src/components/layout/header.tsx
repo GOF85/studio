@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { UtensilsCrossed, Package } from 'lucide-react';
+import { UtensilsCrossed, Package, Truck, LifeBuoy } from 'lucide-react';
 import { Button } from '../ui/button';
 
 export function Header() {
@@ -12,11 +12,17 @@ export function Header() {
             MICE Catering
           </h1>
         </Link>
-        <nav className="flex flex-1 items-center justify-end space-x-4">
+        <nav className="flex flex-1 items-center justify-end space-x-2">
             <Button asChild variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700">
               <Link href="/entregas">
                 <Package className="mr-2 h-5 w-5"/>
                 Entregas MICE
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/docs">
+                <LifeBuoy className="mr-2 h-5 w-5" />
+                Documentación
               </Link>
             </Button>
         </nav>
