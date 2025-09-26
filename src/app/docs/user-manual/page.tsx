@@ -8,25 +8,25 @@ export default function UserManualPage() {
             <div className="flex items-center gap-4 border-b pb-4 mb-8">
                 <Users className="w-10 h-10 text-primary" />
                 <div>
-                    <h1 className="!m-0">Manual de Usuario</h1>
-                    <p className="lead !m-0">Guía funcional completa para aprender a utilizar MICE Catering.</p>
+                    <h1 className="!m-0">Manual de Usuario: Catering de Eventos</h1>
+                    <p className="lead !m-0">Guía funcional completa para la gestión de servicios de catering complejos.</p>
                 </div>
             </div>
 
             <section id="c1">
                 <h2 className="flex items-center gap-3"><BookOpen />Capítulo 1: Primeros Pasos</h2>
-                <p>Este capítulo introduce los conceptos básicos de la aplicación, su estructura y cómo empezar a trabajar con ella.</p>
+                <p>Este capítulo introduce los conceptos básicos de la aplicación, su estructura y cómo empezar a trabajar con ella en el contexto de eventos de catering.</p>
                 <h3>1.1. Introducción a MICE Catering</h3>
                 <p>MICE Catering es una herramienta integral para la gestión de servicios de catering, desde la planificación comercial hasta la ejecución en cocina y la logística del evento.</p>
                 <h3>1.2. Roles de Usuario</h3>
                 <p>La aplicación está diseñada para diferentes perfiles. Dependiendo de tu rol (Comercial, Jefe de Producción, Cocinero, etc.), verás las secciones y opciones relevantes para tu trabajo, simplificando la interfaz y protegiendo la información.</p>
                 <h3>1.3. Gestión de Bases de Datos</h3>
-                <p>Desde el menú desplegable (icono de menú), puedes acceder a "Bases de Datos" para gestionar toda la información maestra de la empresa: personal, espacios, precios, proveedores, etc. Mantener estos datos actualizados es clave para el buen funcionamiento del sistema.</p>
+                <p>Desde el menú de "Configuración", puedes acceder a "Bases de Datos" para gestionar toda la información maestra de la empresa: personal, espacios, precios, proveedores, etc. Mantener estos datos actualizados es clave para el buen funcionamiento del sistema.</p>
             </section>
 
             <section id="c2">
                 <h2 className="flex items-center gap-3"><Workflow />Capítulo 2: Flujo Comercial y de Servicios</h2>
-                <p>Aprende a crear y gestionar una Orden de Servicio (OS) desde su creación hasta la gestión de sus módulos asociados.</p>
+                <p>Aprende a crear y gestionar una Orden de Servicio (OS) para un evento de catering, desde su creación hasta la gestión de sus módulos asociados.</p>
                 <h3>2.1. Creación y Gestión de una Orden de Servicio (OS)</h3>
                 <p>Todo comienza en "Previsión de Servicios". Desde aquí puedes crear una nueva OS o editar una existente. La ficha de la OS es el centro neurálgico que conecta todos los módulos relacionados con un evento.</p>
                 <h3>2.2. El Módulo Comercial: Creando el Briefing</h3>

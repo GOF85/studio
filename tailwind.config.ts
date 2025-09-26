@@ -33,6 +33,7 @@ export default {
             h3: {
               fontFamily: theme('fontFamily.headline'),
             },
+            '--tw-prose-bullets': theme('colors.primary.DEFAULT'),
           },
         },
       }),

@@ -2,36 +2,50 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LifeBuoy, Users, Code, BookOpen, Workflow, Database, Bot, Factory, BarChart3, ShieldCheck } from 'lucide-react';
+import { LifeBuoy, Users, Code, BookOpen, Workflow, Database, Bot, Factory, BarChart3, ShieldCheck, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-const DOC_VERSION = "0.2.0";
+const DOC_VERSION = "0.3.0";
 const LAST_UPDATED = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
 
-const userManualNav = [
-    { title: 'Primeros Pasos', path: '#c1', icon: BookOpen },
-    { title: 'Flujo Comercial y de Servicios', path: '#c2', icon: Workflow },
-    { title: 'El Book Gastronómico', path: '#c3', icon: BookOpen },
-    { title: 'Planificación y Producción (CPR)', path: '#c4', icon: Factory },
-    { title: 'Informes y Análisis', path: '#c5', icon: BarChart3 },
+const cateringManualNav = [
+    { title: 'Primeros Pasos', path: '/docs/user-manual#c1', icon: BookOpen },
+    { title: 'Flujo Comercial y de Servicios', path: '/docs/user-manual#c2', icon: Workflow },
+    { title: 'El Book Gastronómico', path: '/docs/user-manual#c3', icon: BookOpen },
+    { title: 'Planificación y Producción (CPR)', path: '/docs/user-manual#c4', icon: Factory },
+    { title: 'Informes y Análisis', path: '/docs/user-manual#c5', icon: BarChart3 },
+];
+
+const entregasManualNav = [
+    { title: 'Concepto General', path: '/docs/entregas-manual#c1', icon: BookOpen },
+    { title: 'Creación de un Pedido de Entrega', path: '/docs/entregas-manual#c2', icon: Workflow },
+    { title: 'Gestión de "Packs de Venta"', path: '/docs/entregas-manual#c3', icon: Package },
+    { title: 'Producción y Portal del Partner', path: '/docs/entregas-manual#c4', icon: Factory },
+    { title: 'Logística, Albaranes y Firma', path: '/docs/entregas-manual#c5', icon: ShieldCheck },
 ];
 
 const techDocsNav = [
-    { title: 'Arquitectura General', path: '#c1-tech', icon: Code },
-    { title: 'Modelo de Datos', path: '#c2-tech', icon: Database },
-    { title: 'Flujos de IA', path: '#c3-tech', icon: Bot },
-    { title: 'Roles y Permisos', path: '#c4-tech', icon: Users },
-    { title: 'Seguridad y Trazabilidad', path: '#c5-tech', icon: ShieldCheck },
+    { title: 'Arquitectura General', path: '/docs/tech-docs#c1-tech', icon: Code },
+    { title: 'Modelo de Datos', path: '/docs/tech-docs#c2-tech', icon: Database },
+    { title: 'Vertical de Entregas', path: '/docs/tech-docs#c3-tech', icon: Package },
+    { title: 'Flujos de IA', path: '/docs/tech-docs#c4-tech', icon: Bot },
+    { title: 'Roles y Permisos', path: '/docs/tech-docs#c5-tech', icon: Users },
+    { title: 'Seguridad y Trazabilidad', path: '/docs/tech-docs#c6-tech', icon: ShieldCheck },
+    { title: 'Informes y Lógica de Negocio', path: '/docs/tech-docs#c7-tech', icon: BarChart3 },
 ];
 
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const isUserManual = pathname.includes('/user-manual');
+    const isCateringManual = pathname.includes('/user-manual');
+    const isEntregasManual = pathname.includes('/entregas-manual');
     const isTechDocs = pathname.includes('/tech-docs');
 
-    const activeNav = isUserManual ? userManualNav : isTechDocs ? techDocsNav : [];
+    let activeNav = [];
+    if (isCateringManual) activeNav = cateringManualNav;
+    else if (isEntregasManual) activeNav = entregasManualNav;
+    else if (isTechDocs) activeNav = techDocsNav;
 
     return (
         <div className="container mx-auto">
@@ -48,10 +62,13 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                             </div>
                             <div className="space-y-4">
                                 <div>
-                                    <h3 className="text-sm font-semibold text-primary mb-2">Guías</h3>
+                                    <h3 className="text-sm font-semibold text-primary mb-2">Guías Principales</h3>
                                      <nav className="space-y-1">
                                         <Link href="/docs/user-manual" className={cn("flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === '/docs/user-manual' && "bg-accent")}>
-                                            <Users /> Manual de Usuario
+                                            <Users /> Manual de Catering
+                                        </Link>
+                                         <Link href="/docs/entregas-manual" className={cn("flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === '/docs/entregas-manual' && "bg-accent")}>
+                                            <Package /> Manual de Entregas
                                         </Link>
                                          <Link href="/docs/tech-docs" className={cn("flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === '/docs/tech-docs' && "bg-accent")}>
                                             <Code /> Documentación Técnica
