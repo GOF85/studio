@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -284,7 +285,7 @@ function PageContent() {
     // --- Load Catalog for Entregas ---
     const recetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]).filter(r => r.categoria === 'Entregas');
     const packs = (JSON.parse(localStorage.getItem('packsDeVenta') || '[]') as PackDeVenta[]);
-    const precios = (JSON.parse(localStorage.getItem('precios') || '[]') as Precio[]);
+    const precios = (JSON.parse(localStorage.getItem('precios') || '[]') as Precio[]).filter(p => p.isDeliveryProduct);
     setCatalogForEntregas([...recetas, ...packs, ...precios]);
     
     if (osId) {
@@ -928,9 +929,9 @@ function PageContent() {
                                         onAddItem={(item, quantity) => {
                                             setDeliveryOrder(prev => {
                                                 if (!prev) return null;
-                                                const existing = prev.items.find(i => i.id === ('id' in item ? item.id : item.producto));
+                                                const existing = prev.items.find(i => i.id === ('id' in item ? item.id : ('producto' in item ? item.producto : '')));
                                                 if (existing) {
-                                                    const newItems = prev.items.map(i => i.id === ('id' in item ? item.id : item.producto) ? { ...i, quantity: i.quantity + quantity } : i);
+                                                    const newItems = prev.items.map(i => i.id === ('id' in item ? item.id : ('producto' in item ? item.producto : '')) ? { ...i, quantity: i.quantity + quantity } : i);
                                                     return { ...prev, items: newItems };
                                                 }
                                                 const newItem: PedidoEntregaItem = {

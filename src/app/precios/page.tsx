@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, DollarSign, ArrowLeft } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, DollarSign, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import type { Precio, PrecioCategoria } from '@/types';
 import { PRECIO_CATEGORIAS } from '@/types';
 import { Header } from '@/components/layout/header';
@@ -40,7 +41,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 
-const CSV_HEADERS = ["id", "producto", "categoria", "loc", "precioUd", "precioAlquilerUd", "imagen"];
+const CSV_HEADERS = ["id", "producto", "categoria", "loc", "precioUd", "precioAlquilerUd", "imagen", "isDeliveryProduct"];
 
 export default function PreciosPage() {
   const [precios, setPrecios] = useState<Precio[]>([]);
@@ -126,6 +127,7 @@ export default function PreciosPage() {
             precioUd: parseCurrency(item.precioUd),
             precioAlquilerUd: parseCurrency(item.precioAlquilerUd),
             imagen: item.imagen || '',
+            isDeliveryProduct: item.isDeliveryProduct === 'true' || item.isDeliveryProduct === true,
         }));
         
         localStorage.setItem('precios', JSON.stringify(importedData));
@@ -231,6 +233,7 @@ export default function PreciosPage() {
                 <TableHead className="p-2">Localización</TableHead>
                 <TableHead className="p-2">Precio Ud.</TableHead>
                 <TableHead className="p-2">Precio Alquiler Ud.</TableHead>
+                <TableHead className="p-2">Para Entregas</TableHead>
                 <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -243,6 +246,9 @@ export default function PreciosPage() {
                     <TableCell className="p-2">{p.loc}</TableCell>
                     <TableCell className="p-2">{p.precioUd.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                     <TableCell className="p-2">{p.precioAlquilerUd.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell className="p-2">
+                        {p.isDeliveryProduct && <CheckCircle2 className="text-green-600" />}
+                    </TableCell>
                     <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -267,7 +273,7 @@ export default function PreciosPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     No se encontraron precios que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>

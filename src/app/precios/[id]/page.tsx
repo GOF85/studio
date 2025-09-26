@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -17,6 +18,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export const precioFormSchema = z.object({
   id: z.string(),
@@ -28,6 +30,7 @@ export const precioFormSchema = z.object({
   precioUd: z.coerce.number().min(0, 'El precio debe ser positivo'),
   precioAlquilerUd: z.coerce.number().min(0, 'El precio de alquiler debe ser positivo'),
   imagen: z.string().url('Debe ser una URL válida').or(z.literal('')),
+  isDeliveryProduct: z.boolean().optional().default(false),
 });
 
 type PrecioFormValues = z.infer<typeof precioFormSchema>;
@@ -38,6 +41,7 @@ const defaultValues: Partial<PrecioFormValues> = {
     precioUd: 0,
     precioAlquilerUd: 0,
     imagen: '',
+    isDeliveryProduct: false,
 };
 
 export default function PrecioFormPage() {
@@ -125,36 +129,58 @@ export default function PrecioFormPage() {
               <CardHeader>
                 <CardTitle>Detalles del Producto</CardTitle>
               </CardHeader>
-              <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <FormField control={form.control} name="producto" render={({ field }) => (
-                    <FormItem><FormLabel>Producto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="categoria" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Categoría</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar categoría..." /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                {PRECIO_CATEGORIAS.map(cat => (
-                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+              <CardContent className="space-y-6">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <FormField control={form.control} name="producto" render={({ field }) => (
+                        <FormItem><FormLabel>Producto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="categoria" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Categoría</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar categoría..." /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    {PRECIO_CATEGORIAS.map(cat => (
+                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control} name="loc" render={({ field }) => (
+                        <FormItem><FormLabel>Localización</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="precioUd" render={({ field }) => (
+                        <FormItem><FormLabel>Precio Ud.</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="precioAlquilerUd" render={({ field }) => (
+                        <FormItem><FormLabel>Precio Alquiler Ud.</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="imagen" render={({ field }) => (
+                        <FormItem><FormLabel>URL de Imagen</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                </div>
+                 <FormField
+                    control={form.control}
+                    name="isDeliveryProduct"
+                    render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl>
+                        <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                        />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                        <FormLabel>
+                            Producto para Entregas MICE
+                        </FormLabel>
                         <FormMessage />
+                        </div>
                     </FormItem>
-                )} />
-                <FormField control={form.control} name="loc" render={({ field }) => (
-                    <FormItem><FormLabel>Localización</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="precioUd" render={({ field }) => (
-                    <FormItem><FormLabel>Precio Ud.</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="precioAlquilerUd" render={({ field }) => (
-                    <FormItem><FormLabel>Precio Alquiler Ud.</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="imagen" render={({ field }) => (
-                    <FormItem><FormLabel>URL de Imagen</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
+                    )}
+                />
               </CardContent>
             </Card>
           </form>

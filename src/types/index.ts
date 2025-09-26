@@ -109,6 +109,7 @@ export type Precio = {
     precioUd: number;
     precioAlquilerUd: number;
     imagen: string; // url
+    isDeliveryProduct?: boolean;
 };
 
 export type ComercialBriefingItem = {
