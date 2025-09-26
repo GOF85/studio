@@ -245,9 +245,9 @@ export default function PreciosPage() {
                   <TableRow key={p.id}>
                     <TableCell className="font-medium p-2">{p.producto}</TableCell>
                     <TableCell className="p-2">{p.categoria}</TableCell>
-                    <TableCell className="p-2">{p.precioUd.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                    <TableCell className="p-2">{p.pvp.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                    <TableCell className="p-2">{p.iva}%</TableCell>
+                    <TableCell className="p-2">{(p.precioUd || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell className="p-2">{(p.pvp || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell className="p-2">{p.iva || 0}%</TableCell>
                     <TableCell className="p-2">
                         {p.isDeliveryProduct && <CheckCircle2 className="text-green-600" />}
                     </TableCell>
