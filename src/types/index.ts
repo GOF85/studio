@@ -1,3 +1,4 @@
+
 import type { OsFormValues } from "@/app/os/page";
 import { z } from "zod";
 
@@ -106,8 +107,10 @@ export type Precio = {
     producto: string;
     categoria: PrecioCategoria;
     loc: string; // localización
-    precioUd: number;
+    precioUd: number; // Coste
     precioAlquilerUd: number;
+    pvp: number; // Precio de Venta al Público
+    iva: number; // % de IVA
     imagen: string; // url
     isDeliveryProduct?: boolean;
 };

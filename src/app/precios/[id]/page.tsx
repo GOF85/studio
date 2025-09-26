@@ -29,6 +29,8 @@ export const precioFormSchema = z.object({
   loc: z.string().min(1, 'La localización es obligatoria'),
   precioUd: z.coerce.number().min(0, 'El precio debe ser positivo'),
   precioAlquilerUd: z.coerce.number().min(0, 'El precio de alquiler debe ser positivo'),
+  pvp: z.coerce.number().min(0, 'El PVP debe ser positivo'),
+  iva: z.coerce.number().min(0, 'El IVA debe ser un valor positivo'),
   imagen: z.string().url('Debe ser una URL válida').or(z.literal('')),
   isDeliveryProduct: z.boolean().optional().default(false),
 });
@@ -40,6 +42,8 @@ const defaultValues: Partial<PrecioFormValues> = {
     loc: '',
     precioUd: 0,
     precioAlquilerUd: 0,
+    pvp: 0,
+    iva: 21,
     imagen: '',
     isDeliveryProduct: false,
 };
@@ -130,9 +134,9 @@ export default function PrecioFormPage() {
                 <CardTitle>Detalles del Producto</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <FormField control={form.control} name="producto" render={({ field }) => (
-                        <FormItem><FormLabel>Producto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem className="lg:col-span-2"><FormLabel>Producto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="categoria" render={({ field }) => (
                         <FormItem>
@@ -152,35 +156,43 @@ export default function PrecioFormPage() {
                         <FormItem><FormLabel>Localización</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="precioUd" render={({ field }) => (
-                        <FormItem><FormLabel>Precio Ud.</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Coste Ud.</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="precioAlquilerUd" render={({ field }) => (
                         <FormItem><FormLabel>Precio Alquiler Ud.</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
-                    <FormField control={form.control} name="imagen" render={({ field }) => (
-                        <FormItem><FormLabel>URL de Imagen</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormField control={form.control} name="pvp" render={({ field }) => (
+                        <FormItem><FormLabel>PVP</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                     <FormField control={form.control} name="iva" render={({ field }) => (
+                        <FormItem><FormLabel>IVA (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                 </div>
-                 <FormField
-                    control={form.control}
-                    name="isDeliveryProduct"
-                    render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
-                        <FormControl>
-                        <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                        />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                        <FormLabel>
-                            Producto para Entregas MICE
-                        </FormLabel>
-                        <FormMessage />
-                        </div>
-                    </FormItem>
-                    )}
-                />
+                 <div className="grid md:grid-cols-2 gap-6">
+                    <FormField control={form.control} name="imagen" render={({ field }) => (
+                            <FormItem><FormLabel>URL de Imagen</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField
+                        control={form.control}
+                        name="isDeliveryProduct"
+                        render={({ field }) => (
+                        <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-full">
+                            <FormControl>
+                            <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                            />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                            <FormLabel>
+                                Producto para Entregas MICE
+                            </FormLabel>
+                            <FormMessage />
+                            </div>
+                        </FormItem>
+                        )}
+                    />
+                 </div>
               </CardContent>
             </Card>
           </form>

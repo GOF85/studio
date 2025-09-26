@@ -41,7 +41,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 
-const CSV_HEADERS = ["id", "producto", "categoria", "loc", "precioUd", "precioAlquilerUd", "imagen", "isDeliveryProduct"];
+const CSV_HEADERS = ["id", "producto", "categoria", "loc", "precioUd", "precioAlquilerUd", "pvp", "iva", "imagen", "isDeliveryProduct"];
 
 export default function PreciosPage() {
   const [precios, setPrecios] = useState<Precio[]>([]);
@@ -126,6 +126,8 @@ export default function PreciosPage() {
             loc: item.loc || '',
             precioUd: parseCurrency(item.precioUd),
             precioAlquilerUd: parseCurrency(item.precioAlquilerUd),
+            pvp: parseCurrency(item.pvp),
+            iva: Number(item.iva) || 0,
             imagen: item.imagen || '',
             isDeliveryProduct: item.isDeliveryProduct === 'true' || item.isDeliveryProduct === true,
         }));
@@ -230,9 +232,9 @@ export default function PreciosPage() {
               <TableRow>
                 <TableHead className="p-2">Producto</TableHead>
                 <TableHead className="p-2">Categoría</TableHead>
-                <TableHead className="p-2">Localización</TableHead>
-                <TableHead className="p-2">Precio Ud.</TableHead>
-                <TableHead className="p-2">Precio Alquiler Ud.</TableHead>
+                <TableHead className="p-2">Coste Ud.</TableHead>
+                <TableHead className="p-2">PVP</TableHead>
+                <TableHead className="p-2">IVA</TableHead>
                 <TableHead className="p-2">Para Entregas</TableHead>
                 <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
@@ -243,9 +245,9 @@ export default function PreciosPage() {
                   <TableRow key={p.id}>
                     <TableCell className="font-medium p-2">{p.producto}</TableCell>
                     <TableCell className="p-2">{p.categoria}</TableCell>
-                    <TableCell className="p-2">{p.loc}</TableCell>
                     <TableCell className="p-2">{p.precioUd.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                    <TableCell className="p-2">{p.precioAlquilerUd.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell className="p-2">{p.pvp.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell className="p-2">{p.iva}%</TableCell>
                     <TableCell className="p-2">
                         {p.isDeliveryProduct && <CheckCircle2 className="text-green-600" />}
                     </TableCell>
