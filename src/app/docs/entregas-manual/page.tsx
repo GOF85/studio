@@ -1,6 +1,6 @@
 'use client';
 
-import { Package, BookOpen, Workflow, Factory, ShieldCheck } from "lucide-react";
+import { Package, BookOpen, Workflow, Factory, ShieldCheck, Users } from "lucide-react";
 
 export default function EntregasManualPage() {
     return (
@@ -53,7 +53,7 @@ export default function EntregasManualPage() {
                     <li>El resto de artículos (bebidas, consumibles, componentes de packs) se añaden directamente a la hoja de picking del almacén.</li>
                 </ul>
                 <h3>4.2. Portal del Partner</h3>
-                <p>Tu partner de gastronomía tiene un acceso web simplificado donde ve únicamente las elaboraciones que debe producir, las cantidades y la fecha y hora límite de entrega en vuestro centro de producción.</p>
+                <p>Tu partner de gastronomía tiene un acceso web simplificado (`/portal/partner`) donde ve únicamente las elaboraciones que debe producir, las cantidades y la fecha y hora límite de entrega en vuestro centro de producción. Desde ahí, puede actualizar el estado de cada pedido (`Recibido`, `En Producción`, `Listo para Entrega en CPR`).</p>
             </section>
             
             <section id="c5">
@@ -61,7 +61,7 @@ export default function EntregasManualPage() {
                 <h3>5.1. Asignación a Transportista</h3>
                 <p>Una vez el pedido está preparado, desde la propia OS-E se puede asignar la entrega a un transportista de la base de datos.</p>
                 <h3>5.2. Portal del Transportista (App Móvil)</h3>
-                <p>El transportista, desde su móvil, accede a un portal donde ve sus entregas del día. Para cada una, tiene una "Hoja de Ruta Digital" con la información de recogida y entrega.</p>
+                <p>El transportista, desde su móvil (`/portal/transporte`), accede a un portal donde ve sus entregas del día. Para cada una, tiene una "Hoja de Ruta Digital" con la información de recogida y entrega.</p>
                 <h3>5.3. Albarán y Firma Digital</h3>
                 <p>Al llegar al cliente, el transportista abre el albarán en su dispositivo. El cliente puede revisar el pedido y firmar con el dedo directamente en la pantalla. Esta firma queda registrada en el sistema y el pedido se marca automáticamente como "Entregado". Se envía una copia del albarán firmado por email tanto al cliente como al comercial.</p>
             </section>

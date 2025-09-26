@@ -35,12 +35,13 @@ export default function TechDocsPage() {
                     <li><code>/src/hooks</code>: Hooks de React personalizados.</li>
                     <li><code>/src/types</code>: Definiciones de tipos de TypeScript para todo el modelo de datos.</li>
                     <li><code>/src/ai</code>: Lógica relacionada con la inteligencia artificial (Genkit).</li>
+                    <li><code>/src/app/portal</code>: Nueva sección para las vistas externas de partners y transportistas.</li>
                 </ul>
             </section>
 
              <section id="c2-tech">
                 <h2 className="flex items-center gap-3"><Database />Capítulo 2: Modelo de Datos (`/src/types/index.ts`)</h2>
-                <p>A continuación se describen las principales entidades de datos y sus relaciones. Todas las definiciones residen en <code>src/types/index.ts</code>.</p>
+                <p>A continuación se describen las principales entidades de datos y sus relaciones. Todas las definiciones residen en src/types/index.ts.</p>
                 
                 <h3>Diagrama de Entidad-Relación (Conceptual)</h3>
                 <div className="p-4 border rounded-md my-6 bg-secondary/30 text-sm">
@@ -79,7 +80,7 @@ export default function TechDocsPage() {
                     <li><strong>Distribución de Tareas:</strong> Las elaboraciones se distribuyen a CPR MICE o al Portal del Partner según el campo `producidoPor`. El resto de artículos (bebidas, consumibles, componentes de packs) se envían directamente a la "Hoja de Picking" del almacén.</li>
                 </ol>
                 <h3>3.3. Portales Externos</h3>
-                <p>Se crearán rutas y componentes específicos bajo una carpeta `/portal` para dar acceso restringido y con una UI adaptada a partners y transportistas. Estos portales leerán los datos relevantes (necesidades de producción, rutas de entrega) y permitirán actualizar estados, desencadenando acciones en el sistema principal (ej. notificaciones por email).</p>
+                <p>Se ha creado una nueva sección `/portal` para dar acceso restringido y con una UI adaptada a partners y transportistas. Estos portales leen los datos relevantes (necesidades de producción, rutas de entrega) y permitirán actualizar estados, desencadenando acciones en el sistema principal (ej. notificaciones por email).</p>
             </section>
 
             <section id="c4-tech">

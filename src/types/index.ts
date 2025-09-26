@@ -43,6 +43,7 @@ export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate'> & {
     deliveryLocations?: string[];
     objetivoGastoId?: string;
     vertical: Vertical;
+    deliveryTime?: string;
 };
 
 export type Personal = {
@@ -390,6 +391,7 @@ export type Elaboracion = {
     formatoExpedicion: string;
     ratioExpedicion: number;
     tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+    producidoPor?: 'CPR MICE' | 'Partner Externo';
     // --- Campos calculados (pueden no estar en el form) ---
     costePorUnidad?: number; 
     alergenosPresentes?: Alergeno[];
@@ -442,6 +444,7 @@ export type Receta = {
     costeMateriaPrima: number; // Calculado
     precioVenta: number; // Calculado
     alergenos: Alergeno[];
+    pvpBandeja?: number;
     // --- Atributos Gastronómicos ---
     perfilSaborPrincipal?: SaborPrincipal;
     perfilSaborSecundario?: string[];
@@ -586,3 +589,17 @@ export type PedidoEntrega = {
     osId: string;
     items: PedidoEntregaItem[];
 }
+
+export type PedidoPartner = {
+    id: string; // Composite key
+    osId: string;
+    serviceNumber: string;
+    cliente: string;
+    fechaEntrega: string;
+    horaEntrega: string;
+    elaboracionId: string;
+    elaboracionNombre: string;
+    cantidad: number;
+    unidad: UnidadMedida;
+    status: 'Pendiente' | 'En Producción' | 'Listo para Entrega en CPR';
+};
