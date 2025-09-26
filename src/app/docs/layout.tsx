@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { LifeBuoy, Users, Code, BookOpen, Workflow, Database, Bot, Factory, BarChart3, ShieldCheck, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Header } from '@/components/layout/header';
 
 const DOC_VERSION = "0.3.0";
 const LAST_UPDATED = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -48,54 +49,57 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
     else if (isTechDocs) activeNav = techDocsNav;
 
     return (
-        <div className="container mx-auto">
-            <div className="grid lg:grid-cols-[280px_1fr] gap-12">
-                <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)] hidden lg:block">
-                     <ScrollArea className="h-full pr-6">
-                        <div className="w-full">
-                            <div className="pb-4">
-                                <h2 className="text-lg font-semibold tracking-tight mb-1">Documentación</h2>
-                                <p className="text-sm text-muted-foreground">
-                                    Versión: {DOC_VERSION} <br/>
-                                    Última actualización: {LAST_UPDATED}
-                                </p>
-                            </div>
-                            <div className="space-y-4">
-                                <div>
-                                    <h3 className="text-sm font-semibold text-primary mb-2">Guías Principales</h3>
-                                     <nav className="space-y-1">
-                                        <Link href="/docs/user-manual" className={cn("flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === '/docs/user-manual' && "bg-accent")}>
-                                            <Users /> Manual de Catering
-                                        </Link>
-                                         <Link href="/docs/entregas-manual" className={cn("flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === '/docs/entregas-manual' && "bg-accent")}>
-                                            <Package /> Manual de Entregas
-                                        </Link>
-                                         <Link href="/docs/tech-docs" className={cn("flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === '/docs/tech-docs' && "bg-accent")}>
-                                            <Code /> Documentación Técnica
-                                        </Link>
-                                    </nav>
+        <>
+            <Header />
+            <div className="container mx-auto">
+                <div className="grid lg:grid-cols-[280px_1fr] gap-12">
+                    <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)] hidden lg:block">
+                        <ScrollArea className="h-full pr-6">
+                            <div className="w-full">
+                                <div className="pb-4">
+                                    <h2 className="text-lg font-semibold tracking-tight mb-1">Documentación</h2>
+                                    <p className="text-sm text-muted-foreground">
+                                        Versión: {DOC_VERSION} <br/>
+                                        Última actualización: {LAST_UPDATED}
+                                    </p>
                                 </div>
-                               {activeNav.length > 0 && (
-                                 <div>
-                                    <h3 className="text-sm font-semibold text-primary mb-2 mt-6">Capítulos</h3>
-                                     <nav className="space-y-1">
-                                        {activeNav.map(item => (
-                                            <Link key={item.title} href={item.path} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                                                <item.icon />
-                                                {item.title}
+                                <div className="space-y-4">
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-primary mb-2">Guías Principales</h3>
+                                        <nav className="space-y-1">
+                                            <Link href="/docs/user-manual" className={cn("flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === '/docs/user-manual' && "bg-accent")}>
+                                                <Users /> Manual de Catering
                                             </Link>
-                                        ))}
-                                    </nav>
+                                            <Link href="/docs/entregas-manual" className={cn("flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === '/docs/entregas-manual' && "bg-accent")}>
+                                                <Package /> Manual de Entregas
+                                            </Link>
+                                            <Link href="/docs/tech-docs" className={cn("flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === '/docs/tech-docs' && "bg-accent")}>
+                                                <Code /> Documentación Técnica
+                                            </Link>
+                                        </nav>
+                                    </div>
+                                {activeNav.length > 0 && (
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-primary mb-2 mt-6">Capítulos</h3>
+                                        <nav className="space-y-1">
+                                            {activeNav.map(item => (
+                                                <Link key={item.title} href={item.path} className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                                                    <item.icon />
+                                                    {item.title}
+                                                </Link>
+                                            ))}
+                                        </nav>
+                                    </div>
+                                )}
                                 </div>
-                               )}
                             </div>
-                        </div>
-                    </ScrollArea>
-                </aside>
-                <main className="py-8 prose prose-lg max-w-none">
-                    {children}
-                </main>
+                        </ScrollArea>
+                    </aside>
+                    <main className="py-8 prose prose-lg max-w-none">
+                        {children}
+                    </main>
+                </div>
             </div>
-        </div>
+        </>
     );
 }
