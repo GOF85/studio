@@ -8,9 +8,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, ShoppingBag } from 'lucide-react';
 
-import type { OrderItem, ServiceOrder, MaterialOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem, Vertical } from '@/types';
+import type { OrderItem, ServiceOrder, MaterialOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem, Vertical, PedidoEntrega, PedidoEntregaItem, Receta, PackDeVenta, Precio } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -58,6 +58,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Combobox } from '@/components/ui/combobox';
 import { VERTICALES } from '@/types';
+
+// --- NUEVOS COMPONENTES PARA ENTREGAS ---
+import { UnifiedItemCatalog } from '@/components/entregas/unified-item-catalog';
+import { DeliveryOrderSummary } from '@/components/entregas/delivery-order-summary';
 
 
 export const osFormSchema = z.object({
@@ -206,6 +210,10 @@ export default function OsPage() {
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
+  
+  // State for Entregas
+  const [deliveryOrder, setDeliveryOrder] = useState<PedidoEntrega | null>(null);
+  const [catalogForEntregas, setCatalogForEntregas] = useState<(Receta | PackDeVenta | Precio)[]>([]);
 
   const hasPruebaDeMenu = useMemo(() => {
     return briefingItems.some(item => item.descripcion.toLowerCase() === 'prueba de menu');
@@ -272,6 +280,12 @@ export default function OsPage() {
     setPersonal(allPersonal.filter(p => p.nombre));
     setEspacios(allEspacios.filter(e => e.espacio));
     
+    // --- Load Catalog for Entregas ---
+    const recetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]).filter(r => r.categoria === 'Entregas');
+    const packs = (JSON.parse(localStorage.getItem('packsDeVenta') || '[]') as PackDeVenta[]);
+    const precios = (JSON.parse(localStorage.getItem('precios') || '[]') as Precio[]);
+    setCatalogForEntregas([...recetas, ...packs, ...precios]);
+    
     if (osId) {
       setAccordionDefaultValue([]); // Collapse for existing
       const allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
@@ -288,6 +302,13 @@ export default function OsPage() {
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
         const currentBriefing = allBriefings.find(b => b.osId === osId);
         setBriefingItems(currentBriefing?.items || []);
+        
+        // Load Entregas data if applicable
+        if (currentOS.vertical === 'Entregas') {
+            const allDeliveryOrders = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
+            const currentDeliveryOrder = allDeliveryOrders.find(d => d.osId === osId);
+            setDeliveryOrder(currentDeliveryOrder || { osId, items: [] });
+        }
         
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
@@ -341,6 +362,18 @@ export default function OsPage() {
 
     localStorage.setItem('serviceOrders', JSON.stringify(allOS));
     
+    // --- Save delivery order items if it's an Entrega ---
+    if (data.vertical === 'Entregas' && deliveryOrder) {
+        let allDeliveryOrders = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
+        const deliveryIndex = allDeliveryOrders.findIndex(d => d.osId === newId);
+        if (deliveryIndex > -1) {
+            allDeliveryOrders[deliveryIndex] = deliveryOrder;
+        } else {
+            allDeliveryOrders.push({ ...deliveryOrder, osId: newId! });
+        }
+        localStorage.setItem('pedidosEntrega', JSON.stringify(allDeliveryOrders));
+    }
+    
     setTimeout(() => {
       toast({
         description: message,
@@ -374,13 +407,19 @@ export default function OsPage() {
     // Delete related data from other localStorage items
     const keysToDeleteFrom: (keyof Window['localStorage'])[] = [
       'materialOrders', 'comercialBriefings', 'gastronomyOrders', 'transporteOrders', 'hieloOrders', 
-      'decoracionOrders', 'atipicoOrders', 'personalMiceOrders', 'personalExternoOrders', 'pruebasMenu'
+      'decoracionOrders', 'atipicoOrders', 'personalMiceOrders', 'personalExternoOrders', 'pruebasMenu', 'pedidosEntrega'
     ];
 
     keysToDeleteFrom.forEach(key => {
-      const data = JSON.parse(localStorage.getItem(key) || '[]') as { osId: string }[];
-      const filteredData = data.filter(item => item.osId !== osId);
-      localStorage.setItem(key, JSON.stringify(filteredData));
+        if (key === 'pedidosEntrega') {
+            const data = JSON.parse(localStorage.getItem(key) || '[]') as { osId: string }[];
+            const filteredData = data.filter(item => item.osId !== osId);
+            localStorage.setItem(key, JSON.stringify(filteredData));
+        } else {
+            const data = JSON.parse(localStorage.getItem(key) || '[]') as { osId: string }[];
+            const filteredData = data.filter(item => item.osId !== osId);
+            localStorage.setItem(key, JSON.stringify(filteredData));
+        }
     });
 
     toast({ title: 'Orden de Servicio eliminada', description: 'Se han eliminado todos los datos asociados.' });
@@ -614,264 +653,316 @@ export default function OsPage() {
                         )} />
                     </div>
 
-                   <Accordion type="multiple" defaultValue={accordionDefaultValue} className="w-full space-y-3 pt-3">
-                      <AccordionItem value="cliente" className="border-none">
-                       <Card>
-                        <AccordionTrigger className="p-4"><ClienteTitle /></AccordionTrigger>
-                        <AccordionContent>
-                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 px-4 pb-4">
-                            <FormField control={form.control} name="client" render={({ field }) => (
-                            <FormItem className="md:col-span-2">
-                                <FormLabel>Cliente</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )} />
-                             <FormField control={form.control} name="tipoCliente" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Tipo Cliente</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="Empresa">Empresa</SelectItem>
-                                        <SelectItem value="Agencia">Agencia</SelectItem>
-                                        <SelectItem value="Particular">Particular</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                </FormItem>
-                            )} />
-                            <FormField control={form.control} name="finalClient" render={({ field }) => (
-                            <FormItem className="md:col-span-3">
-                                <FormLabel>Cliente Final</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
-                            </FormItem>
-                            )} />
-                            <FormField control={form.control} name="contact" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Contacto</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
-                              </FormItem>
-                            )} />
-                            <FormField control={form.control} name="phone" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Teléfono</FormLabel>
-                                <FormControl><Input {...field} /></FormControl>
-                              </FormItem>
-                            )} />
-                          </div>
-                        </AccordionContent>
-                       </Card>
-                      </AccordionItem>
-
-                      <AccordionItem value="espacio" className="border-none">
-                       <Card>
-                        <AccordionTrigger className="p-4"><EspacioTitle /></AccordionTrigger>
-                        <AccordionContent>
-                           <div className="space-y-4 px-4 pb-4">
-                            <FormField control={form.control} name="space" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Espacio</FormLabel>
-                                    <Combobox
-                                        options={espacioOptions}
-                                        value={field.value}
-                                        onChange={(value) => { field.onChange(value); handleEspacioChange(value); }}
-                                        placeholder="Busca o selecciona un espacio..."
-                                    />
+                    {vertical !== 'Entregas' ? (
+                       <Accordion type="multiple" defaultValue={accordionDefaultValue} className="w-full space-y-3 pt-3">
+                          <AccordionItem value="cliente" className="border-none">
+                          <Card>
+                            <AccordionTrigger className="p-4"><ClienteTitle /></AccordionTrigger>
+                            <AccordionContent>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 px-4 pb-4">
+                                <FormField control={form.control} name="client" render={({ field }) => (
+                                <FormItem className="md:col-span-2">
+                                    <FormLabel>Cliente</FormLabel>
+                                    <FormControl><Input {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
-                            )} />
-                             <FormField control={form.control} name="spaceAddress" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Dirección</FormLabel>
-                                    <FormControl><Input {...field} placeholder="Dirección del espacio" /></FormControl>
-                                </FormItem>
-                            )} />
-                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                <FormField control={form.control} name="spaceContact" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Contacto Espacio</FormLabel>
-                                    <FormControl><Input {...field} /></FormControl>
-                                </FormItem>
                                 )} />
-                                <FormField control={form.control} name="spacePhone" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Tlf. Espacio</FormLabel>
-                                    <FormControl><Input {...field} /></FormControl>
-                                </FormItem>
-                                )} />
-                                <FormField control={form.control} name="spaceMail" render={({ field }) => (
+                                <FormField control={form.control} name="tipoCliente" render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Email Espacio</FormLabel>
+                                    <FormLabel>Tipo Cliente</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="Empresa">Empresa</SelectItem>
+                                            <SelectItem value="Agencia">Agencia</SelectItem>
+                                            <SelectItem value="Particular">Particular</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="finalClient" render={({ field }) => (
+                                <FormItem className="md:col-span-3">
+                                    <FormLabel>Cliente Final</FormLabel>
+                                    <FormControl><Input {...field} /></FormControl>
+                                </FormItem>
+                                )} />
+                                <FormField control={form.control} name="contact" render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Contacto</FormLabel>
+                                    <FormControl><Input {...field} /></FormControl>
+                                  </FormItem>
+                                )} />
+                                <FormField control={form.control} name="phone" render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Teléfono</FormLabel>
+                                    <FormControl><Input {...field} /></FormControl>
+                                  </FormItem>
+                                )} />
+                              </div>
+                            </AccordionContent>
+                          </Card>
+                          </AccordionItem>
+
+                          <AccordionItem value="espacio" className="border-none">
+                          <Card>
+                            <AccordionTrigger className="p-4"><EspacioTitle /></AccordionTrigger>
+                            <AccordionContent>
+                              <div className="space-y-4 px-4 pb-4">
+                                <FormField control={form.control} name="space" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Espacio</FormLabel>
+                                        <Combobox
+                                            options={espacioOptions}
+                                            value={field.value}
+                                            onChange={(value) => { field.onChange(value); handleEspacioChange(value); }}
+                                            placeholder="Busca o selecciona un espacio..."
+                                        />
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="spaceAddress" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Dirección</FormLabel>
+                                        <FormControl><Input {...field} placeholder="Dirección del espacio" /></FormControl>
+                                    </FormItem>
+                                )} />
+                                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <FormField control={form.control} name="spaceContact" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Contacto Espacio</FormLabel>
                                         <FormControl><Input {...field} /></FormControl>
                                     </FormItem>
-                                )} />
-                                <FormField control={form.control} name="plane" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Plano</FormLabel>
-                                    <FormControl><Input placeholder="Enlazar aquí..." {...field} /></FormControl>
-                                </FormItem>
-                                )} />
-                            </div>
-                          </div>
-                        </AccordionContent>
-                       </Card>
-                      </AccordionItem>
-                      
-                       <AccordionItem value="responsables" className="border-none">
-                        <Card>
-                        <AccordionTrigger className="p-4"><ResponsablesTitle /></AccordionTrigger>
-                        <AccordionContent>
-                           <div className="grid md:grid-cols-3 gap-4 px-4 pb-4">
-                              <FormField control={form.control} name="respMetre" render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Resp. Metre</FormLabel>
-                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respMetrePhone', 'respMetreMail'); }} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                      {personalSala.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
-                                    </SelectContent>
-                                  </Select>
-                                </FormItem>
-                              )} />
-                               <FormField control={form.control} name="respMetrePhone" render={({ field }) => (
-                                <FormItem><FormLabel>Tlf. Resp. Metre</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                               )} />
-                               <FormField control={form.control} name="respMetreMail" render={({ field }) => (
-                                <FormItem><FormLabel>Mail Resp. Metre</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                               )} />
-
-                              <FormField control={form.control} name="respPase" render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Resp. Pase</FormLabel>
-                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respPasePhone', 'respPaseMail'); }} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                      {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
-                                    </SelectContent>
-                                  </Select>
-                                </FormItem>
-                              )} />
-                               <FormField control={form.control} name="respPasePhone" render={({ field }) => (
-                                <FormItem><FormLabel>Tlf. Resp. Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                               )} />
-                               <FormField control={form.control} name="respPaseMail" render={({ field }) => (
-                                <FormItem><FormLabel>Mail Resp. Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                               )} />
-
-                              <FormField control={form.control} name="respCocinaPase" render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Resp. Cocina Pase</FormLabel>
-                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respCocinaPasePhone', 'respCocinaPaseMail'); }} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                      {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
-                                    </SelectContent>
-                                  </Select>
-                                </FormItem>
-                              )} />
-                               <FormField control={form.control} name="respCocinaPasePhone" render={({ field }) => (
-                                <FormItem><FormLabel>Tlf. Resp. Cocina Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                               )} />
-                               <FormField control={form.control} name="respCocinaPaseMail" render={({ field }) => (
-                                <FormItem><FormLabel>Mail Resp. Cocina Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                               )} />
-                                
-                              <FormField control={form.control} name="respCocinaCPR" render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Resp. Cocina CPR</FormLabel>
-                                   <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respCocinaCPRPhone', 'respCocinaCPRMail'); }} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                      {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
-                                    </SelectContent>
-                                  </Select>
-                                </FormItem>
-                              )} />
-                               <FormField control={form.control} name="respCocinaCPRPhone" render={({ field }) => (
-                                <FormItem><FormLabel>Tlf. Resp. Cocina CPR</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                               )} />
-                               <FormField control={form.control} name="respCocinaCPRMail" render={({ field }) => (
-                                <FormItem><FormLabel>Mail Resp. Cocina CPR</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                               )} />
-                            </div>
-                            <Separator className="my-3" />
-                            <div className="grid md:grid-cols-3 gap-4 px-4 pb-4">
-                                <FormField
-                                    control={form.control}
-                                    name="comercialAsiste"
-                                    render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-start gap-3 rounded-lg border p-3 col-span-3">
-                                        <FormControl>
-                                        <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                        </FormControl>
-                                        <FormLabel className="!m-0 text-base">
-                                            Comercial asiste al evento
-                                        </FormLabel>
+                                    )} />
+                                    <FormField control={form.control} name="spacePhone" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Tlf. Espacio</FormLabel>
+                                        <FormControl><Input {...field} /></FormControl>
                                     </FormItem>
-                                    )}
-                                />
-                                <FormField control={form.control} name="comercial" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Resp. Comercial</FormLabel>
-                                    <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'comercialPhone', 'comercialMail'); }} value={field.value}>
+                                    )} />
+                                    <FormField control={form.control} name="spaceMail" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Email Espacio</FormLabel>
+                                            <FormControl><Input {...field} /></FormControl>
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="plane" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Plano</FormLabel>
+                                        <FormControl><Input placeholder="Enlazar aquí..." {...field} /></FormControl>
+                                    </FormItem>
+                                    )} />
+                                </div>
+                              </div>
+                            </AccordionContent>
+                          </Card>
+                          </AccordionItem>
+                          
+                          <AccordionItem value="responsables" className="border-none">
+                            <Card>
+                            <AccordionTrigger className="p-4"><ResponsablesTitle /></AccordionTrigger>
+                            <AccordionContent>
+                              <div className="grid md:grid-cols-3 gap-4 px-4 pb-4">
+                                  <FormField control={form.control} name="respMetre" render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Resp. Metre</FormLabel>
+                                      <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respMetrePhone', 'respMetreMail'); }} value={field.value}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                         <SelectContent>
-                                        {personalComercial.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
+                                          {personalSala.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
                                         </SelectContent>
-                                    </Select>
-                                </FormItem>
-                                )} />
-                                <FormField control={form.control} name="comercialPhone" render={({ field }) => (
-                                <FormItem><FormLabel>Tlf. Resp. Comercial</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="comercialMail" render={({ field }) => (
-                                <FormItem><FormLabel>Mail Resp. Comercial</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                                )} />
-                           </div>
-                           <Separator className="my-3" />
-                           <div className="grid md:grid-cols-3 gap-4 px-4 pb-4">
-                                <FormField
-                                    control={form.control}
-                                    name="rrhhAsiste"
-                                    render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-start gap-3 rounded-lg border p-3 col-span-3">
-                                        <FormControl>
-                                        <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                        </FormControl>
-                                        <FormLabel className="!m-0 text-base">
-                                            RRHH asiste al evento
-                                        </FormLabel>
+                                      </Select>
                                     </FormItem>
-                                    )}
-                                />
-                                <FormField control={form.control} name="respRRHH" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Resp. RRHH</FormLabel>
-                                    <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respRRHHPhone', 'respRRHHMail'); }} value={field.value}>
+                                  )} />
+                                  <FormField control={form.control} name="respMetrePhone" render={({ field }) => (
+                                    <FormItem><FormLabel>Tlf. Resp. Metre</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                                  )} />
+                                  <FormField control={form.control} name="respMetreMail" render={({ field }) => (
+                                    <FormItem><FormLabel>Mail Resp. Metre</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                                  )} />
+
+                                  <FormField control={form.control} name="respPase" render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Resp. Pase</FormLabel>
+                                      <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respPasePhone', 'respPaseMail'); }} value={field.value}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                         <SelectContent>
-                                        {personalRRHH.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
+                                          {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
                                         </SelectContent>
-                                    </Select>
-                                </FormItem>
-                                )} />
-                                <FormField control={form.control} name="respRRHHPhone" render={({ field }) => (
-                                <FormItem><FormLabel>Tlf. Resp. RRHH</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="respRRHHMail" render={({ field }) => (
-                                <FormItem><FormLabel>Mail Resp. RRHH</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
-                                )} />
-                           </div>
-                        </AccordionContent>
-                        </Card>
-                       </AccordionItem>
-                    </Accordion>
+                                      </Select>
+                                    </FormItem>
+                                  )} />
+                                  <FormField control={form.control} name="respPasePhone" render={({ field }) => (
+                                    <FormItem><FormLabel>Tlf. Resp. Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                                  )} />
+                                  <FormField control={form.control} name="respPaseMail" render={({ field }) => (
+                                    <FormItem><FormLabel>Mail Resp. Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                                  )} />
+
+                                  <FormField control={form.control} name="respCocinaPase" render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Resp. Cocina Pase</FormLabel>
+                                      <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respCocinaPasePhone', 'respCocinaPaseMail'); }} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                          {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
+                                        </SelectContent>
+                                      </Select>
+                                    </FormItem>
+                                  )} />
+                                  <FormField control={form.control} name="respCocinaPasePhone" render={({ field }) => (
+                                    <FormItem><FormLabel>Tlf. Resp. Cocina Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                                  )} />
+                                  <FormField control={form.control} name="respCocinaPaseMail" render={({ field }) => (
+                                    <FormItem><FormLabel>Mail Resp. Cocina Pase</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                                  )} />
+                                    
+                                  <FormField control={form.control} name="respCocinaCPR" render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Resp. Cocina CPR</FormLabel>
+                                      <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respCocinaCPRPhone', 'respCocinaCPRMail'); }} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                          {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
+                                        </SelectContent>
+                                      </Select>
+                                    </FormItem>
+                                  )} />
+                                  <FormField control={form.control} name="respCocinaCPRPhone" render={({ field }) => (
+                                    <FormItem><FormLabel>Tlf. Resp. Cocina CPR</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                                  )} />
+                                  <FormField control={form.control} name="respCocinaCPRMail" render={({ field }) => (
+                                    <FormItem><FormLabel>Mail Resp. Cocina CPR</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                                  )} />
+                                </div>
+                                <Separator className="my-3" />
+                                <div className="grid md:grid-cols-3 gap-4 px-4 pb-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="comercialAsiste"
+                                        render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-start gap-3 rounded-lg border p-3 col-span-3">
+                                            <FormControl>
+                                            <Checkbox
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                            />
+                                            </FormControl>
+                                            <FormLabel className="!m-0 text-base">
+                                                Comercial asiste al evento
+                                            </FormLabel>
+                                        </FormItem>
+                                        )}
+                                    />
+                                    <FormField control={form.control} name="comercial" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Resp. Comercial</FormLabel>
+                                        <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'comercialPhone', 'comercialMail'); }} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                            {personalComercial.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="comercialPhone" render={({ field }) => (
+                                    <FormItem><FormLabel>Tlf. Resp. Comercial</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="comercialMail" render={({ field }) => (
+                                    <FormItem><FormLabel>Mail Resp. Comercial</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                                    )} />
+                              </div>
+                              <Separator className="my-3" />
+                              <div className="grid md:grid-cols-3 gap-4 px-4 pb-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="rrhhAsiste"
+                                        render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-start gap-3 rounded-lg border p-3 col-span-3">
+                                            <FormControl>
+                                            <Checkbox
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                            />
+                                            </FormControl>
+                                            <FormLabel className="!m-0 text-base">
+                                                RRHH asiste al evento
+                                            </FormLabel>
+                                        </FormItem>
+                                        )}
+                                    />
+                                    <FormField control={form.control} name="respRRHH" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Resp. RRHH</FormLabel>
+                                        <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respRRHHPhone', 'respRRHHMail'); }} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                            {personalRRHH.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="respRRHHPhone" render={({ field }) => (
+                                    <FormItem><FormLabel>Tlf. Resp. RRHH</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="respRRHHMail" render={({ field }) => (
+                                    <FormItem><FormLabel>Mail Resp. RRHH</FormLabel><FormControl><Input {...field} readOnly /></FormControl></FormItem>
+                                    )} />
+                              </div>
+                            </AccordionContent>
+                            </Card>
+                          </AccordionItem>
+                        </Accordion>
+                    ) : (
+                        // --- FORMULARIO PARA ENTREGAS ---
+                        <div className="grid lg:grid-cols-[1fr_400px] lg:gap-8 pt-6">
+                            {deliveryOrder && (
+                                <>
+                                    <UnifiedItemCatalog
+                                        items={catalogForEntregas}
+                                        orderItems={deliveryOrder.items}
+                                        onAddItem={(item, quantity) => {
+                                            setDeliveryOrder(prev => {
+                                                if (!prev) return null;
+                                                const existing = prev.items.find(i => i.id === item.id);
+                                                if (existing) {
+                                                    const newItems = prev.items.map(i => i.id === item.id ? { ...i, quantity: i.quantity + quantity } : i);
+                                                    return { ...prev, items: newItems };
+                                                }
+                                                const newItem: PedidoEntregaItem = {
+                                                    id: 'id' in item ? item.id : item.producto, // Handle different types
+                                                    type: 'categoria' in item ? (item.categoria === 'Entregas' ? 'receta' : 'producto') : 'pack',
+                                                    nombre: 'nombre' in item ? item.nombre : ('producto' in item ? item.producto : 'Unknown'),
+                                                    quantity: quantity,
+                                                    coste: 'costeMateriaPrima' in item ? item.costeMateriaPrima : ('precioUd' in item ? item.precioUd : 0),
+                                                    pvp: 'pvp' in item ? item.pvp : ('precioUd' in item ? item.precioUd : 0),
+                                                };
+                                                return { ...prev, items: [...prev.items, newItem] };
+                                            });
+                                        }}
+                                    />
+                                    <div className="mt-8 lg:mt-0">
+                                        <DeliveryOrderSummary
+                                            items={deliveryOrder.items}
+                                            onUpdateQuantity={(itemId, quantity) => {
+                                                setDeliveryOrder(prev => {
+                                                    if (!prev) return null;
+                                                    const newItems = prev.items.map(i => i.id === itemId ? { ...i, quantity } : i);
+                                                    return { ...prev, items: newItems };
+                                                });
+                                            }}
+                                            onRemoveItem={(itemId) => {
+                                                setDeliveryOrder(prev => {
+                                                    if (!prev) return null;
+                                                    return { ...prev, items: prev.items.filter(i => i.id !== itemId) };
+                                                });
+                                            }}
+                                            onClearOrder={() => setDeliveryOrder(prev => prev ? { ...prev, items: [] } : null)}
+                                        />
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
                     
                     <div className="space-y-4 pt-4 border-t">
                       <FormField control={form.control} name="comments" render={({ field }) => (

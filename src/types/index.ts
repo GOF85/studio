@@ -551,3 +551,37 @@ export type ExcedenteProduccion = {
     motivoAjuste?: string;
     fechaAjuste?: string;
 }
+
+// --- ENTREGAS ---
+
+export type PackDeVenta = {
+    id: string;
+    nombre: string;
+    pvp: number;
+    componentes: {
+        itemCode: string; // Corresponds to `id` in `Precio`
+        description: string;
+        quantity: number;
+    }[];
+}
+
+export type MargenCategoria = {
+    id: string;
+    categoria: string; // e.g. BODEGA, BIO, ALMACEN, GASTRONOMIA_ENTREGAS
+    margen: number; // Porcentaje
+}
+
+export type PedidoEntregaItem = {
+    id: string; // Can be Receta.id, PackDeVenta.id, or Precio.id
+    type: 'receta' | 'pack' | 'producto';
+    nombre: string;
+    quantity: number;
+    coste: number;
+    pvp: number;
+    categoria?: string; // For margin calculation
+}
+
+export type PedidoEntrega = {
+    osId: string;
+    items: PedidoEntregaItem[];
+}
