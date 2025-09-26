@@ -17,7 +17,7 @@ export default function UserManualPage() {
                 <h2 className="flex items-center gap-3"><BookOpen />Capítulo 1: Primeros Pasos</h2>
                 <p>Este capítulo introduce los conceptos básicos de la aplicación, su estructura y cómo empezar a trabajar con ella en el contexto de eventos de catering.</p>
                 <h3>1.1. Introducción a MICE Catering</h3>
-                <p>MICE Catering es una herramienta integral para la gestión de servicios de catering, desde la planificación comercial hasta la ejecución en cocina y la logística del evento.</p>
+                <p>MICE Catering es una herramienta integral para la gestión de servicios de catering, desde la planificación comercial hasta la ejecución en cocina y la logística del evento. La aplicación ahora se divide en dos grandes verticales: **Catering de Eventos** (el flujo tradicional) y **Entregas MICE** (un nuevo flujo simplificado para pedidos directos).</p>
                 <h3>1.2. Roles de Usuario</h3>
                 <p>La aplicación está diseñada para diferentes perfiles. Dependiendo de tu rol (Comercial, Jefe de Producción, Cocinero, etc.), verás las secciones y opciones relevantes para tu trabajo, simplificando la interfaz y protegiendo la información.</p>
                 <h3>1.3. Gestión de Bases de Datos</h3>
@@ -25,10 +25,10 @@ export default function UserManualPage() {
             </section>
 
             <section id="c2">
-                <h2 className="flex items-center gap-3"><Workflow />Capítulo 2: Flujo Comercial y de Servicios</h2>
+                <h2 className="flex items-center gap-3"><Workflow />Capítulo 2: Flujo Comercial y de Servicios de Catering</h2>
                 <p>Aprende a crear y gestionar una Orden de Servicio (OS) para un evento de catering, desde su creación hasta la gestión de sus módulos asociados.</p>
                 <h3>2.1. Creación y Gestión de una Orden de Servicio (OS)</h3>
-                <p>Todo comienza en "Previsión de Servicios". Desde aquí puedes crear una nueva OS o editar una existente. La ficha de la OS es el centro neurálgico que conecta todos los módulos relacionados con un evento.</p>
+                <p>Todo comienza en "Previsión de Servicios". Desde aquí puedes crear una nueva OS o editar una existente. La ficha de la OS es el centro neurálgico que conecta todos los módulos relacionados con un evento de catering complejo.</p>
                 <h3>2.2. El Módulo Comercial: Creando el Briefing</h3>
                 <p>Dentro de una OS, el módulo "Comercial" permite detallar cada hito del evento (coffees, almuerzos, cena). Es crucial registrar aquí la **información sobre alergias y dietas especiales** (ej: "3 celiacos") para que cocina reciba el aviso.</p>
                 <h3>2.3. Módulos Auxiliares</h3>
@@ -53,7 +53,7 @@ export default function UserManualPage() {
                 <h3>4.1. Visión General del Ciclo de Producción</h3>
                 <p>El ciclo completo es: Agregación de Necesidades &rarr; Orden de Fabricación (OF) &rarr; Producción en Partida &rarr; Control de Calidad &rarr; Picking Logístico &rarr; Servicio en Evento.</p>
                 <h3>4.2. Paso 1: Planificación y Generación de OF</h3>
-                <p>En el módulo **"Planificación"** de CPR, selecciona un rango de fechas. El sistema calculará automáticamente todas las elaboraciones necesarias y las mostrará en tres vistas: **Matriz de Producción**, **Planificación por Recetas** y **Planificación de Elaboraciones**. Desde la vista de elaboraciones, selecciona las necesidades que quieres producir y genera las Órdenes de Fabricación (OF). El sistema les asignará un número de lote único.</p>
+                <p>En el módulo **"Planificación"** de CPR, selecciona un rango de fechas. El sistema calculará automáticamente todas las elaboraciones necesarias (tanto para eventos de catering como para entregas) y las mostrará en tres vistas: **Matriz de Producción**, **Planificación por Recetas** y **Planificación de Elaboraciones**. Desde la vista de elaboraciones, selecciona las necesidades que quieres producir y genera las Órdenes de Fabricación (OF). El sistema les asignará un número de lote único.</p>
                 <h3>4.3. Paso 2: Producción y Control de Calidad</h3>
                 <p>En **"Órdenes de Fabricación"**, cada partida verá sus OF pendientes. El cocinero la tomará, cambiará su estado a "En Proceso" y, al finalizar, registrará la **cantidad real producida**. La OF pasará entonces a "Control de Calidad", donde un responsable la validará antes de que esté disponible para logística.</p>
                 <h3>4.4. Paso 3: Picking y Etiquetado</h3>
