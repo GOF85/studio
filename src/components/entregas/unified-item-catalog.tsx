@@ -12,7 +12,6 @@ type CatalogItem = Receta | PackDeVenta | Precio;
 
 interface UnifiedItemCatalogProps {
   items: CatalogItem[];
-  orderItems: PedidoEntregaItem[];
   onAddItem: (item: CatalogItem, quantity: number) => void;
 }
 
@@ -45,7 +44,7 @@ function ItemRow({ item, onAdd }: { item: CatalogItem, onAdd: () => void }) {
     )
 }
 
-export function UnifiedItemCatalog({ items, onAddItem, orderItems }: UnifiedItemCatalogProps) {
+export function UnifiedItemCatalog({ items, onAddItem }: UnifiedItemCatalogProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredItems = useMemo(() => {

@@ -15,20 +15,39 @@ import { ScrollArea } from '../ui/scroll-area';
 import { formatCurrency } from '@/lib/utils';
 
 interface DeliveryOrderSummaryProps {
-  items: PedidoEntregaItem[];
-  onUpdateQuantity: (itemId: string, quantity: number) => void;
-  onRemoveItem: (itemId: string) => void;
-  onClearOrder: () => void;
+  initialItems: PedidoEntregaItem[];
+  getItemsRef: React.MutableRefObject<() => PedidoEntregaItem[]>;
 }
 
-export function DeliveryOrderSummary({ items, onUpdateQuantity, onRemoveItem, onClearOrder }: DeliveryOrderSummaryProps) {
+export function DeliveryOrderSummary({ initialItems, getItemsRef }: DeliveryOrderSummaryProps) {
+  const [items, setItems] = useState<PedidoEntregaItem[]>(initialItems);
   const [margenes, setMargenes] = useState<MargenCategoria[]>([]);
   const { toast } = useToast();
   
   useEffect(() => {
+    setItems(initialItems);
+  }, [initialItems]);
+
+  useEffect(() => {
+    getItemsRef.current = () => items;
+  }, [items, getItemsRef]);
+
+  useEffect(() => {
     const storedMargenes = JSON.parse(localStorage.getItem('margenesCategoria') || '[]') as MargenCategoria[];
     setMargenes(storedMargenes);
   }, []);
+
+  const onUpdateQuantity = (itemId: string, quantity: number) => {
+    if (quantity <= 0) {
+      setItems(prev => prev.filter(i => i.id !== itemId));
+    } else {
+      setItems(prev => prev.map(i => i.id === itemId ? { ...i, quantity } : i));
+    }
+  };
+
+  const onClearOrder = () => {
+    setItems([]);
+  };
 
   const { costeTotal, pvpTotal } = useMemo(() => {
     let coste = 0;

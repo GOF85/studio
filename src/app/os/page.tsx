@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm, FormProvider, useWatch } from 'react-hook-form';
@@ -213,7 +214,8 @@ function PageContent() {
   const [endDateOpen, setEndDateOpen] = useState(false);
   
   // State for Entregas
-  const [deliveryOrder, setDeliveryOrder] = useState<PedidoEntrega | null>(null);
+  const getDeliveryOrderItemsRef = useRef<() => PedidoEntregaItem[]>(() => []);
+  const [initialDeliveryOrder, setInitialDeliveryOrder] = useState<PedidoEntrega | null>(null);
   const [catalogForEntregas, setCatalogForEntregas] = useState<(Receta | PackDeVenta | Precio)[]>([]);
 
   const hasPruebaDeMenu = useMemo(() => {
@@ -308,7 +310,7 @@ function PageContent() {
         if (currentOS.vertical === 'Entregas') {
             const allDeliveryOrders = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
             const currentDeliveryOrder = allDeliveryOrders.find(d => d.osId === osId);
-            setDeliveryOrder(currentDeliveryOrder || { osId, items: [] });
+            setInitialDeliveryOrder(currentDeliveryOrder || { osId, items: [] });
         }
         
       } else {
@@ -320,7 +322,7 @@ function PageContent() {
       if (verticalParam) {
         initialValues.vertical = verticalParam;
          if (verticalParam === 'Entregas') {
-            setDeliveryOrder({ osId: '', items: [] }); // Initialize empty delivery order
+            setInitialDeliveryOrder({ osId: '', items: [] }); // Initialize empty delivery order
         }
       }
       form.reset(initialValues);
@@ -334,7 +336,7 @@ function PageContent() {
 
     let allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     let message = '';
-    let newId = osId;
+    let currentOsId = osId;
     
     if (osId) { // Update existing
       const osIndex = allOS.findIndex(os => os.id === osId);
@@ -353,9 +355,9 @@ function PageContent() {
         setIsLoading(false);
         return;
       }
-      newId = Date.now().toString();
+      currentOsId = Date.now().toString();
       const newOS: ServiceOrder = {
-        id: newId,
+        id: currentOsId,
         ...data,
         startDate: data.startDate.toISOString(),
         endDate: data.endDate.toISOString(),
@@ -367,11 +369,12 @@ function PageContent() {
     localStorage.setItem('serviceOrders', JSON.stringify(allOS));
     
     // --- Save delivery order items if it's an Entrega ---
-    if (data.vertical === 'Entregas' && deliveryOrder && newId) {
+    if (data.vertical === 'Entregas' && currentOsId) {
+        const deliveryItems = getDeliveryOrderItemsRef.current();
         let allDeliveryOrders = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
-        const deliveryIndex = allDeliveryOrders.findIndex(d => d.osId === newId);
+        const deliveryIndex = allDeliveryOrders.findIndex(d => d.osId === currentOsId);
         
-        const finalDeliveryOrder = { ...deliveryOrder, osId: newId };
+        const finalDeliveryOrder: PedidoEntrega = { osId: currentOsId, items: deliveryItems };
 
         if (deliveryIndex > -1) {
             allDeliveryOrders[deliveryIndex] = finalDeliveryOrder;
@@ -389,10 +392,10 @@ function PageContent() {
       form.reset(form.getValues()); // Mark form as not dirty
       if (isSubmittingFromDialog) {
         router.push(data.vertical === 'Entregas' ? '/entregas' : '/pes');
-      } else if (newId && !osId) { 
-        router.push(`/os?id=${newId}`);
+      } else if (currentOsId && !osId) { 
+        router.push(`/os?id=${currentOsId}`);
       } else {
-        router.replace(`/os?id=${newId}&t=${Date.now()}`);
+        router.replace(`/os?id=${currentOsId}&t=${Date.now()}`);
       }
     }, 1000)
   }
@@ -418,15 +421,9 @@ function PageContent() {
     ];
 
     keysToDeleteFrom.forEach(key => {
-        if (key === 'pedidosEntrega') {
-            const data = JSON.parse(localStorage.getItem(key) || '[]') as { osId: string }[];
-            const filteredData = data.filter(item => item.osId !== osId);
-            localStorage.setItem(key, JSON.stringify(filteredData));
-        } else {
-            const data = JSON.parse(localStorage.getItem(key) || '[]') as { osId: string }[];
-            const filteredData = data.filter(item => item.osId !== osId);
-            localStorage.setItem(key, JSON.stringify(filteredData));
-        }
+        const data = JSON.parse(localStorage.getItem(key) || '[]') as { osId: string }[];
+        const filteredData = data.filter(item => item.osId !== osId);
+        localStorage.setItem(key, JSON.stringify(filteredData));
     });
 
     toast({ title: 'Orden de Servicio eliminada', description: 'Se han eliminado todos los datos asociados.' });
@@ -920,48 +917,36 @@ function PageContent() {
                     ) : (
                         // --- FORMULARIO PARA ENTREGAS ---
                         <div className="grid lg:grid-cols-[1fr_400px] lg:gap-8 pt-6">
-                            {deliveryOrder && (
+                            {initialDeliveryOrder && (
                                 <>
                                     <UnifiedItemCatalog
                                         items={catalogForEntregas}
-                                        orderItems={deliveryOrder.items}
                                         onAddItem={(item, quantity) => {
-                                            setDeliveryOrder(prev => {
-                                                if (!prev) return null;
-                                                const existing = prev.items.find(i => i.id === ('id' in item ? item.id : ('producto' in item ? item.producto : '')));
+                                            getDeliveryOrderItemsRef.current = () => {
+                                                const currentItems = getDeliveryOrderItemsRef.current();
+                                                const existing = currentItems.find(i => i.id === ('id' in item ? item.id : ('producto' in item ? item.producto : '')));
                                                 if (existing) {
-                                                    const newItems = prev.items.map(i => i.id === ('id' in item ? item.id : ('producto' in item ? item.producto : '')) ? { ...i, quantity: i.quantity + quantity } : i);
-                                                    return { ...prev, items: newItems };
+                                                    return currentItems.map(i => i.id === ('id' in item ? item.id : ('producto' in item ? item.producto : '')) ? { ...i, quantity: i.quantity + quantity } : i);
                                                 }
                                                 const newItem: PedidoEntregaItem = {
-                                                    id: 'id' in item ? item.id : item.producto, // Handle different types
+                                                    id: 'id' in item ? item.id : item.producto,
                                                     type: 'categoria' in item ? (item.categoria === 'Entregas' ? 'receta' : 'producto') : 'pack',
                                                     nombre: 'nombre' in item ? item.nombre : ('producto' in item ? item.producto : 'Unknown'),
                                                     quantity: quantity,
                                                     coste: 'costeMateriaPrima' in item ? item.costeMateriaPrima : ('precioUd' in item ? item.precioUd : 0),
                                                     pvp: 'pvp' in item ? item.pvp : ('precioUd' in item ? item.precioUd : 0),
                                                 };
-                                                return { ...prev, items: [...prev.items, newItem] };
-                                            });
+                                                return [...currentItems, newItem];
+                                            };
+                                            // This is just to trigger a re-render of the summary
+                                            setValue('comments', watch('comments') + ' ');
+                                            setValue('comments', watch('comments').trim());
                                         }}
                                     />
                                     <div className="mt-8 lg:mt-0">
                                         <DeliveryOrderSummary
-                                            items={deliveryOrder.items}
-                                            onUpdateQuantity={(itemId, quantity) => {
-                                                setDeliveryOrder(prev => {
-                                                    if (!prev) return null;
-                                                    const newItems = prev.items.map(i => i.id === itemId ? { ...i, quantity } : i);
-                                                    return { ...prev, items: newItems };
-                                                });
-                                            }}
-                                            onRemoveItem={(itemId) => {
-                                                setDeliveryOrder(prev => {
-                                                    if (!prev) return null;
-                                                    return { ...prev, items: prev.items.filter(i => i.id !== itemId) };
-                                                });
-                                            }}
-                                            onClearOrder={() => setDeliveryOrder(prev => prev ? { ...prev, items: [] } : null)}
+                                            initialItems={initialDeliveryOrder.items}
+                                            getItemsRef={getDeliveryOrderItemsRef}
                                         />
                                     </div>
                                 </>
@@ -1044,5 +1029,3 @@ export default function OsPage() {
         </div>
     );
 }
-
-    
