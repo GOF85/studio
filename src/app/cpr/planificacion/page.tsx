@@ -30,7 +30,7 @@ import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
-import type { ServiceOrder, GastronomyOrder, GastronomyOrderItem, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta, ComercialBriefing, ComercialBriefingItem, ExcedenteProduccion } from '@/types';
+import type { ServiceOrder, GastronomyOrder, GastronomyOrderItem, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta, ComercialBriefing, ComercialBriefingItem, ExcedenteProduccion, PedidoEntrega, PedidoEntregaItem } from '@/types';
 
 // --- DATA STRUCTURES ---
 
@@ -204,6 +204,7 @@ export default function PlanificacionPage() {
         const allElaboraciones: Elaboracion[] = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
         const allOrdenesFabricacion: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
         const allExcedentesData: {[key: string]: ExcedenteProduccion} = JSON.parse(localStorage.getItem('excedentesProduccion') || '{}');
+        const allPedidosEntrega: PedidoEntrega[] = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
         
         const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
         const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
@@ -227,6 +228,7 @@ export default function PlanificacionPage() {
         
         const gastroOrdersEnRango = allGastroOrders.filter(go => osIdsEnRango.has(go.osId));
         const briefingsEnRango = allBriefings.filter(b => osIdsEnRango.has(b.osId));
+        const pedidosEntregaEnRango = allPedidosEntrega.filter(pe => osIdsEnRango.has(pe.osId));
 
 
         // --- CALCULATIONS ---
@@ -237,92 +239,119 @@ export default function PlanificacionPage() {
         const desgloseEventosMap: Map<string, DesgloseEventoRecetas> = new Map();
         const agregadoRecetasMap: Map<string, RecetaAgregada> = new Map();
 
-        // 1. Calculate Gross Needs
-        briefingsEnRango.forEach(briefing => {
-            const serviceOrder = serviceOrderMap.get(briefing.osId);
-            if (!serviceOrder) return;
+        // 1. Calculate Gross Needs from both Catering and Entregas
+        osEnRango.forEach(serviceOrder => {
+            const osId = serviceOrder.id;
+            const diaKey = format(new Date(serviceOrder.startDate), 'yyyy-MM-dd');
 
-            if (!desgloseEventosMap.has(serviceOrder.id)) {
-                desgloseEventosMap.set(serviceOrder.id, {
-                    osId: serviceOrder.id, serviceNumber: serviceOrder.serviceNumber,
-                    client: serviceOrder.client, startDate: serviceOrder.startDate, hitos: [],
-                });
-            }
-            const desgloseOS = desgloseEventosMap.get(serviceOrder.id)!;
-            
-            const hitosGastro = briefing.items.filter(i => i.conGastronomia);
-
-            hitosGastro.forEach(hitoBriefing => {
-                const gastroOrder = gastroOrdersEnRango.find(go => go.id === hitoBriefing.id);
-                if (!gastroOrder) return;
-
-                const hito: DetalleHito = { id: gastroOrder.id, descripcion: gastroOrder.descripcion, recetas: [] };
-                desgloseOS.hitos.push(hito);
-                
-                (gastroOrder.items || []).forEach(item => {
-                    if (item.type === 'item') {
-                        const receta = recetasMap.get(item.id);
-                        if (receta) {
-                            const cantidadReceta = Number(item.quantity || 0);
-                            let recetaAgregada = agregadoRecetasMap.get(receta.id);
-                            if (!recetaAgregada) {
-                                recetaAgregada = { id: receta.id, nombre: receta.nombre, cantidadTotal: 0 };
-                                agregadoRecetasMap.set(receta.id, recetaAgregada);
-                            }
-                            recetaAgregada.cantidadTotal += cantidadReceta;
-
-                            const detalleRecetaEnHito = {
-                                id: receta.id, nombre: receta.nombre, cantidad: cantidadReceta, elaboraciones: receta.elaboraciones.map(e => ({
-                                    id: e.elaboracionId,
-                                    nombre: e.nombre,
-                                    cantidadPorReceta: e.cantidad,
-                                    unidad: elaboracionesMap.get(e.elaboracionId)?.unidadProduccion || 'UNIDAD',
-                                }))
-                            };
-                            hito.recetas.push(detalleRecetaEnHito);
-
-                            const diaKey = format(new Date(serviceOrder.startDate), 'yyyy-MM-dd');
-                            let registroReceta = necesidadesPorReceta.get(receta.id);
-                            if (!registroReceta) {
-                                registroReceta = { necesidadBruta: 0, receta, necesidadesPorDia: new Map() };
-                                necesidadesPorReceta.set(receta.id, registroReceta);
-                            }
-                            registroReceta.necesidadBruta += cantidadReceta;
-                            const necesidadRecetaDia = registroReceta.necesidadesPorDia.get(diaKey) || 0;
-                            registroReceta.necesidadesPorDia.set(diaKey, necesidadRecetaDia + cantidadReceta);
-
-                            receta.elaboraciones.forEach(elabEnReceta => {
-                                const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
-                                if (elaboracion) {
-                                    const cantidadNecesaria = cantidadReceta * Number(elabEnReceta.cantidad);
-                                    if (isNaN(cantidadNecesaria) || cantidadNecesaria <= 0) return;
-
-                                    let registro = necesidadesPorElaboracion.get(elaboracion.id);
-                                    if (!registro) {
-                                        registro = {
-                                            necesidadBruta: 0, produccionAcumulada: 0, elaboracion,
-                                            eventos: [], recetas: [], necesidadesPorDia: new Map(),
-                                        };
-                                        necesidadesPorElaboracion.set(elaboracion.id, registro);
-                                    }
-                                    registro.necesidadBruta += cantidadNecesaria;
-                                    
-                                    const necesidadDiaActual = registro.necesidadesPorDia.get(diaKey) || 0;
-                                    registro.necesidadesPorDia.set(diaKey, necesidadDiaActual + cantidadNecesaria);
-                                    
-                                    if (!registro.eventos.find(e => e.osId === gastroOrder.osId && e.serviceType === gastroOrder.descripcion)) {
-                                        registro.eventos.push({ osId: gastroOrder.osId, serviceNumber: serviceOrder.serviceNumber, serviceType: gastroOrder.descripcion });
-                                    }
-                                    const recetaExistente = registro.recetas.find(r => r.recetaId === receta.id);
-                                    if (recetaExistente) recetaExistente.cantidad += cantidadNecesaria;
-                                    else registro.recetas.push({ recetaId: receta.id, recetaNombre: receta.nombre, cantidad: cantidadNecesaria });
-                                }
-                            });
-                        }
+            // --- Catering Flow ---
+            if (serviceOrder.vertical !== 'Entregas') {
+                const briefing = briefingsEnRango.find(b => b.osId === osId);
+                if (briefing) {
+                     if (!desgloseEventosMap.has(serviceOrder.id)) {
+                        desgloseEventosMap.set(serviceOrder.id, {
+                            osId: serviceOrder.id, serviceNumber: serviceOrder.serviceNumber,
+                            client: serviceOrder.client, startDate: serviceOrder.startDate, hitos: [],
+                        });
                     }
-                });
-            });
+                    const desgloseOS = desgloseEventosMap.get(serviceOrder.id)!;
+                    
+                    const hitosGastro = briefing.items.filter(i => i.conGastronomia);
+
+                    hitosGastro.forEach(hitoBriefing => {
+                        const gastroOrder = gastroOrdersEnRango.find(go => go.id === hitoBriefing.id);
+                        if (!gastroOrder) return;
+                        
+                        const hito: DetalleHito = { id: gastroOrder.id, descripcion: gastroOrder.descripcion, recetas: [] };
+                        desgloseOS.hitos.push(hito);
+                        
+                        (gastroOrder.items || []).forEach(item => {
+                            if (item.type === 'item') {
+                                const receta = recetasMap.get(item.id);
+                                if (receta) {
+                                    // Process receta needs
+                                    processReceta(receta, item.quantity || 0, serviceOrder, gastroOrder.descripcion, hito, diaKey);
+                                }
+                            }
+                        });
+                    });
+                }
+            } 
+            // --- Entregas Flow ---
+            else {
+                const pedidoEntrega = pedidosEntregaEnRango.find(pe => pe.osId === osId);
+                if (pedidoEntrega) {
+                    pedidoEntrega.items.forEach(item => {
+                        if (item.type === 'receta') {
+                            const receta = recetasMap.get(item.id);
+                             if (receta) {
+                                processReceta(receta, item.quantity, serviceOrder, "Entrega", null, diaKey);
+                            }
+                        }
+                        // TODO: Handle 'pack' type to break down into components for almacén
+                    });
+                }
+            }
         });
+        
+        function processReceta(receta: Receta, cantidad: number, os: ServiceOrder, hitoDescripcion: string, hitoDetalle: DetalleHito | null, diaKey: string) {
+            const cantidadReceta = Number(cantidad || 0);
+            let recetaAgregada = agregadoRecetasMap.get(receta.id);
+            if (!recetaAgregada) {
+                recetaAgregada = { id: receta.id, nombre: receta.nombre, cantidadTotal: 0 };
+                agregadoRecetasMap.set(receta.id, recetaAgregada);
+            }
+            recetaAgregada.cantidadTotal += cantidadReceta;
+
+            if (hitoDetalle) {
+                const detalleRecetaEnHito = {
+                    id: receta.id, nombre: receta.nombre, cantidad: cantidadReceta, elaboraciones: receta.elaboraciones.map(e => ({
+                        id: e.elaboracionId,
+                        nombre: e.nombre,
+                        cantidadPorReceta: e.cantidad,
+                        unidad: elaboracionesMap.get(e.elaboracionId)?.unidadProduccion || 'UNIDAD',
+                    }))
+                };
+                hitoDetalle.recetas.push(detalleRecetaEnHito);
+            }
+
+            let registroReceta = necesidadesPorReceta.get(receta.id);
+            if (!registroReceta) {
+                registroReceta = { necesidadBruta: 0, receta, necesidadesPorDia: new Map() };
+                necesidadesPorReceta.set(receta.id, registroReceta);
+            }
+            registroReceta.necesidadBruta += cantidadReceta;
+            const necesidadRecetaDia = registroReceta.necesidadesPorDia.get(diaKey) || 0;
+            registroReceta.necesidadesPorDia.set(diaKey, necesidadRecetaDia + cantidadReceta);
+
+            receta.elaboraciones.forEach(elabEnReceta => {
+                const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
+                if (elaboracion) {
+                    const cantidadNecesaria = cantidadReceta * Number(elabEnReceta.cantidad);
+                    if (isNaN(cantidadNecesaria) || cantidadNecesaria <= 0) return;
+
+                    let registro = necesidadesPorElaboracion.get(elaboracion.id);
+                    if (!registro) {
+                        registro = {
+                            necesidadBruta: 0, produccionAcumulada: 0, elaboracion,
+                            eventos: [], recetas: [], necesidadesPorDia: new Map(),
+                        };
+                        necesidadesPorElaboracion.set(elaboracion.id, registro);
+                    }
+                    registro.necesidadBruta += cantidadNecesaria;
+                    
+                    const necesidadDiaActual = registro.necesidadesPorDia.get(diaKey) || 0;
+                    registro.necesidadesPorDia.set(diaKey, necesidadDiaActual + cantidadNecesaria);
+                    
+                    if (!registro.eventos.find(e => e.osId === os.id && e.serviceType === hitoDescripcion)) {
+                        registro.eventos.push({ osId: os.id, serviceNumber: os.serviceNumber, serviceType: hitoDescripcion });
+                    }
+                    const recetaExistente = registro.recetas.find(r => r.recetaId === receta.id);
+                    if (recetaExistente) recetaExistente.cantidad += cantidadNecesaria;
+                    else registro.recetas.push({ recetaId: receta.id, recetaNombre: receta.nombre, cantidad: cantidadNecesaria });
+                }
+            });
+        }
         
         // 2. Calculate Surpluses
         const surplusByElabId = new Map<string, number>();
@@ -518,6 +547,11 @@ export default function PlanificacionPage() {
                         }
                     }
                 })
+            });
+            
+            osEnRango.filter(os => os.vertical === 'Entregas' && isSameDay(new Date(os.startDate), day)).forEach(os => {
+                serviciosDia++; // Count each delivery as a service
+                paxDia += os.asistentes; // Sum assistants for deliveries as well
             });
 
             matrixRows.forEach(row => {
@@ -1203,3 +1237,4 @@ export default function PlanificacionPage() {
         </TooltipProvider>
     );
 }
+

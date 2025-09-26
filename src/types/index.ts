@@ -42,6 +42,7 @@ export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate'> & {
     endDate: string;
     deliveryLocations?: string[];
     objetivoGastoId?: string;
+    vertical: Vertical;
 };
 
 export type Personal = {
