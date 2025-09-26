@@ -192,7 +192,7 @@ const ResponsablesTitle = () => {
   );
 };
 
-export default function OsPage() {
+function PageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const osId = searchParams.get('id');
@@ -443,9 +443,7 @@ export default function OsPage() {
   const isCatering = vertical === 'Grandes Eventos' || vertical === 'Recurrente' || vertical === 'Grandes Cuentas' || vertical === 'Premium';
 
   return (
-    <TooltipProvider>
-      <Header />
-      <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-headline font-bold">{osId ? 'Editar' : 'Nueva'} Orden de Servicio</h1>
           <div className="flex gap-2">
@@ -986,7 +984,6 @@ export default function OsPage() {
             </FormProvider>
           </main>
         </div>
-      </div>
       <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1020,6 +1017,31 @@ export default function OsPage() {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-    </TooltipProvider>
+    </div>
   );
 }
+
+export default function OsPage() {
+    const searchParams = useSearchParams();
+    const verticalParam = searchParams.get('vertical') as Vertical | null;
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    // We need to get the vertical from the form itself if editing
+    const form = useForm<OsFormValues>();
+    const vertical = form.watch('vertical');
+    
+    // Determine the theme based on the URL param for new OS, or the form value for existing ones.
+    const isEntrega = isClient && (verticalParam === 'Entregas' || vertical === 'Entregas');
+
+    return (
+        <div className={cn(isEntrega && 'theme-orange')}>
+            <Header />
+            <PageContent />
+        </div>
+    );
+}
+
