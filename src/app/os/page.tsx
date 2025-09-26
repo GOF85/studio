@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -318,6 +319,9 @@ export default function OsPage() {
       const initialValues = {...defaultValues};
       if (verticalParam) {
         initialValues.vertical = verticalParam;
+         if (verticalParam === 'Entregas') {
+            setDeliveryOrder({ osId: '', items: [] }); // Initialize empty delivery order
+        }
       }
       form.reset(initialValues);
       setAccordionDefaultValue(['cliente', 'espacio', 'responsables']); // Expand for new
@@ -363,13 +367,16 @@ export default function OsPage() {
     localStorage.setItem('serviceOrders', JSON.stringify(allOS));
     
     // --- Save delivery order items if it's an Entrega ---
-    if (data.vertical === 'Entregas' && deliveryOrder) {
+    if (data.vertical === 'Entregas' && deliveryOrder && newId) {
         let allDeliveryOrders = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
         const deliveryIndex = allDeliveryOrders.findIndex(d => d.osId === newId);
+        
+        const finalDeliveryOrder = { ...deliveryOrder, osId: newId };
+
         if (deliveryIndex > -1) {
-            allDeliveryOrders[deliveryIndex] = deliveryOrder;
+            allDeliveryOrders[deliveryIndex] = finalDeliveryOrder;
         } else {
-            allDeliveryOrders.push({ ...deliveryOrder, osId: newId! });
+            allDeliveryOrders.push(finalDeliveryOrder);
         }
         localStorage.setItem('pedidosEntrega', JSON.stringify(allDeliveryOrders));
     }
@@ -923,9 +930,9 @@ export default function OsPage() {
                                         onAddItem={(item, quantity) => {
                                             setDeliveryOrder(prev => {
                                                 if (!prev) return null;
-                                                const existing = prev.items.find(i => i.id === item.id);
+                                                const existing = prev.items.find(i => i.id === ('id' in item ? item.id : item.producto));
                                                 if (existing) {
-                                                    const newItems = prev.items.map(i => i.id === item.id ? { ...i, quantity: i.quantity + quantity } : i);
+                                                    const newItems = prev.items.map(i => i.id === ('id' in item ? item.id : item.producto) ? { ...i, quantity: i.quantity + quantity } : i);
                                                     return { ...prev, items: newItems };
                                                 }
                                                 const newItem: PedidoEntregaItem = {
