@@ -390,59 +390,46 @@ export default function PlanificacionPage() {
         
         // --- DEVIATIONS CALCULATION ---
         const desviacionesAgrupadas: DesviacionOS[] = [];
-        const ofsConNecesidadOriginal = allOrdenesFabricacion.filter(of => of.necesidadTotal !== undefined && of.necesidadTotal > 0);
+        const allOFsWithOriginalNeed = allOrdenesFabricacion.filter(of => of.necesidadTotal !== undefined && of.necesidadTotal > 0);
 
-        ofsConNecesidadOriginal.forEach(of => {
-            // Find all current needs for the elaboration of this OF within the selected date range
-            let necesidadActualParaOF = 0;
-            of.osIDs.forEach(osId => {
-                if (osIdsEnRango.has(osId)) { // Only consider OS within the current planning range
-                    const briefing = briefingsEnRango.find(b => b.osId === osId);
-                    briefing?.items.forEach(hito => {
-                        if (hito.conGastronomia) {
-                            const gastroOrder = gastroOrdersEnRango.find(go => go.id === hito.id);
-                            gastroOrder?.items?.forEach(item => {
-                                if (item.type === 'item') {
-                                    const receta = recetasMap.get(item.id);
-                                    receta?.elaboraciones.forEach(elabEnReceta => {
-                                        if (elabEnReceta.elaboracionId === of.elaboracionId) {
-                                            necesidadActualParaOF += (item.quantity || 0) * elabEnReceta.cantidad;
-                                        }
-                                    });
-                                }
-                            });
-                        }
+        osEnRango.forEach(os => {
+            const osId = os.id;
+            const osConDesviacion: DesviacionOS = { osId: os.id, serviceNumber: os.serviceNumber, fecha: os.startDate, espacio: os.space || '', hitos: [] };
+
+            const ofsParaEstaOS = allOFsWithOriginalNeed.filter(of => of.osIDs.includes(osId));
+            
+            const necesidadesActualesOS = new Map<string, number>(); // elabId -> cantidad
+            const briefing = briefingsEnRango.find(b => b.osId === osId);
+            briefing?.items.forEach(hito => {
+                if (hito.conGastronomia) {
+                    const gastroOrder = gastroOrdersEnRango.find(go => go.id === hito.id);
+                    gastroOrder?.items?.forEach(item => {
+                        const receta = recetasMap.get(item.id);
+                        receta?.elaboraciones.forEach(elabEnReceta => {
+                            const cantidad = (item.quantity || 0) * elabEnReceta.cantidad;
+                            necesidadesActualesOS.set(elabEnReceta.elaboracionId, (necesidadesActualesOS.get(elabEnReceta.elaboracionId) || 0) + cantidad);
+                        });
                     });
                 }
             });
 
-            const diferencia = necesidadActualParaOF - of.necesidadTotal!;
-
-            if (Math.abs(diferencia) > 0.001) {
-                of.osIDs.forEach(osId => {
-                    const os = serviceOrderMap.get(osId);
-                    if (!os || !osIdsEnRango.has(osId)) return;
-
-                    let osConDesviacion = desviacionesAgrupadas.find(d => d.osId === os.id);
-                    if (!osConDesviacion) {
-                        osConDesviacion = { osId: os.id, serviceNumber: os.serviceNumber, fecha: os.startDate, espacio: os.space || '', hitos: [] };
-                        desviacionesAgrupadas.push(osConDesviacion);
-                    }
-
-                    const desviacionElab: DesviacionElaboracion = { id: of.id, of, necesidadActual: necesidadActualParaOF, diferencia };
+            ofsParaEstaOS.forEach(of => {
+                const necesidadActual = necesidadesActualesOS.get(of.elaboracionId) || 0;
+                const diferencia = necesidadActual - (of.necesidadTotal || 0);
+                
+                if (Math.abs(diferencia) > 0.001) {
+                    const desviacionElab: DesviacionElaboracion = { id: of.id, of, necesidadActual: necesidadActual, diferencia };
                     
-                    const briefing = briefingsEnRango.find(b => b.osId === osId);
                     briefing?.items.forEach(hito => {
                         const gastroOrder = gastroOrdersEnRango.find(g => g.id === hito.id);
                         gastroOrder?.items?.forEach(item => {
                             const receta = recetasMap.get(item.id);
                             if (receta && receta.elaboraciones.some(e => e.elaboracionId === of.elaboracionId)) {
-                                let hitoDesviacion = osConDesviacion!.hitos.find(h => h.hitoId === hito.id);
+                                let hitoDesviacion = osConDesviacion.hitos.find(h => h.hitoId === hito.id);
                                 if (!hitoDesviacion) {
                                     hitoDesviacion = { hitoId: hito.id, hitoDescripcion: hito.descripcion, recetas: [] };
-                                    osConDesviacion!.hitos.push(hitoDesviacion);
+                                    osConDesviacion.hitos.push(hitoDesviacion);
                                 }
-
                                 let recetaDesviacion = hitoDesviacion.recetas.find(r => r.recetaId === receta.id);
                                 if (!recetaDesviacion) {
                                     const elabEnReceta = receta.elaboraciones.find(e => e.elaboracionId === of.elaboracionId)!;
@@ -456,14 +443,16 @@ export default function PlanificacionPage() {
                                     };
                                     hitoDesviacion.recetas.push(recetaDesviacion);
                                 }
-
                                 if (!recetaDesviacion.elaboraciones.find(e => e.id === of.id)) {
                                    recetaDesviacion.elaboraciones.push(desviacionElab);
                                 }
                             }
                         })
                     })
-                });
+                }
+            });
+            if (osConDesviacion.hitos.length > 0) {
+                desviacionesAgrupadas.push(osConDesviacion);
             }
         });
 
@@ -677,6 +666,7 @@ export default function PlanificacionPage() {
         if (Math.abs(desviacion.diferencia) <= 0) return;
 
         let allExcedentes = JSON.parse(localStorage.getItem('excedentesProduccion') || '{}') as {[key: string]: ExcedenteProduccion};
+        let allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
 
         const newExcedente: ExcedenteProduccion = {
             ofId: desviacion.of.id,
@@ -688,6 +678,17 @@ export default function PlanificacionPage() {
 
         allExcedentes[desviacion.of.id] = newExcedente;
         localStorage.setItem('excedentesProduccion', JSON.stringify(allExcedentes));
+
+        // Actualizar la OF original para marcarla como incidencia
+        const ofIndex = allOFs.findIndex(of => of.id === desviacion.of.id);
+        if (ofIndex > -1) {
+            allOFs[ofIndex] = {
+                ...allOFs[ofIndex],
+                estado: 'Incidencia',
+                incidenciaObservaciones: `Excedente de ${formatNumber(Math.abs(desviacion.diferencia), 2)} ${desviacion.of.unidad} generado por cambio en evento.`
+            };
+            localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
+        }
 
         toast({ title: 'Excedente Confirmado', description: `Se ha registrado un excedente de ${formatNumber(Math.abs(desviacion.diferencia),2)} ${desviacion.of.unidad}.`});
         calcularNecesidades();
@@ -924,8 +925,8 @@ export default function PlanificacionPage() {
                                                     <h4 className="font-semibold text-sm">{hito.hitoDescripcion}</h4>
                                                      {hito.recetas.map(receta => (
                                                         <div key={receta.recetaId} className="pl-4 mt-1">
-                                                            <div className="text-sm text-muted-foreground">
-                                                                {receta.recetaNombre}
+                                                            <div>
+                                                                <span className="text-sm text-muted-foreground">{receta.recetaNombre}</span>
                                                                 <Badge variant="secondary" className={cn("ml-2", receta.diferenciaUnidades > 0 ? 'text-orange-600' : 'text-blue-600')}>{receta.diferenciaUnidades > 0 ? '+' : ''}{formatNumber(receta.diferenciaUnidades, 2)} uds.</Badge>
                                                             </div>
                                                             <Table>
