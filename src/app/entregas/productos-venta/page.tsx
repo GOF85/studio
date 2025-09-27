@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Pencil, Trash2, Package } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, Package, CheckCircle2 } from 'lucide-react';
 import type { ProductoVenta } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -111,6 +111,7 @@ export default function ProductosVentaPage() {
                 <TableHead>Coste</TableHead>
                 <TableHead>PVP</TableHead>
                 <TableHead>Margen</TableHead>
+                <TableHead>Producido por Partner</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -124,12 +125,15 @@ export default function ProductosVentaPage() {
                         <TableCell>{formatCurrency(calculateCost(item))}</TableCell>
                         <TableCell className="font-bold">{formatCurrency(item.pvp)}</TableCell>
                         <TableCell className={cn("font-bold", margin < 30 ? 'text-destructive' : 'text-green-600')}>{margin.toFixed(2)}%</TableCell>
+                        <TableCell>
+                          {item.producidoPorPartner && <CheckCircle2 className="text-green-600" />}
+                        </TableCell>
                     </TableRow>
                   );
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No se encontraron productos de venta.
                   </TableCell>
                 </TableRow>
