@@ -582,11 +582,12 @@ export type ProductoVenta = {
     iva: number;
     producidoPorPartner: boolean;
     componentes: ComponenteProductoVenta[];
+    recetaId?: string; // Link to a Receta if this product is one.
 };
 
 export type PedidoEntregaItem = {
-    id: string; // ProductoVenta.id
-    type: 'receta' | 'pack' | 'item'; // To differentiate in the order
+    id: string; // Can be ProductoVenta.id or Receta.id
+    type: 'producto' | 'receta';
     nombre: string;
     quantity: number;
     coste: number;
@@ -614,3 +615,4 @@ export type PedidoPartner = {
 };
 
 export const VERTICALES = ['Catering', 'Entregas'] as const;
+

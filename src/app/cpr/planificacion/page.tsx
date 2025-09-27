@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday, eachDayOfInterval, isSameDay, isBefore } from 'date-fns';
-import { ClipboardList, Calendar as CalendarIcon, Factory, Info, AlertTriangle, PackageCheck, ChevronRight, ChevronDown, Utensils, Component, Users, FileDigit, Soup, BookOpen } from 'lucide-react';
+import { ClipboardList, Calendar as CalendarIcon, Factory, Info, AlertTriangle, PackageCheck, ChevronRight, ChevronDown, Utensils, Component, Users, FileDigit, Soup, BookOpen, Package } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -30,7 +30,7 @@ import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
-import type { ServiceOrder, GastronomyOrder, GastronomyOrderItem, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta, ComercialBriefing, ComercialBriefingItem, ExcedenteProduccion, PedidoEntrega, PedidoEntregaItem } from '@/types';
+import type { ServiceOrder, GastronomyOrder, GastronomyOrderItem, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta, ComercialBriefing, ComercialBriefingItem, ExcedenteProduccion, PedidoEntrega, PedidoEntregaItem, Entrega, ProductoVenta } from '@/types';
 
 // --- DATA STRUCTURES ---
 
@@ -38,6 +38,7 @@ type EventoAfectado = {
     osId: string;
     serviceNumber: string;
     serviceType: string;
+    isEntrega: boolean;
 };
 
 type RecetaNecesidad = {
@@ -56,6 +57,7 @@ type Necesidad = {
     recetas: RecetaNecesidad[];
     type: 'necesidad' | 'excedente';
     loteOrigen?: string;
+    isEntrega: boolean;
 };
 
 type DesviacionElaboracion = {
@@ -94,6 +96,7 @@ type RecetaAgregada = {
     id: string;
     nombre: string;
     cantidadTotal: number;
+    isEntrega: boolean;
 }
 type DetalleHito = {
     id: string;
@@ -102,6 +105,7 @@ type DetalleHito = {
         id: string;
         nombre: string;
         cantidad: number;
+        isEntrega: boolean;
         elaboraciones: {
             id: string;
             nombre: string;
@@ -115,6 +119,7 @@ type DesgloseEventoRecetas = {
     serviceNumber: string;
     client: string;
     startDate: string;
+    isEntrega: boolean;
     hitos: DetalleHito[];
 };
 
@@ -128,6 +133,7 @@ type MatrizRow = {
     type: 'receta' | 'elaboracion';
     receta?: Receta; // para el tooltip de recetas
     necesidad?: Necesidad; // para el tooltip de elaboraciones
+    isEntrega: boolean;
     [day: string]: any; // day-YYYY-MM-DD: number
 }
 type MatrizHeader = {
@@ -198,6 +204,9 @@ export default function PlanificacionPage() {
 
         // --- DATA LOADING ---
         const allServiceOrders: ServiceOrder[] = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const allEntregas: Entrega[] = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
+        const allCombinedOrders: (ServiceOrder | Entrega)[] = [...allServiceOrders, ...allEntregas];
+
         const allGastroOrders: GastronomyOrder[] = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
         const allBriefings: ComercialBriefing[] = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
         const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
@@ -205,13 +214,15 @@ export default function PlanificacionPage() {
         const allOrdenesFabricacion: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
         const allExcedentesData: {[key: string]: ExcedenteProduccion} = JSON.parse(localStorage.getItem('excedentesProduccion') || '{}');
         const allPedidosEntrega: PedidoEntrega[] = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
+        const allProductosVenta: ProductoVenta[] = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
         
         const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
         const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
-        const serviceOrderMap = new Map(allServiceOrders.map(os => [os.id, os]));
+        const productosVentaMap = new Map(allProductosVenta.map(p => [p.id, p]));
+        const serviceOrderMap = new Map(allCombinedOrders.map(os => [os.id, os]));
 
         // --- FILTERING DATA FOR THE DATE RANGE ---
-        const osEnRango = allServiceOrders.filter(os => {
+        const osEnRango = allCombinedOrders.filter(os => {
             try {
                 const osDate = new Date(os.startDate);
                 return os.status === 'Confirmado' && osDate >= from && osDate <= to;
@@ -234,7 +245,7 @@ export default function PlanificacionPage() {
         // --- CALCULATIONS ---
         
         const necesidadesPorReceta = new Map<string, { necesidadBruta: number; receta: Receta; necesidadesPorDia: Map<string, number> }>();
-        const necesidadesPorElaboracion = new Map<string, { necesidadBruta: number; produccionAcumulada: number; elaboracion: Elaboracion; eventos: EventoAfectado[]; recetas: RecetaNecesidad[]; necesidadesPorDia: Map<string, number>}>();
+        const necesidadesPorElaboracion = new Map<string, { necesidadBruta: number; produccionAcumulada: number; elaboracion: Elaboracion; eventos: EventoAfectado[]; recetas: RecetaNecesidad[]; necesidadesPorDia: Map<string, number>; isEntrega: boolean }>();
         
         const desgloseEventosMap: Map<string, DesgloseEventoRecetas> = new Map();
         const agregadoRecetasMap: Map<string, RecetaAgregada> = new Map();
@@ -243,15 +254,16 @@ export default function PlanificacionPage() {
         osEnRango.forEach(serviceOrder => {
             const osId = serviceOrder.id;
             const diaKey = format(new Date(serviceOrder.startDate), 'yyyy-MM-dd');
+            const isEntrega = serviceOrder.vertical === 'Entregas';
 
             // --- Catering Flow ---
-            if (serviceOrder.vertical !== 'Entregas') {
+            if (!isEntrega) {
                 const briefing = briefingsEnRango.find(b => b.osId === osId);
                 if (briefing) {
                      if (!desgloseEventosMap.has(serviceOrder.id)) {
                         desgloseEventosMap.set(serviceOrder.id, {
                             osId: serviceOrder.id, serviceNumber: serviceOrder.serviceNumber,
-                            client: serviceOrder.client, startDate: serviceOrder.startDate, hitos: [],
+                            client: serviceOrder.client, startDate: serviceOrder.startDate, hitos: [], isEntrega: false,
                         });
                     }
                     const desgloseOS = desgloseEventosMap.get(serviceOrder.id)!;
@@ -269,8 +281,7 @@ export default function PlanificacionPage() {
                             if (item.type === 'item') {
                                 const receta = recetasMap.get(item.id);
                                 if (receta) {
-                                    // Process receta needs
-                                    processReceta(receta, item.quantity || 0, serviceOrder, gastroOrder.descripcion, hito, diaKey);
+                                    processReceta(receta, item.quantity || 0, serviceOrder, gastroOrder.descripcion, hito, diaKey, false);
                                 }
                             }
                         });
@@ -281,31 +292,41 @@ export default function PlanificacionPage() {
             else {
                 const pedidoEntrega = pedidosEntregaEnRango.find(pe => pe.osId === osId);
                 if (pedidoEntrega) {
+                     if (!desgloseEventosMap.has(serviceOrder.id)) {
+                        desgloseEventosMap.set(serviceOrder.id, {
+                            osId: serviceOrder.id, serviceNumber: serviceOrder.serviceNumber,
+                            client: serviceOrder.client, startDate: serviceOrder.startDate, hitos: [], isEntrega: true,
+                        });
+                    }
+
                     pedidoEntrega.items.forEach(item => {
-                        if (item.type === 'receta') {
-                            const receta = recetasMap.get(item.id);
-                             if (receta) {
-                                processReceta(receta, item.quantity, serviceOrder, "Entrega", null, diaKey);
-                            }
+                        if (item.type === 'producto') {
+                           const productoVenta = productosVentaMap.get(item.id);
+                           if (productoVenta && productoVenta.recetaId && !productoVenta.producidoPorPartner) {
+                               const receta = recetasMap.get(productoVenta.recetaId);
+                               if (receta) {
+                                   processReceta(receta, item.quantity, serviceOrder, "Pedido Entrega", null, diaKey, true);
+                               }
+                           }
                         }
-                        // TODO: Handle 'pack' type to break down into components for almacén
                     });
                 }
             }
         });
         
-        function processReceta(receta: Receta, cantidad: number, os: ServiceOrder, hitoDescripcion: string, hitoDetalle: DetalleHito | null, diaKey: string) {
+        function processReceta(receta: Receta, cantidad: number, os: (ServiceOrder | Entrega), hitoDescripcion: string, hitoDetalle: DetalleHito | null, diaKey: string, isEntrega: boolean) {
             const cantidadReceta = Number(cantidad || 0);
             let recetaAgregada = agregadoRecetasMap.get(receta.id);
             if (!recetaAgregada) {
-                recetaAgregada = { id: receta.id, nombre: receta.nombre, cantidadTotal: 0 };
+                recetaAgregada = { id: receta.id, nombre: receta.nombre, cantidadTotal: 0, isEntrega: false };
                 agregadoRecetasMap.set(receta.id, recetaAgregada);
             }
             recetaAgregada.cantidadTotal += cantidadReceta;
+            if(isEntrega) recetaAgregada.isEntrega = true;
 
             if (hitoDetalle) {
                 const detalleRecetaEnHito = {
-                    id: receta.id, nombre: receta.nombre, cantidad: cantidadReceta, elaboraciones: receta.elaboraciones.map(e => ({
+                    id: receta.id, nombre: receta.nombre, cantidad: cantidadReceta, isEntrega, elaboraciones: receta.elaboraciones.map(e => ({
                         id: e.elaboracionId,
                         nombre: e.nombre,
                         cantidadPorReceta: e.cantidad,
@@ -334,17 +355,19 @@ export default function PlanificacionPage() {
                     if (!registro) {
                         registro = {
                             necesidadBruta: 0, produccionAcumulada: 0, elaboracion,
-                            eventos: [], recetas: [], necesidadesPorDia: new Map(),
+                            eventos: [], recetas: [], necesidadesPorDia: new Map(), isEntrega: false
                         };
                         necesidadesPorElaboracion.set(elaboracion.id, registro);
                     }
+                    if (isEntrega) registro.isEntrega = true;
+
                     registro.necesidadBruta += cantidadNecesaria;
                     
                     const necesidadDiaActual = registro.necesidadesPorDia.get(diaKey) || 0;
                     registro.necesidadesPorDia.set(diaKey, necesidadDiaActual + cantidadNecesaria);
                     
                     if (!registro.eventos.find(e => e.osId === os.id && e.serviceType === hitoDescripcion)) {
-                        registro.eventos.push({ osId: os.id, serviceNumber: os.serviceNumber, serviceType: hitoDescripcion });
+                        registro.eventos.push({ osId: os.id, serviceNumber: os.serviceNumber, serviceType: hitoDescripcion, isEntrega });
                     }
                     const recetaExistente = registro.recetas.find(r => r.recetaId === receta.id);
                     if (recetaExistente) recetaExistente.cantidad += cantidadNecesaria;
@@ -397,6 +420,7 @@ export default function PlanificacionPage() {
                     eventos: registro.eventos,
                     recetas: registro.recetas,
                     type: 'necesidad',
+                    isEntrega: registro.isEntrega,
                 });
             }
         });
@@ -413,6 +437,7 @@ export default function PlanificacionPage() {
                     eventos: [],
                     recetas: [],
                     type: 'excedente',
+                    isEntrega: false, // Surpluses are neutral
                  });
             }
         });
@@ -497,7 +522,8 @@ export default function PlanificacionPage() {
                 unidad: 'UNIDAD',
                 total: registro.necesidadBruta,
                 type: 'receta',
-                receta: registro.receta
+                receta: registro.receta,
+                isEntrega: agregadoRecetasMap.get(recetaId)?.isEntrega || false,
             };
             days.forEach(day => {
                 const dayKey = format(day, 'yyyy-MM-dd');
@@ -515,7 +541,8 @@ export default function PlanificacionPage() {
                 unidad: registro.elaboracion.unidadProduccion,
                 total: registro.necesidadBruta,
                 type: 'elaboracion',
-                necesidad: necesidad
+                necesidad: necesidad,
+                isEntrega: registro.isEntrega,
             };
             days.forEach(day => {
                 const dayKey = format(day, 'yyyy-MM-dd');
@@ -868,7 +895,8 @@ export default function PlanificacionPage() {
                                             )}
                                             {matrizData.filter(r => r.type === 'receta').map(row => (
                                                 <TableRow key={row.id}>
-                                                    <TableCell className="p-1 font-medium sticky left-0 bg-background z-10">
+                                                    <TableCell className="p-1 font-medium sticky left-0 bg-background z-10 flex items-center gap-2">
+                                                        {row.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
                                                                 <span>{row.nombre}</span>
@@ -900,7 +928,8 @@ export default function PlanificacionPage() {
                                             )}
                                             {matrizData.filter(r => r.type === 'elaboracion').map(row => (
                                                 <TableRow key={row.id} className={cn(row.partida && partidaColorClasses[row.partida])}>
-                                                    <TableCell className="p-1 font-medium sticky left-0 z-10">
+                                                    <TableCell className="p-1 font-medium sticky left-0 z-10 flex items-center gap-2">
+                                                        {row.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
                                                          <Tooltip>
                                                             <TooltipTrigger asChild>
                                                                 <span>{row.nombre}</span>
@@ -1013,7 +1042,10 @@ export default function PlanificacionPage() {
                                             ) : recetasAgregadas.length > 0 ? (
                                                 recetasAgregadas.map(receta => (
                                                     <TableRow key={receta.id}>
-                                                        <TableCell className="font-medium">{receta.nombre}</TableCell>
+                                                        <TableCell className="font-medium flex items-center gap-2">
+                                                          {receta.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
+                                                          {receta.nombre}
+                                                        </TableCell>
                                                         <TableCell className="text-right font-mono">{formatNumber(receta.cantidadTotal)}</TableCell>
                                                     </TableRow>
                                                 ))
@@ -1037,9 +1069,12 @@ export default function PlanificacionPage() {
                                         desgloseEventosRecetas.map(os => (
                                             <Collapsible key={os.osId} className="border rounded-lg p-4 bg-card">
                                                 <CollapsibleTrigger className="w-full flex justify-between items-center group">
-                                                    <div className="text-left">
-                                                        <h4 className="font-bold text-lg">{os.serviceNumber} - {os.client}</h4>
-                                                        <p className="text-sm text-muted-foreground">{format(new Date(os.startDate), 'PPP', { locale: es })}</p>
+                                                    <div className="text-left flex items-center gap-2">
+                                                        {os.isEntrega && <Package size={18} className="text-orange-600 flex-shrink-0" />}
+                                                        <div>
+                                                            <h4 className="font-bold text-lg">{os.serviceNumber} - {os.client}</h4>
+                                                            <p className="text-sm text-muted-foreground">{format(new Date(os.startDate), 'PPP', { locale: es })}</p>
+                                                        </div>
                                                     </div>
                                                     <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
                                                 </CollapsibleTrigger>
@@ -1059,7 +1094,10 @@ export default function PlanificacionPage() {
                                                                     <TableBody>
                                                                         {hito.recetas.map(receta => (
                                                                             <TableRow key={receta.id}>
-                                                                                <TableCell className="font-medium">{receta.nombre}</TableCell>
+                                                                                <TableCell className="font-medium flex items-center gap-2">
+                                                                                    {receta.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
+                                                                                    {receta.nombre}
+                                                                                </TableCell>
                                                                                 <TableCell>{formatNumber(receta.cantidad)}</TableCell>
                                                                                 <TableCell>
                                                                                     <ul className="list-disc pl-5 text-xs text-muted-foreground">
@@ -1148,7 +1186,10 @@ export default function PlanificacionPage() {
                                                             </Tooltip>
                                                           )}
                                                         </TableCell>
-                                                        <TableCell className="font-medium">{item.nombre}</TableCell>
+                                                        <TableCell className="font-medium flex items-center gap-2">
+                                                            {item.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
+                                                            {item.nombre}
+                                                        </TableCell>
                                                         <TableCell className={cn("text-right font-mono", item.type === 'excedente' && 'text-green-600')}>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
@@ -1174,10 +1215,13 @@ export default function PlanificacionPage() {
                                                                     <span className="flex items-center gap-1.5">{item.eventos!.length} evento(s) <Info size={14}/></span>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
-                                                                    <div className="p-1">
+                                                                    <div className="p-1 max-w-sm">
                                                                         <h4 className="font-bold mb-2 text-center">Eventos Implicados</h4>
                                                                         {item.eventos!.map((e, i) => (
-                                                                            <div key={i} className="text-xs">{e.serviceNumber} - {e.serviceType}</div>
+                                                                            <div key={i} className="text-xs flex items-center gap-2">
+                                                                                {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
+                                                                                {e.serviceNumber} - {e.serviceType}
+                                                                            </div>
                                                                         ))}
                                                                     </div>
                                                                 </TooltipContent>
@@ -1237,4 +1281,5 @@ export default function PlanificacionPage() {
         </TooltipProvider>
     );
 }
+
 
