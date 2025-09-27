@@ -205,27 +205,29 @@ export default function ProductoVentaFormPage() {
                 <Card>
                     <CardHeader className="py-4"><CardTitle className="text-lg">Información General</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
-                        <FormField control={form.control} name="nombre" render={({ field }) => (
-                            <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4"><FormLabel className="text-right">Nombre</FormLabel><FormControl><Input {...field} className="h-8"/></FormControl><FormMessage className="col-span-2 -mt-2 ml-[116px]"/></FormItem>
-                        )} />
-                        <FormField control={form.control} name="categoria" render={({ field }) => (
-                            <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4">
-                              <FormLabel className="text-right">Categoría</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                  <FormControl><SelectTrigger className="h-8"><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
-                                  <SelectContent>
-                                      {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                  </SelectContent>
-                              </Select>
-                              <FormMessage className="col-span-2 -mt-2 ml-[116px]"/>
-                            </FormItem>
-                        )} />
-                        <FormField control={form.control} name="pvp" render={({ field }) => (
-                            <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4"><FormLabel className="text-right">PVP (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-8"/></FormControl><FormMessage className="col-span-2 -mt-2 ml-[116px]"/></FormItem>
-                        )} />
-                         <FormField control={form.control} name="iva" render={({ field }) => (
-                            <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4"><FormLabel className="text-right">IVA (%)</FormLabel><FormControl><Input type="number" step="1" {...field} className="h-8"/></FormControl><FormMessage className="col-span-2 -mt-2 ml-[116px]"/></FormItem>
-                        )} />
+                        <div className="grid md:grid-cols-2 gap-x-6 gap-y-3">
+                            <FormField control={form.control} name="nombre" render={({ field }) => (
+                                <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4"><FormLabel className="text-right">Nombre</FormLabel><FormControl><Input {...field} className="h-8"/></FormControl><FormMessage className="col-span-2 -mt-2 ml-[116px]"/></FormItem>
+                            )} />
+                            <FormField control={form.control} name="categoria" render={({ field }) => (
+                                <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4">
+                                <FormLabel className="text-right">Categoría</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger className="h-8"><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage className="col-span-2 -mt-2 ml-[116px]"/>
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="pvp" render={({ field }) => (
+                                <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4"><FormLabel className="text-right">PVP (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-8"/></FormControl><FormMessage className="col-span-2 -mt-2 ml-[116px]"/></FormItem>
+                            )} />
+                            <FormField control={form.control} name="iva" render={({ field }) => (
+                                <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4"><FormLabel className="text-right">IVA (%)</FormLabel><FormControl><Input type="number" step="1" {...field} className="h-8"/></FormControl><FormMessage className="col-span-2 -mt-2 ml-[116px]"/></FormItem>
+                            )} />
+                        </div>
                     </CardContent>
                 </Card>
 
