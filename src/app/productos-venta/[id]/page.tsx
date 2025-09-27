@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { formatCurrency, formatUnit } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { labels as GASTO_LABELS } from '@/app/cta-explotacion/page';
 
 const componenteSchema = z.object({
     erpId: z.string(),
@@ -94,7 +95,6 @@ export default function ProductoVentaFormPage() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
-  const [categorias, setCategorias] = useState<CategoriaProductoVenta[]>([]);
   const { toast } = useToast();
 
   const form = useForm<ProductoVentaFormValues>({
@@ -108,11 +108,9 @@ export default function ProductoVentaFormPage() {
   });
   
   const watchedComponentes = form.watch('componentes');
+  const categorias = useMemo(() => Object.values(GASTO_LABELS), []);
 
   useEffect(() => {
-    const storedCategorias = JSON.parse(localStorage.getItem('categoriasProductosVenta') || '[]') as CategoriaProductoVenta[];
-    setCategorias(storedCategorias);
-
     if (isEditing) {
         const allProductos = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
         const producto = allProductos.find(p => p.id === id);
@@ -206,7 +204,7 @@ export default function ProductoVentaFormPage() {
                                 <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
                                     <SelectContent>
-                                        {categorias.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
+                                        {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
