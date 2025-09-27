@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -35,6 +36,15 @@ const productoVentaSchema = z.object({
 });
 
 type ProductoVentaFormValues = z.infer<typeof productoVentaSchema>;
+
+const defaultValues: Partial<ProductoVentaFormValues> = {
+    nombre: '',
+    categoria: '',
+    pvp: 0,
+    iva: 21,
+    componentes: []
+};
+
 
 function ErpSelectorDialog({ onSelect }: { onSelect: (ingrediente: IngredienteERP) => void }) {
     const [ingredientesERP, setIngredientesERP] = useState<IngredienteERP[]>([]);
@@ -89,7 +99,7 @@ export default function ProductoVentaFormPage() {
 
   const form = useForm<ProductoVentaFormValues>({
     resolver: zodResolver(productoVentaSchema),
-    defaultValues: { componentes: [] }
+    defaultValues: defaultValues,
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -114,7 +124,8 @@ export default function ProductoVentaFormPage() {
         }
     } else {
          form.reset({
-            id: Date.now().toString(), nombre: '', pvp: 0, iva: 21, componentes: []
+            ...defaultValues,
+            id: Date.now().toString(),
         });
     }
   }, [id, isEditing, form, router, toast]);
