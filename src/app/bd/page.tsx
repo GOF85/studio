@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -44,8 +45,8 @@ const generalDatabasesList: DatabaseEntry[] = [
 ];
 
 const entregasDatabasesList: DatabaseEntry[] = [
-    { id: '20', name: 'Packs de Venta (Entregas)', description: 'Define los productos compuestos para la vertical de Entregas.', itemCount: 0, path: '/packs-de-venta' },
-    { id: '21', name: 'Márgenes por Categoría', description: 'Configura los márgenes de beneficio para el cálculo de PVP.', itemCount: 0, path: '/margenes-categoria' },
+    { id: '20', name: 'Productos de Venta', description: 'Define los productos compuestos para la vertical de Entregas.', itemCount: 0, path: '/productos-venta' },
+    { id: '21', name: 'Categorías de Productos', description: 'Configura las categorías para los Productos de Venta.', itemCount: 0, path: '/categorias-productos-venta' },
 ];
 
 export default function BdPage() {
@@ -75,8 +76,8 @@ export default function BdPage() {
             if (db.path === '/tipos-cocina') count = JSON.parse(localStorage.getItem('tiposCocina') || '[]').length;
             if (db.path === '/plantillas-pedidos') count = JSON.parse(localStorage.getItem('pedidoPlantillas') || '[]').length;
             if (db.path === '/formatos-expedicion') count = JSON.parse(localStorage.getItem('formatosExpedicionDB') || '[]').length;
-            if (db.path === '/packs-de-venta') count = JSON.parse(localStorage.getItem('packsDeVenta') || '[]').length;
-            if (db.path === '/margenes-categoria') count = JSON.parse(localStorage.getItem('margenesCategoria') || '[]').length;
+            if (db.path === '/productos-venta') count = JSON.parse(localStorage.getItem('productosVenta') || '[]').length;
+            if (db.path === '/categorias-productos-venta') count = JSON.parse(localStorage.getItem('categoriasProductosVenta') || '[]').length;
             return { ...db, itemCount: count };
         });
     }

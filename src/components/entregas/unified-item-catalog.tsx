@@ -3,12 +3,12 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import type { Receta, PackDeVenta, Precio, PedidoEntregaItem } from '@/types';
+import type { ProductoVenta } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
-type CatalogItem = Receta | PackDeVenta | Precio;
+type CatalogItem = ProductoVenta;
 
 interface UnifiedItemCatalogProps {
   items: CatalogItem[];
@@ -16,26 +16,14 @@ interface UnifiedItemCatalogProps {
 }
 
 function ItemRow({ item, onAdd }: { item: CatalogItem, onAdd: () => void }) {
-    let name: string, description: string, price: number | string;
-
-    if ('nombre' in item) {
-        name = item.nombre;
-        description = 'pvp' in item ? `Pack de Venta` : `Receta de Gastronomía`;
-        price = 'pvp' in item ? item.pvp.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : (item.precioVenta || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
-    } else { // It's a Precio
-        name = item.producto;
-        description = `Cat. ${item.categoria} - ${item.loc}`;
-        price = item.precioUd.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
-    }
-
     return (
         <div className="flex items-center gap-4 p-2 border-b transition-colors hover:bg-secondary/50">
             <div className="flex-grow">
-                <h3 className="font-semibold text-base">{name}</h3>
-                <p className="text-xs text-muted-foreground">{description}</p>
+                <h3 className="font-semibold text-base">{item.nombre}</h3>
+                <p className="text-xs text-muted-foreground">Cat. {item.categoria}</p>
             </div>
             <div className="text-sm font-semibold text-primary w-24 text-right">
-                {price}
+                {item.pvp.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
             </div>
             <Button size="sm" variant="outline" className="w-24" onClick={onAdd}>
                 <Plus className="mr-1 h-4 w-4" /> Añadir
@@ -50,11 +38,10 @@ export function UnifiedItemCatalog({ items, onAddItem }: UnifiedItemCatalogProps
   const filteredItems = useMemo(() => {
     if (!searchTerm) return items;
     const term = searchTerm.toLowerCase();
-    return items.filter(item => {
-        if ('nombre' in item) return item.nombre.toLowerCase().includes(term);
-        if ('producto' in item) return item.producto.toLowerCase().includes(term);
-        return false;
-    });
+    return items.filter(item => 
+        item.nombre.toLowerCase().includes(term) || 
+        item.categoria.toLowerCase().includes(term)
+    );
   }, [items, searchTerm]);
 
   return (
@@ -64,7 +51,7 @@ export function UnifiedItemCatalog({ items, onAddItem }: UnifiedItemCatalogProps
       </div>
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <Input 
-          placeholder="Buscar por nombre en todo el catálogo (gastronomía, packs, bebidas...)"
+          placeholder="Buscar producto de venta..."
           className="flex-grow"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -75,14 +62,14 @@ export function UnifiedItemCatalog({ items, onAddItem }: UnifiedItemCatalogProps
           <div className="divide-y">
             {filteredItems.map((item) => (
                 <ItemRow 
-                    key={'id' in item ? item.id : item.producto} 
+                    key={item.id} 
                     item={item} 
                     onAdd={() => onAddItem(item, 1)} 
                 />
             ))}
           </div>
         ) : (
-          <p className="text-center text-muted-foreground p-8">No se encontraron artículos que coincidan con tu búsqueda.</p>
+          <p className="text-center text-muted-foreground p-8">No se encontraron productos de venta que coincidan con tu búsqueda.</p>
         )}
       </div>
     </section>

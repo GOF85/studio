@@ -1,4 +1,5 @@
 
+
 import type { OsFormValues } from "@/app/os/page";
 import { z } from "zod";
 
@@ -564,31 +565,34 @@ export type ExcedenteProduccion = {
 
 // --- ENTREGAS ---
 
-export type PackDeVenta = {
+export type CategoriaProductoVenta = {
     id: string;
     nombre: string;
-    pvp: number;
-    componentes: {
-        itemCode: string; // Corresponds to `id` in `Precio`
-        description: string;
-        quantity: number;
-    }[];
 }
 
-export type MargenCategoria = {
-    id: string;
-    categoria: string; // e.g. BODEGA, BIO, ALMACEN, GASTRONOMIA_ENTREGAS
-    margen: number; // Porcentaje
+export type ComponenteProductoVenta = {
+    erpId: string; // IngredienteERP.id
+    nombre: string;
+    cantidad: number;
+    coste: number;
 }
+
+export type ProductoVenta = {
+    id: string;
+    nombre: string;
+    categoria: string; // CategoriaProductoVenta.nombre
+    pvp: number;
+    iva: number;
+    componentes: ComponenteProductoVenta[];
+};
 
 export type PedidoEntregaItem = {
-    id: string; // Can be Receta.id, PackDeVenta.id, or Precio.id
-    type: 'receta' | 'pack' | 'producto';
+    id: string; // ProductoVenta.id
     nombre: string;
     quantity: number;
     coste: number;
     pvp: number;
-    categoria?: string; // For margin calculation
+    categoria?: string;
 }
 
 export type PedidoEntrega = {

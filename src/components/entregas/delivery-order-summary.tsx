@@ -5,13 +5,12 @@
 import { useState, useMemo, useEffect } from 'react';
 import { ShoppingCart, Trash2, Minus, Plus } from 'lucide-react';
 
-import type { PedidoEntregaItem, MargenCategoria } from '@/types';
+import type { PedidoEntregaItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { ScrollArea } from '../ui/scroll-area';
 import { formatCurrency } from '@/lib/utils';
 
 interface DeliveryOrderSummaryProps {
@@ -21,7 +20,6 @@ interface DeliveryOrderSummaryProps {
 
 export function DeliveryOrderSummary({ initialItems, getItemsRef }: DeliveryOrderSummaryProps) {
   const [items, setItems] = useState<PedidoEntregaItem[]>(initialItems);
-  const [margenes, setMargenes] = useState<MargenCategoria[]>([]);
   const { toast } = useToast();
   
   useEffect(() => {
@@ -31,11 +29,6 @@ export function DeliveryOrderSummary({ initialItems, getItemsRef }: DeliveryOrde
   useEffect(() => {
     getItemsRef.current = () => items;
   }, [items, getItemsRef]);
-
-  useEffect(() => {
-    const storedMargenes = JSON.parse(localStorage.getItem('margenesCategoria') || '[]') as MargenCategoria[];
-    setMargenes(storedMargenes);
-  }, []);
 
   const onUpdateQuantity = (itemId: string, quantity: number) => {
     if (quantity <= 0) {
@@ -54,23 +47,12 @@ export function DeliveryOrderSummary({ initialItems, getItemsRef }: DeliveryOrde
     let pvp = 0;
     
     items.forEach(item => {
-        const itemCoste = item.coste || 0;
-        const itemQuantity = item.quantity || 0;
-        coste += itemCoste * itemQuantity;
-
-        let itemPvp = item.pvp || itemCoste;
-        
-        if (item.type === 'producto') {
-            const margenData = margenes.find(m => m.categoria === item.categoria);
-            const margen = margenData ? margenData.margen / 100 : 0;
-            itemPvp = itemCoste * (1 + margen);
-        }
-        
-        pvp += itemPvp * itemQuantity;
+        coste += (item.coste || 0) * (item.quantity || 0);
+        pvp += (item.pvp || 0) * (item.quantity || 0);
     });
 
     return { costeTotal: coste, pvpTotal: pvp };
-  }, [items, margenes]);
+  }, [items]);
   
   return (
     <Card className="sticky top-24 h-[calc(100vh-7rem)] flex flex-col">
@@ -89,7 +71,7 @@ export function DeliveryOrderSummary({ initialItems, getItemsRef }: DeliveryOrde
             <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10">
               <ShoppingCart className="h-12 w-12 mb-4" />
               <p className="font-medium">Tu pedido está vacío</p>
-              <p className="text-sm">Añade artículos desde el catálogo para empezar.</p>
+              <p className="text-sm">Añade productos desde el catálogo para empezar.</p>
             </div>
           ) : (
               <ul className="space-y-4">
@@ -98,7 +80,7 @@ export function DeliveryOrderSummary({ initialItems, getItemsRef }: DeliveryOrde
                     <div className="flex-grow">
                       <p className="font-medium leading-tight">{item.nombre}</p>
                       <p className="text-sm text-muted-foreground">
-                        Coste: {formatCurrency(item.coste)}
+                        PVP: {formatCurrency(item.pvp)}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">

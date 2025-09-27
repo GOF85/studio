@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -57,10 +58,10 @@ export default function EntregasDashboardPage() {
                     <CardContent className="flex-grow pt-0">
                         <div className="border-t pt-2 mt-2">
                            <Button asChild variant="ghost" className="w-full justify-start text-muted-foreground">
-                                <Link href="/packs-de-venta"><Package className="w-4 h-4 mr-2" />Packs de Venta<ChevronRight className="w-4 h-4 ml-auto" /></Link>
+                                <Link href="/productos-venta"><Package className="w-4 h-4 mr-2" />Productos de Venta<ChevronRight className="w-4 h-4 ml-auto" /></Link>
                             </Button>
                             <Button asChild variant="ghost" className="w-full justify-start text-muted-foreground">
-                                <Link href="/margenes-categoria"><Percent className="w-4 h-4 mr-2" />Márgenes por Categoría<ChevronRight className="w-4 h-4 ml-auto" /></Link>
+                                <Link href="/categorias-productos-venta"><Percent className="w-4 h-4 mr-2" />Categorías de Productos<ChevronRight className="w-4 h-4 ml-auto" /></Link>
                             </Button>
                             <Button asChild variant="ghost" className="w-full justify-start text-muted-foreground">
                                 <Link href="/docs/entregas-manual"><BookOpen className="w-4 h-4 mr-2" />Manual de Entregas<ChevronRight className="w-4 h-4 ml-auto" /></Link>
