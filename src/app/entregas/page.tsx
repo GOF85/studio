@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, Calendar, Settings, Package, Percent, BookOpen, ChevronRight, BarChart3, Truck, LifeBuoy, Factory } from 'lucide-react';
+import { ClipboardList, Calendar, Settings, Package, Percent, BookOpen, ChevronRight, BarChart3, Truck, LifeBuoy, Factory, ListChecks } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export default function EntregasDashboardPage() {
@@ -38,13 +38,13 @@ export default function EntregasDashboardPage() {
                         </CardHeader>
                     </Card>
                 </Link>
-                 <Link href="/entregas/analitica">
+                 <Link href="/entregas/picking">
                     <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
                         <CardHeader className="flex-row items-center gap-4">
-                            <BarChart3 className="w-10 h-10 text-primary flex-shrink-0" />
+                            <ListChecks className="w-10 h-10 text-primary flex-shrink-0" />
                             <div>
-                                <CardTitle className="text-2xl">Analítica de Rentabilidad</CardTitle>
-                                <p className="text-muted-foreground text-sm mt-1">Analiza costes y márgenes de tus entregas.</p>
+                                <CardTitle className="text-2xl">Picking y Logística</CardTitle>
+                                <p className="text-muted-foreground text-sm mt-1">Prepara y consolida los pedidos para su envío.</p>
                             </div>
                         </CardHeader>
                     </Card>
@@ -85,13 +85,13 @@ export default function EntregasDashboardPage() {
                         </CardContent>
                     </Card>
                 </Link>
-                <Link href="/docs/entregas-manual">
+                 <Link href="/entregas/analitica">
                     <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-3"><LifeBuoy />Manual de Entregas</CardTitle>
+                            <CardTitle className="flex items-center gap-3"><BarChart3 />Analítica</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-sm text-muted-foreground">Guía de operativa para la vertical de Entregas MICE.</p>
+                            <p className="text-sm text-muted-foreground">Analiza costes y márgenes de tus entregas.</p>
                         </CardContent>
                     </Card>
                 </Link>

@@ -42,7 +42,7 @@ export type ServiceOrder = Omit<z.infer<typeof osFormSchema>, 'startDate' | 'end
     vertical: 'Catering';
 };
 
-export type Entrega = Omit<z.infer<typeof osFormSchema>, 'startDate' | 'endDate'> & {
+export type Entrega = Omit<z.infer<typeof osFormSchema>, 'startDate' | 'endDate' | 'status'> & {
   id: string;
   startDate: string;
   endDate: string;
@@ -587,7 +587,6 @@ export type ProductoVenta = {
 
 export type PedidoEntregaItem = {
     id: string; // Can be ProductoVenta.id or Receta.id
-    type: 'producto' | 'receta';
     nombre: string;
     quantity: number;
     coste: number;
@@ -615,5 +614,10 @@ export type PedidoPartner = {
     status: PedidoPartnerStatus;
     comentarios?: string;
 };
+
+export type PickingEntregaState = {
+    osId: string;
+    checkedItems: Set<string>; // Set of item IDs (e.g., erpId for components, productId for direct items)
+}
 
 export const VERTICALES = ['Catering', 'Entregas'] as const;
