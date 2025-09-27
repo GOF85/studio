@@ -1,10 +1,9 @@
-
 'use client';
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, Calendar, Settings, Package, Percent, BookOpen, ChevronRight } from 'lucide-react';
+import { ClipboardList, Calendar, Settings, Package, Percent, BookOpen, ChevronRight, BarChart3 } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export default function EntregasDashboardPage() {
@@ -16,7 +15,7 @@ export default function EntregasDashboardPage() {
         </div>
 
         <section className="mb-12">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
                 <Link href="/entregas/pes">
                     <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
                         <CardHeader className="flex-row items-center gap-4">
@@ -35,6 +34,17 @@ export default function EntregasDashboardPage() {
                             <div>
                                 <CardTitle className="text-2xl">Calendario de Entregas</CardTitle>
                                 <p className="text-muted-foreground text-sm mt-1">Visualiza las entregas en una vista mensual.</p>
+                            </div>
+                        </CardHeader>
+                    </Card>
+                </Link>
+                 <Link href="/entregas/analitica">
+                    <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
+                        <CardHeader className="flex-row items-center gap-4">
+                            <BarChart3 className="w-10 h-10 text-primary flex-shrink-0" />
+                            <div>
+                                <CardTitle className="text-2xl">Analítica de Rentabilidad</CardTitle>
+                                <p className="text-muted-foreground text-sm mt-1">Analiza costes y márgenes de tus entregas.</p>
                             </div>
                         </CardHeader>
                     </Card>
