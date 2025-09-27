@@ -7,15 +7,15 @@ import type { ProductoVenta } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
 
-type CatalogItem = ProductoVenta;
 
 interface UnifiedItemCatalogProps {
-  items: CatalogItem[];
-  onAddItem: (item: CatalogItem, quantity: number) => void;
+  items: ProductoVenta[];
+  onAddItem: (item: ProductoVenta, quantity: number) => void;
 }
 
-function ItemRow({ item, onAdd }: { item: CatalogItem, onAdd: () => void }) {
+function ItemRow({ item, onAdd }: { item: ProductoVenta, onAdd: () => void }) {
     return (
         <div className="flex items-center gap-4 p-2 border-b transition-colors hover:bg-secondary/50">
             <div className="flex-grow">
@@ -23,7 +23,7 @@ function ItemRow({ item, onAdd }: { item: CatalogItem, onAdd: () => void }) {
                 <p className="text-xs text-muted-foreground">Cat. {item.categoria}</p>
             </div>
             <div className="text-sm font-semibold text-primary w-24 text-right">
-                {item.pvp.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                {formatCurrency(item.pvp)}
             </div>
             <Button size="sm" variant="outline" className="w-24" onClick={onAdd}>
                 <Plus className="mr-1 h-4 w-4" /> Añadir

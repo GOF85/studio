@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, ShoppingBag } from 'lucide-react';
 
-import type { OrderItem, ServiceOrder, MaterialOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem, Vertical, PedidoEntrega, PedidoEntregaItem, Receta, PackDeVenta, Precio } from '@/types';
+import type { OrderItem, ServiceOrder, MaterialOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem, Vertical, PedidoEntrega, PedidoEntregaItem, Receta, ProductoVenta, Precio } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -217,7 +217,7 @@ function PageContent() {
   // State for Entregas
   const getDeliveryOrderItemsRef = useRef<() => PedidoEntregaItem[]>(() => []);
   const [initialDeliveryOrder, setInitialDeliveryOrder] = useState<PedidoEntrega | null>(null);
-  const [catalogForEntregas, setCatalogForEntregas] = useState<(Receta | PackDeVenta | Precio)[]>([]);
+  const [catalogForEntregas, setCatalogForEntregas] = useState<ProductoVenta[]>([]);
 
   const hasPruebaDeMenu = useMemo(() => {
     return briefingItems.some(item => item.descripcion.toLowerCase() === 'prueba de menu');
@@ -285,10 +285,8 @@ function PageContent() {
     setEspacios(allEspacios.filter(e => e.espacio));
     
     // --- Load Catalog for Entregas ---
-    const recetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]).filter(r => r.categoria === 'Entregas');
-    const packs = (JSON.parse(localStorage.getItem('packsDeVenta') || '[]') as PackDeVenta[]);
-    const precios = (JSON.parse(localStorage.getItem('precios') || '[]') as Precio[]).filter(p => p.isDeliveryProduct);
-    setCatalogForEntregas([...recetas, ...packs, ...precios]);
+    const productosVenta = (JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[]);
+    setCatalogForEntregas(productosVenta);
     
     if (osId) {
       setAccordionDefaultValue([]); // Collapse for existing
@@ -923,23 +921,26 @@ function PageContent() {
                                     <UnifiedItemCatalog
                                         items={catalogForEntregas}
                                         onAddItem={(item, quantity) => {
-                                            getDeliveryOrderItemsRef.current = () => {
-                                                const currentItems = getDeliveryOrderItemsRef.current();
-                                                const existing = currentItems.find(i => i.id === ('id' in item ? item.id : ('producto' in item ? item.producto : '')));
-                                                if (existing) {
-                                                    return currentItems.map(i => i.id === ('id' in item ? item.id : ('producto' in item ? item.producto : '')) ? { ...i, quantity: i.quantity + quantity } : i);
-                                                }
+                                            const currentItems = getDeliveryOrderItemsRef.current();
+                                            const existing = currentItems.find(i => i.id === item.id);
+                                            let newItems: PedidoEntregaItem[];
+                                            
+                                            if (existing) {
+                                                newItems = currentItems.map(i => i.id === item.id ? { ...i, quantity: i.quantity + quantity } : i);
+                                            } else {
                                                 const newItem: PedidoEntregaItem = {
-                                                    id: 'id' in item ? item.id : item.producto,
-                                                    type: 'categoria' in item ? (item.categoria === 'Entregas' ? 'receta' : 'producto') : 'pack',
-                                                    nombre: 'nombre' in item ? item.nombre : ('producto' in item ? item.producto : 'Unknown'),
+                                                    id: item.id,
+                                                    nombre: item.nombre,
                                                     quantity: quantity,
-                                                    coste: 'costeMateriaPrima' in item ? item.costeMateriaPrima : ('precioUd' in item ? item.precioUd : 0),
-                                                    pvp: 'pvp' in item ? item.pvp : ('precioUd' in item ? item.precioUd : 0),
+                                                    coste: item.componentes.reduce((sum, comp) => sum + (comp.coste * comp.cantidad), 0),
+                                                    pvp: item.pvp,
+                                                    categoria: item.categoria,
                                                 };
-                                                return [...currentItems, newItem];
-                                            };
-                                            // This is just to trigger a re-render of the summary
+                                                newItems = [...currentItems, newItem];
+                                            }
+
+                                            getDeliveryOrderItemsRef.current = () => newItems;
+                                            // This is a hack to trigger a re-render of the summary
                                             setValue('comments', watch('comments') + ' ');
                                             setValue('comments', watch('comments').trim());
                                         }}
@@ -1032,5 +1033,4 @@ export default function OsPage() {
         </div>
     );
 }
-
 
