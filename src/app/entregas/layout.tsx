@@ -17,16 +17,6 @@ function EntregasHeader() {
         </Link>
         <nav className="flex flex-1 items-center justify-end space-x-2">
             <Button asChild variant="ghost" className="hover:bg-orange-600 hover:text-white">
-                <Link href="/docs/entregas-manual">
-                    <LifeBuoy /> Manual de Entregas
-                </Link>
-            </Button>
-            <Button asChild variant="ghost" className="hover:bg-orange-600 hover:text-white">
-                <Link href="/portal/transporte">
-                    <Truck /> Portal Transporte
-                </Link>
-            </Button>
-            <Button asChild variant="ghost" className="hover:bg-orange-600 hover:text-white">
                 <Link href="/">
                     <ChevronLeft /> Volver a MICE Catering
                 </Link>

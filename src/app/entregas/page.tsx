@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, Calendar, Settings, Package, Percent, BookOpen, ChevronRight, BarChart3 } from 'lucide-react';
+import { ClipboardList, Calendar, Settings, Package, Percent, BookOpen, ChevronRight, BarChart3, Truck, LifeBuoy } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export default function EntregasDashboardPage() {
@@ -53,29 +53,48 @@ export default function EntregasDashboardPage() {
         </section>
         
         <section>
-             <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4 text-center">Configuración de Entregas</h2>
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
-                <Card className="flex flex-col hover:border-primary/50 hover:shadow-lg transition-all">
-                    <CardHeader className="flex-row items-start gap-4 space-y-0 pb-3">
-                        <Settings className="w-8 h-8 text-primary flex-shrink-0 mt-1" />
-                        <div>
-                            <Tooltip>
-                                <TooltipTrigger asChild><CardTitle>Configuración</CardTitle></TooltipTrigger>
-                                <TooltipContent><p>Bases de datos y manuales específicos para la vertical de Entregas.</p></TooltipContent>
-                            </Tooltip>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="flex-grow pt-0">
-                        <div className="border-t pt-2 mt-2">
-                           <Button asChild variant="ghost" className="w-full justify-start text-muted-foreground">
-                                <Link href="/entregas/productos-venta"><Package className="w-4 h-4 mr-2" />Productos de Venta<ChevronRight className="w-4 h-4 ml-auto" /></Link>
-                            </Button>
-                            <Button asChild variant="ghost" className="w-full justify-start text-muted-foreground">
-                                <Link href="/docs/entregas-manual"><BookOpen className="w-4 h-4 mr-2" />Manual de Entregas<ChevronRight className="w-4 h-4 ml-auto" /></Link>
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+             <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4 text-center">Configuración, Portales y Ayuda</h2>
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+                <Link href="/entregas/productos-venta">
+                    <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-3"><Package />Productos de Venta</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">Gestiona los productos, packs y sus componentes.</p>
+                        </CardContent>
+                    </Card>
+                </Link>
+                <Link href="/portal/partner">
+                    <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-3"><Factory />Portal del Partner</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">Vista de producción para partners de gastronomía.</p>
+                        </CardContent>
+                    </Card>
+                </Link>
+                <Link href="/portal/transporte">
+                    <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-3"><Truck />Portal de Transporte</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">Consulta rutas de entrega y gestiona albaranes.</p>
+                        </CardContent>
+                    </Card>
+                </Link>
+                <Link href="/docs/entregas-manual">
+                    <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-3"><LifeBuoy />Manual de Entregas</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">Guía de operativa para la vertical de Entregas MICE.</p>
+                        </CardContent>
+                    </Card>
+                </Link>
              </div>
         </section>
       </main>
