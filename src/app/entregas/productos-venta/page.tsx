@@ -1,11 +1,11 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Package } from 'lucide-react';
+import { PlusCircle, Pencil, Trash2, Package } from 'lucide-react';
 import type { ProductoVenta } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -15,12 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -36,6 +30,7 @@ import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 export default function ProductosVentaPage() {
   const [items, setItems] = useState<ProductoVenta[]>([]);
@@ -72,6 +67,12 @@ export default function ProductosVentaPage() {
   const calculateCost = (item: ProductoVenta) => {
     return item.componentes.reduce((total, comp) => total + comp.coste * comp.cantidad, 0);
   }
+  
+  const calculateMargin = (item: ProductoVenta) => {
+      const cost = calculateCost(item);
+      const margin = item.pvp > 0 ? ((item.pvp - cost) / item.pvp) * 100 : 0;
+      return margin;
+  }
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Productos de Venta..." />;
@@ -79,13 +80,12 @@ export default function ProductosVentaPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Package />Productos de Venta</h1>
           <div className="flex gap-2">
             <Button asChild>
-              <Link href="/productos-venta/nuevo">
+              <Link href="/entregas/productos-venta/nuevo">
                 <PlusCircle className="mr-2" />
                 Nuevo Producto
               </Link>
@@ -110,40 +110,35 @@ export default function ProductosVentaPage() {
                 <TableHead>Categoría</TableHead>
                 <TableHead>Coste</TableHead>
                 <TableHead>PVP</TableHead>
+                <TableHead>Margen</TableHead>
                 <TableHead className="text-right w-24">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredItems.length > 0 ? (
-                filteredItems.map(item => (
-                  <TableRow key={item.id} >
-                    <TableCell className="font-medium cursor-pointer" onClick={() => router.push(`/productos-venta/${item.id}`)}>{item.nombre}</TableCell>
-                    <TableCell><Badge variant="outline">{item.categoria}</Badge></TableCell>
-                    <TableCell>{formatCurrency(calculateCost(item))}</TableCell>
-                    <TableCell className="font-bold">{formatCurrency(item.pvp)}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Abrir menú</span>
-                            <MoreHorizontal className="h-4 w-4" />
+                filteredItems.map(item => {
+                  const margin = calculateMargin(item);
+                  return (
+                    <TableRow key={item.id} >
+                        <TableCell className="font-medium cursor-pointer" onClick={() => router.push(`/entregas/productos-venta/${item.id}`)}>{item.nombre}</TableCell>
+                        <TableCell><Badge variant="outline">{item.categoria}</Badge></TableCell>
+                        <TableCell>{formatCurrency(calculateCost(item))}</TableCell>
+                        <TableCell className="font-bold">{formatCurrency(item.pvp)}</TableCell>
+                        <TableCell className={cn("font-bold", margin < 30 ? 'text-destructive' : 'text-green-600')}>{margin.toFixed(2)}%</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" onClick={() => router.push(`/entregas/productos-venta/${item.id}`)}>
+                            <Pencil className="h-4 w-4" />
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => router.push(`/productos-venta/${item.id}`)}>
-                            <Pencil className="mr-2 h-4 w-4" /> Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => setItemToDelete(item.id)}>
-                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setItemToDelete(item.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No se encontraron productos de venta.
                   </TableCell>
                 </TableRow>

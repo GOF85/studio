@@ -45,7 +45,7 @@ const generalDatabasesList: DatabaseEntry[] = [
 ];
 
 const entregasDatabasesList: DatabaseEntry[] = [
-    { id: '20', name: 'Productos de Venta', description: 'Define los productos compuestos para la vertical de Entregas.', itemCount: 0, path: '/productos-venta' },
+    { id: '20', name: 'Productos de Venta', description: 'Define los productos compuestos para la vertical de Entregas.', itemCount: 0, path: '/entregas/productos-venta' },
 ];
 
 export default function BdPage() {
@@ -75,7 +75,7 @@ export default function BdPage() {
             if (db.path === '/tipos-cocina') count = JSON.parse(localStorage.getItem('tiposCocina') || '[]').length;
             if (db.path === '/plantillas-pedidos') count = JSON.parse(localStorage.getItem('pedidoPlantillas') || '[]').length;
             if (db.path === '/formatos-expedicion') count = JSON.parse(localStorage.getItem('formatosExpedicionDB') || '[]').length;
-            if (db.path === '/productos-venta') count = JSON.parse(localStorage.getItem('productosVenta') || '[]').length;
+            if (db.path === '/entregas/productos-venta') count = JSON.parse(localStorage.getItem('productosVenta') || '[]').length;
             return { ...db, itemCount: count };
         });
     }

@@ -7,18 +7,18 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Package, PlusCircle, Trash2 } from 'lucide-react';
-import type { ProductoVenta, IngredienteERP, ComponenteProductoVenta, CategoriaProductoVenta } from '@/types';
+import type { ProductoVenta, IngredienteERP, ComponenteProductoVenta } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
-import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { formatCurrency, formatUnit } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GASTO_LABELS } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 const componenteSchema = z.object({
     erpId: z.string(),
@@ -108,6 +108,7 @@ export default function ProductoVentaFormPage() {
   });
   
   const watchedComponentes = form.watch('componentes');
+  const watchedPvp = form.watch('pvp');
   const categorias = useMemo(() => Object.values(GASTO_LABELS), []);
 
   useEffect(() => {
@@ -118,7 +119,7 @@ export default function ProductoVentaFormPage() {
             form.reset(producto);
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Producto no encontrado.' });
-            router.push('/productos-venta');
+            router.push('/entregas/productos-venta');
         }
     } else {
          form.reset({
@@ -143,6 +144,14 @@ export default function ProductoVentaFormPage() {
         return total + (componente.coste || 0) * componente.cantidad;
     }, 0);
   }, [watchedComponentes]);
+  
+  const { margenBruto, margenPct } = useMemo(() => {
+    const pvp = watchedPvp || 0;
+    const margen = pvp - costeTotal;
+    const porcentaje = pvp > 0 ? (margen / pvp) * 100 : 0;
+    return { margenBruto: margen, margenPct: porcentaje };
+  }, [costeTotal, watchedPvp]);
+
 
   function onSubmit(data: ProductoVentaFormValues) {
     setIsLoading(true);
@@ -165,13 +174,12 @@ export default function ProductoVentaFormPage() {
     setTimeout(() => {
       toast({ description: message });
       setIsLoading(false);
-      router.push('/productos-venta');
+      router.push('/entregas/productos-venta');
     }, 1000);
   }
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
           <form id="product-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -181,7 +189,7 @@ export default function ProductoVentaFormPage() {
                     <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Producto de Venta</h1>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" type="button" onClick={() => router.push('/productos-venta')}> <X className="mr-2"/> Cancelar</Button>
+                    <Button variant="outline" type="button" onClick={() => router.push('/entregas/productos-venta')}> <X className="mr-2"/> Cancelar</Button>
                     <Button type="submit" disabled={isLoading}>
                     {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                     <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Producto'}</span>
@@ -216,6 +224,28 @@ export default function ProductoVentaFormPage() {
                            <FormField control={form.control} name="iva" render={({ field }) => (
                               <FormItem><FormLabel>IVA (%)</FormLabel><FormControl><Input type="number" step="1" {...field} /></FormControl><FormMessage /></FormItem>
                           )} />
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader><CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle></CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                         <div className="flex justify-between">
+                            <span>Coste de Componentes:</span>
+                            <span className="font-semibold">{formatCurrency(costeTotal)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span>Precio de Venta (PVP):</span>
+                            <span className="font-semibold">{formatCurrency(watchedPvp)}</span>
+                        </div>
+                        <Separator className="my-2"/>
+                        <div className="flex justify-between font-bold">
+                            <span>Margen Bruto:</span>
+                            <span className={cn(margenBruto < 0 && "text-destructive")}>{formatCurrency(margenBruto)}</span>
+                        </div>
+                         <div className="flex justify-between font-bold">
+                            <span>Margen Porcentual:</span>
+                            <span className={cn(margenPct < 30 && "text-destructive", margenPct > 60 && "text-green-600")}>{margenPct.toFixed(2)}%</span>
                         </div>
                     </CardContent>
                 </Card>
@@ -254,10 +284,7 @@ export default function ProductoVentaFormPage() {
                      </div>
                      {form.formState.errors.componentes && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.componentes.message}</p>}
                 </CardContent>
-                <CardFooter className="flex justify-end font-bold text-lg">
-                    Coste Total: {formatCurrency(costeTotal)}
-                </CardFooter>
-            </Card>
+              </Card>
             </div>
           </form>
         </Form>
