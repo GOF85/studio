@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -20,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { GASTO_LABELS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const componenteSchema = z.object({
     erpId: z.string(),
@@ -228,28 +230,43 @@ export default function ProductoVentaFormPage() {
                         </div>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader><CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle></CardHeader>
-                    <CardContent className="space-y-2 text-sm">
-                         <div className="flex justify-between">
+                <Accordion type="single" collapsible>
+                  <AccordionItem value="item-1" className="border rounded-lg">
+                    <Card>
+                      <AccordionTrigger className="p-4 w-full">
+                        <div className="flex justify-between items-center w-full">
+                           <h3 className="text-lg font-semibold">Análisis de Rentabilidad</h3>
+                           <div className="font-bold text-green-600">
+                               <span>{formatCurrency(margenBruto)}</span>
+                               <span className="mx-2">-</span>
+                               <span>{margenPct.toFixed(2)}%</span>
+                           </div>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <CardContent className="space-y-2 text-sm pt-0">
+                          <div className="flex justify-between">
                             <span>Coste de Componentes:</span>
                             <span className="font-semibold">{formatCurrency(costeTotal)}</span>
-                        </div>
-                        <div className="flex justify-between">
+                          </div>
+                          <div className="flex justify-between">
                             <span>Precio de Venta (PVP):</span>
                             <span className="font-semibold">{formatCurrency(watchedPvp)}</span>
-                        </div>
-                        <Separator className="my-2"/>
-                        <div className="flex justify-between font-bold">
+                          </div>
+                          <Separator className="my-2" />
+                          <div className="flex justify-between font-bold">
                             <span>Margen Bruto:</span>
                             <span className={cn(margenBruto < 0 && "text-destructive")}>{formatCurrency(margenBruto)}</span>
-                        </div>
-                         <div className="flex justify-between font-bold">
+                          </div>
+                          <div className="flex justify-between font-bold">
                             <span>Margen Porcentual:</span>
-                            <span className={cn(margenPct < 30 && "text-destructive", margenPct > 60 && "text-green-600")}>{margenPct.toFixed(2)}%</span>
-                        </div>
-                    </CardContent>
-                </Card>
+                            <span className={cn(margenPct < 30 ? "text-destructive" : "text-green-600")}>{margenPct.toFixed(2)}%</span>
+                          </div>
+                        </CardContent>
+                      </AccordionContent>
+                    </Card>
+                  </AccordionItem>
+                </Accordion>
               </div>
 
               <Card>
@@ -293,3 +310,4 @@ export default function ProductoVentaFormPage() {
     </>
   );
 }
+
