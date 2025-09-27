@@ -202,6 +202,7 @@ export type TransporteOrder = {
     status: 'Pendiente' | 'Confirmado' | 'En Ruta' | 'Entregado';
     firmaUrl?: string; // URL de la imagen de la firma
     firmadoPor?: string; // Nombre de quien firma
+    dniReceptor?: string;
 }
     
 export type ProveedorHielo = {
@@ -586,7 +587,7 @@ export type ProductoVenta = {
 };
 
 export type PedidoEntregaItem = {
-    id: string; // Can be ProductoVenta.id or Receta.id
+    id: string;
     nombre: string;
     quantity: number;
     coste: number;
@@ -621,3 +622,4 @@ export type PickingEntregaState = {
 }
 
 export const VERTICALES = ['Catering', 'Entregas'] as const;
+

@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -22,13 +23,13 @@ export default function PortalHomePage() {
                 </CardContent>
             </Card>
         </Link>
-        <Link href="#">
-            <Card className="hover:border-primary hover:shadow-lg transition-all opacity-50 cursor-not-allowed">
+        <Link href="/portal/transporte">
+            <Card className="hover:border-primary hover:shadow-lg transition-all">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-3"><Truck /> Portal de Transporte</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-sm text-muted-foreground">Consulta tus rutas de entrega y gestiona los albaranes. (Próximamente)</p>
+                    <p className="text-sm text-muted-foreground">Consulta tus rutas de entrega y gestiona los albaranes.</p>
                 </CardContent>
             </Card>
         </Link>
@@ -36,3 +37,4 @@ export default function PortalHomePage() {
     </main>
   );
 }
+

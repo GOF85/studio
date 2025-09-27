@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -9,16 +10,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Trash2, Package, Save, X } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Trash2, Package, Save, X, Truck } from 'lucide-react';
 
-import type { Entrega, ProductoVenta, PedidoEntrega, PedidoEntregaItem } from '@/types';
+import type { Entrega, ProductoVenta, PedidoEntrega, PedidoEntregaItem, TransporteOrder } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -41,7 +41,6 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Separator } from '@/components/ui/separator';
 import { DeliveryOrderSummary } from '@/components/entregas/delivery-order-summary';
 import { UnifiedItemCatalog } from '@/components/entregas/unified-item-catalog';
 
@@ -81,6 +80,7 @@ export default function EntregaFormPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [transportOrderExists, setTransportOrderExists] = useState(false);
   const { toast } = useToast();
   
   const [productosVenta, setProductosVenta] = useState<ProductoVenta[]>([]);
@@ -115,6 +115,10 @@ export default function EntregaFormPage() {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el pedido de entrega.' });
         router.push('/entregas/pes');
       }
+
+      const allTransportOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
+      setTransportOrderExists(allTransportOrders.some(t => t.osId === id));
+
     } else {
       form.reset({
           ...defaultValues,
@@ -155,6 +159,7 @@ export default function EntregaFormPage() {
         ...data,
         id: currentId,
         startDate: data.startDate.toISOString(),
+        endDate: data.startDate.toISOString(),
         vertical: 'Entregas',
     }
     
@@ -210,6 +215,37 @@ export default function EntregaFormPage() {
     router.push('/entregas/pes');
   };
 
+  const handleAssignTransport = () => {
+    if (!isEditing) return;
+    const currentEntrega = form.getValues();
+    const newTransportOrder: Omit<TransporteOrder, 'proveedorId' | 'proveedorNombre' | 'tipoTransporte' | 'precio'> = {
+        id: Date.now().toString(),
+        osId: id,
+        fecha: currentEntrega.startDate.toISOString(),
+        lugarRecogida: 'Almacén Central MICE',
+        horaRecogida: '09:00', // Default
+        lugarEntrega: currentEntrega.spaceAddress || currentEntrega.client,
+        horaEntrega: currentEntrega.deliveryTime,
+        observaciones: `Entrega para ${currentEntrega.client}. Contacto: ${currentEntrega.contact} (${currentEntrega.phone})`,
+        status: 'Pendiente',
+    }
+    // This will be completed in the transport module
+    const transportOrderToSave = {
+      ...newTransportOrder,
+      proveedorId: '',
+      proveedorNombre: 'Asignación Pendiente',
+      tipoTransporte: '',
+      precio: 0
+    }
+
+    const allTransportOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
+    allTransportOrders.push(transportOrderToSave);
+    localStorage.setItem('transporteOrders', JSON.stringify(allTransportOrders));
+    
+    setTransportOrderExists(true);
+    toast({ title: 'Transporte Asignado', description: 'El pedido ha sido enviado al módulo de transporte para su gestión.' });
+  }
+
   if (!isMounted) {
     return <LoadingSkeleton title={isEditing ? 'Editando Pedido...' : 'Nuevo Pedido...'} />;
   }
@@ -235,7 +271,20 @@ export default function EntregaFormPage() {
              <Form {...form}>
               <form id="entrega-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <Card>
-                    <CardHeader><CardTitle>Información del Pedido</CardTitle></CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <CardTitle>Información del Pedido</CardTitle>
+                        {isEditing && (
+                            <Button 
+                                type="button" 
+                                variant={transportOrderExists ? "secondary" : "default"}
+                                onClick={handleAssignTransport}
+                                disabled={transportOrderExists}
+                            >
+                                <Truck className="mr-2"/> 
+                                {transportOrderExists ? 'Transporte Asignado' : 'Asignar Transporte'}
+                            </Button>
+                        )}
+                    </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <FormField control={form.control} name="serviceNumber" render={({ field }) => (
@@ -312,3 +361,4 @@ export default function EntregaFormPage() {
     </main>
   );
 }
+
