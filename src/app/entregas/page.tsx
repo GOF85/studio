@@ -75,8 +75,8 @@ export default function EntregasDashboardPage() {
                         </CardContent>
                     </Card>
                 </Link>
-                <Link href="#">
-                    <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all opacity-50 cursor-not-allowed">
+                <Link href="/portal/transporte">
+                    <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3"><Truck />Portal de Transporte</CardTitle>
                         </CardHeader>

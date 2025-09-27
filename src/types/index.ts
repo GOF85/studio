@@ -575,10 +575,13 @@ export type ComponenteProductoVenta = {
     coste: number;
 }
 
+export const CATEGORIAS_PRODUCTO_VENTA = ['Gastronomía', 'Bodega', 'Consumibles (Bio)', 'Almacén', 'Transporte', 'Personal Externo'] as const;
+export type CategoriaProductoVenta = typeof CATEGORIAS_PRODUCTO_VENTA[number];
+
 export type ProductoVenta = {
     id: string;
     nombre: string;
-    categoria: string;
+    categoria: CategoriaProductoVenta;
     pvp: number;
     iva: number;
     producidoPorPartner: boolean;
@@ -622,4 +625,5 @@ export type PickingEntregaState = {
 }
 
 export const VERTICALES = ['Catering', 'Entregas'] as const;
+
 

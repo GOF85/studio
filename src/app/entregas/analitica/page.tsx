@@ -39,12 +39,16 @@ export default function AnaliticaEntregasPage() {
                 deliveryOrder.items.forEach(item => {
                     const producto = productosMap.get(item.id);
                     if (producto) {
-                        const costeItem = producto.componentes.reduce((sum, comp) => sum + (comp.coste * comp.cantidad), 0);
-                        costeTotal += costeItem * item.quantity;
+                        const costeComponentes = producto.componentes.reduce((sum, comp) => {
+                            const costeReal = comp.coste || 0;
+                            return sum + (costeReal * comp.cantidad);
+                        }, 0);
+                        
+                        costeTotal += costeComponentes * item.quantity;
                         pvpTotal += producto.pvp * item.quantity;
 
                         if (producto.categoria) {
-                            costesPorCategoria[producto.categoria] = (costesPorCategoria[producto.categoria] || 0) + (costeItem * item.quantity);
+                            costesPorCategoria[producto.categoria] = (costesPorCategoria[producto.categoria] || 0) + (costeComponentes * item.quantity);
                         }
                     }
                 });
