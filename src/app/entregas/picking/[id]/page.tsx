@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Check, Package, Circle, ShoppingBag, Factory, Truck } from 'lucide-react';
 import type { Entrega, PedidoEntrega, ProductoVenta, IngredienteERP, PickingEntregaState } from '@/types';
