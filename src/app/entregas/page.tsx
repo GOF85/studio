@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -12,7 +13,6 @@ export default function EntregasDashboardPage() {
       <main className="container mx-auto px-4 py-8">
         <div className="text-center mb-10">
             <h1 className="text-4xl font-headline font-bold tracking-tight">Dashboard de Entregas MICE</h1>
-            <p className="text-lg text-muted-foreground mt-2">Gestiona y planifica todos los pedidos de la vertical de entregas.</p>
         </div>
 
         <section className="mb-12">
@@ -50,7 +50,7 @@ export default function EntregasDashboardPage() {
                         <Settings className="w-8 h-8 text-primary flex-shrink-0 mt-1" />
                         <div>
                             <Tooltip>
-                                <TooltipTrigger asChild><CardTitle>Configuración</CardTitle></TooltipTrigger>
+                                <TooltipTrigger asChild><CardTitle>Configuración</TooltipTrigger></TooltipTrigger>
                                 <TooltipContent><p>Bases de datos y manuales específicos para la vertical de Entregas.</p></TooltipContent>
                             </Tooltip>
                         </div>
