@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, ShoppingBag } from 'lucide-react';
 
-import type { OrderItem, ServiceOrder, MaterialOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import type { ServiceOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -43,7 +43,6 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
   AlertDialog,
@@ -71,7 +70,6 @@ export const osFormSchema = z.object({
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
   endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
-  deliveryTime: z.string().optional(),
   space: z.string().optional().default(''),
   spaceAddress: z.string().optional().default(''),
   spaceContact: z.string().optional().default(''),

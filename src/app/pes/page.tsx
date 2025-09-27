@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -7,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { format, parseISO, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, Clock, Users } from 'lucide-react';
-import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, Vertical } from '@/types';
+import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,7 +26,6 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { VERTICALES } from '@/types';
 
 export default function PesPage() {
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
@@ -158,7 +158,6 @@ export default function PesPage() {
                 <TableHead>Nº Servicio</TableHead>
                 <TableHead>Espacio</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead>Vertical</TableHead>
                 <TableHead>Fecha Inicio</TableHead>
                 <TableHead>Fecha Fin</TableHead>
                 <TableHead>Asistentes</TableHead>
@@ -193,7 +192,6 @@ export default function PesPage() {
                     </TableCell>
                     <TableCell>{os.space}</TableCell>
                     <TableCell>{os.client}</TableCell>
-                    <TableCell>{os.vertical}</TableCell>
                     <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
                     <TableCell>{format(new Date(os.endDate), 'dd/MM/yyyy')}</TableCell>
                     <TableCell>{os.asistentes}</TableCell>
@@ -206,7 +204,7 @@ export default function PesPage() {
                 )})
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     No hay órdenes de servicio que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>

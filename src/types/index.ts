@@ -1,7 +1,7 @@
 
 
-import type { OsFormValues } from "@/app/os/page";
-import { z } from "zod";
+import type { z } from "zod";
+import type { osFormSchema } from "@/app/os/page";
 
 export type CateringItem = {
   itemCode: string;
@@ -35,17 +35,17 @@ export type MaterialOrder = {
 };
 
 // We need to allow string dates because they come from localStorage
-export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate' | 'vertical'> & {
+export type ServiceOrder = z.infer<typeof osFormSchema> & {
     id: string;
     startDate: string; 
     endDate: string;
     deliveryLocations?: string[];
     objetivoGastoId?: string;
-    deliveryTime?: string;
 };
 
 export type Entrega = Omit<ServiceOrder, 'tipoCliente' | 'endDate' | 'space' | 'spaceContact' | 'spacePhone' | 'spaceMail' | 'respMetre' | 'respMetrePhone' | 'respMetreMail' | 'respCocinaCPR' | 'respCocinaCPRPhone' | 'respCocinaCPRMail' | 'respPase' | 'respPasePhone' | 'respPaseMail' | 'respCocinaPase' | 'respCocinaPasePhone' | 'respCocinaPaseMail' | 'comercialAsiste' | 'comercial' | 'comercialPhone' | 'comercialMail' | 'rrhhAsiste' | 'respRRHH' | 'respRRHHPhone' | 'respRRHHMail' | 'plane' | 'comments' | 'status'> & {
   status: 'Borrador' | 'Confirmado' | 'Enviado' | 'Entregado';
+  deliveryTime: string;
 };
 
 export type Personal = {
@@ -608,3 +608,5 @@ export type PedidoPartner = {
     unidad: UnidadMedida;
     status: 'Pendiente' | 'En Producción' | 'Listo para Entrega en CPR';
 };
+
+export const VERTICALES = ['Catering', 'Entregas'] as const;
