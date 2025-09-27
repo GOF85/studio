@@ -15,7 +15,7 @@ interface UnifiedItemCatalogProps {
   onAddItem: (item: ProductoVenta, quantity: number) => void;
 }
 
-function ItemRow({ item, onAdd }: { item: ProductoVenta, onAdd: () => void }) {
+function ItemRow({ item, onAdd }: { item: ProductoVenta, onAdd: (item: ProductoVenta) => void }) {
     return (
         <div className="flex items-center gap-4 p-2 border-b transition-colors hover:bg-secondary/50">
             <div className="flex-grow">
@@ -25,7 +25,7 @@ function ItemRow({ item, onAdd }: { item: ProductoVenta, onAdd: () => void }) {
             <div className="text-sm font-semibold text-primary w-24 text-right">
                 {formatCurrency(item.pvp)}
             </div>
-            <Button size="sm" variant="outline" className="w-24" onClick={onAdd}>
+            <Button size="sm" variant="outline" className="w-24" onClick={() => onAdd(item)}>
                 <Plus className="mr-1 h-4 w-4" /> Añadir
             </Button>
         </div>
@@ -64,7 +64,7 @@ export function UnifiedItemCatalog({ items, onAddItem }: UnifiedItemCatalogProps
                 <ItemRow 
                     key={item.id} 
                     item={item} 
-                    onAdd={() => onAddItem(item, 1)} 
+                    onAdd={(itemToAdd) => onAddItem(itemToAdd, 1)} 
                 />
             ))}
           </div>
@@ -75,3 +75,4 @@ export function UnifiedItemCatalog({ items, onAddItem }: UnifiedItemCatalogProps
     </section>
   );
 }
+
