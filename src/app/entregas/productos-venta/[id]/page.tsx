@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -22,7 +21,7 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
-
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const componenteSchema = z.object({
     erpId: z.string(),
@@ -101,6 +100,7 @@ export default function ProductoVentaFormPage() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<ProductoVentaFormValues>({
@@ -191,6 +191,18 @@ export default function ProductoVentaFormPage() {
       router.push('/entregas/productos-venta');
     }, 1000);
   }
+  
+  const handleDelete = () => {
+    if (!isEditing) return;
+
+    let allItems = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
+    const updatedItems = allItems.filter(p => p.id !== id);
+    localStorage.setItem('productosVenta', JSON.stringify(updatedItems));
+    
+    toast({ title: 'Producto eliminado', description: 'El producto de venta ha sido eliminado permanentemente.' });
+    setShowDeleteConfirm(false);
+    router.push('/entregas/productos-venta');
+  };
 
   return (
     <>
@@ -203,11 +215,11 @@ export default function ProductoVentaFormPage() {
                     <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Producto de Venta</h1>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" type="button" onClick={() => router.push('/entregas/productos-venta')}> <X className="mr-2"/> Cancelar</Button>
-                    <Button type="submit" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                    <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Producto'}</span>
-                    </Button>
+                    {isEditing && (
+                        <Button variant="ghost" size="icon" type="button" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setShowDeleteConfirm(true)}>
+                            <Trash2 />
+                        </Button>
+                    )}
                 </div>
             </div>
             
@@ -289,6 +301,13 @@ export default function ProductoVentaFormPage() {
                     </Card>
                   </AccordionItem>
                 </Accordion>
+                <div className="flex gap-2 justify-end">
+                    <Button variant="outline" type="button" onClick={() => router.push('/entregas/productos-venta')}>Cancelar</Button>
+                    <Button type="submit" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                    <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Producto'}</span>
+                    </Button>
+                </div>
               </div>
 
               <Card>
@@ -328,8 +347,23 @@ export default function ProductoVentaFormPage() {
             </div>
           </form>
         </Form>
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                    Esta acción es irreversible. Se eliminará permanentemente el producto de venta.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleDelete}>
+                        Eliminar Producto
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       </main>
     </>
   );
 }
-

@@ -111,7 +111,6 @@ export default function ProductosVentaPage() {
                 <TableHead>Coste</TableHead>
                 <TableHead>PVP</TableHead>
                 <TableHead>Margen</TableHead>
-                <TableHead className="text-right w-24">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -119,26 +118,18 @@ export default function ProductosVentaPage() {
                 filteredItems.map(item => {
                   const margin = calculateMargin(item);
                   return (
-                    <TableRow key={item.id} >
-                        <TableCell className="font-medium cursor-pointer" onClick={() => router.push(`/entregas/productos-venta/${item.id}`)}>{item.nombre}</TableCell>
+                    <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/entregas/productos-venta/${item.id}`)}>
+                        <TableCell className="font-medium">{item.nombre}</TableCell>
                         <TableCell><Badge variant="outline">{item.categoria}</Badge></TableCell>
                         <TableCell>{formatCurrency(calculateCost(item))}</TableCell>
                         <TableCell className="font-bold">{formatCurrency(item.pvp)}</TableCell>
                         <TableCell className={cn("font-bold", margin < 30 ? 'text-destructive' : 'text-green-600')}>{margin.toFixed(2)}%</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => router.push(`/entregas/productos-venta/${item.id}`)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setItemToDelete(item.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
                     </TableRow>
                   );
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     No se encontraron productos de venta.
                   </TableCell>
                 </TableRow>
