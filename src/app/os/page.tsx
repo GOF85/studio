@@ -217,7 +217,11 @@ function PageContent() {
   // State for Entregas
   const [deliveryItems, setDeliveryItems] = useState<PedidoEntregaItem[]>([]);
   const [catalogForEntregas, setCatalogForEntregas] = useState<ProductoVenta[]>([]);
-
+  const getDeliveryOrderItemsRef = useRef(() => deliveryItems);
+  
+  useEffect(() => {
+    getDeliveryOrderItemsRef.current = () => deliveryItems;
+  }, [deliveryItems]);
 
   const hasPruebaDeMenu = useMemo(() => {
     return briefingItems.some(item => item.descripcion.toLowerCase() === 'prueba de menu');
@@ -373,7 +377,8 @@ function PageContent() {
         let allDeliveryOrders = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
         const deliveryIndex = allDeliveryOrders.findIndex(d => d.osId === currentOsId);
         
-        const finalDeliveryOrder: PedidoEntrega = { osId: currentOsId, items: deliveryItems };
+        const currentDeliveryItems = getDeliveryOrderItemsRef.current();
+        const finalDeliveryOrder: PedidoEntrega = { osId: currentOsId, items: currentDeliveryItems };
 
         if (deliveryIndex > -1) {
             allDeliveryOrders[deliveryIndex] = finalDeliveryOrder;
@@ -919,24 +924,24 @@ function PageContent() {
                             <UnifiedItemCatalog
                                 items={catalogForEntregas}
                                 onAddItem={(item, quantity) => {
-                                    const currentItems = deliveryItems;
-                                    const existing = currentItems.find(i => i.id === item.id);
-                                    let newItems: PedidoEntregaItem[];
-                                    
-                                    if (existing) {
-                                        newItems = currentItems.map(i => i.id === item.id ? { ...i, quantity: i.quantity + quantity } : i);
-                                    } else {
-                                        const newItem: PedidoEntregaItem = {
-                                            id: item.id,
-                                            nombre: item.nombre,
-                                            quantity: quantity,
-                                            coste: item.componentes.reduce((sum, comp) => sum + (comp.coste * comp.cantidad), 0),
-                                            pvp: item.pvp,
-                                            categoria: item.categoria,
-                                        };
-                                        newItems = [...currentItems, newItem];
-                                    }
-                                    setDeliveryItems(newItems);
+                                    setDeliveryItems(currentItems => {
+                                        const existing = currentItems.find(i => i.id === item.id);
+                                        let newItems: PedidoEntregaItem[];
+                                        if (existing) {
+                                            newItems = currentItems.map(i => i.id === item.id ? { ...i, quantity: i.quantity + quantity } : i);
+                                        } else {
+                                            const newItem: PedidoEntregaItem = {
+                                                id: item.id,
+                                                nombre: item.nombre,
+                                                quantity: quantity,
+                                                coste: item.componentes.reduce((sum, comp) => sum + (comp.coste * comp.cantidad), 0),
+                                                pvp: item.pvp,
+                                                categoria: item.categoria,
+                                            };
+                                            newItems = [...currentItems, newItem];
+                                        }
+                                        return newItems;
+                                    });
                                 }}
                             />
                             <div className="mt-8 lg:mt-0">
@@ -1025,3 +1030,4 @@ export default function OsPage() {
         </div>
     );
 }
+
