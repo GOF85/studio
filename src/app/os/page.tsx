@@ -77,6 +77,7 @@ export const osFormSchema = z.object({
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
   endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
+  deliveryTime: z.string().optional(),
   space: z.string().optional().default(''),
   spaceAddress: z.string().optional().default(''),
   spaceContact: z.string().optional().default(''),
@@ -1029,3 +1030,4 @@ export default function OsPage() {
         </div>
     );
 }
+

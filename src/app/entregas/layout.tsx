@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Package, ChevronLeft, Truck } from 'lucide-react';
+import { Package, ChevronLeft, Truck, LifeBuoy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 function EntregasHeader() {
@@ -15,6 +15,11 @@ function EntregasHeader() {
           </h1>
         </Link>
         <nav className="flex flex-1 items-center justify-end space-x-2">
+            <Button asChild variant="ghost" className="hover:bg-orange-600 hover:text-white">
+                <Link href="/docs/entregas-manual">
+                    <LifeBuoy /> Manual de Entregas
+                </Link>
+            </Button>
             <Button asChild variant="ghost" className="hover:bg-orange-600 hover:text-white">
                 <Link href="/portal/transporte">
                     <Truck /> Portal Transporte
@@ -40,7 +45,9 @@ export default function EntregasLayout({
   return (
     <div className="theme-orange">
         <EntregasHeader />
-        {children}
+        <div className="bg-background text-foreground min-h-[calc(100vh-4rem)]">
+          {children}
+        </div>
     </div>
   );
 }
