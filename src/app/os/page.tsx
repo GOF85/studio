@@ -441,7 +441,7 @@ function PageContent() {
   const isCatering = vertical === 'Grandes Eventos' || vertical === 'Recurrente' || vertical === 'Grandes Cuentas' || vertical === 'Premium';
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-headline font-bold">{osId ? 'Editar' : 'Nueva'} Orden de Servicio</h1>
           <div className="flex gap-2">
@@ -1003,7 +1003,7 @@ function PageContent() {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-    </div>
+    </>
   );
 }
 
@@ -1026,8 +1026,11 @@ export default function OsPage() {
     return (
         <div className={cn(isEntrega && 'theme-orange')}>
             <Header />
-            <PageContent />
+            <div className="container mx-auto px-4 py-8">
+              <PageContent />
+            </div>
         </div>
     );
 }
+
 
