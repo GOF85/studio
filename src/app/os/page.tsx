@@ -358,6 +358,7 @@ function PageContent() {
       const newOS: ServiceOrder = {
         id: currentOsId,
         ...data,
+        facturacion: data.facturacion || 0, // Ensure facturacion is a number
         startDate: data.startDate.toISOString(),
         endDate: data.endDate.toISOString(),
       };
