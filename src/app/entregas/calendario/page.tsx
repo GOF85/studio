@@ -16,7 +16,7 @@ import {
 } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Package, Users, Clock } from 'lucide-react';
-import type { ServiceOrder } from '@/types';
+import type { Entrega } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
@@ -37,7 +37,7 @@ type CalendarEvent = {
   space: string;
   finalClient: string;
   asistentes: number;
-  status: ServiceOrder['status'];
+  status: Entrega['status'];
 };
 
 type EventsByDay = {
@@ -53,10 +53,11 @@ type DayDetails = {
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
+const statusVariant: { [key in Entrega['status']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
   Borrador: 'secondary',
-  Pendiente: 'destructive',
   Confirmado: 'default',
+  Enviado: 'outline',
+  Entregado: 'outline'
 };
 
 export default function CalendarioEntregasPage() {
@@ -67,14 +68,14 @@ export default function CalendarioEntregasPage() {
 
 
   useEffect(() => {
-    const serviceOrders: ServiceOrder[] = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical === 'Entregas');
+    const serviceOrders: Entrega[] = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]);
     
     const allEvents: CalendarEvent[] = serviceOrders.map(os => ({
         date: new Date(os.startDate),
         osId: os.id,
         serviceNumber: os.serviceNumber,
         horaInicio: os.deliveryTime || 'N/A',
-        space: os.spaceAddress || os.space || 'N/A',
+        space: os.spaceAddress || 'N/A',
         finalClient: os.finalClient || os.client,
         asistentes: os.asistentes,
         status: os.status,
@@ -172,7 +173,7 @@ export default function CalendarioEntregasPage() {
                          return (
                             <Tooltip key={osId}>
                                 <TooltipTrigger asChild>
-                                <Link href={`/os?id=${osId}`}>
+                                <Link href={`/entregas/pedido/${osId}`}>
                                     <Badge variant={statusVariant[firstEvent.status]} className="w-full justify-start truncate cursor-pointer">
                                     {firstEvent.serviceNumber}
                                     </Badge>
@@ -208,7 +209,7 @@ export default function CalendarioEntregasPage() {
                 </DialogHeader>
                 <div className="max-h-[60vh] overflow-y-auto">
                     {dayDetails && Object.values(dayDetails.osEvents).flat().map((event, index) => (
-                         <Link key={`${event.osId}-${index}`} href={`/os?id=${event.osId}`} className="block p-3 hover:bg-muted rounded-md">
+                         <Link key={`${event.osId}-${index}`} href={`/entregas/pedido/${event.osId}`} className="block p-3 hover:bg-muted rounded-md">
                             <p className="font-bold text-primary">{event.serviceNumber}</p>
                             <p>{event.finalClient}</p>
                             <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4">

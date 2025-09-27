@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { format, parseISO, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, Package, ClipboardList } from 'lucide-react';
-import type { ServiceOrder } from '@/types';
+import type { Entrega } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -23,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 
 export default function PrevisionEntregasPage() {
-  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
+  const [entregas, setEntregas] = useState<Entrega[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
@@ -31,15 +31,15 @@ export default function PrevisionEntregasPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const storedOrders = localStorage.getItem('serviceOrders');
-    const allOrders: ServiceOrder[] = storedOrders ? JSON.parse(storedOrders) : [];
-    setServiceOrders(allOrders.filter(o => o.vertical === 'Entregas'));
+    const storedOrders = localStorage.getItem('entregas');
+    const allOrders: Entrega[] = storedOrders ? JSON.parse(storedOrders) : [];
+    setEntregas(allOrders);
     setIsMounted(true);
   }, []);
 
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-    serviceOrders.forEach(os => {
+    entregas.forEach(os => {
       try {
         const month = format(new Date(os.startDate), 'yyyy-MM');
         months.add(month);
@@ -48,11 +48,11 @@ export default function PrevisionEntregasPage() {
       }
     });
     return Array.from(months).sort().reverse();
-  }, [serviceOrders]);
+  }, [entregas]);
 
   const filteredAndSortedOrders = useMemo(() => {
     const today = startOfToday();
-    const filtered = serviceOrders.filter(os => {
+    const filtered = entregas.filter(os => {
       const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || os.client.toLowerCase().includes(searchTerm.toLowerCase());
       
       let monthMatch = true;
@@ -68,7 +68,7 @@ export default function PrevisionEntregasPage() {
       let pastEventMatch = true;
       if (!showPastEvents) {
           try {
-              pastEventMatch = !isBefore(new Date(os.endDate), today);
+              pastEventMatch = !isBefore(parseISO(os.startDate), today);
           } catch (e) {
               pastEventMatch = true;
           }
@@ -79,12 +79,13 @@ export default function PrevisionEntregasPage() {
 
     return filtered.sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime());
 
-  }, [serviceOrders, searchTerm, selectedMonth, showPastEvents]);
+  }, [entregas, searchTerm, selectedMonth, showPastEvents]);
   
-  const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
+  const statusVariant: { [key in Entrega['status']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
     Borrador: 'secondary',
-    Pendiente: 'destructive',
     Confirmado: 'default',
+    Enviado: 'outline',
+    Entregado: 'outline'
   };
 
   if (!isMounted) {
@@ -96,7 +97,7 @@ export default function PrevisionEntregasPage() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><ClipboardList />Previsión de Entregas</h1>
         <Button asChild>
-          <Link href="/os?vertical=Entregas">
+          <Link href="/entregas/pedido/nuevo">
             <PlusCircle className="mr-2" />
             Nuevo Pedido
           </Link>
@@ -144,7 +145,7 @@ export default function PrevisionEntregasPage() {
               <TableBody>
               {filteredAndSortedOrders.length > 0 ? (
                   filteredAndSortedOrders.map(os => (
-                  <TableRow key={os.id} onClick={() => router.push(`/os?id=${os.id}`)} className="cursor-pointer">
+                  <TableRow key={os.id} onClick={() => router.push(`/entregas/pedido/${os.id}`)} className="cursor-pointer">
                       <TableCell className="font-medium">{os.serviceNumber}</TableCell>
                       <TableCell>{os.client}</TableCell>
                       <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')} {os.deliveryTime || ''}</TableCell>

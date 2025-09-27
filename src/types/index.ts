@@ -34,18 +34,18 @@ export type MaterialOrder = {
   deliveryLocation?: string;
 };
 
-export const VERTICALES = ['Recurrente', 'Grandes Eventos', 'Grandes Cuentas', 'Premium', 'Entregas'] as const;
-export type Vertical = typeof VERTICALES[number];
-
 // We need to allow string dates because they come from localStorage
-export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate'> & {
+export type ServiceOrder = Omit<OsFormValues, 'startDate' | 'endDate' | 'vertical'> & {
     id: string;
     startDate: string; 
     endDate: string;
     deliveryLocations?: string[];
     objetivoGastoId?: string;
-    vertical: Vertical;
     deliveryTime?: string;
+};
+
+export type Entrega = Omit<ServiceOrder, 'tipoCliente' | 'endDate' | 'space' | 'spaceContact' | 'spacePhone' | 'spaceMail' | 'respMetre' | 'respMetrePhone' | 'respMetreMail' | 'respCocinaCPR' | 'respCocinaCPRPhone' | 'respCocinaCPRMail' | 'respPase' | 'respPasePhone' | 'respPaseMail' | 'respCocinaPase' | 'respCocinaPasePhone' | 'respCocinaPaseMail' | 'comercialAsiste' | 'comercial' | 'comercialPhone' | 'comercialMail' | 'rrhhAsiste' | 'respRRHH' | 'respRRHHPhone' | 'respRRHHMail' | 'plane' | 'comments' | 'status'> & {
+  status: 'Borrador' | 'Confirmado' | 'Enviado' | 'Entregado';
 };
 
 export type Personal = {
@@ -565,11 +565,6 @@ export type ExcedenteProduccion = {
 
 // --- ENTREGAS ---
 
-export type CategoriaProductoVenta = {
-    id: string;
-    nombre: string;
-}
-
 export type ComponenteProductoVenta = {
     erpId: string; // IngredienteERP.id
     nombre: string;
@@ -580,7 +575,7 @@ export type ComponenteProductoVenta = {
 export type ProductoVenta = {
     id: string;
     nombre: string;
-    categoria: string; // CategoriaProductoVenta.nombre
+    categoria: string;
     pvp: number;
     iva: number;
     componentes: ComponenteProductoVenta[];

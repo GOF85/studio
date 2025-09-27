@@ -68,7 +68,7 @@ export default function EntregasDashboardPage() {
                     <CardContent className="flex-grow pt-0">
                         <div className="border-t pt-2 mt-2">
                            <Button asChild variant="ghost" className="w-full justify-start text-muted-foreground">
-                                <Link href="/productos-venta"><Package className="w-4 h-4 mr-2" />Productos de Venta<ChevronRight className="w-4 h-4 ml-auto" /></Link>
+                                <Link href="/entregas/productos-venta"><Package className="w-4 h-4 mr-2" />Productos de Venta<ChevronRight className="w-4 h-4 ml-auto" /></Link>
                             </Button>
                             <Button asChild variant="ghost" className="w-full justify-start text-muted-foreground">
                                 <Link href="/docs/entregas-manual"><BookOpen className="w-4 h-4 mr-2" />Manual de Entregas<ChevronRight className="w-4 h-4 ml-auto" /></Link>

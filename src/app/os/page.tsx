@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, ShoppingBag } from 'lucide-react';
 
-import type { OrderItem, ServiceOrder, MaterialOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem, Vertical, PedidoEntrega, PedidoEntregaItem, Receta, ProductoVenta, Precio } from '@/types';
+import type { OrderItem, ServiceOrder, MaterialOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -59,11 +59,6 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Combobox } from '@/components/ui/combobox';
-import { VERTICALES } from '@/types';
-
-// --- NUEVOS COMPONENTES PARA ENTREGAS ---
-import { UnifiedItemCatalog } from '@/components/entregas/unified-item-catalog';
-import { DeliveryOrderSummary } from '@/components/entregas/delivery-order-summary';
 
 
 export const osFormSchema = z.object({
@@ -72,7 +67,6 @@ export const osFormSchema = z.object({
   client: z.string().min(1, 'El cliente es obligatorio.'),
   tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
   asistentes: z.coerce.number().min(1, 'El número de asistentes es obligatorio.'),
-  vertical: z.enum(VERTICALES, { errorMap: () => ({ message: 'Debes seleccionar una vertical' }) }),
   contact: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
@@ -198,7 +192,6 @@ function PageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const osId = searchParams.get('id');
-  const verticalParam = searchParams.get('vertical') as Vertical | null;
 
   const [isMounted, setIsMounted] = useState(false);
   const { isLoading, setIsLoading } = useLoadingStore();
@@ -214,15 +207,6 @@ function PageContent() {
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
   
-  // State for Entregas
-  const [deliveryItems, setDeliveryItems] = useState<PedidoEntregaItem[]>([]);
-  const [catalogForEntregas, setCatalogForEntregas] = useState<ProductoVenta[]>([]);
-  const getDeliveryOrderItemsRef = useRef(() => deliveryItems);
-  
-  useEffect(() => {
-    getDeliveryOrderItemsRef.current = () => deliveryItems;
-  }, [deliveryItems]);
-
   const hasPruebaDeMenu = useMemo(() => {
     return briefingItems.some(item => item.descripcion.toLowerCase() === 'prueba de menu');
   }, [briefingItems]);
@@ -276,8 +260,7 @@ function PageContent() {
     if (isDirty) {
       setShowExitConfirm(true);
     } else {
-        const currentVertical = form.getValues('vertical');
-        router.push(currentVertical === 'Entregas' ? '/entregas' : '/pes');
+        router.push('/pes');
     }
   };
 
@@ -287,10 +270,6 @@ function PageContent() {
     const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
     setPersonal(allPersonal.filter(p => p.nombre));
     setEspacios(allEspacios.filter(e => e.espacio));
-    
-    // --- Load Catalog for Entregas ---
-    const productosVenta = (JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[]);
-    setCatalogForEntregas(productosVenta);
     
     if (osId) {
       setAccordionDefaultValue([]); // Collapse for existing
@@ -309,30 +288,17 @@ function PageContent() {
         const currentBriefing = allBriefings.find(b => b.osId === osId);
         setBriefingItems(currentBriefing?.items || []);
         
-        // Load Entregas data if applicable
-        if (currentOS.vertical === 'Entregas') {
-            const allDeliveryOrders = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
-            const currentDeliveryOrder = allDeliveryOrders.find(d => d.osId === osId);
-            setDeliveryItems(currentDeliveryOrder?.items || []);
-        }
-        
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
         router.push('/pes');
       }
     } else { // Creating new OS
       const initialValues = {...defaultValues};
-      if (verticalParam) {
-        initialValues.vertical = verticalParam;
-         if (verticalParam === 'Entregas') {
-            setDeliveryItems([]); // Initialize empty delivery order
-        }
-      }
       form.reset(initialValues);
       setAccordionDefaultValue(['cliente', 'espacio', 'responsables']); // Expand for new
     }
     setIsMounted(true);
-  }, [osId, verticalParam, form, router, toast]);
+  }, [osId, form, router, toast]);
 
   function onSubmit(data: OsFormValues) {
     setIsLoading(true);
@@ -372,22 +338,6 @@ function PageContent() {
 
     localStorage.setItem('serviceOrders', JSON.stringify(allOS));
     
-    // --- Save delivery order items if it's an Entrega ---
-    if (data.vertical === 'Entregas' && currentOsId) {
-        let allDeliveryOrders = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
-        const deliveryIndex = allDeliveryOrders.findIndex(d => d.osId === currentOsId);
-        
-        const currentDeliveryItems = getDeliveryOrderItemsRef.current();
-        const finalDeliveryOrder: PedidoEntrega = { osId: currentOsId, items: currentDeliveryItems };
-
-        if (deliveryIndex > -1) {
-            allDeliveryOrders[deliveryIndex] = finalDeliveryOrder;
-        } else {
-            allDeliveryOrders.push(finalDeliveryOrder);
-        }
-        localStorage.setItem('pedidosEntrega', JSON.stringify(allDeliveryOrders));
-    }
-    
     setTimeout(() => {
       toast({
         description: message,
@@ -395,7 +345,7 @@ function PageContent() {
       setIsLoading(false);
       form.reset(form.getValues()); // Mark form as not dirty
       if (isSubmittingFromDialog) {
-        router.push(data.vertical === 'Entregas' ? '/entregas' : '/pes');
+        router.push('/pes');
       } else if (currentOsId && !osId) { 
         router.push(`/os?id=${currentOsId}`);
       } else {
@@ -411,7 +361,6 @@ function PageContent() {
   
   const handleDelete = () => {
     if (!osId) return;
-    const currentVertical = form.getValues('vertical');
     
     // Delete OS
     let allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
@@ -431,17 +380,14 @@ function PageContent() {
     });
 
     toast({ title: 'Orden de Servicio eliminada', description: 'Se han eliminado todos los datos asociados.' });
-    router.push(currentVertical === 'Entregas' ? '/entregas' : '/pes');
+    router.push('/pes');
   };
 
   const statusValue = watch("status");
-  const vertical = watch("vertical");
 
   if (!isMounted) {
     return <LoadingSkeleton title={osId ? 'Editando Orden de Servicio...' : 'Creando Orden de Servicio...'} />;
   }
-
-  const isCatering = vertical === 'Grandes Eventos' || vertical === 'Recurrente' || vertical === 'Grandes Cuentas' || vertical === 'Premium';
 
   return (
     <>
@@ -459,8 +405,7 @@ function PageContent() {
           </div>
         </div>
 
-        <div className={cn("grid gap-4", isCatering && "lg:grid-cols-[120px_1fr]")}>
-          {isCatering && (
+        <div className="grid gap-4 lg:grid-cols-[120px_1fr]">
             <aside className="lg:sticky top-24 self-start flex flex-col">
                 <h2 className="text-base font-semibold mb-2 px-1">Módulos</h2>
                 <nav className="space-y-0.5">
@@ -555,7 +500,6 @@ function PageContent() {
                 <Separator />
                 </nav>
             </aside>
-          )}
           
           <main>
             <FormProvider {...form}>
@@ -632,18 +576,6 @@ function PageContent() {
                                 <FormMessage />
                                 </FormItem>
                             )} />
-                            <FormField control={form.control} name="vertical" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Vertical</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                    {VERTICALES.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage/>
-                                </FormItem>
-                            )} />
                          <FormField control={form.control} name="status" render={({ field }) => (
                             <FormItem>
                             <FormLabel>Estado</FormLabel>
@@ -658,8 +590,7 @@ function PageContent() {
                             </FormItem>
                         )} />
                     </div>
-
-                    {vertical !== 'Entregas' ? (
+                    
                        <Accordion type="multiple" defaultValue={accordionDefaultValue} className="w-full space-y-3 pt-3">
                           <AccordionItem value="cliente" className="border-none">
                           <Card>
@@ -918,40 +849,6 @@ function PageContent() {
                             </Card>
                           </AccordionItem>
                         </Accordion>
-                    ) : (
-                        // --- FORMULARIO PARA ENTREGAS ---
-                        <div className="grid lg:grid-cols-[1fr_400px] lg:gap-8 pt-6">
-                            <UnifiedItemCatalog
-                                items={catalogForEntregas}
-                                onAddItem={(item, quantity) => {
-                                    setDeliveryItems(currentItems => {
-                                        const existing = currentItems.find(i => i.id === item.id);
-                                        let newItems: PedidoEntregaItem[];
-                                        if (existing) {
-                                            newItems = currentItems.map(i => i.id === item.id ? { ...i, quantity: i.quantity + quantity } : i);
-                                        } else {
-                                            const newItem: PedidoEntregaItem = {
-                                                id: item.id,
-                                                nombre: item.nombre,
-                                                quantity: quantity,
-                                                coste: item.componentes.reduce((sum, comp) => sum + (comp.coste * comp.cantidad), 0),
-                                                pvp: item.pvp,
-                                                categoria: item.categoria,
-                                            };
-                                            newItems = [...currentItems, newItem];
-                                        }
-                                        return newItems;
-                                    });
-                                }}
-                            />
-                            <div className="mt-8 lg:mt-0">
-                                <DeliveryOrderSummary
-                                    items={deliveryItems}
-                                    onUpdateItems={setDeliveryItems}
-                                />
-                            </div>
-                        </div>
-                    )}
                     
                     <div className="space-y-4 pt-4 border-t">
                       <FormField control={form.control} name="comments" render={({ field }) => (
@@ -979,7 +876,7 @@ function PageContent() {
           <AlertDialogFooter className="sm:justify-between">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <div className="flex flex-col-reverse sm:flex-row gap-2">
-                <Button variant="destructive" className="bg-orange-500 hover:bg-orange-600" onClick={() => router.push(vertical === 'Entregas' ? '/entregas' : '/pes')}>Descartar</Button>
+                <Button variant="destructive" className="bg-orange-500 hover:bg-orange-600" onClick={() => router.push('/pes')}>Descartar</Button>
                 <Button onClick={handleSaveFromDialog} disabled={isLoading}>
                 {isLoading && isSubmittingFromDialog ? <Loader2 className="animate-spin" /> : 'Guardar y Salir'}
                 </Button>
@@ -1006,28 +903,13 @@ function PageContent() {
 }
 
 export default function OsPage() {
-    const searchParams = useSearchParams();
-    const verticalParam = searchParams.get('vertical') as Vertical | null;
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
-    // We need to get the vertical from the form itself if editing
-    const form = useForm<OsFormValues>();
-    const vertical = form.watch('vertical');
-    
-    // Determine the theme based on the URL param for new OS, or the form value for existing ones.
-    const isEntrega = isClient && (verticalParam === 'Entregas' || vertical === 'Entregas');
-
     return (
-        <div className={cn(isEntrega && 'theme-orange')}>
+        <>
             <Header />
             <div className="container mx-auto px-4 py-8">
               <PageContent />
             </div>
-        </div>
+        </>
     );
 }
 
