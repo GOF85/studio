@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Save, X, Package, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, Save, X, Package, PlusCircle, Trash2, TrendingUp } from 'lucide-react';
 import type { ProductoVenta, IngredienteERP, ComponenteProductoVenta } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -200,42 +200,41 @@ export default function ProductoVentaFormPage() {
                 </div>
             </div>
             
-            <div className="grid lg:grid-cols-2 gap-4 items-start">
+            <div className="grid lg:grid-cols-[1fr_500px] gap-6 items-start">
               <div className="space-y-4">
                 <Card>
-                    <CardHeader><CardTitle className="text-lg">Información General</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardHeader className="py-4"><CardTitle className="text-lg">Información General</CardTitle></CardHeader>
+                    <CardContent className="space-y-3">
                         <FormField control={form.control} name="nombre" render={({ field }) => (
-                            <FormItem><FormLabel>Nombre del Producto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4"><FormLabel className="text-right">Nombre</FormLabel><FormControl><Input {...field} className="h-8"/></FormControl><FormMessage className="col-span-2 -mt-2 ml-[116px]"/></FormItem>
                         )} />
-                        <div className="grid grid-cols-3 gap-4">
-                          <FormField control={form.control} name="categoria" render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Categoría</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                          )} />
-                          <FormField control={form.control} name="pvp" render={({ field }) => (
-                              <FormItem><FormLabel>PVP (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                           <FormField control={form.control} name="iva" render={({ field }) => (
-                              <FormItem><FormLabel>IVA (%)</FormLabel><FormControl><Input type="number" step="1" {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                        </div>
+                        <FormField control={form.control} name="categoria" render={({ field }) => (
+                            <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4">
+                              <FormLabel className="text-right">Categoría</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl><SelectTrigger className="h-8"><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
+                                  <SelectContent>
+                                      {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                  </SelectContent>
+                              </Select>
+                              <FormMessage className="col-span-2 -mt-2 ml-[116px]"/>
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="pvp" render={({ field }) => (
+                            <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4"><FormLabel className="text-right">PVP (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-8"/></FormControl><FormMessage className="col-span-2 -mt-2 ml-[116px]"/></FormItem>
+                        )} />
+                         <FormField control={form.control} name="iva" render={({ field }) => (
+                            <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4"><FormLabel className="text-right">IVA (%)</FormLabel><FormControl><Input type="number" step="1" {...field} className="h-8"/></FormControl><FormMessage className="col-span-2 -mt-2 ml-[116px]"/></FormItem>
+                        )} />
                     </CardContent>
                 </Card>
+
                 <Accordion type="single" collapsible>
                   <AccordionItem value="item-1" className="border rounded-lg">
-                    <Card>
+                    <Card className="shadow-none">
                       <AccordionTrigger className="p-4 w-full">
                         <div className="flex justify-between items-center w-full">
-                           <h3 className="text-lg font-semibold">Análisis de Rentabilidad</h3>
+                           <h3 className="text-lg font-semibold flex items-center gap-2"><TrendingUp/>Análisis de Rentabilidad</h3>
                            <div className="font-bold text-green-600">
                                <span>{formatCurrency(margenBruto)}</span>
                                <span className="mx-2">-</span>
@@ -260,7 +259,7 @@ export default function ProductoVentaFormPage() {
                           </div>
                           <div className="flex justify-between font-bold">
                             <span>Margen Porcentual:</span>
-                            <span className={cn(margenPct < 30 ? "text-destructive" : "text-green-600")}>{margenPct.toFixed(2)}%</span>
+                            <span className={cn(margenPct < 30 && "text-destructive", "text-green-600")}>{margenPct.toFixed(2)}%</span>
                           </div>
                         </CardContent>
                       </AccordionContent>
@@ -270,31 +269,31 @@ export default function ProductoVentaFormPage() {
               </div>
 
               <Card>
-                <CardHeader className="flex-row items-center justify-between py-3">
-                    <div className="space-y-1"><CardTitle className="text-lg">Componentes del Producto</CardTitle>
-                    <CardDescription className="text-xs">Artículos de Materia Prima (ERP) que componen este producto.</CardDescription></div>
+                <CardHeader className="py-3 flex-row items-center justify-between">
+                    <div className="space-y-1"><CardTitle className="text-lg">Componentes</CardTitle>
+                    <CardDescription className="text-xs">Artículos de ERP que componen este producto.</CardDescription></div>
                     <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                         <DialogTrigger asChild>
-                             <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir</Button>
+                             <Button variant="outline" type="button" size="sm"><PlusCircle className="mr-2"/>Añadir</Button>
                         </DialogTrigger>
                         <ErpSelectorDialog onSelect={handleSelectComponente} />
                     </Dialog>
                 </CardHeader>
                 <CardContent>
-                     <div className="border rounded-lg">
+                     <div className="border rounded-lg max-h-80 overflow-y-auto">
                         <Table>
-                            <TableHeader><TableRow><TableHead>Componente</TableHead><TableHead className="w-32">Cantidad</TableHead><TableHead className="w-12"></TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead className="py-2">Componente</TableHead><TableHead className="w-32 py-2">Cantidad</TableHead><TableHead className="w-12 py-2"></TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {fields.length === 0 && <TableRow><TableCell colSpan={3} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
                                 {fields.map((field, index) => (
                                     <TableRow key={field.id}>
-                                        <TableCell className="font-medium">{field.nombre}</TableCell>
-                                        <TableCell>
+                                        <TableCell className="font-medium py-1">{field.nombre}</TableCell>
+                                        <TableCell className="py-1">
                                             <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
                                                 <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
                                             )} />
                                         </TableCell>
-                                        <TableCell><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
+                                        <TableCell className="py-1"><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -310,4 +309,3 @@ export default function ProductoVentaFormPage() {
     </>
   );
 }
-
