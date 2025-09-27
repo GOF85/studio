@@ -31,11 +31,14 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function ProductosVentaPage() {
   const [items, setItems] = useState<ProductoVenta[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [partnerFilter, setPartnerFilter] = useState('all'); // 'all', 'partner', 'mice'
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   const router = useRouter();
@@ -47,12 +50,27 @@ export default function ProductosVentaPage() {
     setIsMounted(true);
   }, []);
 
+  const categories = useMemo(() => {
+    const allCategories = new Set(items.map(item => item.categoria));
+    return ['all', ...Array.from(allCategories)];
+  }, [items]);
+
   const filteredItems = useMemo(() => {
-    return items.filter(item => 
-      item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.categoria.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [items, searchTerm]);
+    return items.filter(item => {
+      const searchMatch =
+        item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.categoria.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const categoryMatch = categoryFilter === 'all' || item.categoria === categoryFilter;
+
+      const partnerMatch = 
+        partnerFilter === 'all' ||
+        (partnerFilter === 'partner' && item.producidoPorPartner) ||
+        (partnerFilter === 'mice' && !item.producidoPorPartner);
+
+      return searchMatch && categoryMatch && partnerMatch;
+    });
+  }, [items, searchTerm, categoryFilter, partnerFilter]);
 
   const handleDelete = () => {
     if (!itemToDelete) return;
@@ -96,17 +114,37 @@ export default function ProductosVentaPage() {
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
             placeholder="Buscar por nombre o categoría..."
-            className="flex-grow max-w-lg"
+            className="flex-grow max-w-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-full md:w-[200px]">
+              <SelectValue placeholder="Filtrar por categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map(cat => (
+                <SelectItem key={cat} value={cat}>{cat === 'all' ? 'Todas las categorías' : cat}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={partnerFilter} onValueChange={setPartnerFilter}>
+            <SelectTrigger className="w-full md:w-[220px]">
+              <SelectValue placeholder="Filtrar por productor" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los productores</SelectItem>
+              <SelectItem value="partner">Producido por Partner</SelectItem>
+              <SelectItem value="mice">Producido por MICE</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nombre del Producto</TableHead>
+                <TableHead className="w-[40%]">Nombre del Producto</TableHead>
                 <TableHead>Categoría</TableHead>
                 <TableHead>Coste</TableHead>
                 <TableHead>PVP</TableHead>
