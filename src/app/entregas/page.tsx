@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, Calendar, Settings, Package, Percent, BookOpen, ChevronRight, BarChart3, Truck, LifeBuoy } from 'lucide-react';
+import { ClipboardList, Calendar, Settings, Package, Percent, BookOpen, ChevronRight, BarChart3, Truck, LifeBuoy, Factory } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export default function EntregasDashboardPage() {
@@ -75,13 +75,13 @@ export default function EntregasDashboardPage() {
                         </CardContent>
                     </Card>
                 </Link>
-                <Link href="/portal/transporte">
-                    <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
+                <Link href="#">
+                    <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all opacity-50 cursor-not-allowed">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-3"><Truck />Portal de Transporte</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-sm text-muted-foreground">Consulta rutas de entrega y gestiona albaranes.</p>
+                            <p className="text-sm text-muted-foreground">Consulta tus rutas de entrega y gestiona albaranes.</p>
                         </CardContent>
                     </Card>
                 </Link>
