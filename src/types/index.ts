@@ -35,14 +35,14 @@ export type MaterialOrder = {
 };
 
 // We need to allow string dates because they come from localStorage
-export type ServiceOrder = Omit<z.infer<typeof osFormSchema>, 'vertical'> & {
+export type ServiceOrder = Omit<z.infer<typeof osFormSchema>, 'startDate' | 'endDate'> & {
     id: string;
     startDate: string; 
     endDate: string;
     vertical: 'Catering';
 };
 
-export type Entrega = Omit<z.infer<typeof osFormSchema>, 'startDate' | 'endDate' | 'vertical'> & {
+export type Entrega = Omit<z.infer<typeof osFormSchema>, 'startDate' | 'endDate'> & {
   id: string;
   startDate: string;
   endDate: string;
@@ -600,6 +600,7 @@ export type PedidoEntrega = {
     items: PedidoEntregaItem[];
 }
 
+export type PedidoPartnerStatus = 'Pendiente' | 'En Producción' | 'Listo para Entrega';
 export type PedidoPartner = {
     id: string; // Composite key
     osId: string;
@@ -611,8 +612,8 @@ export type PedidoPartner = {
     elaboracionNombre: string;
     cantidad: number;
     unidad: UnidadMedida | 'UNIDAD';
-    status: 'Pendiente' | 'En Producción' | 'Listo para Entrega en CPR';
+    status: PedidoPartnerStatus;
+    comentarios?: string;
 };
 
 export const VERTICALES = ['Catering', 'Entregas'] as const;
-
