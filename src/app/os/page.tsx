@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo, useRef } from 'react';
@@ -102,6 +101,7 @@ export const osFormSchema = z.object({
   comments: z.string().optional().default(''),
   status: z.enum(['Borrador', 'Pendiente', 'Confirmado']).default('Borrador'),
   deliveryLocations: z.array(z.string()).optional().default([]),
+  objetivoGastoId: z.string().optional(),
 });
 
 export type OsFormValues = z.infer<typeof osFormSchema>;
@@ -910,4 +910,3 @@ export default function OsPage() {
         </>
     );
 }
-

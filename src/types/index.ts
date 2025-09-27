@@ -1,5 +1,6 @@
 
 
+
 import type { z } from "zod";
 import type { osFormSchema } from "@/app/os/page";
 
@@ -39,13 +40,12 @@ export type ServiceOrder = z.infer<typeof osFormSchema> & {
     id: string;
     startDate: string; 
     endDate: string;
-    deliveryLocations?: string[];
-    objetivoGastoId?: string;
 };
 
-export type Entrega = Omit<ServiceOrder, 'tipoCliente' | 'endDate' | 'space' | 'spaceContact' | 'spacePhone' | 'spaceMail' | 'respMetre' | 'respMetrePhone' | 'respMetreMail' | 'respCocinaCPR' | 'respCocinaCPRPhone' | 'respCocinaCPRMail' | 'respPase' | 'respPasePhone' | 'respPaseMail' | 'respCocinaPase' | 'respCocinaPasePhone' | 'respCocinaPaseMail' | 'comercialAsiste' | 'comercial' | 'comercialPhone' | 'comercialMail' | 'rrhhAsiste' | 'respRRHH' | 'respRRHHPhone' | 'respRRHHMail' | 'plane' | 'comments' | 'status'> & {
+export type Entrega = Omit<ServiceOrder, 'tipoCliente' | 'endDate' | 'space' | 'spaceContact' | 'spacePhone' | 'spaceMail' | 'respMetre' | 'respMetrePhone' | 'respMetreMail' | 'respCocinaCPR' | 'respCocinaCPRPhone' | 'respCocinaCPRMail' | 'respPase' | 'respPasePhone' | 'respPaseMail' | 'respCocinaPase' | 'respCocinaPasePhone' | 'respCocinaPaseMail' | 'comercialAsiste' | 'comercial' | 'comercialPhone' | 'comercialMail' | 'rrhhAsiste' | 'respRRHH' | 'respRRHHPhone' | 'respRRHHMail' | 'plane' | 'comments' | 'status' | 'agencyPercentage' | 'spacePercentage' | 'facturacion' | 'deliveryLocations' | 'objetivoGastoId'> & {
   status: 'Borrador' | 'Confirmado' | 'Enviado' | 'Entregado';
   deliveryTime: string;
+  vertical: 'Entregas';
 };
 
 export type Personal = {
@@ -564,7 +564,6 @@ export type ExcedenteProduccion = {
 }
 
 // --- ENTREGAS ---
-
 export type ComponenteProductoVenta = {
     erpId: string; // IngredienteERP.id
     nombre: string;

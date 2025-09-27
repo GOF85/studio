@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -75,4 +74,3 @@ export function UnifiedItemCatalog({ items, onAddItem }: UnifiedItemCatalogProps
     </section>
   );
 }
-

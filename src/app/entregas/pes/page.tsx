@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -124,12 +125,12 @@ export default function PrevisionEntregasPage() {
               ))}
               </SelectContent>
           </Select>
-          <div className="flex items-center space-x-2 pt-2 sm:pt-0">
-              <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
-              <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Mostrar pasados
-              </label>
-          </div>
+           <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+                <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
+                <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Mostrar pasados
+                </label>
+            </div>
       </div>
 
        <div className="border rounded-lg">
