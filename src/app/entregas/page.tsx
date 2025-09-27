@@ -1,8 +1,7 @@
-
 'use client';
 
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ClipboardList, Calendar, Settings, Package, Percent, BookOpen, ChevronRight } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -50,7 +49,7 @@ export default function EntregasDashboardPage() {
                         <Settings className="w-8 h-8 text-primary flex-shrink-0 mt-1" />
                         <div>
                             <Tooltip>
-                                <TooltipTrigger asChild><CardTitle>Configuración</TooltipTrigger></TooltipTrigger>
+                                <TooltipTrigger asChild><CardTitle>Configuración</CardTitle></TooltipTrigger>
                                 <TooltipContent><p>Bases de datos y manuales específicos para la vertical de Entregas.</p></TooltipContent>
                             </Tooltip>
                         </div>
