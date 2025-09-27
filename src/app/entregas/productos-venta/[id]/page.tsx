@@ -19,6 +19,7 @@ import { formatCurrency, formatUnit } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GASTO_LABELS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 const componenteSchema = z.object({
     erpId: z.string(),
