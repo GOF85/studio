@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Factory, Calendar as CalendarIcon, ChevronDown, Utensils } from 'lucide-react';
+import { Factory, Calendar as CalendarIcon, Utensils } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatUnit } from '@/lib/utils';
-import type { PedidoPartner, ServiceOrder, PedidoEntrega, Receta, Elaboracion } from '@/types';
+import type { PedidoPartner, ServiceOrder, PedidoEntrega, Receta, Elaboracion, ProductoVenta } from '@/types';
 
 
 export default function PartnerPortalPage() {
@@ -18,43 +18,34 @@ export default function PartnerPortalPage() {
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical === 'Entregas');
         const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
-        const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-        const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+        const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
         
         const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
-        const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
-        const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
+        const productosMap = new Map(allProductosVenta.map(p => [p.id, p]));
 
         const partnerPedidos: PedidoPartner[] = [];
 
         allPedidosEntrega.forEach(pedido => {
             const os = osMap.get(pedido.osId);
-            if (!os || os.vertical !== 'Entregas') return;
+            if (!os) return;
             
             pedido.items.forEach(item => {
-                if (item.type === 'receta') {
-                    const receta = recetasMap.get(item.id);
-                    receta?.elaboraciones.forEach(elabEnReceta => {
-                        const elaboracion = elabMap.get(elabEnReceta.elaboracionId);
-                        // TODO: Implementar el campo 'producidoPor' en la elaboración/receta.
-                        // Por ahora, para la demo, simularemos que todas las de "Entregas" son del partner.
-                        if (elaboracion) {
-                             partnerPedidos.push({
-                                id: `${pedido.osId}-${item.id}-${elabEnReceta.id}`,
-                                osId: pedido.osId,
-                                serviceNumber: os.serviceNumber,
-                                cliente: os.client,
-                                fechaEntrega: os.startDate,
-                                horaEntrega: os.deliveryTime || '12:00',
-                                elaboracionId: elaboracion.id,
-                                elaboracionNombre: elaboracion.nombre,
-                                cantidad: item.quantity * elabEnReceta.cantidad,
-                                unidad: elaboracion.unidadProduccion,
-                                status: 'Pendiente',
-                            });
-                        }
+                const producto = productosMap.get(item.id);
+                if (producto && producto.producidoPorPartner) {
+                     partnerPedidos.push({
+                        id: `${pedido.osId}-${item.id}`,
+                        osId: pedido.osId,
+                        serviceNumber: os.serviceNumber,
+                        cliente: os.client,
+                        fechaEntrega: os.startDate,
+                        horaEntrega: os.deliveryTime || '12:00',
+                        elaboracionId: producto.id,
+                        elaboracionNombre: producto.nombre,
+                        cantidad: item.quantity,
+                        unidad: 'UNIDAD', // Los productos de venta se cuentan por unidades
+                        status: 'Pendiente',
                     });
                 }
             });

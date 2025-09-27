@@ -35,18 +35,20 @@ export type MaterialOrder = {
 };
 
 // We need to allow string dates because they come from localStorage
-export type ServiceOrder = z.infer<typeof osFormSchema> & {
+export type ServiceOrder = Omit<z.infer<typeof osFormSchema>, 'vertical'> & {
     id: string;
     startDate: string; 
     endDate: string;
+    vertical: 'Catering';
 };
 
-export type Entrega = Omit<z.infer<typeof osFormSchema>, 'startDate' | 'endDate'> & {
+export type Entrega = Omit<z.infer<typeof osFormSchema>, 'startDate' | 'endDate' | 'vertical'> & {
   id: string;
   startDate: string;
   endDate: string;
   status: 'Borrador' | 'Confirmado' | 'Enviado' | 'Entregado';
   deliveryTime: string;
+  vertical: 'Entregas';
 };
 
 export type Personal = {
@@ -584,6 +586,7 @@ export type ProductoVenta = {
 
 export type PedidoEntregaItem = {
     id: string; // ProductoVenta.id
+    type: 'receta' | 'pack' | 'item'; // To differentiate in the order
     nombre: string;
     quantity: number;
     coste: number;
@@ -606,9 +609,8 @@ export type PedidoPartner = {
     elaboracionId: string;
     elaboracionNombre: string;
     cantidad: number;
-    unidad: UnidadMedida;
+    unidad: UnidadMedida | 'UNIDAD';
     status: 'Pendiente' | 'En Producción' | 'Listo para Entrega en CPR';
 };
 
 export const VERTICALES = ['Catering', 'Entregas'] as const;
-
