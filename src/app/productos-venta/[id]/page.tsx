@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { formatCurrency, formatUnit } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { labels as GASTO_LABELS } from '@/app/cta-explotacion/page';
+import { GASTO_LABELS } from '@/lib/constants';
 
 const componenteSchema = z.object({
     erpId: z.string(),

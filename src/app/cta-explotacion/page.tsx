@@ -16,6 +16,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { ServiceOrder, ComercialBriefing, GastronomyOrder, MaterialOrder, TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExternoOrder, PruebaMenuData, CtaExplotacionObjetivos, PersonalExternoAjuste, ObjetivosGasto } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
+import { GASTO_LABELS } from '@/lib/constants';
 
 type CostRow = {
   label: string;
@@ -49,21 +50,6 @@ const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: strin
         return sum + (hours * price * quantity);
     }, 0);
 };
-
-const labels: Record<keyof Omit<ObjetivosGasto, 'id' | 'name'>, string> = {
-    gastronomia: 'Gastronomía',
-    bodega: 'Bodega',
-    consumibles: 'Consumibles (Bio)',
-    hielo: 'Hielo',
-    almacen: 'Almacén',
-    alquiler: 'Alquiler material',
-    transporte: 'Transporte',
-    decoracion: 'Decoración',
-    atipicos: 'Atípicos',
-    personalMice: 'Personal MICE',
-    personalExterno: 'Personal Externo',
-    costePruebaMenu: 'Coste Prueba de Menu',
-}
 
 export default function CtaExplotacionPage() {
   const router = useRouter();
@@ -152,18 +138,18 @@ export default function CtaExplotacionPage() {
     const costePruebaTotal = pruebaMenu?.costePruebaMenu || 0;
 
     const newCostes = [
-      { label: 'Gastronomía', presupuesto: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)), cierre: 0 },
-      { label: 'Bodega', presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Bodega')), cierre: 0 },
-      { label: 'Consumibles (Bio)', presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Bio')), cierre: 0 },
-      { label: 'Hielo', presupuesto: getModuleTotal(allHieloOrders.filter(o => o.osId === osId)), cierre: 0 },
-      { label: 'Almacén', presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Almacén')), cierre: 0 },
-      { label: 'Alquiler material', presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Alquiler')), cierre: 0 },
-      { label: 'Transporte', presupuesto: getModuleTotal(allTransporteOrders.filter(o => o.osId === osId)), cierre: 0 },
-      { label: 'Decoración', presupuesto: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)), cierre: 0 },
-      { label: 'Atípicos', presupuesto: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)), cierre: 0 },
-      { label: 'Personal MICE', presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: personalMiceRealCost },
-      { label: 'Personal Externo', presupuesto: calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)), cierre: personalExternoCierre },
-      { label: 'Coste Prueba de Menu', presupuesto: costePruebaTotal, cierre: costePruebaTotal },
+      { label: GASTO_LABELS.gastronomia, presupuesto: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)), cierre: 0 },
+      { label: GASTO_LABELS.bodega, presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Bodega')), cierre: 0 },
+      { label: GASTO_LABELS.consumibles, presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Bio')), cierre: 0 },
+      { label: GASTO_LABELS.hielo, presupuesto: getModuleTotal(allHieloOrders.filter(o => o.osId === osId)), cierre: 0 },
+      { label: GASTO_LABELS.almacen, presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Almacén')), cierre: 0 },
+      { label: GASTO_LABELS.alquiler, presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Alquiler')), cierre: 0 },
+      { label: GASTO_LABELS.transporte, presupuesto: getModuleTotal(allTransporteOrders.filter(o => o.osId === osId)), cierre: 0 },
+      { label: GASTO_LABELS.decoracion, presupuesto: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)), cierre: 0 },
+      { label: GASTO_LABELS.atipicos, presupuesto: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)), cierre: 0 },
+      { label: GASTO_LABELS.personalMice, presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: personalMiceRealCost },
+      { label: GASTO_LABELS.personalExterno, presupuesto: calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)), cierre: personalExternoCierre },
+      { label: GASTO_LABELS.costePruebaMenu, presupuesto: costePruebaTotal, cierre: costePruebaTotal },
     ];
     
     const initialCierres = Object.fromEntries(newCostes.map(c => [c.label, c.cierre]));
@@ -213,7 +199,7 @@ export default function CtaExplotacionPage() {
     if (!ctaData) return;
     const updatedCostes = ctaData.costes.map(c => ({
         ...c,
-        cierre: cierreInputs[row.label] ?? c.cierre
+        cierre: cierreInputs[c.label] ?? c.cierre
     }));
 
     setCtaData(prev => prev ? {...prev, costes: updatedCostes} : null);
@@ -224,10 +210,10 @@ export default function CtaExplotacionPage() {
     if (!ctaData) return [];
     return ctaData.costes.map(coste => {
         const keyMap: {[key: string]: keyof Omit<ObjetivosGasto, 'id' | 'name'>} = {
-            'Gastronomía': 'gastronomia', 'Bodega': 'bodega', 'Consumibles (Bio)': 'consumibles', 'Hielo': 'hielo',
-            'Almacén': 'almacen', 'Alquiler material': 'alquiler', 'Transporte': 'transporte', 'Decoración': 'decoracion',
-            'Atípicos': 'atipicos', 'Personal MICE': 'personalMice', 'Personal Externo': 'personalExterno',
-            'Coste Prueba de Menu': 'costePruebaMenu'
+            [GASTO_LABELS.gastronomia]: 'gastronomia', [GASTO_LABELS.bodega]: 'bodega', [GASTO_LABELS.consumibles]: 'consumibles', [GASTO_LABELS.hielo]: 'hielo',
+            [GASTO_LABELS.almacen]: 'almacen', [GASTO_LABELS.alquiler]: 'alquiler', [GASTO_LABELS.transporte]: 'transporte', [GASTO_LABELS.decoracion]: 'decoracion',
+            [GASTO_LABELS.atipicos]: 'atipicos', [GASTO_LABELS.personalMice]: 'personalMice', [GASTO_LABELS.personalExterno]: 'personalExterno',
+            [GASTO_LABELS.costePruebaMenu]: 'costePruebaMenu'
         }
         const objKey = keyMap[coste.label];
         const objetivo_pct = (objKey && ctaData.objetivos?.[objKey] / 100) || 0;
@@ -407,13 +393,13 @@ export default function CtaExplotacionPage() {
                     </SelectContent>
                 </Select>
                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground p-3 border rounded-md">
-                    {Object.keys(labels).map((key) => {
-                        const objKey = key as keyof typeof labels;
+                    {Object.keys(GASTO_LABELS).map((key) => {
+                        const objKey = key as keyof typeof GASTO_LABELS;
                         const value = (objetivos as any)[objKey];
                         if (value === undefined || value === null) return null;
                         return (
                             <div key={key} className="flex justify-between">
-                                <span className="font-medium">{labels[objKey]}:</span>
+                                <span className="font-medium">{GASTO_LABELS[objKey]}:</span>
                                 <span>{(value || 0).toFixed(2)}%</span>
                             </div>
                         )
