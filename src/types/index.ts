@@ -1,6 +1,5 @@
 
 
-
 import type { z } from "zod";
 import type { osFormSchema } from "@/app/os/page";
 
@@ -42,10 +41,12 @@ export type ServiceOrder = z.infer<typeof osFormSchema> & {
     endDate: string;
 };
 
-export type Entrega = Omit<ServiceOrder, 'tipoCliente' | 'endDate' | 'space' | 'spaceContact' | 'spacePhone' | 'spaceMail' | 'respMetre' | 'respMetrePhone' | 'respMetreMail' | 'respCocinaCPR' | 'respCocinaCPRPhone' | 'respCocinaCPRMail' | 'respPase' | 'respPasePhone' | 'respPaseMail' | 'respCocinaPase' | 'respCocinaPasePhone' | 'respCocinaPaseMail' | 'comercialAsiste' | 'comercial' | 'comercialPhone' | 'comercialMail' | 'rrhhAsiste' | 'respRRHH' | 'respRRHHPhone' | 'respRRHHMail' | 'plane' | 'comments' | 'status' | 'agencyPercentage' | 'spacePercentage' | 'facturacion' | 'deliveryLocations' | 'objetivoGastoId'> & {
+export type Entrega = Omit<z.infer<typeof osFormSchema>, 'startDate' | 'endDate'> & {
+  id: string;
+  startDate: string;
+  endDate: string;
   status: 'Borrador' | 'Confirmado' | 'Enviado' | 'Entregado';
   deliveryTime: string;
-  vertical: 'Entregas';
 };
 
 export type Personal = {
@@ -577,6 +578,7 @@ export type ProductoVenta = {
     categoria: string;
     pvp: number;
     iva: number;
+    producidoPorPartner: boolean;
     componentes: ComponenteProductoVenta[];
 };
 
@@ -609,3 +611,4 @@ export type PedidoPartner = {
 };
 
 export const VERTICALES = ['Catering', 'Entregas'] as const;
+

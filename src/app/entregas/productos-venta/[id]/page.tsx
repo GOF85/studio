@@ -22,6 +22,8 @@ import { GASTO_LABELS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Checkbox } from '@/components/ui/checkbox';
+
 
 const componenteSchema = z.object({
     erpId: z.string(),
@@ -36,6 +38,7 @@ const productoVentaSchema = z.object({
   categoria: z.string().min(1, 'La categoría es obligatoria'),
   pvp: z.coerce.number().min(0, 'El PVP debe ser positivo'),
   iva: z.coerce.number().min(0).max(100),
+  producidoPorPartner: z.boolean().optional().default(false),
   componentes: z.array(componenteSchema).min(1, 'Debe tener al menos un componente'),
 });
 
@@ -46,6 +49,7 @@ const defaultValues: Partial<ProductoVentaFormValues> = {
     categoria: '',
     pvp: 0,
     iva: 21,
+    producidoPorPartner: false,
     componentes: []
 };
 
@@ -204,28 +208,38 @@ export default function ProductoVentaFormPage() {
               <div className="space-y-4">
                 <Card>
                     <CardHeader className="py-4"><CardTitle className="text-lg">Información General</CardTitle></CardHeader>
-                    <CardContent className="space-y-3">
-                        <div className="grid md:grid-cols-2 gap-x-6 gap-y-3">
-                            <FormField control={form.control} name="nombre" render={({ field }) => (
-                                <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4"><FormLabel className="text-right">Nombre</FormLabel><FormControl><Input {...field} className="h-8"/></FormControl><FormMessage className="col-span-2 -mt-2 ml-[116px]"/></FormItem>
-                            )} />
-                            <FormField control={form.control} name="categoria" render={({ field }) => (
-                                <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4">
-                                <FormLabel className="text-right">Categoría</FormLabel>
+                    <CardContent className="space-y-4">
+                         <FormField control={form.control} name="nombre" render={({ field }) => (
+                            <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <div className="grid md:grid-cols-4 gap-4 items-center">
+                             <FormField control={form.control} name="categoria" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Categoría</FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger className="h-8"><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
                                     <SelectContent>
                                         {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
-                                <FormMessage className="col-span-2 -mt-2 ml-[116px]"/>
+                                <FormMessage/>
                                 </FormItem>
                             )} />
                             <FormField control={form.control} name="pvp" render={({ field }) => (
-                                <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4"><FormLabel className="text-right">PVP (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} className="h-8"/></FormControl><FormMessage className="col-span-2 -mt-2 ml-[116px]"/></FormItem>
+                                <FormItem><FormLabel>PVP (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage/></FormItem>
                             )} />
                             <FormField control={form.control} name="iva" render={({ field }) => (
-                                <FormItem className="grid grid-cols-[100px_1fr] items-center gap-4"><FormLabel className="text-right">IVA (%)</FormLabel><FormControl><Input type="number" step="1" {...field} className="h-8"/></FormControl><FormMessage className="col-span-2 -mt-2 ml-[116px]"/></FormItem>
+                                <FormItem><FormLabel>IVA (%)</FormLabel><FormControl><Input type="number" step="1" {...field} /></FormControl><FormMessage/></FormItem>
+                            )} />
+                            <FormField control={form.control} name="producidoPorPartner" render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-full mt-4">
+                                <FormControl>
+                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel>Producido por Partner</FormLabel>
+                                </div>
+                                </FormItem>
                             )} />
                         </div>
                     </CardContent>
@@ -311,3 +325,4 @@ export default function ProductoVentaFormPage() {
     </>
   );
 }
+
