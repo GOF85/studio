@@ -215,9 +215,9 @@ function PageContent() {
   const [endDateOpen, setEndDateOpen] = useState(false);
   
   // State for Entregas
-  const getDeliveryOrderItemsRef = useRef<() => PedidoEntregaItem[]>(() => []);
-  const [initialDeliveryOrder, setInitialDeliveryOrder] = useState<PedidoEntrega | null>(null);
+  const [deliveryItems, setDeliveryItems] = useState<PedidoEntregaItem[]>([]);
   const [catalogForEntregas, setCatalogForEntregas] = useState<ProductoVenta[]>([]);
+
 
   const hasPruebaDeMenu = useMemo(() => {
     return briefingItems.some(item => item.descripcion.toLowerCase() === 'prueba de menu');
@@ -309,7 +309,7 @@ function PageContent() {
         if (currentOS.vertical === 'Entregas') {
             const allDeliveryOrders = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
             const currentDeliveryOrder = allDeliveryOrders.find(d => d.osId === osId);
-            setInitialDeliveryOrder(currentDeliveryOrder || { osId, items: [] });
+            setDeliveryItems(currentDeliveryOrder?.items || []);
         }
         
       } else {
@@ -321,7 +321,7 @@ function PageContent() {
       if (verticalParam) {
         initialValues.vertical = verticalParam;
          if (verticalParam === 'Entregas') {
-            setInitialDeliveryOrder({ osId: '', items: [] }); // Initialize empty delivery order
+            setDeliveryItems([]); // Initialize empty delivery order
         }
       }
       form.reset(initialValues);
@@ -370,7 +370,6 @@ function PageContent() {
     
     // --- Save delivery order items if it's an Entrega ---
     if (data.vertical === 'Entregas' && currentOsId) {
-        const deliveryItems = getDeliveryOrderItemsRef.current();
         let allDeliveryOrders = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
         const deliveryIndex = allDeliveryOrders.findIndex(d => d.osId === currentOsId);
         
@@ -917,43 +916,35 @@ function PageContent() {
                     ) : (
                         // --- FORMULARIO PARA ENTREGAS ---
                         <div className="grid lg:grid-cols-[1fr_400px] lg:gap-8 pt-6">
-                            {initialDeliveryOrder && (
-                                <>
-                                    <UnifiedItemCatalog
-                                        items={catalogForEntregas}
-                                        onAddItem={(item, quantity) => {
-                                            const currentItems = getDeliveryOrderItemsRef.current();
-                                            const existing = currentItems.find(i => i.id === item.id);
-                                            let newItems: PedidoEntregaItem[];
-                                            
-                                            if (existing) {
-                                                newItems = currentItems.map(i => i.id === item.id ? { ...i, quantity: i.quantity + quantity } : i);
-                                            } else {
-                                                const newItem: PedidoEntregaItem = {
-                                                    id: item.id,
-                                                    nombre: item.nombre,
-                                                    quantity: quantity,
-                                                    coste: item.componentes.reduce((sum, comp) => sum + (comp.coste * comp.cantidad), 0),
-                                                    pvp: item.pvp,
-                                                    categoria: item.categoria,
-                                                };
-                                                newItems = [...currentItems, newItem];
-                                            }
-
-                                            getDeliveryOrderItemsRef.current = () => newItems;
-                                            // This is a hack to trigger a re-render of the summary
-                                            setValue('comments', watch('comments') + ' ');
-                                            setValue('comments', watch('comments').trim());
-                                        }}
-                                    />
-                                    <div className="mt-8 lg:mt-0">
-                                        <DeliveryOrderSummary
-                                            initialItems={initialDeliveryOrder.items}
-                                            getItemsRef={getDeliveryOrderItemsRef}
-                                        />
-                                    </div>
-                                </>
-                            )}
+                            <UnifiedItemCatalog
+                                items={catalogForEntregas}
+                                onAddItem={(item, quantity) => {
+                                    const currentItems = deliveryItems;
+                                    const existing = currentItems.find(i => i.id === item.id);
+                                    let newItems: PedidoEntregaItem[];
+                                    
+                                    if (existing) {
+                                        newItems = currentItems.map(i => i.id === item.id ? { ...i, quantity: i.quantity + quantity } : i);
+                                    } else {
+                                        const newItem: PedidoEntregaItem = {
+                                            id: item.id,
+                                            nombre: item.nombre,
+                                            quantity: quantity,
+                                            coste: item.componentes.reduce((sum, comp) => sum + (comp.coste * comp.cantidad), 0),
+                                            pvp: item.pvp,
+                                            categoria: item.categoria,
+                                        };
+                                        newItems = [...currentItems, newItem];
+                                    }
+                                    setDeliveryItems(newItems);
+                                }}
+                            />
+                            <div className="mt-8 lg:mt-0">
+                                <DeliveryOrderSummary
+                                    items={deliveryItems}
+                                    onUpdateItems={setDeliveryItems}
+                                />
+                            </div>
                         </div>
                     )}
                     
@@ -1034,4 +1025,3 @@ export default function OsPage() {
         </div>
     );
 }
-

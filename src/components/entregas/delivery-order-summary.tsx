@@ -15,24 +15,12 @@ import { formatCurrency } from '@/lib/utils';
 import { useFormContext } from 'react-hook-form';
 
 interface DeliveryOrderSummaryProps {
-  initialItems: PedidoEntregaItem[];
-  getItemsRef: React.MutableRefObject<() => PedidoEntregaItem[]>;
+  items: PedidoEntregaItem[];
+  onUpdateItems: (items: PedidoEntregaItem[]) => void;
 }
 
-export function DeliveryOrderSummary({ initialItems, getItemsRef }: DeliveryOrderSummaryProps) {
-  const [items, setItems] = useState<PedidoEntregaItem[]>(initialItems);
+export function DeliveryOrderSummary({ items, onUpdateItems }: DeliveryOrderSummaryProps) {
   const { toast } = useToast();
-  const { watch, setValue } = useFormContext(); // Watch for dummy updates
-
-  // This effect listens to the dummy field change to re-fetch items from the ref
-  const dummyWatch = watch('comments'); 
-  useEffect(() => {
-    setItems(getItemsRef.current());
-  }, [dummyWatch, getItemsRef]);
-
-  useEffect(() => {
-    getItemsRef.current = () => items;
-  }, [items, getItemsRef]);
 
   const onUpdateQuantity = (itemId: string, quantity: number) => {
     let newItems: PedidoEntregaItem[];
@@ -41,17 +29,11 @@ export function DeliveryOrderSummary({ initialItems, getItemsRef }: DeliveryOrde
     } else {
       newItems = items.map(i => i.id === itemId ? { ...i, quantity } : i);
     }
-    setItems(newItems);
-    getItemsRef.current = () => newItems;
-    setValue('comments', watch('comments') + ' '); // Trigger update
-    setValue('comments', watch('comments').trim());
+    onUpdateItems(newItems);
   };
 
   const onClearOrder = () => {
-    setItems([]);
-    getItemsRef.current = () => [];
-    setValue('comments', watch('comments') + ' '); // Trigger update
-    setValue('comments', watch('comments').trim());
+    onUpdateItems([]);
   };
 
   const { costeTotal, pvpTotal } = useMemo(() => {
