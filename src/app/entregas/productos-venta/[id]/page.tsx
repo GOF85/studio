@@ -18,7 +18,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { formatCurrency, formatUnit } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { GASTO_LABELS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -116,7 +115,15 @@ export default function ProductoVentaFormPage() {
   
   const watchedComponentes = form.watch('componentes');
   const watchedPvp = form.watch('pvp');
-  const categorias = useMemo(() => Object.values(GASTO_LABELS), []);
+  
+  const categorias = [
+    'Gastronomía',
+    'Bodega',
+    'Consumibles (Bio)',
+    'Almacén',
+    'Transporte',
+    'Personal Externo'
+  ];
 
   useEffect(() => {
     if (isEditing) {
