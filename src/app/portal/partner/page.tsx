@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 type PedidoPartnerConEstado = PedidoPartner & {
     status: PedidoPartnerStatus;
@@ -157,6 +158,7 @@ export default function PartnerPortalPage() {
     }
 
     return (
+        <TooltipProvider>
          <main className="container mx-auto px-4 py-8">
              <div className="flex items-center gap-4 border-b pb-4 mb-8">
                 <Factory className="w-10 h-10 text-primary" />
@@ -187,7 +189,7 @@ export default function PartnerPortalPage() {
                                                 <TableRow>
                                                     <TableHead>Elaboración</TableHead>
                                                     <TableHead className="text-right">Cantidad</TableHead>
-                                                    <TableHead>Origen (OS - Cliente)</TableHead>
+                                                    <TableHead>Nº Pedido (OS)</TableHead>
                                                     <TableHead>Hora Límite Entrega en CPR</TableHead>
                                                     <TableHead>Estado</TableHead>
                                                     <TableHead className="text-right">Comentarios</TableHead>
@@ -195,33 +197,41 @@ export default function PartnerPortalPage() {
                                             </TableHeader>
                                             <TableBody>
                                                 {dailyPedidos.map(pedido => (
-                                                    <TableRow key={pedido.id} className={cn(statusRowClass[pedido.status])}>
-                                                        <TableCell className="font-semibold">{pedido.elaboracionNombre}</TableCell>
-                                                        <TableCell className="text-right font-mono">{pedido.cantidad.toFixed(2)} {formatUnit(pedido.unidad)}</TableCell>
-                                                        <TableCell>
-                                                            <Badge variant="secondary">{pedido.serviceNumber}</Badge>
-                                                            <span className="text-sm text-muted-foreground ml-2">{pedido.cliente}</span>
-                                                        </TableCell>
-                                                        <TableCell>{pedido.horaEntrega}</TableCell>
-                                                         <TableCell>
-                                                            <Select value={pedido.status} onValueChange={(value: PedidoPartnerStatus) => handleStatusChange(pedido.id, value)}>
-                                                                <SelectTrigger className="w-40 h-8 text-xs">
-                                                                    <SelectValue />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {Object.keys(statusVariant).map(s => (
-                                                                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
-                                                            <div className="flex items-center justify-end">
-                                                                {pedido.comentarios && <MessageSquare className="h-4 w-4 text-muted-foreground mr-2" />}
-                                                                <CommentDialog pedido={pedido} onSave={handleSaveComment} />
-                                                            </div>
-                                                        </TableCell>
-                                                    </TableRow>
+                                                    <Tooltip key={pedido.id}>
+                                                        <TooltipTrigger asChild>
+                                                            <TableRow className={cn("transition-colors", statusRowClass[pedido.status], pedido.comentarios && 'border-l-4 border-l-blue-400 bg-blue-50/50 hover:bg-blue-50/80')}>
+                                                                <TableCell className="font-semibold">{pedido.elaboracionNombre}</TableCell>
+                                                                <TableCell className="text-right font-mono">{pedido.cantidad.toFixed(2)} {formatUnit(pedido.unidad)}</TableCell>
+                                                                <TableCell>
+                                                                    <Badge variant="secondary">{pedido.serviceNumber}</Badge>
+                                                                </TableCell>
+                                                                <TableCell>{pedido.horaEntrega}</TableCell>
+                                                                <TableCell>
+                                                                    <Select value={pedido.status} onValueChange={(value: PedidoPartnerStatus) => handleStatusChange(pedido.id, value)}>
+                                                                        <SelectTrigger className="w-40 h-8 text-xs">
+                                                                            <SelectValue />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {Object.keys(statusVariant).map(s => (
+                                                                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <div className="flex items-center justify-end">
+                                                                        {pedido.comentarios && <MessageSquare className="h-5 w-5 text-blue-600 mr-2" />}
+                                                                        <CommentDialog pedido={pedido} onSave={handleSaveComment} />
+                                                                    </div>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        </TooltipTrigger>
+                                                        {pedido.comentarios && (
+                                                            <TooltipContent>
+                                                                <p className="max-w-xs">{pedido.comentarios}</p>
+                                                            </TooltipContent>
+                                                        )}
+                                                    </Tooltip>
                                                 ))}
                                             </TableBody>
                                         </Table>
@@ -242,5 +252,6 @@ export default function PartnerPortalPage() {
             )}
 
          </main>
+        </TooltipProvider>
     );
 }
