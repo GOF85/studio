@@ -60,7 +60,41 @@ export const entregaFormSchema = z.object({
   contact: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
+  endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
+  space: z.string().optional().default(''),
+  spaceAddress: z.string().optional().default(''),
+  spaceContact: z.string().optional().default(''),
+  spacePhone: z.string().optional().default(''),
+  spaceMail: z.string().email().optional().or(z.literal('')),
+  respMetre: z.string().optional().default(''),
+  respMetrePhone: z.string().optional().default(''),
+  respMetreMail: z.string().email().optional().or(z.literal('')),
+  respCocinaCPR: z.string().optional().default(''),
+  respCocinaCPRPhone: z.string().optional().default(''),
+  respCocinaCPRMail: z.string().email().optional().or(z.literal('')),
+  respPase: z.string().optional().default(''),
+  respPasePhone: z.string().optional().default(''),
+  respPaseMail: z.string().email().optional().or(z.literal('')),
+  respCocinaPase: z.string().optional().default(''),
+  respCocinaPasePhone: z.string().optional().default(''),
+  respCocinaPaseMail: z.string().email().optional().or(z.literal('')),
+  comercialAsiste: z.boolean().optional().default(false),
+  comercial: z.string().optional().default(''),
+  comercialPhone: z.string().optional().default(''),
+  comercialMail: z.string().email().optional().or(z.literal('')),
+  rrhhAsiste: z.boolean().optional().default(false),
+  respRRHH: z.string().optional().default(''),
+  respRRHHPhone: z.string().optional().default(''),
+  respRRHHMail: z.string().email().optional().or(z.literal('')),
+  agencyPercentage: z.coerce.number().optional().default(0),
+  spacePercentage: z.coerce.number().optional().default(0),
+  facturacion: z.coerce.number().optional().default(0),
+  plane: z.string().optional().default(''),
+  comments: z.string().optional().default(''),
   status: z.enum(['Borrador', 'Confirmado', 'Enviado', 'Entregado']).default('Borrador'),
+  deliveryLocations: z.array(z.string()).optional().default([]),
+  objetivoGastoId: z.string().optional(),
+  tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
 });
 
 export type EntregaFormValues = z.infer<typeof entregaFormSchema>;
@@ -73,6 +107,7 @@ const defaultValues: Partial<EntregaFormValues> = {
   phone: '',
   finalClient: '',
   status: 'Borrador',
+  tipoCliente: 'Empresa',
 };
 
 const hitoSchema = z.object({
@@ -154,7 +189,24 @@ const ClientInfo = () => {
     const { control } = useFormContext();
     return (
         <AccordionContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 pt-2">
+                 <FormField control={control} name="client" render={({ field }) => (
+                    <FormItem><FormLabel>Cliente</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={control} name="tipoCliente" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Tipo Cliente</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                        <SelectContent>
+                            <SelectItem value="Empresa">Empresa</SelectItem>
+                            <SelectItem value="Agencia">Agencia</SelectItem>
+                            <SelectItem value="Particular">Particular</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    </FormItem>
+                )} />
+                 <div></div>
                 <FormField control={control} name="finalClient" render={({ field }) => (
                     <FormItem><FormLabel>Cliente Final</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
                 )} />
@@ -365,12 +417,6 @@ export default function EntregaFormPage() {
                             )} />
                             <FormField control={form.control} name="asistentes" render={({ field }) => (
                                 <FormItem><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                        </div>
-                         <Separator />
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <FormField control={form.control} name="client" render={({ field }) => (
-                                <FormItem><FormLabel>Cliente</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
                     </CardContent>
