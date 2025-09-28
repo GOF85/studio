@@ -245,7 +245,7 @@ export default function ProductoVentaFormPage() {
                              <FormField control={form.control} name="categoria" render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Categoría</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value || ''}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
                                     <SelectContent>
                                         {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -390,5 +390,3 @@ export default function ProductoVentaFormPage() {
     </>
   );
 }
-
-    
