@@ -41,7 +41,7 @@ export default function AnaliticaEntregasPage() {
                     (hito.items || []).forEach(item => {
                         const producto = productosMap.get(item.id);
                         if (producto) {
-                            const costeComponentes = producto.componentes.reduce((sum, comp) => {
+                            const costeComponentes = (producto.componentes || []).reduce((sum, comp) => {
                                 const costeReal = comp.coste || 0;
                                 return sum + (costeReal * comp.cantidad);
                             }, 0);
