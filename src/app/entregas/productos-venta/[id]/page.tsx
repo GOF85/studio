@@ -177,14 +177,19 @@ export default function ProductoVentaFormPage() {
     let allItems = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
     let message = '';
     
+    const dataToSave = {
+        ...data,
+        recetaId: data.recetaId === 'ninguna' ? '' : data.recetaId,
+    };
+
     if (isEditing) {
       const index = allItems.findIndex(p => p.id === id);
       if (index !== -1) {
-        allItems[index] = data;
+        allItems[index] = dataToSave;
         message = 'Producto actualizado correctamente.';
       }
     } else {
-      allItems.push(data);
+      allItems.push(dataToSave);
       message = 'Producto creado correctamente.';
     }
 
@@ -269,10 +274,10 @@ export default function ProductoVentaFormPage() {
                         <FormField control={form.control} name="recetaId" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Receta Vinculada (Opcional)</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value || ''}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Vincular a una receta del Book..."/></SelectTrigger></FormControl>
                                     <SelectContent>
-                                        <SelectItem value="">Ninguna</SelectItem>
+                                        <SelectItem value="ninguna">Ninguna</SelectItem>
                                         {recetasDB.map(r => <SelectItem key={r.id} value={r.id}>{r.nombre}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
