@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, DollarSign, Package } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta } from '@/types';
+import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -160,7 +160,7 @@ export default function AnaliticaEntregasPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-12"><Checkbox onCheckedChange={handleSelectAll} checked={selectedPedidos.size === pedidos.length && pedidos.length > 0} /></TableHead>
+                                    <TableHead className="w-12"><Checkbox onCheckedChange={(checked) => handleSelectAll(Boolean(checked))} checked={selectedPedidos.size === pedidos.length && pedidos.length > 0} /></TableHead>
                                     <TableHead>Nº Pedido</TableHead>
                                     <TableHead>Cliente</TableHead>
                                     <TableHead className="text-right">Coste</TableHead>
