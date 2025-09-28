@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, FormProvider, useWatch } from 'react-hook-form';
+import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -365,6 +365,12 @@ export default function EntregaFormPage() {
                             )} />
                             <FormField control={form.control} name="asistentes" render={({ field }) => (
                                 <FormItem><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                        </div>
+                         <Separator />
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="client" render={({ field }) => (
+                                <FormItem><FormLabel>Cliente</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
                     </CardContent>
