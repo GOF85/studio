@@ -110,7 +110,7 @@ export default function ProductoVentaFormPage() {
     defaultValues: defaultValues,
   });
 
-  const { fields, append, remove, trigger } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
       control: form.control,
       name: 'componentes',
   });
@@ -172,7 +172,7 @@ export default function ProductoVentaFormPage() {
   }, [costeTotal, watchedPvp]);
   
   const handleRecalculate = () => {
-    trigger();
+    form.trigger();
     toast({
         title: 'Cálculos actualizados',
         description: 'Se han refrescado el coste total y la rentabilidad.',
@@ -186,7 +186,7 @@ export default function ProductoVentaFormPage() {
     
     const dataToSave = {
         ...data,
-        recetaId: data.recetaId === 'ninguna' ? undefined : data.recetaId,
+        recetaId: data.recetaId === 'ninguna' ? '' : data.recetaId,
     };
 
     if (isEditing) {
@@ -349,7 +349,7 @@ export default function ProductoVentaFormPage() {
                             <span className="text-sm text-green-800 dark:text-green-200">Coste Total: </span>
                             <span className="font-bold text-green-800 dark:text-green-200">{formatCurrency(costeTotal)}</span>
                         </div>
-                         <Button variant="outline" type="button" size="sm" onClick={handleRecalculate}>
+                        <Button variant="outline" type="button" size="sm" onClick={handleRecalculate}>
                             <RefreshCw className="mr-2 h-4 w-4"/>Recalcular
                         </Button>
                         <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
