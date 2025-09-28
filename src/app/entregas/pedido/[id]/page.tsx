@@ -52,6 +52,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { formatCurrency } from '@/lib/utils';
 
 const entregaFormSchema = z.object({
   serviceNumber: z.string().min(1, 'El Nº de Pedido es obligatorio'),
@@ -178,13 +179,22 @@ const ClientInfo = () => {
                 )} />
                  <div></div>
                 <FormField control={control} name="finalClient" render={({ field }) => (
-                    <FormItem><FormLabel>Cliente Final</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                    <FormItem className="md:col-span-3">
+                        <FormLabel>Cliente Final</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
+                    </FormItem>
                 )} />
                 <FormField control={control} name="contact" render={({ field }) => (
-                    <FormItem><FormLabel>Contacto</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                  <FormItem>
+                    <FormLabel>Contacto</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                  </FormItem>
                 )} />
                 <FormField control={control} name="phone" render={({ field }) => (
-                    <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                  <FormItem>
+                    <FormLabel>Teléfono</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                  </FormItem>
                 )} />
             </div>
         </AccordionContent>
@@ -336,6 +346,10 @@ export default function EntregaFormPage() {
     toast({ title: 'Pedido eliminado' });
     router.push('/entregas/pes');
   };
+  
+  const calculateHitoTotal = (hito: EntregaHito): number => {
+    return hito.items.reduce((sum, item) => sum + ((item.pvp || 0) * item.quantity), 0);
+  }
 
   if (!isMounted) {
     return <LoadingSkeleton title={isEditing ? 'Editando Pedido...' : 'Nuevo Pedido...'} />;
@@ -413,7 +427,10 @@ export default function EntregaFormPage() {
                                     </p>
                                     <p className="text-sm text-muted-foreground">{format(new Date(hito.fecha), "PPP", { locale: es })} - {hito.hora}</p>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex items-center gap-2">
+                                     <div className="font-bold text-lg text-green-600">
+                                        {formatCurrency(calculateHitoTotal(hito))}
+                                     </div>
                                      <Button asChild size="sm">
                                         <Link href={`/entregas/entrega/${hito.id}?osId=${id}`}>
                                             Confeccionar
