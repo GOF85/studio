@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -95,16 +96,16 @@ export default function PickingEntregaPage() {
         const existingIndex = newItems.findIndex(i => i.id === item.id);
 
         if (existingIndex > -1) {
-        newItems[existingIndex].quantity += quantity;
+          newItems[existingIndex].quantity += quantity;
         } else {
-        newItems.push({
+          newItems.push({
             id: item.id,
             nombre: item.nombre,
             quantity: quantity,
             pvp: item.pvp,
             coste: costeComponentes,
             categoria: item.categoria,
-        });
+          });
         }
         handleUpdateHitoItems(newItems);
     }

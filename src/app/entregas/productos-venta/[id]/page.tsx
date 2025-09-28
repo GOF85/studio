@@ -37,7 +37,8 @@ const productoVentaSchema = z.object({
   pvp: z.coerce.number().min(0, 'El PVP debe ser positivo'),
   iva: z.coerce.number().min(0).max(100),
   producidoPorPartner: z.boolean().optional().default(false),
-  componentes: z.array(componenteSchema).min(1, 'Debe tener al menos un componente'),
+  recetaId: z.string().optional(),
+  componentes: z.array(componenteSchema),
 });
 
 type ProductoVentaFormValues = z.infer<typeof productoVentaSchema>;
@@ -341,7 +342,7 @@ export default function ProductoVentaFormPage() {
                             </TableBody>
                         </Table>
                      </div>
-                     {form.formState.errors.componentes && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.componentes.message}</p>}
+                     {form.formState.errors.componentes && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.componentes.root?.message}</p>}
                 </CardContent>
               </Card>
             </div>
