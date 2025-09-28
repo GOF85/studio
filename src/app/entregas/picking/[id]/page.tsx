@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -56,8 +57,17 @@ export default function PickingEntregaPage() {
     }, [osId, hitoId]);
 
     useEffect(() => {
+        if (!osId) {
+            toast({
+                variant: 'destructive',
+                title: 'Error de Navegación',
+                description: 'No se ha especificado un pedido de entrega (OS). Volviendo al listado.'
+            });
+            router.push('/entregas/pes');
+            return;
+        }
         loadData();
-    }, [loadData]);
+    }, [osId, loadData, router, toast]);
     
      const handleUpdateHitoItems = (items: PedidoEntregaItem[]) => {
         if (!osId) return;
