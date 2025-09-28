@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Save, X, Package, PlusCircle, Trash2, TrendingUp } from 'lucide-react';
+import { Loader2, Save, X, Package, PlusCircle, Trash2, TrendingUp, RefreshCw } from 'lucide-react';
 import type { ProductoVenta, IngredienteERP, ComponenteProductoVenta, Receta } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -110,7 +110,7 @@ export default function ProductoVentaFormPage() {
     defaultValues: defaultValues,
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, trigger } = useFieldArray({
       control: form.control,
       name: 'componentes',
   });
@@ -170,7 +170,14 @@ export default function ProductoVentaFormPage() {
     const porcentaje = pvp > 0 ? (margen / pvp) * 100 : 0;
     return { margenBruto: margen, margenPct: porcentaje };
   }, [costeTotal, watchedPvp]);
-
+  
+  const handleRecalculate = () => {
+    trigger();
+    toast({
+        title: 'Cálculos actualizados',
+        description: 'Se han refrescado el coste total y la rentabilidad.',
+    })
+  }
 
   function onSubmit(data: ProductoVentaFormValues) {
     setIsLoading(true);
@@ -274,7 +281,7 @@ export default function ProductoVentaFormPage() {
                         <FormField control={form.control} name="recetaId" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Receta Vinculada (Opcional)</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value || ''}>
+                                <Select onValueChange={field.onChange} value={field.value || 'ninguna'}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Vincular a una receta del Book..."/></SelectTrigger></FormControl>
                                     <SelectContent>
                                         <SelectItem value="ninguna">Ninguna</SelectItem>
@@ -342,6 +349,9 @@ export default function ProductoVentaFormPage() {
                             <span className="text-sm text-green-800 dark:text-green-200">Coste Total: </span>
                             <span className="font-bold text-green-800 dark:text-green-200">{formatCurrency(costeTotal)}</span>
                         </div>
+                         <Button variant="outline" type="button" size="sm" onClick={handleRecalculate}>
+                            <RefreshCw className="mr-2 h-4 w-4"/>Recalcular
+                        </Button>
                         <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                             <DialogTrigger asChild>
                                 <Button variant="outline" type="button" size="sm"><PlusCircle className="mr-2"/>Añadir</Button>
