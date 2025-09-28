@@ -46,7 +46,7 @@ export default function PickingEntregaPage() {
         
         const allPedidos = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
         const currentPedido = allPedidos.find(p => p.osId === osId);
-        const currentHito = currentPedido ? currentPedido.hitos.find(h => h.id === hitoId) : null;
+        const currentHito = currentPedido && currentPedido.hitos ? currentPedido.hitos.find(h => h.id === hitoId) : null;
         setHito(currentHito || null);
         
         const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
