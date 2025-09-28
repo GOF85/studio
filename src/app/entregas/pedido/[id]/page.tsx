@@ -52,6 +52,17 @@ import {
 } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
+const hitoSchema = z.object({
+    id: z.string(),
+    fecha: z.string(),
+    hora: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+    lugarEntrega: z.string().min(1, "El lugar de entrega es obligatorio"),
+    contacto: z.string().optional(),
+    telefono: z.string().optional(),
+    observaciones: z.string().optional(),
+    items: z.array(z.any()).optional().default([]), // Allow any for now
+});
+
 export const entregaFormSchema = z.object({
   serviceNumber: z.string().min(1, 'El Nº de Pedido es obligatorio'),
   startDate: z.date({ required_error: 'La fecha es obligatoria.' }),
@@ -95,7 +106,7 @@ export const entregaFormSchema = z.object({
   deliveryLocations: z.array(z.string()).optional().default([]),
   objetivoGastoId: z.string().optional(),
   tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
-  hitos: z.array(z.any()).optional().default([]),
+  hitos: z.array(hitoSchema).optional().default([]),
 });
 
 export type EntregaFormValues = z.infer<typeof entregaFormSchema>;
@@ -112,7 +123,7 @@ const defaultValues: Partial<EntregaFormValues> = {
   hitos: [],
 };
 
-const hitoSchema = z.object({
+const hitoDialogSchema = z.object({
     id: z.string(),
     fecha: z.date(),
     hora: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
@@ -121,13 +132,13 @@ const hitoSchema = z.object({
     telefono: z.string().optional(),
     observaciones: z.string().optional(),
 });
-type HitoFormValues = z.infer<typeof hitoSchema>;
+type HitoDialogFormValues = z.infer<typeof hitoDialogSchema>;
 
 
 function HitoDialog({ onSave, initialData, os }: { onSave: (data: EntregaHito) => void; initialData?: Partial<EntregaHito>; os: Entrega | null }) {
     const [isOpen, setIsOpen] = useState(false);
-    const form = useForm<HitoFormValues>({
-        resolver: zodResolver(hitoSchema),
+    const form = useForm<HitoDialogFormValues>({
+        resolver: zodResolver(hitoDialogSchema),
         defaultValues: {
             id: initialData?.id || Date.now().toString(),
             fecha: initialData?.fecha ? new Date(initialData.fecha) : (os?.startDate ? new Date(os.startDate) : new Date()),
@@ -139,7 +150,7 @@ function HitoDialog({ onSave, initialData, os }: { onSave: (data: EntregaHito) =
         }
     });
 
-    const handleSubmit = (data: HitoFormValues) => {
+    const handleSubmit = (data: HitoDialogFormValues) => {
         onSave({
             ...data,
             fecha: format(data.fecha, 'yyyy-MM-dd'),
@@ -312,7 +323,7 @@ export default function EntregaFormPage() {
         startDate: data.startDate.toISOString(),
         endDate: data.startDate.toISOString(),
         vertical: 'Entregas',
-        deliveryTime: '', 
+        deliveryTime: data.hitos?.[0]?.hora || '', 
         space: '',
         spaceAddress: data.hitos?.[0]?.lugarEntrega || '',
     }
@@ -441,7 +452,7 @@ export default function EntregaFormPage() {
                             <CardHeader className="p-3 flex-row justify-between items-center">
                                 <div className="space-y-1">
                                     <p className="font-bold text-base">
-                                        <span className="text-primary">{`${getValues('serviceNumber')}.${(index + 1).toString().padStart(2, '0')}`}</span> - {hito.lugarEntrega}
+                                        <span className="text-primary">{`${getValues('serviceNumber') || 'Pedido'}.${(index + 1).toString().padStart(2, '0')}`}</span> - {hito.lugarEntrega}
                                     </p>
                                     <p className="text-sm text-muted-foreground">{format(new Date(hito.fecha), "PPP", { locale: es })} - {hito.hora}</p>
                                     <p className="text-xs text-muted-foreground">ID: {hito.id}</p>
