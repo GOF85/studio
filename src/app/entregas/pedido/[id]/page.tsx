@@ -43,6 +43,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { DeliveryOrderSummary } from '@/components/entregas/delivery-order-summary';
 import { UnifiedItemCatalog } from '@/components/entregas/unified-item-catalog';
+import { Separator } from '@/components/ui/separator';
 
 export const entregaFormSchema = z.object({
   serviceNumber: z.string().min(1, 'El Nº de Pedido es obligatorio'),
@@ -361,4 +362,3 @@ export default function EntregaFormPage() {
     </main>
   );
 }
-
