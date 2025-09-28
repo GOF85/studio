@@ -7,7 +7,7 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Package, PlusCircle, Trash2, TrendingUp } from 'lucide-react';
-import type { ProductoVenta, IngredienteERP, ComponenteProductoVenta } from '@/types';
+import type { ProductoVenta, IngredienteERP, ComponenteProductoVenta, Receta } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -102,6 +102,7 @@ export default function ProductoVentaFormPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [recetasDB, setRecetasDB] = useState<Receta[]>([]);
   const { toast } = useToast();
 
   const form = useForm<ProductoVentaFormValues>({
@@ -127,6 +128,9 @@ export default function ProductoVentaFormPage() {
   ];
 
   useEffect(() => {
+    const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+    setRecetasDB(storedRecetas);
+    
     if (isEditing) {
         const allProductos = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
         const producto = allProductos.find(p => p.id === id);
@@ -262,6 +266,19 @@ export default function ProductoVentaFormPage() {
                                 </FormItem>
                             )} />
                         </div>
+                        <FormField control={form.control} name="recetaId" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Receta Vinculada (Opcional)</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Vincular a una receta del Book..."/></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="">Ninguna</SelectItem>
+                                        {recetasDB.map(r => <SelectItem key={r.id} value={r.id}>{r.nombre}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage/>
+                            </FormItem>
+                        )} />
                     </CardContent>
                 </Card>
 
@@ -368,3 +385,5 @@ export default function ProductoVentaFormPage() {
     </>
   );
 }
+
+    
