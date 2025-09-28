@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -69,7 +68,7 @@ export default function PrevisionEntregasPage() {
       let pastEventMatch = true;
       if (!showPastEvents) {
           try {
-              pastEventMatch = !isBefore(parseISO(os.startDate), today);
+              pastEventMatch = !isBefore(new Date(os.endDate), today);
           } catch (e) {
               pastEventMatch = true;
           }
@@ -78,7 +77,7 @@ export default function PrevisionEntregasPage() {
       return searchMatch && monthMatch && pastEventMatch;
     });
 
-    return filtered.sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime());
+    return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
   }, [entregas, searchTerm, selectedMonth, showPastEvents]);
   

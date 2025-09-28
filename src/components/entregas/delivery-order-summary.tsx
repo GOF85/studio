@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -17,9 +15,10 @@ import { useFormContext } from 'react-hook-form';
 interface DeliveryOrderSummaryProps {
   items: PedidoEntregaItem[];
   onUpdateItems: (items: PedidoEntregaItem[]) => void;
+  isEditing: boolean;
 }
 
-export function DeliveryOrderSummary({ items, onUpdateItems }: DeliveryOrderSummaryProps) {
+export function DeliveryOrderSummary({ items, onUpdateItems, isEditing }: DeliveryOrderSummaryProps) {
   const { toast } = useToast();
 
   const onUpdateQuantity = (itemId: string, quantity: number) => {
@@ -51,9 +50,9 @@ export function DeliveryOrderSummary({ items, onUpdateItems }: DeliveryOrderSumm
   return (
     <Card className="sticky top-24 h-[calc(100vh-7rem)] flex flex-col">
       <CardHeader className="flex-grow-0 flex-shrink-0 flex flex-row items-center justify-between">
-        <CardTitle className="text-xl font-headline">Resumen del Pedido</CardTitle>
+        <CardTitle className="text-xl font-headline">Resumen del Hito</CardTitle>
         {items.length > 0 && (
-          <Button variant="ghost" size="sm" onClick={onClearOrder} aria-label="Vaciar pedido">
+          <Button variant="ghost" size="sm" onClick={onClearOrder} aria-label="Vaciar hito">
             <Trash2 className="h-4 w-4 mr-1" />
             Vaciar
           </Button>
@@ -64,7 +63,7 @@ export function DeliveryOrderSummary({ items, onUpdateItems }: DeliveryOrderSumm
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10">
               <ShoppingCart className="h-12 w-12 mb-4" />
-              <p className="font-medium">Tu pedido está vacío</p>
+              <p className="font-medium">Hito vacío</p>
               <p className="text-sm">Añade productos desde el catálogo para empezar.</p>
             </div>
           ) : (

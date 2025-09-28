@@ -598,9 +598,20 @@ export type PedidoEntregaItem = {
     categoria?: string;
 }
 
+export type EntregaHito = {
+    id: string;
+    fecha: string;
+    hora: string;
+    lugarEntrega: string;
+    contacto?: string;
+    telefono?: string;
+    observaciones?: string;
+    items: PedidoEntregaItem[];
+}
+
 export type PedidoEntrega = {
     osId: string;
-    items: PedidoEntregaItem[];
+    hitos: EntregaHito[];
 }
 
 export type PedidoPartnerStatus = 'Pendiente' | 'En Producción' | 'Listo para Entrega';
@@ -620,10 +631,8 @@ export type PedidoPartner = {
 };
 
 export type PickingEntregaState = {
-    osId: string;
+    hitoId: string;
     checkedItems: Set<string>; // Set of item IDs (e.g., erpId for components, productId for direct items)
 }
 
 export const VERTICALES = ['Catering', 'Entregas'] as const;
-
-

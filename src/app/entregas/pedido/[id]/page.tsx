@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -10,9 +8,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Trash2, Package, Save, X, Truck } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Trash2, Package, Save, X, Truck, PlusCircle } from 'lucide-react';
 
-import type { Entrega, ProductoVenta, PedidoEntrega, PedidoEntregaItem, TransporteOrder } from '@/types';
+import type { Entrega, ProductoVenta, PedidoEntrega, PedidoEntregaItem, TransporteOrder, EntregaHito } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -44,17 +42,24 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { DeliveryOrderSummary } from '@/components/entregas/delivery-order-summary';
 import { UnifiedItemCatalog } from '@/components/entregas/unified-item-catalog';
 import { Separator } from '@/components/ui/separator';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 
 export const entregaFormSchema = z.object({
   serviceNumber: z.string().min(1, 'El Nº de Pedido es obligatorio'),
   startDate: z.date({ required_error: 'La fecha es obligatoria.' }),
-  deliveryTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   client: z.string().min(1, 'El cliente es obligatorio.'),
   asistentes: z.coerce.number().min(1, 'El número de asistentes es obligatorio.'),
   contact: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
-  spaceAddress: z.string().optional().default(''),
   status: z.enum(['Borrador', 'Confirmado', 'Enviado', 'Entregado']).default('Borrador'),
 });
 
@@ -67,10 +72,83 @@ const defaultValues: Partial<EntregaFormValues> = {
   contact: '',
   phone: '',
   finalClient: '',
-  spaceAddress: '',
   status: 'Borrador',
-  deliveryTime: '09:00',
 };
+
+const hitoSchema = z.object({
+    id: z.string(),
+    fecha: z.date(),
+    hora: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+    lugarEntrega: z.string().min(1, "El lugar de entrega es obligatorio"),
+    contacto: z.string().optional(),
+    telefono: z.string().optional(),
+    observaciones: z.string().optional(),
+});
+type HitoFormValues = z.infer<typeof hitoSchema>;
+
+
+function HitoDialog({ onSave, initialData, os }: { onSave: (data: EntregaHito) => void; initialData?: Partial<EntregaHito>; os: Entrega | null }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const form = useForm<HitoFormValues>({
+        resolver: zodResolver(hitoSchema),
+        defaultValues: {
+            id: initialData?.id || Date.now().toString(),
+            fecha: initialData?.fecha ? new Date(initialData.fecha) : (os?.startDate ? new Date(os.startDate) : new Date()),
+            hora: initialData?.hora || '10:00',
+            lugarEntrega: initialData?.lugarEntrega || os?.spaceAddress || '',
+            contacto: initialData?.contacto || os?.contact || '',
+            telefono: initialData?.telefono || os?.phone || '',
+            observaciones: initialData?.observaciones || '',
+        }
+    });
+
+    const handleSubmit = (data: HitoFormValues) => {
+        onSave({
+            ...data,
+            fecha: format(data.fecha, 'yyyy-MM-dd'),
+            items: initialData?.items || [],
+        });
+        setIsOpen(false);
+        form.reset();
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                 <Button>
+                    <PlusCircle className="mr-2"/>
+                    Añadir Entrega
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{initialData ? 'Editar' : 'Nueva'} Entrega</DialogTitle>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                        <FormField control={form.control} name="fecha" render={({ field }) => (
+                            <FormItem className="flex flex-col"><FormLabel>Fecha</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>
+                        )} />
+                         <FormField control={form.control} name="hora" render={({ field }) => (
+                            <FormItem><FormLabel>Hora</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                         <FormField control={form.control} name="lugarEntrega" render={({ field }) => (
+                            <FormItem><FormLabel>Lugar de Entrega</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={form.control} name="contacto" render={({ field }) => (<FormItem><FormLabel>Contacto</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                            <FormField control={form.control} name="telefono" render={({ field }) => (<FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
+                            <Button type="submit">Guardar</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function EntregaFormPage() {
   const router = useRouter();
@@ -85,12 +163,15 @@ export default function EntregaFormPage() {
   const { toast } = useToast();
   
   const [productosVenta, setProductosVenta] = useState<ProductoVenta[]>([]);
-  const [deliveryItems, setDeliveryItems] = useState<PedidoEntregaItem[]>([]);
-  
+  const [hitos, setHitos] = useState<EntregaHito[]>([]);
+  const [activeHitoId, setActiveHitoId] = useState<string | null>(null);
+
   const form = useForm<EntregaFormValues>({
     resolver: zodResolver(entregaFormSchema),
     defaultValues,
   });
+  
+  const activeHito = useMemo(() => hitos.find(h => h.id === activeHitoId), [hitos, activeHitoId]);
 
   useEffect(() => {
     // Load catalogs
@@ -111,7 +192,11 @@ export default function EntregaFormPage() {
             ...currentEntrega,
             startDate: new Date(currentEntrega.startDate),
         });
-        setDeliveryItems(currentPedido?.items || []);
+        const currentHitos = currentPedido?.hitos || [];
+        setHitos(currentHitos);
+        if (currentHitos.length > 0) {
+            setActiveHitoId(currentHitos[0].id);
+        }
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el pedido de entrega.' });
         router.push('/entregas/pes');
@@ -125,28 +210,62 @@ export default function EntregaFormPage() {
           ...defaultValues,
           startDate: new Date(),
       });
-      setDeliveryItems([]);
+      setHitos([]);
+      setActiveHitoId(null);
     }
     setIsMounted(true);
   }, [id, isEditing, form, router, toast]);
 
+  const handleUpdateHitoItems = (items: PedidoEntregaItem[]) => {
+    setHitos(prevHitos => prevHitos.map(h => h.id === activeHitoId ? {...h, items} : h));
+  };
+  
+  const handleSaveHito = (hitoData: EntregaHito) => {
+     setHitos(prevHitos => {
+        const existingIndex = prevHitos.findIndex(h => h.id === hitoData.id);
+        if (existingIndex > -1) {
+            const updatedHitos = [...prevHitos];
+            updatedHitos[existingIndex] = hitoData;
+            return updatedHitos;
+        } else {
+            const newHitos = [...prevHitos, hitoData];
+            setActiveHitoId(hitoData.id);
+            return newHitos;
+        }
+    });
+  }
+  
+  const handleDeleteHito = (hitoId: string) => {
+      setHitos(prev => prev.filter(h => h.id !== hitoId));
+      if(activeHitoId === hitoId) {
+          setActiveHitoId(null);
+      }
+  }
+
   const handleAddItem = (item: ProductoVenta, quantity: number) => {
+    if(!activeHitoId) {
+        toast({variant: 'destructive', title: 'Error', description: 'Selecciona o crea una entrega para añadir productos.'});
+        return;
+    }
+
     const costeComponentes = item.componentes.reduce((sum, comp) => sum + comp.coste * comp.cantidad, 0);
 
-    setDeliveryItems(prev => {
-        const existing = prev.find(i => i.id === item.id);
-        if (existing) {
-            return prev.map(i => i.id === item.id ? {...i, quantity: i.quantity + quantity} : i);
-        }
-        return [...prev, {
-            id: item.id,
-            nombre: item.nombre,
-            quantity: quantity,
-            pvp: item.pvp,
-            coste: costeComponentes,
-            categoria: item.categoria,
-        }];
-    })
+    const newItems = [...(activeHito?.items || [])];
+    const existingIndex = newItems.findIndex(i => i.id === item.id);
+
+    if (existingIndex > -1) {
+      newItems[existingIndex].quantity += quantity;
+    } else {
+      newItems.push({
+        id: item.id,
+        nombre: item.nombre,
+        quantity: quantity,
+        pvp: item.pvp,
+        coste: costeComponentes,
+        categoria: item.categoria,
+      });
+    }
+    handleUpdateHitoItems(newItems);
   }
 
   function onSubmit(data: EntregaFormValues) {
@@ -160,13 +279,16 @@ export default function EntregaFormPage() {
         ...data,
         id: currentId,
         startDate: data.startDate.toISOString(),
-        endDate: data.startDate.toISOString(),
+        endDate: data.startDate.toISOString(), // Placeholder, might need adjustment
         vertical: 'Entregas',
+        deliveryTime: '', // Not used at OS level anymore
+        space: '', // Not used at OS level anymore
+        spaceAddress: '', // Not used at OS level anymore
     }
     
     const pedidoEntregaData: PedidoEntrega = {
         osId: currentId,
-        items: deliveryItems,
+        hitos: hitos,
     }
 
     if (isEditing) {
@@ -216,37 +338,6 @@ export default function EntregaFormPage() {
     router.push('/entregas/pes');
   };
 
-  const handleAssignTransport = () => {
-    if (!isEditing) return;
-    const currentEntrega = form.getValues();
-    const newTransportOrder: Omit<TransporteOrder, 'proveedorId' | 'proveedorNombre' | 'tipoTransporte' | 'precio'> = {
-        id: Date.now().toString(),
-        osId: id,
-        fecha: currentEntrega.startDate.toISOString(),
-        lugarRecogida: 'Almacén Central MICE',
-        horaRecogida: '09:00', // Default
-        lugarEntrega: currentEntrega.spaceAddress || currentEntrega.client,
-        horaEntrega: currentEntrega.deliveryTime,
-        observaciones: `Entrega para ${currentEntrega.client}. Contacto: ${currentEntrega.contact} (${currentEntrega.phone})`,
-        status: 'Pendiente',
-    }
-    // This will be completed in the transport module
-    const transportOrderToSave = {
-      ...newTransportOrder,
-      proveedorId: '',
-      proveedorNombre: 'Asignación Pendiente',
-      tipoTransporte: '',
-      precio: 0
-    }
-
-    const allTransportOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-    allTransportOrders.push(transportOrderToSave);
-    localStorage.setItem('transporteOrders', JSON.stringify(allTransportOrders));
-    
-    setTransportOrderExists(true);
-    toast({ title: 'Transporte Asignado', description: 'El pedido ha sido enviado al módulo de transporte para su gestión.' });
-  }
-
   if (!isMounted) {
     return <LoadingSkeleton title={isEditing ? 'Editando Pedido...' : 'Nuevo Pedido...'} />;
   }
@@ -272,37 +363,16 @@ export default function EntregaFormPage() {
              <Form {...form}>
               <form id="entrega-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>Información del Pedido</CardTitle>
-                        {isEditing && (
-                            <Button 
-                                type="button" 
-                                variant={transportOrderExists ? "secondary" : "default"}
-                                onClick={handleAssignTransport}
-                                disabled={transportOrderExists}
-                            >
-                                <Truck className="mr-2"/> 
-                                {transportOrderExists ? 'Transporte Asignado' : 'Asignar Transporte'}
-                            </Button>
-                        )}
+                    <CardHeader>
+                        <CardTitle>Información General del Pedido</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <FormField control={form.control} name="serviceNumber" render={({ field }) => (
                                 <FormItem><FormLabel>Nº Pedido</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={form.control} name="startDate" render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>Fecha</FormLabel>
-                                    <Popover><PopoverTrigger asChild>
-                                        <FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                            {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button></FormControl>
-                                    </PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover>
-                                <FormMessage /></FormItem>
-                            )} />
-                             <FormField control={form.control} name="deliveryTime" render={({ field }) => (
-                                <FormItem><FormLabel>Hora Entrega</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem className="flex flex-col"><FormLabel>Fecha Principal</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
                             )} />
                              <FormField control={form.control} name="status" render={({ field }) => (
                                 <FormItem><FormLabel>Estado</FormLabel>
@@ -327,9 +397,6 @@ export default function EntregaFormPage() {
                               <FormField control={form.control} name="phone" render={({ field }) => (
                                 <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
                             )} />
-                             <FormField control={form.control} name="spaceAddress" render={({ field }) => (
-                                <FormItem className="col-span-2"><FormLabel>Dirección de Entrega</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                            )} />
                              <FormField control={form.control} name="asistentes" render={({ field }) => (
                                 <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
@@ -338,10 +405,33 @@ export default function EntregaFormPage() {
                 </Card>
               </form>
             </Form>
+            
+            <Card>
+                <CardHeader className="flex-row justify-between items-center">
+                    <CardTitle>Hitos de Entrega</CardTitle>
+                    <HitoDialog onSave={handleSaveHito} os={form.getValues() as unknown as Entrega} />
+                </CardHeader>
+                <CardContent className="space-y-2">
+                    {hitos.map((hito, index) => (
+                         <Card key={hito.id} className={cn("cursor-pointer", activeHitoId === hito.id && "border-primary ring-2 ring-primary")} onClick={() => setActiveHitoId(hito.id)}>
+                            <CardHeader className="p-3 flex-row justify-between items-center">
+                                <div className="space-y-1">
+                                    <p className="font-bold text-base">
+                                        <span className="text-primary">{`${form.getValues('serviceNumber')}.${(index + 1).toString().padStart(2, '0')}`}</span> - {hito.lugarEntrega}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">{format(new Date(hito.fecha), "PPP", { locale: es })} - {hito.hora}</p>
+                                </div>
+                                <Button size="sm" variant="ghost" className="text-destructive" onClick={(e) => {e.stopPropagation(); handleDeleteHito(hito.id)}}><Trash2 /></Button>
+                            </CardHeader>
+                        </Card>
+                    ))}
+                </CardContent>
+            </Card>
+
             <UnifiedItemCatalog items={productosVenta} onAddItem={handleAddItem} />
         </div>
         <div>
-            <DeliveryOrderSummary items={deliveryItems} onUpdateItems={setDeliveryItems} />
+            <DeliveryOrderSummary items={activeHito?.items || []} onUpdateItems={handleUpdateHitoItems} isEditing={isEditing} />
         </div>
       </div>
       
