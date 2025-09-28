@@ -18,6 +18,7 @@ export default function ConfeccionarEntregaPage() {
     const [hito, setHito] = useState<EntregaHito | null>(null);
     const [productosVenta, setProductosVenta] = useState<ProductoVenta[]>([]);
     const [isMounted, setIsMounted] = useState(false);
+    const [expedicionNumero, setExpedicionNumero] = useState('');
     
     const router = useRouter();
     const params = useParams();
@@ -36,6 +37,13 @@ export default function ConfeccionarEntregaPage() {
         const allPedidos = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
         const currentPedido = allPedidos.find(p => p.osId === osId);
         const currentHito = currentPedido?.hitos?.find(h => h.id === hitoId);
+
+        if (currentPedido && currentHito) {
+            const hitoIndex = currentPedido.hitos.findIndex(h => h.id === hitoId);
+            if (hitoIndex !== -1 && currentEntrega) {
+                setExpedicionNumero(`${currentEntrega.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`);
+            }
+        }
         
         if (!currentHito) {
             toast({ variant: "destructive", title: "Error", description: "No se encontró el hito de entrega." });
@@ -75,7 +83,7 @@ export default function ConfeccionarEntregaPage() {
     const handleAddItem = (item: ProductoVenta, quantity: number) => {
         if(!hito) return;
 
-        const costeComponentes = item.componentes.reduce((sum, comp) => sum + comp.coste * comp.cantidad, 0);
+        const costeComponentes = item.componentes.reduce((sum, comp) => sum + (comp.coste || 0) * comp.cantidad, 0);
         const newItems = [...(hito.items || [])];
         const existingIndex = newItems.findIndex(i => i.id === item.id);
 
@@ -107,7 +115,7 @@ export default function ConfeccionarEntregaPage() {
                         <ArrowLeft className="mr-2" /> Volver al Pedido
                     </Button>
                     <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                        <Package /> Confección de Entrega: {entrega.serviceNumber}.{(hito.id.slice(-2))}
+                        <Package /> Confección de Entrega: {expedicionNumero}
                     </h1>
                     <CardDescription>
                         Cliente: {entrega.client} | Fecha: {format(new Date(hito.fecha), 'dd/MM/yyyy')} | Hora: {hito.hora}
