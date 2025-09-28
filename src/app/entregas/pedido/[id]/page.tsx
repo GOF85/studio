@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
+import { useForm, FormProvider, useWatch, useFieldArray, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -95,6 +95,7 @@ export const entregaFormSchema = z.object({
   deliveryLocations: z.array(z.string()).optional().default([]),
   objetivoGastoId: z.string().optional(),
   tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
+  hitos: z.array(z.any()).optional().default([]),
 });
 
 export type EntregaFormValues = z.infer<typeof entregaFormSchema>;
@@ -108,6 +109,7 @@ const defaultValues: Partial<EntregaFormValues> = {
   finalClient: '',
   status: 'Borrador',
   tipoCliente: 'Empresa',
+  hitos: [],
 };
 
 const hitoSchema = z.object({
@@ -222,7 +224,9 @@ const ClientInfo = () => {
 }
 
 const ClientAccordionTrigger = () => {
-    const client = useWatch({ name: 'client' });
+    const { watch } = useFormContext();
+    const client = watch('client');
+    const finalClient = watch('finalClient');
     return (
         <div className="flex w-full items-center justify-between p-4">
             <h3 className="text-lg font-semibold">Información del Cliente</h3>
@@ -240,14 +244,18 @@ export default function EntregaFormPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [transportOrderExists, setTransportOrderExists] = useState(false);
   const { toast } = useToast();
-  
-  const [hitos, setHitos] = useState<EntregaHito[]>([]);
   
   const form = useForm<EntregaFormValues>({
     resolver: zodResolver(entregaFormSchema),
     defaultValues,
+  });
+
+  const { control, handleSubmit, formState: { isDirty }, getValues } = form;
+  
+  const { fields, append, remove, update } = useFieldArray({
+    control,
+    name: "hitos",
   });
   
   useEffect(() => {
@@ -263,43 +271,32 @@ export default function EntregaFormPage() {
             ...defaultValues,
             ...currentEntrega,
             startDate: new Date(currentEntrega.startDate),
+            hitos: currentPedido?.hitos || [],
         });
-        const currentHitos = currentPedido?.hitos || [];
-        setHitos(currentHitos);
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el pedido de entrega.' });
         router.push('/entregas/pes');
       }
-
-      const allTransportOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-      setTransportOrderExists(allTransportOrders.some(t => t.osId === id));
-
     } else {
       form.reset({
           ...defaultValues,
           startDate: new Date(),
       });
-      setHitos([]);
     }
     setIsMounted(true);
   }, [id, isEditing, form, router, toast]);
   
   const handleSaveHito = (hitoData: EntregaHito) => {
-     setHitos(prevHitos => {
-        const existingIndex = prevHitos.findIndex(h => h.id === hitoData.id);
-        if (existingIndex > -1) {
-            const updatedHitos = [...prevHitos];
-            updatedHitos[existingIndex] = hitoData;
-            return updatedHitos;
-        } else {
-            const newHitos = [...prevHitos, hitoData];
-            return newHitos;
-        }
-    });
+     const existingIndex = fields.findIndex(h => h.id === hitoData.id);
+     if (existingIndex > -1) {
+         update(existingIndex, hitoData as any);
+     } else {
+         append(hitoData as any);
+     }
   }
   
-  const handleDeleteHito = (hitoId: string) => {
-      setHitos(prev => prev.filter(h => h.id !== hitoId));
+  const handleDeleteHito = (index: number) => {
+      remove(index);
   }
 
   function onSubmit(data: EntregaFormValues) {
@@ -310,19 +307,19 @@ export default function EntregaFormPage() {
     let currentId = isEditing ? id : Date.now().toString();
 
     const entregaData: Entrega = {
-        ...data,
+        ...(data as any),
         id: currentId,
         startDate: data.startDate.toISOString(),
         endDate: data.startDate.toISOString(),
         vertical: 'Entregas',
         deliveryTime: '', 
         space: '',
-        spaceAddress: '',
+        spaceAddress: data.hitos?.[0]?.lugarEntrega || '',
     }
     
     const pedidoEntregaData: PedidoEntrega = {
         osId: currentId,
-        hitos: hitos,
+        hitos: data.hitos || [],
     }
 
     if (isEditing) {
@@ -394,20 +391,20 @@ export default function EntregaFormPage() {
 
       <div className="space-y-4">
              <FormProvider {...form}>
-              <form id="entrega-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form id="entrega-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <Card>
                     <CardHeader className="py-3">
                         <CardTitle className="text-lg">Información General del Pedido</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3 pt-2">
                         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
-                            <FormField control={form.control} name="serviceNumber" render={({ field }) => (
+                            <FormField control={control} name="serviceNumber" render={({ field }) => (
                                 <FormItem><FormLabel>Nº Pedido</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
                             )} />
-                            <FormField control={form.control} name="startDate" render={({ field }) => (
+                            <FormField control={control} name="startDate" render={({ field }) => (
                                 <FormItem className="flex flex-col"><FormLabel>Fecha Principal</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
                             )} />
-                             <FormField control={form.control} name="status" render={({ field }) => (
+                             <FormField control={control} name="status" render={({ field }) => (
                                 <FormItem><FormLabel>Estado</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
@@ -415,7 +412,7 @@ export default function EntregaFormPage() {
                                     </Select>
                                 </FormItem>
                             )} />
-                            <FormField control={form.control} name="asistentes" render={({ field }) => (
+                            <FormField control={control} name="asistentes" render={({ field }) => (
                                 <FormItem><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
@@ -430,30 +427,37 @@ export default function EntregaFormPage() {
                         </Card>
                     </AccordionItem>
                 </Accordion>
-
               </form>
             </FormProvider>
             
             <Card>
                 <CardHeader className="flex-row justify-between items-center py-3">
                     <CardTitle className="text-lg">Hitos de Entrega</CardTitle>
-                    <HitoDialog onSave={handleSaveHito} os={form.getValues() as unknown as Entrega} />
+                    <HitoDialog onSave={handleSaveHito} os={getValues() as unknown as Entrega} />
                 </CardHeader>
                 <CardContent className="space-y-2">
-                    {hitos.map((hito, index) => (
-                         <Card key={hito.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => router.push(`/entregas/picking/${hito.id}?osId=${id}`)}>
+                    {fields.map((hito, index) => (
+                         <Card key={hito.id} className="hover:bg-secondary/50">
                             <CardHeader className="p-3 flex-row justify-between items-center">
                                 <div className="space-y-1">
                                     <p className="font-bold text-base">
-                                        <span className="text-primary">{`${form.getValues('serviceNumber')}.${(index + 1).toString().padStart(2, '0')}`}</span> - {hito.lugarEntrega}
+                                        <span className="text-primary">{`${getValues('serviceNumber')}.${(index + 1).toString().padStart(2, '0')}`}</span> - {hito.lugarEntrega}
                                     </p>
                                     <p className="text-sm text-muted-foreground">{format(new Date(hito.fecha), "PPP", { locale: es })} - {hito.hora}</p>
+                                    <p className="text-xs text-muted-foreground">ID: {hito.id}</p>
                                 </div>
-                                <Button size="sm" variant="ghost" className="text-destructive" onClick={(e) => {e.stopPropagation(); handleDeleteHito(hito.id)}}><Trash2 /></Button>
+                                <div className="flex gap-2">
+                                     <Button asChild size="sm">
+                                        <Link href={`/entregas/entrega/${hito.id}?osId=${id}`}>
+                                            Confeccionar
+                                        </Link>
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="text-destructive" onClick={(e) => {e.stopPropagation(); handleDeleteHito(index)}}><Trash2 /></Button>
+                                </div>
                             </CardHeader>
                         </Card>
                     ))}
-                     {hitos.length === 0 && (
+                     {fields.length === 0 && (
                         <div className="text-center text-muted-foreground py-10">No hay entregas definidas para este pedido.</div>
                      )}
                 </CardContent>

@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ListChecks, Package } from 'lucide-react';
+import { ListChecks, Package, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Entrega, PickingEntregaState, PedidoEntrega, ProductoVenta, EntregaHito } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +20,12 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Progress } from '@/components/ui/progress';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { DateRange } from 'react-day-picker';
+
+const ITEMS_PER_PAGE = 20;
 
 type HitoDePicking = EntregaHito & {
     serviceOrder: Entrega;
@@ -31,6 +38,8 @@ export default function PickingEntregasPage() {
   const [productosVentaMap, setProductosVentaMap] = useState<Map<string, ProductoVenta>>(new Map());
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
 
   useEffect(() => {
@@ -64,12 +73,32 @@ export default function PickingEntregasPage() {
   }, []);
 
   const filteredHitos = useMemo(() => {
-    return hitos.filter(hito => 
-      hito.expedicion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      hito.serviceOrder.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      hito.lugarEntrega.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [hitos, searchTerm]);
+    return hitos.filter(hito => {
+      const searchMatch = 
+        hito.expedicion.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        hito.serviceOrder.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        hito.lugarEntrega.toLowerCase().includes(searchTerm.toLowerCase());
+
+      let dateMatch = true;
+      if(dateRange?.from) {
+        const hitoDate = new Date(hito.fecha);
+        if (dateRange.to) {
+            dateMatch = isWithinInterval(hitoDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+        } else {
+            dateMatch = isWithinInterval(hitoDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
+        }
+      }
+
+      return searchMatch && dateMatch;
+    });
+  }, [hitos, searchTerm, dateRange]);
+
+  const paginatedHitos = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredHitos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredHitos, currentPage]);
+
+  const totalPages = Math.ceil(filteredHitos.length / ITEMS_PER_PAGE);
 
   const getPickingProgress = (hito: HitoDePicking) => {
     const state = pickingStates[hito.id];
@@ -109,16 +138,34 @@ export default function PickingEntregasPage() {
         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><ListChecks />Picking y Logística</h1>
       </div>
 
-       <div className="flex flex-col sm:flex-row gap-4 mb-6">
+       <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input
               placeholder="Buscar por expedición, cliente o lugar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm"
           />
-      </div>
+          <Popover>
+            <PopoverTrigger asChild>
+                <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
+            </PopoverContent>
+          </Popover>
+          <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateRange(undefined); setCurrentPage(1); }}>Limpiar Filtros</Button>
+       </div>
 
-       <div className="border rounded-lg">
+        <div className="flex items-center justify-end gap-2 mb-4">
+            <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
+        </div>
+
+      <div className="border rounded-lg">
           <Table>
               <TableHeader>
               <TableRow>
@@ -130,8 +177,8 @@ export default function PickingEntregasPage() {
               </TableRow>
               </TableHeader>
               <TableBody>
-              {filteredHitos.length > 0 ? (
-                  filteredHitos.map(hito => {
+              {paginatedHitos.length > 0 ? (
+                  paginatedHitos.map(hito => {
                     const progress = getPickingProgress(hito);
                     return (
                         <TableRow key={hito.id} onClick={() => router.push(`/entregas/picking/${hito.id}?osId=${hito.serviceOrder.id}`)} className="cursor-pointer">
