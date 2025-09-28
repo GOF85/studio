@@ -179,7 +179,7 @@ export default function ProductoVentaFormPage() {
     
     const dataToSave = {
         ...data,
-        recetaId: data.recetaId === 'ninguna' ? '' : data.recetaId,
+        recetaId: data.recetaId === 'ninguna' ? undefined : data.recetaId,
     };
 
     if (isEditing) {
@@ -337,12 +337,18 @@ export default function ProductoVentaFormPage() {
                 <CardHeader className="py-3 flex-row items-center justify-between">
                     <div className="space-y-1"><CardTitle className="text-lg">Componentes</CardTitle>
                     <CardDescription className="text-xs">Artículos de ERP que componen este producto.</CardDescription></div>
-                    <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                        <DialogTrigger asChild>
-                             <Button variant="outline" type="button" size="sm"><PlusCircle className="mr-2"/>Añadir</Button>
-                        </DialogTrigger>
-                        <ErpSelectorDialog onSelect={handleSelectComponente} />
-                    </Dialog>
+                    <div className="flex items-center gap-2">
+                        <div className="p-2 rounded-md bg-green-100 dark:bg-green-900 border border-green-200 dark:border-green-800">
+                            <span className="text-sm text-green-800 dark:text-green-200">Coste Total: </span>
+                            <span className="font-bold text-green-800 dark:text-green-200">{formatCurrency(costeTotal)}</span>
+                        </div>
+                        <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" type="button" size="sm"><PlusCircle className="mr-2"/>Añadir</Button>
+                            </DialogTrigger>
+                            <ErpSelectorDialog onSelect={handleSelectComponente} />
+                        </Dialog>
+                    </div>
                 </CardHeader>
                 <CardContent>
                      <div className="border rounded-lg max-h-80 overflow-y-auto">
