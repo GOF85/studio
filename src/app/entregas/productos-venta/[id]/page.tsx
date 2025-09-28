@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -118,6 +118,8 @@ export default function ProductoVentaFormPage() {
   const watchedComponentes = form.watch('componentes');
   const watchedPvp = form.watch('pvp');
   
+  const [costeTotal, setCosteTotal] = useState(0);
+
   const categorias = [
     'Gastronomía',
     'Bodega',
@@ -126,6 +128,19 @@ export default function ProductoVentaFormPage() {
     'Transporte',
     'Personal Externo'
   ];
+  
+  const recalculateCosts = useCallback(() => {
+    const components = form.getValues('componentes');
+    const newTotalCost = components.reduce((total, componente) => {
+        return total + (componente.coste || 0) * componente.cantidad;
+    }, 0);
+    setCosteTotal(newTotalCost);
+  }, [form]);
+
+  useEffect(() => {
+    recalculateCosts();
+  }, [watchedComponentes, recalculateCosts]);
+
 
   useEffect(() => {
     const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
@@ -157,12 +172,6 @@ export default function ProductoVentaFormPage() {
       });
       setIsSelectorOpen(false);
   }
-
-  const costeTotal = useMemo(() => {
-    return watchedComponentes.reduce((total, componente) => {
-        return total + (componente.coste || 0) * componente.cantidad;
-    }, 0);
-  }, [watchedComponentes]);
   
   const { margenBruto, margenPct } = useMemo(() => {
     const pvp = watchedPvp || 0;
@@ -172,11 +181,7 @@ export default function ProductoVentaFormPage() {
   }, [costeTotal, watchedPvp]);
   
   const handleRecalculate = () => {
-    form.trigger();
-    toast({
-        title: 'Cálculos actualizados',
-        description: 'Se han refrescado el coste total y la rentabilidad.',
-    })
+    recalculateCosts();
   }
 
   function onSubmit(data: ProductoVentaFormValues) {
@@ -186,7 +191,7 @@ export default function ProductoVentaFormPage() {
     
     const dataToSave = {
         ...data,
-        recetaId: data.recetaId === 'ninguna' ? '' : data.recetaId,
+        recetaId: data.recetaId === 'ninguna' ? undefined : data.recetaId,
     };
 
     if (isEditing) {
