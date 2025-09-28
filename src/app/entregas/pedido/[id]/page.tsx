@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -49,6 +50,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export const entregaFormSchema = z.object({
   serviceNumber: z.string().min(1, 'El Nº de Pedido es obligatorio'),
@@ -148,6 +150,35 @@ function HitoDialog({ onSave, initialData, os }: { onSave: (data: EntregaHito) =
     );
 }
 
+const ClientInfo = () => {
+    const { control } = useFormContext();
+    return (
+        <AccordionContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 pt-2">
+                <FormField control={control} name="finalClient" render={({ field }) => (
+                    <FormItem><FormLabel>Cliente Final</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                )} />
+                <FormField control={control} name="contact" render={({ field }) => (
+                    <FormItem><FormLabel>Contacto</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                )} />
+                <FormField control={control} name="phone" render={({ field }) => (
+                    <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                )} />
+            </div>
+        </AccordionContent>
+    )
+}
+
+const ClientAccordionTrigger = () => {
+    const client = useWatch({ name: 'client' });
+    return (
+        <div className="flex w-full items-center justify-between p-4">
+            <h3 className="text-lg font-semibold">Información del Cliente</h3>
+            {client && <span className="text-sm font-medium text-primary">{client}</span>}
+        </div>
+    )
+}
+
 export default function EntregaFormPage() {
   const router = useRouter();
   const params = useParams();
@@ -168,7 +199,6 @@ export default function EntregaFormPage() {
   });
   
   useEffect(() => {
-    // Load existing order data if editing
     if (isEditing) {
       const allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
       const currentEntrega = allEntregas.find(e => e.id === id);
@@ -231,11 +261,11 @@ export default function EntregaFormPage() {
         ...data,
         id: currentId,
         startDate: data.startDate.toISOString(),
-        endDate: data.startDate.toISOString(), // Placeholder, might need adjustment
+        endDate: data.startDate.toISOString(),
         vertical: 'Entregas',
-        deliveryTime: '', // Not used at OS level anymore
-        space: '', // Not used at OS level anymore
-        spaceAddress: '', // Not used at OS level anymore
+        deliveryTime: '', 
+        space: '',
+        spaceAddress: '',
     }
     
     const pedidoEntregaData: PedidoEntrega = {
@@ -311,14 +341,14 @@ export default function EntregaFormPage() {
       </div>
 
       <div className="space-y-4">
-             <Form {...form}>
+             <FormProvider {...form}>
               <form id="entrega-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Información General del Pedido</CardTitle>
+                    <CardHeader className="py-3">
+                        <CardTitle className="text-lg">Información General del Pedido</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <CardContent className="space-y-3 pt-2">
+                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
                             <FormField control={form.control} name="serviceNumber" render={({ field }) => (
                                 <FormItem><FormLabel>Nº Pedido</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
                             )} />
@@ -333,38 +363,33 @@ export default function EntregaFormPage() {
                                     </Select>
                                 </FormItem>
                             )} />
-                        </div>
-                        <Separator />
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <FormField control={form.control} name="client" render={({ field }) => (
-                                <FormItem><FormLabel>Cliente</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                            <FormField control={form.control} name="finalClient" render={({ field }) => (
-                                <FormItem><FormLabel>Cliente Final</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                            )} />
-                             <FormField control={form.control} name="contact" render={({ field }) => (
-                                <FormItem><FormLabel>Contacto</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                            )} />
-                              <FormField control={form.control} name="phone" render={({ field }) => (
-                                <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                            )} />
-                             <FormField control={form.control} name="asistentes" render={({ field }) => (
-                                <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormField control={form.control} name="asistentes" render={({ field }) => (
+                                <FormItem><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
                     </CardContent>
                 </Card>
+                
+                 <Accordion type="single" collapsible defaultValue={isEditing ? undefined : "cliente-info"} className="w-full">
+                    <AccordionItem value="cliente-info" className="border-none">
+                        <Card>
+                            <AccordionTrigger className="p-0"><ClientAccordionTrigger /></AccordionTrigger>
+                            <ClientInfo />
+                        </Card>
+                    </AccordionItem>
+                </Accordion>
+
               </form>
-            </Form>
+            </FormProvider>
             
             <Card>
-                <CardHeader className="flex-row justify-between items-center">
-                    <CardTitle>Hitos de Entrega</CardTitle>
+                <CardHeader className="flex-row justify-between items-center py-3">
+                    <CardTitle className="text-lg">Hitos de Entrega</CardTitle>
                     <HitoDialog onSave={handleSaveHito} os={form.getValues() as unknown as Entrega} />
                 </CardHeader>
                 <CardContent className="space-y-2">
                     {hitos.map((hito, index) => (
-                         <Card key={hito.id} className="cursor-pointer" onClick={() => router.push(`/entregas/picking/${hito.id}?osId=${id}`)}>
+                         <Card key={hito.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => router.push(`/entregas/picking/${hito.id}?osId=${id}`)}>
                             <CardHeader className="p-3 flex-row justify-between items-center">
                                 <div className="space-y-1">
                                     <p className="font-bold text-base">
