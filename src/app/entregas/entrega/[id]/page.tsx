@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -114,7 +115,7 @@ export default function ConfeccionarEntregaPage() {
                 </div>
             </div>
             
-             <div className="grid lg:grid-cols-[1fr_400px] lg:gap-8 mt-6">
+             <div className="grid lg:grid-cols-2 lg:gap-8 mt-6">
                 <UnifiedItemCatalog items={productosVenta} onAddItem={handleAddItem} />
                 <div className="mt-8 lg:mt-0">
                     <DeliveryOrderSummary items={hito?.items || []} onUpdateItems={handleUpdateHitoItems} isEditing={true} />
