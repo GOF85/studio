@@ -2,17 +2,18 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Check, Package, ShoppingBag, Factory, Truck } from 'lucide-react';
-import type { Entrega, PedidoEntrega, ProductoVenta, IngredienteERP, PickingEntregaState, EntregaHito } from '@/types';
+import { ArrowLeft, Package, ShoppingBag, Factory, Truck } from 'lucide-react';
+import { format } from 'date-fns';
+import type { Entrega, PedidoEntrega, ProductoVenta, IngredienteERP, PickingEntregaState, EntregaHito, PedidoEntregaItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
 import { formatUnit } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
+import { UnifiedItemCatalog } from '@/components/entregas/unified-item-catalog';
+import { DeliveryOrderSummary } from '@/components/entregas/delivery-order-summary';
 
 type PickingItem = {
     id: string;
@@ -26,8 +27,7 @@ type PickingItem = {
 export default function PickingEntregaPage() {
     const [entrega, setEntrega] = useState<Entrega | null>(null);
     const [hito, setHito] = useState<EntregaHito | null>(null);
-    const [pickingList, setPickingList] = useState<PickingItem[]>([]);
-    const [pickingState, setPickingState] = useState<PickingEntregaState>({ hitoId: '', checkedItems: new Set() });
+    const [productosVenta, setProductosVenta] = useState<ProductoVenta[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     
     const router = useRouter();
@@ -48,149 +48,71 @@ export default function PickingEntregaPage() {
         const currentPedido = allPedidos.find(p => p.osId === osId);
         const currentHito = currentPedido?.hitos.find(h => h.id === hitoId);
         setHito(currentHito || null);
-
+        
         const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
-        const productosMap = new Map(allProductosVenta.map(p => [p.id, p]));
+        setProductosVenta(allProductosVenta);
 
-        const allErpItems = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
-        const erpMap = new Map(allErpItems.map(i => [i.id, i]));
-        
-        const allPickingStates = JSON.parse(localStorage.getItem('pickingEntregasState') || '{}') as Record<string, {hitoId: string, checkedItems: string[]}>;
-        const savedState = allPickingStates[hitoId];
-        const checkedItemsSet = savedState ? new Set(savedState.checkedItems) : new Set<string>();
-
-        if (currentHito) {
-            const items: PickingItem[] = [];
-            
-            currentHito.items.forEach(item => {
-                const producto = productosMap.get(item.id);
-                if (!producto) return;
-
-                const baseId = `prod_${producto.id}`;
-                if (producto.producidoPorPartner) {
-                    items.push({
-                        id: baseId,
-                        nombre: producto.nombre,
-                        cantidad: item.quantity,
-                        unidad: 'Uds',
-                        origen: 'Partner',
-                        checked: checkedItemsSet.has(baseId),
-                    });
-                } else if (producto.recetaId) {
-                    items.push({
-                        id: baseId,
-                        nombre: producto.nombre,
-                        cantidad: item.quantity,
-                        unidad: 'Uds',
-                        origen: 'CPR',
-                        checked: checkedItemsSet.has(baseId),
-                    });
-                } else {
-                    producto.componentes.forEach(comp => {
-                        const erpItem = erpMap.get(comp.erpId);
-                        if (erpItem) {
-                            const existingItemIndex = items.findIndex(i => i.id === erpItem.id);
-                            const quantityToAdd = comp.cantidad * item.quantity;
-                            if (existingItemIndex > -1) {
-                                items[existingItemIndex].cantidad += quantityToAdd;
-                            } else {
-                                items.push({
-                                    id: erpItem.id,
-                                    nombre: erpItem.nombreProductoERP,
-                                    cantidad: quantityToAdd,
-                                    unidad: erpItem.unidad,
-                                    origen: 'Almacén',
-                                    checked: checkedItemsSet.has(erpItem.id),
-                                });
-                            }
-                        }
-                    });
-                }
-            });
-            setPickingList(items);
-        }
-        
-        setPickingState({ hitoId, checkedItems: checkedItemsSet });
         setIsMounted(true);
     }, [osId, hitoId]);
 
     useEffect(() => {
         loadData();
     }, [loadData]);
+    
+     const handleUpdateHitoItems = (items: PedidoEntregaItem[]) => {
+        if (!osId) return;
 
-    const handleCheckItem = (itemId: string, isChecked: boolean) => {
-        const newCheckedItems = new Set(pickingState.checkedItems);
-        if (isChecked) {
-            newCheckedItems.add(itemId);
-        } else {
-            newCheckedItems.delete(itemId);
-        }
-        const newState = { ...pickingState, checkedItems: newCheckedItems };
-        setPickingState(newState);
-
-        // Save to localStorage
-        const allStates = JSON.parse(localStorage.getItem('pickingEntregasState') || '{}');
-        allStates[hitoId] = { hitoId, checkedItems: Array.from(newCheckedItems) };
-        localStorage.setItem('pickingEntregasState', JSON.stringify(allStates));
+        setHito(prevHito => prevHito ? {...prevHito, items} : null);
         
-        // Update the list visually
-        setPickingList(prev => prev.map(item => item.id === itemId ? { ...item, checked: isChecked } : item));
+        const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
+        const pedidoIndex = allPedidosEntrega.findIndex(p => p.osId === osId);
+
+        if (pedidoIndex > -1) {
+            const hitoIndex = allPedidosEntrega[pedidoIndex].hitos.findIndex(h => h.id === hitoId);
+            if(hitoIndex > -1) {
+                allPedidosEntrega[pedidoIndex].hitos[hitoIndex].items = items;
+                localStorage.setItem('pedidosEntrega', JSON.stringify(allPedidosEntrega));
+                toast({ title: 'Hito actualizado' });
+            }
+        }
     };
     
-    const groupedItems = useMemo(() => {
-        const groups: Record<PickingItem['origen'], PickingItem[]> = {
-            'Almacén': [],
-            'CPR': [],
-            'Partner': [],
-        };
-        pickingList.forEach(item => {
-            groups[item.origen].push(item);
+    const handleAddItem = (item: ProductoVenta, quantity: number) => {
+        if(!hito) return;
+
+        const costeComponentes = item.componentes.reduce((sum, comp) => sum + comp.coste * comp.cantidad, 0);
+        const newItems = [...(hito.items || [])];
+        const existingIndex = newItems.findIndex(i => i.id === item.id);
+
+        if (existingIndex > -1) {
+        newItems[existingIndex].quantity += quantity;
+        } else {
+        newItems.push({
+            id: item.id,
+            nombre: item.nombre,
+            quantity: quantity,
+            pvp: item.pvp,
+            coste: costeComponentes,
+            categoria: item.categoria,
         });
-        return groups;
-    }, [pickingList]);
+        }
+        handleUpdateHitoItems(newItems);
+    }
+
 
     if (!isMounted || !entrega || !hito) {
         return <LoadingSkeleton title="Cargando Hoja de Picking..." />;
     }
-    
-    const renderSection = (title: string, items: PickingItem[], icon: React.ReactNode) => (
-        items.length > 0 && (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-3">{icon} {title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ul className="space-y-3">
-                        {items.map(item => (
-                            <li key={item.id} className="flex items-center p-2 rounded-md hover:bg-secondary">
-                                <Checkbox
-                                    id={`item-${item.id}`}
-                                    checked={item.checked}
-                                    onCheckedChange={(checked) => handleCheckItem(item.id, !!checked)}
-                                    className="h-5 w-5 mr-4"
-                                />
-                                <Label htmlFor={`item-${item.id}`} className="flex-grow text-base">
-                                    {item.nombre}
-                                </Label>
-                                <span className="font-mono font-semibold text-lg">{item.cantidad.toFixed(2)}</span>
-                                <span className="text-sm text-muted-foreground w-12 text-right">{formatUnit(item.unidad)}</span>
-                            </li>
-                        ))}
-                    </ul>
-                </CardContent>
-            </Card>
-        )
-    );
 
     return (
         <main className="container mx-auto px-4 py-8">
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <Button variant="ghost" size="sm" onClick={() => router.push('/entregas/picking')} className="mb-2">
-                        <ArrowLeft className="mr-2" /> Volver al listado
+                    <Button variant="ghost" size="sm" onClick={() => router.push(`/entregas/pedido/${osId}`)} className="mb-2 no-print">
+                        <ArrowLeft className="mr-2" /> Volver al Pedido
                     </Button>
                     <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                        <Package /> Hoja de Picking: {entrega.serviceNumber}.{(hito.id.slice(-2))}
+                        <Package /> Confección de Entrega: {entrega.serviceNumber}.{(hito.id.slice(-2))}
                     </h1>
                     <CardDescription>
                         Cliente: {entrega.client} | Fecha: {format(new Date(hito.fecha), 'dd/MM/yyyy')} | Hora: {hito.hora}
@@ -198,10 +120,11 @@ export default function PickingEntregaPage() {
                 </div>
             </div>
             
-            <div className="grid lg:grid-cols-3 gap-8 mt-6">
-                {renderSection('Recoger de Almacén', groupedItems['Almacén'], <ShoppingBag />)}
-                {renderSection('Recoger de Producción CPR', groupedItems['CPR'], <Factory />)}
-                {renderSection('Recepcionar del Partner', groupedItems['Partner'], <Truck />)}
+             <div className="grid lg:grid-cols-[1fr_400px] lg:gap-8 mt-6">
+                <UnifiedItemCatalog items={productosVenta} onAddItem={handleAddItem} />
+                <div className="mt-8 lg:mt-0">
+                    <DeliveryOrderSummary items={hito?.items || []} onUpdateItems={handleUpdateHitoItems} isEditing={true} />
+                </div>
             </div>
         </main>
     );

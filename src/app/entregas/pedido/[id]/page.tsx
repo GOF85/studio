@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, FormProvider, useWatch } from 'react-hook-form';
+import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -39,8 +39,6 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { DeliveryOrderSummary } from '@/components/entregas/delivery-order-summary';
-import { UnifiedItemCatalog } from '@/components/entregas/unified-item-catalog';
 import { Separator } from '@/components/ui/separator';
 import {
   Dialog,
@@ -162,22 +160,14 @@ export default function EntregaFormPage() {
   const [transportOrderExists, setTransportOrderExists] = useState(false);
   const { toast } = useToast();
   
-  const [productosVenta, setProductosVenta] = useState<ProductoVenta[]>([]);
   const [hitos, setHitos] = useState<EntregaHito[]>([]);
-  const [activeHitoId, setActiveHitoId] = useState<string | null>(null);
-
+  
   const form = useForm<EntregaFormValues>({
     resolver: zodResolver(entregaFormSchema),
     defaultValues,
   });
   
-  const activeHito = useMemo(() => hitos.find(h => h.id === activeHitoId), [hitos, activeHitoId]);
-
   useEffect(() => {
-    // Load catalogs
-    const allProductos = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
-    setProductosVenta(allProductos);
-    
     // Load existing order data if editing
     if (isEditing) {
       const allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
@@ -194,9 +184,6 @@ export default function EntregaFormPage() {
         });
         const currentHitos = currentPedido?.hitos || [];
         setHitos(currentHitos);
-        if (currentHitos.length > 0) {
-            setActiveHitoId(currentHitos[0].id);
-        }
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el pedido de entrega.' });
         router.push('/entregas/pes');
@@ -211,14 +198,9 @@ export default function EntregaFormPage() {
           startDate: new Date(),
       });
       setHitos([]);
-      setActiveHitoId(null);
     }
     setIsMounted(true);
   }, [id, isEditing, form, router, toast]);
-
-  const handleUpdateHitoItems = (items: PedidoEntregaItem[]) => {
-    setHitos(prevHitos => prevHitos.map(h => h.id === activeHitoId ? {...h, items} : h));
-  };
   
   const handleSaveHito = (hitoData: EntregaHito) => {
      setHitos(prevHitos => {
@@ -229,7 +211,6 @@ export default function EntregaFormPage() {
             return updatedHitos;
         } else {
             const newHitos = [...prevHitos, hitoData];
-            setActiveHitoId(hitoData.id);
             return newHitos;
         }
     });
@@ -237,35 +218,6 @@ export default function EntregaFormPage() {
   
   const handleDeleteHito = (hitoId: string) => {
       setHitos(prev => prev.filter(h => h.id !== hitoId));
-      if(activeHitoId === hitoId) {
-          setActiveHitoId(null);
-      }
-  }
-
-  const handleAddItem = (item: ProductoVenta, quantity: number) => {
-    if(!activeHitoId) {
-        toast({variant: 'destructive', title: 'Error', description: 'Selecciona o crea una entrega para añadir productos.'});
-        return;
-    }
-
-    const costeComponentes = item.componentes.reduce((sum, comp) => sum + comp.coste * comp.cantidad, 0);
-
-    const newItems = [...(activeHito?.items || [])];
-    const existingIndex = newItems.findIndex(i => i.id === item.id);
-
-    if (existingIndex > -1) {
-      newItems[existingIndex].quantity += quantity;
-    } else {
-      newItems.push({
-        id: item.id,
-        nombre: item.nombre,
-        quantity: quantity,
-        pvp: item.pvp,
-        coste: costeComponentes,
-        categoria: item.categoria,
-      });
-    }
-    handleUpdateHitoItems(newItems);
   }
 
   function onSubmit(data: EntregaFormValues) {
@@ -358,8 +310,7 @@ export default function EntregaFormPage() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_400px] lg:gap-8">
-        <div className="space-y-4">
+      <div className="space-y-4">
              <Form {...form}>
               <form id="entrega-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <Card>
@@ -413,7 +364,7 @@ export default function EntregaFormPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                     {hitos.map((hito, index) => (
-                         <Card key={hito.id} className={cn("cursor-pointer", activeHitoId === hito.id && "border-primary ring-2 ring-primary")} onClick={() => setActiveHitoId(hito.id)}>
+                         <Card key={hito.id} className="cursor-pointer" onClick={() => router.push(`/entregas/picking/${hito.id}?osId=${id}`)}>
                             <CardHeader className="p-3 flex-row justify-between items-center">
                                 <div className="space-y-1">
                                     <p className="font-bold text-base">
@@ -425,15 +376,12 @@ export default function EntregaFormPage() {
                             </CardHeader>
                         </Card>
                     ))}
+                     {hitos.length === 0 && (
+                        <div className="text-center text-muted-foreground py-10">No hay entregas definidas para este pedido.</div>
+                     )}
                 </CardContent>
             </Card>
-
-            <UnifiedItemCatalog items={productosVenta} onAddItem={handleAddItem} />
         </div>
-        <div>
-            <DeliveryOrderSummary items={activeHito?.items || []} onUpdateItems={handleUpdateHitoItems} isEditing={isEditing} />
-        </div>
-      </div>
       
        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
             <AlertDialogContent>
