@@ -299,16 +299,16 @@ export default function PlanificacionPage() {
                         });
                     }
 
-                    pedidoEntrega.items.forEach(item => {
-                        if (item.type === 'producto') {
-                           const productoVenta = productosVentaMap.get(item.id);
-                           if (productoVenta && productoVenta.recetaId && !productoVenta.producidoPorPartner) {
-                               const receta = recetasMap.get(productoVenta.recetaId);
-                               if (receta) {
-                                   processReceta(receta, item.quantity, serviceOrder, "Pedido Entrega", null, diaKey, true);
-                               }
-                           }
-                        }
+                    (pedidoEntrega.hitos || []).forEach(hito => {
+                        (hito.items || []).forEach(item => {
+                            const productoVenta = productosVentaMap.get(item.id);
+                            if (productoVenta && productoVenta.recetaId && !productoVenta.producidoPorPartner) {
+                                const receta = recetasMap.get(productoVenta.recetaId);
+                                if (receta) {
+                                    processReceta(receta, item.quantity, serviceOrder, hito.lugarEntrega, null, diaKey, true);
+                                }
+                            }
+                        });
                     });
                 }
             }
@@ -1281,5 +1281,6 @@ export default function PlanificacionPage() {
         </TooltipProvider>
     );
 }
+
 
 
