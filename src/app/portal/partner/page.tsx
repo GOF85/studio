@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatUnit } from '@/lib/utils';
-import type { PedidoPartner, PedidoEntrega, ProductoVenta, PedidoPartnerStatus } from '@/types';
+import type { PedidoPartner, PedidoEntrega, ProductoVenta, PedidoPartnerStatus, Entrega } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -72,7 +72,7 @@ export default function PartnerPortalPage() {
     const { toast } = useToast();
 
     const loadData = useCallback(() => {
-        const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as PedidoEntrega[]).filter(os => os.status === 'Confirmado');
+        const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.status === 'Confirmado');
         const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
         const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
         
@@ -86,27 +86,29 @@ export default function PartnerPortalPage() {
         allPedidosEntrega.forEach(pedido => {
             const os = osMap.get(pedido.osId);
             if (!os) return;
-            
-            pedido.items.forEach(item => {
-                const producto = productosMap.get(item.id);
-                if (producto && producto.producidoPorPartner) {
-                     const id = `${pedido.osId}-${item.id}`;
-                     const statusInfo = partnerStatusData[id] || { status: 'Pendiente' };
-                     partnerPedidos.push({
-                        id,
-                        osId: pedido.osId,
-                        serviceNumber: os.serviceNumber,
-                        cliente: os.client,
-                        fechaEntrega: os.startDate,
-                        horaEntrega: os.deliveryTime || '12:00',
-                        elaboracionId: producto.id,
-                        elaboracionNombre: producto.nombre,
-                        cantidad: item.quantity,
-                        unidad: 'UNIDAD',
-                        status: statusInfo.status,
-                        comentarios: statusInfo.comentarios,
-                    });
-                }
+
+            (pedido.hitos || []).forEach(hito => {
+                (hito.items || []).forEach(item => {
+                    const producto = productosMap.get(item.id);
+                    if (producto && producto.producidoPorPartner) {
+                         const id = `${pedido.osId}-${item.id}`;
+                         const statusInfo = partnerStatusData[id] || { status: 'Pendiente' };
+                         partnerPedidos.push({
+                            id,
+                            osId: pedido.osId,
+                            serviceNumber: os.serviceNumber,
+                            cliente: os.client,
+                            fechaEntrega: hito.fecha,
+                            horaEntrega: hito.hora,
+                            elaboracionId: producto.id,
+                            elaboracionNombre: producto.nombre,
+                            cantidad: item.quantity,
+                            unidad: 'UNIDAD',
+                            status: statusInfo.status,
+                            comentarios: statusInfo.comentarios,
+                        });
+                    }
+                });
             });
         });
         
