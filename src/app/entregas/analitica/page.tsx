@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, DollarSign, Package } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import type { ServiceOrder, PedidoEntrega, ProductoVenta, CategoriaProductoVenta } from '@/types';
+import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -11,7 +12,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 
 type AnaliticaItem = {
-    os: ServiceOrder;
+    os: Entrega;
     costeTotal: number;
     pvpTotal: number;
     costesPorCategoria: { [key: string]: number };
@@ -23,34 +24,36 @@ export default function AnaliticaEntregasPage() {
     const [selectedPedidos, setSelectedPedidos] = useState<Set<string>>(new Set());
 
     useEffect(() => {
-        const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical === 'Entregas');
-        const allDeliveryOrders = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
+        const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.vertical === 'Entregas');
+        const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
         const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
         
         const productosMap = new Map(allProductosVenta.map(p => [p.id, p]));
 
-        const data: AnaliticaItem[] = allServiceOrders.map(os => {
-            const deliveryOrder = allDeliveryOrders.find(d => d.osId === os.id);
+        const data: AnaliticaItem[] = allEntregas.map(os => {
+            const deliveryOrder = allPedidosEntrega.find(d => d.osId === os.id);
             let costeTotal = 0;
             let pvpTotal = 0;
             const costesPorCategoria: { [key: string]: number } = {};
 
-            if (deliveryOrder) {
-                deliveryOrder.items.forEach(item => {
-                    const producto = productosMap.get(item.id);
-                    if (producto) {
-                        const costeComponentes = producto.componentes.reduce((sum, comp) => {
-                            const costeReal = comp.coste || 0;
-                            return sum + (costeReal * comp.cantidad);
-                        }, 0);
-                        
-                        costeTotal += costeComponentes * item.quantity;
-                        pvpTotal += producto.pvp * item.quantity;
+            if (deliveryOrder && deliveryOrder.hitos) {
+                deliveryOrder.hitos.forEach(hito => {
+                    (hito.items || []).forEach(item => {
+                        const producto = productosMap.get(item.id);
+                        if (producto) {
+                            const costeComponentes = producto.componentes.reduce((sum, comp) => {
+                                const costeReal = comp.coste || 0;
+                                return sum + (costeReal * comp.cantidad);
+                            }, 0);
+                            
+                            costeTotal += costeComponentes * item.quantity;
+                            pvpTotal += producto.pvp * item.quantity;
 
-                        if (producto.categoria) {
-                            costesPorCategoria[producto.categoria] = (costesPorCategoria[producto.categoria] || 0) + (costeComponentes * item.quantity);
+                            if (producto.categoria) {
+                                costesPorCategoria[producto.categoria] = (costesPorCategoria[producto.categoria] || 0) + (costeComponentes * item.quantity);
+                            }
                         }
-                    }
+                    });
                 });
             }
 
