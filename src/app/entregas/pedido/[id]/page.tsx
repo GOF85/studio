@@ -1,10 +1,11 @@
 
+      
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, FormProvider, useWatch, useFieldArray, useFormContext } from 'react-hook-form';
+import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -52,18 +53,7 @@ import {
 } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-const hitoSchema = z.object({
-    id: z.string(),
-    fecha: z.string(),
-    hora: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
-    lugarEntrega: z.string().min(1, "El lugar de entrega es obligatorio"),
-    contacto: z.string().optional(),
-    telefono: z.string().optional(),
-    observaciones: z.string().optional(),
-    items: z.array(z.any()).optional().default([]), // Allow any for now
-});
-
-export const entregaFormSchema = z.object({
+const entregaFormSchema = z.object({
   serviceNumber: z.string().min(1, 'El Nº de Pedido es obligatorio'),
   startDate: z.date({ required_error: 'La fecha es obligatoria.' }),
   client: z.string().min(1, 'El cliente es obligatorio.'),
@@ -71,42 +61,9 @@ export const entregaFormSchema = z.object({
   contact: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
-  endDate: z.date({ required_error: 'La fecha de fin es obligatoria.' }),
-  space: z.string().optional().default(''),
-  spaceAddress: z.string().optional().default(''),
-  spaceContact: z.string().optional().default(''),
-  spacePhone: z.string().optional().default(''),
-  spaceMail: z.string().email().optional().or(z.literal('')),
-  respMetre: z.string().optional().default(''),
-  respMetrePhone: z.string().optional().default(''),
-  respMetreMail: z.string().email().optional().or(z.literal('')),
-  respCocinaCPR: z.string().optional().default(''),
-  respCocinaCPRPhone: z.string().optional().default(''),
-  respCocinaCPRMail: z.string().email().optional().or(z.literal('')),
-  respPase: z.string().optional().default(''),
-  respPasePhone: z.string().optional().default(''),
-  respPaseMail: z.string().email().optional().or(z.literal('')),
-  respCocinaPase: z.string().optional().default(''),
-  respCocinaPasePhone: z.string().optional().default(''),
-  respCocinaPaseMail: z.string().email().optional().or(z.literal('')),
-  comercialAsiste: z.boolean().optional().default(false),
-  comercial: z.string().optional().default(''),
-  comercialPhone: z.string().optional().default(''),
-  comercialMail: z.string().email().optional().or(z.literal('')),
-  rrhhAsiste: z.boolean().optional().default(false),
-  respRRHH: z.string().optional().default(''),
-  respRRHHPhone: z.string().optional().default(''),
-  respRRHHMail: z.string().email().optional().or(z.literal('')),
-  agencyPercentage: z.coerce.number().optional().default(0),
-  spacePercentage: z.coerce.number().optional().default(0),
-  facturacion: z.coerce.number().optional().default(0),
-  plane: z.string().optional().default(''),
-  comments: z.string().optional().default(''),
   status: z.enum(['Borrador', 'Confirmado', 'Enviado', 'Entregado']).default('Borrador'),
-  deliveryLocations: z.array(z.string()).optional().default([]),
-  objetivoGastoId: z.string().optional(),
   tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
-  hitos: z.array(hitoSchema).optional().default([]),
+  comercial: z.string().optional().default(''),
 });
 
 export type EntregaFormValues = z.infer<typeof entregaFormSchema>;
@@ -120,7 +77,7 @@ const defaultValues: Partial<EntregaFormValues> = {
   finalClient: '',
   status: 'Borrador',
   tipoCliente: 'Empresa',
-  hitos: [],
+  comercial: '',
 };
 
 const hitoDialogSchema = z.object({
@@ -257,17 +214,14 @@ export default function EntregaFormPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   
+  const [hitos, setHitos] = useState<EntregaHito[]>([]);
+  
   const form = useForm<EntregaFormValues>({
     resolver: zodResolver(entregaFormSchema),
     defaultValues,
   });
 
   const { control, handleSubmit, formState: { isDirty }, getValues } = form;
-  
-  const { fields, append, remove, update } = useFieldArray({
-    control,
-    name: "hitos",
-  });
   
   useEffect(() => {
     if (isEditing) {
@@ -279,11 +233,11 @@ export default function EntregaFormPage() {
 
       if (currentEntrega) {
         form.reset({
-            ...defaultValues,
+            ...(defaultValues as any),
             ...currentEntrega,
             startDate: new Date(currentEntrega.startDate),
-            hitos: currentPedido?.hitos || [],
         });
+        setHitos(currentPedido?.hitos || []);
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el pedido de entrega.' });
         router.push('/entregas/pes');
@@ -298,16 +252,19 @@ export default function EntregaFormPage() {
   }, [id, isEditing, form, router, toast]);
   
   const handleSaveHito = (hitoData: EntregaHito) => {
-     const existingIndex = fields.findIndex(h => h.id === hitoData.id);
-     if (existingIndex > -1) {
-         update(existingIndex, hitoData as any);
-     } else {
-         append(hitoData as any);
-     }
+     setHitos(prevHitos => {
+         const existingIndex = prevHitos.findIndex(h => h.id === hitoData.id);
+         if (existingIndex > -1) {
+             const newHitos = [...prevHitos];
+             newHitos[existingIndex] = hitoData;
+             return newHitos;
+         }
+         return [...prevHitos, hitoData];
+     });
   }
   
   const handleDeleteHito = (index: number) => {
-      remove(index);
+      setHitos(prevHitos => prevHitos.filter((_, i) => i !== index));
   }
 
   function onSubmit(data: EntregaFormValues) {
@@ -323,14 +280,14 @@ export default function EntregaFormPage() {
         startDate: data.startDate.toISOString(),
         endDate: data.startDate.toISOString(),
         vertical: 'Entregas',
-        deliveryTime: data.hitos?.[0]?.hora || '', 
+        deliveryTime: hitos?.[0]?.hora || '', 
         space: '',
-        spaceAddress: data.hitos?.[0]?.lugarEntrega || '',
+        spaceAddress: hitos?.[0]?.lugarEntrega || '',
     }
     
     const pedidoEntregaData: PedidoEntrega = {
         osId: currentId,
-        hitos: data.hitos || [],
+        hitos: hitos,
     }
 
     if (isEditing) {
@@ -447,7 +404,7 @@ export default function EntregaFormPage() {
                     <HitoDialog onSave={handleSaveHito} os={getValues() as unknown as Entrega} />
                 </CardHeader>
                 <CardContent className="space-y-2">
-                    {fields.map((hito, index) => (
+                    {hitos.map((hito, index) => (
                          <Card key={hito.id} className="hover:bg-secondary/50">
                             <CardHeader className="p-3 flex-row justify-between items-center">
                                 <div className="space-y-1">
@@ -455,7 +412,6 @@ export default function EntregaFormPage() {
                                         <span className="text-primary">{`${getValues('serviceNumber') || 'Pedido'}.${(index + 1).toString().padStart(2, '0')}`}</span> - {hito.lugarEntrega}
                                     </p>
                                     <p className="text-sm text-muted-foreground">{format(new Date(hito.fecha), "PPP", { locale: es })} - {hito.hora}</p>
-                                    <p className="text-xs text-muted-foreground">ID: {hito.id}</p>
                                 </div>
                                 <div className="flex gap-2">
                                      <Button asChild size="sm">
@@ -468,7 +424,7 @@ export default function EntregaFormPage() {
                             </CardHeader>
                         </Card>
                     ))}
-                     {fields.length === 0 && (
+                     {hitos.length === 0 && (
                         <div className="text-center text-muted-foreground py-10">No hay entregas definidas para este pedido.</div>
                      )}
                 </CardContent>
@@ -492,3 +448,5 @@ export default function EntregaFormPage() {
     </main>
   );
 }
+
+    
