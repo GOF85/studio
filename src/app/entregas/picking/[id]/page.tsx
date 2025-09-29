@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Package, ListChecks, AlertTriangle, PlusCircle, Camera, Upload, Trash2, GripVertical } from 'lucide-react';
 import { format } from 'date-fns';
-import type { Entrega, PedidoEntrega, ProductoVenta, EntregaHito, PedidoEntregaItem, PickingEntregaState, PickingIncidencia } from '@/types';
+import type { Entrega, PedidoEntrega, ProductoVenta, EntregaHito, PedidoEntregaItem, PickingEntregaState, PickingIncidencia, Elaboracion, OrdenFabricacion } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -131,10 +131,36 @@ export default function PickingEntregaPage() {
             setHito(currentHito);
             
             const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
+            const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+            const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
             const productosMap = new Map(allProductosVenta.map(p => [p.id, p]));
-            const allPrecios = JSON.parse(localStorage.getItem('precios') || '[]') as any[];
-            const preciosMap = new Map(allPrecios.map(p => [p.id, p]));
+            const preciosMap = new Map((JSON.parse(localStorage.getItem('precios') || '[]') as any[]).map(p => [p.id, p]));
 
+            // Lógica de cálculo de necesidad neta
+            const necesidadesTotalesOS = new Map<string, number>();
+            (currentPedido.hitos || []).forEach(h => {
+                (h.items || []).forEach(item => {
+                    const producto = productosMap.get(item.id);
+                    if (producto) {
+                        (producto.componentes || []).forEach(comp => {
+                            necesidadesTotalesOS.set(comp.erpId, (necesidadesTotalesOS.get(comp.erpId) || 0) + comp.cantidad * item.quantity);
+                        });
+                    }
+                });
+            });
+
+            const produccionPorElaboracion = new Map<string, number>();
+            allOFs.forEach(of => {
+                const elab = allElaboraciones.find(e => e.id === of.elaboracionId);
+                if (elab) {
+                    elab.componentes.forEach(comp => {
+                        if (comp.tipo === 'ingrediente') {
+                            produccionPorElaboracion.set(comp.componenteId, (produccionPorElaboracion.get(comp.componenteId) || 0) + (of.cantidadReal || of.cantidadTotal));
+                        }
+                    });
+                }
+            });
+            
             const items: ItemParaPicking[] = [];
             const uniqueIds = new Set<string>();
 
@@ -144,7 +170,7 @@ export default function PickingEntregaPage() {
                     if (producto.producidoPorPartner || producto.recetaId) {
                         const uniqueId = `prod_${producto.id}`;
                         if (!uniqueIds.has(uniqueId)) {
-                            items.push({
+                             items.push({
                                 id: uniqueId,
                                 nombre: producto.nombre,
                                 cantidad: item.quantity,
@@ -161,21 +187,30 @@ export default function PickingEntregaPage() {
                         (producto.componentes || []).forEach(comp => {
                             const compInfo = preciosMap.get(comp.erpId);
                             const uniqueId = comp.erpId;
-                            const existing = items.find(i => i.id === uniqueId);
-                            if (existing) {
-                                existing.cantidad += comp.cantidad * item.quantity;
-                            } else {
-                                items.push({
-                                    id: uniqueId,
-                                    nombre: comp.nombre,
-                                    cantidad: comp.cantidad * item.quantity,
-                                    unidad: compInfo?.unidad || 'Uds',
-                                    loc: compInfo?.loc || 'N/A',
-                                    categoria: compInfo?.categoria || 'Varios',
-                                    origen: producto.nombre,
-                                    imageUrl: compInfo?.imagen || '',
-                                });
-                                uniqueIds.add(uniqueId);
+                            
+                            const necesidadTotal = necesidadesTotalesOS.get(uniqueId) || 0;
+                            const producido = produccionPorElaboracion.get(uniqueId) || 0;
+                            const necesidadNeta = necesidadTotal - producido;
+
+                            if (necesidadNeta > 0) {
+                                const cantidadParaHito = comp.cantidad * item.quantity;
+                                const cantidadAPickear = Math.min(cantidadParaHito, necesidadNeta);
+
+                                const existing = items.find(i => i.id === uniqueId);
+                                if (existing) {
+                                    existing.cantidad += cantidadAPickear;
+                                } else if(cantidadAPickear > 0){
+                                    items.push({
+                                        id: uniqueId,
+                                        nombre: comp.nombre,
+                                        cantidad: cantidadAPickear,
+                                        unidad: compInfo?.unidad || 'Uds',
+                                        loc: compInfo?.loc || 'N/A',
+                                        categoria: compInfo?.categoria || 'Varios',
+                                        origen: producto.nombre,
+                                        imageUrl: compInfo?.imagen || '',
+                                    });
+                                }
                             }
                         });
                     }
