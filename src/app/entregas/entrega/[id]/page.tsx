@@ -13,6 +13,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { UnifiedItemCatalog } from '@/components/entregas/unified-item-catalog';
 import { DeliveryOrderSummary } from '@/components/entregas/delivery-order-summary';
+import { formatCurrency } from '@/lib/utils';
 
 export default function ConfeccionarEntregaPage() {
     const [entrega, setEntrega] = useState<Entrega | null>(null);
