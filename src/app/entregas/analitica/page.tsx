@@ -186,8 +186,7 @@ export default function AnaliticaEntregasPage() {
 
     const topProductos = useMemo(() => {
         return analisisSeleccion.productos
-            .map(p => ({ ...p, margen: p.pvp - p.coste }))
-            .sort((a,b) => b.margen - a.margen)
+            .sort((a,b) => b.cantidad - a.cantidad)
             .slice(0, 5);
     }, [analisisSeleccion.productos]);
 
@@ -236,7 +235,6 @@ export default function AnaliticaEntregasPage() {
         return Object.entries(dataByMonth).map(([month, data]) => ({
             name: format(new Date(`${month}-02`), 'MMM yy', {locale: es}),
             Facturación: data.facturacion,
-            Coste: data.coste,
             Rentabilidad: data.facturacion - data.coste,
             Contratos: data.contratos.size,
             Entregas: data.entregas,
@@ -307,32 +305,79 @@ export default function AnaliticaEntregasPage() {
             <Tabs defaultValue="rentabilidad">
                 <TabsList className="mb-4">
                     <TabsTrigger value="rentabilidad">Análisis de Rentabilidad</TabsTrigger>
-                    <TabsTrigger value="graficas">Gráficas</TabsTrigger>
                     <TabsTrigger value="partner">Análisis Partner</TabsTrigger>
                 </TabsList>
                 <TabsContent value="rentabilidad">
-                    <div className="grid md:grid-cols-[1fr_400px] gap-8 items-start">
+                    <div className="space-y-8">
+                        <div className="grid lg:grid-cols-2 gap-4">
+                            <Card>
+                                <CardHeader><CardTitle>Facturación y Rentabilidad Mensual</CardTitle></CardHeader>
+                                <CardContent>
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <AreaChart data={monthlyData}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                            <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `€${value / 1000}k`}/>
+                                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                            <Legend />
+                                            <Area type="monotone" dataKey="Facturación" stackId="1" stroke="#8884d8" fill="#8884d8" />
+                                            <Area type="monotone" dataKey="Rentabilidad" stackId="1" stroke="#82ca9d" fill="#82ca9d" />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader><CardTitle>Rentabilidad por Categoría</CardTitle></CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>Categoría</TableHead><TableHead className="text-right">Margen Bruto</TableHead><TableHead className="text-right">Margen %</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {rentabilidadPorCategoria.map(c => (
+                                                <TableRow key={c.categoria}><TableCell>{c.categoria}</TableCell><TableCell className="text-right">{formatCurrency(c.margen)}</TableCell><TableCell className={cn("text-right font-medium", c.margenPct < 0 && 'text-destructive')}>{c.margenPct.toFixed(1)}%</TableCell></TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                             <Card>
+                                <CardHeader><CardTitle>Volumen de Contratos</CardTitle></CardHeader>
+                                <CardContent>
+                                <ResponsiveContainer width="100%" height={300}>
+                                        <BarChart data={monthlyData}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                            <YAxis fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                                            <Tooltip formatter={(value: number) => formatNumber(value, 0)} />
+                                            <Legend />
+                                            <Bar dataKey="Contratos" fill="#8884d8" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader><CardTitle>Volumen de Entregas</CardTitle></CardHeader>
+                                <CardContent>
+                                <ResponsiveContainer width="100%" height={300}>
+                                        <BarChart data={monthlyData}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                            <YAxis fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                                            <Tooltip formatter={(value: number) => formatNumber(value, 0)} />
+                                            <Legend />
+                                            <Bar dataKey="Entregas" fill="#82ca9d" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                        </div>
                         <Card>
-                            <CardHeader><CardTitle>Top 5 Productos más Rentables</CardTitle></CardHeader>
+                            <CardHeader><CardTitle>Top 5 Productos más Vendidos</CardTitle></CardHeader>
                             <CardContent>
                                 <Table>
-                                    <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Margen Bruto</TableHead></TableRow></TableHeader>
+                                    <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Cantidad Vendida</TableHead></TableRow></TableHeader>
                                     <TableBody>
                                         {topProductos.map(p => (
-                                            <TableRow key={p.id}><TableCell>{p.nombre}</TableCell><TableCell className="text-right font-medium">{formatCurrency(p.margen)}</TableCell></TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader><CardTitle>Rentabilidad por Categoría</CardTitle></CardHeader>
-                            <CardContent>
-                                <Table>
-                                    <TableHeader><TableRow><TableHead>Categoría</TableHead><TableHead className="text-right">Margen Bruto</TableHead><TableHead className="text-right">Margen %</TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {rentabilidadPorCategoria.map(c => (
-                                            <TableRow key={c.categoria}><TableCell>{c.categoria}</TableCell><TableCell className="text-right">{formatCurrency(c.margen)}</TableCell><TableCell className={cn("text-right font-medium", c.margenPct < 0 && 'text-destructive')}>{c.margenPct.toFixed(1)}%</TableCell></TableRow>
+                                            <TableRow key={p.id}><TableCell>{p.nombre}</TableCell><TableCell className="text-right font-medium">{p.cantidad}</TableCell></TableRow>
                                         ))}
                                     </TableBody>
                                 </Table>
@@ -340,43 +385,6 @@ export default function AnaliticaEntregasPage() {
                         </Card>
                     </div>
                 </TabsContent>
-                 <TabsContent value="graficas">
-                    <div className="grid lg:grid-cols-2 gap-4">
-                        <Card>
-                            <CardHeader><CardTitle>Facturación y Rentabilidad Mensual</CardTitle></CardHeader>
-                            <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <AreaChart data={monthlyData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                                        <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `€${value / 1000}k`}/>
-                                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                                        <Legend />
-                                        <Area type="monotone" dataKey="Facturación" stackId="1" stroke="#8884d8" fill="#8884d8" />
-                                        <Area type="monotone" dataKey="Rentabilidad" stackId="1" stroke="#82ca9d" fill="#82ca9d" />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
-                         <Card>
-                            <CardHeader><CardTitle>Volumen Mensual</CardTitle></CardHeader>
-                            <CardContent>
-                               <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={monthlyData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                                        <YAxis yAxisId="left" orientation="left" stroke="#8884d8" fontSize={12} tickLine={false} axisLine={false} />
-                                        <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" fontSize={12} tickLine={false} axisLine={false}/>
-                                        <Tooltip formatter={(value: number) => formatNumber(value, 0)} />
-                                        <Legend />
-                                        <Bar yAxisId="left" dataKey="Contratos" fill="#8884d8" />
-                                        <Bar yAxisId="right" dataKey="Entregas" fill="#82ca9d" />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
-                    </div>
-                 </TabsContent>
                   <TabsContent value="partner">
                     <div className="grid md:grid-cols-[1fr_400px] gap-8 items-start">
                         <Card>
