@@ -7,8 +7,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Save, X, Package, PlusCircle, Trash2, TrendingUp, RefreshCw } from 'lucide-react';
-import type { ProductoVenta, IngredienteERP, ComponenteProductoVenta, Receta, CategoriaProductoVenta } from '@/types';
+import { Loader2, Save, X, Package, PlusCircle, Trash2, TrendingUp, RefreshCw, Star, Link2 } from 'lucide-react';
+import type { ProductoVenta, IngredienteERP, ComponenteProductoVenta, Receta, CategoriaProductoVenta, ImagenProducto } from '@/types';
 import { CATEGORIAS_PRODUCTO_VENTA } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -25,6 +25,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Combobox } from '@/components/ui/combobox';
+import Image from 'next/image';
 
 const componenteSchema = z.object({
     erpId: z.string(),
@@ -33,10 +34,18 @@ const componenteSchema = z.object({
     coste: z.coerce.number().default(0),
 });
 
+const imagenSchema = z.object({
+    id: z.string(),
+    url: z.string().url("Debe ser una URL válida."),
+    isPrincipal: z.boolean(),
+});
+
 const productoVentaSchema = z.object({
   id: z.string(),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
+  ubicacion: z.string().optional(),
+  imagenes: z.array(imagenSchema).default([]),
   pvp: z.coerce.number().min(0, 'El PVP debe ser positivo'),
   pvpIfema: z.coerce.number().min(0, 'El PVP IFEMA debe ser positivo').optional(),
   iva: z.coerce.number().min(0).max(100),
@@ -50,6 +59,8 @@ type ProductoVentaFormValues = z.infer<typeof productoVentaSchema>;
 const defaultValues: Partial<ProductoVentaFormValues> = {
     nombre: '',
     categoria: '',
+    ubicacion: '',
+    imagenes: [],
     pvp: 0,
     pvpIfema: 0,
     iva: 21,
@@ -108,6 +119,7 @@ export default function ProductoVentaFormPage() {
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [recetasDB, setRecetasDB] = useState<Receta[]>([]);
+  const [newImageUrl, setNewImageUrl] = useState('');
   const { toast } = useToast();
   const [useIfemaPrices, setUseIfemaPrices] = useState(false);
 
@@ -116,9 +128,16 @@ export default function ProductoVentaFormPage() {
     defaultValues: defaultValues,
   });
 
+  const { control, getValues, setValue } = form;
+
   const { fields, append, remove } = useFieldArray({
-      control: form.control,
+      control,
       name: 'componentes',
+  });
+
+  const { fields: imageFields, append: appendImage, remove: removeImage, update: updateImage } = useFieldArray({
+      control,
+      name: 'imagenes'
   });
   
   const watchedComponentes = form.watch('componentes');
@@ -131,12 +150,12 @@ export default function ProductoVentaFormPage() {
   const categoriasOptions = useMemo(() => categorias.map(c => ({ label: c, value: c })), [categorias]);
   
   const recalculateCosts = useCallback(() => {
-    const components = form.getValues('componentes');
+    const components = getValues('componentes');
     const newTotalCost = components.reduce((total, componente) => {
         return total + (componente.coste || 0) * componente.cantidad;
     }, 0);
     setCosteTotal(newTotalCost);
-  }, [form]);
+  }, [getValues]);
 
   useEffect(() => {
     recalculateCosts();
@@ -186,6 +205,27 @@ export default function ProductoVentaFormPage() {
   const handleRecalculate = () => {
     recalculateCosts();
   }
+  
+  const handleAddImage = () => {
+    try {
+        const url = new URL(newImageUrl);
+        appendImage({
+            id: Date.now().toString(),
+            url: url.href,
+            isPrincipal: imageFields.length === 0,
+        });
+        setNewImageUrl('');
+    } catch(e) {
+        toast({ variant: 'destructive', title: 'URL no válida', description: 'Por favor, introduce una URL de imagen válida.'});
+    }
+  };
+
+  const handleSetPrincipalImage = (indexToSet: number) => {
+    imageFields.forEach((_, index) => {
+        updateImage(index, { ...getValues(`imagenes.${index}`), isPrincipal: index === indexToSet });
+    });
+  };
+
 
   function onSubmit(data: ProductoVentaFormValues) {
     setIsLoading(true);
@@ -271,14 +311,14 @@ export default function ProductoVentaFormPage() {
                                     <FormMessage/>
                                 </FormItem>
                             )} />
+                            <FormField control={form.control} name="ubicacion" render={({ field }) => (
+                                <FormItem><FormLabel>Ubicación</FormLabel><FormControl><Input {...field} placeholder="Ej: Alm. Seco P3-E4" /></FormControl><FormMessage /></FormItem>
+                            )} />
                             <FormField control={form.control} name="pvp" render={({ field }) => (
                                 <FormItem><FormLabel>PVP (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage/></FormItem>
                             )} />
                              <FormField control={form.control} name="pvpIfema" render={({ field }) => (
                                 <FormItem><FormLabel>PVP IFEMA (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage/></FormItem>
-                            )} />
-                            <FormField control={form.control} name="iva" render={({ field }) => (
-                                <FormItem><FormLabel>IVA (%)</FormLabel><FormControl><Input type="number" step="1" {...field} /></FormControl><FormMessage/></FormItem>
                             )} />
                         </div>
                         <div className="grid md:grid-cols-2 gap-4 items-center pt-2">
@@ -305,6 +345,31 @@ export default function ProductoVentaFormPage() {
                                 </div>
                                 </FormItem>
                             )} />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                 <Card>
+                    <CardHeader className="py-4"><CardTitle className="text-lg">Imágenes del Producto</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex gap-2">
+                            <Input placeholder="Pega una URL de imagen..." value={newImageUrl} onChange={e => setNewImageUrl(e.target.value)} />
+                            <Button type="button" variant="outline" onClick={handleAddImage}><Link2 className="mr-2"/>Añadir URL</Button>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                            {imageFields.map((field, index) => (
+                                <div key={field.id} className="relative group aspect-square">
+                                    <Image src={field.url} alt={`Imagen ${index + 1}`} fill className="object-cover rounded-md" />
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                                        <Button type="button" size="icon" variant="ghost" className="text-destructive-foreground hover:text-destructive-foreground" onClick={() => handleSetPrincipalImage(index)}>
+                                            <Star className={cn("h-5 w-5", field.isPrincipal && "fill-yellow-400 text-yellow-400")}/>
+                                        </Button>
+                                        <Button type="button" size="icon" variant="ghost" className="text-destructive-foreground hover:text-destructive-foreground" onClick={() => removeImage(index)}>
+                                            <Trash2 className="h-5 w-5"/>
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </CardContent>
                 </Card>

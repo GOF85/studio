@@ -247,6 +247,9 @@ export type TransporteOrder = {
     horaEntrega: string;
     observaciones?: string;
     status: 'Pendiente' | 'Confirmado' | 'En Ruta' | 'Entregado';
+    firmaUrl?: string;
+    firmadoPor?: string;
+    dniReceptor?: string;
 }
 
 export type HieloOrder = {
@@ -589,10 +592,18 @@ export type ComponenteProductoVenta = {
     coste: number;
 }
 
+export type ImagenProducto = {
+  id: string;
+  url: string;
+  isPrincipal: boolean;
+}
+
 export type ProductoVenta = {
     id: string;
     nombre: string;
     categoria: CategoriaProductoVenta;
+    ubicacion?: string;
+    imagenes: ImagenProducto[];
     pvp: number;
     pvpIfema?: number;
     iva: number;
