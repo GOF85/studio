@@ -10,11 +10,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatCurrency } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
 
 type AnaliticaItem = {
     os: Entrega;
     costeTotal: number;
     pvpTotal: number;
+    pvpIfemaTotal: number;
     costesPorCategoria: { [key: string]: number };
 }
 
@@ -22,6 +24,7 @@ export default function AnaliticaEntregasPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [pedidos, setPedidos] = useState<AnaliticaItem[]>([]);
     const [selectedPedidos, setSelectedPedidos] = useState<Set<string>>(new Set());
+    const [useIfemaPrices, setUseIfemaPrices] = useState(false);
 
     useEffect(() => {
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.vertical === 'Entregas');
@@ -34,6 +37,7 @@ export default function AnaliticaEntregasPage() {
             const deliveryOrder = allPedidosEntrega.find(d => d.osId === os.id);
             let costeTotal = 0;
             let pvpTotal = 0;
+            let pvpIfemaTotal = 0;
             const costesPorCategoria: { [key: string]: number } = {};
 
             if (deliveryOrder && deliveryOrder.hitos) {
@@ -48,6 +52,7 @@ export default function AnaliticaEntregasPage() {
                             
                             costeTotal += costeComponentes * item.quantity;
                             pvpTotal += producto.pvp * item.quantity;
+                            pvpIfemaTotal += (producto.pvpIfema || producto.pvp) * item.quantity;
 
                             if (producto.categoria) {
                                 costesPorCategoria[producto.categoria] = (costesPorCategoria[producto.categoria] || 0) + (costeComponentes * item.quantity);
@@ -57,7 +62,7 @@ export default function AnaliticaEntregasPage() {
                 });
             }
 
-            return { os, costeTotal, pvpTotal, costesPorCategoria };
+            return { os, costeTotal, pvpTotal, pvpIfemaTotal, costesPorCategoria };
         });
 
         setPedidos(data);
@@ -87,11 +92,13 @@ export default function AnaliticaEntregasPage() {
     const analisisSeleccion = useMemo(() => {
         const seleccion = pedidos.filter(p => selectedPedidos.has(p.os.id));
         if (seleccion.length === 0) {
-            return { pvp: 0, coste: 0, costesPorCategoria: {} };
+            return { pvp: 0, coste: 0, comisionIfema: 0, costesPorCategoria: {} };
         }
 
-        const pvp = seleccion.reduce((sum, item) => sum + item.pvpTotal, 0);
+        const pvp = seleccion.reduce((sum, item) => sum + (useIfemaPrices ? item.pvpIfemaTotal : item.pvpTotal), 0);
         const coste = seleccion.reduce((sum, item) => sum + item.costeTotal, 0);
+        const comisionIfema = useIfemaPrices ? (pvp * 0.1785) : 0;
+        
         const costesPorCategoria: { [key: string]: number } = {};
         
         seleccion.forEach(item => {
@@ -100,12 +107,14 @@ export default function AnaliticaEntregasPage() {
             }
         });
 
-        return { pvp, coste, costesPorCategoria };
+        return { pvp, coste, comisionIfema, costesPorCategoria };
 
-    }, [pedidos, selectedPedidos]);
+    }, [pedidos, selectedPedidos, useIfemaPrices]);
 
     const margenBruto = analisisSeleccion.pvp - analisisSeleccion.coste;
-    const margenPct = analisisSeleccion.pvp > 0 ? (margenBruto / analisisSeleccion.pvp) * 100 : 0;
+    const margenFinal = margenBruto - analisisSeleccion.comisionIfema;
+    const margenPct = analisisSeleccion.pvp > 0 ? (margenFinal / analisisSeleccion.pvp) * 100 : 0;
+
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Analítica de Rentabilidad..." />;
@@ -119,6 +128,10 @@ export default function AnaliticaEntregasPage() {
                     <h1 className="text-3xl font-headline font-bold">Analítica de Rentabilidad de Entregas</h1>
                     <p className="text-muted-foreground">Selecciona pedidos para analizar su rentabilidad conjunta.</p>
                 </div>
+            </div>
+             <div className="flex items-center space-x-2 mb-8">
+                <Checkbox id="ifema-check" checked={useIfemaPrices} onCheckedChange={(checked) => setUseIfemaPrices(Boolean(checked))} />
+                <Label htmlFor="ifema-check" className="text-base font-semibold">Aplicar Tarifa y Comisión IFEMA</Label>
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -138,14 +151,14 @@ export default function AnaliticaEntregasPage() {
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Margen Bruto</CardTitle>
+                        <CardTitle className="text-sm font-medium">Margen Final</CardTitle>
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent><div className="text-2xl font-bold text-green-600">{formatCurrency(margenBruto)}</div></CardContent>
+                    <CardContent><div className="text-2xl font-bold text-green-600">{formatCurrency(margenFinal)}</div></CardContent>
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Margen %</CardTitle>
+                        <CardTitle className="text-sm font-medium">Margen % Final</CardTitle>
                         <TrendingDown className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent><div className="text-2xl font-bold text-green-600">{margenPct.toFixed(2)}%</div></CardContent>
@@ -174,7 +187,7 @@ export default function AnaliticaEntregasPage() {
                                         <TableCell className="font-medium">{p.os.serviceNumber}</TableCell>
                                         <TableCell>{p.os.client}</TableCell>
                                         <TableCell className="text-right">{formatCurrency(p.costeTotal)}</TableCell>
-                                        <TableCell className="text-right font-bold">{formatCurrency(p.pvpTotal)}</TableCell>
+                                        <TableCell className="text-right font-bold">{formatCurrency(useIfemaPrices ? p.pvpIfemaTotal : p.pvpTotal)}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -183,20 +196,44 @@ export default function AnaliticaEntregasPage() {
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader><CardTitle>Análisis de Costes por Categoría</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>Análisis de Costes y Margen</CardTitle></CardHeader>
                     <CardContent>
                          <div className="space-y-2">
+                            <div className="flex justify-between font-bold text-base">
+                                <span>Facturación</span>
+                                <span>{formatCurrency(analisisSeleccion.pvp)}</span>
+                            </div>
+                            <Separator className="my-2"/>
+                             <p className="font-semibold text-muted-foreground">Desglose de Costes:</p>
                              {Object.entries(analisisSeleccion.costesPorCategoria).length > 0 ? Object.entries(analisisSeleccion.costesPorCategoria).map(([categoria, coste]) => (
-                                <div key={categoria} className="flex justify-between text-sm">
-                                    <span className="font-medium">{categoria}</span>
-                                    <span>{formatCurrency(coste)}</span>
+                                <div key={categoria} className="flex justify-between text-sm pl-2">
+                                    <span className="">{categoria}</span>
+                                    <span>- {formatCurrency(coste)}</span>
                                 </div>
-                             )) : <p className="text-sm text-muted-foreground text-center py-8">Selecciona pedidos para ver el desglose.</p>}
+                             )) : <p className="text-sm text-muted-foreground text-center py-4">Selecciona pedidos para ver el desglose.</p>}
                             <Separator className="my-2"/>
                             <div className="flex justify-between font-bold text-base">
-                                <span>Total Costes</span>
-                                <span>{formatCurrency(analisisSeleccion.coste)}</span>
+                                <span>Coste Total</span>
+                                <span>- {formatCurrency(analisisSeleccion.coste)}</span>
                             </div>
+                            <Separator className="my-2 border-dashed"/>
+                            <div className="flex justify-between font-bold text-base">
+                                <span>Margen Bruto</span>
+                                <span>{formatCurrency(margenBruto)}</span>
+                            </div>
+                            {useIfemaPrices && (
+                                <>
+                                 <div className="flex justify-between text-sm pl-2">
+                                     <span>Comisión IFEMA (17,85%)</span>
+                                     <span className="text-destructive">- {formatCurrency(analisisSeleccion.comisionIfema)}</span>
+                                 </div>
+                                  <Separator className="my-2"/>
+                                 <div className="flex justify-between font-bold text-base text-green-600">
+                                     <span>Margen Final</span>
+                                     <span>{formatCurrency(margenFinal)}</span>
+                                 </div>
+                                </>
+                            )}
                          </div>
                     </CardContent>
                 </Card>

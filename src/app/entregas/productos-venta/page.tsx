@@ -144,10 +144,11 @@ export default function ProductosVentaPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[40%]">Nombre del Producto</TableHead>
+                <TableHead className="w-[30%]">Nombre del Producto</TableHead>
                 <TableHead>Categoría</TableHead>
                 <TableHead>Coste</TableHead>
                 <TableHead>PVP</TableHead>
+                <TableHead>PVP IFEMA</TableHead>
                 <TableHead>Margen</TableHead>
                 <TableHead>Producido por Partner</TableHead>
               </TableRow>
@@ -162,6 +163,7 @@ export default function ProductosVentaPage() {
                         <TableCell><Badge variant="outline">{item.categoria}</Badge></TableCell>
                         <TableCell>{formatCurrency(calculateCost(item))}</TableCell>
                         <TableCell className="font-bold">{formatCurrency(item.pvp)}</TableCell>
+                        <TableCell className="font-bold">{formatCurrency(item.pvpIfema)}</TableCell>
                         <TableCell className={cn("font-bold", margin < 30 ? 'text-destructive' : 'text-green-600')}>{margin.toFixed(2)}%</TableCell>
                         <TableCell>
                           {item.producidoPorPartner && <CheckCircle2 className="text-green-600" />}
@@ -171,7 +173,7 @@ export default function ProductosVentaPage() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     No se encontraron productos de venta.
                   </TableCell>
                 </TableRow>

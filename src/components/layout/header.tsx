@@ -1,34 +1,34 @@
+
 import Link from 'next/link';
-import { UtensilsCrossed, Package, Truck, LifeBuoy } from 'lucide-react';
+import { UtensilsCrossed, Package, LifeBuoy } from 'lucide-react';
 import { Button } from '../ui/button';
 import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 export function Header() {
   const pathname = usePathname();
   const isEntregasModule = pathname.startsWith('/entregas');
   const isPortalModule = pathname.startsWith('/portal');
 
-  if (isEntregasModule) {
-    return (
-       <header className="sticky top-0 z-40 w-full border-b bg-orange-500 text-white">
-        <div className="container flex h-16 items-center">
-          <Link href="/entregas" className="flex items-center gap-3">
-            <Package className="h-7 w-7" />
-            <h1 className="text-2xl font-headline font-bold tracking-tight">
-              Entregas MICE
-            </h1>
-          </Link>
-        </div>
-      </header>
-    )
-  }
-  
-  if (isPortalModule) {
-    return null;
-  }
+  const getEntregasHeader = () => (
+    <header className="sticky top-0 z-40 w-full border-b bg-orange-500 text-white">
+      <div className="container flex h-16 items-center">
+        <Link href="/entregas" className="flex items-center gap-3">
+          <Package className="h-7 w-7" />
+          <h1 className="text-2xl font-headline font-bold tracking-tight">
+            Entregas MICE
+          </h1>
+        </Link>
+      </div>
+    </header>
+  );
 
-  return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+  const getDefaultHeader = () => (
+    <header className={cn(
+        "sticky top-0 z-40 w-full border-b",
+        isEntregasModule ? "bg-orange-100/95" : "bg-background/95",
+        "backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      )}>
       <div className="container flex h-16 items-center">
         <Link href="/" className="flex items-center gap-3">
           <UtensilsCrossed className="h-7 w-7 text-primary" />
@@ -53,4 +53,14 @@ export function Header() {
       </div>
     </header>
   );
+  
+  if (isPortalModule) {
+    return null;
+  }
+  
+  if (isEntregasModule) {
+      return getEntregasHeader();
+  }
+
+  return getDefaultHeader();
 }

@@ -35,6 +35,7 @@ const productoVentaSchema = z.object({
   nombre: z.string().min(1, 'El nombre es obligatorio'),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
   pvp: z.coerce.number().min(0, 'El PVP debe ser positivo'),
+  pvpIfema: z.coerce.number().min(0, 'El PVP IFEMA debe ser positivo').optional(),
   iva: z.coerce.number().min(0).max(100),
   producidoPorPartner: z.boolean().optional().default(false),
   recetaId: z.string().optional(),
@@ -47,6 +48,7 @@ const defaultValues: Partial<ProductoVentaFormValues> = {
     nombre: '',
     categoria: '',
     pvp: 0,
+    pvpIfema: 0,
     iva: 21,
     producidoPorPartner: false,
     componentes: []
@@ -191,6 +193,7 @@ export default function ProductoVentaFormPage() {
     
     const dataToSave = {
         ...data,
+        pvpIfema: data.pvpIfema || 0,
         recetaId: data.recetaId === 'ninguna' ? undefined : data.recetaId,
     };
 
@@ -269,11 +272,29 @@ export default function ProductoVentaFormPage() {
                             <FormField control={form.control} name="pvp" render={({ field }) => (
                                 <FormItem><FormLabel>PVP (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage/></FormItem>
                             )} />
+                             <FormField control={form.control} name="pvpIfema" render={({ field }) => (
+                                <FormItem><FormLabel>PVP IFEMA (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage/></FormItem>
+                            )} />
                             <FormField control={form.control} name="iva" render={({ field }) => (
                                 <FormItem><FormLabel>IVA (%)</FormLabel><FormControl><Input type="number" step="1" {...field} /></FormControl><FormMessage/></FormItem>
                             )} />
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-4 items-center pt-2">
+                             <FormField control={form.control} name="recetaId" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Receta Vinculada (Opcional)</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value || 'ninguna'}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Vincular a una receta del Book..."/></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="ninguna">Ninguna</SelectItem>
+                                            {recetasDB.map(r => <SelectItem key={r.id} value={r.id}>{r.nombre}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage/>
+                                </FormItem>
+                            )} />
                             <FormField control={form.control} name="producidoPorPartner" render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-full mt-4">
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-full">
                                 <FormControl>
                                     <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                                 </FormControl>
@@ -283,19 +304,6 @@ export default function ProductoVentaFormPage() {
                                 </FormItem>
                             )} />
                         </div>
-                        <FormField control={form.control} name="recetaId" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Receta Vinculada (Opcional)</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value || 'ninguna'}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Vincular a una receta del Book..."/></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="ninguna">Ninguna</SelectItem>
-                                        {recetasDB.map(r => <SelectItem key={r.id} value={r.id}>{r.nombre}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage/>
-                            </FormItem>
-                        )} />
                     </CardContent>
                 </Card>
 

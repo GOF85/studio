@@ -1,10 +1,8 @@
 
-
 'use client';
 
 import Link from 'next/link';
-import { Package, ChevronLeft, Truck, LifeBuoy } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Package } from 'lucide-react';
 import { Header } from '@/components/layout/header';
 
 export default function EntregasLayout({
