@@ -49,6 +49,9 @@ export type Entrega = Omit<z.infer<typeof osFormSchema>, 'startDate' | 'endDate'
   status: 'Borrador' | 'Confirmado' | 'Enviado' | 'Entregado';
   deliveryTime: string;
   vertical: 'Entregas';
+  tarifa: 'Empresa' | 'IFEMA';
+  direccionPrincipal: string;
+  email: string;
 };
 
 export type Personal = {
@@ -583,6 +586,7 @@ export type ProductoVenta = {
     nombre: string;
     categoria: CategoriaProductoVenta;
     pvp: number;
+    pvpIfema: number;
     iva: number;
     producidoPorPartner: boolean;
     componentes: ComponenteProductoVenta[];
@@ -605,6 +609,7 @@ export type EntregaHito = {
     lugarEntrega: string;
     contacto?: string;
     telefono?: string;
+    email?: string;
     observaciones?: string;
     items: PedidoEntregaItem[];
 }
@@ -636,3 +641,4 @@ export type PickingEntregaState = {
 }
 
 export const VERTICALES = ['Catering', 'Entregas'] as const;
+

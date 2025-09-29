@@ -59,8 +59,9 @@ export function DeliveryOrderSummary({ items, onUpdateItems, isEditing }: Delive
           </Button>
         )}
       </CardHeader>
+       <Separator />
       <div className="flex-grow overflow-y-auto">
-        <CardContent>
+        <CardContent className="p-4">
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10">
               <ShoppingCart className="h-12 w-12 mb-4" />
@@ -89,13 +90,13 @@ export function DeliveryOrderSummary({ items, onUpdateItems, isEditing }: Delive
         </CardContent>
       </div>
       {items.length > 0 && (
-          <div className="flex-grow-0 flex-shrink-0 p-6 pt-0">
-            <Separator className="my-4" />
+          <div className="flex-grow-0 flex-shrink-0 p-4 border-t bg-secondary/50">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>Coste Total Producción:</span>
                 <span>{formatCurrency(costeTotal)}</span>
               </div>
+              <Separator className="my-2" />
               <div className="flex justify-between font-bold text-lg pt-2 text-primary">
                 <span>PVP Total:</span>
                 <span>{formatCurrency(pvpTotal)}</span>

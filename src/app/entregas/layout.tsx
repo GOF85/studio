@@ -4,29 +4,7 @@
 import Link from 'next/link';
 import { Package, ChevronLeft, Truck, LifeBuoy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-function EntregasHeader() {
-  return (
-    <header className="sticky top-0 z-40 w-full border-b bg-orange-500 text-white">
-      <div className="container flex h-16 items-center">
-        <Link href="/entregas" className="flex items-center gap-3">
-          <Package className="h-7 w-7" />
-          <h1 className="text-2xl font-headline font-bold tracking-tight">
-            Entregas MICE
-          </h1>
-        </Link>
-        <nav className="flex flex-1 items-center justify-end space-x-2">
-            <Button asChild variant="ghost" className="hover:bg-orange-600 hover:text-white">
-                <Link href="/">
-                    <ChevronLeft /> Volver a MICE Catering
-                </Link>
-            </Button>
-        </nav>
-      </div>
-    </header>
-  );
-}
-
+import { Header } from '@/components/layout/header';
 
 export default function EntregasLayout({
   children,
@@ -35,7 +13,7 @@ export default function EntregasLayout({
 }) {
   return (
     <div className="theme-orange">
-        <EntregasHeader />
+        <Header />
         <div className="bg-background text-foreground min-h-[calc(100vh-4rem)]">
           {children}
         </div>
