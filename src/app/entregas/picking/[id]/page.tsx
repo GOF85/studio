@@ -16,11 +16,11 @@ import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import Image from 'next/image';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDesc, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
 type ItemParaPicking = {
@@ -60,7 +60,7 @@ function IncidenciaDialog({ item, onSave }: { item: ItemParaPicking; onSave: (it
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader><DialogTitle>Reportar Incidencia: {item.nombre}</DialogTitle></DialogHeader>
-                <Textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Ej: No se encontraron todas las unidades, producto dañado..."/>
+                <Textarea value={comment} onChange={e => setComment(e.target.value)} rows={5} placeholder="Ej: No se encontraron todas las unidades, producto dañado..."/>
                 <DialogFooter>
                     <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
                     <Button onClick={() => { onSave(item.id, comment); setIsOpen(false); }}>Guardar Incidencia</Button>
@@ -392,6 +392,3 @@ export default function PickingEntregaPage() {
         </main>
     );
 }
-
-
-    
