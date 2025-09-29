@@ -83,7 +83,7 @@ export function Combobox({ options, value, onChange, onCreated, placeholder, sea
                   handleCreate();
                 }}
               >
-                {query ? (
+                {query && onCreated ? (
                     <span className="flex items-center"><PlusCircle className="mr-2"/>Añadir "{query}"</span>
                 ) : (emptyPlaceholder || "No se encontraron resultados.")}
               </div>

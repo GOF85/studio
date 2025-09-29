@@ -8,7 +8,8 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Package, PlusCircle, Trash2, TrendingUp, RefreshCw } from 'lucide-react';
-import type { ProductoVenta, IngredienteERP, ComponenteProductoVenta, Receta } from '@/types';
+import type { ProductoVenta, IngredienteERP, ComponenteProductoVenta, Receta, CategoriaProductoVenta } from '@/types';
+import { CATEGORIAS_PRODUCTO_VENTA } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -23,6 +24,7 @@ import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Combobox } from '@/components/ui/combobox';
 
 const componenteSchema = z.object({
     erpId: z.string(),
@@ -125,14 +127,8 @@ export default function ProductoVentaFormPage() {
   
   const [costeTotal, setCosteTotal] = useState(0);
 
-  const categorias = [
-    'Gastronomía',
-    'Bodega',
-    'Consumibles (Bio)',
-    'Almacén',
-    'Transporte',
-    'Personal Externo'
-  ];
+  const [categorias, setCategorias] = useState<CategoriaProductoVenta[]>(CATEGORIAS_PRODUCTO_VENTA as any);
+  const categoriasOptions = useMemo(() => categorias.map(c => ({ label: c, value: c })), [categorias]);
   
   const recalculateCosts = useCallback(() => {
     const components = form.getValues('componentes');
@@ -264,14 +260,15 @@ export default function ProductoVentaFormPage() {
                         <div className="grid md:grid-cols-4 gap-4 items-center">
                              <FormField control={form.control} name="categoria" render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Categoría</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value || ''}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        {categorias.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage/>
+                                    <FormLabel>Categoría</FormLabel>
+                                    <Combobox
+                                        options={categoriasOptions}
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        onCreated={(value) => setCategorias(prev => [...prev, value as CategoriaProductoVenta])}
+                                        placeholder="Seleccionar..."
+                                    />
+                                    <FormMessage/>
                                 </FormItem>
                             )} />
                             <FormField control={form.control} name="pvp" render={({ field }) => (
@@ -329,7 +326,7 @@ export default function ProductoVentaFormPage() {
                         <CardContent className="space-y-2 text-sm pt-0">
                            <div className="flex items-center space-x-2 my-4">
                                 <Checkbox id="ifema-check" checked={useIfemaPrices} onCheckedChange={(checked) => setUseIfemaPrices(Boolean(checked))} />
-                                <label htmlFor="ifema-check" className="font-semibold">Aplicar Tarifa y Comisión IFEMA</label>
+                                <label htmlFor="ifema-check" className="font-semibold">Simular con Tarifa y Comisión IFEMA</label>
                             </div>
                           <div className="flex justify-between">
                             <span>Precio de Venta:</span>
