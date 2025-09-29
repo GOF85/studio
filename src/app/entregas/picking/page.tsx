@@ -31,6 +31,7 @@ const ITEMS_PER_PAGE = 20;
 type HitoDePicking = EntregaHito & {
     serviceOrder: Entrega;
     expedicion: string;
+    pickingStatus: PickingEntregaState['status'];
 };
 
 export default function PickingEntregasPage() {
@@ -60,10 +61,12 @@ export default function PickingEntregasPage() {
         const serviceOrder = osMap.get(pedido.osId);
         if (serviceOrder && pedido.hitos) {
             pedido.hitos.forEach((hito, index) => {
+                const pickingState = allPickingStates[hito.id];
                 hitosDePicking.push({
                     ...hito,
                     serviceOrder,
                     expedicion: `${serviceOrder.serviceNumber}.${(index + 1).toString().padStart(2, '0')}`,
+                    pickingStatus: pickingState?.status || 'Pendiente',
                 });
             });
         }
@@ -189,10 +192,14 @@ export default function PickingEntregasPage() {
                             <TableCell>{hito.lugarEntrega}</TableCell>
                             <TableCell>{format(new Date(hito.fecha), 'dd/MM/yyyy')} {hito.hora || ''}</TableCell>
                             <TableCell>
-                                <div className="flex items-center gap-2">
-                                    <Progress value={progress.percentage} className="w-40" />
-                                    <span className="text-sm text-muted-foreground">{progress.checked} / {progress.total}</span>
-                                </div>
+                                {progress.total > 0 ? (
+                                    <div className="flex items-center gap-2">
+                                        <Progress value={progress.percentage} className="w-40" />
+                                        <span className="text-sm text-muted-foreground">{progress.checked} / {progress.total}</span>
+                                    </div>
+                                ) : (
+                                    <Badge variant="secondary">Vacío</Badge>
+                                )}
                             </TableCell>
                         </TableRow>
                     )
