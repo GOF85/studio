@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Package, ListChecks, AlertTriangle, PlusCircle, Camera, Upload, Trash2, GripVertical } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Entrega, PedidoEntrega, ProductoVenta, EntregaHito, PedidoEntregaItem, PickingEntregaState, PickingIncidencia } from '@/types';
@@ -393,3 +393,5 @@ export default function PickingEntregaPage() {
     );
 }
 
+
+    
