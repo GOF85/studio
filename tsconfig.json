@@ -21,6 +21,7 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
+      "@/types": ["./src/types/index.ts"],
       "@/dnd/*": ["components/dnd/*"]
     },
     "types": ["node", "@types/papaparse", "@types/nprogress", "jspdf-autotable", "@types/react-signature-canvas"]
