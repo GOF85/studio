@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -7,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Package, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { ServiceOrder, GastronomyOrder, PickingState } from '@/types';
+import type { ServiceOrder, GastronomyOrder, PickingState, ComercialBriefingItem, ComercialBriefing } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -28,7 +27,7 @@ import { statusVariant } from '@/app/cpr/picking/[id]/page';
 
 const ITEMS_PER_PAGE = 20;
 
-type HitoDePicking = GastronomyOrder & {
+type HitoDePicking = ComercialBriefingItem & {
     serviceOrder: ServiceOrder;
     pickingStatus: PickingState['status'];
 };
@@ -42,32 +41,32 @@ export default function PickingPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+    const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical !== 'Entregas');
+    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
 
     const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
     
-    const hitosDePicking = allGastroOrders
-        .map(gastroOrder => {
-            const serviceOrder = osMap.get(gastroOrder.osId);
-            if (!serviceOrder) return null;
+    const hitosDePicking: HitoDePicking[] = [];
 
-            const pickingState = allPickingStates[gastroOrder.osId];
-            // Simplification: We'll show the main OS picking status for now.
-            // A more advanced implementation might track status per hito.
-            const status = pickingState?.status || 'Pendiente';
-            
-            return {
-                ...gastroOrder,
-                serviceOrder,
-                pickingStatus: status
-            };
-        })
-        .filter((h): h is HitoDePicking => h !== null)
-        .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+    allBriefings.forEach(briefing => {
+        const serviceOrder = osMap.get(briefing.osId);
+        if (serviceOrder && briefing.items) {
+            briefing.items.forEach(hito => {
+                if (hito.conGastronomia) {
+                    const pickingState = allPickingStates[serviceOrder.id];
+                    const status = pickingState?.status || 'Pendiente';
+                    hitosDePicking.push({
+                        ...hito,
+                        serviceOrder,
+                        pickingStatus: status
+                    });
+                }
+            });
+        }
+    });
       
-    setHitos(hitosDePicking);
+    setHitos(hitosDePicking.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
     setIsMounted(true);
   }, []);
 
@@ -112,7 +111,7 @@ export default function PickingPage() {
             <Package />
             Picking y Logística
             </h1>
-            <p className="text-muted-foreground mt-1">Selecciona un servicio para preparar su picking individualmente.</p>
+            <p className="text-muted-foreground mt-1">Selecciona un evento para preparar su picking.</p>
         </div>
       </div>
 
@@ -163,7 +162,7 @@ export default function PickingPage() {
               paginatedHitos.map(hito => (
                 <TableRow
                   key={hito.id}
-                  onClick={() => router.push(`/cpr/picking/${hito.osId}`)}
+                  onClick={() => router.push(`/cpr/picking/${hito.serviceOrder.id}`)}
                   className="cursor-pointer"
                 >
                   <TableCell className="font-medium">{hito.descripcion}</TableCell>
