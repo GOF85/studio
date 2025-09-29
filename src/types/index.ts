@@ -1,5 +1,6 @@
 
 
+
 import type { z } from "zod";
 import type { osFormSchema } from "@/app/os/page";
 
@@ -642,4 +643,3 @@ export type PickingEntregaState = {
 }
 
 export const VERTICALES = ['Catering', 'Entregas'] as const;
-

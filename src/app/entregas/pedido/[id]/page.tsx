@@ -1,4 +1,5 @@
 
+
       
 'use client';
 
@@ -61,8 +62,11 @@ const entregaFormSchema = z.object({
   asistentes: z.coerce.number().min(1, 'El número de asistentes es obligatorio.'),
   contact: z.string().optional().default(''),
   phone: z.string().optional().default(''),
+  email: z.string().email('Debe ser un email válido').or(z.literal('')).optional(),
+  direccionPrincipal: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
   status: z.enum(['Borrador', 'Confirmado', 'Enviado', 'Entregado']).default('Borrador'),
+  tarifa: z.enum(['Empresa', 'IFEMA']).default('Empresa'),
   tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
   comercial: z.string().optional().default(''),
 });
@@ -75,8 +79,11 @@ const defaultValues: Partial<EntregaFormValues> = {
   asistentes: 1,
   contact: '',
   phone: '',
+  email: '',
+  direccionPrincipal: '',
   finalClient: '',
   status: 'Borrador',
+  tarifa: 'Empresa',
   tipoCliente: 'Empresa',
   comercial: '',
 };
@@ -88,12 +95,13 @@ const hitoDialogSchema = z.object({
     lugarEntrega: z.string().min(1, "El lugar de entrega es obligatorio"),
     contacto: z.string().optional(),
     telefono: z.string().optional(),
+    email: z.string().email().or(z.literal('')).optional(),
     observaciones: z.string().optional(),
 });
 type HitoDialogFormValues = z.infer<typeof hitoDialogSchema>;
 
 
-function HitoDialog({ onSave, initialData, os }: { onSave: (data: EntregaHito) => void; initialData?: Partial<EntregaHito>; os: Entrega | null }) {
+function HitoDialog({ onSave, initialData, os }: { onSave: (data: EntregaHito) => void; initialData?: Partial<EntregaHito>; os: Partial<Entrega> | null }) {
     const [isOpen, setIsOpen] = useState(false);
     const form = useForm<HitoDialogFormValues>({
         resolver: zodResolver(hitoDialogSchema),
@@ -101,9 +109,10 @@ function HitoDialog({ onSave, initialData, os }: { onSave: (data: EntregaHito) =
             id: initialData?.id || Date.now().toString(),
             fecha: initialData?.fecha ? new Date(initialData.fecha) : (os?.startDate ? new Date(os.startDate) : new Date()),
             hora: initialData?.hora || '10:00',
-            lugarEntrega: initialData?.lugarEntrega || os?.spaceAddress || '',
+            lugarEntrega: initialData?.lugarEntrega || os?.direccionPrincipal || '',
             contacto: initialData?.contacto || os?.contact || '',
             telefono: initialData?.telefono || os?.phone || '',
+            email: initialData?.email || os?.email || '',
             observaciones: initialData?.observaciones || '',
         }
     });
@@ -126,24 +135,27 @@ function HitoDialog({ onSave, initialData, os }: { onSave: (data: EntregaHito) =
                     Añadir Entrega
                 </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                     <DialogTitle>{initialData ? 'Editar' : 'Nueva'} Entrega</DialogTitle>
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                        <FormField control={form.control} name="fecha" render={({ field }) => (
+                       <div className="grid grid-cols-2 gap-4">
+                         <FormField control={form.control} name="fecha" render={({ field }) => (
                             <FormItem className="flex flex-col"><FormLabel>Fecha</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant="outline" className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>
-                        )} />
-                         <FormField control={form.control} name="hora" render={({ field }) => (
+                         )} />
+                          <FormField control={form.control} name="hora" render={({ field }) => (
                             <FormItem><FormLabel>Hora</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
-                         <FormField control={form.control} name="lugarEntrega" render={({ field }) => (
+                       </div>
+                        <FormField control={form.control} name="lugarEntrega" render={({ field }) => (
                             <FormItem><FormLabel>Lugar de Entrega</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <FormField control={form.control} name="contacto" render={({ field }) => (<FormItem><FormLabel>Contacto</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
                             <FormField control={form.control} name="telefono" render={({ field }) => (<FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                            <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         </div>
                         <DialogFooter>
                             <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
@@ -177,24 +189,29 @@ const ClientInfo = () => {
                     </Select>
                     </FormItem>
                 )} />
-                 <div></div>
-                <FormField control={control} name="finalClient" render={({ field }) => (
-                    <FormItem className="md:col-span-3">
+                 <FormField control={control} name="finalClient" render={({ field }) => (
+                    <FormItem>
                         <FormLabel>Cliente Final</FormLabel>
                         <FormControl><Input {...field} /></FormControl>
                     </FormItem>
                 )} />
                 <FormField control={control} name="contact" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Contacto</FormLabel>
+                    <FormLabel>Contacto Principal</FormLabel>
                     <FormControl><Input {...field} /></FormControl>
                   </FormItem>
                 )} />
                 <FormField control={control} name="phone" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Teléfono</FormLabel>
+                    <FormLabel>Teléfono Principal</FormLabel>
                     <FormControl><Input {...field} /></FormControl>
                   </FormItem>
+                )} />
+                 <FormField control={control} name="email" render={({ field }) => (
+                    <FormItem><FormLabel>Email Principal</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={control} name="direccionPrincipal" render={({ field }) => (
+                    <FormItem className="col-span-full"><FormLabel>Dirección Principal de Entrega</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
                 )} />
             </div>
         </AccordionContent>
@@ -231,7 +248,7 @@ export default function EntregaFormPage() {
     defaultValues,
   });
 
-  const { control, handleSubmit, formState: { isDirty }, getValues } = form;
+  const { control, handleSubmit, formState: { isDirty }, getValues, reset } = form;
   
   useEffect(() => {
     if (isEditing) {
@@ -242,8 +259,8 @@ export default function EntregaFormPage() {
       const currentPedido = allPedidosEntrega.find(p => p.osId === id);
 
       if (currentEntrega) {
-        form.reset({
-            ...(defaultValues as any),
+        reset({
+            ...defaultValues,
             ...currentEntrega,
             startDate: new Date(currentEntrega.startDate),
         });
@@ -253,13 +270,13 @@ export default function EntregaFormPage() {
         router.push('/entregas/pes');
       }
     } else {
-      form.reset({
+      reset({
           ...defaultValues,
           startDate: new Date(),
       });
     }
     setIsMounted(true);
-  }, [id, isEditing, form, router, toast]);
+  }, [id, isEditing, reset, router, toast]);
   
   const handleSaveHito = (hitoData: EntregaHito) => {
      setHitos(prevHitos => {
@@ -350,6 +367,10 @@ export default function EntregaFormPage() {
   const calculateHitoTotal = (hito: EntregaHito): number => {
     return hito.items.reduce((sum, item) => sum + ((item.pvp || 0) * item.quantity), 0);
   }
+  
+  const pvpTotalHitos = useMemo(() => {
+    return hitos.reduce((total, hito) => total + calculateHitoTotal(hito), 0);
+  }, [hitos]);
 
   if (!isMounted) {
     return <LoadingSkeleton title={isEditing ? 'Editando Pedido...' : 'Nuevo Pedido...'} />;
@@ -375,16 +396,19 @@ export default function EntregaFormPage() {
              <FormProvider {...form}>
               <form id="entrega-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <Card>
-                    <CardHeader className="py-3">
+                    <CardHeader className="py-3 flex-row items-center justify-between">
                         <CardTitle className="text-lg">Información General del Pedido</CardTitle>
+                        <div className="text-lg font-bold text-green-600">
+                            PVP Total: {formatCurrency(pvpTotalHitos)}
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-3 pt-2">
-                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <FormField control={control} name="serviceNumber" render={({ field }) => (
-                                <FormItem><FormLabel>Nº Pedido</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
+                                <FormItem className="flex flex-col"><FormLabel>Nº Pedido</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={control} name="startDate" render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>Fecha Principal</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
+                                <FormItem className="flex flex-col"><FormLabel>Fecha Principal</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
                             )} />
                              <FormField control={control} name="status" render={({ field }) => (
                                 <FormItem><FormLabel>Estado</FormLabel>
@@ -396,6 +420,14 @@ export default function EntregaFormPage() {
                             )} />
                             <FormField control={control} name="asistentes" render={({ field }) => (
                                 <FormItem><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={control} name="tarifa" render={({ field }) => (
+                                <FormItem><FormLabel>Tarifa</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                    <SelectContent><SelectItem value="Empresa">Empresa</SelectItem><SelectItem value="IFEMA">IFEMA</SelectItem></SelectContent>
+                                    </Select>
+                                </FormItem>
                             )} />
                         </div>
                     </CardContent>
@@ -415,7 +447,7 @@ export default function EntregaFormPage() {
             <Card>
                 <CardHeader className="flex-row justify-between items-center py-3">
                     <CardTitle className="text-lg">Hitos de Entrega</CardTitle>
-                    <HitoDialog onSave={handleSaveHito} os={getValues() as unknown as Entrega} />
+                    <HitoDialog onSave={handleSaveHito} os={getValues()} />
                 </CardHeader>
                 <CardContent className="space-y-2">
                     {hitos.map((hito, index) => (

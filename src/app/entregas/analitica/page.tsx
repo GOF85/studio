@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -24,7 +25,6 @@ export default function AnaliticaEntregasPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [pedidos, setPedidos] = useState<AnaliticaItem[]>([]);
     const [selectedPedidos, setSelectedPedidos] = useState<Set<string>>(new Set());
-    const [useIfemaPrices, setUseIfemaPrices] = useState(false);
 
     useEffect(() => {
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.vertical === 'Entregas');
@@ -95,9 +95,11 @@ export default function AnaliticaEntregasPage() {
             return { pvp: 0, coste: 0, comisionIfema: 0, costesPorCategoria: {} };
         }
 
-        const pvp = seleccion.reduce((sum, item) => sum + (useIfemaPrices ? item.pvpIfemaTotal : item.pvpTotal), 0);
+        const pvp = seleccion.reduce((sum, item) => sum + (item.os.tarifa === 'IFEMA' ? item.pvpIfemaTotal : item.pvpTotal), 0);
         const coste = seleccion.reduce((sum, item) => sum + item.costeTotal, 0);
-        const comisionIfema = useIfemaPrices ? (pvp * 0.1785) : 0;
+        
+        const pvpIfema = seleccion.filter(i => i.os.tarifa === 'IFEMA').reduce((sum, item) => sum + item.pvpIfemaTotal, 0);
+        const comisionIfema = pvpIfema * 0.1785;
         
         const costesPorCategoria: { [key: string]: number } = {};
         
@@ -109,7 +111,7 @@ export default function AnaliticaEntregasPage() {
 
         return { pvp, coste, comisionIfema, costesPorCategoria };
 
-    }, [pedidos, selectedPedidos, useIfemaPrices]);
+    }, [pedidos, selectedPedidos]);
 
     const margenBruto = analisisSeleccion.pvp - analisisSeleccion.coste;
     const margenFinal = margenBruto - analisisSeleccion.comisionIfema;
@@ -128,10 +130,6 @@ export default function AnaliticaEntregasPage() {
                     <h1 className="text-3xl font-headline font-bold">Analítica de Rentabilidad de Entregas</h1>
                     <p className="text-muted-foreground">Selecciona pedidos para analizar su rentabilidad conjunta.</p>
                 </div>
-            </div>
-             <div className="flex items-center space-x-2 mb-8">
-                <Checkbox id="ifema-check" checked={useIfemaPrices} onCheckedChange={(checked) => setUseIfemaPrices(Boolean(checked))} />
-                <Label htmlFor="ifema-check" className="text-base font-semibold">Aplicar Tarifa y Comisión IFEMA</Label>
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -175,6 +173,7 @@ export default function AnaliticaEntregasPage() {
                                 <TableRow>
                                     <TableHead className="w-12"><Checkbox onCheckedChange={(checked) => handleSelectAll(Boolean(checked))} checked={selectedPedidos.size === pedidos.length && pedidos.length > 0} /></TableHead>
                                     <TableHead>Nº Pedido</TableHead>
+                                    <TableHead>Tarifa</TableHead>
                                     <TableHead>Cliente</TableHead>
                                     <TableHead className="text-right">Coste</TableHead>
                                     <TableHead className="text-right">PVP</TableHead>
@@ -185,9 +184,10 @@ export default function AnaliticaEntregasPage() {
                                     <TableRow key={p.os.id} onClick={() => handleSelect(p.os.id)} className="cursor-pointer">
                                         <TableCell><Checkbox checked={selectedPedidos.has(p.os.id)} /></TableCell>
                                         <TableCell className="font-medium">{p.os.serviceNumber}</TableCell>
+                                        <TableCell>{p.os.tarifa}</TableCell>
                                         <TableCell>{p.os.client}</TableCell>
                                         <TableCell className="text-right">{formatCurrency(p.costeTotal)}</TableCell>
-                                        <TableCell className="text-right font-bold">{formatCurrency(useIfemaPrices ? p.pvpIfemaTotal : p.pvpTotal)}</TableCell>
+                                        <TableCell className="text-right font-bold">{formatCurrency(p.os.tarifa === 'IFEMA' ? p.pvpIfemaTotal : p.pvpTotal)}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -221,7 +221,7 @@ export default function AnaliticaEntregasPage() {
                                 <span>Margen Bruto</span>
                                 <span>{formatCurrency(margenBruto)}</span>
                             </div>
-                            {useIfemaPrices && (
+                            {analisisSeleccion.comisionIfema > 0 && (
                                 <>
                                  <div className="flex justify-between text-sm pl-2">
                                      <span>Comisión IFEMA (17,85%)</span>

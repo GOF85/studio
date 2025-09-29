@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -106,6 +107,7 @@ export default function ProductoVentaFormPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [recetasDB, setRecetasDB] = useState<Receta[]>([]);
   const { toast } = useToast();
+  const [useIfemaPrices, setUseIfemaPrices] = useState(false);
 
   const form = useForm<ProductoVentaFormValues>({
     resolver: zodResolver(productoVentaSchema),
@@ -119,6 +121,7 @@ export default function ProductoVentaFormPage() {
   
   const watchedComponentes = form.watch('componentes');
   const watchedPvp = form.watch('pvp');
+  const watchedPvpIfema = form.watch('pvpIfema');
   
   const [costeTotal, setCosteTotal] = useState(0);
 
@@ -175,12 +178,14 @@ export default function ProductoVentaFormPage() {
       setIsSelectorOpen(false);
   }
   
-  const { margenBruto, margenPct } = useMemo(() => {
-    const pvp = watchedPvp || 0;
+  const { margenBruto, margenPct, comisionIfema, margenFinal } = useMemo(() => {
+    const pvp = useIfemaPrices ? (watchedPvpIfema || watchedPvp || 0) : (watchedPvp || 0);
     const margen = pvp - costeTotal;
     const porcentaje = pvp > 0 ? (margen / pvp) * 100 : 0;
-    return { margenBruto: margen, margenPct: porcentaje };
-  }, [costeTotal, watchedPvp]);
+    const comision = useIfemaPrices ? pvp * 0.1785 : 0;
+    const final = margen - comision;
+    return { margenBruto: margen, margenPct: porcentaje, comisionIfema: comision, margenFinal: final };
+  }, [costeTotal, watchedPvp, watchedPvpIfema, useIfemaPrices]);
   
   const handleRecalculate = () => {
     recalculateCosts();
@@ -314,7 +319,7 @@ export default function ProductoVentaFormPage() {
                         <div className="flex justify-between items-center w-full">
                            <h3 className="text-lg font-semibold flex items-center gap-2"><TrendingUp/>Análisis de Rentabilidad</h3>
                            <div className="font-bold text-green-600">
-                               <span>{formatCurrency(margenBruto)}</span>
+                               <span>{formatCurrency(margenFinal)}</span>
                                <span className="mx-2">-</span>
                                <span>{margenPct.toFixed(2)}%</span>
                            </div>
@@ -322,23 +327,36 @@ export default function ProductoVentaFormPage() {
                       </AccordionTrigger>
                       <AccordionContent>
                         <CardContent className="space-y-2 text-sm pt-0">
+                           <div className="flex items-center space-x-2 my-4">
+                                <Checkbox id="ifema-check" checked={useIfemaPrices} onCheckedChange={(checked) => setUseIfemaPrices(Boolean(checked))} />
+                                <label htmlFor="ifema-check" className="font-semibold">Aplicar Tarifa y Comisión IFEMA</label>
+                            </div>
                           <div className="flex justify-between">
+                            <span>Precio de Venta:</span>
+                            <span className="font-semibold">{formatCurrency(useIfemaPrices ? (watchedPvpIfema || watchedPvp) : watchedPvp)}</span>
+                          </div>
+                           <div className="flex justify-between">
                             <span>Coste de Componentes:</span>
                             <span className="font-semibold">{formatCurrency(costeTotal)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Precio de Venta (PVP):</span>
-                            <span className="font-semibold">{formatCurrency(watchedPvp)}</span>
                           </div>
                           <Separator className="my-2" />
                           <div className="flex justify-between font-bold">
                             <span>Margen Bruto:</span>
                             <span className={cn(margenBruto < 0 && "text-destructive")}>{formatCurrency(margenBruto)}</span>
                           </div>
-                          <div className="flex justify-between font-bold">
-                            <span>Margen Porcentual:</span>
-                            <span className={cn(margenPct < 30 && "text-destructive", "text-green-600")}>{margenPct.toFixed(2)}%</span>
-                          </div>
+                          {useIfemaPrices && (
+                            <>
+                              <div className="flex justify-between text-sm pl-2">
+                                <span>Comisión IFEMA (17.85%)</span>
+                                <span className="text-destructive">- {formatCurrency(comisionIfema)}</span>
+                              </div>
+                              <Separator className="my-2"/>
+                              <div className="flex justify-between font-bold text-base text-green-600">
+                                <span>Margen Final:</span>
+                                <span>{formatCurrency(margenFinal)}</span>
+                              </div>
+                            </>
+                          )}
                         </CardContent>
                       </AccordionContent>
                     </Card>
