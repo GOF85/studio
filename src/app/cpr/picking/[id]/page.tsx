@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -41,8 +42,8 @@ type LotePendiente = {
     ofId: string;
     elaboracionId: string;
     elaboracionNombre: string;
-    cantidadNecesaria: number; // Necesidad total para este hito
-    cantidadAsignada: number; // Total asignado a contenedores para este hito
+    cantidadNecesaria: number; // Necesidad total para esta entrega
+    cantidadAsignada: number; // Total asignado a contenedores para esta entrega
     unidad: string;
     tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
     recetas: { nombre: string, cantidad: number }[];
@@ -556,7 +557,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                     <CardContent>
                                                         {lotesDePartida.length > 0 && (
                                                             <div className="mb-4">
-                                                                <h3 className="font-semibold mb-2">Lotes pendientes de asignar para este servicio</h3>
+                                                                <h3 className="font-semibold mb-2">Lotes pendientes de asignar para esta entrega</h3>
                                                                 <Table className="bg-white"><TableHeader><TableRow><TableHead className="w-[20%]">Receta</TableHead><TableHead className="font-bold">Elaboración</TableHead><TableHead>Lote (OF)</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
                                                                     <TableBody>
                                                                         {lotesDePartida.map(lote => (

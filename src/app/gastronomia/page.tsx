@@ -171,7 +171,7 @@ export default function GastronomiaPage() {
                         ) : (
                             <TableRow>
                             <TableCell colSpan={6} className="h-24 text-center">
-                                No hay pedidos de gastronomía. Activa la opción "Con gastronomía" en los hitos del briefing comercial.
+                                No hay pedidos de gastronomía. Activa la opción "Con gastronomía" en las entregas del briefing comercial.
                             </TableCell>
                             </TableRow>
                         )}

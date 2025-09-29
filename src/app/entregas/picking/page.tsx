@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -136,6 +137,7 @@ export default function PickingEntregasPage() {
     <main className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><ListChecks />Picking y Logística</h1>
+            <p className="text-muted-foreground mt-1">Selecciona una entrega para preparar su picking.</p>
       </div>
 
        <div className="flex flex-col md:flex-row gap-4 mb-6">

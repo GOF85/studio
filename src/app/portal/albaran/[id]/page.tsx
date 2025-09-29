@@ -18,7 +18,7 @@ import { CheckCircle, Package, User } from 'lucide-react';
 
 export default function AlbaranPage() {
     const [order, setOrder] = useState<TransporteOrder | null>(null);
-    const [deliveryItems, setDeliveryItems] = useState<PedidoEntrega['items']>([]);
+    const [deliveryItems, setDeliveryItems] = useState<PedidoEntrega['hitos'][0]['items']>([]);
     const [isMounted, setIsMounted] = useState(false);
     const [signedBy, setSignedBy] = useState('');
     const [dni, setDni] = useState('');
@@ -36,7 +36,10 @@ export default function AlbaranPage() {
         if (currentOrder) {
             const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
             const currentPedido = allPedidosEntrega.find(p => p.osId === currentOrder.osId);
-            setDeliveryItems(currentPedido?.items || []);
+            
+            // Assuming one hito per transport order for simplicity for now. This might need adjustment.
+            const hito = currentPedido?.hitos.find(h => h.lugarEntrega === currentOrder.lugarEntrega);
+            setDeliveryItems(hito?.items || []);
         }
 
         setIsMounted(true);

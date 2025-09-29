@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -52,9 +53,9 @@ export function DeliveryOrderSummary({ items, onUpdateItems, isEditing }: Delive
   return (
     <Card className="sticky top-24 h-[calc(100vh-7rem)] flex flex-col theme-orange">
       <CardHeader className="flex-grow-0 flex-shrink-0 flex flex-row items-center justify-between">
-        <CardTitle className="text-xl font-headline">Resumen del Hito</CardTitle>
+        <CardTitle className="text-xl font-headline">Resumen de la Entrega</CardTitle>
         {items.length > 0 && isEditing && (
-          <Button variant="ghost" size="sm" onClick={onClearOrder} aria-label="Vaciar hito">
+          <Button variant="ghost" size="sm" onClick={onClearOrder} aria-label="Vaciar entrega">
             <Trash2 className="h-4 w-4 mr-1" />
             Vaciar
           </Button>
@@ -65,7 +66,7 @@ export function DeliveryOrderSummary({ items, onUpdateItems, isEditing }: Delive
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10">
               <ShoppingCart className="h-12 w-12 mb-4" />
-              <p className="font-medium">Hito vacío</p>
+              <p className="font-medium">Entrega vacía</p>
               <p className="text-sm">Añade productos desde el catálogo para empezar.</p>
             </div>
           ) : (

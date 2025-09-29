@@ -103,7 +103,7 @@ const hitoDialogSchema = z.object({
 type HitoDialogFormValues = z.infer<typeof hitoDialogSchema>;
 
 
-function HitoDialog({ onSave, initialData, os }: { onSave: (data: EntregaHito) => void; initialData?: Partial<EntregaHito>; os: Partial<Entrega> | null }) {
+function HitoDialog({ onSave, initialData, os, children }: { onSave: (data: EntregaHito) => void; initialData?: Partial<EntregaHito>; os: Partial<Entrega> | null, children: React.ReactNode }) {
     const [isOpen, setIsOpen] = useState(false);
     const form = useForm<HitoDialogFormValues>({
         resolver: zodResolver(hitoDialogSchema),
@@ -131,16 +131,9 @@ function HitoDialog({ onSave, initialData, os }: { onSave: (data: EntregaHito) =
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-                 <Button>
-                    <PlusCircle className="mr-2"/>
-                    Añadir Entrega
-                </Button>
-            </DialogTrigger>
+            <DialogTrigger asChild>{children}</DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
-                <DialogHeader>
-                    <DialogTitle>{initialData ? 'Editar' : 'Nueva'} Entrega</DialogTitle>
-                </DialogHeader>
+                <DialogHeader><DialogTitle>{initialData ? 'Editar' : 'Nueva'} Entrega</DialogTitle></DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                        <div className="grid grid-cols-2 gap-4">
@@ -448,8 +441,13 @@ export default function EntregaFormPage() {
             
             <Card>
                 <CardHeader className="flex-row justify-between items-center py-3">
-                    <CardTitle className="text-lg">Hitos de Entrega</CardTitle>
-                    <HitoDialog onSave={handleSaveHito} os={getValues()} />
+                    <CardTitle className="text-lg">Entregas del Pedido</CardTitle>
+                    <HitoDialog onSave={handleSaveHito} os={getValues()}>
+                        <Button>
+                            <PlusCircle className="mr-2"/>
+                            Añadir Entrega
+                        </Button>
+                    </HitoDialog>
                 </CardHeader>
                 <CardContent className="space-y-2">
                     {hitos.map((hito, index) => (
@@ -501,3 +499,4 @@ export default function EntregaFormPage() {
 }
 
     
+

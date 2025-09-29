@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -77,7 +78,7 @@ function IncidenciaDialog({ item, onSave }: { item: ItemParaPicking; onSave: (it
 export default function PickingEntregaPage() {
     const [entrega, setEntrega] = useState<Entrega | null>(null);
     const [hito, setHito] = useState<EntregaHito | null>(null);
-    const [pickingState, setPickingState] = useState<PickingEntregaState>({ hitoId: '', checkedItems: new Set(), incidencias: [], fotoUrl: null });
+    const [pickingState, setPickingState] = useState<PickingEntregaState>({ hitoId: '', checkedItems: new Set(), incidencias: [], fotoUrl: null, status: 'Pendiente' });
     const [isMounted, setIsMounted] = useState(false);
     const [expedicionNumero, setExpedicionNumero] = useState('');
     const [showOnlyPending, setShowOnlyPending] = useState(true);
@@ -99,7 +100,7 @@ export default function PickingEntregaPage() {
 
     const saveState = useCallback((newState: Partial<PickingEntregaState>) => {
         const allStates = JSON.parse(localStorage.getItem('pickingEntregasState') || '{}');
-        const currentState = allStates[hitoId] || { hitoId, checkedItems: new Set(), incidencias: [], fotoUrl: null };
+        const currentState = allStates[hitoId] || { hitoId, checkedItems: new Set(), incidencias: [], fotoUrl: null, status: 'Pendiente' };
         const updatedState = { ...currentState, ...newState };
 
         // Convert Set to Array for JSON serialization

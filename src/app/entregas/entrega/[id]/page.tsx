@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -47,7 +48,7 @@ export default function ConfeccionarEntregaPage() {
         }
         
         if (!currentHito) {
-            toast({ variant: "destructive", title: "Error", description: "No se encontró el hito de entrega." });
+            toast({ variant: "destructive", title: "Error", description: "No se encontró la entrega." });
             router.push(`/entregas/pedido/${osId}`);
             return;
         }
@@ -76,7 +77,7 @@ export default function ConfeccionarEntregaPage() {
             if(hitoIndex > -1) {
                 allPedidosEntrega[pedidoIndex].hitos[hitoIndex].items = items;
                 localStorage.setItem('pedidosEntrega', JSON.stringify(allPedidosEntrega));
-                toast({ title: 'Hito actualizado' });
+                toast({ title: 'Entrega actualizada' });
             }
         }
     };
