@@ -392,12 +392,16 @@ export default function EntregaFormPage() {
   };
   
   const calculateHitoTotal = (hito: EntregaHito): number => {
-    return hito.items.reduce((sum, item) => sum + ((item.pvp || 0) * item.quantity), 0);
+    const totalProductos = hito.items.reduce((sum, item) => sum + ((item.pvp || 0) * item.quantity), 0);
+    const tarifa = getValues('tarifa');
+    const costePorte = tarifa === 'IFEMA' ? 95 : 30;
+    const totalPortes = (hito.portes || 0) * costePorte;
+    return totalProductos + totalPortes;
   }
   
   const pvpTotalHitos = useMemo(() => {
     return hitos.reduce((total, hito) => total + calculateHitoTotal(hito), 0);
-  }, [hitos]);
+  }, [hitos, getValues('tarifa')]); // Re-calculate when tarifa changes
 
   if (!isMounted) {
     return <LoadingSkeleton title={isEditing ? 'Editando Pedido...' : 'Nuevo Pedido...'} />;
