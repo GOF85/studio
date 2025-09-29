@@ -1,7 +1,6 @@
 
 
-
-import type { z } from "zod";
+import { z } from "zod";
 import type { osFormSchema } from "@/app/os/page";
 
 export type CateringItem = {
