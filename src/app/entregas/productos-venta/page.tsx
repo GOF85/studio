@@ -83,12 +83,22 @@ export default function ProductosVentaPage() {
   };
 
   const calculateCost = (item: ProductoVenta) => {
-    return item.componentes.reduce((total, comp) => total + comp.coste * comp.cantidad, 0);
+    return (item.componentes || []).reduce((total, comp) => total + comp.coste * comp.cantidad, 0);
   }
   
   const calculateMargin = (item: ProductoVenta) => {
       const cost = calculateCost(item);
       const margin = item.pvp > 0 ? ((item.pvp - cost) / item.pvp) * 100 : 0;
+      return margin;
+  }
+  
+  const calculateMarginIfema = (item: ProductoVenta) => {
+      const cost = calculateCost(item);
+      const pvpIfema = item.pvpIfema || item.pvp;
+      const margenBruto = pvpIfema - cost;
+      const comision = pvpIfema * 0.1785;
+      const margenFinal = margenBruto - comision;
+      const margin = pvpIfema > 0 ? (margenFinal / pvpIfema) * 100 : 0;
       return margin;
   }
 
@@ -144,12 +154,13 @@ export default function ProductosVentaPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[30%]">Nombre del Producto</TableHead>
+                <TableHead className="w-[25%]">Nombre del Producto</TableHead>
                 <TableHead>Categoría</TableHead>
                 <TableHead>Coste</TableHead>
                 <TableHead>PVP</TableHead>
                 <TableHead>PVP IFEMA</TableHead>
                 <TableHead>Margen</TableHead>
+                <TableHead>Margen IFEMA</TableHead>
                 <TableHead>Producido por Partner</TableHead>
               </TableRow>
             </TableHeader>
@@ -157,6 +168,7 @@ export default function ProductosVentaPage() {
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => {
                   const margin = calculateMargin(item);
+                  const marginIfema = calculateMarginIfema(item);
                   return (
                     <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/entregas/productos-venta/${item.id}`)}>
                         <TableCell className="font-medium">{item.nombre}</TableCell>
@@ -165,6 +177,7 @@ export default function ProductosVentaPage() {
                         <TableCell className="font-bold">{formatCurrency(item.pvp)}</TableCell>
                         <TableCell className="font-bold">{formatCurrency(item.pvpIfema)}</TableCell>
                         <TableCell className={cn("font-bold", margin < 30 ? 'text-destructive' : 'text-green-600')}>{margin.toFixed(2)}%</TableCell>
+                        <TableCell className={cn("font-bold", marginIfema < 30 ? 'text-destructive' : 'text-green-600')}>{marginIfema.toFixed(2)}%</TableCell>
                         <TableCell>
                           {item.producidoPorPartner && <CheckCircle2 className="text-green-600" />}
                         </TableCell>
@@ -173,7 +186,7 @@ export default function ProductosVentaPage() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={8} className="h-24 text-center">
                     No se encontraron productos de venta.
                   </TableCell>
                 </TableRow>
