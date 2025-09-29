@@ -11,7 +11,7 @@ export function Header() {
   const isPortalModule = pathname.startsWith('/portal');
 
   const getEntregasHeader = () => (
-    <header className="sticky top-0 z-40 w-full border-b bg-orange-500 text-white">
+    <header className="sticky top-0 z-40 w-full border-b bg-orange-500 text-white no-print">
       <div className="container flex h-16 items-center">
         <Link href="/entregas" className="flex items-center gap-3">
           <Package className="h-7 w-7" />
@@ -25,7 +25,7 @@ export function Header() {
 
   const getDefaultHeader = () => (
     <header className={cn(
-        "sticky top-0 z-40 w-full border-b",
+        "sticky top-0 z-40 w-full border-b no-print",
         isEntregasModule ? "bg-orange-100/95" : "bg-background/95",
         "backdrop-blur supports-[backdrop-filter]:bg-background/60"
       )}>
@@ -58,9 +58,5 @@ export function Header() {
     return null;
   }
   
-  if (isEntregasModule) {
-      return getEntregasHeader();
-  }
-
-  return getDefaultHeader();
+  return isEntregasModule ? getEntregasHeader() : getDefaultHeader();
 }

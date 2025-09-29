@@ -111,7 +111,7 @@ export default function PickingEntregasPage() {
             if (producto.producidoPorPartner || producto.recetaId) {
                 allItemsToPick.add(`prod_${producto.id}`);
             } else {
-                 producto.componentes.forEach(comp => allItemsToPick.add(comp.erpId));
+                 (producto.componentes || []).forEach(comp => allItemsToPick.add(comp.erpId));
             }
         }
     });
