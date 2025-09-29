@@ -1,12 +1,9 @@
-
-
-      
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
+import { useForm, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -54,8 +51,6 @@ import {
 } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { formatCurrency } from '@/lib/utils';
-import { UnifiedItemCatalog } from '@/components/entregas/unified-item-catalog';
-import { DeliveryOrderSummary } from '@/components/entregas/delivery-order-summary';
 
 const entregaFormSchema = z.object({
   serviceNumber: z.string().min(1, 'El Nº de Pedido es obligatorio'),
@@ -278,20 +273,46 @@ export default function EntregaFormPage() {
     setIsMounted(true);
   }, [id, isEditing, reset, router, toast]);
   
-  const handleSaveHito = (hitoData: EntregaHito) => {
+  const handleSaveHito = async (hitoData: EntregaHito) => {
+     // Force save main form if it's dirty before adding hito
+    if(isDirty) {
+        await handleSubmit(onSubmit)();
+    }
+
      setHitos(prevHitos => {
          const existingIndex = prevHitos.findIndex(h => h.id === hitoData.id);
+         let newHitos;
          if (existingIndex > -1) {
-             const newHitos = [...prevHitos];
+             newHitos = [...prevHitos];
              newHitos[existingIndex] = hitoData;
-             return newHitos;
+         } else {
+            newHitos = [...prevHitos, hitoData];
          }
-         return [...prevHitos, hitoData];
+
+        // Save hitos to localStorage immediately
+        const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
+        const pedidoIndex = allPedidosEntrega.findIndex(p => p.osId === id);
+        if (pedidoIndex > -1) {
+            allPedidosEntrega[pedidoIndex].hitos = newHitos;
+        } else {
+            allPedidosEntrega.push({ osId: id, hitos: newHitos });
+        }
+        localStorage.setItem('pedidosEntrega', JSON.stringify(allPedidosEntrega));
+
+        return newHitos;
      });
   }
   
   const handleDeleteHito = (index: number) => {
-      setHitos(prevHitos => prevHitos.filter((_, i) => i !== index));
+      const newHitos = hitos.filter((_, i) => i !== index);
+      setHitos(newHitos);
+
+      const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
+      const pedidoIndex = allPedidosEntrega.findIndex(p => p.osId === id);
+      if (pedidoIndex > -1) {
+          allPedidosEntrega[pedidoIndex].hitos = newHitos;
+          localStorage.setItem('pedidosEntrega', JSON.stringify(allPedidosEntrega));
+      }
   }
 
   function onSubmit(data: EntregaFormValues) {
@@ -346,7 +367,12 @@ export default function EntregaFormPage() {
     
     toast({ description: message });
     setIsLoading(false);
-    router.push('/entregas/pes');
+
+    if (!isEditing) {
+        router.push(`/entregas/pedido/${currentId}`);
+    } else {
+        form.reset(data); // Mark form as not dirty
+    }
   }
 
   const handleDelete = () => {
@@ -444,46 +470,48 @@ export default function EntregaFormPage() {
               </form>
             </FormProvider>
             
-            <Card>
-                <CardHeader className="flex-row justify-between items-center py-3">
-                    <CardTitle className="text-lg">Entregas del Pedido</CardTitle>
-                    <HitoDialog onSave={handleSaveHito} os={getValues()}>
-                        <Button>
-                            <PlusCircle className="mr-2"/>
-                            Añadir Entrega
-                        </Button>
-                    </HitoDialog>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                    {hitos.map((hito, index) => (
-                         <Card key={hito.id} className="hover:bg-secondary/50">
-                            <CardHeader className="p-3 flex-row justify-between items-center">
-                                <div className="space-y-1">
-                                    <p className="font-bold text-base">
-                                        <span className="text-primary">{`${getValues('serviceNumber') || 'Pedido'}.${(index + 1).toString().padStart(2, '0')}`}</span> - {hito.lugarEntrega}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">{hito.localizacion}</p>
-                                    <p className="text-sm text-muted-foreground">{format(new Date(hito.fecha), "PPP", { locale: es })} - {hito.hora}</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                     <div className="font-bold text-lg text-green-600">
-                                        {formatCurrency(calculateHitoTotal(hito))}
-                                     </div>
-                                     <Button asChild size="sm">
-                                        <Link href={`/entregas/entrega/${hito.id}?osId=${id}`}>
-                                            Confeccionar
-                                        </Link>
-                                    </Button>
-                                    <Button size="sm" variant="ghost" className="text-destructive" onClick={(e) => {e.stopPropagation(); handleDeleteHito(index)}}><Trash2 /></Button>
-                                </div>
-                            </CardHeader>
-                        </Card>
-                    ))}
-                     {hitos.length === 0 && (
-                        <div className="text-center text-muted-foreground py-10">No hay entregas definidas para este pedido.</div>
-                     )}
-                </CardContent>
-            </Card>
+            {isEditing && (
+              <Card>
+                  <CardHeader className="flex-row justify-between items-center py-3">
+                      <CardTitle className="text-lg">Entregas del Pedido</CardTitle>
+                      <HitoDialog onSave={handleSaveHito} os={getValues()}>
+                          <Button>
+                              <PlusCircle className="mr-2"/>
+                              Añadir Entrega
+                          </Button>
+                      </HitoDialog>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                      {hitos.map((hito, index) => (
+                          <Card key={hito.id} className="hover:bg-secondary/50">
+                              <CardHeader className="p-3 flex-row justify-between items-center">
+                                  <div className="space-y-1">
+                                      <p className="font-bold text-base">
+                                          <span className="text-primary">{`${getValues('serviceNumber') || 'Pedido'}.${(index + 1).toString().padStart(2, '0')}`}</span> - {hito.lugarEntrega}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground">{hito.localizacion}</p>
+                                      <p className="text-sm text-muted-foreground">{format(new Date(hito.fecha), "PPP", { locale: es })} - {hito.hora}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                      <div className="font-bold text-lg text-green-600">
+                                          {formatCurrency(calculateHitoTotal(hito))}
+                                      </div>
+                                      <Button asChild size="sm">
+                                          <Link href={`/entregas/entrega/${hito.id}?osId=${id}`}>
+                                              Confeccionar
+                                          </Link>
+                                      </Button>
+                                      <Button size="sm" variant="ghost" className="text-destructive" onClick={(e) => {e.stopPropagation(); handleDeleteHito(index)}}><Trash2 /></Button>
+                                  </div>
+                              </CardHeader>
+                          </Card>
+                      ))}
+                      {hitos.length === 0 && (
+                          <div className="text-center text-muted-foreground py-10">No hay entregas definidas para este pedido.</div>
+                      )}
+                  </CardContent>
+              </Card>
+            )}
         </div>
       
        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
@@ -503,6 +531,3 @@ export default function EntregaFormPage() {
     </main>
   );
 }
-
-    
-

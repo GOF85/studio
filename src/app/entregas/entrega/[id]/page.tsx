@@ -1,12 +1,11 @@
 
 
-
+      
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Package } from 'lucide-react';
-import { format } from 'date-fns';
 import type { Entrega, PedidoEntrega, ProductoVenta, EntregaHito, PedidoEntregaItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { CardDescription } from '@/components/ui/card';
@@ -112,6 +111,11 @@ export default function ConfeccionarEntregaPage() {
       return productosVenta.filter(p => !p.exclusivoIfema);
     }, [productosVenta, entrega]);
 
+    const totalPedido = useMemo(() => {
+        if (!hito) return 0;
+        return hito.items.reduce((sum, item) => sum + (item.pvp * item.quantity), 0);
+    }, [hito]);
+
 
     if (!isMounted || !entrega || !hito) {
         return <LoadingSkeleton title="Cargando Hoja de Confección..." />;
@@ -130,6 +134,10 @@ export default function ConfeccionarEntregaPage() {
                     <CardDescription>
                         {hito.lugarEntrega}
                     </CardDescription>
+                </div>
+                 <div className="text-right">
+                    <p className="text-sm text-muted-foreground">PVP Total Entrega</p>
+                    <p className="text-2xl font-bold text-green-600">{formatCurrency(totalPedido)}</p>
                 </div>
             </div>
             

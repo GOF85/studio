@@ -1,5 +1,3 @@
-
-
 import { z } from "zod";
 
 export type CateringItem = {
@@ -136,11 +134,11 @@ export type Espacio = {
     accesibilidadAsistentes: string;
     pantalla: string;
     plato: string;
-    accesoVehiculos: string;
-    aparcamiento: string;
-    conexionWifi: string;
-    homologacion: string;
-    comentariosMarketing: string;
+aparcamiento: string;
+  accesoVehiculos: string;
+  conexionWifi: string;
+  homologacion: string;
+  comentariosMarketing: string;
 }
 
 export const PRECIO_CATEGORIAS = ['Bebida', 'Menaje', 'Vajilla', 'Cristalería', 'Mantelería', 'Mobiliario', 'Decoración', 'Maquinaria', 'Transporte'] as const;
@@ -583,7 +581,7 @@ export type ExcedenteProduccion = {
 
 // ---- NUEVA VERTICAL DE ENTREGAS ----
 
-export const CATEGORIAS_PRODUCTO_VENTA = ['Bebida', 'Comida Caliente', 'Comida Fría', 'Snacks', 'Packs', 'Postres', 'Consumibles', 'Otros'] as const;
+export const CATEGORIAS_PRODUCTO_VENTA = ['Gastronomía', 'Bodega', 'Consumibles', 'Almacen', 'Personal', 'Transporte', 'Otros'] as const;
 export type CategoriaProductoVenta = typeof CATEGORIAS_PRODUCTO_VENTA[number];
 
 export type ComponenteProductoVenta = {
