@@ -405,7 +405,7 @@ export default function EntregaFormPage() {
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-3 pt-2">
-                        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
+                         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                             <FormField control={control} name="serviceNumber" render={({ field }) => (
                                 <FormItem className="flex flex-col"><FormLabel>Nº Pedido</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
                             )} />
@@ -413,7 +413,7 @@ export default function EntregaFormPage() {
                                 <FormItem className="flex flex-col"><FormLabel>Fecha Principal</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
                             )} />
                              <FormField control={control} name="status" render={({ field }) => (
-                                <FormItem><FormLabel>Estado</FormLabel>
+                                <FormItem className="flex flex-col"><FormLabel>Estado</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                     <SelectContent><SelectItem value="Borrador">Borrador</SelectItem><SelectItem value="Confirmado">Confirmado</SelectItem><SelectItem value="Enviado">Enviado</SelectItem><SelectItem value="Entregado">Entregado</SelectItem></SelectContent>
@@ -421,10 +421,10 @@ export default function EntregaFormPage() {
                                 </FormItem>
                             )} />
                             <FormField control={control} name="asistentes" render={({ field }) => (
-                                <FormItem><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem className="flex flex-col"><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={control} name="tarifa" render={({ field }) => (
-                                <FormItem><FormLabel>Tarifa</FormLabel>
+                                <FormItem className="flex flex-col"><FormLabel>Tarifa</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                     <SelectContent><SelectItem value="Empresa">Empresa</SelectItem><SelectItem value="IFEMA">IFEMA</SelectItem></SelectContent>
