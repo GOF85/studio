@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -5,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, FileDown, Truck } from 'lucide-react';
+import { Loader2, FileDown, Truck, X } from 'lucide-react';
 import type { ProveedorTransporte } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -102,7 +103,10 @@ export default function ProveedorTransporteFormPage() {
                 <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Proveedor de Transporte</h1>
             </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push('/proveedores-transporte')}>Volver al listado</Button>
+            <Button variant="outline" type="button" onClick={() => router.push('/proveedores-transporte')}>
+              <X className="mr-2 h-4 w-4" />
+              Cancelar
+            </Button>
             <Button type="submit" form="proveedor-form" disabled={isLoading}>
               {isLoading ? <Loader2 className="animate-spin" /> : <FileDown />}
               <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Proveedor'}</span>

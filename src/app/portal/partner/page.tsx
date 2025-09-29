@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -90,7 +91,7 @@ export default function PartnerPortalPage() {
                 (hito.items || []).forEach(item => {
                     const producto = productosMap.get(item.id);
                     if (producto && producto.producidoPorPartner) {
-                         const id = `${pedido.osId}-${item.id}`;
+                         const id = `${hito.id}-${item.id}`;
                          const statusInfo = partnerStatusData[id] || { status: 'Pendiente' };
                          partnerPedidos.push({
                             id,

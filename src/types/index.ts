@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 
 export type CateringItem = {
@@ -249,6 +250,7 @@ export type TransporteOrder = {
     firmaUrl?: string;
     firmadoPor?: string;
     dniReceptor?: string;
+    hitosIds?: string[]; // For Entregas, to link multiple deliveries
 }
 
 export type HieloOrder = {
@@ -641,7 +643,7 @@ export type Entrega = ServiceOrder & {
     tarifa: 'Empresa' | 'IFEMA';
 };
 export type PedidoPartner = {
-    id: string; // osId-elaboracionId
+    id: string; // hitoId-productoId
     osId: string;
     serviceNumber: string;
     cliente: string;
@@ -664,4 +666,7 @@ export type PickingEntregaState = {
   checkedItems: Set<string>;
   incidencias: PickingIncidencia[];
   fotoUrl: string | null;
+  ordenItems?: string[];
 };
+
+    
