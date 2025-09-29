@@ -64,10 +64,10 @@ export default function ConfeccionarEntregaPage() {
         loadData();
     }, [loadData]);
     
-     const handleUpdateHitoItems = (items: PedidoEntregaItem[]) => {
+     const handleUpdateHito = (updatedHito: EntregaHito) => {
         if (!osId || !hito) return;
 
-        setHito(prevHito => prevHito ? {...prevHito, items} : null);
+        setHito(updatedHito);
         
         const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
         const pedidoIndex = allPedidosEntrega.findIndex(p => p.osId === osId);
@@ -75,7 +75,7 @@ export default function ConfeccionarEntregaPage() {
         if (pedidoIndex > -1) {
             const hitoIndex = allPedidosEntrega[pedidoIndex].hitos.findIndex(h => h.id === hitoId);
             if(hitoIndex > -1) {
-                allPedidosEntrega[pedidoIndex].hitos[hitoIndex].items = items;
+                allPedidosEntrega[pedidoIndex].hitos[hitoIndex] = updatedHito;
                 localStorage.setItem('pedidosEntrega', JSON.stringify(allPedidosEntrega));
                 toast({ title: 'Entrega actualizada' });
             }
@@ -96,12 +96,12 @@ export default function ConfeccionarEntregaPage() {
             id: item.id,
             nombre: item.nombre,
             quantity: quantity,
-            pvp: item.pvp,
+            pvp: entrega?.tarifa === 'IFEMA' ? (item.pvpIfema || item.pvp) : item.pvp,
             coste: costeComponentes,
             categoria: item.categoria,
           });
         }
-        handleUpdateHitoItems(newItems);
+        handleUpdateHito({ ...hito, items: newItems });
     }
     
     const catalogItems = useMemo(() => {
@@ -114,8 +114,11 @@ export default function ConfeccionarEntregaPage() {
 
     const totalPedido = useMemo(() => {
         if (!hito) return 0;
-        return hito.items.reduce((sum, item) => sum + (item.pvp * item.quantity), 0);
-    }, [hito]);
+        const totalProductos = hito.items.reduce((sum, item) => sum + (item.pvp * item.quantity), 0);
+        const costePorte = entrega?.tarifa === 'IFEMA' ? 95 : 30;
+        const totalPortes = (hito.portes || 0) * costePorte;
+        return totalProductos + totalPortes;
+    }, [hito, entrega]);
 
 
     if (!isMounted || !entrega || !hito) {
@@ -145,7 +148,12 @@ export default function ConfeccionarEntregaPage() {
              <div className="grid lg:grid-cols-2 lg:gap-8 mt-6">
                 <UnifiedItemCatalog items={catalogItems} onAddItem={handleAddItem} />
                 <div className="mt-8 lg:mt-0">
-                    <DeliveryOrderSummary items={hito?.items || []} onUpdateItems={handleUpdateHitoItems} isEditing={true} />
+                    <DeliveryOrderSummary 
+                        entrega={entrega}
+                        hito={hito}
+                        onUpdateHito={handleUpdateHito}
+                        isEditing={true} 
+                    />
                 </div>
             </div>
         </main>
