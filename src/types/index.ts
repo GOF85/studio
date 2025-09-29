@@ -627,6 +627,7 @@ export type EntregaHito = {
     fecha: string;
     hora: string;
     lugarEntrega: string;
+    localizacion?: string;
     contacto?: string;
     telefono?: string;
     email?: string;

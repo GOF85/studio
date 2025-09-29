@@ -95,6 +95,7 @@ const hitoDialogSchema = z.object({
     fecha: z.date(),
     hora: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
     lugarEntrega: z.string().min(1, "El lugar de entrega es obligatorio"),
+    localizacion: z.string().optional(),
     contacto: z.string().optional(),
     telefono: z.string().optional(),
     email: z.string().email().or(z.literal('')).optional(),
@@ -112,6 +113,7 @@ function HitoDialog({ onSave, initialData, os, children }: { onSave: (data: Entr
             fecha: initialData?.fecha ? new Date(initialData.fecha) : (os?.startDate ? new Date(os.startDate) : new Date()),
             hora: initialData?.hora || '10:00',
             lugarEntrega: initialData?.lugarEntrega || os?.direccionPrincipal || '',
+            localizacion: initialData?.localizacion || '',
             contacto: initialData?.contacto || os?.contact || '',
             telefono: initialData?.telefono || os?.phone || '',
             email: initialData?.email || os?.email || '',
@@ -145,7 +147,10 @@ function HitoDialog({ onSave, initialData, os, children }: { onSave: (data: Entr
                         )} />
                        </div>
                         <FormField control={form.control} name="lugarEntrega" render={({ field }) => (
-                            <FormItem><FormLabel>Lugar de Entrega</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Lugar de Entrega (Dirección)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="localizacion" render={({ field }) => (
+                            <FormItem><FormLabel>Localización (ej. Sala, Stand, etc.)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <div className="grid grid-cols-3 gap-4">
                             <FormField control={form.control} name="contacto" render={({ field }) => (<FormItem><FormLabel>Contacto</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
@@ -457,6 +462,7 @@ export default function EntregaFormPage() {
                                     <p className="font-bold text-base">
                                         <span className="text-primary">{`${getValues('serviceNumber') || 'Pedido'}.${(index + 1).toString().padStart(2, '0')}`}</span> - {hito.lugarEntrega}
                                     </p>
+                                    <p className="text-sm text-muted-foreground">{hito.localizacion}</p>
                                     <p className="text-sm text-muted-foreground">{format(new Date(hito.fecha), "PPP", { locale: es })} - {hito.hora}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
