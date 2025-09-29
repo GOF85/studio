@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -92,6 +93,16 @@ export default function EntregasDashboardPage() {
                         </CardHeader>
                         <CardContent>
                             <p className="text-sm text-muted-foreground">Analiza costes y márgenes de tus entregas.</p>
+                        </CardContent>
+                    </Card>
+                </Link>
+                 <Link href="/docs/entregas-manual">
+                    <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-3"><LifeBuoy />Documentación</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">Manual de usuario para la vertical de Entregas MICE.</p>
                         </CardContent>
                     </Card>
                 </Link>
