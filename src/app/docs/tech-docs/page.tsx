@@ -50,18 +50,19 @@ export default function TechDocsPage() {
                     <p><strong>Elaboracion</strong> --N:M--&gt; <strong>IngredienteInterno</strong></p>
                     <p><strong>IngredienteInterno</strong> --N:1--&gt; <strong>IngredienteERP</strong></p>
                     <p><strong>OrdenFabricacion (OF)</strong> --N:1--&gt; <strong>Elaboracion</strong></p>
-                    <p><strong>PackDeVenta</strong> --N:M--&gt; <strong>Precio</strong> (artículos de almacén/bodega/bio)</p>
-                    <p><strong>PedidoEntrega</strong> es una OS con una `vertical` específica que activa un flujo diferente.</p>
+                    <p><strong>ProductoVenta</strong> --1:1--&gt; <strong>Receta</strong> (Opcional)</p>
+                    <p><strong>ProductoVenta</strong> --N:M--&gt; <strong>Precio</strong> (como componente)</p>
+                    <p><strong>Entrega (OS con vertical='Entregas')</strong> --1:N--&gt; <strong>PedidoEntrega</strong> (con Hitos)</p>
                 </div>
 
                 <h3>Entidades Clave</h3>
                 <dl>
-                    <dt>ServiceOrder</dt>
+                    <dt>ServiceOrder / Entrega</dt>
                     <dd>La entidad central que representa un evento o entrega. El campo `vertical` ('Catering' o 'Entregas') discrimina el flujo de trabajo.</dd>
                     <dt>Receta</dt>
                     <dd>El plato final. Contiene su escandallo (lista de elaboraciones), costes y atributos. Las recetas para "Entregas" se venden por unidades de venta (cajas, bandejas).</dd>
-                    <dt>PackDeVenta</dt>
-                    <dd>Entidad específica para la vertical "Entregas". Es un producto compuesto (ej. "Box Café") que se vende como una unidad pero se desglosa en múltiples artículos de almacén para el picking.</dd>
+                    <dt>ProductoVenta</dt>
+                    <dd>Entidad específica para la vertical "Entregas". Es un producto que puede ser una receta simple (ej. "Bandeja de Croquetas") o un pack compuesto (ej. "Box Café"). Se vende como una unidad pero puede desglosarse en múltiples artículos de almacén para el picking.</dd>
                     <dt>OrdenFabricacion</dt>
                     <dd>Actúa como **lote de producción** para una elaboración. Es el núcleo de la trazabilidad en CPR.</dd>
                 </dl>
@@ -71,16 +72,16 @@ export default function TechDocsPage() {
                 <h2 className="flex items-center gap-3"><Package />Capítulo 3: Lógica de la Vertical "Entregas"</h2>
                 <p>Esta sección detalla la arquitectura específica de la nueva vertical de negocio.</p>
                 <h3>3.1. Formulario de Pedido Único</h3>
-                <p>A diferencia de las OS de Catering, las OS de Entrega no usan un sistema de módulos separados. En su lugar, un único formulario gestiona la adición de todos los productos (gastronomía, bebidas, consumibles) a través de un **catálogo unificado** que busca en tiempo real en las bases de datos de Recetas (categoría "Entregas"), Packs de Venta y Precios (Bodega, Bio, Almacén).</p>
+                <p>A diferencia de las OS de Catering, los pedidos de Entrega no usan un sistema de módulos separados. En su lugar, un único formulario (`/entregas/pedido/[id]`) gestiona la adición de todos los productos (gastronomía, bebidas, consumibles) a través de un **catálogo unificado** que busca en tiempo real en las bases de datos de `ProductoVenta`.</p>
                 <h3>3.2. Flujo de Guardado Inteligente</h3>
-                <p>Al guardar una OS de Entrega, un orquestador de lógica de negocio se activa:</p>
+                <p>Al guardar un pedido de Entrega, un orquestador de lógica de negocio se activa:</p>
                 <ol>
-                    <li><strong>Cálculo de Costes y PVP:</strong> Se recupera el coste de producción de cada ítem. Se busca el margen aplicable desde la nueva base de datos "Márgenes por Categoría" y se calcula el PVP final.</li>
-                    <li><strong>Desglose de Necesidades:</strong> El sistema desglosa los "Packs de Venta" en sus componentes individuales.</li>
-                    <li><strong>Distribución de Tareas:</strong> Las elaboraciones se distribuyen a CPR MICE o al Portal del Partner según el campo `producidoPor`. El resto de artículos (bebidas, consumibles, componentes de packs) se envían directamente a la "Hoja de Picking" del almacén.</li>
+                    <li><strong>Cálculo de Costes y PVP:</strong> Se recupera el coste de producción de cada ítem desde `ProductoVenta`. El sistema calcula el PVP final para el pedido.</li>
+                    <li><strong>Desglose de Necesidades:</strong> El sistema desglosa los "Productos de Venta" de tipo pack en sus componentes individuales (`componentes` de `ProductoVenta`).</li>
+                    <li><strong>Distribución de Tareas:</strong> Las elaboraciones (vinculadas a través de `recetaId` en `ProductoVenta`) se distribuyen a CPR MICE o al Portal del Partner según el campo `producidoPor` del `ProductoVenta`. El resto de artículos (bebidas, consumibles, componentes de packs) se envían directamente a la "Hoja de Picking" de la entrega.</li>
                 </ol>
                 <h3>3.3. Portales Externos</h3>
-                <p>Se ha creado una nueva sección `/portal` para dar acceso restringido y con una UI adaptada a partners y transportistas. Estos portales leen los datos relevantes (necesidades de producción, rutas de entrega) y permitirán actualizar estados, desencadenando acciones en el sistema principal (ej. notificaciones por email).</p>
+                <p>Se ha creado una nueva sección `/portal` para dar acceso restringido y con una UI adaptada a partners y transportistas. Estos portales leen los datos relevantes (necesidades de producción, rutas de entrega) y permiten actualizar estados, desencadenando acciones en el sistema principal.</p>
             </section>
 
             <section id="c4-tech">
