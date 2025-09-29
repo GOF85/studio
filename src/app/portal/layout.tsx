@@ -41,10 +41,9 @@ export default function PortalLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div>
+    <div className="no-print">
         <PortalHeader />
         {children}
     </div>
   );
 }
-
