@@ -52,6 +52,7 @@ const productoVentaSchema = z.object({
   producidoPorPartner: z.boolean().optional().default(false),
   recetaId: z.string().optional(),
   componentes: z.array(componenteSchema),
+  exclusivoIfema: z.boolean().optional().default(false),
 });
 
 type ProductoVentaFormValues = z.infer<typeof productoVentaSchema>;
@@ -65,7 +66,8 @@ const defaultValues: Partial<ProductoVentaFormValues> = {
     pvpIfema: 0,
     iva: 21,
     producidoPorPartner: false,
-    componentes: []
+    componentes: [],
+    exclusivoIfema: false,
 };
 
 
@@ -321,7 +323,7 @@ export default function ProductoVentaFormPage() {
                                 <FormItem><FormLabel>PVP IFEMA (€)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage/></FormItem>
                             )} />
                         </div>
-                        <div className="grid md:grid-cols-2 gap-4 items-center pt-2">
+                        <div className="grid md:grid-cols-2 gap-4 items-start pt-2">
                              <FormField control={form.control} name="recetaId" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Receta Vinculada (Opcional)</FormLabel>
@@ -335,16 +337,28 @@ export default function ProductoVentaFormPage() {
                                     <FormMessage/>
                                 </FormItem>
                             )} />
-                            <FormField control={form.control} name="producidoPorPartner" render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-full">
-                                <FormControl>
-                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                </FormControl>
-                                <div className="space-y-1 leading-none">
-                                    <FormLabel>Producido por Partner</FormLabel>
-                                </div>
-                                </FormItem>
-                            )} />
+                            <div className="space-y-4">
+                                <FormField control={form.control} name="producidoPorPartner" render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-[40px]">
+                                    <FormControl>
+                                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                    </FormControl>
+                                    <div className="space-y-1 leading-none">
+                                        <FormLabel>Producido por Partner</FormLabel>
+                                    </div>
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="exclusivoIfema" render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-[40px]">
+                                    <FormControl>
+                                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                    </FormControl>
+                                    <div className="space-y-1 leading-none">
+                                        <FormLabel>Exclusivo IFEMA</FormLabel>
+                                    </div>
+                                    </FormItem>
+                                )} />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

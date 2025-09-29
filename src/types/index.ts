@@ -610,6 +610,7 @@ export type ProductoVenta = {
     producidoPorPartner: boolean;
     recetaId?: string;
     componentes: ComponenteProductoVenta[];
+    exclusivoIfema?: boolean;
 }
 
 export type PedidoEntregaItem = {

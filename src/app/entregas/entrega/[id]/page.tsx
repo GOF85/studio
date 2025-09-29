@@ -102,6 +102,14 @@ export default function ConfeccionarEntregaPage() {
         }
         handleUpdateHitoItems(newItems);
     }
+    
+    const catalogItems = useMemo(() => {
+      if (!entrega) return productosVenta;
+      if (entrega.tarifa === 'IFEMA') {
+        return productosVenta;
+      }
+      return productosVenta.filter(p => !p.exclusivoIfema);
+    }, [productosVenta, entrega]);
 
 
     if (!isMounted || !entrega || !hito) {
@@ -125,7 +133,7 @@ export default function ConfeccionarEntregaPage() {
             </div>
             
              <div className="grid lg:grid-cols-2 lg:gap-8 mt-6">
-                <UnifiedItemCatalog items={productosVenta} onAddItem={handleAddItem} />
+                <UnifiedItemCatalog items={catalogItems} onAddItem={handleAddItem} />
                 <div className="mt-8 lg:mt-0">
                     <DeliveryOrderSummary items={hito?.items || []} onUpdateItems={handleUpdateHitoItems} isEditing={true} />
                 </div>
