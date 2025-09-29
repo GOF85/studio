@@ -74,6 +74,17 @@ export default function PickingEntregasPage() {
     
     setHitos(hitosDePicking.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()));
     setIsMounted(true);
+
+    const handleStorageChange = () => {
+        const updatedStates = JSON.parse(localStorage.getItem('pickingEntregasState') || '{}');
+        setPickingStates(updatedStates);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+        window.removeEventListener('storage', handleStorageChange);
+    };
+
   }, []);
 
   const filteredHitos = useMemo(() => {
@@ -123,7 +134,7 @@ export default function PickingEntregasPage() {
     const totalItems = allItemsToPick.size;
     if (totalItems === 0) return { checked: 0, total: 0, percentage: 0 };
 
-    const checkedItems = state?.checkedItems?.size || 0;
+    const checkedItems = state?.checkedItems?.length || 0; // Use length as it's now an array from JSON
     
     return {
       checked: checkedItems,
