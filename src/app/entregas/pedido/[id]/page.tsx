@@ -54,6 +54,8 @@ import {
 } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { formatCurrency } from '@/lib/utils';
+import { UnifiedItemCatalog } from '@/components/entregas/unified-item-catalog';
+import { DeliveryOrderSummary } from '@/components/entregas/delivery-order-summary';
 
 const entregaFormSchema = z.object({
   serviceNumber: z.string().min(1, 'El Nº de Pedido es obligatorio'),
@@ -403,7 +405,7 @@ export default function EntregaFormPage() {
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-3 pt-2">
-                        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
                             <FormField control={control} name="serviceNumber" render={({ field }) => (
                                 <FormItem className="flex flex-col"><FormLabel>Nº Pedido</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
                             )} />
