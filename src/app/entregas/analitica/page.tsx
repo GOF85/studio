@@ -309,37 +309,24 @@ export default function AnaliticaEntregasPage() {
                 </TabsList>
                 <TabsContent value="rentabilidad">
                     <div className="space-y-8">
+                         <Card>
+                            <CardHeader><CardTitle>Facturación y Rentabilidad Mensual</CardTitle></CardHeader>
+                            <CardContent>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <AreaChart data={monthlyData}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                        <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `€${value / 1000}k`}/>
+                                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                        <Legend />
+                                        <Area type="monotone" dataKey="Facturación" stackId="1" stroke="#8884d8" fill="#8884d8" />
+                                        <Area type="monotone" dataKey="Rentabilidad" stackId="1" stroke="#82ca9d" fill="#82ca9d" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
                         <div className="grid lg:grid-cols-2 gap-4">
-                            <Card>
-                                <CardHeader><CardTitle>Facturación y Rentabilidad Mensual</CardTitle></CardHeader>
-                                <CardContent>
-                                    <ResponsiveContainer width="100%" height={300}>
-                                        <AreaChart data={monthlyData}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                                            <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `€${value / 1000}k`}/>
-                                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                                            <Legend />
-                                            <Area type="monotone" dataKey="Facturación" stackId="1" stroke="#8884d8" fill="#8884d8" />
-                                            <Area type="monotone" dataKey="Rentabilidad" stackId="1" stroke="#82ca9d" fill="#82ca9d" />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader><CardTitle>Rentabilidad por Categoría</CardTitle></CardHeader>
-                                <CardContent>
-                                    <Table>
-                                        <TableHeader><TableRow><TableHead>Categoría</TableHead><TableHead className="text-right">Margen Bruto</TableHead><TableHead className="text-right">Margen %</TableHead></TableRow></TableHeader>
-                                        <TableBody>
-                                            {rentabilidadPorCategoria.map(c => (
-                                                <TableRow key={c.categoria}><TableCell>{c.categoria}</TableCell><TableCell className="text-right">{formatCurrency(c.margen)}</TableCell><TableCell className={cn("text-right font-medium", c.margenPct < 0 && 'text-destructive')}>{c.margenPct.toFixed(1)}%</TableCell></TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                            </Card>
-                             <Card>
+                           <Card>
                                 <CardHeader><CardTitle>Volumen de Contratos</CardTitle></CardHeader>
                                 <CardContent>
                                 <ResponsiveContainer width="100%" height={300}>
@@ -370,19 +357,34 @@ export default function AnaliticaEntregasPage() {
                                 </CardContent>
                             </Card>
                         </div>
-                        <Card>
-                            <CardHeader><CardTitle>Top 5 Productos más Vendidos</CardTitle></CardHeader>
-                            <CardContent>
-                                <Table>
-                                    <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Cantidad Vendida</TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {topProductos.map(p => (
-                                            <TableRow key={p.id}><TableCell>{p.nombre}</TableCell><TableCell className="text-right font-medium">{p.cantidad}</TableCell></TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
-                        </Card>
+                        <div className="grid lg:grid-cols-2 gap-4">
+                            <Card>
+                                <CardHeader><CardTitle>Top 5 Productos más Vendidos</CardTitle></CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Cantidad Vendida</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {topProductos.map(p => (
+                                                <TableRow key={p.id}><TableCell>{p.nombre}</TableCell><TableCell className="text-right font-medium">{p.cantidad}</TableCell></TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                             <Card>
+                                <CardHeader><CardTitle>Rentabilidad por Categoría</CardTitle></CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>Categoría</TableHead><TableHead className="text-right">Margen Bruto</TableHead><TableHead className="text-right">Margen %</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {rentabilidadPorCategoria.map(c => (
+                                                <TableRow key={c.categoria}><TableCell>{c.categoria}</TableCell><TableCell className="text-right">{formatCurrency(c.margen)}</TableCell><TableCell className={cn("text-right font-medium", c.margenPct < 0 && 'text-destructive')}>{c.margenPct.toFixed(1)}%</TableCell></TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        </div>
                     </div>
                 </TabsContent>
                   <TabsContent value="partner">
