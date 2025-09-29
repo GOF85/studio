@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -7,7 +8,7 @@ import { ArrowLeft, Package } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Entrega, PedidoEntrega, ProductoVenta, EntregaHito, PedidoEntregaItem } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { UnifiedItemCatalog } from '@/components/entregas/unified-item-catalog';
@@ -83,7 +84,7 @@ export default function ConfeccionarEntregaPage() {
     const handleAddItem = (item: ProductoVenta, quantity: number) => {
         if(!hito) return;
 
-        const costeComponentes = item.componentes.reduce((sum, comp) => sum + (comp.coste || 0) * comp.cantidad, 0);
+        const costeComponentes = (item.componentes || []).reduce((sum, comp) => sum + (comp.coste || 0) * comp.cantidad, 0);
         const newItems = [...(hito.items || [])];
         const existingIndex = newItems.findIndex(i => i.id === item.id);
 
@@ -118,7 +119,7 @@ export default function ConfeccionarEntregaPage() {
                         <Package /> Confección de Entrega: {expedicionNumero}
                     </h1>
                     <CardDescription>
-                        Cliente: {entrega.client} | Fecha: {format(new Date(hito.fecha), 'dd/MM/yyyy')} | Hora: {hito.hora}
+                        {hito.lugarEntrega}
                     </CardDescription>
                 </div>
             </div>

@@ -42,7 +42,7 @@ export type ServiceOrder = Omit<z.infer<typeof osFormSchema>, 'startDate' | 'end
     vertical: 'Catering';
 };
 
-export type Entrega = Omit<z.infer<typeof osFormSchema>, 'startDate' | 'endDate' | 'status'> & {
+export type Entrega = Omit<z.infer<typeof osFormSchema>, 'startDate' | 'endDate' | 'status' | 'tipoCliente'> & {
   id: string;
   startDate: string;
   endDate: string;
@@ -52,6 +52,7 @@ export type Entrega = Omit<z.infer<typeof osFormSchema>, 'startDate' | 'endDate'
   tarifa: 'Empresa' | 'IFEMA';
   direccionPrincipal: string;
   email: string;
+  tipoCliente: 'Empresa' | 'Agencia' | 'Particular';
 };
 
 export type Personal = {

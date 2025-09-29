@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 export function Header() {
   const pathname = usePathname();
   const isEntregasModule = pathname.startsWith('/entregas');
+  const isPortalModule = pathname.startsWith('/portal');
 
   if (isEntregasModule) {
     return (
@@ -20,6 +21,10 @@ export function Header() {
         </div>
       </header>
     )
+  }
+  
+  if (isPortalModule) {
+    return null;
   }
 
   return (

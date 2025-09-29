@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -49,17 +50,16 @@ export function DeliveryOrderSummary({ items, onUpdateItems, isEditing }: Delive
   }, [items]);
   
   return (
-    <Card className="sticky top-24 h-[calc(100vh-7rem)] flex flex-col">
+    <Card className="sticky top-24 h-[calc(100vh-7rem)] flex flex-col theme-orange">
       <CardHeader className="flex-grow-0 flex-shrink-0 flex flex-row items-center justify-between">
         <CardTitle className="text-xl font-headline">Resumen del Hito</CardTitle>
-        {items.length > 0 && (
+        {items.length > 0 && isEditing && (
           <Button variant="ghost" size="sm" onClick={onClearOrder} aria-label="Vaciar hito">
             <Trash2 className="h-4 w-4 mr-1" />
             Vaciar
           </Button>
         )}
       </CardHeader>
-       <Separator />
       <div className="flex-grow overflow-y-auto">
         <CardContent className="p-4">
           {items.length === 0 ? (
@@ -78,11 +78,14 @@ export function DeliveryOrderSummary({ items, onUpdateItems, isEditing }: Delive
                         PVP: {formatCurrency(item.pvp)}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}><Minus className="h-4 w-4" /></Button>
-                      <Input type="number" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}><Plus className="h-4 w-4" /></Button>
-                    </div>
+                     {isEditing && (
+                      <div className="flex items-center gap-1">
+                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}><Minus className="h-4 w-4" /></Button>
+                        <Input type="number" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
+                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}><Plus className="h-4 w-4" /></Button>
+                      </div>
+                    )}
+                    {!isEditing && <span className="font-semibold">{item.quantity} uds.</span>}
                   </li>
                 ))}
               </ul>
@@ -90,7 +93,9 @@ export function DeliveryOrderSummary({ items, onUpdateItems, isEditing }: Delive
         </CardContent>
       </div>
       {items.length > 0 && (
-          <div className="flex-grow-0 flex-shrink-0 p-4 border-t bg-secondary/50">
+        <>
+          <Separator />
+          <div className="flex-grow-0 flex-shrink-0 p-4">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>Coste Total Producción:</span>
@@ -103,6 +108,7 @@ export function DeliveryOrderSummary({ items, onUpdateItems, isEditing }: Delive
               </div>
             </div>
           </div>
+        </>
         )}
     </Card>
   );
