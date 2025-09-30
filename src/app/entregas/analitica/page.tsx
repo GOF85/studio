@@ -376,7 +376,7 @@ export default function AnaliticaEntregasPage() {
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                    <CardHeader className="flex-row items-center justify-between space-y-0 pb-1">
                         <CardTitle className="text-sm font-medium">Ticket Medio</CardTitle>
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
@@ -386,16 +386,16 @@ export default function AnaliticaEntregasPage() {
                     </CardContent>
                 </Card>
                  <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                    <CardHeader className="flex-row items-center justify-between space-y-0 pb-1">
                         <CardTitle className="text-sm font-medium">Margen Final</CardTitle>
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                    <div className={cn("text-2xl font-bold", margenFinal >= 0 ? "text-green-600" : "text-destructive")}>
-                        {formatCurrency(margenFinal)}
-                    </div>
-                    <p className={cn("text-base font-semibold", margenPct >= 0 ? "text-green-600" : "text-destructive")}>{margenPct.toFixed(2)}%</p>
-                 </CardContent>
+                        <div className={cn("text-2xl font-bold", margenFinal >= 0 ? "text-green-600" : "text-destructive")}>
+                            {formatCurrency(margenFinal)}
+                        </div>
+                        <p className={cn("text-base font-semibold", margenPct >= 0 ? "text-green-600" : "text-destructive")}>{margenPct.toFixed(2)}%</p>
+                    </CardContent>
                  </Card>
             </div>
             
