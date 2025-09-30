@@ -16,7 +16,7 @@ import { Calendar as CalendarIcon } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfQuarter, endOfQuarter, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -130,15 +130,16 @@ export default function AnaliticaEntregasPage() {
     }, []);
     
     const pedidosFiltrados = useMemo(() => {
-        if (!dateRange?.from) return [];
+    if (!dateRange?.from) return [];
         const toDate = dateRange.to || dateRange.from;
         return allPedidos.filter(p => {
             const osDate = new Date(p.os.startDate);
-            const isInDateRange = osDate >= dateRange.from! && osDate <= toDate;
+            const isInDateRange = isWithinInterval(osDate, { start: dateRange.from!, end: endOfDay(toDate) });
             const matchesTarifa = tarifaFilter === 'all' || p.os.tarifa === tarifaFilter;
             return isInDateRange && matchesTarifa;
         });
     }, [allPedidos, dateRange, tarifaFilter]);
+
 
     useEffect(() => {
         setSelectedPedidos(new Set(pedidosFiltrados.map(p => p.os.id)));
@@ -368,17 +369,17 @@ export default function AnaliticaEntregasPage() {
             <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-                        <CardTitle className="text-base font-medium">Facturación</CardTitle>
-                        <Euro className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-xl font-medium">Facturación</CardTitle>
+                        <Euro className="h-5 w-5 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent className="space-y-0.5">
+                    <CardContent className="space-y-1">
                         <p className="text-sm text-muted-foreground">Bruta: {formatCurrency(analisisSeleccion.pvpBruto)}</p>
                         <div className="text-3xl font-bold text-green-600">{formatCurrency(analisisSeleccion.pvpNeto)}</div>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Desglose de Costes</CardTitle>
+                        <CardTitle className="text-base font-medium">Desglose de Costes</CardTitle>
                         <Wallet className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                      <CardContent className="text-xs space-y-0.5">
@@ -392,7 +393,7 @@ export default function AnaliticaEntregasPage() {
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-                        <CardTitle className="text-sm font-medium">Rentabilidad Final</CardTitle>
+                        <CardTitle className="text-base font-medium">Rentabilidad Final</CardTitle>
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="space-y-0.5">
@@ -406,17 +407,17 @@ export default function AnaliticaEntregasPage() {
                  </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Volumen</CardTitle>
+                        <CardTitle className="text-base font-medium">Volumen</CardTitle>
                         <BookOpen className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="space-y-1">
-                        <div className="text-xl font-bold">{selectedPedidos.size} <span className="text-xs font-normal text-muted-foreground">contratos</span></div>
-                        <div className="text-xl font-bold">{analisisSeleccion.hitosCount} <span className="text-xs font-normal text-muted-foreground">entregas</span></div>
+                        <div className="text-2xl font-bold">{selectedPedidos.size} <span className="text-sm font-normal text-muted-foreground">contratos</span></div>
+                        <div className="text-2xl font-bold">{analisisSeleccion.hitosCount} <span className="text-sm font-normal text-muted-foreground">entregas</span></div>
                     </CardContent>
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Ticket Medio</CardTitle>
+                        <CardTitle className="text-base font-medium">Ticket Medio</CardTitle>
                         <Ticket className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent className="space-y-1">
