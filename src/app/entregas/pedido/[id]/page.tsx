@@ -1,9 +1,11 @@
 
+
+      
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -216,7 +218,7 @@ const ClientInfo = () => {
             </div>
         </AccordionContent>
     );
-}
+};
 
 const ClientAccordionTrigger = () => {
     const { watch } = useFormContext();
@@ -230,7 +232,7 @@ const ClientAccordionTrigger = () => {
     )
 }
 
-function TransporteDialog({ onSave, osId, hitos }: { onSave: (order: Omit<TransporteOrder, 'id'>) => void; osId: string; hitos: EntregaHito[] }) {
+function TransporteDialog({ onSave, osId, hitos, existingTransportOrders }: { onSave: (order: Omit<TransporteOrder, 'id'>) => void; osId: string; hitos: EntregaHito[]; existingTransportOrders: TransporteOrder[] }) {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedHitos, setSelectedHitos] = useState<Set<string>>(new Set());
     const [proveedorId, setProveedorId] = useState<string>('');
@@ -241,6 +243,10 @@ function TransporteDialog({ onSave, osId, hitos }: { onSave: (order: Omit<Transp
             .filter(p => p.tipo === 'Entregas');
         setProveedores(allProveedores);
     }, []);
+    
+    const assignedHitoIds = useMemo(() => {
+        return new Set(existingTransportOrders.flatMap(t => t.hitosIds || []));
+    }, [existingTransportOrders]);
 
     const selectedProvider = useMemo(() => proveedores.find(p => p.id === proveedorId), [proveedorId, proveedores]);
 
@@ -250,7 +256,6 @@ function TransporteDialog({ onSave, osId, hitos }: { onSave: (order: Omit<Transp
             return;
         }
         
-        // For now, let's just use the first hito's data for the order details
         const firstHito = hitos.find(h => selectedHitos.has(h.id));
         if (!firstHito) return;
         
@@ -261,7 +266,7 @@ function TransporteDialog({ onSave, osId, hitos }: { onSave: (order: Omit<Transp
             proveedorNombre: selectedProvider.nombreProveedor,
             tipoTransporte: selectedProvider.tipoTransporte,
             precio: selectedProvider.precio,
-            lugarRecogida: 'Avda. de la Industria, 38, 28108 Alcobendas, Madrid', // Default, can be changed
+            lugarRecogida: 'Avda. de la Industria, 38, 28108 Alcobendas, Madrid', // Default
             horaRecogida: '09:00',
             lugarEntrega: firstHito.lugarEntrega,
             horaEntrega: firstHito.hora,
@@ -283,7 +288,12 @@ function TransporteDialog({ onSave, osId, hitos }: { onSave: (order: Omit<Transp
                     <div>
                         <h4 className="font-semibold mb-2">1. Selecciona las entregas a incluir:</h4>
                         <div className="space-y-2 border p-2 rounded-md max-h-40 overflow-y-auto">
-                            {hitos.map((hito, index) => (
+                            {hitos.map((hito, index) => {
+                                const isAssigned = assignedHitoIds.has(hito.id);
+                                const assignedProvider = isAssigned 
+                                    ? existingTransportOrders.find(t => t.hitosIds?.includes(hito.id))?.proveedorNombre
+                                    : null;
+                                return (
                                 <div key={hito.id} className="flex items-center space-x-2">
                                     <Checkbox
                                         id={`hito-${hito.id}`}
@@ -294,12 +304,14 @@ function TransporteDialog({ onSave, osId, hitos }: { onSave: (order: Omit<Transp
                                             else newSelection.delete(hito.id);
                                             setSelectedHitos(newSelection);
                                         }}
+                                        disabled={isAssigned}
                                     />
-                                    <label htmlFor={`hito-${hito.id}`} className="text-sm font-medium leading-none">
+                                    <label htmlFor={`hito-${hito.id}`} className={cn("text-sm font-medium leading-none", isAssigned && "text-muted-foreground line-through")}>
                                         #{index + 1} - {hito.lugarEntrega} ({format(new Date(hito.fecha), 'dd/MM/yy')} {hito.hora})
                                     </label>
+                                    {isAssigned && <Badge variant="secondary">{assignedProvider}</Badge>}
                                 </div>
-                            ))}
+                            )})}
                         </div>
                     </div>
                      <div>
@@ -647,7 +659,7 @@ export default function EntregaFormPage() {
                  <Card>
                     <CardHeader className="flex-row justify-between items-center py-3">
                         <CardTitle className="text-lg">Transporte</CardTitle>
-                        <TransporteDialog onSave={handleSaveTransporte} osId={id} hitos={hitos} />
+                        <TransporteDialog onSave={handleSaveTransporte} osId={id} hitos={hitos} existingTransportOrders={transporteOrders} />
                     </CardHeader>
                     <CardContent>
                         <Table>
@@ -656,10 +668,12 @@ export default function EntregaFormPage() {
                                 {transporteOrders.length > 0 ? transporteOrders.map(t => (
                                     <TableRow key={t.id}>
                                         <TableCell>
-                                            {(t.hitosIds || []).map(hId => {
-                                                const hito = hitos.find(h => h.id === hId);
-                                                return <Badge key={hId} variant="outline">{hito?.lugarEntrega}</Badge>
-                                            })}
+                                            <div className="flex flex-wrap gap-1">
+                                                {(t.hitosIds || []).map(hId => {
+                                                    const hito = hitos.find(h => h.id === hId);
+                                                    return <Badge key={hId} variant="outline">{hito?.lugarEntrega}</Badge>
+                                                })}
+                                            </div>
                                         </TableCell>
                                         <TableCell>{t.proveedorNombre}</TableCell>
                                         <TableCell>{formatCurrency(t.precio)}</TableCell>
