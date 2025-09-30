@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -17,6 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -28,12 +30,13 @@ export default function PrevisionEntregasPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [showPastEvents, setShowPastEvents] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const router = useRouter();
 
   useEffect(() => {
     const storedOrders = localStorage.getItem('entregas');
     const allOrders: Entrega[] = storedOrders ? JSON.parse(storedOrders) : [];
-    setEntregas(allOrders);
+    setEntregas(allOrders.filter(os => os.vertical === 'Entregas'));
     setIsMounted(true);
   }, []);
 
@@ -74,12 +77,14 @@ export default function PrevisionEntregasPage() {
           }
       }
 
-      return searchMatch && monthMatch && pastEventMatch;
+      const statusMatch = statusFilter === 'all' || os.status === statusFilter;
+
+      return searchMatch && monthMatch && pastEventMatch && statusMatch;
     });
 
     return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
-  }, [entregas, searchTerm, selectedMonth, showPastEvents]);
+  }, [entregas, searchTerm, selectedMonth, showPastEvents, statusFilter]);
   
   const statusVariant: { [key in Entrega['status']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
     Borrador: 'secondary',
@@ -104,31 +109,41 @@ export default function PrevisionEntregasPage() {
         </Button>
       </div>
 
-       <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <Input
-              placeholder="Buscar por Nº Pedido o Cliente..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-          />
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-full sm:w-[240px]">
-              <SelectValue placeholder="Filtrar por mes" />
-              </SelectTrigger>
-              <SelectContent>
-              <SelectItem value="all">Todos los meses</SelectItem>
-              {availableMonths.map(month => (
-                  <SelectItem key={month} value={month}>
-                  {format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
-                  </SelectItem>
-              ))}
-              </SelectContent>
-          </Select>
-           <div className="flex items-center space-x-2 pt-2 sm:pt-0">
-                <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
-                <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Mostrar pasados
-                </label>
+       <div className="space-y-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+                <Input
+                    placeholder="Buscar por Nº Pedido o Cliente..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                />
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger className="w-full sm:w-[240px]">
+                    <SelectValue placeholder="Filtrar por mes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                    <SelectItem value="all">Todos los meses</SelectItem>
+                    {availableMonths.map(month => (
+                        <SelectItem key={month} value={month}>
+                        {format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
+                        </SelectItem>
+                    ))}
+                    </SelectContent>
+                </Select>
+                <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+                    <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
+                    <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-nowrap">
+                        Mostrar pasados
+                    </label>
+                </div>
+            </div>
+             <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium">Estado:</span>
+                <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
+                <Button size="sm" variant={statusFilter === 'Borrador' ? 'default' : 'outline'} onClick={() => setStatusFilter('Borrador')}>Borrador</Button>
+                <Button size="sm" variant={statusFilter === 'Confirmado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Confirmado')}>Confirmado</Button>
+                <Button size="sm" variant={statusFilter === 'Enviado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Enviado')}>Enviado</Button>
+                <Button size="sm" variant={statusFilter === 'Entregado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Entregado')}>Entregado</Button>
             </div>
       </div>
 
