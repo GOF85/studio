@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito } from '@/types';
+import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito, TransporteOrder } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -30,6 +31,8 @@ import {
   Area,
   CartesianGrid
 } from "recharts"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { GASTO_LABELS } from '@/lib/constants';
 
 
 type AnaliticaItem = {
@@ -57,12 +60,14 @@ export default function AnaliticaEntregasPage() {
         to: endOfMonth(new Date()),
     });
     const [selectedPedidos, setSelectedPedidos] = useState<Set<string>>(new Set());
+    const [tarifaFilter, setTarifaFilter] = useState<'all' | 'Empresa' | 'IFEMA'>('all');
 
     useEffect(() => {
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.vertical === 'Entregas');
         const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
         const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
-        
+        const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
+
         const productosMap = new Map(allProductosVenta.map(p => [p.id, p]));
 
         const data: AnaliticaItem[] = allEntregas.map(os => {
@@ -72,9 +77,15 @@ export default function AnaliticaEntregasPage() {
             let pvpIfemaTotal = 0;
             const costesPorCategoria: { [key: string]: number } = {};
             const productos: AnaliticaItem['productos'] = [];
+            const costePorte = os.tarifa === 'IFEMA' ? 95 : 30;
 
             if (deliveryOrder && deliveryOrder.hitos) {
                 deliveryOrder.hitos.forEach(hito => {
+                    const totalPortesHito = (hito.portes || 0) * costePorte;
+                    pvpTotal += totalPortesHito;
+                    pvpIfemaTotal += totalPortesHito;
+                    costesPorCategoria[GASTO_LABELS.transporte] = (costesPorCategoria[GASTO_LABELS.transporte] || 0); // Placeholder, real cost comes from transport orders
+
                     (hito.items || []).forEach(item => {
                         const producto = productosMap.get(item.id);
                         if (producto) {
@@ -105,6 +116,11 @@ export default function AnaliticaEntregasPage() {
                 });
             }
 
+            const transporteOs = allTransporteOrders.filter(t => t.osId === os.id);
+            const costeTransporteOs = transporteOs.reduce((sum, t) => sum + t.precio, 0);
+            costeTotal += costeTransporteOs;
+            costesPorCategoria[GASTO_LABELS.transporte] = (costesPorCategoria[GASTO_LABELS.transporte] || 0) + costeTransporteOs;
+
             return { os, costeTotal, pvpTotal, pvpIfemaTotal, costesPorCategoria, productos };
         });
 
@@ -117,9 +133,11 @@ export default function AnaliticaEntregasPage() {
         const toDate = dateRange.to || dateRange.from;
         return allPedidos.filter(p => {
             const osDate = new Date(p.os.startDate);
-            return osDate >= dateRange.from! && osDate <= toDate;
+            const isInDateRange = osDate >= dateRange.from! && osDate <= toDate;
+            const matchesTarifa = tarifaFilter === 'all' || p.os.tarifa === tarifaFilter;
+            return isInDateRange && matchesTarifa;
         });
-    }, [allPedidos, dateRange]);
+    }, [allPedidos, dateRange, tarifaFilter]);
 
     useEffect(() => {
         setSelectedPedidos(new Set(pedidosFiltrados.map(p => p.os.id)));
@@ -180,7 +198,23 @@ export default function AnaliticaEntregasPage() {
             });
         });
 
-        return { pvp, coste, comisionIfema, costesPorCategoria, productos: Object.values(productosAgregados), hitosCount };
+        // Add transport PVP to its category
+        const pvpTransporte = seleccion.reduce((sum, item) => {
+            const costePorte = item.os.tarifa === 'IFEMA' ? 95 : 30;
+            const pedido = allPedidosEntrega.find(p => p.osId === item.os.id);
+            const portes = pedido?.hitos.reduce((hSum, hito) => hSum + (hito.portes || 0), 0) || 0;
+            return sum + (portes * costePorte);
+        }, 0);
+        
+        const pvpPorCategoria: { [key: string]: number } = { [GASTO_LABELS.transporte]: pvpTransporte };
+
+        // Aggregate PVP for other product categories
+        Object.values(productosAgregados).forEach(p => {
+             pvpPorCategoria[p.categoria] = (pvpPorCategoria[p.categoria] || 0) + p.pvp;
+        });
+
+
+        return { pvp, coste, comisionIfema, costesPorCategoria, productos: Object.values(productosAgregados), hitosCount, pvpPorCategoria };
 
     }, [pedidosFiltrados, selectedPedidos]);
 
@@ -191,19 +225,20 @@ export default function AnaliticaEntregasPage() {
     }, [analisisSeleccion.productos]);
 
     const rentabilidadPorCategoria = useMemo(() => {
-        const pvpPorCategoria: { [key: string]: number } = {};
-        analisisSeleccion.productos.forEach(p => {
-            pvpPorCategoria[p.categoria] = (pvpPorCategoria[p.categoria] || 0) + p.pvp;
-        });
+        const allCategories = new Set([
+            ...Object.keys(analisisSeleccion.costesPorCategoria),
+            ...Object.keys(analisisSeleccion.pvpPorCategoria || {})
+        ]);
 
-        return Object.keys(analisisSeleccion.costesPorCategoria).map(cat => {
-            const coste = analisisSeleccion.costesPorCategoria[cat];
-            const pvp = pvpPorCategoria[cat] || 0;
+        return Array.from(allCategories).map(cat => {
+            const coste = analisisSeleccion.costesPorCategoria[cat] || 0;
+            const pvp = (analisisSeleccion.pvpPorCategoria || {})[cat] || 0;
             const margen = pvp - coste;
             const margenPct = pvp > 0 ? (margen / pvp) * 100 : 0;
             return { categoria: cat, pvp, coste, margen, margenPct };
-        }).sort((a,b) => b.margen - a.margen);
-    }, [analisisSeleccion.costesPorCategoria, analisisSeleccion.productos]);
+        }).filter(c => c.pvp > 0 || c.coste > 0)
+          .sort((a,b) => b.margen - a.margen);
+    }, [analisisSeleccion.costesPorCategoria, analisisSeleccion.pvpPorCategoria]);
     
     const partnerAnalysis = useMemo(() => {
         const partnerProducts = analisisSeleccion.productos.filter(p => p.producidoPorPartner);
@@ -238,7 +273,7 @@ export default function AnaliticaEntregasPage() {
             Rentabilidad: data.facturacion - data.coste,
             Contratos: data.contratos.size,
             Entregas: data.entregas,
-        })).sort((a,b) => a.name.localeCompare(b.name));
+        })).sort((a,b) => new Date(a.name).getTime() - new Date(b.name).getTime());
     }, [pedidosFiltrados]);
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
@@ -271,19 +306,19 @@ export default function AnaliticaEntregasPage() {
             </div>
             
             <Card className="mb-6">
-                <CardContent className="p-4 flex flex-wrap items-center gap-4">
-                     <Popover>
-                        <PopoverTrigger asChild>
-                            <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
-                        </PopoverContent>
-                    </Popover>
-                    <div className="flex flex-wrap gap-2">
+                <CardContent className="p-4 flex flex-wrap items-center gap-4 justify-between">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
+                            </PopoverContent>
+                        </Popover>
                         <Button size="sm" variant="outline" onClick={() => setDatePreset('month')}>Mes en curso</Button>
                         <Button size="sm" variant="outline" onClick={() => setDatePreset('year')}>Año en curso</Button>
                         <Button size="sm" variant="outline" onClick={() => setDatePreset('q1')}>Q1</Button>
@@ -291,6 +326,16 @@ export default function AnaliticaEntregasPage() {
                         <Button size="sm" variant="outline" onClick={() => setDatePreset('q3')}>Q3</Button>
                         <Button size="sm" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
                     </div>
+                    <Select value={tarifaFilter} onValueChange={(value) => setTarifaFilter(value as any)}>
+                        <SelectTrigger className="w-full md:w-[180px]">
+                            <SelectValue placeholder="Filtrar por tarifa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas las Tarifas</SelectItem>
+                            <SelectItem value="Empresa">Empresa</SelectItem>
+                            <SelectItem value="IFEMA">IFEMA</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </CardContent>
             </Card>
 
@@ -311,7 +356,7 @@ export default function AnaliticaEntregasPage() {
                     <div className="space-y-8">
                          <Card>
                             <CardHeader><CardTitle>Facturación y Rentabilidad Mensual</CardTitle></CardHeader>
-                            <CardContent>
+                            <CardContent className="pl-0">
                                 <ResponsiveContainer width="100%" height={300}>
                                     <AreaChart data={monthlyData}>
                                         <CartesianGrid strokeDasharray="3 3" />
@@ -328,7 +373,7 @@ export default function AnaliticaEntregasPage() {
                         <div className="grid lg:grid-cols-2 gap-4">
                            <Card>
                                 <CardHeader><CardTitle>Volumen de Contratos</CardTitle></CardHeader>
-                                <CardContent>
+                                <CardContent className="pl-0">
                                 <ResponsiveContainer width="100%" height={300}>
                                         <BarChart data={monthlyData}>
                                             <CartesianGrid strokeDasharray="3 3" />
@@ -343,7 +388,7 @@ export default function AnaliticaEntregasPage() {
                             </Card>
                             <Card>
                                 <CardHeader><CardTitle>Volumen de Entregas</CardTitle></CardHeader>
-                                <CardContent>
+                                <CardContent className="pl-0">
                                 <ResponsiveContainer width="100%" height={300}>
                                         <BarChart data={monthlyData}>
                                             <CartesianGrid strokeDasharray="3 3" />
