@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Truck, ArrowLeft } from 'lucide-react';
-import type { ProveedorTransporte } from '@/types';
+import type { ProveedorTransporte, DatosFiscales } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,10 +41,11 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
-const CSV_HEADERS = ["id", "nombreProveedor", "tipoTransporte", "precio", "tipo"];
+const CSV_HEADERS = ["id", "datosFiscalesId", "nombreProveedor", "tipoTransporte", "precio", "tipo"];
 
 export default function ProveedoresTransportePage() {
   const [items, setItems] = useState<ProveedorTransporte[]>([]);
+  const [datosFiscales, setDatosFiscales] = useState<DatosFiscales[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -56,15 +57,30 @@ export default function ProveedoresTransportePage() {
   useEffect(() => {
     let storedData = localStorage.getItem('proveedoresTransporte');
     setItems(storedData ? JSON.parse(storedData) : []);
+    
+    let fiscalData = localStorage.getItem('datosFiscales');
+    setDatosFiscales(fiscalData ? JSON.parse(fiscalData) : []);
+
     setIsMounted(true);
   }, []);
   
+  const getProviderName = (provider: ProveedorTransporte) => {
+    if (provider.datosFiscalesId) {
+        const fiscalInfo = datosFiscales.find(df => df.id === provider.datosFiscalesId);
+        return fiscalInfo?.nombreComercial || fiscalInfo?.nombreEmpresa || provider.nombreProveedor;
+    }
+    return provider.nombreProveedor;
+  }
+
   const filteredItems = useMemo(() => {
-    return items.filter(item => 
-      item.nombreProveedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    return items.map(item => ({
+        ...item,
+        resolvedName: getProviderName(item)
+    })).filter(item => 
+      item.resolvedName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.tipoTransporte.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [items, searchTerm]);
+  }, [items, searchTerm, datosFiscales]);
 
 
   const handleExportCSV = () => {
@@ -117,6 +133,7 @@ export default function ProveedoresTransportePage() {
         
         const importedData: ProveedorTransporte[] = results.data.map(item => ({
             id: item.id || Date.now().toString() + Math.random(),
+            datosFiscalesId: item.datosFiscalesId || undefined,
             nombreProveedor: item.nombreProveedor || '',
             tipoTransporte: item.tipoTransporte || '',
             precio: parseCurrency(item.precio),
@@ -218,7 +235,7 @@ export default function ProveedoresTransportePage() {
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium p-2">{item.nombreProveedor}</TableCell>
+                    <TableCell className="font-medium p-2">{item.resolvedName}</TableCell>
                     <TableCell className="p-2">{item.tipoTransporte}</TableCell>
                     <TableCell className="p-2">{formatCurrency(item.precio)}</TableCell>
                     <TableCell className="p-2"><Badge variant={item.tipo === 'Entregas' ? 'default' : 'secondary'}>{item.tipo}</Badge></TableCell>

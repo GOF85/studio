@@ -177,6 +177,7 @@ export type TipoProveedorTransporte = typeof TIPO_PROVEEDOR_TRANSPORTE[number];
 
 export type ProveedorTransporte = {
     id: string;
+    datosFiscalesId?: string;
     nombreProveedor: string;
     tipoTransporte: string;
     precio: number;
