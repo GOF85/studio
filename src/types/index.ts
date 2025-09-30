@@ -682,7 +682,7 @@ export type DatosFiscales = {
     id: string;
     cif: string;
     nombreEmpresa: string;
-    nombreComercial: string;
+    nombreComercial?: string;
     direccionFacturacion: string;
     codigoPostal: string;
     ciudad: string;
