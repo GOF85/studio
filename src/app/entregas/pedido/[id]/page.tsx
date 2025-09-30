@@ -1,4 +1,5 @@
 
+
       
 'use client';
 
@@ -69,8 +70,8 @@ export const entregaFormSchema = osFormSchema.extend({
 export type EntregaFormValues = z.infer<typeof entregaFormSchema>;
 
 const defaultValues: Partial<EntregaFormValues> = {
-  serviceNumber: '', 
-  client: '', 
+  serviceNumber: '',
+  client: '',
   asistentes: 1,
   contact: '',
   phone: '',
@@ -524,8 +525,8 @@ export default function EntregaFormPage() {
         deliveryTime: hitos?.[0]?.hora || '', 
         space: '',
         spaceAddress: hitos?.[0]?.lugarEntrega || '',
-        comisionesAgencia,
-        comisionesCanon,
+        comisionesAgencia: comisionAgenciaTotal,
+        comisionesCanon: comisionCanonTotal,
     }
     
     const pedidoEntregaData: PedidoEntrega = {
@@ -969,3 +970,4 @@ export default function EntregaFormPage() {
     </main>
   );
 }
+
