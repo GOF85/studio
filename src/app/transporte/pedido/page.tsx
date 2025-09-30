@@ -75,7 +75,8 @@ export default function PedidoTransportePage() {
     const currentOS = allServiceOrders.find(os => os.id === osId);
     setServiceOrder(currentOS || null);
 
-    const allProveedores = JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]') as ProveedorTransporte[];
+    const allProveedores = (JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]') as ProveedorTransporte[])
+        .filter(p => p.tipo === 'Catering');
     setProveedores(allProveedores);
 
     if (isEditing) {

@@ -172,11 +172,15 @@ export type TipoServicio = {
     servicio: string;
 }
 
+export const TIPO_PROVEEDOR_TRANSPORTE = ['Catering', 'Entregas'] as const;
+export type TipoProveedorTransporte = typeof TIPO_PROVEEDOR_TRANSPORTE[number];
+
 export type ProveedorTransporte = {
     id: string;
     nombreProveedor: string;
     tipoTransporte: string;
     precio: number;
+    tipo: TipoProveedorTransporte;
 }
 
 export type ProveedorHielo = {

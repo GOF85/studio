@@ -39,8 +39,9 @@ import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
-const CSV_HEADERS = ["id", "nombreProveedor", "tipoTransporte", "precio"];
+const CSV_HEADERS = ["id", "nombreProveedor", "tipoTransporte", "precio", "tipo"];
 
 export default function ProveedoresTransportePage() {
   const [items, setItems] = useState<ProveedorTransporte[]>([]);
@@ -119,6 +120,7 @@ export default function ProveedoresTransportePage() {
             nombreProveedor: item.nombreProveedor || '',
             tipoTransporte: item.tipoTransporte || '',
             precio: parseCurrency(item.precio),
+            tipo: (item.tipo === 'Catering' || item.tipo === 'Entregas') ? item.tipo : 'Catering',
         }));
         
         localStorage.setItem('proveedoresTransporte', JSON.stringify(importedData));
@@ -208,6 +210,7 @@ export default function ProveedoresTransportePage() {
                 <TableHead className="p-2">Nombre Proveedor</TableHead>
                 <TableHead className="p-2">Tipo de Transporte</TableHead>
                 <TableHead className="p-2">Precio</TableHead>
+                <TableHead className="p-2">Tipo</TableHead>
                 <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -218,6 +221,7 @@ export default function ProveedoresTransportePage() {
                     <TableCell className="font-medium p-2">{item.nombreProveedor}</TableCell>
                     <TableCell className="p-2">{item.tipoTransporte}</TableCell>
                     <TableCell className="p-2">{formatCurrency(item.precio)}</TableCell>
+                    <TableCell className="p-2"><Badge variant={item.tipo === 'Entregas' ? 'default' : 'secondary'}>{item.tipo}</Badge></TableCell>
                     <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -242,7 +246,7 @@ export default function ProveedoresTransportePage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     No se encontraron proveedores que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>

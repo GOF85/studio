@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, FileDown, Truck, X } from 'lucide-react';
 import type { ProveedorTransporte } from '@/types';
+import { TIPO_PROVEEDOR_TRANSPORTE } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -16,12 +17,16 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export const proveedorTransporteFormSchema = z.object({
   id: z.string(),
   nombreProveedor: z.string().min(1, 'El nombre del proveedor es obligatorio'),
   tipoTransporte: z.string().min(1, 'El tipo de transporte es obligatorio'),
   precio: z.coerce.number().min(0, 'El precio debe ser positivo'),
+  tipo: z.enum(TIPO_PROVEEDOR_TRANSPORTE, {
+    errorMap: () => ({ message: "Debes seleccionar un tipo" }),
+  }),
 });
 
 type ProveedorTransporteFormValues = z.infer<typeof proveedorTransporteFormSchema>;
@@ -30,6 +35,7 @@ const defaultValues: Partial<ProveedorTransporteFormValues> = {
     nombreProveedor: '',
     tipoTransporte: '',
     precio: 0,
+    tipo: 'Catering',
 };
 
 export default function ProveedorTransporteFormPage() {
@@ -120,7 +126,7 @@ export default function ProveedorTransporteFormPage() {
               <CardHeader>
                 <CardTitle>Detalles del Proveedor</CardTitle>
               </CardHeader>
-              <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <FormField control={form.control} name="nombreProveedor" render={({ field }) => (
                     <FormItem><FormLabel>Nombre del Proveedor</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -129,6 +135,18 @@ export default function ProveedorTransporteFormPage() {
                 )} />
                  <FormField control={form.control} name="precio" render={({ field }) => (
                     <FormItem><FormLabel>Precio</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="tipo" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Tipo</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un tipo" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                {TIPO_PROVEEDOR_TRANSPORTE.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
                 )} />
               </CardContent>
             </Card>

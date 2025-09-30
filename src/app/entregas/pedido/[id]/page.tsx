@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
@@ -9,9 +10,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Trash2, Package, Save, X, Truck, PlusCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Trash2, Package, Save, X, Truck, PlusCircle, Pencil } from 'lucide-react';
 
-import type { Entrega, ProductoVenta, PedidoEntrega, PedidoEntregaItem, TransporteOrder, EntregaHito } from '@/types';
+import type { Entrega, ProductoVenta, PedidoEntrega, PedidoEntregaItem, TransporteOrder, EntregaHito, ProveedorTransporte } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -52,6 +53,7 @@ import {
 } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { formatCurrency } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const entregaFormSchema = z.object({
   serviceNumber: z.string().min(1, 'El Nº de Pedido es obligatorio'),
@@ -238,6 +240,9 @@ export default function EntregaFormPage() {
   const { toast } = useToast();
   
   const [hitos, setHitos] = useState<EntregaHito[]>([]);
+  const [transporteOrders, setTransporteOrders] = useState<TransporteOrder[]>([]);
+  const [proveedoresTransporte, setProveedoresTransporte] = useState<ProveedorTransporte[]>([]);
+
   
   const form = useForm<EntregaFormValues>({
     resolver: zodResolver(entregaFormSchema),
@@ -253,6 +258,9 @@ export default function EntregaFormPage() {
       
       const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
       const currentPedido = allPedidosEntrega.find(p => p.osId === id);
+      
+      const allTransporte = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
+      setTransporteOrders(allTransporte.filter(t => t.osId === id));
 
       if (currentEntrega) {
         reset({
@@ -271,6 +279,11 @@ export default function EntregaFormPage() {
           startDate: new Date(),
       });
     }
+
+    const allProveedores = (JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]') as ProveedorTransporte[])
+        .filter(p => p.tipo === 'Entregas');
+    setProveedoresTransporte(allProveedores);
+
     setIsMounted(true);
   }, [id, isEditing, reset, router, toast]);
   
@@ -305,6 +318,7 @@ export default function EntregaFormPage() {
   }
   
   const handleDeleteHito = (index: number) => {
+      const hitoIdToDelete = hitos[index].id;
       const newHitos = hitos.filter((_, i) => i !== index);
       setHitos(newHitos);
 
@@ -314,6 +328,12 @@ export default function EntregaFormPage() {
           allPedidosEntrega[pedidoIndex].hitos = newHitos;
           localStorage.setItem('pedidosEntrega', JSON.stringify(allPedidosEntrega));
       }
+
+      // Also delete associated transport orders
+      const allTransporte = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
+      const updatedTransporte = allTransporte.filter(t => !t.hitosIds?.includes(hitoIdToDelete));
+      localStorage.setItem('transporteOrders', JSON.stringify(updatedTransporte));
+      setTransporteOrders(updatedTransporte.filter(t => t.osId === id));
   }
 
   function onSubmit(data: EntregaFormValues) {
@@ -387,6 +407,10 @@ export default function EntregaFormPage() {
     allPedidosEntrega = allPedidosEntrega.filter(p => p.osId !== id);
     localStorage.setItem('pedidosEntrega', JSON.stringify(allPedidosEntrega));
 
+    let allTransporte = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
+    allTransporte = allTransporte.filter(t => t.osId !== id);
+    localStorage.setItem('transporteOrders', JSON.stringify(allTransporte));
+
     toast({ title: 'Pedido eliminado' });
     router.push('/entregas/pes');
   };
@@ -401,7 +425,7 @@ export default function EntregaFormPage() {
   
   const pvpTotalHitos = useMemo(() => {
     return hitos.reduce((total, hito) => total + calculateHitoTotal(hito), 0);
-  }, [hitos, getValues('tarifa')]); // Re-calculate when tarifa changes
+  }, [hitos, getValues('tarifa')]);
 
   if (!isMounted) {
     return <LoadingSkeleton title={isEditing ? 'Editando Pedido...' : 'Nuevo Pedido...'} />;
@@ -476,46 +500,80 @@ export default function EntregaFormPage() {
             </FormProvider>
             
             {isEditing && (
-              <Card>
-                  <CardHeader className="flex-row justify-between items-center py-3">
-                      <CardTitle className="text-lg">Entregas del Pedido</CardTitle>
-                      <HitoDialog onSave={handleSaveHito} os={getValues()}>
-                          <Button>
-                              <PlusCircle className="mr-2"/>
-                              Añadir Entrega
-                          </Button>
-                      </HitoDialog>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                      {hitos.map((hito, index) => (
-                          <Card key={hito.id} className="hover:bg-secondary/50">
-                              <CardHeader className="p-3 flex-row justify-between items-center">
-                                  <div className="space-y-1">
-                                      <p className="font-bold text-base">
-                                          <span className="text-primary">{`${getValues('serviceNumber') || 'Pedido'}.${(index + 1).toString().padStart(2, '0')}`}</span> - {hito.lugarEntrega}
-                                      </p>
-                                      <p className="text-sm text-muted-foreground">{hito.localizacion}</p>
-                                      <p className="text-sm text-muted-foreground">{format(new Date(hito.fecha), "PPP", { locale: es })} - {hito.hora}</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                      <div className="font-bold text-lg text-green-600">
-                                          {formatCurrency(calculateHitoTotal(hito))}
-                                      </div>
-                                      <Button asChild size="sm">
-                                          <Link href={`/entregas/entrega/${hito.id}?osId=${id}`}>
-                                              Confeccionar
-                                          </Link>
-                                      </Button>
-                                      <Button size="sm" variant="ghost" className="text-destructive" onClick={(e) => {e.stopPropagation(); handleDeleteHito(index)}}><Trash2 /></Button>
-                                  </div>
-                              </CardHeader>
-                          </Card>
-                      ))}
-                      {hitos.length === 0 && (
-                          <div className="text-center text-muted-foreground py-10">No hay entregas definidas para este pedido.</div>
-                      )}
-                  </CardContent>
-              </Card>
+              <>
+                <Card>
+                    <CardHeader className="flex-row justify-between items-center py-3">
+                        <CardTitle className="text-lg">Entregas del Pedido</CardTitle>
+                        <HitoDialog onSave={handleSaveHito} os={getValues()}>
+                            <Button>
+                                <PlusCircle className="mr-2"/>
+                                Añadir Entrega
+                            </Button>
+                        </HitoDialog>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        {hitos.map((hito, index) => (
+                            <Card key={hito.id} className="hover:bg-secondary/50">
+                                <CardHeader className="p-3 flex-row justify-between items-center">
+                                    <div className="space-y-1">
+                                        <p className="font-bold text-base">
+                                            <span className="text-primary">{`${getValues('serviceNumber') || 'Pedido'}.${(index + 1).toString().padStart(2, '0')}`}</span> - {hito.lugarEntrega}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">{hito.localizacion}</p>
+                                        <p className="text-sm text-muted-foreground">{format(new Date(hito.fecha), "PPP", { locale: es })} - {hito.hora}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="font-bold text-lg text-green-600">
+                                            {formatCurrency(calculateHitoTotal(hito))}
+                                        </div>
+                                        <Button asChild size="sm">
+                                            <Link href={`/entregas/entrega/${hito.id}?osId=${id}`}>
+                                                Confeccionar
+                                            </Link>
+                                        </Button>
+                                         <HitoDialog onSave={handleSaveHito} initialData={hito} os={getValues()}>
+                                            <Button size="sm" variant="ghost"><Pencil className="h-4 w-4"/></Button>
+                                         </HitoDialog>
+                                        <Button size="sm" variant="ghost" className="text-destructive" onClick={(e) => {e.stopPropagation(); handleDeleteHito(index)}}><Trash2 className="h-4 w-4" /></Button>
+                                    </div>
+                                </CardHeader>
+                            </Card>
+                        ))}
+                        {hitos.length === 0 && (
+                            <div className="text-center text-muted-foreground py-10">No hay entregas definidas para este pedido.</div>
+                        )}
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex-row justify-between items-center py-3">
+                        <CardTitle className="text-lg">Transporte</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Entrega(s)</TableHead><TableHead>Proveedor</TableHead><TableHead>Coste</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {transporteOrders.length > 0 ? transporteOrders.map(t => (
+                                    <TableRow key={t.id}>
+                                        <TableCell>
+                                            {(t.hitosIds || []).map(hId => {
+                                                const hito = hitos.find(h => h.id === hId);
+                                                return <Badge key={hId} variant="outline">{hito?.lugarEntrega}</Badge>
+                                            })}
+                                        </TableCell>
+                                        <TableCell>{t.proveedorNombre}</TableCell>
+                                        <TableCell>{formatCurrency(t.precio)}</TableCell>
+                                        <TableCell>
+                                            <Button variant="outline" size="sm">Ver</Button>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow><TableCell colSpan={4} className="text-center h-24">No hay transportes asignados.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                 </Card>
+              </>
             )}
         </div>
       
