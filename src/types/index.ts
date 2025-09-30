@@ -606,6 +606,7 @@ export type ImagenProducto = {
 export type ProductoVenta = {
     id: string;
     nombre: string;
+    nombre_en?: string;
     categoria: CategoriaProductoVenta;
     ubicacion?: string;
     imagenes: ImagenProducto[];

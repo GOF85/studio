@@ -43,6 +43,7 @@ const imagenSchema = z.object({
 const productoVentaSchema = z.object({
   id: z.string(),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
+  nombre_en: z.string().optional(),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
   ubicacion: z.string().optional(),
   imagenes: z.array(imagenSchema).default([]),
@@ -59,6 +60,7 @@ type ProductoVentaFormValues = z.infer<typeof productoVentaSchema>;
 
 const defaultValues: Partial<ProductoVentaFormValues> = {
     nombre: '',
+    nombre_en: '',
     categoria: '',
     ubicacion: '',
     imagenes: [],
@@ -234,8 +236,9 @@ export default function ProductoVentaFormPage() {
     let allItems = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
     let message = '';
     
-    const dataToSave = {
+    const dataToSave: ProductoVenta = {
         ...data,
+        nombre_en: data.nombre_en || '',
         pvpIfema: data.pvpIfema || 0,
         recetaId: data.recetaId === 'ninguna' ? undefined : data.recetaId,
     };
@@ -296,9 +299,14 @@ export default function ProductoVentaFormPage() {
                 <Card>
                     <CardHeader className="py-4"><CardTitle className="text-lg">Información General</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                         <FormField control={form.control} name="nombre" render={({ field }) => (
-                            <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
+                         <div className="grid md:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="nombre" render={({ field }) => (
+                                <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="nombre_en" render={({ field }) => (
+                                <FormItem><FormLabel>Nombre (Inglés)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                         </div>
                         <div className="grid md:grid-cols-4 gap-4 items-center">
                              <FormField control={form.control} name="categoria" render={({ field }) => (
                                 <FormItem>

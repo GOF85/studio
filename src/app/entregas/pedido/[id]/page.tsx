@@ -549,6 +549,9 @@ export default function EntregaFormPage() {
 
     setIsPrinting(true);
     try {
+        const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
+        const productosMap = new Map(allProductosVenta.map(p => [p.id, p]));
+
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const margin = 15;
         const pageHeight = doc.internal.pageSize.getHeight();
@@ -557,54 +560,8 @@ export default function EntregaFormPage() {
         
         // --- TEXTOS ---
         const texts = {
-            es: {
-                proposalTitle: 'Propuesta Comercial',
-                orderNumber: 'Nº Pedido:',
-                issueDate: 'Fecha Emisión:',
-                client: 'Cliente:',
-                finalClient: 'Cliente Final:',
-                contact: 'Contacto:',
-                eventDate: 'Fecha Principal:',
-                deliveryFor: 'Entrega para:',
-                logistics: 'Logística:',
-                item: 'Producto',
-                qty: 'Cant.',
-                unitPrice: 'P. Unitario',
-                subtotal: 'Subtotal',
-                deliveryTotal: 'Total Entrega',
-                summaryTitle: 'Resumen Económico',
-                productsSubtotal: 'Subtotal Productos',
-                logisticsSubtotal: 'Subtotal Logística',
-                taxableBase: 'Base Imponible',
-                vat: 'IVA',
-                total: 'TOTAL Propuesta',
-                observations: 'Observaciones',
-                footer: 'MICE Catering - Propuesta generada digitalmente.'
-            },
-            en: {
-                proposalTitle: 'Commercial Proposal',
-                orderNumber: 'Order No.:',
-                issueDate: 'Issue Date:',
-                client: 'Client:',
-                finalClient: 'End Client:',
-                contact: 'Contact:',
-                eventDate: 'Main Date:',
-                deliveryFor: 'Delivery for:',
-                logistics: 'Logistics:',
-                item: 'Product',
-                qty: 'Qty.',
-                unitPrice: 'Unit Price',
-                subtotal: 'Subtotal',
-                deliveryTotal: 'Delivery Total',
-                summaryTitle: 'Financial Summary',
-                productsSubtotal: 'Products Subtotal',
-                logisticsSubtotal: 'Logistics Subtotal',
-                taxableBase: 'Taxable Base',
-                vat: 'VAT',
-                total: 'TOTAL Proposal',
-                observations: 'Observations',
-                footer: 'MICE Catering - Digitally generated proposal.'
-            }
+            es: { proposalTitle: 'Propuesta Comercial', orderNumber: 'Nº Pedido:', issueDate: 'Fecha Emisión:', client: 'Cliente:', finalClient: 'Cliente Final:', contact: 'Contacto:', eventDate: 'Fecha Principal:', deliveryFor: 'Entrega para:', logistics: 'Logística:', item: 'Producto', qty: 'Cant.', unitPrice: 'P. Unitario', subtotal: 'Subtotal', deliveryTotal: 'Total Entrega', summaryTitle: 'Resumen Económico', productsSubtotal: 'Subtotal Productos', logisticsSubtotal: 'Subtotal Logística', taxableBase: 'Base Imponible', vat: 'IVA', total: 'TOTAL Propuesta', observations: 'Observaciones', footer: 'MICE Catering - Propuesta generada digitalmente.' },
+            en: { proposalTitle: 'Commercial Proposal', orderNumber: 'Order No.:', issueDate: 'Issue Date:', client: 'Client:', finalClient: 'End Client:', contact: 'Contact:', eventDate: 'Main Date:', deliveryFor: 'Delivery for:', logistics: 'Logistics:', item: 'Product', qty: 'Qty.', unitPrice: 'Unit Price', subtotal: 'Subtotal', deliveryTotal: 'Delivery Total', summaryTitle: 'Financial Summary', productsSubtotal: 'Products Subtotal', logisticsSubtotal: 'Logistics Subtotal', taxableBase: 'Taxable Base', vat: 'VAT', total: 'TOTAL Proposal', observations: 'Observations', footer: 'MICE Catering - Digitally generated proposal.' }
         };
         const T = texts[lang];
 
@@ -658,12 +615,16 @@ export default function EntregaFormPage() {
             doc.text(`${format(new Date(hito.fecha), 'dd/MM/yyyy')} - ${hito.hora}`, margin, finalY + 5);
             finalY += 12;
 
-            const body = hito.items.map(item => [
-                item.nombre,
-                item.quantity,
-                formatCurrency(item.pvp),
-                formatCurrency(item.pvp * item.quantity)
-            ]);
+            const body = hito.items.map(item => {
+                const producto = productosMap.get(item.id);
+                const nombre = lang === 'en' && producto?.nombre_en ? producto.nombre_en : item.nombre;
+                return [
+                    nombre,
+                    item.quantity,
+                    formatCurrency(item.pvp),
+                    formatCurrency(item.pvp * item.quantity)
+                ]
+            });
             
             if (hito.portes > 0) {
                  body.push([
