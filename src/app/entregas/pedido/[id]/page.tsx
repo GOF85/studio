@@ -1,6 +1,4 @@
 
-
-      
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -250,7 +248,7 @@ const FinancialTitle = ({ pvpBruto }: { pvpBruto: number }) => {
             <h3 className="text-lg font-semibold">Información Financiera</h3>
             <div className="text-right">
                 <span className="text-sm font-medium text-muted-foreground">Bruto: {formatCurrency(pvpBruto)}</span>
-                <span className="text-lg font-bold text-primary ml-4">Neto-Neto: {formatCurrency(pvpNeto)}</span>
+                <span className="text-xl font-bold text-primary ml-4">Neto-Neto: {formatCurrency(pvpNeto)}</span>
             </div>
         </div>
     )
@@ -391,7 +389,7 @@ export default function EntregaFormPage() {
     const totalPortes = (hito.portes || 0) * costePorte;
     return totalProductos + totalPortes;
   }, [getValues]);
-
+  
   const pvpTotalHitos = useMemo(() => {
     return hitos.reduce((total, hito) => total + calculateHitoTotal(hito), 0);
   }, [hitos, calculateHitoTotal]);
@@ -606,12 +604,12 @@ export default function EntregaFormPage() {
         // --- TEXTOS ---
         const texts = {
             es: { proposalTitle: 'Propuesta Comercial', orderNumber: 'Nº Pedido:', issueDate: 'Fecha Emisión:', client: 'Cliente:', finalClient: 'Cliente Final:', contact: 'Contacto:', eventDate: 'Fecha Principal:', deliveryFor: 'Entrega para:', logistics: 'Logística:', item: 'Producto', qty: 'Cant.', unitPrice: 'P. Unitario', subtotal: 'Subtotal', deliveryTotal: 'Total Entrega', summaryTitle: 'Resumen Económico', productsSubtotal: 'Subtotal Productos', logisticsSubtotal: 'Subtotal Logística', taxableBase: 'Base Imponible', vat: 'IVA', total: 'TOTAL Propuesta', observations: 'Observaciones', footer: 'MICE Catering - Propuesta generada digitalmente.', portes: 'portes', porte: 'porte' },
-            en: { proposalTitle: 'Commercial Proposal', orderNumber: 'Order No.:', issueDate: 'Issue Date:', client: 'Client:', finalClient: 'End Client:', contact: 'Contact:', eventDate: 'Main Date:', deliveryFor: 'Delivery for:', logistics: 'Logistics:', item: 'Product', qty: 'Qty.', unitPrice: 'Unit Price', subtotal: 'Subtotal', deliveryTotal: 'Delivery Total', summaryTitle: 'Financial Summary', productsSubtotal: 'Products Subtotal', logisticsSubtotal: 'Logistics Subtotal', taxableBase: 'Taxable Base', vat: 'VAT', total: 'TOTAL Proposal', observations: 'Observations', footer: 'MICE Catering - Digitally generated proposal.', portes: 'deliveries', porte: 'delivery' }
+            en: { proposalTitle: 'Commercial Proposal', orderNumber: 'Order No.:', issueDate: 'Issue Date:', client: 'Client:', finalClient: 'End Client:', contact: 'Contact:', eventDate: 'Main Date:', deliveryFor: 'Delivery for:', logistics: 'Logistics:', item: 'Product', qty: 'Qty.', unitPrice: 'Unit Price', subtotal: 'Subtotal', deliveryTotal: 'Financial Summary', productsSubtotal: 'Products Subtotal', logisticsSubtotal: 'Logistics Subtotal', taxableBase: 'Taxable Base', vat: 'VAT', total: 'TOTAL Proposal', observations: 'Observations', footer: 'MICE Catering - Digitally generated proposal.', portes: 'deliveries', porte: 'delivery' }
         };
         const T = texts[lang];
 
         // --- CABECERA ---
-        doc.setFontSize(18);
+        doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor('#f97316'); // Orange
         doc.text(T.proposalTitle, margin, finalY);
@@ -958,4 +956,3 @@ export default function EntregaFormPage() {
     </main>
   );
 }
-
