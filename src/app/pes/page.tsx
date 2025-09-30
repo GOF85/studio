@@ -34,6 +34,7 @@ export default function PesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [showPastEvents, setShowPastEvents] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const router = useRouter();
   const { toast } = useToast();
 
@@ -90,13 +91,15 @@ export default function PesPage() {
               pastEventMatch = true; // if date is invalid, better to show it
           }
       }
+      
+      const statusMatch = statusFilter === 'all' || os.status === statusFilter;
 
-      return searchMatch && monthMatch && pastEventMatch;
+      return searchMatch && monthMatch && pastEventMatch && statusMatch;
     });
 
     return filtered.sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime());
 
-  }, [serviceOrders, searchTerm, selectedMonth, showPastEvents]);
+  }, [serviceOrders, searchTerm, selectedMonth, showPastEvents, statusFilter]);
   
   const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
     Borrador: 'secondary',
@@ -123,33 +126,42 @@ export default function PesPage() {
           </Button>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <Input
-            placeholder="Buscar por Nº Servicio o Cliente..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
-          />
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-full sm:w-[240px]">
-              <SelectValue placeholder="Filtrar por mes" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los meses</SelectItem>
-              {availableMonths.map(month => (
-                <SelectItem key={month} value={month}>
-                  {format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-           <div className="flex items-center space-x-2 pt-2 sm:pt-0">
-                <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
-                <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Mostrar eventos finalizados
-                </label>
+        <div className="space-y-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+            <Input
+                placeholder="Buscar por Nº Servicio o Cliente..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+            />
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-full sm:w-[240px]">
+                <SelectValue placeholder="Filtrar por mes" />
+                </SelectTrigger>
+                <SelectContent>
+                <SelectItem value="all">Todos los meses</SelectItem>
+                {availableMonths.map(month => (
+                    <SelectItem key={month} value={month}>
+                    {format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
+                    </SelectItem>
+                ))}
+                </SelectContent>
+            </Select>
+            <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+                    <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
+                    <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Mostrar eventos finalizados
+                    </label>
             </div>
-        </div>
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Estado:</span>
+                <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
+                <Button size="sm" variant={statusFilter === 'Borrador' ? 'default' : 'outline'} onClick={() => setStatusFilter('Borrador')}>Borrador</Button>
+                <Button size="sm" variant={statusFilter === 'Pendiente' ? 'default' : 'outline'} onClick={() => setStatusFilter('Pendiente')}>Pendiente</Button>
+                <Button size="sm" variant={statusFilter === 'Confirmado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Confirmado')}>Confirmado</Button>
+            </div>
+      </div>
 
         <div className="border rounded-lg">
           <Table>
