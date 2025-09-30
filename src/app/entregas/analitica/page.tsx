@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -359,8 +360,8 @@ export default function AnaliticaEntregasPage() {
                         <Euro className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <p className="text-xs text-muted-foreground">Bruta: {formatCurrency(analisisSeleccion.pvpBruto)}</p>
-                        <div className="text-2xl font-bold">{formatCurrency(analisisSeleccion.pvpNeto)}</div>
+                        <p className="text-sm text-muted-foreground">Bruta: {formatCurrency(analisisSeleccion.pvpBruto)}</p>
+                        <div className="text-xl font-bold text-green-600">{formatCurrency(analisisSeleccion.pvpNeto)}</div>
                         <p className="text-xs text-muted-foreground">Neto-Neto</p>
                     </CardContent>
                 </Card>
