@@ -126,21 +126,14 @@ const ClienteTitle = () => {
   const client = useWatch({ name: 'client' });
   const finalClient = useWatch({ name: 'finalClient' });
   return (
-    <h3 className="text-lg font-semibold">
-      Cliente
-      {client && (
-        <>
-          {' - '}
-          <span className="text-primary">{client}</span>
-        </>
-      )}
-      {finalClient && (
-        <>
-          <span className="font-bold"> / </span>
-          <span className="text-primary">{finalClient}</span>
-        </>
-      )}
-    </h3>
+    <div className="flex w-full items-center justify-between p-4">
+        <h3 className="text-lg font-semibold">Cliente</h3>
+        {(client || finalClient) && (
+            <span className="text-lg font-bold text-primary text-right">
+                {client}{finalClient && ` / ${finalClient}`}
+            </span>
+        )}
+    </div>
   );
 };
 
@@ -593,7 +586,7 @@ function PageContent() {
                        <Accordion type="multiple" defaultValue={accordionDefaultValue} className="w-full space-y-3 pt-3">
                           <AccordionItem value="cliente" className="border-none">
                           <Card>
-                            <AccordionTrigger className="p-4"><ClienteTitle /></AccordionTrigger>
+                            <AccordionTrigger className="p-0"><ClienteTitle /></AccordionTrigger>
                             <AccordionContent>
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 px-4 pb-4">
                                 <FormField control={form.control} name="client" render={({ field }) => (
