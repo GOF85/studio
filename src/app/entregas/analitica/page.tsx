@@ -166,10 +166,20 @@ export default function AnaliticaEntregasPage() {
     const analisisSeleccion = useMemo(() => {
         const seleccion = pedidosFiltrados.filter(p => selectedPedidos.has(p.os.id));
         if (seleccion.length === 0) {
-            return { pvp: 0, coste: 0, comisionIfema: 0, costesPorCategoria: {}, productos: [], hitosCount: 0 };
+            return { pvpBruto: 0, pvpNeto: 0, coste: 0, comisionIfema: 0, costesPorCategoria: {}, productos: [], hitosCount: 0 };
         }
+        
+        let pvpBruto = 0;
+        let pvpNeto = 0;
+        
+        seleccion.forEach(item => {
+            const pvpItemBruto = item.os.tarifa === 'IFEMA' ? item.pvpIfemaTotal : item.pvpTotal;
+            pvpBruto += pvpItemBruto;
+            const comisionAgenciaTotal = pvpItemBruto * ((item.os.agencyPercentage || 0) / 100) + (item.os.agencyCommissionValue || 0);
+            const comisionCanonTotal = pvpItemBruto * ((item.os.spacePercentage || 0) / 100) + (item.os.spaceCommissionValue || 0);
+            pvpNeto += pvpItemBruto - comisionAgenciaTotal - comisionCanonTotal;
+        });
 
-        const pvp = seleccion.reduce((sum, item) => sum + (item.os.tarifa === 'IFEMA' ? item.pvpIfemaTotal : item.pvpTotal), 0);
         const coste = seleccion.reduce((sum, item) => sum + item.costeTotal, 0);
         
         const pvpIfema = seleccion.filter(i => i.os.tarifa === 'IFEMA').reduce((sum, item) => sum + item.pvpIfemaTotal, 0);
@@ -214,7 +224,7 @@ export default function AnaliticaEntregasPage() {
         });
 
 
-        return { pvp, coste, comisionIfema, costesPorCategoria, productos: Object.values(productosAgregados), hitosCount, pvpPorCategoria };
+        return { pvpBruto, pvpNeto, coste, comisionIfema, costesPorCategoria, productos: Object.values(productosAgregados), hitosCount, pvpPorCategoria };
 
     }, [pedidosFiltrados, selectedPedidos]);
 
@@ -288,11 +298,11 @@ export default function AnaliticaEntregasPage() {
         }
     };
     
-    const margenBruto = analisisSeleccion.pvp - analisisSeleccion.coste;
+    const margenBruto = analisisSeleccion.pvpNeto - analisisSeleccion.coste;
     const margenFinal = margenBruto - analisisSeleccion.comisionIfema;
-    const margenPct = analisisSeleccion.pvp > 0 ? (margenFinal / analisisSeleccion.pvp) * 100 : 0;
-    const ticketMedioContrato = analisisSeleccion.pvp / (selectedPedidos.size || 1);
-    const ticketMedioEntrega = analisisSeleccion.pvp / (analisisSeleccion.hitosCount || 1);
+    const margenPct = analisisSeleccion.pvpNeto > 0 ? (margenFinal / analisisSeleccion.pvpNeto) * 100 : 0;
+    const ticketMedioContrato = analisisSeleccion.pvpNeto / (selectedPedidos.size || 1);
+    const ticketMedioEntrega = analisisSeleccion.pvpNeto / (analisisSeleccion.hitosCount || 1);
 
 
     if (!isMounted) {
@@ -343,7 +353,17 @@ export default function AnaliticaEntregasPage() {
             </Card>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1"><CardTitle className="text-sm font-medium">Facturación (neto-neto)</CardTitle><Euro className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-3xl font-bold">{formatCurrency(analisisSeleccion.pvp)}</div></CardContent></Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                        <CardTitle className="text-sm font-medium">Facturación</CardTitle>
+                        <Euro className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-xs text-muted-foreground">Bruta: {formatCurrency(analisisSeleccion.pvpBruto)}</p>
+                        <div className="text-2xl font-bold">{formatCurrency(analisisSeleccion.pvpNeto)}</div>
+                        <p className="text-xs text-muted-foreground">Neto-Neto</p>
+                    </CardContent>
+                </Card>
                 <Card>
                     <CardHeader className="flex-row items-center justify-between space-y-0 pb-1">
                         <CardTitle className="text-sm font-medium">Volumen</CardTitle>
@@ -364,12 +384,18 @@ export default function AnaliticaEntregasPage() {
                         <div className="text-lg font-bold">{formatCurrency(ticketMedioEntrega)} <span className="text-xs font-normal text-muted-foreground">/ entrega</span></div>
                     </CardContent>
                 </Card>
-                 <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1"><CardTitle className="text-sm font-medium">Margen Final</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                        <CardTitle className="text-sm font-medium">Margen Final</CardTitle>
+                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
                     <div className={cn("text-2xl font-bold", margenFinal >= 0 ? "text-green-600" : "text-destructive")}>
                         {formatCurrency(margenFinal)}
                     </div>
-                    <p className={cn("text-base font-semibold text-muted-foreground", margenPct >= 0 ? "text-green-600" : "text-destructive")}>{margenPct.toFixed(2)}%</p>
-                 </CardContent></Card>
+                    <p className={cn("text-base font-semibold", margenPct >= 0 ? "text-green-600" : "text-destructive")}>{margenPct.toFixed(2)}%</p>
+                 </CardContent>
+                 </Card>
             </div>
             
             <Tabs defaultValue="rentabilidad">
