@@ -1,4 +1,5 @@
 
+      
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -247,8 +248,8 @@ const FinancialTitle = ({ pvpBruto }: { pvpBruto: number }) => {
          <div className="flex w-full items-center justify-between p-4">
             <h3 className="text-lg font-semibold">Información Financiera</h3>
             <div className="text-right">
-                <span className="text-sm font-medium text-muted-foreground">Bruto: {formatCurrency(pvpBruto)}</span>
-                <span className="text-xl font-bold text-primary ml-4">Neto-Neto: {formatCurrency(pvpNeto)}</span>
+                <p className="text-sm font-medium text-muted-foreground">Bruto: {formatCurrency(pvpBruto)}</p>
+                <p className="text-xl font-bold text-primary">Neto-Neto: {formatCurrency(pvpNeto)}</p>
             </div>
         </div>
     )
@@ -840,7 +841,7 @@ export default function EntregaFormPage() {
                              <AccordionTrigger className="p-0"><FinancialTitle pvpBruto={pvpTotalHitos} /></AccordionTrigger>
                              <AccordionContent>
                                 <div className="p-4 pt-2 space-y-4">
-                                  <div className="flex flex-wrap gap-4 items-end">
+                                  <div className="flex flex-wrap items-center gap-4">
                                       <FormField control={control} name="agencyPercentage" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (%)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
                                       <FormField control={control} name="agencyCommissionValue" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (€)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
                                       <FormField control={control} name="spacePercentage" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (%)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
@@ -956,3 +957,4 @@ export default function EntregaFormPage() {
     </main>
   );
 }
+
