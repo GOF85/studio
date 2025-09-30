@@ -1,4 +1,5 @@
 
+
       
 'use client';
 
@@ -381,7 +382,7 @@ export default function EntregaFormPage() {
     defaultValues,
   });
 
-  const { control, handleSubmit, formState: { isDirty }, getValues, reset, watch } = form;
+  const { control, handleSubmit, formState: { isDirty }, getValues, reset, watch, setValue } = form;
   
   const calculateHitoTotal = useCallback((hito: EntregaHito): number => {
     const totalProductos = hito.items.reduce((sum, item) => sum + ((item.pvp || 0) * item.quantity), 0);
@@ -394,6 +395,16 @@ export default function EntregaFormPage() {
   const pvpTotalHitos = useMemo(() => {
     return hitos.reduce((total, hito) => total + calculateHitoTotal(hito), 0);
   }, [hitos, calculateHitoTotal]);
+  
+  const tarifa = watch('tarifa');
+  
+  useEffect(() => {
+    if (tarifa === 'IFEMA') {
+      setValue('spacePercentage', 17.85, { shouldDirty: true });
+    } else if (tarifa === 'Empresa' && getValues('spacePercentage') === 17.85) {
+      setValue('spacePercentage', 0, { shouldDirty: true });
+    }
+  }, [tarifa, setValue, getValues]);
   
   const agencyPercentage = watch('agencyPercentage');
   const agencyCommissionValue = watch('agencyCommissionValue');
@@ -562,7 +573,7 @@ export default function EntregaFormPage() {
     if (!isEditing) return;
     
     let allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
-    allEntregas = allEntregas.filter(e => e.id === id);
+    allEntregas = allEntregas.filter(e => e.id !== id);
     localStorage.setItem('entregas', JSON.stringify(allEntregas));
 
     let allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
@@ -807,7 +818,7 @@ export default function EntregaFormPage() {
                                 <FormItem className="flex flex-col"><FormLabel>Fecha Principal</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>
                             )} />
                             <FormField control={control} name="asistentes" render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
                             )} />
                              <FormField control={control} name="tarifa" render={({ field }) => (
                                 <FormItem><FormLabel>Tarifa</FormLabel>
@@ -844,7 +855,7 @@ export default function EntregaFormPage() {
                                   <div className="flex flex-wrap items-center gap-4">
                                       <FormField control={control} name="agencyPercentage" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (%)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
                                       <FormField control={control} name="agencyCommissionValue" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (€)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
-                                      <FormField control={control} name="spacePercentage" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (%)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
+                                      <FormField control={control} name="spacePercentage" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (%)</FormLabel><FormControl><Input type="number" {...field} className="w-28" readOnly={tarifa === 'IFEMA'} /></FormControl></FormItem>)} />
                                       <FormField control={control} name="spaceCommissionValue" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (€)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
                                       <FormItem>
                                           <FormLabel>Total Comisiones</FormLabel>
@@ -957,4 +968,3 @@ export default function EntregaFormPage() {
     </main>
   );
 }
-

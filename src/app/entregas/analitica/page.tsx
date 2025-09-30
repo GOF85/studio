@@ -167,7 +167,7 @@ export default function AnaliticaEntregasPage() {
     const analisisSeleccion = useMemo(() => {
         const seleccion = pedidosFiltrados.filter(p => selectedPedidos.has(p.os.id));
         if (seleccion.length === 0) {
-            return { pvpBruto: 0, pvpNeto: 0, coste: 0, comisionIfema: 0, costesPorCategoria: {}, productos: [], hitosCount: 0 };
+            return { pvpBruto: 0, pvpNeto: 0, coste: 0, costesPorCategoria: {}, productos: [], hitosCount: 0 };
         }
         
         let pvpBruto = 0;
@@ -182,9 +182,6 @@ export default function AnaliticaEntregasPage() {
         });
 
         const coste = seleccion.reduce((sum, item) => sum + item.costeTotal, 0);
-        
-        const pvpIfema = seleccion.filter(i => i.os.tarifa === 'IFEMA').reduce((sum, item) => sum + item.pvpIfemaTotal, 0);
-        const comisionIfema = pvpIfema * 0.1785;
         
         const costesPorCategoria: { [key: string]: number } = {};
         const productosAgregados: { [key: string]: AnaliticaItem['productos'][0] } = {};
@@ -225,7 +222,7 @@ export default function AnaliticaEntregasPage() {
         });
 
 
-        return { pvpBruto, pvpNeto, coste, comisionIfema, costesPorCategoria, productos: Object.values(productosAgregados), hitosCount, pvpPorCategoria };
+        return { pvpBruto, pvpNeto, coste, costesPorCategoria, productos: Object.values(productosAgregados), hitosCount, pvpPorCategoria };
 
     }, [pedidosFiltrados, selectedPedidos]);
 
@@ -300,8 +297,6 @@ export default function AnaliticaEntregasPage() {
     };
     
     const margenBruto = analisisSeleccion.pvpNeto - analisisSeleccion.coste;
-    const margenFinal = margenBruto - analisisSeleccion.comisionIfema;
-    const margenPct = analisisSeleccion.pvpNeto > 0 ? (margenFinal / analisisSeleccion.pvpNeto) * 100 : 0;
     const ticketMedioContrato = analisisSeleccion.pvpNeto / (selectedPedidos.size || 1);
     const ticketMedioEntrega = analisisSeleccion.pvpNeto / (analisisSeleccion.hitosCount || 1);
 
@@ -354,14 +349,14 @@ export default function AnaliticaEntregasPage() {
             </Card>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <Card>
+                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
                         <CardTitle className="text-sm font-medium">Facturación</CardTitle>
                         <Euro className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <p className="text-sm text-muted-foreground">Bruta: {formatCurrency(analisisSeleccion.pvpBruto)}</p>
-                        <div className="text-xl font-bold text-green-600">{formatCurrency(analisisSeleccion.pvpNeto)}</div>
+                        <div className="text-2xl font-bold text-green-600">{formatCurrency(analisisSeleccion.pvpNeto)}</div>
                         <p className="text-xs text-muted-foreground">Neto-Neto</p>
                     </CardContent>
                 </Card>
@@ -391,10 +386,12 @@ export default function AnaliticaEntregasPage() {
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className={cn("text-2xl font-bold", margenFinal >= 0 ? "text-green-600" : "text-destructive")}>
-                            {formatCurrency(margenFinal)}
+                        <div className={cn("text-2xl font-bold", margenBruto >= 0 ? "text-green-600" : "text-destructive")}>
+                            {formatCurrency(margenBruto)}
                         </div>
-                        <p className={cn("text-base font-semibold", margenPct >= 0 ? "text-green-600" : "text-destructive")}>{margenPct.toFixed(2)}%</p>
+                        <p className={cn("text-base font-semibold", (analisisSeleccion.pvpNeto > 0 ? (margenBruto / analisisSeleccion.pvpNeto) * 100 : 0) >= 0 ? "text-green-600" : "text-destructive")}>
+                            {(analisisSeleccion.pvpNeto > 0 ? (margenBruto / analisisSeleccion.pvpNeto) * 100 : 0).toFixed(2)}%
+                        </p>
                     </CardContent>
                  </Card>
             </div>
