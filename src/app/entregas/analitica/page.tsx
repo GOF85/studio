@@ -291,6 +291,9 @@ export default function AnaliticaEntregasPage() {
     const margenBruto = analisisSeleccion.pvp - analisisSeleccion.coste;
     const margenFinal = margenBruto - analisisSeleccion.comisionIfema;
     const margenPct = analisisSeleccion.pvp > 0 ? (margenFinal / analisisSeleccion.pvp) * 100 : 0;
+    const ticketMedioContrato = analisisSeleccion.pvp / (selectedPedidos.size || 1);
+    const ticketMedioEntrega = analisisSeleccion.pvp / (analisisSeleccion.hitosCount || 1);
+
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Analítica de Rentabilidad..." />;
@@ -343,7 +346,16 @@ export default function AnaliticaEntregasPage() {
                 <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1"><CardTitle className="text-sm font-medium">Facturación (PVP)</CardTitle><Euro className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-xl font-bold">{formatCurrency(analisisSeleccion.pvp)}</div></CardContent></Card>
                 <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1"><CardTitle className="text-sm font-medium">Nº Contratos</CardTitle><BookOpen className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-xl font-bold">{selectedPedidos.size}</div></CardContent></Card>
                 <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1"><CardTitle className="text-sm font-medium">Nº Entregas</CardTitle><Package className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-xl font-bold">{analisisSeleccion.hitosCount}</div></CardContent></Card>
-                <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1"><CardTitle className="text-sm font-medium">Ticket Medio</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-xl font-bold">{formatCurrency(analisisSeleccion.pvp / (selectedPedidos.size || 1))}</div></CardContent></Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                        <CardTitle className="text-sm font-medium">Ticket Medio</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-lg font-bold">{formatCurrency(ticketMedioContrato)} <span className="text-xs font-normal text-muted-foreground">/ contrato</span></div>
+                        <div className="text-lg font-bold">{formatCurrency(ticketMedioEntrega)} <span className="text-xs font-normal text-muted-foreground">/ entrega</span></div>
+                    </CardContent>
+                </Card>
                  <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1"><CardTitle className="text-sm font-medium">Margen % Final</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className={cn("text-xl font-bold", margenPct >= 0 ? "text-green-600" : "text-destructive")}>{margenPct.toFixed(2)}%</div></CardContent></Card>
             </div>
             
