@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito, TransporteOrder } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -229,6 +229,15 @@ export default function AnaliticaEntregasPage() {
         return { pvpBruto, pvpNeto, costeProductos, costeTransporte, comisionAgencia, comisionCanon, costesPorCategoria, productos: Object.values(productosAgregados), hitosCount, pvpPorCategoria };
 
     }, [pedidosFiltrados, selectedPedidos]);
+    
+    const { ticketMedioContrato, ticketMedioEntrega } = useMemo(() => {
+        const numContratos = selectedPedidos.size;
+        const numEntregas = analisisSeleccion.hitosCount;
+        return {
+            ticketMedioContrato: numContratos > 0 ? analisisSeleccion.pvpNeto / numContratos : 0,
+            ticketMedioEntrega: numEntregas > 0 ? analisisSeleccion.pvpNeto / numEntregas : 0
+        };
+    }, [analisisSeleccion, selectedPedidos]);
 
     const topProductos = useMemo(() => {
         return analisisSeleccion.productos
@@ -351,7 +360,7 @@ export default function AnaliticaEntregasPage() {
                 </CardContent>
             </Card>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
                         <CardTitle className="text-sm font-medium">Facturación</CardTitle>
@@ -369,10 +378,10 @@ export default function AnaliticaEntregasPage() {
                         <Wallet className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                      <CardContent className="text-xs space-y-1 pt-2">
-                        <div className="flex justify-between"><span>Productos:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeProductos)}</span></div>
-                        <div className="flex justify-between"><span>Transporte:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeTransporte)}</span></div>
+                        <div className="flex justify-between"><span>Coste Productos:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeProductos)}</span></div>
+                        <div className="flex justify-between"><span>Coste Transporte:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeTransporte)}</span></div>
                         <div className="flex justify-between"><span>Com. Agencia:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.comisionAgencia)}</span></div>
-                        <div className="flex justify-between"><span>Com. Canon:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.comisionCanon)}</span></div>
+                        <div className="flex justify-between"><span>Canon Espacio:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.comisionCanon)}</span></div>
                          <Separator className="my-1"/>
                          <div className="flex justify-between font-bold text-sm"><span>Total Costes:</span> <span>{formatCurrency(costeTotalSeleccion)}</span></div>
                     </CardContent>
@@ -396,9 +405,19 @@ export default function AnaliticaEntregasPage() {
                         <CardTitle className="text-sm font-medium">Volumen</CardTitle>
                         <BookOpen className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-lg font-bold">{selectedPedidos.size} <span className="text-xs font-normal text-muted-foreground">contratos</span></div>
-                        <div className="text-lg font-bold">{analisisSeleccion.hitosCount} <span className="text-xs font-normal text-muted-foreground">entregas</span></div>
+                    <CardContent className="space-y-1 pt-2">
+                        <div className="text-xl font-bold">{selectedPedidos.size} <span className="text-xs font-normal text-muted-foreground">contratos</span></div>
+                        <div className="text-xl font-bold">{analisisSeleccion.hitosCount} <span className="text-xs font-normal text-muted-foreground">entregas</span></div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                        <CardTitle className="text-sm font-medium">Ticket Medio</CardTitle>
+                        <Ticket className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent className="space-y-1 pt-2">
+                        <div className="text-lg font-bold">{formatCurrency(ticketMedioContrato)} <span className="text-xs font-normal text-muted-foreground">/contrato</span></div>
+                        <div className="text-lg font-bold">{formatCurrency(ticketMedioEntrega)} <span className="text-xs font-normal text-muted-foreground">/entrega</span></div>
                     </CardContent>
                 </Card>
             </div>
