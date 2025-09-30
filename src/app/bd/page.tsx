@@ -42,6 +42,7 @@ const generalDatabasesList: DatabaseEntry[] = [
     { id: '16', name: 'Book: Tipos de Cocina', description: 'Gestión de los tipos de cocina/origen para las recetas.', itemCount: 0, path: '/tipos-cocina' },
     { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', itemCount: 0, path: '/plantillas-pedidos' },
     { id: '19', name: 'Formatos de Expedición', description: 'Define los formatos de empaquetado para producción.', itemCount: 0, path: '/formatos-expedicion' },
+    { id: '21', name: 'Datos Fiscales', description: 'Gestión de la información fiscal de clientes y proveedores.', itemCount: 0, path: '/datos-fiscales' },
 ];
 
 const entregasDatabasesList: DatabaseEntry[] = [
@@ -76,6 +77,7 @@ export default function BdPage() {
             if (db.path === '/plantillas-pedidos') count = JSON.parse(localStorage.getItem('pedidoPlantillas') || '[]').length;
             if (db.path === '/formatos-expedicion') count = JSON.parse(localStorage.getItem('formatosExpedicionDB') || '[]').length;
             if (db.path === '/entregas/productos-venta') count = JSON.parse(localStorage.getItem('productosVenta') || '[]').length;
+            if (db.path === '/datos-fiscales') count = JSON.parse(localStorage.getItem('datosFiscales') || '[]').length;
             return { ...db, itemCount: count };
         });
     }

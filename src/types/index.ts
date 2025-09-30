@@ -675,4 +675,24 @@ export type PickingEntregaState = {
   ordenItems?: string[];
 };
 
+export const TIPO_ENTIDAD_FISCAL = ['Cliente', 'Proveedor', 'Propia'] as const;
+export type TipoEntidadFiscal = typeof TIPO_ENTIDAD_FISCAL[number];
+
+export type DatosFiscales = {
+    id: string;
+    cif: string;
+    nombreEmpresa: string;
+    nombreComercial: string;
+    direccionFacturacion: string;
+    codigoPostal: string;
+    ciudad: string;
+    provincia: string;
+    pais: string;
+    emailContacto: string;
+    telefonoContacto: string;
+    iban?: string;
+    formaDePagoHabitual?: string;
+    tipo: TipoEntidadFiscal;
+}
+
     
