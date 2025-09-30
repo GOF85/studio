@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -12,7 +11,7 @@ export default function EntregasDashboardPage() {
     <TooltipProvider>
       <main className="container mx-auto px-4 py-8">
         <div className="text-center mb-10">
-            <h1 className="text-4xl font-headline font-bold tracking-tight">Dashboard de Entregas MICE</h1>
+            <h1 className="text-4xl font-headline font-bold tracking-tight">Entregas MICE</h1>
         </div>
 
         <section className="mb-12">
