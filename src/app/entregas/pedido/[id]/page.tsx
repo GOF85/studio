@@ -1,6 +1,4 @@
 
-
-      
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -15,7 +13,7 @@ import { Calendar as CalendarIcon, FileDown, Loader2, Trash2, Package, Save, X, 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-import type { Entrega, ProductoVenta, PedidoEntrega, PedidoEntregaItem, TransporteOrder, EntregaHito, ProveedorTransporte } from '@/types';
+import type { Entrega, ProductoVenta, PedidoEntrega, PedidoEntregaItem, TransporteOrder, EntregaHito, ProveedorTransporte, ServiceOrder } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -59,23 +57,13 @@ import { formatCurrency } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { osFormSchema } from '@/app/os/page';
 
 
-const entregaFormSchema = z.object({
-  serviceNumber: z.string().min(1, 'El Nº de Pedido es obligatorio'),
-  startDate: z.date({ required_error: 'La fecha es obligatoria.' }),
-  client: z.string().min(1, 'El cliente es obligatorio.'),
-  asistentes: z.coerce.number().min(1, 'El número de asistentes es obligatorio.'),
-  contact: z.string().optional().default(''),
-  phone: z.string().optional().default(''),
-  email: z.string().email('Debe ser un email válido').or(z.literal('')).optional(),
-  direccionPrincipal: z.string().optional().default(''),
-  finalClient: z.string().optional().default(''),
-  status: z.enum(['Borrador', 'Confirmado', 'Enviado', 'Entregado']).default('Borrador'),
-  tarifa: z.enum(['Empresa', 'IFEMA']).default('Empresa'),
-  tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
-  comercial: z.string().optional().default(''),
+export const entregaFormSchema = osFormSchema.extend({
+  // No new fields needed at this level for now
 });
+
 
 export type EntregaFormValues = z.infer<typeof entregaFormSchema>;
 
@@ -86,12 +74,15 @@ const defaultValues: Partial<EntregaFormValues> = {
   contact: '',
   phone: '',
   email: '',
-  direccionPrincipal: '',
   finalClient: '',
   status: 'Borrador',
   tarifa: 'Empresa',
   tipoCliente: 'Empresa',
   comercial: '',
+  agencyPercentage: 0,
+  agencyCommissionValue: 0,
+  spacePercentage: 0,
+  spaceCommissionValue: 0,
 };
 
 const hitoDialogSchema = z.object({
@@ -172,6 +163,22 @@ function HitoDialog({ onSave, initialData, os, children }: { onSave: (data: Entr
     );
 }
 
+const ClienteTitle = () => {
+    const { watch } = useFormContext();
+    const client = watch('client');
+    const finalClient = watch('finalClient');
+    return (
+        <div className="flex w-full items-center justify-between p-4">
+            <h3 className="text-lg font-semibold">Información del Cliente</h3>
+            {(client || finalClient) && (
+                <span className="text-lg font-bold text-primary text-right">
+                    {client}{finalClient && ` / ${finalClient}`}
+                </span>
+            )}
+        </div>
+    )
+};
+
 const ClientInfo = () => {
     const { control } = useFormContext();
     return (
@@ -222,14 +229,26 @@ const ClientInfo = () => {
     );
 };
 
-const ClientAccordionTrigger = () => {
+const FinancialTitle = ({ pvpBruto }: { pvpBruto: number }) => {
     const { watch } = useFormContext();
-    const client = watch('client');
-    const finalClient = watch('finalClient');
+    const agencyPercentage = watch('agencyPercentage');
+    const agencyCommissionValue = watch('agencyCommissionValue');
+    const spacePercentage = watch('spacePercentage');
+    const spaceCommissionValue = watch('spaceCommissionValue');
+
+    const pvpNeto = useMemo(() => {
+        const agencyDiscount = pvpBruto * (agencyPercentage / 100);
+        const spaceDiscount = pvpBruto * (spacePercentage / 100);
+        return pvpBruto - agencyDiscount - (agencyCommissionValue || 0) - spaceDiscount - (spaceCommissionValue || 0);
+    }, [pvpBruto, agencyPercentage, agencyCommissionValue, spacePercentage, spaceCommissionValue]);
+
     return (
-        <div className="flex w-full items-center justify-between p-4">
-            <h3 className="text-lg font-semibold">Información del Cliente</h3>
-            {client && <span className="text-sm font-medium text-primary">{client}</span>}
+         <div className="flex w-full items-center justify-between p-4">
+            <h3 className="text-lg font-semibold">Información Financiera</h3>
+            <div className="text-right">
+                <span className="text-sm font-medium text-muted-foreground">Bruto: {formatCurrency(pvpBruto)}</span>
+                <span className="text-lg font-bold text-primary ml-4">Neto: {formatCurrency(pvpNeto)}</span>
+            </div>
         </div>
     )
 }
@@ -378,6 +397,7 @@ export default function EntregaFormPage() {
             ...defaultValues,
             ...currentEntrega,
             startDate: new Date(currentEntrega.startDate),
+            endDate: new Date(currentEntrega.endDate)
         });
         setHitos(currentPedido?.hitos || []);
       } else {
@@ -388,6 +408,7 @@ export default function EntregaFormPage() {
       reset({
           ...defaultValues,
           startDate: new Date(),
+          endDate: new Date(),
       });
     }
 
@@ -454,7 +475,7 @@ export default function EntregaFormPage() {
         ...(data as any),
         id: currentId,
         startDate: data.startDate.toISOString(),
-        endDate: data.startDate.toISOString(),
+        endDate: data.endDate.toISOString(),
         vertical: 'Entregas',
         deliveryTime: hitos?.[0]?.hora || '', 
         space: '',
@@ -499,7 +520,7 @@ export default function EntregaFormPage() {
     if (!isEditing) {
         router.push(`/entregas/pedido/${currentId}`);
     } else {
-        form.reset(data); // Mark form as not dirty
+        form.reset(getValues()); // Mark form as not dirty
     }
   }
 
@@ -507,7 +528,7 @@ export default function EntregaFormPage() {
     if (!isEditing) return;
     
     let allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
-    allEntregas = allEntregas.filter(e => e.id !== id);
+    allEntregas = allEntregas.filter(e => e.id === id);
     localStorage.setItem('entregas', JSON.stringify(allEntregas));
 
     let allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
@@ -612,7 +633,7 @@ export default function EntregaFormPage() {
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor('#6b7280');
-            doc.text(`${format(new Date(hito.fecha), 'dd/MM/yyyy')} - ${hito.hora}`, margin, finalY + 5);
+            doc.text(`${format(new Date(hito.fecha), 'dd/MM/yy')} - ${hito.hora}`, margin, finalY + 5);
             finalY += 12;
 
             const body = hito.items.map(item => {
@@ -753,12 +774,9 @@ export default function EntregaFormPage() {
                 <Card>
                     <CardHeader className="py-3 flex-row items-center justify-between">
                         <CardTitle className="text-lg">Información General del Pedido</CardTitle>
-                        <div className="text-lg font-bold text-green-600">
-                            PVP Total: {formatCurrency(pvpTotalHitos)}
-                        </div>
                     </CardHeader>
                     <CardContent className="space-y-3 pt-2">
-                         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                             <FormField control={control} name="serviceNumber" render={({ field }) => (
                                 <FormItem className="flex flex-col"><FormLabel>Nº Pedido</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
                             )} />
@@ -768,31 +786,46 @@ export default function EntregaFormPage() {
                             <FormField control={control} name="asistentes" render={({ field }) => (
                                 <FormItem className="flex flex-col"><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
                             )} />
-                            <FormField control={control} name="tarifa" render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>Tarifa</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                    <SelectContent><SelectItem value="Empresa">Empresa</SelectItem><SelectItem value="IFEMA">IFEMA</SelectItem></SelectContent>
-                                    </Select>
-                                </FormItem>
-                            )} />
-                             <FormField control={control} name="status" render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>Estado</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                    <SelectContent><SelectItem value="Borrador">Borrador</SelectItem><SelectItem value="Confirmado">Confirmado</SelectItem><SelectItem value="Enviado">Enviado</SelectItem><SelectItem value="Entregado">Entregado</SelectItem></SelectContent>
-                                    </Select>
-                                </FormItem>
-                            )} />
                         </div>
                     </CardContent>
                 </Card>
                 
-                 <Accordion type="single" collapsible defaultValue={isEditing ? undefined : "cliente-info"} className="w-full">
+                 <Accordion type="multiple" defaultValue={['cliente-info', 'financial-info']} className="w-full space-y-4">
                     <AccordionItem value="cliente-info" className="border-none">
                         <Card>
-                            <AccordionTrigger className="p-0"><ClientAccordionTrigger /></AccordionTrigger>
+                            <AccordionTrigger className="p-0"><ClienteTitle /></AccordionTrigger>
                             <ClientInfo />
+                        </Card>
+                    </AccordionItem>
+                    <AccordionItem value="financial-info" className="border-none">
+                        <Card>
+                             <AccordionTrigger className="p-0"><FinancialTitle pvpBruto={pvpTotalHitos} /></AccordionTrigger>
+                             <AccordionContent>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 pt-2">
+                                     <FormField control={control} name="tarifa" render={({ field }) => (
+                                        <FormItem className="flex flex-col"><FormLabel>Tarifa</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                            <SelectContent><SelectItem value="Empresa">Empresa</SelectItem><SelectItem value="IFEMA">IFEMA</SelectItem></SelectContent>
+                                            </Select>
+                                        </FormItem>
+                                    )} />
+                                     <FormField control={control} name="status" render={({ field }) => (
+                                        <FormItem className="flex flex-col"><FormLabel>Estado</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                            <SelectContent><SelectItem value="Borrador">Borrador</SelectItem><SelectItem value="Confirmado">Confirmado</SelectItem><SelectItem value="Enviado">Enviado</SelectItem><SelectItem value="Entregado">Entregado</SelectItem></SelectContent>
+                                            </Select>
+                                        </FormItem>
+                                    )} />
+                                    <div></div>
+                                    <FormField control={control} name="agencyPercentage" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                    <FormField control={control} name="agencyCommissionValue" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (€)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                    <div></div>
+                                    <FormField control={control} name="spacePercentage" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                    <FormField control={control} name="spaceCommissionValue" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (€)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                </div>
+                             </AccordionContent>
                         </Card>
                     </AccordionItem>
                 </Accordion>
