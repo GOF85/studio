@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Factory, Calendar as CalendarIcon, Utensils, MessageSquare, Edit } from 'lucide-react';
-import { format } from 'date-fns';
+import { Factory, Calendar as CalendarIcon, Utensils, MessageSquare, Edit, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +18,10 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from '@/components/ui/calendar';
+import Link from 'next/link';
+
 
 type PedidoPartnerConEstado = PedidoPartner & {
     status: PedidoPartnerStatus;
@@ -35,6 +38,13 @@ const statusRowClass: { [key in PedidoPartnerStatus]?: string } = {
   'En Producción': 'bg-yellow-50 hover:bg-yellow-100/80',
   'Listo para Entrega': 'bg-green-50 hover:bg-green-100/80',
 };
+
+const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+type DayDetails = {
+    day: Date;
+    events: PedidoPartnerConEstado[];
+} | null;
 
 
 function CommentDialog({ pedido, onSave }: { pedido: PedidoPartnerConEstado; onSave: (id: string, comment: string) => void; }) {
@@ -70,6 +80,10 @@ export default function PartnerPortalPage() {
     const [pedidos, setPedidos] = useState<PedidoPartnerConEstado[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const { toast } = useToast();
+
+    // State for Calendar View
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
 
     const loadData = useCallback(() => {
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.status === 'Confirmado');
@@ -142,7 +156,7 @@ export default function PartnerPortalPage() {
         toast({ title: 'Comentario guardado' });
     };
 
-    const pedidosAgrupados = useMemo(() => {
+    const pedidosAgrupadosPorDia = useMemo(() => {
         const grouped: { [key: string]: PedidoPartnerConEstado[] } = {};
         pedidos.forEach(pedido => {
             const dateKey = format(new Date(pedido.fechaEntrega), 'yyyy-MM-dd');
@@ -153,6 +167,26 @@ export default function PartnerPortalPage() {
         });
         return Object.entries(grouped).sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime());
     }, [pedidos]);
+
+    // --- Calendar Logic ---
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const calStartDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const calEndDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    const calendarDays = eachDayOfInterval({ start: calStartDate, end: calEndDate });
+
+     const eventsByDay = useMemo(() => {
+        const grouped: { [dayKey: string]: PedidoPartnerConEstado[] } = {};
+        pedidos.forEach(event => {
+            const dayKey = format(new Date(event.fechaEntrega), 'yyyy-MM-dd');
+            if (!grouped[dayKey]) grouped[dayKey] = [];
+            grouped[dayKey].push(event);
+        });
+        return grouped;
+    }, [pedidos]);
+
+    const nextMonth = () => setCurrentDate(add(currentDate, { months: 1 }));
+    const prevMonth = () => setCurrentDate(sub(currentDate, { months: 1 }));
 
 
     if (!isMounted) {
@@ -169,91 +203,164 @@ export default function PartnerPortalPage() {
                     <p className="text-lg text-muted-foreground">Listado de elaboraciones de "Entregas" pendientes de producir.</p>
                 </div>
             </div>
-            
-            {pedidosAgrupados.length > 0 ? (
-                <Accordion type="multiple" defaultValue={pedidosAgrupados.map(([date]) => date)} className="w-full space-y-4">
-                    {pedidosAgrupados.map(([date, dailyPedidos]) => (
-                        <Card key={date}>
-                             <AccordionItem value={date} className="border-none">
-                                <AccordionTrigger className="p-4">
-                                    <div className="flex items-center gap-3">
-                                        <CalendarIcon className="h-6 w-6"/>
-                                        <div className="text-left">
-                                            <h3 className="text-xl font-bold capitalize">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
-                                            <p className="text-sm text-muted-foreground">{dailyPedidos.length} elaboraciones requeridas</p>
-                                        </div>
-                                    </div>
-                                </AccordionTrigger>
-                                <AccordionContent>
-                                    <div className="border-t">
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Elaboración</TableHead>
-                                                    <TableHead className="text-right">Cantidad</TableHead>
-                                                    <TableHead>Nº Pedido (OS)</TableHead>
-                                                    <TableHead>Hora Límite Entrega en CPR</TableHead>
-                                                    <TableHead>Estado</TableHead>
-                                                    <TableHead className="text-right">Comentarios</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {dailyPedidos.map(pedido => (
-                                                    <Tooltip key={pedido.id}>
-                                                        <TooltipTrigger asChild>
-                                                            <TableRow className={cn("transition-colors", statusRowClass[pedido.status], pedido.comentarios && 'border-l-4 border-l-blue-400 bg-blue-50/50 hover:bg-blue-50/80')}>
-                                                                <TableCell className="font-semibold">{pedido.elaboracionNombre}</TableCell>
-                                                                <TableCell className="text-right font-mono">{pedido.cantidad.toFixed(2)} {formatUnit(pedido.unidad)}</TableCell>
-                                                                <TableCell>
-                                                                    <Badge variant="secondary">{pedido.serviceNumber}</Badge>
-                                                                </TableCell>
-                                                                <TableCell>{pedido.horaEntrega}</TableCell>
-                                                                <TableCell>
-                                                                    <Select value={pedido.status} onValueChange={(value: PedidoPartnerStatus) => handleStatusChange(pedido.id, value)}>
-                                                                        <SelectTrigger className="w-40 h-8 text-xs">
-                                                                            <SelectValue />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            {Object.keys(statusVariant).map(s => (
-                                                                                <SelectItem key={s} value={s}>{s}</SelectItem>
-                                                                            ))}
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                </TableCell>
-                                                                <TableCell className="text-right">
-                                                                    <div className="flex items-center justify-end">
-                                                                        {pedido.comentarios && <MessageSquare className="h-5 w-5 text-blue-600 mr-2" />}
-                                                                        <CommentDialog pedido={pedido} onSave={handleSaveComment} />
-                                                                    </div>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        </TooltipTrigger>
-                                                        {pedido.comentarios && (
-                                                            <TooltipContent>
-                                                                <p className="max-w-xs">{pedido.comentarios}</p>
-                                                            </TooltipContent>
-                                                        )}
-                                                    </Tooltip>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </AccordionContent>
-                             </AccordionItem>
-                        </Card>
-                    ))}
-                </Accordion>
-            ) : (
-                <Card>
-                    <CardContent className="py-12 text-center">
-                        <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
-                        <h3 className="mt-4 text-lg font-semibold">Todo al día</h3>
-                        <p className="mt-1 text-sm text-muted-foreground">No hay pedidos de producción pendientes.</p>
-                    </CardContent>
-                </Card>
-            )}
 
+            <Tabs defaultValue="lista">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="lista">Lista de Producción</TabsTrigger>
+                    <TabsTrigger value="calendario">Calendario</TabsTrigger>
+                </TabsList>
+                <TabsContent value="lista" className="mt-6">
+                    {pedidosAgrupadosPorDia.length > 0 ? (
+                        <Accordion type="multiple" defaultValue={pedidosAgrupadosPorDia.map(([date]) => date)} className="w-full space-y-4">
+                            {pedidosAgrupadosPorDia.map(([date, dailyPedidos]) => (
+                                <Card key={date}>
+                                    <AccordionItem value={date} className="border-none">
+                                        <AccordionTrigger className="p-4">
+                                            <div className="flex items-center gap-3">
+                                                <CalendarIcon className="h-6 w-6"/>
+                                                <div className="text-left">
+                                                    <h3 className="text-xl font-bold capitalize">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
+                                                    <p className="text-sm text-muted-foreground">{dailyPedidos.length} elaboraciones requeridas</p>
+                                                </div>
+                                            </div>
+                                        </AccordionTrigger>
+                                        <AccordionContent>
+                                            <div className="border-t">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>Elaboración</TableHead>
+                                                            <TableHead className="text-right">Cantidad</TableHead>
+                                                            <TableHead>Nº Pedido (OS)</TableHead>
+                                                            <TableHead>Hora Límite Entrega en CPR</TableHead>
+                                                            <TableHead>Estado</TableHead>
+                                                            <TableHead className="text-right">Comentarios</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {dailyPedidos.map(pedido => (
+                                                            <Tooltip key={pedido.id}>
+                                                                <TooltipTrigger asChild>
+                                                                    <TableRow className={cn("transition-colors", statusRowClass[pedido.status], pedido.comentarios && 'border-l-4 border-l-blue-400 bg-blue-50/50 hover:bg-blue-50/80')}>
+                                                                        <TableCell className="font-semibold">{pedido.elaboracionNombre}</TableCell>
+                                                                        <TableCell className="text-right font-mono">{pedido.cantidad.toFixed(2)} {formatUnit(pedido.unidad)}</TableCell>
+                                                                        <TableCell>
+                                                                            <Badge variant="secondary">{pedido.serviceNumber}</Badge>
+                                                                        </TableCell>
+                                                                        <TableCell>{pedido.horaEntrega}</TableCell>
+                                                                        <TableCell>
+                                                                            <Select value={pedido.status} onValueChange={(value: PedidoPartnerStatus) => handleStatusChange(pedido.id, value)}>
+                                                                                <SelectTrigger className="w-40 h-8 text-xs">
+                                                                                    <SelectValue />
+                                                                                </SelectTrigger>
+                                                                                <SelectContent>
+                                                                                    {Object.keys(statusVariant).map(s => (
+                                                                                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                                                                                    ))}
+                                                                                </SelectContent>
+                                                                            </Select>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right">
+                                                                            <div className="flex items-center justify-end">
+                                                                                {pedido.comentarios && <MessageSquare className="h-5 w-5 text-blue-600 mr-2" />}
+                                                                                <CommentDialog pedido={pedido} onSave={handleSaveComment} />
+                                                                            </div>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                </TooltipTrigger>
+                                                                {pedido.comentarios && (
+                                                                    <TooltipContent>
+                                                                        <p className="max-w-xs">{pedido.comentarios}</p>
+                                                                    </TooltipContent>
+                                                                )}
+                                                            </Tooltip>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                </Card>
+                            ))}
+                        </Accordion>
+                    ) : (
+                        <Card>
+                            <CardContent className="py-12 text-center">
+                                <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
+                                <h3 className="mt-4 text-lg font-semibold">Todo al día</h3>
+                                <p className="mt-1 text-sm text-muted-foreground">No hay pedidos de producción pendientes.</p>
+                            </CardContent>
+                        </Card>
+                    )}
+                </TabsContent>
+                <TabsContent value="calendario" className="mt-6">
+                    <div className="flex items-center justify-center gap-4 mb-6">
+                        <Button variant="outline" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
+                        <h2 className="text-xl font-semibold w-40 text-center capitalize">{format(currentDate, 'MMMM yyyy', { locale: es })}</h2>
+                        <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
+                    </div>
+                     <div className="border rounded-lg">
+                        <div className="grid grid-cols-7 border-b">
+                            {WEEKDAYS.map(day => (
+                            <div key={day} className="text-center font-bold p-2 text-xs text-muted-foreground">
+                                {day}
+                            </div>
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-7 auto-rows-fr">
+                            {calendarDays.map((day) => {
+                                const dayKey = format(day, 'yyyy-MM-dd');
+                                const dayEvents = eventsByDay[dayKey] || [];
+                                const isCurrentMonth = isSameMonth(day, currentDate);
+                                const isToday = isSameDay(day, new Date());
+
+                                return (
+                                    <div
+                                        key={day.toString()}
+                                        className={cn(
+                                            'h-20 border-r border-b p-1 flex flex-col',
+                                            !isCurrentMonth && 'bg-muted/50 text-muted-foreground',
+                                            'last:border-r-0',
+                                            dayEvents.length > 0 && 'cursor-pointer hover:bg-secondary'
+                                        )}
+                                        onClick={() => dayEvents.length > 0 && setDayDetails({ day, events: dayEvents })}
+                                    >
+                                        <span className={cn('font-semibold text-xs', isToday && 'text-primary font-bold flex items-center justify-center h-5 w-5 rounded-full bg-primary/20')}>
+                                            {format(day, 'd')}
+                                        </span>
+                                        {dayEvents.length > 0 && (
+                                            <div className="mt-1 flex justify-center">
+                                                <span className="h-2 w-2 rounded-full bg-primary"></span>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
          </main>
+
+        <Dialog open={!!dayDetails} onOpenChange={(open) => !open && setDayDetails(null)}>
+            <DialogContent className="max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Producción para el {dayDetails?.day ? format(dayDetails.day, 'PPP', { locale: es }) : ''}</DialogTitle>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto -mx-6 px-6">
+                    {dayDetails && dayDetails.events.map((event) => (
+                        <div key={event.id} className="block p-3 hover:bg-muted rounded-md">
+                            <p className="font-bold text-primary">{event.elaboracionNombre}</p>
+                            <p>Pedido: {event.serviceNumber} ({event.cliente})</p>
+                            <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4">
+                                <span><span className="font-semibold">Cantidad:</span> {event.cantidad.toFixed(2)} {formatUnit(event.unidad)}</span>
+                                <span><span className="font-semibold">Hora Límite:</span> {event.horaEntrega}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </DialogContent>
+        </Dialog>
         </TooltipProvider>
     );
 }
