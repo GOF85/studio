@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -38,13 +39,13 @@ export default function EntregasDashboardPage() {
                         </CardHeader>
                     </Card>
                 </Link>
-                 <Link href="/entregas/picking">
+                 <Link href="/cpr">
                     <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
                         <CardHeader className="flex-row items-center gap-4">
-                            <ListChecks className="w-10 h-10 text-primary flex-shrink-0" />
+                            <Factory className="w-10 h-10 text-primary flex-shrink-0" />
                             <div>
-                                <CardTitle className="text-2xl">Picking y Logística</CardTitle>
-                                <p className="text-muted-foreground text-sm mt-1">Prepara y consolida los pedidos para su envío.</p>
+                                <CardTitle className="text-2xl">Producción CPR</CardTitle>
+                                <p className="text-muted-foreground text-sm mt-1">Planifica y gestiona la producción en cocina.</p>
                             </div>
                         </CardHeader>
                     </Card>
