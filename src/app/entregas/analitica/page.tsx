@@ -272,15 +272,18 @@ export default function AnaliticaEntregasPage() {
     }, [analisisSeleccion.productos]);
 
     const monthlyData = useMemo(() => {
-        const dataByMonth: { [key: string]: { facturacion: number, coste: number, contratos: Set<string>, entregas: number } } = {};
+        const dataByMonth: { [key: string]: { facturacionNeta: number, coste: number, contratos: Set<string>, entregas: number } } = {};
         
         pedidosFiltrados.forEach(item => {
             const month = format(new Date(item.os.startDate), 'yyyy-MM');
             if (!dataByMonth[month]) {
-                dataByMonth[month] = { facturacion: 0, coste: 0, contratos: new Set(), entregas: 0 };
+                dataByMonth[month] = { facturacionNeta: 0, coste: 0, contratos: new Set(), entregas: 0 };
             }
-            const pvp = item.os.tarifa === 'IFEMA' ? item.pvpIfemaTotal : item.pvpTotal;
-            dataByMonth[month].facturacion += pvp;
+            const pvpBruto = item.os.tarifa === 'IFEMA' ? item.pvpIfemaTotal : item.pvpTotal;
+            const comisionAgenciaTotal = pvpBruto * ((item.os.agencyPercentage || 0) / 100) + (item.os.agencyCommissionValue || 0);
+            const comisionCanonTotal = pvpBruto * ((item.os.spacePercentage || 0) / 100) + (item.os.spaceCommissionValue || 0);
+            
+            dataByMonth[month].facturacionNeta += pvpBruto - comisionAgenciaTotal - comisionCanonTotal;
             dataByMonth[month].coste += item.costeTotal;
             dataByMonth[month].contratos.add(item.os.id);
             
@@ -290,10 +293,12 @@ export default function AnaliticaEntregasPage() {
 
         return Object.entries(dataByMonth).map(([month, data]) => ({
             name: format(new Date(`${month}-02`), 'MMM yy', {locale: es}),
-            Facturación: data.facturacion,
-            Rentabilidad: data.facturacion - data.coste,
+            Facturación: data.facturacionNeta,
+            Rentabilidad: data.facturacionNeta - data.coste,
             Contratos: data.contratos.size,
             Entregas: data.entregas,
+            'Ticket Medio Contrato': data.contratos.size > 0 ? data.facturacionNeta / data.contratos.size : 0,
+            'Ticket Medio Entrega': data.entregas > 0 ? data.facturacionNeta / data.entregas : 0,
         })).sort((a,b) => new Date(a.name).getTime() - new Date(b.name).getTime());
     }, [pedidosFiltrados]);
 
@@ -366,10 +371,9 @@ export default function AnaliticaEntregasPage() {
                         <CardTitle className="text-sm font-medium">Facturación</CardTitle>
                         <Euro className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-1">
                         <p className="text-sm text-muted-foreground">Bruta: {formatCurrency(analisisSeleccion.pvpBruto)}</p>
-                        <div className="text-2xl font-bold text-green-600">{formatCurrency(analisisSeleccion.pvpNeto)}</div>
-                        <p className="text-xs text-muted-foreground">Neta (descontando comisiones)</p>
+                        <div className="text-xl font-bold text-green-600">{formatCurrency(analisisSeleccion.pvpNeto)}</div>
                     </CardContent>
                 </Card>
                 <Card>
@@ -377,13 +381,13 @@ export default function AnaliticaEntregasPage() {
                         <CardTitle className="text-sm font-medium">Desglose de Costes</CardTitle>
                         <Wallet className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                     <CardContent className="text-xs space-y-1 pt-2">
-                        <div className="flex justify-between"><span>Coste Productos:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeProductos)}</span></div>
-                        <div className="flex justify-between"><span>Coste Transporte:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeTransporte)}</span></div>
+                     <CardContent className="text-xs space-y-0.5 pt-2">
+                        <div className="flex justify-between"><span>Productos:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeProductos)}</span></div>
+                        <div className="flex justify-between"><span>Transporte:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeTransporte)}</span></div>
                         <div className="flex justify-between"><span>Com. Agencia:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.comisionAgencia)}</span></div>
                         <div className="flex justify-between"><span>Canon Espacio:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.comisionCanon)}</span></div>
                          <Separator className="my-1"/>
-                         <div className="flex justify-between font-bold text-sm"><span>Total Costes:</span> <span>{formatCurrency(costeTotalSeleccion)}</span></div>
+                         <div className="flex justify-between font-bold text-sm"><span>Total:</span> <span>{formatCurrency(costeTotalSeleccion)}</span></div>
                     </CardContent>
                 </Card>
                  <Card>
@@ -391,7 +395,7 @@ export default function AnaliticaEntregasPage() {
                         <CardTitle className="text-sm font-medium">Rentabilidad Final</CardTitle>
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-1">
                         <div className={cn("text-2xl font-bold", margenFinal >= 0 ? "text-green-600" : "text-destructive")}>
                             {formatCurrency(margenFinal)}
                         </div>
@@ -472,6 +476,36 @@ export default function AnaliticaEntregasPage() {
                                             <Tooltip formatter={(value: number) => formatNumber(value, 0)} />
                                             <Legend />
                                             <Bar dataKey="Entregas" fill="#82ca9d" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader><CardTitle>Ticket Medio por Contrato (Mensual)</CardTitle></CardHeader>
+                                <CardContent className="pl-0">
+                                <ResponsiveContainer width="100%" height={300}>
+                                        <BarChart data={monthlyData}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                            <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCurrency(value)} />
+                                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                            <Legend />
+                                            <Bar dataKey="Ticket Medio Contrato" fill="#ffc658" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader><CardTitle>Ticket Medio por Entrega (Mensual)</CardTitle></CardHeader>
+                                <CardContent className="pl-0">
+                                <ResponsiveContainer width="100%" height={300}>
+                                        <BarChart data={monthlyData}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                            <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCurrency(value)} />
+                                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                            <Legend />
+                                            <Bar dataKey="Ticket Medio Entrega" fill="#ff8042" />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </CardContent>
