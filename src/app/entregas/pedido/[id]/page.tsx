@@ -11,7 +11,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Trash2, Package, Save, X, Truck, PlusCircle, Pencil } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Trash2, Package, Save, X, Truck, PlusCircle, Pencil, Printer } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 import type { Entrega, ProductoVenta, PedidoEntrega, PedidoEntregaItem, TransporteOrder, EntregaHito, ProveedorTransporte } from '@/types';
 import { cn } from '@/lib/utils';
@@ -346,6 +348,8 @@ export default function EntregaFormPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [showProposalDialog, setShowProposalDialog] = useState(false);
   const { toast } = useToast();
   
   const [hitos, setHitos] = useState<EntregaHito[]>([]);
@@ -539,6 +543,206 @@ export default function EntregaFormPage() {
     toast({ title: 'Transporte Asignado' });
   }
 
+  const handlePrintProposal = async (lang: 'es' | 'en') => {
+    const os = form.getValues();
+    if (!os) return;
+
+    setIsPrinting(true);
+    try {
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const margin = 15;
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let finalY = margin;
+        
+        // --- TEXTOS ---
+        const texts = {
+            es: {
+                proposalTitle: 'Propuesta Comercial',
+                orderNumber: 'Nº Pedido:',
+                issueDate: 'Fecha Emisión:',
+                client: 'Cliente:',
+                finalClient: 'Cliente Final:',
+                contact: 'Contacto:',
+                eventDate: 'Fecha Principal:',
+                deliveryFor: 'Entrega para:',
+                logistics: 'Logística:',
+                item: 'Producto',
+                qty: 'Cant.',
+                unitPrice: 'P. Unitario',
+                subtotal: 'Subtotal',
+                deliveryTotal: 'Total Entrega',
+                summaryTitle: 'Resumen Económico',
+                productsSubtotal: 'Subtotal Productos',
+                logisticsSubtotal: 'Subtotal Logística',
+                taxableBase: 'Base Imponible',
+                vat: 'IVA',
+                total: 'TOTAL Propuesta',
+                observations: 'Observaciones',
+                footer: 'MICE Catering - Propuesta generada digitalmente.'
+            },
+            en: {
+                proposalTitle: 'Commercial Proposal',
+                orderNumber: 'Order No.:',
+                issueDate: 'Issue Date:',
+                client: 'Client:',
+                finalClient: 'End Client:',
+                contact: 'Contact:',
+                eventDate: 'Main Date:',
+                deliveryFor: 'Delivery for:',
+                logistics: 'Logistics:',
+                item: 'Product',
+                qty: 'Qty.',
+                unitPrice: 'Unit Price',
+                subtotal: 'Subtotal',
+                deliveryTotal: 'Delivery Total',
+                summaryTitle: 'Financial Summary',
+                productsSubtotal: 'Products Subtotal',
+                logisticsSubtotal: 'Logistics Subtotal',
+                taxableBase: 'Taxable Base',
+                vat: 'VAT',
+                total: 'TOTAL Proposal',
+                observations: 'Observations',
+                footer: 'MICE Catering - Digitally generated proposal.'
+            }
+        };
+        const T = texts[lang];
+
+        // --- CABECERA ---
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor('#f97316'); // Orange
+        doc.text(T.proposalTitle, margin, finalY);
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor('#374151');
+        doc.text(`${T.orderNumber} ${os.serviceNumber}`, pageWidth - margin, finalY - 5, { align: 'right' });
+        doc.text(`${T.issueDate} ${format(new Date(), 'dd/MM/yyyy')}`, pageWidth - margin, finalY, { align: 'right' });
+        finalY += 15;
+
+        // --- INFO CLIENTE ---
+        const clientInfo = [
+            [T.client, os.client],
+            [T.finalClient, os.finalClient || '-'],
+            [T.contact, `${os.contact || ''} ${os.phone ? `(${os.phone})` : ''}`],
+            [T.eventDate, format(os.startDate, 'dd/MM/yyyy')]
+        ];
+        autoTable(doc, {
+            body: clientInfo,
+            startY: finalY,
+            theme: 'plain',
+            styles: { fontSize: 9, cellPadding: 0.8 },
+            columnStyles: { 0: { fontStyle: 'bold' } }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 10;
+
+        // --- DESGLOSE POR HITOS ---
+        let totalLogisticsCost = 0;
+        
+        for (const hito of hitos) {
+            const hitoTotal = calculateHitoTotal(hito);
+            const costePorte = os.tarifa === 'IFEMA' ? 95 : 30;
+            const portesHito = (hito.portes || 0) * costePorte;
+            totalLogisticsCost += portesHito;
+            
+            if (finalY + 40 > pageHeight) { doc.addPage(); finalY = margin; }
+
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor('#1f2937');
+            doc.text(`${T.deliveryFor} ${hito.lugarEntrega}`, margin, finalY);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor('#6b7280');
+            doc.text(`${format(new Date(hito.fecha), 'dd/MM/yyyy')} - ${hito.hora}`, margin, finalY + 5);
+            finalY += 12;
+
+            const body = hito.items.map(item => [
+                item.nombre,
+                item.quantity,
+                formatCurrency(item.pvp),
+                formatCurrency(item.pvp * item.quantity)
+            ]);
+            
+            if (hito.portes > 0) {
+                 body.push([
+                    { content: `${T.logistics} (${hito.portes} portes)`, styles: { fontStyle: 'bold' } },
+                    '',
+                    formatCurrency(costePorte),
+                    formatCurrency(portesHito)
+                ]);
+            }
+
+            autoTable(doc, {
+                head: [[T.item, T.qty, T.unitPrice, T.subtotal]],
+                body: body,
+                startY: finalY,
+                theme: 'grid',
+                headStyles: { fillColor: '#f3f4f6', textColor: '#374151', fontStyle: 'bold' },
+                styles: { fontSize: 8 },
+                columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right' } }
+            });
+            finalY = (doc as any).lastAutoTable.finalY + 5;
+            
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${T.deliveryTotal}: ${formatCurrency(hitoTotal)}`, pageWidth - margin, finalY, { align: 'right' });
+            finalY += 15;
+        }
+
+        // --- RESUMEN FINAL ---
+        if (finalY + 45 > pageHeight) { doc.addPage(); finalY = margin; }
+
+        const totalProductos = pvpTotalHitos - totalLogisticsCost;
+        const baseImponible = pvpTotalHitos;
+        const iva = baseImponible * 0.10; // Asumiendo 10% para simplificar
+        const totalFinal = baseImponible + iva;
+
+        const summaryData = [
+            [T.productsSubtotal, formatCurrency(totalProductos)],
+            [T.logisticsSubtotal, formatCurrency(totalLogisticsCost)],
+            [{ content: T.taxableBase, styles: { fontStyle: 'bold' } }, { content: formatCurrency(baseImponible), styles: { fontStyle: 'bold' } }],
+            [`${T.vat} (10%)`, formatCurrency(iva)],
+            [{ content: T.total, styles: { fontStyle: 'bold', fontSize: 12, textColor: '#f97316' } }, { content: formatCurrency(totalFinal), styles: { fontStyle: 'bold', fontSize: 12, textColor: '#f97316' } }]
+        ];
+
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor('#1f2937');
+        doc.text(T.summaryTitle, margin, finalY);
+        finalY += 8;
+
+        autoTable(doc, {
+            body: summaryData,
+            startY: finalY,
+            theme: 'plain',
+            styles: { fontSize: 9, cellPadding: 1 },
+            columnStyles: { 1: { halign: 'right' } }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 10;
+        
+        // --- FOOTER ---
+        const pageCount = (doc as any).internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor('#6b7280');
+            doc.text(`${T.footer} - Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+        }
+
+
+        doc.save(`Propuesta_${os.serviceNumber}.pdf`);
+
+    } catch (error) {
+        console.error("Error al generar el PDF:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar la propuesta en PDF.' });
+    } finally {
+        setIsPrinting(false);
+    }
+  };
+
+
   if (!isMounted) {
     return <LoadingSkeleton title={isEditing ? 'Editando Pedido...' : 'Nuevo Pedido...'} />;
   }
@@ -548,14 +752,37 @@ export default function EntregaFormPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Pedido de Entrega</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push('/entregas/pes')}>Cancelar</Button>
-          {isEditing && (
-            <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/>Borrar</Button>
-          )}
-          <Button type="submit" form="entrega-form" disabled={isLoading}>
-            {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />}
-            {isEditing ? 'Guardar Cambios' : 'Guardar Pedido'}
-          </Button>
+            <Button variant="outline" onClick={() => router.push('/entregas/pes')}>Cancelar</Button>
+            {isEditing && (
+                <>
+                 <Dialog open={showProposalDialog} onOpenChange={setShowProposalDialog}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline"><Printer className="mr-2"/>Propuesta Comercial</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Generar Propuesta Comercial</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4 text-center">
+                            <p className="mb-4">Selecciona el idioma para la propuesta:</p>
+                            <div className="flex justify-center gap-4">
+                                <Button onClick={() => { handlePrintProposal('es'); setShowProposalDialog(false); }} disabled={isPrinting}>
+                                    {isPrinting ? <Loader2 className="animate-spin"/> : 'Español'}
+                                </Button>
+                                <Button onClick={() => { handlePrintProposal('en'); setShowProposalDialog(false); }} disabled={isPrinting}>
+                                     {isPrinting ? <Loader2 className="animate-spin"/> : 'English'}
+                                </Button>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+                <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/>Borrar</Button>
+                </>
+            )}
+            <Button type="submit" form="entrega-form" disabled={isLoading}>
+                {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Save className="mr-2" />}
+                {isEditing ? 'Guardar Cambios' : 'Guardar Pedido'}
+            </Button>
         </div>
       </div>
 
@@ -575,10 +802,10 @@ export default function EntregaFormPage() {
                                 <FormItem className="flex flex-col"><FormLabel>Nº Pedido</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={control} name="startDate" render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>Fecha Principal</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>
+                                <FormItem className="flex flex-col"><FormLabel>Fecha Principal</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>
                             )} />
                             <FormField control={control} name="asistentes" render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem className="flex flex-col"><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={control} name="tarifa" render={({ field }) => (
                                 <FormItem className="flex flex-col"><FormLabel>Tarifa</FormLabel>
