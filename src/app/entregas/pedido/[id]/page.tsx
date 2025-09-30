@@ -1,5 +1,4 @@
 
-
       
 'use client';
 
@@ -75,6 +74,7 @@ const defaultValues: Partial<EntregaFormValues> = {
   asistentes: 1,
   contact: '',
   phone: '',
+  email: '',
   finalClient: '',
   status: 'Borrador',
   tarifa: 'Empresa',
@@ -86,6 +86,7 @@ const defaultValues: Partial<EntregaFormValues> = {
   spaceCommissionValue: 0,
   comisionesAgencia: 0,
   comisionesCanon: 0,
+  direccionPrincipal: '',
 };
 
 const hitoDialogSchema = z.object({
@@ -174,7 +175,7 @@ const ClienteTitle = () => {
         <div className="flex w-full items-center justify-between p-4">
             <h3 className="text-lg font-semibold">Información del Cliente</h3>
             {(client || finalClient) && (
-                <span className="text-lg font-bold text-primary text-right">
+                 <span className="text-lg font-bold text-primary text-right">
                     {client}{finalClient && ` / ${finalClient}`}
                 </span>
             )}
@@ -250,7 +251,7 @@ const FinancialTitle = ({ pvpBruto }: { pvpBruto: number }) => {
             <h3 className="text-lg font-semibold">Información Financiera</h3>
             <div className="text-right">
                 <p className="text-sm font-medium text-muted-foreground">Bruto: {formatCurrency(pvpBruto)}</p>
-                <p className="text-xl font-bold text-primary">Neto-Neto: {formatCurrency(pvpNeto)}</p>
+                <p className="text-2xl font-bold text-green-600">Neto: {formatCurrency(pvpNeto)}</p>
             </div>
         </div>
     )
@@ -515,7 +516,7 @@ export default function EntregaFormPage() {
     let currentId = isEditing ? id : Date.now().toString();
 
     const entregaData: Entrega = {
-        ...(data as any),
+        ...data,
         id: currentId,
         startDate: data.startDate.toISOString(),
         endDate: data.endDate.toISOString(),
@@ -523,8 +524,8 @@ export default function EntregaFormPage() {
         deliveryTime: hitos?.[0]?.hora || '', 
         space: '',
         spaceAddress: hitos?.[0]?.lugarEntrega || '',
-        comisionesAgencia: comisionAgenciaTotal,
-        comisionesCanon: comisionCanonTotal,
+        comisionesAgencia,
+        comisionesCanon,
     }
     
     const pedidoEntregaData: PedidoEntrega = {
@@ -817,10 +818,10 @@ export default function EntregaFormPage() {
                             <FormField control={control} name="startDate" render={({ field }) => (
                                 <FormItem className="flex flex-col"><FormLabel>Fecha Principal</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>
                             )} />
-                            <FormField control={control} name="asistentes" render={({ field }) => (
+                             <FormField control={form.control} name="asistentes" render={({ field }) => (
                                 <FormItem><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
                             )} />
-                             <FormField control={control} name="tarifa" render={({ field }) => (
+                             <FormField control={form.control} name="tarifa" render={({ field }) => (
                                 <FormItem><FormLabel>Tarifa</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
@@ -828,7 +829,7 @@ export default function EntregaFormPage() {
                                     </Select>
                                 </FormItem>
                             )} />
-                             <FormField control={control} name="status" render={({ field }) => (
+                             <FormField control={form.control} name="status" render={({ field }) => (
                                 <FormItem><FormLabel>Estado</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger className={cn(getValues('status') === 'Confirmado' && 'bg-green-100 dark:bg-green-900 border-green-400', getValues('status') === 'Pendiente' && 'bg-red-100 dark:bg-red-900 border-red-400')}><SelectValue/></SelectTrigger></FormControl>
