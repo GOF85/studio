@@ -1,7 +1,4 @@
 
-
-
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -57,6 +54,17 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
 
     return { costeTotal: coste, pvpTotalProductos: pvp };
   }, [hito.items]);
+
+  const groupedItems = useMemo(() => {
+    return hito.items.reduce((acc, item) => {
+      const category = item.categoria || 'Varios';
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(item);
+      return acc;
+    }, {} as Record<string, PedidoEntregaItem[]>);
+  }, [hito.items]);
   
   const costePorte = entrega.tarifa === 'IFEMA' ? 95 : 30;
   const totalPortes = (hito.portes || 0) * costePorte;
@@ -82,26 +90,33 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
               <p className="text-sm">Añade productos desde el catálogo para empezar.</p>
             </div>
           ) : (
-              <ul className="space-y-4">
-                {hito.items.map((item) => (
-                  <li key={item.id} className="flex items-center gap-4">
-                    <div className="flex-grow">
-                      <p className="font-medium leading-tight">{item.nombre}</p>
-                      <p className="text-sm text-muted-foreground">
-                        PVP: {formatCurrency(item.pvp)}
-                      </p>
-                    </div>
-                     {isEditing && (
-                      <div className="flex items-center gap-1">
-                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}><Minus className="h-4 w-4" /></Button>
-                        <Input type="number" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
-                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}><Plus className="h-4 w-4" /></Button>
-                      </div>
-                    )}
-                    {!isEditing && <span className="font-semibold">{item.quantity} uds.</span>}
-                  </li>
+              <div className="space-y-6">
+                {Object.entries(groupedItems).map(([category, items]) => (
+                  <div key={category}>
+                    <h4 className="font-semibold text-sm mb-2 pb-1 border-b">{category}</h4>
+                    <ul className="space-y-4">
+                      {items.map((item) => (
+                        <li key={item.id} className="flex items-center gap-4">
+                          <div className="flex-grow">
+                            <p className="font-medium leading-tight">{item.nombre}</p>
+                            <p className="text-sm text-muted-foreground">
+                              PVP: {formatCurrency(item.pvp)}
+                            </p>
+                          </div>
+                           {isEditing && (
+                            <div className="flex items-center gap-1">
+                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}><Minus className="h-4 w-4" /></Button>
+                              <Input type="number" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
+                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}><Plus className="h-4 w-4" /></Button>
+                            </div>
+                          )}
+                          {!isEditing && <span className="font-semibold">{item.quantity} uds.</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
           )}
         </CardContent>
       </div>
