@@ -1,5 +1,3 @@
-
-
 import { z } from "zod";
 
 export type CateringItem = {
@@ -695,5 +693,3 @@ export type DatosFiscales = {
     formaDePagoHabitual?: string;
     tipo: TipoEntidadFiscal;
 }
-
-    

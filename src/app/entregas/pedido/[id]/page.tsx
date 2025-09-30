@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -54,6 +53,9 @@ import {
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { formatCurrency } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+
 
 const entregaFormSchema = z.object({
   serviceNumber: z.string().min(1, 'El Nº de Pedido es obligatorio'),
@@ -213,7 +215,7 @@ const ClientInfo = () => {
                 )} />
             </div>
         </AccordionContent>
-    )
+    );
 }
 
 const ClientAccordionTrigger = () => {
@@ -226,6 +228,101 @@ const ClientAccordionTrigger = () => {
             {client && <span className="text-sm font-medium text-primary">{client}</span>}
         </div>
     )
+}
+
+function TransporteDialog({ onSave, osId, hitos }: { onSave: (order: Omit<TransporteOrder, 'id'>) => void; osId: string; hitos: EntregaHito[] }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [selectedHitos, setSelectedHitos] = useState<Set<string>>(new Set());
+    const [proveedorId, setProveedorId] = useState<string>('');
+    const [proveedores, setProveedores] = useState<ProveedorTransporte[]>([]);
+
+    useEffect(() => {
+        const allProveedores = (JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]') as ProveedorTransporte[])
+            .filter(p => p.tipo === 'Entregas');
+        setProveedores(allProveedores);
+    }, []);
+
+    const selectedProvider = useMemo(() => proveedores.find(p => p.id === proveedorId), [proveedorId, proveedores]);
+
+    const handleSave = () => {
+        if (selectedHitos.size === 0 || !selectedProvider) {
+            alert("Por favor, selecciona al menos una entrega y un proveedor.");
+            return;
+        }
+        
+        // For now, let's just use the first hito's data for the order details
+        const firstHito = hitos.find(h => selectedHitos.has(h.id));
+        if (!firstHito) return;
+        
+        onSave({
+            osId,
+            fecha: firstHito.fecha,
+            proveedorId: selectedProvider.id,
+            proveedorNombre: selectedProvider.nombreProveedor,
+            tipoTransporte: selectedProvider.tipoTransporte,
+            precio: selectedProvider.precio,
+            lugarRecogida: 'Avda. de la Industria, 38, 28108 Alcobendas, Madrid', // Default, can be changed
+            horaRecogida: '09:00',
+            lugarEntrega: firstHito.lugarEntrega,
+            horaEntrega: firstHito.hora,
+            observaciones: '',
+            status: 'Pendiente',
+            hitosIds: Array.from(selectedHitos),
+        });
+        setIsOpen(false);
+        setSelectedHitos(new Set());
+        setProveedorId('');
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild><Button><PlusCircle className="mr-2"/>Asignar Transporte</Button></DialogTrigger>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Asignar Transporte</DialogTitle></DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div>
+                        <h4 className="font-semibold mb-2">1. Selecciona las entregas a incluir:</h4>
+                        <div className="space-y-2 border p-2 rounded-md max-h-40 overflow-y-auto">
+                            {hitos.map((hito, index) => (
+                                <div key={hito.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id={`hito-${hito.id}`}
+                                        checked={selectedHitos.has(hito.id)}
+                                        onCheckedChange={(checked) => {
+                                            const newSelection = new Set(selectedHitos);
+                                            if(checked) newSelection.add(hito.id);
+                                            else newSelection.delete(hito.id);
+                                            setSelectedHitos(newSelection);
+                                        }}
+                                    />
+                                    <label htmlFor={`hito-${hito.id}`} className="text-sm font-medium leading-none">
+                                        #{index + 1} - {hito.lugarEntrega} ({format(new Date(hito.fecha), 'dd/MM/yy')} {hito.hora})
+                                    </label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                     <div>
+                        <h4 className="font-semibold mb-2">2. Selecciona un proveedor:</h4>
+                        <Select onValueChange={setProveedorId}>
+                            <SelectTrigger><SelectValue placeholder="Seleccionar proveedor..." /></SelectTrigger>
+                            <SelectContent>
+                                {proveedores.map(p => (
+                                    <SelectItem key={p.id} value={p.id}>
+                                        {p.nombreProveedor} - {p.tipoTransporte} ({formatCurrency(p.precio)})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                     </div>
+                </div>
+                 <DialogFooter>
+                    <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
+                    <Button onClick={handleSave} disabled={selectedHitos.size === 0 || !proveedorId}>Asignar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 export default function EntregaFormPage() {
@@ -241,8 +338,6 @@ export default function EntregaFormPage() {
   
   const [hitos, setHitos] = useState<EntregaHito[]>([]);
   const [transporteOrders, setTransporteOrders] = useState<TransporteOrder[]>([]);
-  const [proveedoresTransporte, setProveedoresTransporte] = useState<ProveedorTransporte[]>([]);
-
   
   const form = useForm<EntregaFormValues>({
     resolver: zodResolver(entregaFormSchema),
@@ -279,10 +374,6 @@ export default function EntregaFormPage() {
           startDate: new Date(),
       });
     }
-
-    const allProveedores = (JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]') as ProveedorTransporte[])
-        .filter(p => p.tipo === 'Entregas');
-    setProveedoresTransporte(allProveedores);
 
     setIsMounted(true);
   }, [id, isEditing, reset, router, toast]);
@@ -427,6 +518,15 @@ export default function EntregaFormPage() {
     return hitos.reduce((total, hito) => total + calculateHitoTotal(hito), 0);
   }, [hitos, getValues('tarifa')]);
 
+  const handleSaveTransporte = (order: Omit<TransporteOrder, 'id'>) => {
+    let allTransporte = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
+    const newOrder: TransporteOrder = { ...order, id: Date.now().toString() };
+    allTransporte.push(newOrder);
+    localStorage.setItem('transporteOrders', JSON.stringify(allTransporte));
+    setTransporteOrders(prev => [...prev, newOrder]);
+    toast({ title: 'Transporte Asignado' });
+  }
+
   if (!isMounted) {
     return <LoadingSkeleton title={isEditing ? 'Editando Pedido...' : 'Nuevo Pedido...'} />;
   }
@@ -547,6 +647,7 @@ export default function EntregaFormPage() {
                  <Card>
                     <CardHeader className="flex-row justify-between items-center py-3">
                         <CardTitle className="text-lg">Transporte</CardTitle>
+                        <TransporteDialog onSave={handleSaveTransporte} osId={id} hitos={hitos} />
                     </CardHeader>
                     <CardContent>
                         <Table>
