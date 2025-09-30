@@ -256,20 +256,20 @@ export default function PlanificacionPage() {
             const diaKey = format(new Date(serviceOrder.startDate), 'yyyy-MM-dd');
             const isEntrega = serviceOrder.vertical === 'Entregas';
 
+            // --- Common setup for desglose ---
+            if (!desgloseEventosMap.has(osId)) {
+                desgloseEventosMap.set(osId, {
+                    osId: osId, serviceNumber: serviceOrder.serviceNumber,
+                    client: serviceOrder.client, startDate: serviceOrder.startDate, hitos: [], isEntrega: isEntrega,
+                });
+            }
+            const desgloseOS = desgloseEventosMap.get(osId)!;
+
             // --- Catering Flow ---
             if (!isEntrega) {
                 const briefing = briefingsEnRango.find(b => b.osId === osId);
                 if (briefing) {
-                     if (!desgloseEventosMap.has(serviceOrder.id)) {
-                        desgloseEventosMap.set(serviceOrder.id, {
-                            osId: serviceOrder.id, serviceNumber: serviceOrder.serviceNumber,
-                            client: serviceOrder.client, startDate: serviceOrder.startDate, hitos: [], isEntrega: false,
-                        });
-                    }
-                    const desgloseOS = desgloseEventosMap.get(serviceOrder.id)!;
-                    
                     const hitosGastro = briefing.items.filter(i => i.conGastronomia);
-
                     hitosGastro.forEach(hitoBriefing => {
                         const gastroOrder = gastroOrdersEnRango.find(go => go.id === hitoBriefing.id);
                         if (!gastroOrder) return;
@@ -292,20 +292,16 @@ export default function PlanificacionPage() {
             else {
                 const pedidoEntrega = pedidosEntregaEnRango.find(pe => pe.osId === osId);
                 if (pedidoEntrega) {
-                     if (!desgloseEventosMap.has(serviceOrder.id)) {
-                        desgloseEventosMap.set(serviceOrder.id, {
-                            osId: serviceOrder.id, serviceNumber: serviceOrder.serviceNumber,
-                            client: serviceOrder.client, startDate: serviceOrder.startDate, hitos: [], isEntrega: true,
-                        });
-                    }
+                    (pedidoEntrega.hitos || []).forEach(hitoPedido => {
+                        const hito: DetalleHito = { id: hitoPedido.id, descripcion: hitoPedido.lugarEntrega, recetas: [] };
+                        desgloseOS.hitos.push(hito);
 
-                    (pedidoEntrega.hitos || []).forEach(hito => {
-                        (hito.items || []).forEach(item => {
+                        (hitoPedido.items || []).forEach(item => {
                             const productoVenta = productosVentaMap.get(item.id);
                             if (productoVenta && productoVenta.recetaId && !productoVenta.producidoPorPartner) {
                                 const receta = recetasMap.get(productoVenta.recetaId);
                                 if (receta) {
-                                    processReceta(receta, item.quantity, serviceOrder, hito.lugarEntrega, null, diaKey, true);
+                                    processReceta(receta, item.quantity, serviceOrder, hitoPedido.lugarEntrega, hito, diaKey, true);
                                 }
                             }
                         });
@@ -445,14 +441,15 @@ export default function PlanificacionPage() {
         // --- DEVIATIONS CALCULATION ---
         const desviacionesAgrupadas: DesviacionOS[] = [];
         const allOFsWithOriginalNeed = allOrdenesFabricacion.filter(of => of.necesidadTotal !== undefined && of.necesidadTotal > 0);
-
+        
         osEnRango.forEach(os => {
             const osId = os.id;
             const osConDesviacion: DesviacionOS = { osId: os.id, serviceNumber: os.serviceNumber, fecha: os.startDate, espacio: os.space || '', hitos: [] };
-
             const ofsParaEstaOS = allOFsWithOriginalNeed.filter(of => of.osIDs.includes(osId));
-            
+        
             const necesidadesActualesOS = new Map<string, number>(); // elabId -> cantidad
+            
+            // --- Catering ---
             const briefing = briefingsEnRango.find(b => b.osId === osId);
             briefing?.items.forEach(hito => {
                 if (hito.conGastronomia) {
@@ -467,6 +464,21 @@ export default function PlanificacionPage() {
                 }
             });
 
+            // --- Entregas ---
+            const pedidoEntrega = pedidosEntregaEnRango.find(pe => pe.osId === osId);
+            pedidoEntrega?.hitos.forEach(hito => {
+                hito.items.forEach(item => {
+                    const productoVenta = productosVentaMap.get(item.id);
+                    if (productoVenta?.recetaId) {
+                        const receta = recetasMap.get(productoVenta.recetaId);
+                        receta?.elaboraciones.forEach(elabEnReceta => {
+                            const cantidad = (item.quantity || 0) * elabEnReceta.cantidad;
+                            necesidadesActualesOS.set(elabEnReceta.elaboracionId, (necesidadesActualesOS.get(elabEnReceta.elaboracionId) || 0) + cantidad);
+                        });
+                    }
+                });
+            });
+
             ofsParaEstaOS.forEach(of => {
                 const necesidadActual = necesidadesActualesOS.get(of.elaboracionId) || 0;
                 const diferencia = necesidadActual - (of.necesidadTotal || 0);
@@ -474,31 +486,46 @@ export default function PlanificacionPage() {
                 if (Math.abs(diferencia) > 0.001) {
                     const desviacionElab: DesviacionElaboracion = { id: of.id, of, necesidadActual: necesidadActual, diferencia };
                     
-                    briefing?.items.forEach(hito => {
-                        const gastroOrder = gastroOrdersEnRango.find(g => g.id === hito.id);
-                        gastroOrder?.items?.forEach(item => {
-                            const receta = recetasMap.get(item.id);
-                            if (receta && receta.elaboraciones.some(e => e.elaboracionId === of.elaboracionId)) {
-                                let hitoDesviacion = osConDesviacion.hitos.find(h => h.hitoId === hito.id);
-                                if (!hitoDesviacion) {
-                                    hitoDesviacion = { hitoId: hito.id, hitoDescripcion: hito.descripcion, recetas: [] };
-                                    osConDesviacion.hitos.push(hitoDesviacion);
-                                }
-                                let recetaDesviacion = hitoDesviacion.recetas.find(r => r.recetaId === receta.id);
-                                if (!recetaDesviacion) {
-                                    const elabEnReceta = receta.elaboraciones.find(e => e.elaboracionId === of.elaboracionId)!;
-                                    const diffUnidades = diferencia / elabEnReceta.cantidad;
-                                    recetaDesviacion = {
-                                        recetaId: receta.id, recetaNombre: receta.nombre,
-                                        cantidadActual: item.quantity || 0,
-                                        cantidadOriginal: (item.quantity || 0) - diffUnidades,
-                                        diferenciaUnidades: diffUnidades,
-                                        elaboraciones: []
-                                    };
-                                    hitoDesviacion.recetas.push(recetaDesviacion);
-                                }
-                                if (!recetaDesviacion.elaboraciones.find(e => e.id === of.id)) {
-                                   recetaDesviacion.elaboraciones.push(desviacionElab);
+                    const hitosOS = os.vertical === 'Entregas' ? (pedidoEntrega?.hitos || []) : (briefing?.items || []);
+                    const gastroOrdersOS = os.vertical === 'Catering' ? gastroOrdersEnRango.filter(g => g.osId === osId) : [];
+
+                    hitosOS.forEach(hito => {
+                        const itemsHito = os.vertical === 'Entregas'
+                            ? (hito as PedidoEntrega['hitos'][0]).items
+                            : gastroOrdersOS.find(g => g.id === hito.id)?.items || [];
+
+                        itemsHito.forEach(item => {
+                            const recetaId = os.vertical === 'Entregas'
+                                ? productosVentaMap.get(item.id)?.recetaId
+                                : item.id;
+                            
+                            if (recetaId) {
+                                const receta = recetasMap.get(recetaId);
+                                if (receta && receta.elaboraciones.some(e => e.elaboracionId === of.elaboracionId)) {
+                                    let hitoDesviacion = osConDesviacion.hitos.find(h => h.hitoId === hito.id);
+                                    if (!hitoDesviacion) {
+                                        const hitoDesc = os.vertical === 'Entregas'
+                                            ? (hito as PedidoEntrega['hitos'][0]).lugarEntrega
+                                            : (hito as ComercialBriefingItem).descripcion;
+                                        hitoDesviacion = { hitoId: hito.id, hitoDescripcion: hitoDesc, recetas: [] };
+                                        osConDesviacion.hitos.push(hitoDesviacion);
+                                    }
+                                    let recetaDesviacion = hitoDesviacion.recetas.find(r => r.recetaId === receta.id);
+                                    if (!recetaDesviacion) {
+                                        const elabEnReceta = receta.elaboraciones.find(e => e.elaboracionId === of.elaboracionId)!;
+                                        const diffUnidades = diferencia / elabEnReceta.cantidad;
+                                        recetaDesviacion = {
+                                            recetaId: receta.id, recetaNombre: receta.nombre,
+                                            cantidadActual: item.quantity || 0,
+                                            cantidadOriginal: (item.quantity || 0) - diffUnidades,
+                                            diferenciaUnidades: diffUnidades,
+                                            elaboraciones: []
+                                        };
+                                        hitoDesviacion.recetas.push(recetaDesviacion);
+                                    }
+                                    if (!recetaDesviacion.elaboraciones.find(e => e.id === of.id)) {
+                                       recetaDesviacion.elaboraciones.push(desviacionElab);
+                                    }
                                 }
                             }
                         })
@@ -1281,6 +1308,7 @@ export default function PlanificacionPage() {
         </TooltipProvider>
     );
 }
+
 
 
 
