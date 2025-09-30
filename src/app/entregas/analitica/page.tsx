@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -342,8 +343,8 @@ export default function AnaliticaEntregasPage() {
             </Card>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1"><CardTitle className="text-sm font-medium">Facturación (neto-neto)</CardTitle><Euro className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(analisisSeleccion.pvp)}</div></CardContent></Card>
-                <Card>
+                <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1"><CardTitle className="text-sm font-medium">Facturación (neto-neto)</CardTitle><Euro className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-3xl font-bold">{formatCurrency(analisisSeleccion.pvp)}</div></CardContent></Card>
+                 <Card>
                     <CardHeader className="flex-row items-center justify-between space-y-0 pb-1">
                         <CardTitle className="text-sm font-medium">Volumen</CardTitle>
                         <BookOpen className="h-4 w-4 text-muted-foreground" />
@@ -363,7 +364,12 @@ export default function AnaliticaEntregasPage() {
                         <div className="text-lg font-bold">{formatCurrency(ticketMedioEntrega)} <span className="text-xs font-normal text-muted-foreground">/ entrega</span></div>
                     </CardContent>
                 </Card>
-                 <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1"><CardTitle className="text-sm font-medium">Margen % Final</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className={cn("text-xl font-bold", margenPct >= 0 ? "text-green-600" : "text-destructive")}>{margenPct.toFixed(2)}%</div></CardContent></Card>
+                 <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1"><CardTitle className="text-sm font-medium">Margen Final</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent>
+                    <div className={cn("text-xl font-bold", margenFinal >= 0 ? "text-green-600" : "text-destructive")}>
+                        {formatCurrency(margenFinal)}
+                    </div>
+                    <p className={cn("text-xs text-muted-foreground", margenPct >= 0 ? "text-green-600" : "text-destructive")}>{margenPct.toFixed(2)}%</p>
+                 </CardContent></Card>
             </div>
             
             <Tabs defaultValue="rentabilidad">
