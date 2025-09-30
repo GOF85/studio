@@ -1,4 +1,6 @@
 
+
+      
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -73,7 +75,6 @@ const defaultValues: Partial<EntregaFormValues> = {
   asistentes: 1,
   contact: '',
   phone: '',
-  email: '',
   finalClient: '',
   status: 'Borrador',
   tarifa: 'Empresa',
@@ -83,6 +84,8 @@ const defaultValues: Partial<EntregaFormValues> = {
   agencyCommissionValue: 0,
   spacePercentage: 0,
   spaceCommissionValue: 0,
+  comisionesAgencia: 0,
+  comisionesCanon: 0,
 };
 
 const hitoDialogSchema = z.object({
@@ -237,8 +240,8 @@ const FinancialTitle = ({ pvpBruto }: { pvpBruto: number }) => {
     const spaceCommissionValue = watch('spaceCommissionValue');
 
     const pvpNeto = useMemo(() => {
-        const agencyDiscount = pvpBruto * (agencyPercentage / 100);
-        const spaceDiscount = pvpBruto * (spacePercentage / 100);
+        const agencyDiscount = pvpBruto * ((agencyPercentage || 0) / 100);
+        const spaceDiscount = pvpBruto * ((spacePercentage || 0) / 100);
         return pvpBruto - agencyDiscount - (agencyCommissionValue || 0) - spaceDiscount - (spaceCommissionValue || 0);
     }, [pvpBruto, agencyPercentage, agencyCommissionValue, spacePercentage, spaceCommissionValue]);
 
@@ -379,8 +382,30 @@ export default function EntregaFormPage() {
     defaultValues,
   });
 
-  const { control, handleSubmit, formState: { isDirty }, getValues, reset } = form;
+  const { control, handleSubmit, formState: { isDirty }, getValues, reset, watch } = form;
   
+  const pvpTotalHitos = useMemo(() => {
+    return hitos.reduce((total, hito) => total + calculateHitoTotal(hito), 0);
+  }, [hitos, getValues('tarifa')]);
+  
+  const agencyPercentage = watch('agencyPercentage');
+  const agencyCommissionValue = watch('agencyCommissionValue');
+  const spacePercentage = watch('spacePercentage');
+  const spaceCommissionValue = watch('spaceCommissionValue');
+
+  const { totalComisiones, comisionAgenciaTotal, comisionCanonTotal } = useMemo(() => {
+    const agencyDiscount = pvpTotalHitos * ((agencyPercentage || 0) / 100);
+    const spaceDiscount = pvpTotalHitos * ((spacePercentage || 0) / 100);
+    const agenciaTotal = agencyDiscount + (agencyCommissionValue || 0);
+    const canonTotal = spaceDiscount + (spaceCommissionValue || 0);
+    return {
+      totalComisiones: agenciaTotal + canonTotal,
+      comisionAgenciaTotal: agenciaTotal,
+      comisionCanonTotal: canonTotal,
+    };
+  }, [pvpTotalHitos, agencyPercentage, agencyCommissionValue, spacePercentage, spaceCommissionValue]);
+
+
   useEffect(() => {
     if (isEditing) {
       const allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
@@ -480,6 +505,8 @@ export default function EntregaFormPage() {
         deliveryTime: hitos?.[0]?.hora || '', 
         space: '',
         spaceAddress: hitos?.[0]?.lugarEntrega || '',
+        comisionesAgencia: comisionAgenciaTotal,
+        comisionesCanon: comisionCanonTotal,
     }
     
     const pedidoEntregaData: PedidoEntrega = {
@@ -550,10 +577,6 @@ export default function EntregaFormPage() {
     const totalPortes = (hito.portes || 0) * costePorte;
     return totalProductos + totalPortes;
   }
-  
-  const pvpTotalHitos = useMemo(() => {
-    return hitos.reduce((total, hito) => total + calculateHitoTotal(hito), 0);
-  }, [hitos, getValues('tarifa')]);
 
   const handleSaveTransporte = (order: Omit<TransporteOrder, 'id'>) => {
     let allTransporte = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
@@ -773,10 +796,10 @@ export default function EntregaFormPage() {
               <form id="entrega-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <Card>
                     <CardHeader className="py-3 flex-row items-center justify-between">
-                        <CardTitle className="text-lg">Información General del Pedido</CardTitle>
+                        <CardTitle className="text-xl">Información General del Pedido</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3 pt-2">
-                         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                             <FormField control={control} name="serviceNumber" render={({ field }) => (
                                 <FormItem className="flex flex-col"><FormLabel>Nº Pedido</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
                             )} />
@@ -785,6 +808,22 @@ export default function EntregaFormPage() {
                             )} />
                             <FormField control={control} name="asistentes" render={({ field }) => (
                                 <FormItem className="flex flex-col"><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                             <FormField control={control} name="tarifa" render={({ field }) => (
+                                <FormItem><FormLabel>Tarifa</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                    <SelectContent><SelectItem value="Empresa">Empresa</SelectItem><SelectItem value="IFEMA">IFEMA</SelectItem></SelectContent>
+                                    </Select>
+                                </FormItem>
+                            )} />
+                             <FormField control={control} name="status" render={({ field }) => (
+                                <FormItem><FormLabel>Estado</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger className={cn(getValues('status') === 'Confirmado' && 'bg-green-100 dark:bg-green-900 border-green-400', getValues('status') === 'Pendiente' && 'bg-red-100 dark:bg-red-900 border-red-400')}><SelectValue/></SelectTrigger></FormControl>
+                                    <SelectContent><SelectItem value="Borrador">Borrador</SelectItem><SelectItem value="Confirmado">Confirmado</SelectItem><SelectItem value="Enviado">Enviado</SelectItem><SelectItem value="Entregado">Entregado</SelectItem></SelectContent>
+                                    </Select>
+                                </FormItem>
                             )} />
                         </div>
                     </CardContent>
@@ -801,29 +840,17 @@ export default function EntregaFormPage() {
                         <Card>
                              <AccordionTrigger className="p-0"><FinancialTitle pvpBruto={pvpTotalHitos} /></AccordionTrigger>
                              <AccordionContent>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 pt-2">
-                                     <FormField control={control} name="tarifa" render={({ field }) => (
-                                        <FormItem className="flex flex-col"><FormLabel>Tarifa</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value}>
-                                            <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                            <SelectContent><SelectItem value="Empresa">Empresa</SelectItem><SelectItem value="IFEMA">IFEMA</SelectItem></SelectContent>
-                                            </Select>
-                                        </FormItem>
-                                    )} />
-                                     <FormField control={control} name="status" render={({ field }) => (
-                                        <FormItem className="flex flex-col"><FormLabel>Estado</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value}>
-                                            <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                            <SelectContent><SelectItem value="Borrador">Borrador</SelectItem><SelectItem value="Confirmado">Confirmado</SelectItem><SelectItem value="Enviado">Enviado</SelectItem><SelectItem value="Entregado">Entregado</SelectItem></SelectContent>
-                                            </Select>
-                                        </FormItem>
-                                    )} />
-                                    <div></div>
-                                    <FormField control={control} name="agencyPercentage" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
-                                    <FormField control={control} name="agencyCommissionValue" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (€)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
-                                    <div></div>
-                                    <FormField control={control} name="spacePercentage" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
-                                    <FormField control={control} name="spaceCommissionValue" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (€)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                <div className="p-4 pt-2 space-y-4">
+                                  <div className="flex gap-4 items-end">
+                                      <FormField control={control} name="agencyPercentage" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                      <FormField control={control} name="agencyCommissionValue" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (€)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                      <FormField control={control} name="spacePercentage" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                      <FormField control={control} name="spaceCommissionValue" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (€)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                      <FormItem>
+                                          <FormLabel>Total Comisiones</FormLabel>
+                                          <FormControl><Input value={formatCurrency(totalComisiones)} readOnly /></FormControl>
+                                      </FormItem>
+                                  </div>
                                 </div>
                              </AccordionContent>
                         </Card>
@@ -930,3 +957,4 @@ export default function EntregaFormPage() {
     </main>
   );
 }
+

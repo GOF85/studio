@@ -1,4 +1,5 @@
 
+
 import { z } from "zod";
 
 export type CateringItem = {
@@ -64,7 +65,11 @@ export type ServiceOrder = {
     respRRHHPhone: string;
     respRRHHMail: string;
     agencyPercentage: number;
+    agencyCommissionValue?: number;
     spacePercentage: number;
+    spaceCommissionValue?: number;
+    comisionesAgencia?: number;
+    comisionesCanon?: number;
     facturacion: number;
     plane: string;
     comments: string;
