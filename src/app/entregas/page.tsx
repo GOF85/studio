@@ -71,19 +71,17 @@ export default function EntregasDashboardPage() {
 
             <Separator />
             
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Link href="/entregas/analitica">
-                    <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
-                         <CardHeader className="flex-row items-center gap-4">
-                            <BarChart3 className="w-10 h-10 text-primary flex-shrink-0" />
-                            <div>
-                                <CardTitle className="text-2xl">Analítica</CardTitle>
-                                <p className="text-muted-foreground text-sm mt-1">Analiza costes y márgenes de tus entregas.</p>
-                            </div>
-                        </CardHeader>
-                    </Card>
-                </Link>
-            </div>
+            <Link href="/entregas/analitica">
+                <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
+                        <CardHeader className="flex-row items-center gap-4">
+                        <BarChart3 className="w-10 h-10 text-primary flex-shrink-0" />
+                        <div>
+                            <CardTitle className="text-2xl">Analítica</CardTitle>
+                            <p className="text-muted-foreground text-sm mt-1">Analiza costes y márgenes de tus entregas.</p>
+                        </div>
+                    </CardHeader>
+                </Card>
+            </Link>
         </section>
         
         <section>
