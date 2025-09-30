@@ -250,7 +250,7 @@ const FinancialTitle = ({ pvpBruto }: { pvpBruto: number }) => {
             <h3 className="text-lg font-semibold">Información Financiera</h3>
             <div className="text-right">
                 <span className="text-sm font-medium text-muted-foreground">Bruto: {formatCurrency(pvpBruto)}</span>
-                <span className="text-lg font-bold text-primary ml-4">Neto: {formatCurrency(pvpNeto)}</span>
+                <span className="text-lg font-bold text-primary ml-4">Neto-Neto: {formatCurrency(pvpNeto)}</span>
             </div>
         </div>
     )
@@ -384,9 +384,17 @@ export default function EntregaFormPage() {
 
   const { control, handleSubmit, formState: { isDirty }, getValues, reset, watch } = form;
   
+  const calculateHitoTotal = useCallback((hito: EntregaHito): number => {
+    const totalProductos = hito.items.reduce((sum, item) => sum + ((item.pvp || 0) * item.quantity), 0);
+    const tarifa = getValues('tarifa');
+    const costePorte = tarifa === 'IFEMA' ? 95 : 30;
+    const totalPortes = (hito.portes || 0) * costePorte;
+    return totalProductos + totalPortes;
+  }, [getValues]);
+
   const pvpTotalHitos = useMemo(() => {
     return hitos.reduce((total, hito) => total + calculateHitoTotal(hito), 0);
-  }, [hitos, getValues('tarifa')]);
+  }, [hitos, calculateHitoTotal]);
   
   const agencyPercentage = watch('agencyPercentage');
   const agencyCommissionValue = watch('agencyCommissionValue');
@@ -570,13 +578,6 @@ export default function EntregaFormPage() {
     router.push('/entregas/pes');
   };
   
-  const calculateHitoTotal = (hito: EntregaHito): number => {
-    const totalProductos = hito.items.reduce((sum, item) => sum + ((item.pvp || 0) * item.quantity), 0);
-    const tarifa = getValues('tarifa');
-    const costePorte = tarifa === 'IFEMA' ? 95 : 30;
-    const totalPortes = (hito.portes || 0) * costePorte;
-    return totalProductos + totalPortes;
-  }
 
   const handleSaveTransporte = (order: Omit<TransporteOrder, 'id'>) => {
     let allTransporte = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
@@ -841,14 +842,14 @@ export default function EntregaFormPage() {
                              <AccordionTrigger className="p-0"><FinancialTitle pvpBruto={pvpTotalHitos} /></AccordionTrigger>
                              <AccordionContent>
                                 <div className="p-4 pt-2 space-y-4">
-                                  <div className="flex gap-4 items-end">
-                                      <FormField control={control} name="agencyPercentage" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
-                                      <FormField control={control} name="agencyCommissionValue" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (€)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
-                                      <FormField control={control} name="spacePercentage" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
-                                      <FormField control={control} name="spaceCommissionValue" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (€)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)} />
+                                  <div className="flex flex-wrap gap-4 items-end">
+                                      <FormField control={control} name="agencyPercentage" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (%)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
+                                      <FormField control={control} name="agencyCommissionValue" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (€)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
+                                      <FormField control={control} name="spacePercentage" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (%)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
+                                      <FormField control={control} name="spaceCommissionValue" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (€)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
                                       <FormItem>
                                           <FormLabel>Total Comisiones</FormLabel>
-                                          <FormControl><Input value={formatCurrency(totalComisiones)} readOnly /></FormControl>
+                                          <FormControl><Input value={formatCurrency(totalComisiones)} readOnly className="w-32"/></FormControl>
                                       </FormItem>
                                   </div>
                                 </div>
