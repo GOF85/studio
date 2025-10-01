@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, UserPlus, ArrowLeft } from 'lucide-react';
-import type { ProveedorPersonal } from '@/types';
+import type { ProveedorPersonal, DatosFiscales } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,10 +40,11 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 
-const CSV_HEADERS = ["id", "nombreProveedor", "categoria", "precioHora"];
+const CSV_HEADERS = ["id", "datosFiscalesId", "nombreProveedor", "categoria", "precioHora"];
 
 export default function ProveedoresPersonalPage() {
   const [items, setItems] = useState<ProveedorPersonal[]>([]);
+  const [datosFiscales, setDatosFiscales] = useState<DatosFiscales[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -55,15 +56,28 @@ export default function ProveedoresPersonalPage() {
   useEffect(() => {
     let storedData = localStorage.getItem('proveedoresPersonal');
     setItems(storedData ? JSON.parse(storedData) : []);
+    let fiscalData = localStorage.getItem('datosFiscales');
+    setDatosFiscales(fiscalData ? JSON.parse(fiscalData) : []);
     setIsMounted(true);
   }, []);
   
+  const getProviderName = (provider: ProveedorPersonal) => {
+    if (provider.datosFiscalesId) {
+        const fiscalInfo = datosFiscales.find(df => df.id === provider.datosFiscalesId);
+        return fiscalInfo?.nombreComercial || fiscalInfo?.nombreEmpresa || provider.nombreProveedor;
+    }
+    return provider.nombreProveedor;
+  }
+
   const filteredItems = useMemo(() => {
-    return items.filter(item => 
-      item.nombreProveedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    return items.map(item => ({
+        ...item,
+        resolvedName: getProviderName(item)
+    })).filter(item => 
+      item.resolvedName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.categoria.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [items, searchTerm]);
+  }, [items, searchTerm, datosFiscales]);
 
 
   const handleExportCSV = () => {
@@ -116,6 +130,7 @@ export default function ProveedoresPersonalPage() {
         
         const importedData: ProveedorPersonal[] = results.data.map(item => ({
             id: item.id || Date.now().toString() + Math.random(),
+            datosFiscalesId: item.datosFiscalesId || '',
             nombreProveedor: item.nombreProveedor || '',
             categoria: item.categoria || '',
             precioHora: parseCurrency(item.precioHora),
@@ -215,7 +230,7 @@ export default function ProveedoresPersonalPage() {
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium p-2">{item.nombreProveedor}</TableCell>
+                    <TableCell className="font-medium p-2">{item.resolvedName}</TableCell>
                     <TableCell className="p-2">{item.categoria}</TableCell>
                     <TableCell className="p-2">{formatCurrency(item.precioHora)}</TableCell>
                     <TableCell className="text-right p-2">

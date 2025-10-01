@@ -309,6 +309,7 @@ export type AtipicoOrder = {
 
 export type ProveedorPersonal = {
   id: string;
+  datosFiscalesId: string;
   nombreProveedor: string;
   categoria: string;
   precioHora: number;
@@ -714,20 +715,23 @@ export type ProveedorGastronomia = {
     tipo: TipoProveedorGastronomia;
 }
 
+export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado a ETT', 'Confirmado'] as const;
+export type EstadoPersonalEntrega = typeof ESTADO_PERSONAL_ENTREGA[number];
+
+export type PersonalEntregaTurno = {
+  id: string;
+  proveedorId: string;
+  fecha: string;
+  horaInicio: string;
+  horaFin: string;
+  cantidad: number;
+  categoria: string;
+  tipoServicio: string;
+  observaciones: string;
+  status: EstadoPersonalEntrega;
+};
+
 export type PersonalEntrega = {
-    id: string; // Asignación ID
     osId: string;
-    proveedorId: string;
-    nombreProveedor: string;
-    turno: {
-        fecha: string;
-        horaInicio: string;
-        horaFin: string;
-    };
-    trabajadores: {
-        id: string; // personalId from DB or new
-        nombre: string;
-        dni?: string;
-    }[];
-    status: 'Pendiente' | 'Asignado a ETT' | 'Confirmado';
+    turnos: PersonalEntregaTurno[];
 };
