@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -7,12 +8,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building, Phone, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info } from 'lucide-react';
 
-import type { Entrega, PedidoEntrega, EntregaHito, CategoriaPersonal, Proveedor, PersonalEntrega, PersonalEntregaTurno } from '@/types';
+import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -25,6 +26,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
 
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -57,7 +59,6 @@ const personalTurnoSchema = z.object({
   centroCoste: z.enum(centroCosteOptions),
   tipoServicio: z.enum(tipoServicioOptions),
   observaciones: z.string().optional().default(''),
-  status: z.enum(['Pendiente', 'Asignado a ETT', 'Confirmado']).default('Pendiente'),
 });
 
 const formSchema = z.object({
@@ -84,7 +85,7 @@ export default function GestionPersonalEntregaPage() {
     defaultValues: { turnos: [] },
   });
 
-  const { control, setValue, getValues, watch } = form;
+  const { control, setValue, watch } = form;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -219,6 +220,16 @@ export default function GestionPersonalEntregaPage() {
                         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Asignación de Personal</h1>
                         <div className="text-muted-foreground mt-2 space-y-1">
                             <p>Pedido: {entrega.serviceNumber} - {entrega.client}</p>
+                            <p className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4"/>
+                                {entrega.direccionPrincipal}
+                            </p>
+                             {entrega.comments && (
+                                <div className="mt-2 text-sm text-amber-700 font-semibold flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+                                    <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                    <span>{entrega.comments}</span>
+                                </div>
+                             )}
                         </div>
                     </div>
                      <div className="flex gap-2">
@@ -281,7 +292,7 @@ export default function GestionPersonalEntregaPage() {
                                                         <FormItem>
                                                             <Combobox
                                                                 options={providerOptions}
-                                                                value={proveedoresDB.find(p => p.proveedorId === field.value)?.id || ''}
+                                                                value={proveedoresDB.find(p => p.id === field.value)?.id || ''}
                                                                 onChange={(value) => handleProviderChange(index, value)}
                                                                 placeholder="Proveedor - Categoría..."
                                                             />
