@@ -194,7 +194,7 @@ export default function AnaliticaEntregasPage() {
     const analisisSeleccion = useMemo(() => {
         const seleccion = pedidosFiltrados.filter(p => selectedPedidos.has(p.os.id));
         if (seleccion.length === 0) {
-            return { pvpBruto: 0, pvpNeto: 0, costeProductos: 0, costeTransporte: 0, comisionAgencia: 0, comisionCanon: 0, costesPorCategoria: {}, productos: [], hitosCount: 0, pvpPorCategoria: {} };
+            return { pvpBruto: 0, pvpNeto: 0, costeProductos: 0, costeTransporte: 0, costePersonal: 0, comisionAgencia: 0, comisionCanon: 0, costesPorCategoria: {}, productos: [], hitosCount: 0, pvpPorCategoria: {} };
         }
         
         let pvpBruto = 0;
@@ -236,8 +236,9 @@ export default function AnaliticaEntregasPage() {
         });
         
         const costeTransporte = costesPorCategoria[GASTO_LABELS.transporte] || 0;
+        const costePersonal = costesPorCategoria['Personal'] || 0;
         const costeProductos = Object.entries(costesPorCategoria).reduce((sum, [cat, val]) => {
-            return cat === GASTO_LABELS.transporte ? sum : sum + val;
+            return (cat === GASTO_LABELS.transporte || cat === 'Personal') ? sum : sum + val;
         }, 0);
         
         const pvpTransporte = seleccion.reduce((sum, item) => {
@@ -266,7 +267,7 @@ export default function AnaliticaEntregasPage() {
              pvpPorCategoria[p.categoria] = (pvpPorCategoria[p.categoria] || 0) + p.pvp;
         });
 
-        return { pvpBruto, pvpNeto, costeProductos, costeTransporte, comisionAgencia, comisionCanon, costesPorCategoria, productos: Object.values(productosAgregados), hitosCount, pvpPorCategoria };
+        return { pvpBruto, pvpNeto, costeProductos, costeTransporte, costePersonal, comisionAgencia, comisionCanon, costesPorCategoria, productos: Object.values(productosAgregados), hitosCount, pvpPorCategoria };
 
     }, [pedidosFiltrados, selectedPedidos]);
     
@@ -392,7 +393,7 @@ export default function AnaliticaEntregasPage() {
         }
     };
     
-    const costeTotalSeleccion = analisisSeleccion.costeProductos + analisisSeleccion.costeTransporte + analisisSeleccion.comisionAgencia + analisisSeleccion.comisionCanon;
+    const costeTotalSeleccion = analisisSeleccion.costeProductos + analisisSeleccion.costeTransporte + analisisSeleccion.costePersonal + analisisSeleccion.comisionAgencia + analisisSeleccion.comisionCanon;
     const margenFinal = analisisSeleccion.pvpNeto - costeTotalSeleccion;
 
 
@@ -469,6 +470,7 @@ export default function AnaliticaEntregasPage() {
                                 </CardHeader>
                                 <CardContent className="text-xs space-y-0.5">
                                     <div className="flex justify-between"><span>Productos:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeProductos)}</span></div>
+                                    <div className="flex justify-between"><span>Personal:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costePersonal)}</span></div>
                                     <div className="flex justify-between"><span>Transporte:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeTransporte)}</span></div>
                                     <div className="flex justify-between"><span>Com. Agencia:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.comisionAgencia)}</span></div>
                                     <div className="flex justify-between"><span>Canon Espacio:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.comisionCanon)}</span></div>
