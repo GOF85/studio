@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -24,9 +23,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { Separator } from '@/components/ui/separator';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -63,6 +62,8 @@ const personalTurnoSchema = z.object({
   tipoServicio: z.enum(tipoServicioOptions),
   observaciones: z.string().optional().default(''),
   status: z.enum(ESTADO_PERSONAL_ENTREGA).default('Pendiente'),
+  horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+  horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
 });
 
 const formSchema = z.object({
@@ -143,11 +144,21 @@ export default function GestionPersonalEntregaPage() {
   
   const watchedFields = watch('turnos');
 
-  const totalPlanned = useMemo(() => {
-    return watchedFields?.reduce((acc, turno) => {
-      const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
-      return acc + plannedHours * (turno.precioHora || 0) * (turno.cantidad || 1);
+ const { totalPlanned, totalReal, totalAjustes, finalTotalReal } = useMemo(() => {
+    const planned = watchedFields?.reduce((acc, order) => {
+      const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
+      return acc + plannedHours * (order.precioHora || 0) * (order.cantidad || 1);
     }, 0) || 0;
+
+    const real = watchedFields?.reduce((acc, order) => {
+      const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
+      return acc + realHours * (order.precioHora || 0) * (order.cantidad || 1);
+    }, 0) || 0;
+    
+    // This part seems to be from another component, remove for now
+    const aj = 0; //ajustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
+
+    return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj };
   }, [watchedFields]);
 
   const onSubmit = (data: FormValues) => {
@@ -196,6 +207,8 @@ export default function GestionPersonalEntregaPage() {
         tipoServicio: 'Servicio',
         observaciones: '',
         status: 'Pendiente',
+        horaEntradaReal: '',
+        horaSalidaReal: '',
     });
   }
   
@@ -206,7 +219,7 @@ export default function GestionPersonalEntregaPage() {
       toast({ title: 'Turno eliminado de la lista. Guarda los cambios para hacerlo permanente.' });
     }
   };
-
+  
   const providerOptions = useMemo(() => {
     return proveedoresDB.map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
 }, [proveedoresDB, proveedoresMap]);
@@ -230,6 +243,7 @@ export default function GestionPersonalEntregaPage() {
                         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Asignación de Personal</h1>
                         <div className="text-muted-foreground mt-2 space-y-1">
                             <p>Pedido: {entrega.serviceNumber} - {entrega.client}</p>
+                            <p className="flex items-center gap-2"><MapPin className="h-4 w-4"/> {entrega.direccionPrincipal}</p>
                              {entrega.comments && (
                                 <div className="mt-2 text-sm text-amber-700 font-semibold flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
                                     <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -259,6 +273,7 @@ export default function GestionPersonalEntregaPage() {
                                             <TableHead>Lugar de Entrega</TableHead>
                                             <TableHead>Localización</TableHead>
                                             <TableHead>Horas Camarero</TableHead>
+                                            <TableHead>Observaciones</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -268,9 +283,10 @@ export default function GestionPersonalEntregaPage() {
                                                 <TableCell>{hito.lugarEntrega}</TableCell>
                                                 <TableCell>{hito.localizacion}</TableCell>
                                                 <TableCell className="font-bold text-center">{hito.horasCamarero || '-'}</TableCell>
+                                                <TableCell className="text-xs text-muted-foreground">{hito.observaciones}</TableCell>
                                             </TableRow>
                                         )) : (
-                                            <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay entregas con servicio de personal definidas en el pedido.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay entregas con servicio de personal definidas en el pedido.</TableCell></TableRow>
                                         )}
                                     </TableBody>
                                 </Table>
@@ -333,7 +349,7 @@ export default function GestionPersonalEntregaPage() {
                                                         <FormItem>
                                                             <Combobox
                                                                 options={providerOptions}
-                                                                value={proveedoresDB.find(p => p.id === formField.value)?.id || ''}
+                                                                value={proveedoresDB.find(p => p.id === form.getValues(`turnos.${index}.proveedorId`))?.id || ''}
                                                                 onChange={(value) => handleProviderChange(index, value)}
                                                                 placeholder="Proveedor - Categoría..."
                                                             />
@@ -406,3 +422,5 @@ export default function GestionPersonalEntregaPage() {
     </>
   );
 }
+
+    
