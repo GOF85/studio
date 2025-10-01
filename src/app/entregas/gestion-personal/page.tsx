@@ -53,10 +53,9 @@ type PedidoConPersonal = {
   statusPartner: 'Sin Asignar' | 'Parcialmente Gestionado' | 'Todo Gestionado';
 };
 
-const statusVariant: { [key in EstadoPersonalEntrega]: "success" | "warning" | "destructive" } = {
-  Pendiente: 'destructive',
-  Asignado: 'warning',
-  Confirmado: 'success',
+const statusVariant: { [key in EstadoPersonalEntrega]: "success" | "warning" } = {
+  Pendiente: 'warning',
+  Asignado: 'success',
 };
 
 

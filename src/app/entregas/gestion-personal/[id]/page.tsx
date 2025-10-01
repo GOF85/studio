@@ -236,6 +236,8 @@ const hitosConPersonal = useMemo(() => {
   if (!isMounted || !entrega) {
     return <LoadingSkeleton title="Cargando Asignación de Personal..." />;
   }
+  
+  const statusBadgeVariant = personalEntrega?.status === 'Asignado' ? 'success' : 'warning';
 
   return (
     <>
@@ -261,10 +263,12 @@ const hitosConPersonal = useMemo(() => {
                         <div className='flex items-center gap-2'>
                             <Select value={personalEntrega?.status || 'Pendiente'} onValueChange={(value: EstadoPersonalEntrega) => handleStatusChange(value)}>
                                 <SelectTrigger className="w-[200px] h-8 text-sm font-semibold">
-                                    <SelectValue />
+                                    <SelectValue>
+                                        <Badge variant={statusBadgeVariant}>{personalEntrega?.status || 'Pendiente'}</Badge>
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {ESTADO_PERSONAL_ENTREGA.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                    {ESTADO_PERSONAL_ENTREGA.map(s => <SelectItem key={s} value={s}><Badge variant={s === 'Asignado' ? 'success' : 'warning'}>{s}</Badge></SelectItem>)}
                                 </SelectContent>
                             </Select>
                             <Button type="submit" disabled={isLoading || !form.formState.isDirty} size="sm">
@@ -321,7 +325,7 @@ const hitosConPersonal = useMemo(() => {
                                         <TableHead className="px-1 py-1 w-24">H. Salida</TableHead>
                                         <TableHead className="px-1 py-1 w-20">Horas</TableHead>
                                         <TableHead className="px-1 py-1 w-20">€/Hora</TableHead>
-                                        <TableHead className="px-2 py-1 min-w-40">Obs. para Partner</TableHead>
+                                        <TableHead className="px-2 py-1 min-w-40">Observaciones para el proveedor</TableHead>
                                         <TableHead className="text-right px-2 py-1">Acción</TableHead>
                                     </TableRow>
                                 </TableHeader>

@@ -709,7 +709,7 @@ export type Proveedor = {
   tipos: TipoProveedor[];
 }
 
-export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado', 'Confirmado'] as const;
+export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado'] as const;
 export type EstadoPersonalEntrega = typeof ESTADO_PERSONAL_ENTREGA[number];
 
 export type AsignacionPersonal = {
@@ -738,6 +738,7 @@ export type PersonalEntrega = {
     turnos: PersonalEntregaTurno[];
     status: EstadoPersonalEntrega;
 };
+
 
 
 
