@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -44,8 +45,6 @@ const calculateHours = (start?: string, end?: string): number => {
     }
 }
 
-const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH'] as const;
-
 const personalTurnoSchema = z.object({
   id: z.string(),
   proveedorId: z.string().min(1, "El proveedor es obligatorio"),
@@ -55,7 +54,6 @@ const personalTurnoSchema = z.object({
   fecha: z.date({ required_error: "La fecha es obligatoria."}),
   horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
-  centroCoste: z.enum(centroCosteOptions),
   observaciones: z.string().optional().default(''),
 });
 
@@ -127,18 +125,19 @@ export default function GestionPersonalEntregaPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
+  
   const handleProviderChange = useCallback((index: number, tipoPersonalId: string) => {
     if (!tipoPersonalId) return;
     const tipoPersonal = proveedoresDB.find(p => p.id === tipoPersonalId);
     if (tipoPersonal) {
-      setValue(`turnos.${index}.proveedorId`, tipoPersonal.proveedorId, { shouldDirty: true });
-      setValue(`turnos.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
-      setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
-      trigger(`turnos.${index}`);
+        // Here we need to set the value of the field to the ID of the CategoriaPersonal
+        setValue(`turnos.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
+        setValue(`turnos.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
+        setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
+        trigger(`turnos.${index}`);
     }
-  }, [proveedoresDB, setValue, trigger]);
-  
+}, [proveedoresDB, setValue, trigger]);
+
   const watchedFields = watch('turnos');
 
   const { totalPlanned } = useMemo(() => {
@@ -209,7 +208,6 @@ export default function GestionPersonalEntregaPage() {
         fecha: new Date(entrega.startDate),
         horaEntrada: '09:00',
         horaSalida: '17:00',
-        centroCoste: 'SALA',
         observaciones: '',
     });
   }
@@ -222,6 +220,13 @@ export default function GestionPersonalEntregaPage() {
     }
   };
   
+  const saveAjustes = (newAjustes: PersonalExternoAjuste[]) => {
+      if (!osId) return;
+      const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
+      allAjustes[osId] = newAjustes;
+      localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
+  }
+
   const providerOptions = useMemo(() => {
     return proveedoresDB.map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
 }, [proveedoresDB, proveedoresMap]);
@@ -246,14 +251,6 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Asignación de Personal</h1>
                         <div className="text-muted-foreground mt-2 space-y-1">
                             <p>Pedido: {entrega.serviceNumber} - {entrega.client}</p>
-                             {entrega.direccionPrincipal && (
-                                <p className="flex items-center gap-2"><MapPin className="h-4 w-4"/> {entrega.direccionPrincipal}</p>
-                            )}
-                             {(entrega.comments || hitosConPersonal.some(h => h.observaciones)) && (
-                                <div className="mt-2 text-sm text-amber-700 font-semibold flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
-                                    {entrega.comments && <p><Info className="inline-block h-4 w-4 mr-1"/>{entrega.comments}</p>}
-                                </div>
-                             )}
                         </div>
                     </div>
                      <div className="flex gap-2">
@@ -274,7 +271,7 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
 
                 {hitosConPersonal.length > 0 && (
                      <Card className="mb-8">
-                        <CardHeader className="py-3">
+                        <CardHeader className="py-2">
                             <CardTitle className="text-lg">Servicios con Personal</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-0">
@@ -321,7 +318,6 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead className="px-2 py-2 w-40">Fecha</TableHead>
-                                        <TableHead className="px-2 py-2">Centro Coste</TableHead>
                                         <TableHead className="px-2 py-2 min-w-48">Proveedor - Categoría</TableHead>
                                         <TableHead className="px-1 py-2 text-center">Cant.</TableHead>
                                         <TableHead className="px-1 py-2 w-24">H. Entrada</TableHead>
@@ -354,33 +350,19 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                                                         </FormItem>
                                                     )} />
                                                 </TableCell>
-                                                <TableCell className="px-2 py-1">
-                                                    <FormField
-                                                        control={control}
-                                                        name={`turnos.${index}.centroCoste`}
-                                                        render={({ field: f }) => (
-                                                            <FormItem>
-                                                                <Select onValueChange={f.onChange} value={f.value}>
-                                                                    <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
-                                                                    <SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                                                                </Select>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </TableCell>
                                                 <TableCell className="px-2 py-1 min-w-48">
                                                     <FormField
                                                         control={control}
                                                         name={`turnos.${index}.proveedorId`}
-                                                        render={({ field: formField }) => (
-                                                            <FormItem>
-                                                                <Combobox
-                                                                    options={providerOptions}
-                                                                    value={form.getValues(`turnos.${index}.proveedorId`)}
-                                                                    onChange={(value) => handleProviderChange(index, value)}
-                                                                    placeholder="Proveedor - Categoría..."
-                                                                />
-                                                            </FormItem>
+                                                        render={({ field }) => (
+                                                        <FormItem>
+                                                            <Combobox
+                                                                options={providerOptions}
+                                                                value={field.value}
+                                                                onChange={(value) => handleProviderChange(index, value)}
+                                                                placeholder="Proveedor - Categoría..."
+                                                            />
+                                                        </FormItem>
                                                         )}
                                                     />
                                                 </TableCell>
@@ -408,7 +390,7 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                                         ))
                                     ) : (
                                         <TableRow>
-                                        <TableCell colSpan={9} className="h-24 text-center">
+                                        <TableCell colSpan={8} className="h-24 text-center">
                                             No hay personal asignado. Haz clic en "Añadir Turno" para empezar.
                                         </TableCell>
                                         </TableRow>
