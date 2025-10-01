@@ -1,6 +1,5 @@
 
 
-
 'use client';
 
 import { useEffect, useState, useMemo, useRef } from 'react';
@@ -108,6 +107,7 @@ export const osFormSchema = z.object({
   status: z.enum(['Borrador', 'Pendiente', 'Confirmado']).default('Borrador'),
   deliveryLocations: z.array(z.string()).optional().default([]),
   objetivoGastoId: z.string().optional(),
+  direccionPrincipal: z.string().optional().default(''),
 });
 
 export type OsFormValues = z.infer<typeof osFormSchema>;
@@ -126,6 +126,7 @@ const defaultValues: Partial<OsFormValues> = {
   plane: '', comments: '',
   status: 'Borrador', tipoCliente: 'Empresa',
   deliveryLocations: [],
+  direccionPrincipal: '',
 };
 
 const ClienteTitle = () => {
