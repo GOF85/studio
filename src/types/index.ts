@@ -620,6 +620,7 @@ export type ProductoVenta = {
     pvpIfema?: number;
     iva: number;
     producidoPorPartner: boolean;
+    partnerId?: string; // Nuevo campo
     recetaId?: string;
     componentes: ComponenteProductoVenta[];
     exclusivoIfema?: boolean;
@@ -699,4 +700,14 @@ export type DatosFiscales = {
     iban?: string;
     formaDePagoHabitual?: string;
     tipo: TipoEntidadFiscal;
+}
+
+export const TIPO_PROVEEDOR_GASTRONOMIA = ['Gastronomia', 'Servicios', 'Otros'] as const;
+export type TipoProveedorGastronomia = typeof TIPO_PROVEEDOR_GASTRONOMIA[number];
+
+export type ProveedorGastronomia = {
+    id: string;
+    datosFiscalesId: string;
+    nombreProveedor: string;
+    tipo: TipoProveedorGastronomia;
 }

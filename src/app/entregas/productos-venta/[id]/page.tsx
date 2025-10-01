@@ -8,7 +8,7 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Package, PlusCircle, Trash2, TrendingUp, RefreshCw, Star, Link2 } from 'lucide-react';
-import type { ProductoVenta, IngredienteERP, ComponenteProductoVenta, Receta, CategoriaProductoVenta, ImagenProducto } from '@/types';
+import type { ProductoVenta, IngredienteERP, ComponenteProductoVenta, Receta, CategoriaProductoVenta, ImagenProducto, ProveedorGastronomia } from '@/types';
 import { CATEGORIAS_PRODUCTO_VENTA } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -51,9 +51,18 @@ const productoVentaSchema = z.object({
   pvpIfema: z.coerce.number().min(0, 'El PVP IFEMA debe ser positivo').optional(),
   iva: z.coerce.number().min(0).max(100),
   producidoPorPartner: z.boolean().optional().default(false),
+  partnerId: z.string().optional(),
   recetaId: z.string().optional(),
   componentes: z.array(componenteSchema),
   exclusivoIfema: z.boolean().optional().default(false),
+}).superRefine((data, ctx) => {
+    if (data.producidoPorPartner && !data.partnerId) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Debe seleccionar un partner.",
+            path: ["partnerId"],
+        });
+    }
 });
 
 type ProductoVentaFormValues = z.infer<typeof productoVentaSchema>;
@@ -123,6 +132,7 @@ export default function ProductoVentaFormPage() {
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [recetasDB, setRecetasDB] = useState<Receta[]>([]);
+  const [partnersDB, setPartnersDB] = useState<ProveedorGastronomia[]>([]);
   const [newImageUrl, setNewImageUrl] = useState('');
   const { toast } = useToast();
   const [useIfemaPrices, setUseIfemaPrices] = useState(false);
@@ -147,6 +157,7 @@ export default function ProductoVentaFormPage() {
   const watchedComponentes = form.watch('componentes');
   const watchedPvp = form.watch('pvp');
   const watchedPvpIfema = form.watch('pvpIfema');
+  const isProducidoPorPartner = form.watch('producidoPorPartner');
   
   const [costeTotal, setCosteTotal] = useState(0);
 
@@ -169,6 +180,9 @@ export default function ProductoVentaFormPage() {
   useEffect(() => {
     const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     setRecetasDB(storedRecetas);
+
+    const storedPartners = JSON.parse(localStorage.getItem('proveedoresGastronomia') || '[]') as ProveedorGastronomia[];
+    setPartnersDB(storedPartners);
     
     if (isEditing) {
         const allProductos = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
@@ -241,6 +255,7 @@ export default function ProductoVentaFormPage() {
         nombre_en: data.nombre_en || '',
         pvpIfema: data.pvpIfema || 0,
         recetaId: data.recetaId === 'ninguna' ? undefined : data.recetaId,
+        partnerId: data.producidoPorPartner ? data.partnerId : undefined,
     };
 
     if (isEditing) {
@@ -332,20 +347,7 @@ export default function ProductoVentaFormPage() {
                             )} />
                         </div>
                         <div className="grid md:grid-cols-2 gap-4 items-start pt-2">
-                             <FormField control={form.control} name="recetaId" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Receta Vinculada (Opcional)</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value || 'ninguna'}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Vincular a una receta del Book..."/></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="ninguna">Ninguna</SelectItem>
-                                            {recetasDB.map(r => <SelectItem key={r.id} value={r.id}>{r.nombre}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage/>
-                                </FormItem>
-                            )} />
-                            <div className="space-y-4">
+                             <div className="space-y-4">
                                 <FormField control={form.control} name="producidoPorPartner" render={({ field }) => (
                                     <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-[40px]">
                                     <FormControl>
@@ -356,6 +358,35 @@ export default function ProductoVentaFormPage() {
                                     </div>
                                     </FormItem>
                                 )} />
+                                {isProducidoPorPartner && (
+                                <FormField control={form.control} name="partnerId" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Partner Productor</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar Partner..."/></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                {partnersDB.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreProveedor}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage/>
+                                    </FormItem>
+                                )} />
+                                )}
+                                <FormField control={form.control} name="recetaId" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Receta Vinculada (Opcional)</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value || 'ninguna'}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Vincular a una receta del Book..."/></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="ninguna">Ninguna</SelectItem>
+                                                {recetasDB.map(r => <SelectItem key={r.id} value={r.id}>{r.nombre}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage/>
+                                    </FormItem>
+                                )} />
+                             </div>
+                            <div className="space-y-4">
                                 <FormField control={form.control} name="exclusivoIfema" render={({ field }) => (
                                     <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-[40px]">
                                     <FormControl>
@@ -521,3 +552,4 @@ export default function ProductoVentaFormPage() {
     </>
   );
 }
+

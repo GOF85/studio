@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package } from 'lucide-react';
+import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 type DatabaseEntry = {
@@ -36,6 +36,7 @@ const generalDatabasesList: DatabaseEntry[] = [
     { id: '9', name: 'Atípicos (Gastos Varios)', description: 'Gestión de conceptos de gastos varios.', itemCount: 0, path: '/atipicos-db' },
     { id: '12', name: 'Decoración (Gastos Varios)', description: 'Gestión de conceptos de decoración.', itemCount: 0, path: '/decoracion-db' },
     { id: '11', name: 'Proveedores de Personal', description: 'Gestión de proveedores de personal externo.', itemCount: 0, path: '/proveedores-personal' },
+    { id: '22', name: 'Proveedores de Gastronomía', description: 'Gestión de partners de producción de gastronomía.', itemCount: 0, path: '/proveedores-gastronomia' },
     { id: '13', name: 'Book: Materia Prima (ERP)', description: 'Gestión de precios y productos de proveedores.', itemCount: 0, path: '/book/ingredientes-erp' },
     { id: '14', name: 'Book: Menaje', description: 'Gestión del menaje para los emplatados.', itemCount: 0, path: '/menaje-db' },
     { id: '15', name: 'Book: Categorías de Recetas', description: 'Gestión de las categorías para las recetas del book.', itemCount: 0, path: '/categorias-recetas' },
@@ -66,6 +67,7 @@ export default function BdPage() {
             if (db.path === '/alquiler-db') count = JSON.parse(localStorage.getItem('alquilerDB') || '[]').length;
             if (db.path === '/tipo-servicio') count = JSON.parse(localStorage.getItem('tipoServicio') || '[]').length;
             if (db.path === '/proveedores-transporte') count = JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]').length;
+            if (db.path === '/proveedores-gastronomia') count = JSON.parse(localStorage.getItem('proveedoresGastronomia') || '[]').length;
             if (db.path === '/proveedor-hielo') count = JSON.parse(localStorage.getItem('proveedorHielo') || '[]').length;
             if (db.path === '/atipicos-db') count = JSON.parse(localStorage.getItem('atipicosDB') || '[]').length;
             if (db.path === '/decoracion-db') count = JSON.parse(localStorage.getItem('decoracionDB') || '[]').length;
