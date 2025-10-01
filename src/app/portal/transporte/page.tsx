@@ -4,26 +4,23 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Truck, Search, CheckCircle, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Warehouse, User, Phone } from 'lucide-react';
-import { format, isWithinInterval, startOfDay, endOfDay, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek } from 'date-fns';
+import { Truck, Search, Warehouse, User, Phone, Clock, MapPin } from 'lucide-react';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { TransporteOrder, ServiceOrder } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import type { TransporteOrder, ServiceOrder, PedidoEntrega, EntregaHito } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar } from '@/components/ui/calendar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
-type OrderWithOS = TransporteOrder & {
+type OrderWithDetails = TransporteOrder & {
     os?: ServiceOrder;
+    hitos: (EntregaHito & { expedicionNumero: string })[];
 };
 
 const statusVariant: { [key in TransporteOrder['status']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -33,36 +30,46 @@ const statusVariant: { [key in TransporteOrder['status']]: 'default' | 'secondar
   Entregado: 'outline',
 };
 
-const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-
-type DayDetails = {
-    day: Date;
-    events: OrderWithOS[];
-} | null;
+const statusRowClass: Record<string, string> = {
+  'En Ruta': 'bg-blue-50 hover:bg-blue-100/80',
+  'Entregado': 'bg-green-50 hover:bg-green-100/80',
+};
 
 
 export default function TransportePortalPage() {
-    const [orders, setOrders] = useState<OrderWithOS[]>([]);
+    const [orders, setOrders] = useState<OrderWithDetails[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [showCompleted, setShowCompleted] = useState(false);
     const router = useRouter();
 
-    // State for Calendar View
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
-
     useEffect(() => {
         const allTransportOrders = (JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[]);
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
+
         const serviceOrderMap = new Map(allServiceOrders.map(os => [os.id, os]));
+        const pedidosEntregaMap = new Map(allPedidosEntrega.map(p => [p.osId, p]));
 
-        const ordersWithOs = allTransportOrders.map(order => ({
-            ...order,
-            os: serviceOrderMap.get(order.osId),
-        }));
+        const ordersWithDetails = allTransportOrders.map(order => {
+            const os = serviceOrderMap.get(order.osId);
+            const pedidoEntrega = pedidosEntregaMap.get(order.osId);
+            
+            const hitosDetails = (order.hitosIds || []).map(hitoId => {
+                const hito = pedidoEntrega?.hitos.find(h => h.id === hitoId);
+                const hitoIndex = pedidoEntrega?.hitos.findIndex(h => h.id === hitoId) ?? -1;
+                const expedicionNumero = os ? `${os.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}` : hitoId;
+                return hito ? { ...hito, expedicionNumero } : null;
+            }).filter(Boolean) as (EntregaHito & { expedicionNumero: string })[];
 
-        setOrders(ordersWithOs);
+            return {
+                ...order,
+                os,
+                hitos: hitosDetails,
+            };
+        });
+
+        setOrders(ordersWithDetails);
         setIsMounted(true);
     }, []);
 
@@ -81,7 +88,7 @@ export default function TransportePortalPage() {
     }, [orders, searchTerm, showCompleted]);
     
     const groupedOrdersForList = useMemo(() => {
-        const grouped: { [date: string]: OrderWithOS[] } = {};
+        const grouped: { [date: string]: OrderWithDetails[] } = {};
         filteredOrders.forEach(order => {
             const dateKey = format(new Date(order.fecha), 'yyyy-MM-dd');
             if (!grouped[dateKey]) {
@@ -95,26 +102,6 @@ export default function TransportePortalPage() {
     const handleOrderClick = (id: string) => {
         router.push(`/portal/albaran/${id}`);
     }
-
-    // --- Calendar Logic ---
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(currentDate);
-    const calStartDate = startOfWeek(monthStart, { weekStartsOn: 1 });
-    const calEndDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
-    const calendarDays = eachDayOfInterval({ start: calStartDate, end: calEndDate });
-
-    const eventsByDay = useMemo(() => {
-        const grouped: { [dayKey: string]: OrderWithOS[] } = {};
-        filteredOrders.forEach(event => {
-            const dayKey = format(new Date(event.fecha), 'yyyy-MM-dd');
-            if (!grouped[dayKey]) grouped[dayKey] = [];
-            grouped[dayKey].push(event);
-        });
-        return grouped;
-    }, [filteredOrders]);
-
-    const nextMonth = () => setCurrentDate(add(currentDate, { months: 1 }));
-    const prevMonth = () => setCurrentDate(sub(currentDate, { months: 1 }));
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Portal de Transporte..." />;
@@ -130,134 +117,70 @@ export default function TransportePortalPage() {
                 </div>
             </div>
 
-            <Tabs defaultValue="lista">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="lista">Lista de Servicios</TabsTrigger>
-                    <TabsTrigger value="calendario">Calendario</TabsTrigger>
-                </TabsList>
-                <TabsContent value="lista">
-                     <div className="flex flex-col gap-4 my-6">
-                        <div className="relative">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Buscar por OS, cliente, dirección..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-8"
-                            />
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Switch id="show-completed-list" checked={showCompleted} onCheckedChange={setShowCompleted} />
-                            <Label htmlFor="show-completed-list">Mostrar entregas realizadas</Label>
-                        </div>
-                    </div>
-                    <div className="space-y-4">
-                        {groupedOrdersForList.length > 0 ? (
-                            groupedOrdersForList.map(([date, dailyOrders]) => (
-                                <Card key={date}>
-                                    <CardHeader className="py-3">
-                                        <CardTitle className="text-lg capitalize">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-3">
-                                        {dailyOrders.map(order => (
-                                            <div key={order.id} className="border p-4 rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer" onClick={() => handleOrderClick(order.id)}>
-                                                <div className="flex justify-between items-start">
-                                                    <div>
-                                                        <p className="font-bold text-lg">{order.lugarEntrega}</p>
-                                                        <p className="text-sm text-muted-foreground">{order.os?.client} (OS: {order.os?.serviceNumber})</p>
-                                                    </div>
-                                                    <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
-                                                </div>
-                                                 <div className="text-sm mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-muted-foreground">
-                                                    <div className="flex items-center gap-1.5"><Warehouse className="h-4 w-4" /> <strong>Recogida:</strong> {order.lugarRecogida}</div>
-                                                    <div className="flex items-center gap-1.5"><User className="h-4 w-4" /> <strong>Contacto:</strong> {order.os?.contact}</div>
-                                                    <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> <strong>Horas:</strong> {order.horaRecogida} &rarr; {order.horaEntrega}</div>
-                                                    <div className="flex items-center gap-1.5"><Phone className="h-4 w-4" /> <strong>Teléfono:</strong> {order.os?.phone}</div>
+             <div className="flex flex-col gap-4 my-6">
+                <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Buscar por OS, cliente, dirección..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8"
+                    />
+                </div>
+                <div className="flex items-center space-x-2">
+                    <Switch id="show-completed-list" checked={showCompleted} onCheckedChange={setShowCompleted} />
+                    <Label htmlFor="show-completed-list">Mostrar entregas realizadas</Label>
+                </div>
+            </div>
+            <div className="space-y-4">
+                {groupedOrdersForList.length > 0 ? (
+                    groupedOrdersForList.map(([date, dailyOrders]) => (
+                        <div key={date}>
+                            <h3 className="text-xl font-bold capitalize mb-3">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
+                            <div className="space-y-3">
+                                {dailyOrders.map(order => (
+                                    <div key={order.id} className={cn("border p-4 rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer", statusRowClass[order.status])} onClick={() => handleOrderClick(order.id)}>
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div>
+                                                <p className="font-bold text-lg flex items-center gap-2">
+                                                    <MapPin className="h-5 w-5 text-primary" />
+                                                    {order.lugarEntrega}
+                                                </p>
+                                                <p className="text-sm text-muted-foreground">{order.os?.client} (OS: {order.os?.serviceNumber})</p>
+                                            </div>
+                                            <Badge variant={statusVariant[order.status]} className="text-base px-3 py-1">{order.status}</Badge>
+                                        </div>
+                                        <div className="text-sm grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-muted-foreground">
+                                            <div className="flex items-center gap-2"><Warehouse className="h-4 w-4" /> <strong>Recogida:</strong> {order.lugarRecogida}</div>
+                                            <div className="flex items-center gap-2"><User className="h-4 w-4" /> <strong>Contacto:</strong> {order.hitos[0]?.contacto || order.os?.contact}</div>
+                                            <div className="flex items-center gap-2"><Clock className="h-4 w-4" /> <strong>Horas:</strong> {order.horaRecogida} &rarr; {order.horaEntrega}</div>
+                                            <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> <strong>Teléfono:</strong> {order.hitos[0]?.telefono || order.os?.phone}</div>
+                                        </div>
+                                         {order.hitos.length > 0 && (
+                                            <div className="mt-3 pt-3 border-t">
+                                                <h4 className="font-semibold text-xs mb-1">Entregas Incluidas:</h4>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {order.hitos.map(hito => (
+                                                        <Badge key={hito.id} variant="outline">{hito.expedicionNumero} - {hito.lugarEntrega}</Badge>
+                                                    ))}
                                                 </div>
                                             </div>
-                                        ))}
-                                    </CardContent>
-                                </Card>
-                            ))
-                        ) : (
-                            <Card>
-                                <CardContent className="py-12 text-center">
-                                    <Truck className="mx-auto h-12 w-12 text-muted-foreground" />
-                                    <h3 className="mt-4 text-lg font-semibold">Sin servicios para mostrar</h3>
-                                    <p className="mt-1 text-sm text-muted-foreground">No hay entregas que coincidan con los filtros actuales.</p>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </div>
-                </TabsContent>
-                <TabsContent value="calendario">
-                     <div className="flex items-center justify-center gap-4 my-6">
-                        <Button variant="outline" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
-                        <h2 className="text-xl font-semibold w-40 text-center capitalize">{format(currentDate, 'MMMM yyyy', { locale: es })}</h2>
-                        <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
-                    </div>
-                     <div className="border rounded-lg">
-                        <div className="grid grid-cols-7 border-b">
-                            {WEEKDAYS.map(day => (
-                            <div key={day} className="text-center font-bold p-2 text-xs text-muted-foreground">
-                                {day}
-                            </div>
-                            ))}
-                        </div>
-                        <div className="grid grid-cols-7 auto-rows-fr">
-                            {calendarDays.map((day) => {
-                                const dayKey = format(day, 'yyyy-MM-dd');
-                                const dayEvents = eventsByDay[dayKey] || [];
-                                const isCurrentMonth = isSameMonth(day, currentDate);
-                                const isToday = isSameDay(day, new Date());
-
-                                return (
-                                    <div
-                                        key={day.toString()}
-                                        className={cn(
-                                            'h-20 border-r border-b p-1 flex flex-col',
-                                            !isCurrentMonth && 'bg-muted/50 text-muted-foreground',
-                                            'last:border-r-0',
-                                            dayEvents.length > 0 && 'cursor-pointer hover:bg-secondary'
-                                        )}
-                                        onClick={() => dayEvents.length > 0 && setDayDetails({ day, events: dayEvents })}
-                                    >
-                                        <span className={cn('font-semibold text-xs', isToday && 'text-primary font-bold flex items-center justify-center h-5 w-5 rounded-full bg-primary/20')}>
-                                            {format(day, 'd')}
-                                        </span>
-                                        {dayEvents.length > 0 && (
-                                            <div className="mt-1 flex justify-center">
-                                                <span className="h-2 w-2 rounded-full bg-primary"></span>
-                                            </div>
-                                        )}
+                                         )}
                                     </div>
-                                );
-                            })}
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                </TabsContent>
-            </Tabs>
-
-            <Dialog open={!!dayDetails} onOpenChange={(open) => !open && setDayDetails(null)}>
-                <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Entregas para el {dayDetails?.day ? format(dayDetails.day, 'PPP', { locale: es }) : ''}</DialogTitle>
-                    </DialogHeader>
-                    <div className="max-h-[60vh] overflow-y-auto -mx-6 px-6">
-                        {dayDetails && dayDetails.events.map((event) => (
-                            <Link key={event.id} href={`/portal/albaran/${event.id}`} className="block p-3 hover:bg-muted rounded-md">
-                                <p className="font-bold text-primary">{event.lugarEntrega}</p>
-                                <p>{event.os?.client} ({event.os?.serviceNumber})</p>
-                                <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4">
-                                    <span className="flex items-center gap-1.5"><Clock className="h-3 w-3"/>{event.horaEntrega}</span>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                </DialogContent>
-            </Dialog>
+                    ))
+                ) : (
+                    <Card>
+                        <CardContent className="py-12 text-center">
+                            <Truck className="mx-auto h-12 w-12 text-muted-foreground" />
+                            <h3 className="mt-4 text-lg font-semibold">Sin servicios para mostrar</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">No hay entregas que coincidan con los filtros actuales.</p>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
         </main>
     );
-
-    
 }
