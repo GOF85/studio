@@ -147,7 +147,7 @@ aparcamiento: string;
   comentariosMarketing: string;
 }
 
-export const PRECIO_CATEGORIAS = ['Bebida', 'Menaje', 'Vajilla', 'Cristalería', 'Mantelería', 'Mobiliario', 'Decoración', 'Maquinaria', 'Transporte'] as const;
+export const PRECIO_CATEGORIAS = ['Bebida', 'Menaje', 'Vajilla', 'Cristalería', 'Mantelería', 'Mobiliario', 'Decoración', 'Maquinaria', 'Transporte', 'Hielo'] as const;
 export type PrecioCategoria = typeof PRECIO_CATEGORIAS[number];
 
 export type Precio = {
@@ -176,24 +176,20 @@ export type TipoServicio = {
     servicio: string;
 }
 
-export const TIPO_PROVEEDOR_TRANSPORTE = ['Catering', 'Entregas'] as const;
-export type TipoProveedorTransporte = typeof TIPO_PROVEEDOR_TRANSPORTE[number];
-
-export type ProveedorTransporte = {
+export type TipoTransporte = {
     id: string;
-    datosFiscalesId?: string;
-    nombreProveedor: string;
-    tipoTransporte: string;
+    proveedorId: string;
+    descripcion: string; // Ej. "Furgoneta Isotermo"
     precio: number;
-    tipo: TipoProveedorTransporte;
+    tipo: 'Catering' | 'Entregas';
 }
 
-export type ProveedorHielo = {
-    id: string;
-    nombreProveedor: string;
-    producto: string;
-    precio: number;
-}
+export type CategoriaPersonal = {
+  id: string;
+  proveedorId: string;
+  categoria: string;
+  precioHora: number;
+};
 
 export type ComercialBriefingItem = {
     id: string;
@@ -305,14 +301,6 @@ export type AtipicoOrder = {
   observaciones?: string;
   precio: number;
   status: 'Pendiente' | 'Aprobado' | 'Rechazado';
-};
-
-export type ProveedorPersonal = {
-  id: string;
-  datosFiscalesId: string;
-  nombreProveedor: string;
-  categoria: string;
-  precioHora: number;
 };
 
 export type PersonalMiceOrder = {
@@ -705,14 +693,14 @@ export type DatosFiscales = {
     tipo: TipoEntidadFiscal;
 }
 
-export const TIPO_PROVEEDOR_GASTRONOMIA = ['Gastronomia', 'Servicios', 'Otros'] as const;
-export type TipoProveedorGastronomia = typeof TIPO_PROVEEDOR_GASTRONOMIA[number];
+export const TIPO_PROVEEDOR_OPCIONES = ['Transporte', 'Hielo', 'Gastronomia', 'Personal', 'Atipicos', 'Decoracion', 'Servicios', 'Otros'] as const;
+export type TipoProveedor = typeof TIPO_PROVEEDOR_OPCIONES[number];
 
-export type ProveedorGastronomia = {
-    id: string;
-    datosFiscalesId: string;
-    nombreProveedor: string;
-    tipo: TipoProveedorGastronomia;
+export type Proveedor = {
+  id: string;
+  datosFiscalesId: string;
+  nombreComercial: string;
+  tipos: TipoProveedor[];
 }
 
 export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado a ETT', 'Confirmado'] as const;

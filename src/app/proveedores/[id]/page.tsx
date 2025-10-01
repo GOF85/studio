@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, FileDown, Users, X, Building2, Mail, Phone, Hash } from 'lucide-react';
 import type { Proveedor, DatosFiscales } from '@/types';
-import { TIPO_PROVEEDOR } from '@/types';
+import { TIPO_PROVEEDOR_OPCIONES } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -125,7 +125,7 @@ export default function ProveedorFormPage() {
         label: `${df.nombreComercial || df.nombreEmpresa} (${df.cif})`
     })), [datosFiscales]);
     
-  const tipoOptions = TIPO_PROVEEDOR.map(t => ({ label: t, value: t }));
+  const tipoOptions = TIPO_PROVEEDOR_OPCIONES.map(t => ({ label: t, value: t }));
 
   return (
     <>
