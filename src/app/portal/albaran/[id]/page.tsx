@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Package, User, Printer } from 'lucide-react';
+import { CheckCircle, Package, User, Printer, MapPin, Phone, Building } from 'lucide-react';
 
 export default function AlbaranPage() {
     const [order, setOrder] = useState<TransporteOrder | null>(null);
@@ -94,49 +94,87 @@ export default function AlbaranPage() {
         }
     };
     
-    const handlePrintSigned = () => {
+   const handlePrintSigned = () => {
         if (!order || !order.firmaUrl || !entrega) return;
         const doc = new jsPDF();
+        const margin = 15;
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let finalY = margin;
 
-        // Header
+        // --- Estilos ---
+        const primaryColor = '#f97316';
+        const textColor = '#374151';
+        const mutedColor = '#6b7280';
+        const headerColor = '#f3f4f6';
+
+        // --- Cabecera ---
         doc.setFontSize(18);
-        doc.text('Albarán de Entrega', 15, 20);
-        doc.setFontSize(12);
-        doc.text(expedicionNumero, 15, 28);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(primaryColor);
+        doc.text('Albarán de Entrega', margin, finalY);
         
-        doc.setFontSize(10);
-        doc.text(`Fecha: ${format(new Date(order.fecha), 'dd/MM/yyyy', { locale: es })}`, 195, 20, { align: 'right' });
+        doc.setFontSize(12);
+        doc.setTextColor(textColor);
+        doc.text(expedicionNumero, margin, finalY + 8);
+        
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Fecha: ${format(new Date(order.fecha), 'dd/MM/yyyy', { locale: es })}`, pageWidth - margin, finalY, { align: 'right' });
+        finalY += 20;
 
-        // Delivery Info
+        // --- Información de Entrega ---
         autoTable(doc, {
-            startY: 35,
+            startY: finalY,
             body: [
                 ['Cliente', entrega.client],
                 ['Lugar Entrega', order.lugarEntrega],
                 ['Hora Entrega', order.horaEntrega],
             ],
             theme: 'plain',
-            styles: { fontSize: 9 }
+            styles: { fontSize: 9, cellPadding: 1 },
+            columnStyles: { 0: { fontStyle: 'bold' } }
         });
+        finalY = (doc as any).lastAutoTable.finalY + 10;
 
-        // Items
+        // --- Artículos ---
         autoTable(doc, {
-            startY: (doc as any).lastAutoTable.finalY + 5,
+            startY: finalY,
             head: [['Producto', 'Cantidad']],
             body: deliveryItems.map(item => [item.nombre, `${item.quantity} uds.`]),
             theme: 'striped',
-            headStyles: { fillColor: [240, 240, 240] }
+            headStyles: { fillColor: headerColor, textColor: textColor, fontStyle: 'bold' },
+            styles: { fontSize: 9 }
         });
-        
-        // Signature
-        const signatureY = (doc as any).lastAutoTable.finalY + 10;
+        finalY = (doc as any).lastAutoTable.finalY + 15;
+
+        // --- Firma ---
+        if (finalY + 60 > pageHeight) {
+            doc.addPage();
+            finalY = margin;
+        }
         doc.setFontSize(11);
-        doc.text('Confirmación de Entrega:', 15, signatureY);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Confirmación de Entrega:', margin, finalY);
+        finalY += 6;
         doc.setFontSize(9);
-        doc.text(`Recibido por: ${order.firmadoPor} ${order.dniReceptor ? `(${order.dniReceptor})` : ''}`, 15, signatureY + 5);
-        doc.addImage(order.firmaUrl, 'PNG', 15, signatureY + 10, 80, 40);
-        doc.setDrawColor(200, 200, 200);
-        doc.rect(15, signatureY + 10, 80, 40);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Recibido por: ${order.firmadoPor} ${order.dniReceptor ? `(${order.dniReceptor})` : ''}`, margin, finalY);
+        finalY += 5;
+        doc.addImage(order.firmaUrl, 'PNG', margin, finalY, 80, 40);
+        doc.setDrawColor(220, 220, 220);
+        doc.rect(margin, finalY, 80, 40);
+
+        // --- Pie de página ---
+        const pageCount = (doc as any).internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(mutedColor);
+            doc.text(`MICE Catering - Albarán`, margin, pageHeight - 10);
+            doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+        }
+
 
         doc.save(`Albaran_${expedicionNumero}.pdf`);
     }
@@ -165,7 +203,7 @@ export default function AlbaranPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-6">
                         <div>
                             <h3 className="font-bold mb-1">Información de Entrega</h3>
-                             <p className="font-semibold text-base">{entrega?.client || ''}</p>
+                            <p className="font-semibold text-base">{entrega?.client || ''}</p>
                             <p>{order.lugarEntrega}</p>
                             <p>Hora de entrega: {order.horaEntrega}</p>
                         </div>
