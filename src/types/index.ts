@@ -731,4 +731,3 @@ export type PersonalEntrega = {
     }[];
     status: 'Pendiente' | 'Asignado a ETT' | 'Confirmado';
 };
-```
