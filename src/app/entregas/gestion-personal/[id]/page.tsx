@@ -56,7 +56,7 @@ export default function GestionPersonalEntregaPage() {
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-start justify-between mb-8">
             <div>
-                <Button variant="ghost" size="sm" onClick={() => router.push('/entregas/gestion-personal')} className="mb-2">
+                <Button variant="ghost" size="sm" onClick={() => router.push('/entregas/gestion-personal')}>
                     <ArrowLeft className="mr-2" />
                     Volver al listado
                 </Button>
