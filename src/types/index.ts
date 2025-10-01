@@ -1,5 +1,6 @@
 
 
+
 import { z } from "zod";
 
 export type CateringItem = {
@@ -260,6 +261,7 @@ export type TransporteOrder = {
     firmaUrl?: string;
     firmadoPor?: string;
     dniReceptor?: string;
+    fechaFirma?: string;
     hitosIds?: string[]; // For Entregas, to link multiple deliveries
 }
 

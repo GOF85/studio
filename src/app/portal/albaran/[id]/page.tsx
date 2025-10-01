@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -32,6 +33,8 @@ export default function AlbaranPage() {
     const router = useRouter();
     const params = useParams();
     const id = params.id as string;
+    const [isPrinting, setIsPrinting] = useState(false);
+
 
     useEffect(() => {
         const allTransportOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
@@ -87,6 +90,7 @@ export default function AlbaranPage() {
                 firmadoPor: signedBy,
                 dniReceptor: dni,
                 status: 'Entregado',
+                fechaFirma: new Date().toISOString(),
             };
             localStorage.setItem('transporteOrders', JSON.stringify(allTransportOrders));
             setOrder(allTransportOrders[orderIndex]);
@@ -96,87 +100,98 @@ export default function AlbaranPage() {
     
    const handlePrintSigned = () => {
         if (!order || !order.firmaUrl || !entrega) return;
-        const doc = new jsPDF();
-        const margin = 15;
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const pageWidth = doc.internal.pageSize.getWidth();
-        let finalY = margin;
+        setIsPrinting(true);
+        try {
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const margin = 15;
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            let finalY = margin;
 
-        // --- Estilos ---
-        const primaryColor = '#f97316';
-        const textColor = '#374151';
-        const mutedColor = '#6b7280';
-        const headerColor = '#f3f4f6';
+            // --- Estilos ---
+            const primaryColor = '#f97316';
+            const textColor = '#374151';
+            const mutedColor = '#6b7280';
+            const headerColor = '#f3f4f6';
 
-        // --- Cabecera ---
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(primaryColor);
-        doc.text('Albarán de Entrega', margin, finalY);
-        
-        doc.setFontSize(12);
-        doc.setTextColor(textColor);
-        doc.text(expedicionNumero, margin, finalY + 8);
-        
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Fecha: ${format(new Date(order.fecha), 'dd/MM/yyyy', { locale: es })}`, pageWidth - margin, finalY, { align: 'right' });
-        finalY += 20;
+            // --- Cabecera ---
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(primaryColor);
+            doc.text('Albarán de Entrega', margin, finalY);
+            
+            doc.setFontSize(12);
+            doc.setTextColor(textColor);
+            doc.text(expedicionNumero, margin, finalY + 8);
+            
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Fecha: ${format(new Date(order.fecha), 'dd/MM/yyyy', { locale: es })}`, pageWidth - margin, finalY, { align: 'right' });
+            finalY += 20;
 
-        // --- Información de Entrega ---
-        autoTable(doc, {
-            startY: finalY,
-            body: [
-                ['Cliente', entrega.client],
-                ['Lugar Entrega', order.lugarEntrega],
-                ['Hora Entrega', order.horaEntrega],
-            ],
-            theme: 'plain',
-            styles: { fontSize: 9, cellPadding: 1 },
-            columnStyles: { 0: { fontStyle: 'bold' } }
-        });
-        finalY = (doc as any).lastAutoTable.finalY + 10;
+            // --- Información de Entrega ---
+            autoTable(doc, {
+                body: [
+                    [T.client, entrega.client],
+                    ['Lugar Entrega', order.lugarEntrega],
+                    ['Hora Entrega', order.horaEntrega],
+                ],
+                startY: finalY,
+                theme: 'plain',
+                styles: { fontSize: 9, cellPadding: 1 },
+                columnStyles: { 0: { fontStyle: 'bold' } }
+            });
+            finalY = (doc as any).lastAutoTable.finalY + 10;
 
-        // --- Artículos ---
-        autoTable(doc, {
-            startY: finalY,
-            head: [['Producto', 'Cantidad']],
-            body: deliveryItems.map(item => [item.nombre, `${item.quantity} uds.`]),
-            theme: 'striped',
-            headStyles: { fillColor: headerColor, textColor: textColor, fontStyle: 'bold' },
-            styles: { fontSize: 9 }
-        });
-        finalY = (doc as any).lastAutoTable.finalY + 15;
+            // --- Artículos ---
+            autoTable(doc, {
+                startY: finalY,
+                head: [['Producto', 'Cantidad']],
+                body: deliveryItems.map(item => [item.nombre, `${item.quantity} uds.`]),
+                theme: 'grid',
+                headStyles: { fillColor: headerColor, textColor: textColor, fontStyle: 'bold' },
+                styles: { fontSize: 9 }
+            });
+            finalY = (doc as any).lastAutoTable.finalY + 15;
 
-        // --- Firma ---
-        if (finalY + 60 > pageHeight) {
-            doc.addPage();
-            finalY = margin;
+            // --- Firma ---
+            if (finalY + 60 > pageHeight) {
+                doc.addPage();
+                finalY = margin;
+            }
+            doc.setFontSize(11);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Confirmación de Entrega:', margin, finalY);
+            finalY += 6;
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Recibido por: ${order.firmadoPor} ${order.dniReceptor ? `(${order.dniReceptor})` : ''}`, margin, finalY);
+            if(order.fechaFirma) {
+                doc.text(`Fecha y hora: ${format(new Date(order.fechaFirma), 'dd/MM/yyyy HH:mm', { locale: es })}`, margin, finalY + 4);
+            }
+            finalY += 10;
+            doc.addImage(order.firmaUrl, 'PNG', margin, finalY, 80, 40);
+            doc.setDrawColor(220, 220, 220);
+            doc.rect(margin, finalY, 80, 40);
+
+            // --- Pie de página ---
+            const pageCount = (doc as any).internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(mutedColor);
+                doc.text(`MICE Catering - Albarán`, margin, pageHeight - 10);
+                doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+            }
+
+
+            doc.save(`Albaran_${expedicionNumero}.pdf`);
+        } catch (error) {
+            console.error("Error al generar el PDF:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
+        } finally {
+            setIsPrinting(false);
         }
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Confirmación de Entrega:', margin, finalY);
-        finalY += 6;
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Recibido por: ${order.firmadoPor} ${order.dniReceptor ? `(${order.dniReceptor})` : ''}`, margin, finalY);
-        finalY += 5;
-        doc.addImage(order.firmaUrl, 'PNG', margin, finalY, 80, 40);
-        doc.setDrawColor(220, 220, 220);
-        doc.rect(margin, finalY, 80, 40);
-
-        // --- Pie de página ---
-        const pageCount = (doc as any).internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.setFontSize(8);
-            doc.setTextColor(mutedColor);
-            doc.text(`MICE Catering - Albarán`, margin, pageHeight - 10);
-            doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-        }
-
-
-        doc.save(`Albaran_${expedicionNumero}.pdf`);
     }
 
     if (!isMounted || !order) {
@@ -234,11 +249,15 @@ export default function AlbaranPage() {
                         <div>
                             <h3 className="font-bold mb-2">Confirmación de Entrega</h3>
                             <div className="border rounded-lg p-4 bg-secondary/50">
-                                <p className="flex items-center gap-2 mb-2"><User className="h-4 w-4"/>Recibido por: <span className="font-semibold">{order.firmadoPor} {order.dniReceptor && `(${order.dniReceptor})`}</span></p>
+                                <p className="flex items-center gap-2 mb-2">
+                                    <User className="h-4 w-4"/>Recibido por: 
+                                    <span className="font-semibold">{order.firmadoPor} {order.dniReceptor && `(${order.dniReceptor})`}</span>
+                                    {order.fechaFirma && <span className="text-muted-foreground text-xs ml-auto">({format(new Date(order.fechaFirma), 'dd/MM/yyyy HH:mm', { locale: es })})</span>}
+                                </p>
                                 <img src={order.firmaUrl} alt="Firma del receptor" className="border rounded-md bg-white w-full h-auto"/>
-                                <Button onClick={handlePrintSigned} className="mt-4 w-full">
-                                    <Printer className="mr-2" />
-                                    Previsualizar Albarán (PDF)
+                                <Button onClick={handlePrintSigned} className="mt-4 w-full" disabled={isPrinting}>
+                                    {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
+                                    {isPrinting ? 'Generando...' : 'Previsualizar Albarán (PDF)'}
                                 </Button>
                             </div>
                         </div>
