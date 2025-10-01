@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -7,8 +6,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2 } from 'lucide-react';
-import type { PersonalEntrega, Entrega, PedidoEntrega, EntregaHito, Proveedor, CategoriaPersonal } from '@/types';
+import { PlusCircle, Trash2, ArrowLeft, Users, Save, Loader2, Calendar as CalendarIcon, X } from 'lucide-react';
+import type { PersonalEntrega, PersonalEntregaTurno, Entrega, PedidoEntrega, EntregaHito, CategoriaPersonal, Proveedor } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -16,14 +15,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { Calendar as CalendarIcon } from 'lucide-react';
 import { Combobox } from '@/components/ui/combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -175,6 +172,9 @@ export default function GestionPersonalEntregaPage() {
                     </div>
                 </div>
                 <div className="flex gap-2">
+                     <Button variant="outline" type="button" onClick={() => router.push('/entregas/gestion-personal')}>
+                        <X className="mr-2 h-4 w-4" /> Cancelar
+                    </Button>
                     <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
                         {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                         <span className="ml-2">Guardar Cambios</span>
@@ -235,7 +235,13 @@ export default function GestionPersonalEntregaPage() {
                                                     <Combobox
                                                         options={catalogoOptions}
                                                         value={formField.value}
-                                                        onChange={(value) => setValue(`turnos.${index}.tipoPersonalId`, value, { shouldDirty: true })}
+                                                        onChange={(value) => {
+                                                            const selectedOption = catalogoPersonal.find(o => o.id === value);
+                                                            if (selectedOption) {
+                                                                setValue(`turnos.${index}.tipoPersonalId`, selectedOption.id, { shouldDirty: true });
+                                                                setValue(`turnos.${index}.precioHora`, selectedOption.precioHora, { shouldDirty: true });
+                                                            }
+                                                        }}
                                                         placeholder="Proveedor - Categoría..."
                                                     />
                                                 </FormItem>
@@ -257,7 +263,7 @@ export default function GestionPersonalEntregaPage() {
                                                             </FormControl>
                                                         </PopoverTrigger>
                                                         <PopoverContent className="w-auto p-0" align="start">
-                                                            <Calendar mode="single" selected={dateField.value} onSelect={dateField.onChange} initialFocus locale={es} />
+                                                            <Calendar mode="single" selected={dateField.value} onSelect={dateField.onChange} initialFocus />
                                                         </PopoverContent>
                                                     </Popover>
                                                 </FormItem>
@@ -270,7 +276,7 @@ export default function GestionPersonalEntregaPage() {
                                             <FormField control={control} name={`turnos.${index}.horaFin`} render={({ field: inputField }) => <FormItem><FormControl><Input type="time" {...inputField} className="w-24 h-9" /></FormControl></FormItem>} />
                                         </TableCell>
                                         <TableCell className="px-2 py-1 font-mono">
-                                           {tipoPersonal ? formatCurrency(tipoPersonal.precioHora) : 'N/A'}
+                                           {tipoPersonal ? tipoPersonal.precioHora.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : 'N/A'}
                                         </TableCell>
                                         <TableCell className="text-right px-2 py-1">
                                             <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
@@ -317,4 +323,3 @@ export default function GestionPersonalEntregaPage() {
     </>
   );
 }
-
