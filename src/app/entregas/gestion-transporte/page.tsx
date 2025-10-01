@@ -212,9 +212,10 @@ export default function GestionTransportePage() {
                                         <TableHead className="p-2">OS</TableHead>
                                         <TableHead className="p-2">Fecha</TableHead>
                                         <TableHead className="p-2 w-[250px]">Proveedor</TableHead>
-                                        <TableHead className="p-2">Recogida</TableHead>
-                                        <TableHead className="p-2">Entrega</TableHead>
-                                        <TableHead className="p-2">Estado</TableHead>
+                                        <TableHead className="p-2">Hora Recogida</TableHead>
+                                        <TableHead className="p-2 min-w-48">Dirección Origen</TableHead>
+                                        <TableHead className="p-2">Hora Entrega</TableHead>
+                                        <TableHead className="p-2 min-w-48">Dirección Destino</TableHead>
                                         <TableHead className="p-2 text-right">Acción</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -240,17 +241,13 @@ export default function GestionTransportePage() {
                                                     <FormField control={control} name={`orders.${index}.horaRecogida`} render={({ field: inputField }) => <FormItem><FormControl><Input type="time" {...inputField} className="h-9"/></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell className="p-1">
+                                                    <FormField control={control} name={`orders.${index}.lugarRecogida`} render={({ field: inputField }) => <FormItem><FormControl><Input {...inputField} className="h-9"/></FormControl></FormItem>} />
+                                                </TableCell>
+                                                <TableCell className="p-1">
                                                     <FormField control={control} name={`orders.${index}.horaEntrega`} render={({ field: inputField }) => <FormItem><FormControl><Input type="time" {...inputField} className="h-9"/></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell className="p-1">
-                                                    <FormField control={control} name={`orders.${index}.status`} render={({ field: selectField }) => (
-                                                        <FormItem>
-                                                            <Select onValueChange={selectField.onChange} value={selectField.value}>
-                                                                <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
-                                                                <SelectContent>{statusOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                                                            </Select>
-                                                        </FormItem>
-                                                    )} />
+                                                    <FormField control={control} name={`orders.${index}.lugarEntrega`} render={({ field: inputField }) => <FormItem><FormControl><Input {...inputField} className="h-9"/></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell className="p-1 text-right">
                                                     <Button variant="ghost" size="icon" className="text-destructive h-9" type="button" onClick={() => setRowToDelete(index)}>
@@ -260,7 +257,7 @@ export default function GestionTransportePage() {
                                             </TableRow>
                                         ))
                                     ) : (
-                                        <TableRow><TableCell colSpan={7} className="h-24 text-center">No hay transportes que coincidan con los filtros.</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={8} className="h-24 text-center">No hay transportes que coincidan con los filtros.</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
