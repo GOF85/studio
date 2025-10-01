@@ -78,7 +78,7 @@ export default function TechDocsPage() {
                 <ol>
                     <li><strong>Cálculo de Costes y PVP:</strong> Se recupera el coste de producción de cada ítem desde `ProductoVenta`. El sistema calcula el PVP final para el pedido.</li>
                     <li><strong>Desglose de Necesidades:</strong> El sistema desglosa los "Productos de Venta" de tipo pack en sus componentes individuales (`componentes` de `ProductoVenta`).</li>
-                    <li><strong>Distribución de Tareas:</strong> Las elaboraciones (vinculadas a través de `recetaId` en `ProductoVenta`) se distribuyen a CPR MICE o al Portal del Partner según el campo `producidoPor` del `ProductoVenta`. El resto de artículos (bebidas, consumibles, componentes de packs) se envían directamente a la "Hoja de Picking" de la entrega.</li>
+                    <li><strong>Distribución de Tareas:</strong> Las elaboraciones (vinculadas a través de `recetaId` en `ProductoVenta`) se distribuyen a CPR MICE o al Portal del Partner según el campo `producidoPor` del `ProductoVenta`. El resto de artículos (bebidas, consumibles, componentes de packs) se añaden directamente a la "Hoja de Picking" de la entrega.</li>
                 </ol>
                 <h3>3.3. Portales Externos</h3>
                 <p>Se ha creado una nueva sección `/portal` para dar acceso restringido y con una UI adaptada a partners y transportistas. Estos portales leen los datos relevantes (necesidades de producción, rutas de entrega) y permiten actualizar estados, desencadenando acciones en el sistema principal.</p>
