@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -44,7 +45,7 @@ export default function EntregasDashboardPage() {
             
             <Separator />
             
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <Link href="/cpr">
                     <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
                         <CardHeader className="flex-row items-center gap-4">
@@ -63,6 +64,17 @@ export default function EntregasDashboardPage() {
                             <div>
                                 <CardTitle className="text-2xl">Picking de Almacén</CardTitle>
                                 <p className="text-muted-foreground text-sm mt-1">Prepara y consolida los artículos de los pedidos.</p>
+                            </div>
+                        </CardHeader>
+                    </Card>
+                </Link>
+                 <Link href="/entregas/gestion-transporte">
+                    <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
+                        <CardHeader className="flex-row items-center gap-4">
+                            <Truck className="w-10 h-10 text-primary flex-shrink-0" />
+                            <div>
+                                <CardTitle className="text-2xl">Gestión de Transporte</CardTitle>
+                                <p className="text-muted-foreground text-sm mt-1">Coordina y edita los transportes de entregas.</p>
                             </div>
                         </CardHeader>
                     </Card>
