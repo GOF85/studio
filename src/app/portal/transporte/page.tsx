@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Truck, Search, Warehouse, User, Phone, Clock, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { TransporteOrder, ServiceOrder, PedidoEntrega, EntregaHito } from '@/types';
+import type { TransporteOrder, ServiceOrder, PedidoEntrega, EntregaHito, Entrega } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 type OrderWithDetails = TransporteOrder & {
-    os?: ServiceOrder;
+    os?: ServiceOrder | Entrega;
     hitos: (EntregaHito & { expedicionNumero: string })[];
 };
 
@@ -46,13 +46,15 @@ export default function TransportePortalPage() {
     useEffect(() => {
         const allTransportOrders = (JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[]);
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
         const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
 
         const serviceOrderMap = new Map(allServiceOrders.map(os => [os.id, os]));
+        const entregasMap = new Map(allEntregas.map(e => [e.id, e]));
         const pedidosEntregaMap = new Map(allPedidosEntrega.map(p => [p.osId, p]));
 
         const ordersWithDetails = allTransportOrders.map(order => {
-            const os = serviceOrderMap.get(order.osId);
+            const os = serviceOrderMap.get(order.osId) || entregasMap.get(order.osId);
             const pedidoEntrega = pedidosEntregaMap.get(order.osId);
             
             const hitosDetails = (order.hitosIds || []).map(hitoId => {
@@ -156,16 +158,6 @@ export default function TransportePortalPage() {
                                             <div className="flex items-center gap-2"><Clock className="h-4 w-4" /> <strong>Horas:</strong> {order.horaRecogida} &rarr; {order.horaEntrega}</div>
                                             <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> <strong>Teléfono:</strong> {order.hitos[0]?.telefono || order.os?.phone}</div>
                                         </div>
-                                         {order.hitos.length > 0 && (
-                                            <div className="mt-3 pt-3 border-t">
-                                                <h4 className="font-semibold text-xs mb-1">Entregas Incluidas:</h4>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {order.hitos.map(hito => (
-                                                        <Badge key={hito.id} variant="outline">{hito.expedicionNumero} - {hito.lugarEntrega}</Badge>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                         )}
                                     </div>
                                 ))}
                             </div>
