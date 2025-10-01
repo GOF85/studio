@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -54,7 +55,6 @@ const personalTurnoSchema = z.object({
   fecha: z.date({ required_error: "La fecha es obligatoria."}),
   horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
-  observaciones: z.string().optional().default(''),
 });
 
 const formSchema = z.object({
@@ -130,7 +130,6 @@ export default function GestionPersonalEntregaPage() {
     if (!tipoPersonalId) return;
     const tipoPersonal = proveedoresDB.find(p => p.id === tipoPersonalId);
     if (tipoPersonal) {
-        // Here we need to set the value of the field to the ID of the CategoriaPersonal
         setValue(`turnos.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
         setValue(`turnos.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
         setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
@@ -208,7 +207,6 @@ export default function GestionPersonalEntregaPage() {
         fecha: new Date(entrega.startDate),
         horaEntrada: '09:00',
         horaSalida: '17:00',
-        observaciones: '',
     });
   }
   
@@ -220,18 +218,16 @@ export default function GestionPersonalEntregaPage() {
     }
   };
   
-  const saveAjustes = (newAjustes: PersonalExternoAjuste[]) => {
-      if (!osId) return;
-      const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
-      allAjustes[osId] = newAjustes;
-      localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
-  }
-
   const providerOptions = useMemo(() => {
     return proveedoresDB.map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
 }, [proveedoresDB, proveedoresMap]);
 
-const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero && h.horasCamarero > 0), [deliveryHitos]);
+const hitosConPersonal = useMemo(() => {
+    if (!deliveryHitos || !entrega) return [];
+    return deliveryHitos
+        .map((hito, index) => ({...hito, expedicionNumero: `${entrega.serviceNumber}.${(index + 1).toString().padStart(2, '0')}`}))
+        .filter(h => h.horasCamarero && h.horasCamarero > 0)
+}, [deliveryHitos, entrega]);
 
   if (!isMounted || !entrega) {
     return <LoadingSkeleton title="Cargando Asignación de Personal..." />;
@@ -242,43 +238,43 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
       <main className="container mx-auto px-4 py-8">
         <FormProvider {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
-                <div className="flex items-start justify-between mb-8">
+                <div className="flex items-start justify-between mb-6">
                     <div>
                         <Button variant="ghost" size="sm" onClick={() => router.push('/entregas/gestion-personal')}>
                             <ArrowLeft className="mr-2" />
                             Volver al listado
                         </Button>
                         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Asignación de Personal</h1>
-                        <div className="text-muted-foreground mt-2 space-y-1">
+                        <div className="text-muted-foreground mt-1 space-y-0.5">
                             <p>Pedido: {entrega.serviceNumber} - {entrega.client}</p>
                         </div>
                     </div>
-                     <div className="flex gap-2">
-                         <Select value={personalEntrega?.status || 'Pendiente'} onValueChange={(value: EstadoPersonalEntrega) => handleStatusChange(value)}>
-                            <SelectTrigger className="w-[200px] h-10 text-base font-semibold">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {ESTADO_PERSONAL_ENTREGA.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
-                            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                            <span className="ml-2">Guardar Cambios</span>
-                        </Button>
-                    </div>
                 </div>
 
-                {hitosConPersonal.length > 0 && (
-                     <Card className="mb-8">
-                        <CardHeader className="py-2">
-                            <CardTitle className="text-lg">Servicios con Personal</CardTitle>
-                        </CardHeader>
+                <Card className="mb-6">
+                    <CardHeader className="py-3 flex-row items-center justify-between">
+                        <CardTitle className="text-lg">Servicios con Personal</CardTitle>
+                        <div className='flex items-center gap-2'>
+                             <Select value={personalEntrega?.status || 'Pendiente'} onValueChange={(value: EstadoPersonalEntrega) => handleStatusChange(value)}>
+                                <SelectTrigger className="w-[200px] h-9 text-base font-semibold">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {ESTADO_PERSONAL_ENTREGA.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Button type="submit" disabled={isLoading || !form.formState.isDirty} size="sm">
+                                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                                <span className="ml-2">Guardar Cambios</span>
+                            </Button>
+                        </div>
+                    </CardHeader>
+                    {hitosConPersonal.length > 0 && (
                         <CardContent className="pt-0">
-                             <div className="border rounded-lg">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
+                                            <TableHead className="py-1 px-2">Nº Expedición</TableHead>
                                             <TableHead className="py-1 px-2">Dirección del servicio</TableHead>
                                             <TableHead className="py-1 px-2 w-[40%]">Observaciones</TableHead>
                                             <TableHead className="py-1 px-2 text-center">Horas Camarero</TableHead>
@@ -287,6 +283,7 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                                     <TableBody>
                                         {hitosConPersonal.map(hito => (
                                             <TableRow key={hito.id}>
+                                                <TableCell className="py-1 px-2 font-mono"><Badge>{hito.expedicionNumero}</Badge></TableCell>
                                                 <TableCell className="py-1 px-2 font-medium">{hito.lugarEntrega} {hito.localizacion && `(${hito.localizacion})`}</TableCell>
                                                 <TableCell className="py-1 px-2 text-xs text-muted-foreground">{hito.observaciones}</TableCell>
                                                 <TableCell className="py-1 px-2 font-bold text-center">{hito.horasCamarero || '-'}</TableCell>
@@ -294,37 +291,36 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                                         ))}
                                     </TableBody>
                                 </Table>
-                            </div>
                        </CardContent>
-                    </Card>
-                )}
+                    )}
+                </Card>
 
                 <Card>
-                    <CardHeader className="flex-row items-center justify-between">
-                        <CardTitle>Turnos de Personal</CardTitle>
+                    <CardHeader className="py-3 flex-row items-center justify-between">
+                        <CardTitle className="text-lg">Turnos de Personal</CardTitle>
                         <div className='flex items-center gap-2'>
-                             <Button size="sm" type="button" variant="outline" onClick={() => setForceRecalc(c => c + 1)}>
+                            <Button size="sm" type="button" variant="outline" onClick={() => setForceRecalc(c => c + 1)}>
                                 <RefreshCw className="mr-2 h-4 w-4"/>Recalcular Coste
                             </Button>
-                            <Button type="button" onClick={addRow}>
+                            <Button type="button" onClick={addRow} size="sm">
                                 <PlusCircle className="mr-2" />
                                 Añadir Turno
                             </Button>
                         </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-2">
                         <div className="border rounded-lg overflow-x-auto">
                            <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="px-2 py-2 w-40">Fecha</TableHead>
-                                        <TableHead className="px-2 py-2 min-w-48">Proveedor - Categoría</TableHead>
-                                        <TableHead className="px-1 py-2 text-center">Cant.</TableHead>
-                                        <TableHead className="px-1 py-2 w-24">H. Entrada</TableHead>
-                                        <TableHead className="px-1 py-2 w-24">H. Salida</TableHead>
-                                        <TableHead className="px-1 py-2 w-20">Horas</TableHead>
-                                        <TableHead className="px-1 py-2 w-20">€/Hora</TableHead>
-                                        <TableHead className="text-right px-2 py-2">Acción</TableHead>
+                                        <TableHead className="px-2 py-1">Fecha</TableHead>
+                                        <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
+                                        <TableHead className="px-1 py-1 text-center">Cant.</TableHead>
+                                        <TableHead className="px-1 py-1 w-24">H. Entrada</TableHead>
+                                        <TableHead className="px-1 py-1 w-24">H. Salida</TableHead>
+                                        <TableHead className="px-1 py-1 w-20">Horas</TableHead>
+                                        <TableHead className="px-1 py-1 w-20">€/Hora</TableHead>
+                                        <TableHead className="text-right px-2 py-1">Acción</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -334,17 +330,17 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                                                 <TableCell className="px-2 py-1">
                                                     <FormField control={control} name={`turnos.${index}.fecha`} render={({ field: dateField }) => (
                                                         <FormItem>
-                                                            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                                                            <Popover>
                                                                 <PopoverTrigger asChild>
                                                                     <FormControl>
-                                                                        <Button variant={"outline"} className={cn("w-[150px] h-9 pl-3 text-left font-normal", !dateField.value && "text-muted-foreground")}>
+                                                                        <Button variant={"outline"} className={cn("w-32 h-8 pl-3 text-left font-normal", !dateField.value && "text-muted-foreground")}>
                                                                             {dateField.value ? format(dateField.value, "dd/MM/yy") : <span>Elige</span>}
                                                                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                                         </Button>
                                                                     </FormControl>
                                                                 </PopoverTrigger>
                                                                 <PopoverContent className="w-auto p-0" align="start">
-                                                                    <Calendar mode="single" selected={dateField.value} onSelect={(date) => {dateField.onChange(date); setIsCalendarOpen(false);}} initialFocus locale={es} />
+                                                                    <Calendar mode="single" selected={dateField.value} onSelect={dateField.onChange} initialFocus locale={es} />
                                                                 </PopoverContent>
                                                             </Popover>
                                                         </FormItem>
@@ -354,11 +350,11 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                                                     <FormField
                                                         control={control}
                                                         name={`turnos.${index}.proveedorId`}
-                                                        render={({ field }) => (
+                                                        render={({ field: selectField }) => (
                                                         <FormItem>
                                                             <Combobox
                                                                 options={providerOptions}
-                                                                value={field.value}
+                                                                value={selectField.value}
                                                                 onChange={(value) => handleProviderChange(index, value)}
                                                                 placeholder="Proveedor - Categoría..."
                                                             />
@@ -367,22 +363,22 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                                                     />
                                                 </TableCell>
                                                 <TableCell className="px-1 py-1">
-                                                    <FormField control={control} name={`turnos.${index}.cantidad`} render={({ field: f }) => <FormItem><FormControl><Input type="number" min="1" {...f} onChange={(e) => f.onChange(parseInt(e.target.value) || 1)} className="w-16 h-9 text-center"/></FormControl></FormItem>} />
+                                                    <FormField control={control} name={`turnos.${index}.cantidad`} render={({ field: f }) => <FormItem><FormControl><Input type="number" min="1" {...f} onChange={(e) => f.onChange(parseInt(e.target.value) || 1)} className="w-16 h-8 text-center"/></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell className="px-1 py-1">
-                                                    <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
+                                                    <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-8" /></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell className="px-1 py-1">
-                                                    <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
+                                                    <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-8" /></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell className="px-1 py-1 font-mono text-center">
                                                     {calculateHours(watch(`turnos.${index}.horaEntrada`), watch(`turnos.${index}.horaSalida`)).toFixed(2)}h
                                                 </TableCell>
                                                 <TableCell className="px-1 py-1">
-                                                    <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
+                                                    <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-8" readOnly /></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell className="text-right px-2 py-1">
-                                                    <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
+                                                    <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => setRowToDelete(index)}>
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </TableCell>
@@ -402,8 +398,8 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                     {fields.length > 0 && (
                         <CardFooter>
                             <Card className="w-full md:w-1/2 ml-auto">
-                                <CardHeader><CardTitle className="text-lg">Resumen de Costes de Personal</CardTitle></CardHeader>
-                                <CardContent className="space-y-2 text-sm">
+                                <CardHeader className="py-2"><CardTitle className="text-base">Resumen de Costes de Personal</CardTitle></CardHeader>
+                                <CardContent className="space-y-1 text-sm p-3">
                                     <div className="flex justify-between font-bold text-base">
                                         <span>Coste Total Planificado:</span>
                                         <span>{formatCurrency(totalPlanned)}</span>
