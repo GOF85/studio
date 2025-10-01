@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -61,7 +62,6 @@ const personalTurnoSchema = z.object({
   centroCoste: z.enum(centroCosteOptions),
   tipoServicio: z.enum(tipoServicioOptions),
   observaciones: z.string().optional().default(''),
-  status: z.enum(ESTADO_PERSONAL_ENTREGA).default('Pendiente'),
   horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
   horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
 });
@@ -200,7 +200,6 @@ export default function GestionPersonalEntregaPage() {
         centroCoste: 'SALA',
         tipoServicio: 'Servicio',
         observaciones: '',
-        status: 'Pendiente',
         horaEntradaReal: '',
         horaSalidaReal: '',
     });
@@ -264,26 +263,26 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                             <CardTitle className="text-lg">Servicios con Personal</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-0">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="py-2 px-3">Fecha / Hora</TableHead>
-                                        <TableHead className="py-2 px-3">Dirección del servicio</TableHead>
-                                        <TableHead className="py-2 px-3 w-[30%]">Observaciones</TableHead>
-                                        <TableHead className="py-2 px-3 text-center">Horas Camarero</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {hitosConPersonal.map(hito => (
-                                        <TableRow key={hito.id}>
-                                            <TableCell className="py-2 px-3">{format(new Date(hito.fecha), 'dd/MM/yyyy')} {hito.hora}</TableCell>
-                                            <TableCell className="py-2 px-3">{hito.lugarEntrega} {hito.localizacion && `(${hito.localizacion})`}</TableCell>
-                                            <TableCell className="py-2 px-3 text-xs text-muted-foreground">{hito.observaciones}</TableCell>
-                                            <TableCell className="py-2 px-3 font-bold text-center">{hito.horasCamarero || '-'}</TableCell>
+                             <div className="border rounded-lg">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="py-2 px-3">Dirección del servicio</TableHead>
+                                            <TableHead className="py-2 px-3 w-[40%]">Observaciones</TableHead>
+                                            <TableHead className="py-2 px-3 text-center">Horas Camarero</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {hitosConPersonal.map(hito => (
+                                            <TableRow key={hito.id}>
+                                                <TableCell className="py-2 px-3 font-medium">{hito.lugarEntrega} {hito.localizacion && `(${hito.localizacion})`}</TableCell>
+                                                <TableCell className="py-2 px-3 text-xs text-muted-foreground">{hito.observaciones}</TableCell>
+                                                <TableCell className="py-2 px-3 font-bold text-center">{hito.horasCamarero || '-'}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
                        </CardContent>
                     </Card>
                 )}
@@ -309,86 +308,93 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                                         <TableHead className="px-2 py-2 w-40">Fecha</TableHead>
                                         <TableHead className="px-2 py-2 min-w-48">Proveedor - Categoría</TableHead>
                                         <TableHead className="px-1 py-2 text-center">Cant.</TableHead>
-                                        <TableHead className="px-1 py-2 w-24">Entrada</TableHead>
-                                        <TableHead className="px-1 py-2 w-24">Salida</TableHead>
-                                        <TableHead className="px-1 py-2 w-20">Horas</TableHead>
-                                        <TableHead className="px-1 py-2 w-20">€/Hora</TableHead>
-                                        <TableHead className="px-2 py-2 w-40">Estado</TableHead>
+                                        <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
+                                        <TableHead colSpan={2} className="text-center border-r px-2 py-2">Real</TableHead>
                                         <TableHead className="text-right px-2 py-2">Acción</TableHead>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableHead className="px-1 py-2"></TableHead>
+                                        <TableHead className="px-2 py-2"></TableHead>
+                                        <TableHead className="px-1 py-2"></TableHead>
+                                        <TableHead className="border-l px-1 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
+                                        <TableHead className="px-1 py-2 bg-muted/30 w-24">H. Salida</TableHead>
+                                        <TableHead className="border-r px-1 py-2 bg-muted/30 w-20">€/Hora</TableHead>
+                                        <TableHead className="px-1 py-2 w-24">H. Entrada</TableHead>
+                                        <TableHead className="border-r px-1 py-2 w-24">H. Salida</TableHead>
+                                        <TableHead className="px-2 py-2"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {fields.map((field, index) => (
-                                         <TableRow key={field.id}>
-                                            <TableCell className="px-2 py-1">
-                                                <FormField control={control} name={`turnos.${index}.fecha`} render={({ field: dateField }) => (
-                                                    <FormItem>
-                                                        <Popover>
-                                                            <PopoverTrigger asChild>
-                                                                <FormControl>
-                                                                    <Button variant={"outline"} className={cn("w-[150px] h-9 pl-3 text-left font-normal", !dateField.value && "text-muted-foreground")}>
-                                                                        {dateField.value ? format(dateField.value, "dd/MM/yy") : <span>Elige</span>}
-                                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                                    </Button>
-                                                                </FormControl>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent className="w-auto p-0" align="start">
-                                                                <Calendar mode="single" selected={dateField.value} onSelect={dateField.onChange} initialFocus locale={es} />
-                                                            </PopoverContent>
-                                                        </Popover>
-                                                    </FormItem>
-                                                )} />
-                                            </TableCell>
-                                            <TableCell className="px-2 py-1 min-w-48">
-                                                <FormField
-                                                    control={control}
-                                                    name={`turnos.${index}.proveedorId`}
-                                                    render={({ field: formField }) => (
+                                    {fields.length > 0 ? (
+                                        fields.map((field, index) => (
+                                             <TableRow key={field.id}>
+                                                <TableCell className="px-2 py-1">
+                                                    <FormField control={control} name={`turnos.${index}.fecha`} render={({ field: dateField }) => (
                                                         <FormItem>
-                                                            <Combobox
-                                                                options={providerOptions}
-                                                                value={proveedoresDB.find(p => p.id === form.getValues(`turnos.${index}.proveedorId`))?.id || ''}
-                                                                onChange={(value) => handleProviderChange(index, value)}
-                                                                placeholder="Proveedor - Categoría..."
-                                                            />
+                                                            <Popover>
+                                                                <PopoverTrigger asChild>
+                                                                    <FormControl>
+                                                                        <Button variant={"outline"} className={cn("w-[150px] h-9 pl-3 text-left font-normal", !dateField.value && "text-muted-foreground")}>
+                                                                            {dateField.value ? format(dateField.value, "dd/MM/yy") : <span>Elige</span>}
+                                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                        </Button>
+                                                                    </FormControl>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-auto p-0" align="start">
+                                                                    <Calendar mode="single" selected={dateField.value} onSelect={dateField.onChange} initialFocus locale={es} />
+                                                                </PopoverContent>
+                                                            </Popover>
                                                         </FormItem>
-                                                    )}
-                                                />
-                                            </TableCell>
-                                            <TableCell className="px-1 py-1">
-                                                <FormField control={control} name={`turnos.${index}.cantidad`} render={({ field: f }) => <FormItem><FormControl><Input type="number" min="1" {...f} onChange={(e) => f.onChange(parseInt(e.target.value) || 1)} className="w-16 h-9 text-center"/></FormControl></FormItem>} />
-                                            </TableCell>
-                                            <TableCell className="px-1 py-1">
-                                                <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
-                                            </TableCell>
-                                            <TableCell className="px-1 py-1">
-                                                <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
-                                            </TableCell>
-                                            <TableCell className="px-1 py-1 text-center font-mono">
-                                                {calculateHours(watchedFields[index]?.horaEntrada, watchedFields[index]?.horaSalida).toFixed(2)}h
-                                            </TableCell>
-                                            <TableCell className="px-1 py-1">
-                                                <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
-                                            </TableCell>
-                                            <TableCell className="px-2 py-1">
-                                                <FormField control={control} name={`turnos.${index}.status`} render={({ field: statusField }) => (
-                                                    <FormItem>
-                                                        <Select onValueChange={statusField.onChange} value={statusField.value}>
-                                                            <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
-                                                            <SelectContent>
-                                                                {ESTADO_PERSONAL_ENTREGA.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </FormItem>
-                                                )} />
-                                            </TableCell>
-                                            <TableCell className="text-right px-2 py-1">
-                                                <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </TableCell>
-                                         </TableRow>
-                                    ))}
+                                                    )} />
+                                                </TableCell>
+                                                <TableCell className="px-2 py-1 min-w-48">
+                                                    <FormField
+                                                        control={control}
+                                                        name={`turnos.${index}.proveedorId`}
+                                                        render={({ field: formField }) => (
+                                                            <FormItem>
+                                                                <Combobox
+                                                                    options={providerOptions}
+                                                                    value={proveedoresDB.find(p => p.id === form.getValues(`turnos.${index}.proveedorId`))?.id || ''}
+                                                                    onChange={(value) => handleProviderChange(index, value)}
+                                                                    placeholder="Proveedor - Categoría..."
+                                                                />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="px-1 py-1">
+                                                    <FormField control={control} name={`turnos.${index}.cantidad`} render={({ field: f }) => <FormItem><FormControl><Input type="number" min="1" {...f} onChange={(e) => f.onChange(parseInt(e.target.value) || 1)} className="w-16 h-9 text-center"/></FormControl></FormItem>} />
+                                                </TableCell>
+                                                <TableCell className="border-l px-1 py-1 bg-muted/30">
+                                                    <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
+                                                </TableCell>
+                                                <TableCell className="px-1 py-1 bg-muted/30">
+                                                    <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
+                                                </TableCell>
+                                                <TableCell className="border-r px-1 py-1 bg-muted/30">
+                                                    <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
+                                                </TableCell>
+                                                <TableCell className="px-1 py-1">
+                                                    <FormField control={control} name={`turnos.${index}.horaEntradaReal`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9"/></FormControl></FormItem>} />
+                                                </TableCell>
+                                                <TableCell className="border-r px-1 py-1">
+                                                    <FormField control={control} name={`turnos.${index}.horaSalidaReal`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9"/></FormControl></FormItem>} />
+                                                </TableCell>
+                                                <TableCell className="text-right px-2 py-1">
+                                                    <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TableCell>
+                                             </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                        <TableCell colSpan={9} className="h-24 text-center">
+                                            No hay personal asignado. Haz clic en "Añadir Turno" para empezar.
+                                        </TableCell>
+                                        </TableRow>
+                                    )}
                                 </TableBody>
                             </Table>
                         </div>
@@ -423,7 +429,3 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
     </>
   );
 }
-
-    
-
-    

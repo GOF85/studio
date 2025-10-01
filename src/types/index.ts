@@ -78,6 +78,7 @@ export type ServiceOrder = {
     deliveryLocations?: string[];
     objetivoGastoId?: string;
     vertical?: 'Catering' | 'Entregas';
+    direccionPrincipal?: string;
 };
 
 export type MaterialOrder = {
@@ -716,12 +717,11 @@ export type PersonalEntregaTurno = {
   proveedorId: string;
   fecha: string;
   horaEntrada: string;
-  horaFin: string;
+  horaSalida: string;
   cantidad: number;
   categoria: string;
   tipoServicio: string;
   observaciones: string;
-  status: EstadoPersonalEntrega;
 };
 
 export type PersonalEntrega = {

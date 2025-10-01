@@ -2,11 +2,11 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Truck, Info } from 'lucide-react';
 import type { Entrega, EntregaHito, PedidoEntrega } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,12 +24,21 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 const ITEMS_PER_PAGE = 20;
 
 type HitoConServicio = EntregaHito & {
     serviceOrder: Entrega;
 };
+
+const statusVariant: { [key in Entrega['status']]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
+  Borrador: 'secondary',
+  Confirmado: 'default',
+  Enviado: 'outline',
+  Entregado: 'outline'
+};
+
 
 export default function GestionPersonalPage() {
   const [hitos, setHitos] = useState<HitoConServicio[]>([]);
@@ -130,42 +139,51 @@ export default function GestionPersonalPage() {
             <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
         </div>
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nº Pedido (OS)</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Lugar de Entrega</TableHead>
-              <TableHead>Fecha y Hora</TableHead>
-              <TableHead>Horas de Camarero</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedHitos.length > 0 ? (
-              paginatedHitos.map(hito => (
-                <TableRow
-                  key={hito.id}
-                  onClick={() => router.push(`/entregas/gestion-personal/${hito.serviceOrder.id}`)}
-                  className="cursor-pointer"
-                >
-                  <TableCell><Badge variant="outline">{hito.serviceOrder.serviceNumber}</Badge></TableCell>
-                  <TableCell className="font-medium">{hito.serviceOrder.client}</TableCell>
-                  <TableCell>{hito.lugarEntrega}</TableCell>
-                  <TableCell>{format(new Date(hito.fecha), 'dd/MM/yyyy')} {hito.hora}</TableCell>
-                  <TableCell className="font-bold text-center">{hito.horasCamarero}</TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
-                  No hay entregas con servicio de personal para los filtros seleccionados.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-3"><Truck className="h-5 w-5"/>Servicios con Personal</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="border rounded-lg">
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="py-2 px-3">Nº Pedido (OS)</TableHead>
+                            <TableHead className="py-2 px-3">Dirección del servicio</TableHead>
+                             <TableHead className="py-2 px-3 w-[30%]">Observaciones</TableHead>
+                            <TableHead className="py-2 px-3 text-center">Horas Camarero</TableHead>
+                            <TableHead className="py-2 px-3">Estado</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {paginatedHitos.length > 0 ? (
+                        paginatedHitos.map(hito => (
+                            <TableRow
+                            key={hito.id}
+                            onClick={() => router.push(`/entregas/gestion-personal/${hito.serviceOrder.id}`)}
+                            className="cursor-pointer"
+                            >
+                            <TableCell className="py-2 px-3"><Badge variant="outline">{hito.serviceOrder.serviceNumber}</Badge></TableCell>
+                            <TableCell className="py-2 px-3 font-medium">{hito.lugarEntrega} {hito.localizacion && `(${hito.localizacion})`}</TableCell>
+                            <TableCell className="py-2 px-3 text-xs text-muted-foreground">{hito.observaciones}</TableCell>
+                            <TableCell className="py-2 px-3 font-bold text-center">{hito.horasCamarero}</TableCell>
+                            <TableCell className="py-2 px-3">
+                                <Badge variant={statusVariant[hito.serviceOrder.status]}>{hito.serviceOrder.status}</Badge>
+                            </TableCell>
+                            </TableRow>
+                        ))
+                        ) : (
+                        <TableRow>
+                            <TableCell colSpan={5} className="h-24 text-center">
+                            No hay entregas con servicio de personal para los filtros seleccionados.
+                            </TableCell>
+                        </TableRow>
+                        )}
+                    </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
     </main>
   );
 }
