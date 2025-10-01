@@ -1,15 +1,16 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useForm, Controller, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, Save, Snowflake, Calendar as CalendarIcon, PlusCircle, Trash2, X } from 'lucide-react';
-import type { ServiceOrder, ProveedorHielo, HieloOrder, HieloOrderItem } from '@/types';
+import type { ServiceOrder, Proveedor, Precio, HieloOrder } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +43,7 @@ const hieloOrderSchema = z.object({
   observaciones: z.string().optional(),
   status: z.enum(statusOptions).default('Pendiente'),
   items: z.array(z.object({
-      id: z.string(),
+      id: z.string(), // Corresponds to Precio.id
       producto: z.string(),
       precio: z.number(),
       cantidad: z.coerce.number().min(1),
@@ -51,27 +52,26 @@ const hieloOrderSchema = z.object({
 
 type HieloOrderFormValues = z.infer<typeof hieloOrderSchema>;
 
-function ProductSelector({ onSelectProduct, providerId }: { onSelectProduct: (product: ProveedorHielo) => void, providerId: string }) {
-  const [allProveedores, setAllProveedores] = useState<ProveedorHielo[]>([]);
+function ProductSelector({ onSelectProduct, providerId }: { onSelectProduct: (product: Precio) => void, providerId: string }) {
+  const [hieloProducts, setHieloProducts] = useState<Precio[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   
   useEffect(() => {
-    const storedData = JSON.parse(localStorage.getItem('proveedorHielo') || '[]') as ProveedorHielo[];
-    const providerName = storedData.find(p => p.id === providerId)?.nombreProveedor;
-    const providerProducts = storedData.filter(p => p.nombreProveedor === providerName);
-    setAllProveedores(providerProducts);
+    const allPrecios = JSON.parse(localStorage.getItem('precios') || '[]') as Precio[];
+    const productosDeHielo = allPrecios.filter(p => p.categoria === 'Hielo');
+    setHieloProducts(productosDeHielo);
   }, [providerId]);
   
   const filteredItems = useMemo(() => {
-    return allProveedores.filter(item => 
+    return hieloProducts.filter(item => 
       item.producto.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [allProveedores, searchTerm]);
+  }, [hieloProducts, searchTerm]);
 
   return (
     <DialogContent className="max-w-2xl">
       <DialogHeader>
-        <DialogTitle>Seleccionar Producto</DialogTitle>
+        <DialogTitle>Seleccionar Producto de Hielo</DialogTitle>
       </DialogHeader>
       <div className="my-4">
         <Input placeholder="Buscar producto..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
@@ -89,7 +89,7 @@ function ProductSelector({ onSelectProduct, providerId }: { onSelectProduct: (pr
             {filteredItems.map(product => (
               <TableRow key={product.id}>
                 <TableCell className="font-medium">{product.producto}</TableCell>
-                <TableCell>{formatCurrency(product.precio)}</TableCell>
+                <TableCell>{formatCurrency(product.precioUd)}</TableCell>
                 <TableCell><Button size="sm" onClick={() => onSelectProduct(product)}>Añadir</Button></TableCell>
               </TableRow>
             ))}
@@ -110,7 +110,7 @@ export default function PedidoHieloPage() {
 
   const [isMounted, setIsMounted] = useState(false);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [allProveedores, setAllProveedores] = useState<ProveedorHielo[]>([]);
+  const [allProveedores, setAllProveedores] = useState<Proveedor[]>([]);
   const [isProductSelectorOpen, setIsProductSelectorOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { toast } = useToast();
@@ -130,8 +130,8 @@ export default function PedidoHieloPage() {
     const currentOS = allServiceOrders.find(os => os.id === osId);
     setServiceOrder(currentOS || null);
 
-    const storedProveedores = JSON.parse(localStorage.getItem('proveedorHielo') || '[]') as ProveedorHielo[];
-    setAllProveedores(storedProveedores);
+    const storedProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+    setAllProveedores(storedProveedores.filter(p => p.tipos.includes('Hielo')));
 
     if (isEditing) {
       const allOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
@@ -157,18 +157,8 @@ export default function PedidoHieloPage() {
   }, [osId, orderId, form, isEditing]);
 
   const selectedProviderId = form.watch('proveedorId');
-  const uniqueProveedores = useMemo(() => {
-      const providerNames = new Set<string>();
-      return allProveedores.filter(p => {
-          if (providerNames.has(p.nombreProveedor)) {
-              return false;
-          }
-          providerNames.add(p.nombreProveedor);
-          return true;
-      });
-  }, [allProveedores]);
   
-  const onSelectProduct = (product: ProveedorHielo) => {
+  const onSelectProduct = (product: Precio) => {
     const existingIndex = fields.findIndex(item => item.id === product.id);
     if (existingIndex > -1) {
       const existingItem = fields[existingIndex];
@@ -177,7 +167,7 @@ export default function PedidoHieloPage() {
       append({
         id: product.id,
         producto: product.producto,
-        precio: product.precio,
+        precio: product.precioUd,
         cantidad: 1,
       });
     }
@@ -186,29 +176,14 @@ export default function PedidoHieloPage() {
   
   const totalPedido = useMemo(() => {
     return fields.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
-  }, [fields, form.watch('items')]); // watch items for changes
-
-  useEffect(() => {
-    if (fields.length === 0) {
-      const selectedProviderName = allProveedores.find(p => p.id === selectedProviderId)?.nombreProveedor;
-      const firstProductOfProvider = allProveedores.find(p => p.nombreProveedor === selectedProviderName);
-      if(firstProductOfProvider) {
-          form.setValue('proveedorId', firstProductOfProvider.id);
-      }
-    }
-  }, [selectedProviderId, form, allProveedores, fields]);
-  
-  const selectedProviderName = useMemo(() => {
-    if (!selectedProviderId) return '';
-    return uniqueProveedores.find(p => p.id === selectedProviderId)?.nombreProveedor || '';
-  }, [selectedProviderId, uniqueProveedores]);
-
+  }, [fields, form.watch('items')]); 
 
   const onSubmit = (data: HieloOrderFormValues) => {
-    if (!osId || !selectedProviderId || !selectedProviderName) {
+    if (!osId || !selectedProviderId) {
       toast({ variant: 'destructive', title: 'Error', description: 'Faltan datos para crear el pedido.' });
       return;
     }
+    const provider = allProveedores.find(p => p.id === selectedProviderId);
 
     const allOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
     
@@ -217,7 +192,7 @@ export default function PedidoHieloPage() {
       osId,
       fecha: format(data.fecha, 'yyyy-MM-dd'),
       proveedorId: selectedProviderId,
-      proveedorNombre: selectedProviderName,
+      proveedorNombre: provider?.nombreComercial || 'Desconocido',
       items: data.items,
       total: totalPedido,
       observaciones: data.observaciones || '',
@@ -307,10 +282,10 @@ export default function PedidoHieloPage() {
                                 <FormField control={form.control} name="proveedorId" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Proveedor</FormLabel>
-                                        <Select onValueChange={(value) => { field.onChange(value); form.setValue('items', [])}} value={field.value}>
+                                        <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                             <SelectContent>
-                                                {uniqueProveedores.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreProveedor}</SelectItem>)}
+                                                {allProveedores.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>)}
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />

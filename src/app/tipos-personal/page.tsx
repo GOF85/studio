@@ -5,8 +5,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, Soup } from 'lucide-react';
-import type { ProveedorGastronomia, DatosFiscales } from '@/types';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, UserPlus } from 'lucide-react';
+import type { CategoriaPersonal, Proveedor } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,10 +36,12 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
-export default function ProveedoresGastronomiaPage() {
-  const [items, setItems] = useState<ProveedorGastronomia[]>([]);
+export default function TiposPersonalPage() {
+  const [items, setItems] = useState<CategoriaPersonal[]>([]);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -48,30 +50,40 @@ export default function ProveedoresGastronomiaPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    let storedData = localStorage.getItem('proveedoresGastronomia');
+    let storedData = localStorage.getItem('tiposPersonal');
     setItems(storedData ? JSON.parse(storedData) : []);
+    let proveedoresData = localStorage.getItem('proveedores');
+    setProveedores(proveedoresData ? JSON.parse(proveedoresData) : []);
     setIsMounted(true);
   }, []);
+  
+  const getProviderName = (proveedorId: string) => {
+    const proveedor = proveedores.find(p => p.id === proveedorId);
+    return proveedor?.nombreComercial || 'Desconocido';
+  }
 
   const filteredItems = useMemo(() => {
-    return items.filter(item => 
-      item.nombreProveedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.tipo.toLowerCase().includes(searchTerm.toLowerCase())
+    return items.map(item => ({
+        ...item,
+        resolvedName: getProviderName(item.proveedorId)
+    })).filter(item => 
+      item.resolvedName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.categoria.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [items, searchTerm]);
+  }, [items, searchTerm, proveedores]);
 
 
   const handleDelete = () => {
     if (!itemToDelete) return;
     const updatedData = items.filter(e => e.id !== itemToDelete);
-    localStorage.setItem('proveedoresGastronomia', JSON.stringify(updatedData));
+    localStorage.setItem('tiposPersonal', JSON.stringify(updatedData));
     setItems(updatedData);
-    toast({ title: 'Proveedor eliminado', description: 'El registro se ha eliminado correctamente.' });
+    toast({ title: 'Registro eliminado', description: 'El registro se ha eliminado correctamente.' });
     setItemToDelete(null);
   };
   
   if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Proveedores de Gastronomía..." />;
+    return <LoadingSkeleton title="Cargando Catálogo de Personal..." />;
   }
 
   return (
@@ -84,13 +96,13 @@ export default function ProveedoresGastronomiaPage() {
                     <ArrowLeft className="mr-2" />
                     Volver a Bases de Datos
                 </Button>
-                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Soup />Base de Datos de Proveedores de Gastronomía</h1>
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><UserPlus />Catálogo de Personal Externo</h1>
             </div>
           <div className="flex gap-2">
             <Button asChild>
-              <Link href="/proveedores-gastronomia/nuevo">
+              <Link href="/tipos-personal/nuevo">
                 <PlusCircle className="mr-2" />
-                Nuevo Proveedor
+                Nueva Categoría
               </Link>
             </Button>
           </div>
@@ -98,7 +110,7 @@ export default function ProveedoresGastronomiaPage() {
         
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
-            placeholder="Buscar por nombre o tipo..."
+            placeholder="Buscar por proveedor o categoría..."
             className="flex-grow max-w-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -109,8 +121,9 @@ export default function ProveedoresGastronomiaPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="p-2">Nombre Proveedor</TableHead>
-                <TableHead className="p-2">Tipo</TableHead>
+                <TableHead className="p-2">Proveedor</TableHead>
+                <TableHead className="p-2">Categoría Profesional</TableHead>
+                <TableHead className="p-2">Precio/Hora</TableHead>
                 <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -118,8 +131,9 @@ export default function ProveedoresGastronomiaPage() {
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium p-2">{item.nombreProveedor}</TableCell>
-                    <TableCell className="p-2"><Badge variant="secondary">{item.tipo}</Badge></TableCell>
+                    <TableCell className="font-medium p-2">{item.resolvedName}</TableCell>
+                    <TableCell className="p-2">{item.categoria}</TableCell>
+                    <TableCell className="p-2">{formatCurrency(item.precioHora)}</TableCell>
                     <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -129,7 +143,7 @@ export default function ProveedoresGastronomiaPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => router.push(`/proveedores-gastronomia/${item.id}`)}>
+                          <DropdownMenuItem onClick={() => router.push(`/tipos-personal/${item.id}`)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Editar
                           </DropdownMenuItem>
@@ -144,8 +158,8 @@ export default function ProveedoresGastronomiaPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={3} className="h-24 text-center">
-                    No se encontraron proveedores que coincidan con la búsqueda.
+                  <TableCell colSpan={4} className="h-24 text-center">
+                    No se encontraron registros que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>
               )}
@@ -159,7 +173,7 @@ export default function ProveedoresGastronomiaPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente el registro del proveedor.
+              Esta acción no se puede deshacer. Esto eliminará permanentemente el registro.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -176,4 +190,3 @@ export default function ProveedoresGastronomiaPage() {
     </>
   );
 }
-

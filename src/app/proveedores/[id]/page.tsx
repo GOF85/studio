@@ -7,43 +7,36 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, FileDown, Truck, X, Building2, Mail, Phone, Hash } from 'lucide-react';
-import type { ProveedorTransporte, DatosFiscales } from '@/types';
-import { TIPO_PROVEEDOR_TRANSPORTE } from '@/types';
+import { Loader2, FileDown, Users, X, Building2, Mail, Phone, Hash } from 'lucide-react';
+import type { Proveedor, DatosFiscales } from '@/types';
+import { TIPO_PROVEEDOR } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { MultiSelect } from '@/components/ui/multi-select';
 
-export const proveedorTransporteFormSchema = z.object({
+export const proveedorSchema = z.object({
   id: z.string(),
-  datosFiscalesId: z.string().optional(),
-  nombreProveedor: z.string(), // This will be handled by the selection
-  tipoTransporte: z.string().min(1, 'El tipo de transporte es obligatorio'),
-  precio: z.coerce.number().min(0, 'El precio debe ser positivo'),
-  tipo: z.enum(TIPO_PROVEEDOR_TRANSPORTE, {
-    errorMap: () => ({ message: "Debes seleccionar un tipo" }),
-  }),
+  datosFiscalesId: z.string().min(1, "Debes seleccionar un proveedor fiscal."),
+  nombreComercial: z.string(), // This will be handled by the selection
+  tipos: z.array(z.string()).min(1, "Debe seleccionar al menos un tipo de proveedor."),
 });
 
-type ProveedorTransporteFormValues = z.infer<typeof proveedorTransporteFormSchema>;
+type ProveedorFormValues = z.infer<typeof proveedorSchema>;
 
-const defaultValues: Partial<ProveedorTransporteFormValues> = {
+const defaultValues: Partial<ProveedorFormValues> = {
     datosFiscalesId: '',
-    nombreProveedor: '',
-    tipoTransporte: '',
-    precio: 0,
-    tipo: 'Catering',
+    nombreComercial: '',
+    tipos: [],
 };
 
-export default function ProveedorTransporteFormPage() {
+export default function ProveedorFormPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
@@ -54,8 +47,8 @@ export default function ProveedorTransporteFormPage() {
   
   const [datosFiscales, setDatosFiscales] = useState<DatosFiscales[]>([]);
 
-  const form = useForm<ProveedorTransporteFormValues>({
-    resolver: zodResolver(proveedorTransporteFormSchema),
+  const form = useForm<ProveedorFormValues>({
+    resolver: zodResolver(proveedorSchema),
     defaultValues,
   });
 
@@ -69,20 +62,20 @@ export default function ProveedorTransporteFormPage() {
     setDatosFiscales(fiscalData.filter(df => df.tipo === 'Proveedor'));
     
     if (isEditing) {
-      const items = JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]') as ProveedorTransporte[];
+      const items = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
       const item = items.find(p => p.id === id);
       if (item) {
         form.reset(item);
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el proveedor.' });
-        router.push('/proveedores-transporte');
+        router.push('/proveedores');
       }
     } else {
         form.reset({...defaultValues, id: Date.now().toString() });
     }
   }, [id, isEditing, form, router, toast]);
 
-  function onSubmit(data: ProveedorTransporteFormValues) {
+  function onSubmit(data: ProveedorFormValues) {
     setIsLoading(true);
     
     const fiscalData = datosFiscales.find(df => df.id === data.datosFiscalesId);
@@ -92,12 +85,12 @@ export default function ProveedorTransporteFormPage() {
         return;
     }
 
-    let allItems = JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]') as ProveedorTransporte[];
+    let allItems = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
     let message = '';
 
     const finalData = {
         ...data,
-        nombreProveedor: fiscalData.nombreComercial || fiscalData.nombreEmpresa,
+        nombreComercial: fiscalData.nombreComercial || fiscalData.nombreEmpresa,
     };
     
     if (isEditing) {
@@ -107,9 +100,9 @@ export default function ProveedorTransporteFormPage() {
         message = 'Proveedor actualizado correctamente.';
       }
     } else {
-       const existing = allItems.find(p => p.datosFiscalesId === data.datosFiscalesId && p.tipoTransporte.toLowerCase() === data.tipoTransporte.toLowerCase());
+       const existing = allItems.find(p => p.datosFiscalesId === data.datosFiscalesId);
         if (existing) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Ya existe este tipo de transporte para este proveedor.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Este proveedor (por CIF) ya existe.' });
             setIsLoading(false);
             return;
         }
@@ -117,20 +110,22 @@ export default function ProveedorTransporteFormPage() {
       message = 'Proveedor creado correctamente.';
     }
 
-    localStorage.setItem('proveedoresTransporte', JSON.stringify(allItems));
+    localStorage.setItem('proveedores', JSON.stringify(allItems));
     
     setTimeout(() => {
       toast({ description: message });
       setIsLoading(false);
-      router.push('/proveedores-transporte');
+      router.push('/proveedores');
     }, 1000);
   }
 
   const fiscalOptions = useMemo(() => 
     datosFiscales.map(df => ({
         value: df.id,
-        label: df.nombreComercial || df.nombreEmpresa
+        label: `${df.nombreComercial || df.nombreEmpresa} (${df.cif})`
     })), [datosFiscales]);
+    
+  const tipoOptions = TIPO_PROVEEDOR.map(t => ({ label: t, value: t }));
 
   return (
     <>
@@ -138,11 +133,11 @@ export default function ProveedorTransporteFormPage() {
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
-                <Truck className="h-8 w-8" />
-                <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Proveedor de Transporte</h1>
+                <Users className="h-8 w-8" />
+                <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Proveedor</h1>
             </div>
           <div className="flex gap-2">
-            <Button variant="outline" type="button" onClick={() => router.push('/proveedores-transporte')}>
+            <Button variant="outline" type="button" onClick={() => router.push('/proveedores')}>
               <X className="mr-2 h-4 w-4" />
               Cancelar
             </Button>
@@ -157,13 +152,14 @@ export default function ProveedorTransporteFormPage() {
           <form id="proveedor-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <Card>
               <CardHeader>
-                <CardTitle>Detalles del Proveedor</CardTitle>
+                <CardTitle>Datos del Proveedor</CardTitle>
+                <CardDescription>Selecciona un proveedor de la base de datos fiscal y asígnale uno o más tipos.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <FormField control={form.control} name="datosFiscalesId" render={({ field }) => (
                       <FormItem className="lg:col-span-2">
-                          <FormLabel>Nombre del Proveedor</FormLabel>
+                          <FormLabel>Proveedor (desde Datos Fiscales)</FormLabel>
                           <Combobox 
                             options={fiscalOptions}
                             value={field.value || ''}
@@ -173,21 +169,15 @@ export default function ProveedorTransporteFormPage() {
                           <FormMessage />
                       </FormItem>
                   )} />
-                  <FormField control={form.control} name="tipoTransporte" render={({ field }) => (
-                      <FormItem><FormLabel>Tipo de Transporte</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                   <FormField control={form.control} name="precio" render={({ field }) => (
-                      <FormItem><FormLabel>Precio</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                  )} />
-                   <FormField control={form.control} name="tipo" render={({ field }) => (
+                   <FormField control={form.control} name="tipos" render={({ field }) => (
                       <FormItem>
-                          <FormLabel>Tipo</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un tipo" /></SelectTrigger></FormControl>
-                              <SelectContent>
-                                  {TIPO_PROVEEDOR_TRANSPORTE.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                              </SelectContent>
-                          </Select>
+                          <FormLabel>Tipo(s) de Proveedor</FormLabel>
+                          <MultiSelect 
+                            options={tipoOptions}
+                            selected={field.value}
+                            onChange={field.onChange}
+                            placeholder="Seleccionar tipo(s)..."
+                          />
                           <FormMessage />
                       </FormItem>
                   )} />
@@ -195,7 +185,7 @@ export default function ProveedorTransporteFormPage() {
                  {selectedFiscalData && (
                     <Accordion type="single" collapsible>
                         <AccordionItem value="fiscal-data">
-                            <AccordionTrigger>Ver Información Fiscal</AccordionTrigger>
+                            <AccordionTrigger>Ver Información Fiscal del Proveedor Seleccionado</AccordionTrigger>
                             <AccordionContent>
                                 <div className="p-4 border rounded-md bg-muted/50 text-sm space-y-2">
                                     <p className="flex items-center gap-2"><Hash /> <strong>CIF/NIF:</strong> {selectedFiscalData.cif}</p>
@@ -215,4 +205,3 @@ export default function ProveedorTransporteFormPage() {
     </>
   );
 }
-

@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup } from 'lucide-react';
+import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 type DatabaseEntry = {
@@ -26,25 +26,28 @@ type DatabaseEntry = {
 };
 
 const generalDatabasesList: DatabaseEntry[] = [
-    { id: '1', name: 'Personal', description: 'Gestión de empleados y contactos.', itemCount: 0, path: '/personal' },
+    { id: '1', name: 'Personal Interno', description: 'Gestión de empleados y contactos de MICE.', itemCount: 0, path: '/personal' },
     { id: '2', name: 'Espacios', description: 'Gestión de espacios para eventos.', itemCount: 0, path: '/espacios' },
-    { id: '3', name: 'Precios', description: 'Gestión de precios de productos.', itemCount: 0, path: '/precios' },
-    { id: '5', name: 'Alquiler', description: 'Gestión de artículos de alquiler a proveedores.', itemCount: 0, path: '/alquiler-db' },
-    { id: '6', name: 'Tipo Servicio', description: 'Gestión de los tipos de servicio.', itemCount: 0, path: '/tipo-servicio' },
-    { id: '7', name: 'Proveedores de Transporte', description: 'Gestión de proveedores de transporte.', itemCount: 0, path: '/proveedores-transporte' },
-    { id: '8', name: 'Proveedores de Hielo', description: 'Gestión de proveedores de hielo.', itemCount: 0, path: '/proveedor-hielo' },
-    { id: '9', name: 'Atípicos (Gastos Varios)', description: 'Gestión de conceptos de gastos varios.', itemCount: 0, path: '/atipicos-db' },
-    { id: '12', name: 'Decoración (Gastos Varios)', description: 'Gestión de conceptos de decoración.', itemCount: 0, path: '/decoracion-db' },
-    { id: '11', name: 'Proveedores de Personal', description: 'Gestión de proveedores de personal externo.', itemCount: 0, path: '/proveedores-personal' },
-    { id: '22', name: 'Proveedores de Gastronomía', description: 'Gestión de partners de producción de gastronomía.', itemCount: 0, path: '/proveedores-gastronomia' },
+    { id: '3', name: 'Precios (Material y Consumibles)', description: 'Gestión de precios de productos de almacén, bodega y bio.', itemCount: 0, path: '/precios' },
+    { id: '5', name: 'Alquiler Externo', description: 'Gestión de artículos de alquiler a proveedores.', itemCount: 0, path: '/alquiler-db' },
+    { id: '6', name: 'Tipo Servicio (Briefing)', description: 'Gestión de los tipos de servicio para el comercial.', itemCount: 0, path: '/tipo-servicio' },
+    { id: '9', name: 'Atípicos (Conceptos)', description: 'Gestión de conceptos de gastos varios.', itemCount: 0, path: '/atipicos-db' },
+    { id: '12', name: 'Decoración (Conceptos)', description: 'Gestión de conceptos de decoración.', itemCount: 0, path: '/decoracion-db' },
     { id: '13', name: 'Book: Materia Prima (ERP)', description: 'Gestión de precios y productos de proveedores.', itemCount: 0, path: '/book/ingredientes-erp' },
     { id: '14', name: 'Book: Menaje', description: 'Gestión del menaje para los emplatados.', itemCount: 0, path: '/menaje-db' },
     { id: '15', name: 'Book: Categorías de Recetas', description: 'Gestión de las categorías para las recetas del book.', itemCount: 0, path: '/categorias-recetas' },
     { id: '16', name: 'Book: Tipos de Cocina', description: 'Gestión de los tipos de cocina/origen para las recetas.', itemCount: 0, path: '/tipos-cocina' },
     { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', itemCount: 0, path: '/plantillas-pedidos' },
     { id: '19', name: 'Formatos de Expedición', description: 'Define los formatos de empaquetado para producción.', itemCount: 0, path: '/formatos-expedicion' },
-    { id: '21', name: 'Datos Fiscales', description: 'Gestión de la información fiscal de clientes y proveedores.', itemCount: 0, path: '/datos-fiscales' },
+    { id: '21', name: 'Datos Fiscales (Clientes/Proveedores)', description: 'Base de datos central de información fiscal.', itemCount: 0, path: '/datos-fiscales' },
 ];
+
+const providerDatabasesList: DatabaseEntry[] = [
+    { id: '25', name: 'Proveedores', description: 'Base de datos central de proveedores.', itemCount: 0, path: '/proveedores' },
+    { id: '26', name: 'Catálogo de Personal Externo', description: 'Categorías y precios del personal de ETTs.', itemCount: 0, path: '/tipos-personal' },
+    { id: '27', name: 'Catálogo de Transporte', description: 'Vehículos y precios de las empresas de transporte.', itemCount: 0, path: '/tipos-transporte' },
+];
+
 
 const entregasDatabasesList: DatabaseEntry[] = [
     { id: '20', name: 'Productos de Venta', description: 'Define los productos compuestos para la vertical de Entregas.', itemCount: 0, path: '/entregas/productos-venta' },
@@ -52,39 +55,42 @@ const entregasDatabasesList: DatabaseEntry[] = [
 
 export default function BdPage() {
   const [generalDatabases, setGeneralDatabases] = useState<DatabaseEntry[]>(generalDatabasesList);
+  const [providerDatabases, setProviderDatabases] = useState<DatabaseEntry[]>(providerDatabasesList);
   const [entregasDatabases, setEntregasDatabases] = useState<DatabaseEntry[]>(entregasDatabasesList);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
     
+    const countItems = (key: string) => JSON.parse(localStorage.getItem(key) || '[]').length;
+    
     const updateCounts = (dbs: DatabaseEntry[]) => {
         return dbs.map(db => {
             let count = 0;
-            if (db.path === '/personal') count = JSON.parse(localStorage.getItem('personal') || '[]').length;
-            if (db.path === '/espacios') count = JSON.parse(localStorage.getItem('espacios') || '[]').length;
-            if (db.path === '/precios') count = JSON.parse(localStorage.getItem('precios') || '[]').length;
-            if (db.path === '/alquiler-db') count = JSON.parse(localStorage.getItem('alquilerDB') || '[]').length;
-            if (db.path === '/tipo-servicio') count = JSON.parse(localStorage.getItem('tipoServicio') || '[]').length;
-            if (db.path === '/proveedores-transporte') count = JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]').length;
-            if (db.path === '/proveedores-gastronomia') count = JSON.parse(localStorage.getItem('proveedoresGastronomia') || '[]').length;
-            if (db.path === '/proveedor-hielo') count = JSON.parse(localStorage.getItem('proveedorHielo') || '[]').length;
-            if (db.path === '/atipicos-db') count = JSON.parse(localStorage.getItem('atipicosDB') || '[]').length;
-            if (db.path === '/decoracion-db') count = JSON.parse(localStorage.getItem('decoracionDB') || '[]').length;
-            if (db.path === '/proveedores-personal') count = JSON.parse(localStorage.getItem('proveedoresPersonal') || '[]').length;
-            if (db.path === '/book/ingredientes-erp') count = JSON.parse(localStorage.getItem('ingredientesERP') || '[]').length;
-            if (db.path === '/menaje-db') count = JSON.parse(localStorage.getItem('menajeDB') || '[]').length;
-            if (db.path === '/categorias-recetas') count = JSON.parse(localStorage.getItem('categoriasRecetas') || '[]').length;
-            if (db.path === '/tipos-cocina') count = JSON.parse(localStorage.getItem('tiposCocina') || '[]').length;
-            if (db.path === '/plantillas-pedidos') count = JSON.parse(localStorage.getItem('pedidoPlantillas') || '[]').length;
-            if (db.path === '/formatos-expedicion') count = JSON.parse(localStorage.getItem('formatosExpedicionDB') || '[]').length;
-            if (db.path === '/entregas/productos-venta') count = JSON.parse(localStorage.getItem('productosVenta') || '[]').length;
-            if (db.path === '/datos-fiscales') count = JSON.parse(localStorage.getItem('datosFiscales') || '[]').length;
+            if (db.path === '/personal') count = countItems('personal');
+            if (db.path === '/espacios') count = countItems('espacios');
+            if (db.path === '/precios') count = countItems('precios');
+            if (db.path === '/alquiler-db') count = countItems('alquilerDB');
+            if (db.path === '/tipo-servicio') count = countItems('tipoServicio');
+            if (db.path === '/atipicos-db') count = countItems('atipicosDB');
+            if (db.path === '/decoracion-db') count = countItems('decoracionDB');
+            if (db.path === '/book/ingredientes-erp') count = countItems('ingredientesERP');
+            if (db.path === '/menaje-db') count = countItems('menajeDB');
+            if (db.path === '/categorias-recetas') count = countItems('categoriasRecetas');
+            if (db.path === '/tipos-cocina') count = countItems('tiposCocina');
+            if (db.path === '/plantillas-pedidos') count = countItems('pedidoPlantillas');
+            if (db.path === '/formatos-expedicion') count = countItems('formatosExpedicionDB');
+            if (db.path === '/entregas/productos-venta') count = countItems('productosVenta');
+            if (db.path === '/datos-fiscales') count = countItems('datosFiscales');
+            if (db.path === '/proveedores') count = countItems('proveedores');
+            if (db.path === '/tipos-personal') count = countItems('tiposPersonal');
+            if (db.path === '/tipos-transporte') count = countItems('tiposTransporte');
             return { ...db, itemCount: count };
         });
     }
 
     setGeneralDatabases(updateCounts(generalDatabasesList));
+    setProviderDatabases(updateCounts(providerDatabasesList));
     setEntregasDatabases(updateCounts(entregasDatabasesList));
   }, []);
 
@@ -152,6 +158,7 @@ export default function BdPage() {
 
         <div className="space-y-8">
             {renderTable(generalDatabases, 'Bases de Datos Generales y de Catering', <Database/>)}
+            {renderTable(providerDatabases, 'Bases de Datos de Proveedores', <Users/>, 'Gestión centralizada de todos los proveedores y sus catálogos de servicios.')}
             {renderTable(entregasDatabases, 'Bases de Datos de Entregas', <Package/>, 'Configuraciones específicas para la vertical de Entregas MICE.')}
         </div>
       </main>

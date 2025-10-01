@@ -7,37 +7,35 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, FileDown, UserPlus, X, Building2, Mail, Phone, Hash } from 'lucide-react';
-import type { ProveedorPersonal, DatosFiscales } from '@/types';
+import { Loader2, FileDown, UserPlus, X, Building2 } from 'lucide-react';
+import type { CategoriaPersonal, Proveedor } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Combobox } from '@/components/ui/combobox';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-export const proveedorPersonalFormSchema = z.object({
+export const categoriaPersonalSchema = z.object({
   id: z.string(),
-  datosFiscalesId: z.string().min(1, "Debes seleccionar un proveedor fiscal."),
-  nombreProveedor: z.string(), // This will be handled by the selection
+  proveedorId: z.string().min(1, "Debes seleccionar un proveedor."),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
   precioHora: z.coerce.number().min(0, 'El precio debe ser positivo'),
 });
 
-type ProveedorPersonalFormValues = z.infer<typeof proveedorPersonalFormSchema>;
+type CategoriaPersonalFormValues = z.infer<typeof categoriaPersonalSchema>;
 
-const defaultValues: Partial<ProveedorPersonalFormValues> = {
-    datosFiscalesId: '',
-    nombreProveedor: '',
+const defaultValues: Partial<CategoriaPersonalFormValues> = {
+    proveedorId: '',
     categoria: '',
     precioHora: 0,
 };
 
-export default function ProveedorPersonalFormPage() {
+export default function CategoriaPersonalFormPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
@@ -46,85 +44,73 @@ export default function ProveedorPersonalFormPage() {
   const { isLoading, setIsLoading } = useLoadingStore();
   const { toast } = useToast();
   
-  const [datosFiscales, setDatosFiscales] = useState<DatosFiscales[]>([]);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
 
-  const form = useForm<ProveedorPersonalFormValues>({
-    resolver: zodResolver(proveedorPersonalFormSchema),
+  const form = useForm<CategoriaPersonalFormValues>({
+    resolver: zodResolver(categoriaPersonalSchema),
     defaultValues,
   });
 
-  const selectedFiscalId = form.watch('datosFiscalesId');
-  const selectedFiscalData = useMemo(() => {
-    return datosFiscales.find(df => df.id === selectedFiscalId);
-  }, [selectedFiscalId, datosFiscales]);
+  const selectedProviderId = form.watch('proveedorId');
+  const selectedProviderData = useMemo(() => {
+    return proveedores.find(p => p.id === selectedProviderId);
+  }, [selectedProviderId, proveedores]);
 
   useEffect(() => {
-    const fiscalData = JSON.parse(localStorage.getItem('datosFiscales') || '[]') as DatosFiscales[];
-    setDatosFiscales(fiscalData.filter(df => df.tipo === 'Proveedor'));
+    const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+    setProveedores(allProveedores.filter(p => p.tipos.includes('Personal')));
     
     if (isEditing) {
-      const items = JSON.parse(localStorage.getItem('proveedoresPersonal') || '[]') as ProveedorPersonal[];
+      const items = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
       const item = items.find(p => p.id === id);
       if (item) {
         form.reset(item);
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el registro.' });
-        router.push('/proveedores-personal');
+        router.push('/tipos-personal');
       }
     } else {
         form.reset({...defaultValues, id: Date.now().toString() });
     }
   }, [id, isEditing, form, router, toast]);
 
-  function onSubmit(data: ProveedorPersonalFormValues) {
+  function onSubmit(data: CategoriaPersonalFormValues) {
     setIsLoading(true);
-    
-    const fiscalData = datosFiscales.find(df => df.id === data.datosFiscalesId);
-    if (!fiscalData) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Debes seleccionar un proveedor válido de la lista.' });
-        setIsLoading(false);
-        return;
-    }
 
-    let allItems = JSON.parse(localStorage.getItem('proveedoresPersonal') || '[]') as ProveedorPersonal[];
+    let allItems = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
     let message = '';
-
-    const finalData = {
-        ...data,
-        nombreProveedor: fiscalData.nombreComercial || fiscalData.nombreEmpresa,
-    };
     
     if (isEditing) {
       const index = allItems.findIndex(p => p.id === id);
       if (index !== -1) {
-        allItems[index] = finalData;
+        allItems[index] = data;
         message = 'Registro actualizado correctamente.';
       }
     } else {
-       const existing = allItems.find(p => p.datosFiscalesId === data.datosFiscalesId && p.categoria.toLowerCase() === data.categoria.toLowerCase());
+       const existing = allItems.find(p => p.proveedorId === data.proveedorId && p.categoria.toLowerCase() === data.categoria.toLowerCase());
         if (existing) {
             toast({ variant: 'destructive', title: 'Error', description: 'Ya existe esta categoría para este proveedor.' });
             setIsLoading(false);
             return;
         }
-      allItems.push(finalData);
+      allItems.push(data);
       message = 'Registro creado correctamente.';
     }
 
-    localStorage.setItem('proveedoresPersonal', JSON.stringify(allItems));
+    localStorage.setItem('tiposPersonal', JSON.stringify(allItems));
     
     setTimeout(() => {
       toast({ description: message });
       setIsLoading(false);
-      router.push('/proveedores-personal');
+      router.push('/tipos-personal');
     }, 1000);
   }
 
-  const fiscalOptions = useMemo(() => 
-    datosFiscales.map(df => ({
-        value: df.id,
-        label: df.nombreComercial || df.nombreEmpresa
-    })), [datosFiscales]);
+  const providerOptions = useMemo(() => 
+    proveedores.map(p => ({
+        value: p.id,
+        label: p.nombreComercial
+    })), [proveedores]);
 
   return (
     <>
@@ -133,10 +119,10 @@ export default function ProveedorPersonalFormPage() {
         <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
                 <UserPlus className="h-8 w-8" />
-                <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Registro de Proveedor de Personal</h1>
+                <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nueva'} Categoría de Personal</h1>
             </div>
           <div className="flex gap-2">
-            <Button variant="outline" type="button" onClick={() => router.push('/proveedores-personal')}>
+            <Button variant="outline" type="button" onClick={() => router.push('/tipos-personal')}>
               <X className="mr-2 h-4 w-4" />
               Cancelar
             </Button>
@@ -151,33 +137,30 @@ export default function ProveedorPersonalFormPage() {
           <form id="proveedor-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <Card>
               <CardHeader>
-                <CardTitle>Detalles del Proveedor y Categoría</CardTitle>
+                <CardTitle>Detalles de la Categoría Profesional</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <FormField control={form.control} name="datosFiscalesId" render={({ field }) => (
+                  <FormField control={form.control} name="proveedorId" render={({ field }) => (
                       <FormItem className="lg:col-span-2">
-                          <FormLabel>Nombre del Proveedor</FormLabel>
+                          <FormLabel>Proveedor</FormLabel>
                           <Combobox 
-                            options={fiscalOptions}
+                            options={providerOptions}
                             value={field.value || ''}
                             onChange={field.onChange}
-                            placeholder="Selecciona un proveedor fiscal..."
+                            placeholder="Selecciona un proveedor..."
                           />
                           <FormMessage />
                       </FormItem>
                   )} />
                 </div>
-                 {selectedFiscalData && (
+                 {selectedProviderData && (
                     <Accordion type="single" collapsible>
                         <AccordionItem value="fiscal-data">
-                            <AccordionTrigger>Ver Información Fiscal</AccordionTrigger>
+                            <AccordionTrigger>Ver Información del Proveedor</AccordionTrigger>
                             <AccordionContent>
                                 <div className="p-4 border rounded-md bg-muted/50 text-sm space-y-2">
-                                    <p className="flex items-center gap-2"><Hash /> <strong>CIF/NIF:</strong> {selectedFiscalData.cif}</p>
-                                    <p className="flex items-center gap-2"><Building2 /> <strong>Dirección:</strong> {selectedFiscalData.direccionFacturacion}, {selectedFiscalData.codigoPostal} {selectedFiscalData.ciudad}</p>
-                                    <p className="flex items-center gap-2"><Mail /> <strong>Email:</strong> {selectedFiscalData.emailContacto}</p>
-                                    <p className="flex items-center gap-2"><Phone /> <strong>Teléfono:</strong> {selectedFiscalData.telefonoContacto}</p>
+                                    <p className="flex items-center gap-2"><Building2 /> <strong>Razón Social:</strong> {selectedProviderData.nombreComercial}</p>
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
