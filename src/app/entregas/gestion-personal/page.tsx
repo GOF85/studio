@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -41,6 +40,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -52,9 +52,9 @@ type PedidoConPersonal = {
   statusPartner: 'Sin Asignar' | 'Parcialmente Gestionado' | 'Todo Gestionado';
 };
 
-const statusVariant: { [key in EstadoPersonalEntrega]: "warning" | "success" } = {
-  Pendiente: 'warning',
-  Asignado: 'success',
+const statusVariant: { [key in EstadoPersonalEntrega]: 'warning' | 'success' } = {
+  'Pendiente': 'warning',
+  'Asignado': 'success',
 };
 
 
@@ -83,11 +83,11 @@ export default function GestionPersonalEntregasPage() {
         let statusPartner: PedidoConPersonal['statusPartner'] = 'Sin Asignar';
         if (personalAsignado && personalAsignado.turnos.length > 0) {
             const gestionados = personalAsignado.turnos.filter(t => t.statusPartner === 'Gestionado').length;
-            if (gestionados === 0) {
+            if (gestionados === 0 && totalPersonal > 0) {
                 statusPartner = 'Sin Asignar';
-            } else if (gestionados < personalAsignado.turnos.length) {
+            } else if (gestionados < personalAsignado.turnos.length && gestionados > 0) {
                 statusPartner = 'Parcialmente Gestionado';
-            } else {
+            } else if (gestionados === personalAsignado.turnos.length && totalPersonal > 0) {
                 statusPartner = 'Todo Gestionado';
             }
         }
@@ -147,11 +147,11 @@ export default function GestionPersonalEntregasPage() {
 
   return (
     <>
-    <main className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal de Entregas</h1>
-        <p className="text-muted-foreground">Selecciona un pedido para asignar o revisar el personal.</p>
-      </div>
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-8">
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal de Entregas</h1>
+            <p className="text-muted-foreground">Selecciona un pedido para asignar o revisar el personal.</p>
+        </div>
 
        <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-grow">
@@ -184,52 +184,52 @@ export default function GestionPersonalEntregasPage() {
             <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
         </div>
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nº Pedido</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Fecha Evento</TableHead>
-              <TableHead>Nº Personal</TableHead>
-              <TableHead>Coste Personal</TableHead>
-              <TableHead>Estado Gestión</TableHead>
-              <TableHead>Estado Partner</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedItems.length > 0 ? (
-              paginatedItems.map(p => (
-                <TableRow
-                  key={p.os.id}
-                  onClick={() => router.push(`/entregas/gestion-personal/${p.os.id}`)}
-                  className="cursor-pointer"
-                >
-                  <TableCell><Badge variant="outline">{p.os.serviceNumber}</Badge></TableCell>
-                  <TableCell className="font-medium">{p.os.client}</TableCell>
-                  <TableCell>{format(new Date(p.os.startDate), 'dd/MM/yyyy')}</TableCell>
-                  <TableCell>{p.totalPersonal}</TableCell>
-                  <TableCell className="font-semibold">{p.costePersonal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                  <TableCell><Badge variant={statusVariant[p.status]}>{p.status}</Badge></TableCell>
-                   <TableCell>
-                        {p.statusPartner === 'Todo Gestionado' && <Badge variant="success"><CheckCircle className="mr-1 h-3 w-3" />Gestionado</Badge>}
-                        {p.statusPartner === 'Parcialmente Gestionado' && <Badge variant="warning">Parcial</Badge>}
-                        {p.statusPartner === 'Sin Asignar' && p.totalPersonal > 0 && <Badge variant="destructive">Pendiente</Badge>}
-                        {p.totalPersonal === 0 && <Badge variant="secondary">N/A</Badge>}
+        <div className="border rounded-lg">
+            <Table>
+            <TableHeader>
+                <TableRow>
+                <TableHead>Nº Pedido</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Fecha Evento</TableHead>
+                <TableHead>Nº Personal</TableHead>
+                <TableHead>Coste Personal</TableHead>
+                <TableHead>Estado Gestión</TableHead>
+                <TableHead>Estado Partner</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {paginatedItems.length > 0 ? (
+                paginatedItems.map(p => (
+                    <TableRow key={p.os.id} className="hover:bg-muted/50 cursor-pointer">
+                        <TableCell>
+                            <Link href={`/entregas/gestion-personal/${p.os.id}`} className="block w-full h-full">
+                                <Badge variant="outline">{p.os.serviceNumber}</Badge>
+                            </Link>
+                        </TableCell>
+                        <TableCell className="font-medium">{p.os.client}</TableCell>
+                        <TableCell>{format(new Date(p.os.startDate), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{p.totalPersonal}</TableCell>
+                        <TableCell className="font-semibold">{p.costePersonal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                        <TableCell><Badge variant={statusVariant[p.status]}>{p.status}</Badge></TableCell>
+                        <TableCell>
+                            {p.statusPartner === 'Todo Gestionado' && <Badge variant="success"><CheckCircle className="mr-1 h-3 w-3" />Gestionado</Badge>}
+                            {p.statusPartner === 'Parcialmente Gestionado' && <Badge variant="warning">Parcial</Badge>}
+                            {p.statusPartner === 'Sin Asignar' && p.totalPersonal > 0 && <Badge variant="destructive">Pendiente</Badge>}
+                            {p.totalPersonal === 0 && <Badge variant="secondary">N/A</Badge>}
+                        </TableCell>
+                    </TableRow>
+                ))
+                ) : (
+                <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                    No hay pedidos de entrega que requieran personal o coincidan con los filtros.
                     </TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  No hay pedidos de entrega que requieran personal o coincidan con los filtros.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </main>
+                )}
+            </TableBody>
+            </Table>
+        </div>
+      </main>
     </>
   );
 }
