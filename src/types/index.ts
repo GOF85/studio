@@ -713,3 +713,22 @@ export type ProveedorGastronomia = {
     nombreProveedor: string;
     tipo: TipoProveedorGastronomia;
 }
+
+export type PersonalEntrega = {
+    id: string; // Asignación ID
+    osId: string;
+    proveedorId: string;
+    nombreProveedor: string;
+    turno: {
+        fecha: string;
+        horaInicio: string;
+        horaFin: string;
+    };
+    trabajadores: {
+        id: string; // personalId from DB or new
+        nombre: string;
+        dni?: string;
+    }[];
+    status: 'Pendiente' | 'Asignado a ETT' | 'Confirmado';
+};
+```

@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, Calendar, Settings, Package, Percent, BookOpen, ChevronRight, BarChart3, Truck, LifeBuoy, Factory, ListChecks } from 'lucide-react';
+import { ClipboardList, Calendar, Settings, Package, Percent, BookOpen, ChevronRight, BarChart3, Truck, LifeBuoy, Factory, ListChecks, Users } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 
@@ -45,14 +45,13 @@ export default function EntregasDashboardPage() {
             
             <Separator />
             
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <Link href="/cpr">
                     <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
                         <CardHeader className="flex-row items-center gap-4">
-                            <Factory className="w-10 h-10 text-primary flex-shrink-0" />
+                            <Factory className="w-8 h-8 text-primary flex-shrink-0" />
                             <div>
-                                <CardTitle className="text-2xl">Producción CPR</CardTitle>
-                                <p className="text-muted-foreground text-sm mt-1">Planifica y gestiona la producción en cocina.</p>
+                                <CardTitle>Producción CPR</CardTitle>
                             </div>
                         </CardHeader>
                     </Card>
@@ -60,10 +59,9 @@ export default function EntregasDashboardPage() {
                  <Link href="/entregas/picking">
                     <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
                         <CardHeader className="flex-row items-center gap-4">
-                            <ListChecks className="w-10 h-10 text-primary flex-shrink-0" />
+                            <ListChecks className="w-8 h-8 text-primary flex-shrink-0" />
                             <div>
-                                <CardTitle className="text-2xl">Picking de Almacén</CardTitle>
-                                <p className="text-muted-foreground text-sm mt-1">Prepara y consolida los artículos de los pedidos.</p>
+                                <CardTitle>Picking Almacén</CardTitle>
                             </div>
                         </CardHeader>
                     </Card>
@@ -71,10 +69,19 @@ export default function EntregasDashboardPage() {
                  <Link href="/entregas/gestion-transporte">
                     <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
                         <CardHeader className="flex-row items-center gap-4">
-                            <Truck className="w-10 h-10 text-primary flex-shrink-0" />
+                            <Truck className="w-8 h-8 text-primary flex-shrink-0" />
                             <div>
-                                <CardTitle className="text-2xl">Gestión de Transporte</CardTitle>
-                                <p className="text-muted-foreground text-sm mt-1">Coordina y edita los transportes de entregas.</p>
+                                <CardTitle>Transporte</CardTitle>
+                            </div>
+                        </CardHeader>
+                    </Card>
+                </Link>
+                <Link href="/entregas/gestion-personal">
+                    <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
+                        <CardHeader className="flex-row items-center gap-4">
+                            <Users className="w-8 h-8 text-primary flex-shrink-0" />
+                            <div>
+                                <CardTitle>Gestión de Personal</CardTitle>
                             </div>
                         </CardHeader>
                     </Card>
