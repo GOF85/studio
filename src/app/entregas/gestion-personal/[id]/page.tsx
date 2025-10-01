@@ -8,7 +8,7 @@ import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2 } from 'lucide-react';
-import type { PersonalEntrega, Entrega, Espacio, EntregaHito, ProveedorPersonal, PersonalEntregaTurno, PedidoEntrega } from '@/types';
+import type { PersonalEntrega, Entrega, Espacio, EntregaHito, ProveedorPersonal, PersonalEntregaTurno, PedidoEntrega, Proveedor } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,11 +20,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { differenceInMinutes, parse, format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
@@ -204,8 +205,12 @@ export default function GestionPersonalEntregaPage() {
   };
 
   const providerOptions = useMemo(() => {
+    const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
     return proveedoresDB
-        .map(p => ({ label: `${getProviderName(p.proveedorId)} - ${p.categoria}`, value: p.id }));
+        .map(p => {
+          const proveedorInfo = allProveedores.find(prov => prov.id === p.proveedorId);
+          return { label: `${proveedorInfo?.nombreComercial || 'Desconocido'} - ${p.categoria}`, value: p.id };
+        });
     }, [proveedoresDB]);
 
     const getProviderName = (proveedorId: string) => {
@@ -234,6 +239,13 @@ export default function GestionPersonalEntregaPage() {
                     <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Asignación de Personal</h1>
                     <div className="text-muted-foreground mt-2 space-y-1">
                         <p>Pedido: {entrega.serviceNumber} - {entrega.client}</p>
+                         <p className="flex items-center gap-2"><Building className="h-3 w-3"/>{entrega.spaceAddress}</p>
+                        {entrega.respMetre && (
+                            <p className="flex items-center gap-2">
+                                Resp. Metre: {entrega.respMetre} 
+                                {entrega.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {entrega.respMetrePhone}</span>}
+                            </p>
+                        )}
                     </div>
                 </div>
                 <div className="flex gap-2">
@@ -342,11 +354,11 @@ export default function GestionPersonalEntregaPage() {
                                             <FormField
                                                 control={control}
                                                 name={`turnos.${index}.proveedorId`}
-                                                render={({ field: selectField }) => (
+                                                render={({ field: formField }) => (
                                                 <FormItem>
                                                     <Combobox
                                                         options={providerOptions}
-                                                        value={selectField.value}
+                                                        value={formField.value}
                                                         onChange={(value) => handleProviderChange(index, value)}
                                                         placeholder="Proveedor..."
                                                     />
