@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -8,9 +9,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock } from 'lucide-react';
 
-import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor } from '@/types';
+import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, EstadoPersonalEntrega } from '@/types';
+import { ESTADO_PERSONAL_ENTREGA } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -59,6 +61,7 @@ const personalTurnoSchema = z.object({
   centroCoste: z.enum(centroCosteOptions),
   tipoServicio: z.enum(tipoServicioOptions),
   observaciones: z.string().optional().default(''),
+  status: z.enum(ESTADO_PERSONAL_ENTREGA).default('Pendiente'),
 });
 
 const formSchema = z.object({
@@ -220,10 +223,16 @@ export default function GestionPersonalEntregaPage() {
                         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Asignación de Personal</h1>
                         <div className="text-muted-foreground mt-2 space-y-1">
                             <p>Pedido: {entrega.serviceNumber} - {entrega.client}</p>
-                            <p className="flex items-center gap-2">
-                                <Building2 className="h-4 w-4"/>
-                                {entrega.direccionPrincipal}
-                            </p>
+                            <div className="flex items-center gap-4">
+                                <p className="flex items-center gap-2">
+                                    <Building2 className="h-4 w-4"/>
+                                    {entrega.direccionPrincipal}
+                                </p>
+                                <p className="flex items-center gap-2">
+                                    <Clock className="h-4 w-4" />
+                                    {format(new Date(entrega.startDate), 'dd/MM/yy')} {entrega.deliveryTime}
+                                </p>
+                            </div>
                              {entrega.comments && (
                                 <div className="mt-2 text-sm text-amber-700 font-semibold flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
                                     <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -259,6 +268,7 @@ export default function GestionPersonalEntregaPage() {
                                         <TableHead className="px-1 py-2 w-24">Entrada</TableHead>
                                         <TableHead className="px-1 py-2 w-24">Salida</TableHead>
                                         <TableHead className="px-1 py-2 w-20">€/Hora</TableHead>
+                                        <TableHead className="px-2 py-2 w-40">Estado</TableHead>
                                         <TableHead className="text-right px-2 py-2">Acción</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -311,6 +321,18 @@ export default function GestionPersonalEntregaPage() {
                                             </TableCell>
                                             <TableCell className="px-1 py-1">
                                                 <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
+                                            </TableCell>
+                                            <TableCell className="px-2 py-1">
+                                                <FormField control={control} name={`turnos.${index}.status`} render={({ field: statusField }) => (
+                                                    <FormItem>
+                                                        <Select onValueChange={statusField.onChange} value={statusField.value}>
+                                                            <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
+                                                            <SelectContent>
+                                                                {ESTADO_PERSONAL_ENTREGA.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </FormItem>
+                                                )} />
                                             </TableCell>
                                             <TableCell className="text-right px-2 py-1">
                                                 <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>

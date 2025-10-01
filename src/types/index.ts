@@ -715,7 +715,7 @@ export type PersonalEntregaTurno = {
   id: string;
   proveedorId: string;
   fecha: string;
-  horaInicio: string;
+  horaEntrada: string;
   horaFin: string;
   cantidad: number;
   categoria: string;
