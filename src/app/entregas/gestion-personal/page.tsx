@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, add, sub, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, startOfToday } from 'date-fns';
+import { format, add, sub, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, startOfToday, startOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Users, ChevronLeft, ChevronRight, Briefcase } from 'lucide-react';
 import type { Entrega, PedidoEntrega, EntregaHito } from '@/types';
