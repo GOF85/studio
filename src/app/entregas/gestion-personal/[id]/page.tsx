@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
+import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2 } from 'lucide-react';
@@ -30,8 +30,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Combobox } from '@/components/ui/combobox';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { Textarea } from '@/components/ui/textarea';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import Link from 'next/link';
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -58,14 +60,13 @@ const turnoSchema = z.object({
   categoria: z.string().min(1, 'La categoría es obligatoria'),
   cantidad: z.coerce.number().min(1, 'La cantidad debe ser mayor que 0'),
   precioHora: z.coerce.number().min(0),
-  fecha: z.string(),
+  fecha: z.date({ required_error: "La fecha es obligatoria."}),
   horaInicio: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   horaFin: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   centroCoste: z.enum(centroCosteOptions),
   tipoServicio: z.enum(tipoServicioOptions),
   observaciones: z.string().optional().default(''),
   status: z.enum(estadoOptions),
-  personal: z.array(z.object({ nombre: z.string(), dni: z.string() })).optional().default([]),
 });
 
 const formSchema = z.object({
@@ -136,9 +137,9 @@ export default function GestionPersonalEntregaPage() {
 
         const allPersonalEntregas = JSON.parse(localStorage.getItem('personalEntregas') || '[]') as PersonalEntrega[];
         const relatedAssignments = allPersonalEntregas.find(pa => pa.osId === osId);
-        form.reset({ turnos: relatedAssignments?.turnos || [] });
+        form.reset({ turnos: relatedAssignments?.turnos.map(t => ({...t, fecha: new Date(t.fecha)})) || [] });
         
-        const dbProveedores = JSON.parse(localStorage.getItem('proveedoresPersonal') || '[]') as ProveedorPersonal[];
+        const dbProveedores = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as ProveedorPersonal[];
         setProveedoresDB(dbProveedores);
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos.' });
@@ -163,7 +164,7 @@ export default function GestionPersonalEntregaPage() {
     const allAssignments = JSON.parse(localStorage.getItem('personalEntregas') || '[]') as PersonalEntrega[];
     const otherAssignments = allAssignments.filter(o => o.osId !== osId);
     
-    const currentAssignment: PersonalEntrega = { osId, turnos: data.turnos };
+    const currentAssignment: PersonalEntrega = { osId, turnos: data.turnos.map(t => ({...t, fecha: format(t.fecha, 'yyyy-MM-dd')})) };
 
     const updatedAllAssignments = [...otherAssignments, currentAssignment];
     localStorage.setItem('personalEntregas', JSON.stringify(updatedAllAssignments));
@@ -184,14 +185,13 @@ export default function GestionPersonalEntregaPage() {
         categoria: '',
         cantidad: 1,
         precioHora: 0,
-        fecha: firstHito.fecha,
+        fecha: new Date(firstHito.fecha),
         horaInicio: firstHito.hora,
         horaFin: '17:00',
         centroCoste: 'SALA',
         tipoServicio: 'Servicio',
         observaciones: '',
         status: 'Pendiente',
-        personal: [],
     });
   }
   
@@ -205,8 +205,15 @@ export default function GestionPersonalEntregaPage() {
 
   const providerOptions = useMemo(() => {
     return proveedoresDB
-        .map(p => ({ label: `${p.nombreProveedor} - ${p.categoria}`, value: p.id }));
-}, [proveedoresDB]);
+        .map(p => ({ label: `${getProviderName(p.proveedorId)} - ${p.categoria}`, value: p.id }));
+    }, [proveedoresDB]);
+
+    const getProviderName = (proveedorId: string) => {
+        const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+        const proveedor = allProveedores.find(p => p.id === proveedorId);
+        return proveedor?.nombreComercial || 'Desconocido';
+    }
+
 
   if (!isMounted || !entrega) {
     return <LoadingSkeleton title="Cargando Asignación de Personal..." />;
@@ -292,27 +299,54 @@ export default function GestionPersonalEntregaPage() {
                                     <TableHead className="px-2 py-2 min-w-48">Proveedor - Categoría</TableHead>
                                     <TableHead className="px-1 py-2 text-center">Cant.</TableHead>
                                     <TableHead className="px-2 py-2">Tipo Servicio</TableHead>
-                                    <TableHead className="px-1 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
-                                    <TableHead className="px-1 py-2 bg-muted/30 w-24">H. Salida</TableHead>
-                                    <TableHead className="border-r px-1 py-2 bg-muted/30 w-20">€/Hora</TableHead>
+                                    <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
                                     <TableHead className="px-2 py-2">Estado</TableHead>
                                     <TableHead className="text-right px-2 py-2">Acción</TableHead>
+                                </TableRow>
+                                <TableRow>
+                                    <TableHead className="px-1 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="px-1 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="border-l px-1 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
+                                    <TableHead className="px-1 py-2 bg-muted/30 w-24">H. Salida</TableHead>
+                                    <TableHead className="border-r px-1 py-2 bg-muted/30 w-20">€/Hora</TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
+                                    <TableHead className="px-2 py-2"></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                             {fields.length > 0 ? (
                                 fields.map((field, index) => (
                                     <TableRow key={field.id}>
-                                        <TableCell className="px-2 py-1">{format(field.fecha, 'dd/MM/yy')}</TableCell>
+                                        <TableCell className="px-2 py-1">
+                                            <FormField control={control} name={`turnos.${index}.fecha`} render={({ field: dateField }) => (
+                                                <FormItem>
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <FormControl>
+                                                                <Button variant={"outline"} className={cn("w-32 h-9 pl-3 text-left font-normal", !dateField.value && "text-muted-foreground")}>
+                                                                    {dateField.value ? format(dateField.value, "dd/MM/yy") : <span>Elige</span>}
+                                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                </Button>
+                                                            </FormControl>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-0" align="start">
+                                                            <Calendar mode="single" selected={dateField.value} onSelect={dateField.onChange} initialFocus />
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                </FormItem>
+                                            )} />
+                                        </TableCell>
                                         <TableCell className="px-2 py-1 min-w-48">
                                             <FormField
                                                 control={control}
                                                 name={`turnos.${index}.proveedorId`}
-                                                render={({ field }) => (
+                                                render={({ field: selectField }) => (
                                                 <FormItem>
                                                     <Combobox
                                                         options={providerOptions}
-                                                        value={field.value}
+                                                        value={selectField.value}
                                                         onChange={(value) => handleProviderChange(index, value)}
                                                         placeholder="Proveedor..."
                                                     />
@@ -324,16 +358,16 @@ export default function GestionPersonalEntregaPage() {
                                             <FormField
                                                 control={control}
                                                 name={`turnos.${index}.cantidad`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="number" min="1" {...field} className="w-16 h-9 text-center"/></FormControl></FormItem>}
+                                                render={({ field: inputField }) => <FormItem><FormControl><Input type="number" min="1" {...inputField} className="w-16 h-9 text-center"/></FormControl></FormItem>}
                                             />
                                         </TableCell>
                                         <TableCell className="px-2 py-1">
                                             <FormField
                                                 control={control}
                                                 name={`turnos.${index}.tipoServicio`}
-                                                render={({ field }) => (
+                                                render={({ field: selectField }) => (
                                                     <FormItem>
-                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                        <Select onValueChange={selectField.onChange} value={selectField.value}>
                                                             <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
                                                             <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                                                         </Select>
@@ -345,30 +379,30 @@ export default function GestionPersonalEntregaPage() {
                                             <FormField
                                                 control={control}
                                                 name={`turnos.${index}.horaInicio`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
+                                                render={({ field: inputField }) => <FormItem><FormControl><Input type="time" {...inputField} className="w-24 h-9" /></FormControl></FormItem>}
                                             />
                                         </TableCell>
                                         <TableCell className="px-1 py-1 bg-muted/30">
                                             <FormField
                                                 control={control}
                                                 name={`turnos.${index}.horaFin`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
+                                                render={({ field: inputField }) => <FormItem><FormControl><Input type="time" {...inputField} className="w-24 h-9" /></FormControl></FormItem>}
                                             />
                                         </TableCell>
                                         <TableCell className="border-r px-1 py-1 bg-muted/30">
                                             <FormField
                                                 control={control}
                                                 name={`turnos.${index}.precioHora`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20 h-9" readOnly /></FormControl></FormItem>}
+                                                render={({ field: inputField }) => <FormItem><FormControl><Input type="number" step="0.01" {...inputField} className="w-20 h-9" readOnly /></FormControl></FormItem>}
                                             />
                                         </TableCell>
                                         <TableCell>
                                              <FormField
                                                 control={control}
                                                 name={`turnos.${index}.status`}
-                                                render={({ field }) => (
+                                                render={({ field: selectField }) => (
                                                 <FormItem>
-                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                    <Select onValueChange={selectField.onChange} value={selectField.value}>
                                                         <FormControl><SelectTrigger className="w-40 h-9"><SelectValue /></SelectTrigger></FormControl>
                                                         <SelectContent>{estadoOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                                                     </Select>
