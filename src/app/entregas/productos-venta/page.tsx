@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Pencil, Trash2, Package, CheckCircle2 } from 'lucide-react';
-import type { ProductoVenta } from '@/types';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Package, CheckCircle2, CircleX } from 'lucide-react';
+import type { ProductoVenta, ProveedorGastronomia } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -35,6 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 export default function ProductosVentaPage() {
   const [items, setItems] = useState<ProductoVenta[]>([]);
+  const [partners, setPartners] = useState<ProveedorGastronomia[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -47,8 +49,16 @@ export default function ProductosVentaPage() {
   useEffect(() => {
     let storedData = localStorage.getItem('productosVenta');
     setItems(storedData ? JSON.parse(storedData) : []);
+
+    let storedPartners = localStorage.getItem('proveedoresGastronomia');
+    setPartners(storedPartners ? JSON.parse(storedPartners) : []);
+
     setIsMounted(true);
   }, []);
+
+  const partnersMap = useMemo(() => {
+    return new Map(partners.map(p => [p.id, p.nombreProveedor]));
+  }, [partners]);
 
   const categories = useMemo(() => {
     const allCategories = new Set(items.map(item => item.categoria));
@@ -161,7 +171,7 @@ export default function ProductosVentaPage() {
                 <TableHead>PVP IFEMA</TableHead>
                 <TableHead>Margen</TableHead>
                 <TableHead>Margen IFEMA</TableHead>
-                <TableHead>Producido por Partner</TableHead>
+                <TableHead>Partner Productor</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -179,7 +189,10 @@ export default function ProductosVentaPage() {
                         <TableCell className={cn("font-bold", margin < 30 ? 'text-destructive' : 'text-green-600')}>{margin.toFixed(2)}%</TableCell>
                         <TableCell className={cn("font-bold", marginIfema < 30 ? 'text-destructive' : 'text-green-600')}>{marginIfema.toFixed(2)}%</TableCell>
                         <TableCell>
-                          {item.producidoPorPartner && <CheckCircle2 className="text-green-600" />}
+                          {item.producidoPorPartner 
+                            ? <span className="font-medium">{partnersMap.get(item.partnerId || '') || 'Partner Desconocido'}</span>
+                            : <div className="flex justify-start"><CircleX className="text-destructive h-5 w-5" /></div>
+                          }
                         </TableCell>
                     </TableRow>
                   );
