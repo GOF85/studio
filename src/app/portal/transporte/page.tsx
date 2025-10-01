@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Truck, Search, CheckCircle, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Truck, Search, CheckCircle, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Warehouse, User, Phone } from 'lucide-react';
 import { format, isWithinInterval, startOfDay, endOfDay, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { TransporteOrder, ServiceOrder } from '@/types';
@@ -159,17 +160,19 @@ export default function TransportePortalPage() {
                                     </CardHeader>
                                     <CardContent className="space-y-3">
                                         {dailyOrders.map(order => (
-                                            <div key={order.id} className="border p-3 rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer" onClick={() => handleOrderClick(order.id)}>
+                                            <div key={order.id} className="border p-4 rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer" onClick={() => handleOrderClick(order.id)}>
                                                 <div className="flex justify-between items-start">
                                                     <div>
-                                                        <p className="font-bold">{order.lugarEntrega}</p>
+                                                        <p className="font-bold text-lg">{order.lugarEntrega}</p>
                                                         <p className="text-sm text-muted-foreground">{order.os?.client} (OS: {order.os?.serviceNumber})</p>
                                                     </div>
                                                     <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
                                                 </div>
-                                                <div className="text-sm mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-muted-foreground">
-                                                    <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> <strong>Recogida:</strong> {order.horaRecogida}</div>
-                                                    <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> <strong>Entrega:</strong> {order.horaEntrega}</div>
+                                                 <div className="text-sm mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-muted-foreground">
+                                                    <div className="flex items-center gap-1.5"><Warehouse className="h-4 w-4" /> <strong>Recogida:</strong> {order.lugarRecogida}</div>
+                                                    <div className="flex items-center gap-1.5"><User className="h-4 w-4" /> <strong>Contacto:</strong> {order.os?.contact}</div>
+                                                    <div className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> <strong>Horas:</strong> {order.horaRecogida} &rarr; {order.horaEntrega}</div>
+                                                    <div className="flex items-center gap-1.5"><Phone className="h-4 w-4" /> <strong>Teléfono:</strong> {order.os?.phone}</div>
                                                 </div>
                                             </div>
                                         ))}
