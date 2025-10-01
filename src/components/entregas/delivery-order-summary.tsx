@@ -46,7 +46,7 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
 
 
   const onClearOrder = () => {
-    onUpdateHito({ ...hito, items: [], portes: 0 });
+    onUpdateHito({ ...hito, items: [], portes: 0, horasCamarero: 0 });
   };
 
   const { costeTotal, pvpTotalProductos } = useMemo(() => {
