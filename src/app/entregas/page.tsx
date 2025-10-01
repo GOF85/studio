@@ -45,7 +45,7 @@ export default function EntregasDashboardPage() {
             
             <Separator />
             
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <Link href="/cpr">
                     <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
                         <CardHeader className="flex-row items-center gap-4">
@@ -72,16 +72,6 @@ export default function EntregasDashboardPage() {
                             <Truck className="w-8 h-8 text-primary flex-shrink-0" />
                             <div>
                                 <CardTitle>Transporte</CardTitle>
-                            </div>
-                        </CardHeader>
-                    </Card>
-                </Link>
-                <Link href="/entregas/gestion-personal">
-                    <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
-                        <CardHeader className="flex-row items-center gap-4">
-                            <Users className="w-8 h-8 text-primary flex-shrink-0" />
-                            <div>
-                                <CardTitle>Gestión de Personal</CardTitle>
                             </div>
                         </CardHeader>
                     </Card>
