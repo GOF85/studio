@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { PersonalEntrega, Entrega, EstadoPersonalEntrega } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,7 @@ type PedidoConPersonal = {
   totalPersonal: number;
   costePersonal: number;
   status: EstadoPersonalEntrega;
+  statusPartner: 'Sin Asignar' | 'Parcialmente Gestionado' | 'Todo Gestionado';
 };
 
 const statusVariant: { [key in EstadoPersonalEntrega]: "success" | "warning" | "destructive" } = {
@@ -80,7 +82,19 @@ export default function GestionPersonalEntregasPage() {
             return sum + (horas * (turno.precioHora || 0) * turno.cantidad);
         }, 0) || 0;
         
-        return { os, totalPersonal, costePersonal, status: personalAsignado?.status || 'Pendiente' };
+        let statusPartner: PedidoConPersonal['statusPartner'] = 'Sin Asignar';
+        if (personalAsignado && personalAsignado.turnos.length > 0) {
+            const gestionados = personalAsignado.turnos.filter(t => t.statusPartner === 'Gestionado').length;
+            if (gestionados === 0) {
+                statusPartner = 'Sin Asignar';
+            } else if (gestionados < personalAsignado.turnos.length) {
+                statusPartner = 'Parcialmente Gestionado';
+            } else {
+                statusPartner = 'Todo Gestionado';
+            }
+        }
+
+        return { os, totalPersonal, costePersonal, status: personalAsignado?.status || 'Pendiente', statusPartner };
     });
 
     setPedidos(pedidosConDatos);
@@ -179,9 +193,10 @@ export default function GestionPersonalEntregasPage() {
               <TableHead>Nº Pedido</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Fecha Evento</TableHead>
-              <TableHead>Nº Personal Asignado</TableHead>
-              <TableHead>Coste Total Personal</TableHead>
-              <TableHead>Estado</TableHead>
+              <TableHead>Nº Personal</TableHead>
+              <TableHead>Coste Personal</TableHead>
+              <TableHead>Estado Gestión</TableHead>
+              <TableHead>Estado Partner</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -198,11 +213,16 @@ export default function GestionPersonalEntregasPage() {
                   <TableCell>{p.totalPersonal}</TableCell>
                   <TableCell className="font-semibold">{p.costePersonal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                   <TableCell><Badge variant={statusVariant[p.status]}>{p.status}</Badge></TableCell>
+                   <TableCell>
+                        {p.statusPartner === 'Todo Gestionado' && <Badge variant="success"><CheckCircle className="mr-1 h-3 w-3" />Gestionado</Badge>}
+                        {p.statusPartner === 'Parcialmente Gestionado' && <Badge variant="warning">Parcial</Badge>}
+                        {p.statusPartner === 'Sin Asignar' && <Badge variant="destructive">Pendiente</Badge>}
+                    </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   No hay pedidos de entrega que requieran personal o coincidan con los filtros.
                 </TableCell>
               </TableRow>

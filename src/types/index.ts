@@ -177,10 +177,11 @@ export type TipoServicio = {
     servicio: string;
 }
 
-export type TipoTransporte = {
+export type ProveedorTransporte = {
     id: string;
     proveedorId: string;
-    descripcion: string; // Ej. "Furgoneta Isotermo"
+    nombreProveedor: string;
+    tipoTransporte: string; // Ej. "Furgoneta Isotermo"
     precio: number;
     tipo: 'Catering' | 'Entregas';
 }
@@ -188,6 +189,7 @@ export type TipoTransporte = {
 export type CategoriaPersonal = {
   id: string;
   proveedorId: string;
+  nombreProveedor: string;
   categoria: string;
   precioHora: number;
 };
@@ -328,8 +330,6 @@ export type PersonalExternoOrder = {
   fecha: string;
   horaEntrada: string;
   horaSalida: string;
-  centroCoste: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
-  tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
   observaciones?: string;
   horaEntradaReal?: string;
   horaSalidaReal?: string;
@@ -712,6 +712,13 @@ export type Proveedor = {
 export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado', 'Confirmado'] as const;
 export type EstadoPersonalEntrega = typeof ESTADO_PERSONAL_ENTREGA[number];
 
+export type AsignacionPersonal = {
+  id: string;
+  nombre: string;
+  dni?: string;
+  comentariosPartner?: string;
+};
+
 export type PersonalEntregaTurno = {
   id: string;
   proveedorId: string;
@@ -722,6 +729,8 @@ export type PersonalEntregaTurno = {
   categoria: string;
   precioHora: number;
   observaciones: string;
+  statusPartner: 'Pendiente Asignación' | 'Gestionado';
+  asignaciones: AsignacionPersonal[];
 };
 
 export type PersonalEntrega = {
@@ -729,5 +738,6 @@ export type PersonalEntrega = {
     turnos: PersonalEntregaTurno[];
     status: EstadoPersonalEntrega;
 };
+
 
 

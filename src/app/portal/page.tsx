@@ -1,8 +1,9 @@
+
 'use client';
 
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Factory, Truck } from 'lucide-react';
+import { Factory, Truck, Users } from 'lucide-react';
 
 export default function PortalHomePage() {
   return (
@@ -11,7 +12,7 @@ export default function PortalHomePage() {
         <h1 className="text-4xl font-headline font-bold tracking-tight">Portal de Colaboradores</h1>
         <p className="text-lg text-muted-foreground mt-2">Selecciona tu portal para acceder a tus tareas asignadas.</p>
       </div>
-      <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
+      <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
         <Link href="/portal/partner">
             <Card className="hover:border-primary hover:shadow-lg transition-all">
                 <CardHeader>
@@ -19,6 +20,16 @@ export default function PortalHomePage() {
                 </CardHeader>
                 <CardContent>
                     <p className="text-sm text-muted-foreground">Accede para ver los pedidos de producción de gastronomía que tienes asignados.</p>
+                </CardContent>
+            </Card>
+        </Link>
+        <Link href="/portal/personal">
+            <Card className="hover:border-primary hover:shadow-lg transition-all">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-3"><Users /> Portal de Partner de Personal</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-muted-foreground">Consulta y gestiona los turnos de personal para los eventos de entrega.</p>
                 </CardContent>
             </Card>
         </Link>

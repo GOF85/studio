@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import Link from 'next/link';
-import { Package, Truck } from 'lucide-react';
+import { Package, Truck, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 function PortalHeader() {
@@ -19,7 +20,13 @@ function PortalHeader() {
            <Button asChild variant="ghost" className="hover:bg-gray-700 hover:text-white">
               <Link href="/portal/partner">
                 <Truck className="mr-2 h-5 w-5"/>
-                Partner
+                Producción
+              </Link>
+            </Button>
+            <Button asChild variant="ghost" className="hover:bg-gray-700 hover:text-white">
+              <Link href="/portal/personal">
+                <Users className="mr-2 h-5 w-5"/>
+                Personal
               </Link>
             </Button>
             <Button asChild variant="ghost" className="hover:bg-gray-700 hover:text-white">
