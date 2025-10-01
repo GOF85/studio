@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw } from 'lucide-react';
 
 import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, EstadoPersonalEntrega, PedidoEntrega, EntregaHito } from '@/types';
 import { ESTADO_PERSONAL_ENTREGA } from '@/types';
@@ -80,6 +80,7 @@ export default function GestionPersonalEntregaPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
   const [deliveryHitos, setDeliveryHitos] = useState<EntregaHito[]>([]);
+  const [forceRecalc, setForceRecalc] = useState(0);
   
   const router = useRouter();
   const params = useParams();
@@ -144,22 +145,15 @@ export default function GestionPersonalEntregaPage() {
   
   const watchedFields = watch('turnos');
 
- const { totalPlanned, totalReal, totalAjustes, finalTotalReal } = useMemo(() => {
+ const { totalPlanned } = useMemo(() => {
     const planned = watchedFields?.reduce((acc, order) => {
       const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
       return acc + plannedHours * (order.precioHora || 0) * (order.cantidad || 1);
     }, 0) || 0;
 
-    const real = watchedFields?.reduce((acc, order) => {
-      const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
-      return acc + realHours * (order.precioHora || 0) * (order.cantidad || 1);
-    }, 0) || 0;
-    
-    // This part seems to be from another component, remove for now
-    const aj = 0; //ajustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
-
-    return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj };
-  }, [watchedFields]);
+    return { totalPlanned: planned };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedFields, forceRecalc]);
 
   const onSubmit = (data: FormValues) => {
     setIsLoading(true);
@@ -224,6 +218,8 @@ export default function GestionPersonalEntregaPage() {
     return proveedoresDB.map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
 }, [proveedoresDB, proveedoresMap]);
 
+const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero && h.horasCamarero > 0), [deliveryHitos]);
+
   if (!isMounted || !entrega) {
     return <LoadingSkeleton title="Cargando Asignación de Personal..." />;
   }
@@ -243,7 +239,9 @@ export default function GestionPersonalEntregaPage() {
                         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Asignación de Personal</h1>
                         <div className="text-muted-foreground mt-2 space-y-1">
                             <p>Pedido: {entrega.serviceNumber} - {entrega.client}</p>
-                            <p className="flex items-center gap-2"><MapPin className="h-4 w-4"/> {entrega.direccionPrincipal}</p>
+                            {entrega.direccionPrincipal && (
+                                <p className="flex items-center gap-2"><MapPin className="h-4 w-4"/> {entrega.direccionPrincipal}</p>
+                            )}
                              {entrega.comments && (
                                 <div className="mt-2 text-sm text-amber-700 font-semibold flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
                                     <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -260,49 +258,48 @@ export default function GestionPersonalEntregaPage() {
                     </div>
                 </div>
 
-                <Accordion type="single" collapsible className="w-full mb-8">
-                  <AccordionItem value="item-1">
-                    <Card>
-                        <AccordionTrigger className="p-6"><h3 className="text-xl font-semibold">Servicios y Entregas</h3></AccordionTrigger>
-                        <AccordionContent>
-                           <CardContent>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Fecha / Hora</TableHead>
-                                            <TableHead>Lugar de Entrega</TableHead>
-                                            <TableHead>Localización</TableHead>
-                                            <TableHead>Horas Camarero</TableHead>
-                                            <TableHead>Observaciones</TableHead>
+                {hitosConPersonal.length > 0 && (
+                    <Card className="mb-8">
+                        <CardHeader className="py-3">
+                            <CardTitle className="text-lg">Servicios con Personal</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="py-2 px-3">Fecha / Hora</TableHead>
+                                        <TableHead className="py-2 px-3">Dirección del servicio</TableHead>
+                                        <TableHead className="py-2 px-3 w-[30%]">Observaciones</TableHead>
+                                        <TableHead className="py-2 px-3 text-center">Horas Camarero</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {hitosConPersonal.map(hito => (
+                                        <TableRow key={hito.id}>
+                                            <TableCell className="py-2 px-3">{format(new Date(hito.fecha), 'dd/MM/yyyy')} {hito.hora}</TableCell>
+                                            <TableCell className="py-2 px-3">{hito.lugarEntrega} {hito.localizacion && `(${hito.localizacion})`}</TableCell>
+                                            <TableCell className="py-2 px-3 text-xs text-muted-foreground">{hito.observaciones}</TableCell>
+                                            <TableCell className="py-2 px-3 font-bold text-center">{hito.horasCamarero || '-'}</TableCell>
                                         </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {deliveryHitos.length > 0 ? deliveryHitos.map(hito => (
-                                            <TableRow key={hito.id}>
-                                                <TableCell>{format(new Date(hito.fecha), 'dd/MM/yyyy')} {hito.hora}</TableCell>
-                                                <TableCell>{hito.lugarEntrega}</TableCell>
-                                                <TableCell>{hito.localizacion}</TableCell>
-                                                <TableCell className="font-bold text-center">{hito.horasCamarero || '-'}</TableCell>
-                                                <TableCell className="text-xs text-muted-foreground">{hito.observaciones}</TableCell>
-                                            </TableRow>
-                                        )) : (
-                                            <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay entregas con servicio de personal definidas en el pedido.</TableCell></TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                           </CardContent>
-                        </AccordionContent>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                       </CardContent>
                     </Card>
-                  </AccordionItem>
-                </Accordion>
+                )}
 
                 <Card>
                     <CardHeader className="flex-row items-center justify-between">
                         <CardTitle>Turnos de Personal</CardTitle>
-                        <Button type="button" onClick={addRow}>
-                            <PlusCircle className="mr-2" />
-                            Añadir Turno
-                        </Button>
+                        <div className='flex items-center gap-2'>
+                             <Button size="sm" type="button" variant="outline" onClick={() => setForceRecalc(c => c + 1)}>
+                                <RefreshCw className="mr-2 h-4 w-4"/>Recalcular Coste
+                            </Button>
+                            <Button type="button" onClick={addRow}>
+                                <PlusCircle className="mr-2" />
+                                Añadir Turno
+                            </Button>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div className="border rounded-lg overflow-x-auto">
@@ -314,6 +311,7 @@ export default function GestionPersonalEntregaPage() {
                                         <TableHead className="px-1 py-2 text-center">Cant.</TableHead>
                                         <TableHead className="px-1 py-2 w-24">Entrada</TableHead>
                                         <TableHead className="px-1 py-2 w-24">Salida</TableHead>
+                                        <TableHead className="px-1 py-2 w-20">Horas</TableHead>
                                         <TableHead className="px-1 py-2 w-20">€/Hora</TableHead>
                                         <TableHead className="px-2 py-2 w-40">Estado</TableHead>
                                         <TableHead className="text-right px-2 py-2">Acción</TableHead>
@@ -365,6 +363,9 @@ export default function GestionPersonalEntregaPage() {
                                             </TableCell>
                                             <TableCell className="px-1 py-1">
                                                 <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
+                                            </TableCell>
+                                            <TableCell className="px-1 py-1 text-center font-mono">
+                                                {calculateHours(watchedFields[index]?.horaEntrada, watchedFields[index]?.horaSalida).toFixed(2)}h
                                             </TableCell>
                                             <TableCell className="px-1 py-1">
                                                 <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
@@ -422,5 +423,7 @@ export default function GestionPersonalEntregaPage() {
     </>
   );
 }
+
+    
 
     
