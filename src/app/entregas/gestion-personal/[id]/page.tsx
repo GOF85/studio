@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -151,7 +152,7 @@ export default function GestionPersonalEntregaPage() {
     }, 0) || 0;
 
     return { totalPlanned: planned };
-  }, [watchedFields]);
+  }, [watchedFields, forceRecalc]);
 
   const handleStatusChange = (newStatus: EstadoPersonalEntrega) => {
     if (!personalEntrega) return;
@@ -256,8 +257,7 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                             )}
                              {(entrega.comments || hitosConPersonal.some(h => h.observaciones)) && (
                                 <div className="mt-2 text-sm text-amber-700 font-semibold flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
-                                    <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                                    <span>{entrega.comments}</span>
+                                    {entrega.comments && <p><Info className="inline-block h-4 w-4 mr-1"/>{entrega.comments}</p>}
                                 </div>
                              )}
                         </div>
