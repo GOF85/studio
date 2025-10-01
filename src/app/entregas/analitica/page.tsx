@@ -3,9 +3,9 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket, Truck } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito, TransporteOrder } from '@/types';
+import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito, TransporteOrder, ProveedorTransporte } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -30,7 +30,10 @@ import {
   Legend,
   AreaChart,
   Area,
-  CartesianGrid
+  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { GASTO_LABELS } from '@/lib/constants';
@@ -53,21 +56,31 @@ type AnaliticaItem = {
     }[];
 }
 
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF'];
+
 export default function AnaliticaEntregasPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [allPedidos, setAllPedidos] = useState<AnaliticaItem[]>([]);
+    const [allTransporte, setAllTransporte] = useState<TransporteOrder[]>([]);
+    const [proveedoresTransporte, setProveedoresTransporte] = useState<ProveedorTransporte[]>([]);
+
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: startOfMonth(new Date()),
         to: endOfMonth(new Date()),
     });
     const [selectedPedidos, setSelectedPedidos] = useState<Set<string>>(new Set());
     const [tarifaFilter, setTarifaFilter] = useState<'all' | 'Empresa' | 'IFEMA'>('all');
+    const [transporteProviderFilter, setTransporteProviderFilter] = useState('all');
 
     useEffect(() => {
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.vertical === 'Entregas');
         const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
         const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
         const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
+        const allProveedoresTransporte = JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]') as ProveedorTransporte[];
+
+        setAllTransporte(allTransporteOrders);
+        setProveedoresTransporte(allProveedoresTransporte);
 
         const productosMap = new Map(allProductosVenta.map(p => [p.id, p]));
 
@@ -303,6 +316,44 @@ export default function AnaliticaEntregasPage() {
         })).sort((a,b) => new Date(a.name).getTime() - new Date(b.name).getTime());
     }, [pedidosFiltrados]);
 
+    const transporteAnalysis = useMemo(() => {
+        const osIdsEnRango = new Set(pedidosFiltrados.map(p => p.os.id));
+        const transporteEnRango = allTransporte.filter(t => osIdsEnRango.has(t.osId));
+
+        const filteredByProvider = transporteProviderFilter === 'all'
+            ? transporteEnRango
+            : transporteEnRango.filter(t => t.proveedorId === transporteProviderFilter);
+
+        const costeTotal = filteredByProvider.reduce((sum, t) => sum + t.precio, 0);
+        const totalViajes = filteredByProvider.length;
+        const costeMedio = totalViajes > 0 ? costeTotal / totalViajes : 0;
+        
+        const viajesPorProveedor: { [key: string]: number } = {};
+        transporteEnRango.forEach(t => {
+            const nombre = t.proveedorNombre || 'Desconocido';
+            viajesPorProveedor[nombre] = (viajesPorProveedor[nombre] || 0) + 1;
+        });
+        const pieData = Object.entries(viajesPorProveedor).map(([name, value]) => ({ name, value }));
+
+        const porMes: { [key: string]: { coste: number; viajes: number } } = {};
+        filteredByProvider.forEach(t => {
+            const month = format(new Date(t.fecha), 'yyyy-MM');
+            if (!porMes[month]) {
+                porMes[month] = { coste: 0, viajes: 0 };
+            }
+            porMes[month].coste += t.precio;
+            porMes[month].viajes += 1;
+        });
+        const monthlyChartData = Object.entries(porMes).map(([month, data]) => ({
+            name: format(new Date(`${month}-02`), 'MMM yy', {locale: es}),
+            Coste: data.coste,
+            Viajes: data.viajes
+        })).sort((a,b) => new Date(a.name).getTime() - new Date(b.name).getTime());
+
+        return { costeTotal, totalViajes, costeMedio, pieData, monthlyChartData, listado: filteredByProvider };
+    }, [pedidosFiltrados, allTransporte, transporteProviderFilter]);
+
+
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
         const now = new Date();
         switch(preset) {
@@ -366,74 +417,74 @@ export default function AnaliticaEntregasPage() {
                 </CardContent>
             </Card>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-                        <CardTitle className="text-xl font-medium">Facturación</CardTitle>
-                        <Euro className="h-5 w-5 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Bruta: {formatCurrency(analisisSeleccion.pvpBruto)}</p>
-                        <div className="text-3xl font-bold text-green-600">{formatCurrency(analisisSeleccion.pvpNeto)}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-base font-medium">Desglose de Costes</CardTitle>
-                        <Wallet className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                     <CardContent className="text-xs space-y-0.5">
-                        <div className="flex justify-between"><span>Productos:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeProductos)}</span></div>
-                        <div className="flex justify-between"><span>Transporte:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeTransporte)}</span></div>
-                        <div className="flex justify-between"><span>Com. Agencia:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.comisionAgencia)}</span></div>
-                        <div className="flex justify-between"><span>Canon Espacio:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.comisionCanon)}</span></div>
-                         <Separator className="my-1"/>
-                         <div className="flex justify-between font-bold text-sm"><span>Total:</span> <span>{formatCurrency(costeTotalSeleccion)}</span></div>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-                        <CardTitle className="text-base font-medium">Rentabilidad Final</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent className="space-y-0.5">
-                        <div className={cn("text-2xl font-bold", margenFinal >= 0 ? "text-green-600" : "text-destructive")}>
-                            {formatCurrency(margenFinal)}
-                        </div>
-                        <p className={cn("text-base font-semibold", (analisisSeleccion.pvpNeto > 0 ? (margenFinal / analisisSeleccion.pvpNeto) * 100 : 0) >= 0 ? "text-green-600" : "text-destructive")}>
-                            {(analisisSeleccion.pvpNeto > 0 ? (margenFinal / analisisSeleccion.pvpNeto) * 100 : 0).toFixed(2)}%
-                        </p>
-                    </CardContent>
-                 </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-base font-medium">Volumen</CardTitle>
-                        <BookOpen className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent className="space-y-1">
-                        <div className="text-2xl font-bold">{selectedPedidos.size} <span className="text-sm font-normal text-muted-foreground">contratos</span></div>
-                        <div className="text-2xl font-bold">{analisisSeleccion.hitosCount} <span className="text-sm font-normal text-muted-foreground">entregas</span></div>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-base font-medium">Ticket Medio</CardTitle>
-                        <Ticket className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent className="space-y-1">
-                        <div className="text-lg font-bold">{formatCurrency(ticketMedioContrato)} <span className="text-xs font-normal text-muted-foreground">/contrato</span></div>
-                        <div className="text-lg font-bold">{formatCurrency(ticketMedioEntrega)} <span className="text-xs font-normal text-muted-foreground">/entrega</span></div>
-                    </CardContent>
-                </Card>
-            </div>
-            
             <Tabs defaultValue="rentabilidad">
-                <TabsList className="mb-4">
+                <TabsList className="mb-4 grid w-full grid-cols-3">
                     <TabsTrigger value="rentabilidad">Análisis de Rentabilidad</TabsTrigger>
                     <TabsTrigger value="partner">Análisis Partner</TabsTrigger>
+                    <TabsTrigger value="transporte">Análisis de Transporte</TabsTrigger>
                 </TabsList>
                 <TabsContent value="rentabilidad">
                     <div className="space-y-8">
+                       <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                                    <CardTitle className="text-xl font-medium">Facturación</CardTitle>
+                                    <Euro className="h-5 w-5 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent className="space-y-1">
+                                    <p className="text-sm text-muted-foreground">Bruta: {formatCurrency(analisisSeleccion.pvpBruto)}</p>
+                                    <div className="text-3xl font-bold text-green-600">{formatCurrency(analisisSeleccion.pvpNeto)}</div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-base font-medium">Desglose de Costes</CardTitle>
+                                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent className="text-xs space-y-0.5">
+                                    <div className="flex justify-between"><span>Productos:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeProductos)}</span></div>
+                                    <div className="flex justify-between"><span>Transporte:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.costeTransporte)}</span></div>
+                                    <div className="flex justify-between"><span>Com. Agencia:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.comisionAgencia)}</span></div>
+                                    <div className="flex justify-between"><span>Canon Espacio:</span> <span className="font-semibold">{formatCurrency(analisisSeleccion.comisionCanon)}</span></div>
+                                    <Separator className="my-1"/>
+                                    <div className="flex justify-between font-bold text-sm"><span>Total:</span> <span>{formatCurrency(costeTotalSeleccion)}</span></div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
+                                    <CardTitle className="text-base font-medium">Rentabilidad Final</CardTitle>
+                                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent className="space-y-0.5">
+                                    <div className={cn("text-2xl font-bold", margenFinal >= 0 ? "text-green-600" : "text-destructive")}>
+                                        {formatCurrency(margenFinal)}
+                                    </div>
+                                    <p className={cn("text-base font-semibold", (analisisSeleccion.pvpNeto > 0 ? (margenFinal / analisisSeleccion.pvpNeto) * 100 : 0) >= 0 ? "text-green-600" : "text-destructive")}>
+                                        {(analisisSeleccion.pvpNeto > 0 ? (margenFinal / analisisSeleccion.pvpNeto) * 100 : 0).toFixed(2)}%
+                                    </p>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-base font-medium">Volumen</CardTitle>
+                                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent className="space-y-1">
+                                    <div className="text-2xl font-bold">{selectedPedidos.size} <span className="text-sm font-normal text-muted-foreground">contratos</span></div>
+                                    <div className="text-2xl font-bold">{analisisSeleccion.hitosCount} <span className="text-sm font-normal text-muted-foreground">entregas</span></div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-base font-medium">Ticket Medio</CardTitle>
+                                    <Ticket className="h-4 w-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent className="space-y-1">
+                                    <div className="text-lg font-bold">{formatCurrency(ticketMedioContrato)} <span className="text-xs font-normal text-muted-foreground">/contrato</span></div>
+                                    <div className="text-lg font-bold">{formatCurrency(ticketMedioEntrega)} <span className="text-xs font-normal text-muted-foreground">/entrega</span></div>
+                                </CardContent>
+                            </Card>
+                        </div>
                          <Card>
                             <CardHeader><CardTitle>Facturación y Rentabilidad Mensual</CardTitle></CardHeader>
                             <CardContent className="pl-0">
@@ -450,68 +501,6 @@ export default function AnaliticaEntregasPage() {
                                 </ResponsiveContainer>
                             </CardContent>
                         </Card>
-                        <div className="grid lg:grid-cols-2 gap-4">
-                           <Card>
-                                <CardHeader><CardTitle>Volumen de Contratos</CardTitle></CardHeader>
-                                <CardContent className="pl-0">
-                                <ResponsiveContainer width="100%" height={300}>
-                                        <BarChart data={monthlyData}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                                            <YAxis fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
-                                            <Tooltip formatter={(value: number) => formatNumber(value, 0)} />
-                                            <Legend />
-                                            <Bar dataKey="Contratos" fill="#8884d8" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader><CardTitle>Volumen de Entregas</CardTitle></CardHeader>
-                                <CardContent className="pl-0">
-                                <ResponsiveContainer width="100%" height={300}>
-                                        <BarChart data={monthlyData}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                                            <YAxis fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
-                                            <Tooltip formatter={(value: number) => formatNumber(value, 0)} />
-                                            <Legend />
-                                            <Bar dataKey="Entregas" fill="#82ca9d" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader><CardTitle>Ticket Medio por Contrato (Mensual)</CardTitle></CardHeader>
-                                <CardContent className="pl-0">
-                                <ResponsiveContainer width="100%" height={300}>
-                                        <BarChart data={monthlyData}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                                            <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCurrency(value)} />
-                                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                                            <Legend />
-                                            <Bar dataKey="Ticket Medio Contrato" fill="#ffc658" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader><CardTitle>Ticket Medio por Entrega (Mensual)</CardTitle></CardHeader>
-                                <CardContent className="pl-0">
-                                <ResponsiveContainer width="100%" height={300}>
-                                        <BarChart data={monthlyData}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                                            <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCurrency(value)} />
-                                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                                            <Legend />
-                                            <Bar dataKey="Ticket Medio Entrega" fill="#ff8042" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
-                        </div>
                         <div className="grid lg:grid-cols-2 gap-4">
                             <Card>
                                 <CardHeader><CardTitle>Top 5 Productos más Vendidos</CardTitle></CardHeader>
@@ -567,6 +556,70 @@ export default function AnaliticaEntregasPage() {
                                 <div className="flex justify-between font-bold text-lg"><span>Margen %</span><span className={cn(partnerAnalysis.margenPct < 0 && 'text-destructive')}>{partnerAnalysis.margenPct.toFixed(2)}%</span></div>
                             </CardContent>
                         </Card>
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="transporte">
+                    <div className="space-y-8">
+                         <div className="grid md:grid-cols-3 gap-4">
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Coste Total Transporte</CardTitle><Wallet className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                                <CardContent><div className="text-2xl font-bold">{formatCurrency(transporteAnalysis.costeTotal)}</div></CardContent>
+                            </Card>
+                             <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Nº Total de Viajes</CardTitle><Truck className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                                <CardContent><div className="text-2xl font-bold">{transporteAnalysis.totalViajes}</div></CardContent>
+                            </Card>
+                             <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Coste Medio por Viaje</CardTitle><Euro className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                                <CardContent><div className="text-2xl font-bold">{formatCurrency(transporteAnalysis.costeMedio)}</div></CardContent>
+                            </Card>
+                        </div>
+
+                         <div className="grid lg:grid-cols-2 gap-4">
+                            <Card>
+                                <CardHeader><CardTitle>Distribución de Viajes por Transportista</CardTitle></CardHeader>
+                                <CardContent>
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <PieChart>
+                                            <Pie data={transporteAnalysis.pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                                                 {transporteAnalysis.pieData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip formatter={(value) => `${value} viajes`} />
+                                            <Legend />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                             <Card>
+                                <CardHeader><CardTitle>Costes de Transporte Mensuales</CardTitle></CardHeader>
+                                <CardContent className="pl-0">
+                                     <ResponsiveContainer width="100%" height={300}>
+                                        <BarChart data={transporteAnalysis.monthlyChartData}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                            <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCurrency(value)} />
+                                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                            <Bar dataKey="Coste" fill="#8884d8" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                         </div>
+                         <Card>
+                            <CardHeader><CardTitle>Listado de Viajes</CardTitle></CardHeader>
+                            <CardContent>
+                                 <Table>
+                                    <TableHeader><TableRow><TableHead>OS</TableHead><TableHead>Proveedor</TableHead><TableHead>Tipo Vehículo</TableHead><TableHead className="text-right">Coste</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {transporteAnalysis.listado.map(t => (
+                                            <TableRow key={t.id}><TableCell>{allPedidos.find(p => p.os.id === t.osId)?.os.serviceNumber}</TableCell><TableCell>{t.proveedorNombre}</TableCell><TableCell>{t.tipoTransporte}</TableCell><TableCell className="text-right">{formatCurrency(t.precio)}</TableCell></TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                         </Card>
                     </div>
                   </TabsContent>
             </Tabs>
