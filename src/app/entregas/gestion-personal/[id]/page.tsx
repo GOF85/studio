@@ -9,9 +9,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin } from 'lucide-react';
 
-import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, EstadoPersonalEntrega } from '@/types';
+import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, EstadoPersonalEntrega, PedidoEntrega, EntregaHito } from '@/types';
 import { ESTADO_PERSONAL_ENTREGA } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -77,6 +78,7 @@ export default function GestionPersonalEntregaPage() {
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
+  const [deliveryHitos, setDeliveryHitos] = useState<EntregaHito[]>([]);
   
   const router = useRouter();
   const params = useParams();
@@ -88,7 +90,7 @@ export default function GestionPersonalEntregaPage() {
     defaultValues: { turnos: [] },
   });
 
-  const { control, setValue, watch } = form;
+  const { control, setValue, watch, trigger } = form;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -101,6 +103,10 @@ export default function GestionPersonalEntregaPage() {
         const currentEntrega = allEntregas.find(os => os.id === osId);
         setEntrega(currentEntrega || null);
         
+        const allPedidos = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
+        const currentPedido = allPedidos.find(p => p.osId === osId);
+        setDeliveryHitos(currentPedido?.hitos || []);
+
         const allTurnos = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
         const turnosDelPedido = allTurnos.find(p => p.osId === osId);
         if(turnosDelPedido) {
@@ -131,8 +137,9 @@ export default function GestionPersonalEntregaPage() {
       setValue(`turnos.${index}.proveedorId`, tipoPersonal.proveedorId, { shouldDirty: true });
       setValue(`turnos.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
       setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
+      trigger(`turnos.${index}`);
     }
-  }, [proveedoresDB, setValue]);
+  }, [proveedoresDB, setValue, trigger]);
   
   const watchedFields = watch('turnos');
 
@@ -223,16 +230,6 @@ export default function GestionPersonalEntregaPage() {
                         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Asignación de Personal</h1>
                         <div className="text-muted-foreground mt-2 space-y-1">
                             <p>Pedido: {entrega.serviceNumber} - {entrega.client}</p>
-                            <div className="flex items-center gap-4">
-                                <p className="flex items-center gap-2">
-                                    <Building2 className="h-4 w-4"/>
-                                    {entrega.direccionPrincipal}
-                                </p>
-                                <p className="flex items-center gap-2">
-                                    <Clock className="h-4 w-4" />
-                                    {format(new Date(entrega.startDate), 'dd/MM/yy')} {entrega.deliveryTime}
-                                </p>
-                            </div>
                              {entrega.comments && (
                                 <div className="mt-2 text-sm text-amber-700 font-semibold flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
                                     <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -248,6 +245,40 @@ export default function GestionPersonalEntregaPage() {
                         </Button>
                     </div>
                 </div>
+
+                <Accordion type="single" collapsible className="w-full mb-8">
+                  <AccordionItem value="item-1">
+                    <Card>
+                        <AccordionTrigger className="p-6"><h3 className="text-xl font-semibold">Servicios y Entregas</h3></AccordionTrigger>
+                        <AccordionContent>
+                           <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Fecha / Hora</TableHead>
+                                            <TableHead>Lugar de Entrega</TableHead>
+                                            <TableHead>Localización</TableHead>
+                                            <TableHead>Horas Camarero</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {deliveryHitos.length > 0 ? deliveryHitos.map(hito => (
+                                            <TableRow key={hito.id}>
+                                                <TableCell>{format(new Date(hito.fecha), 'dd/MM/yyyy')} {hito.hora}</TableCell>
+                                                <TableCell>{hito.lugarEntrega}</TableCell>
+                                                <TableCell>{hito.localizacion}</TableCell>
+                                                <TableCell className="font-bold text-center">{hito.horasCamarero || '-'}</TableCell>
+                                            </TableRow>
+                                        )) : (
+                                            <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay entregas con servicio de personal definidas en el pedido.</TableCell></TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                           </CardContent>
+                        </AccordionContent>
+                    </Card>
+                  </AccordionItem>
+                </Accordion>
 
                 <Card>
                     <CardHeader className="flex-row items-center justify-between">
@@ -311,7 +342,7 @@ export default function GestionPersonalEntregaPage() {
                                                 />
                                             </TableCell>
                                             <TableCell className="px-1 py-1">
-                                                <FormField control={control} name={`turnos.${index}.cantidad`} render={({ field: f }) => <FormItem><FormControl><Input type="number" min="1" {...f} className="w-16 h-9 text-center"/></FormControl></FormItem>} />
+                                                <FormField control={control} name={`turnos.${index}.cantidad`} render={({ field: f }) => <FormItem><FormControl><Input type="number" min="1" {...f} onChange={(e) => f.onChange(parseInt(e.target.value) || 1)} className="w-16 h-9 text-center"/></FormControl></FormItem>} />
                                             </TableCell>
                                             <TableCell className="px-1 py-1">
                                                 <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
@@ -375,5 +406,3 @@ export default function GestionPersonalEntregaPage() {
     </>
   );
 }
-
-    
