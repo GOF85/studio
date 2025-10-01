@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -7,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { PersonalEntrega, Entrega } from '@/types';
+import type { PersonalEntrega, Entrega, EstadoPersonalEntrega } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,10 +48,10 @@ type PedidoConPersonal = {
   os: Entrega;
   totalPersonal: number;
   costePersonal: number;
-  status: string;
+  status: EstadoPersonalEntrega;
 };
 
-const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" | "warning" } = {
+const statusVariant: { [key in EstadoPersonalEntrega]: "success" | "warning" | "destructive" } = {
   Pendiente: 'destructive',
   Asignado: 'warning',
   Confirmado: 'success',
@@ -135,6 +134,7 @@ export default function GestionPersonalEntregasPage() {
   }
 
   return (
+    <>
     <main className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal de Entregas</h1>
@@ -211,5 +211,6 @@ export default function GestionPersonalEntregasPage() {
         </Table>
       </div>
     </main>
+    </>
   );
 }
