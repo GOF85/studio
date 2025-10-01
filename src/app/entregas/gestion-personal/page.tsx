@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -7,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle } from 'lucide-react';
-import type { PersonalEntrega, Entrega, EstadoPersonalEntrega } from '@/types';
+import type { PersonalEntrega, Entrega, EstadoPersonalEntrega, PersonalEntregaTurno } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
@@ -53,7 +52,7 @@ type PedidoConPersonal = {
   statusPartner: 'Sin Asignar' | 'Parcialmente Gestionado' | 'Todo Gestionado';
 };
 
-const statusVariant: { [key in EstadoPersonalEntrega]: "success" | "warning" } = {
+const statusVariant: { [key in EstadoPersonalEntrega]: "warning" | "success" } = {
   Pendiente: 'warning',
   Asignado: 'success',
 };
@@ -148,6 +147,7 @@ export default function GestionPersonalEntregasPage() {
 
   return (
     <>
+    <Header />
     <main className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal de Entregas</h1>
@@ -215,7 +215,8 @@ export default function GestionPersonalEntregasPage() {
                    <TableCell>
                         {p.statusPartner === 'Todo Gestionado' && <Badge variant="success"><CheckCircle className="mr-1 h-3 w-3" />Gestionado</Badge>}
                         {p.statusPartner === 'Parcialmente Gestionado' && <Badge variant="warning">Parcial</Badge>}
-                        {p.statusPartner === 'Sin Asignar' && <Badge variant="destructive">Pendiente</Badge>}
+                        {p.statusPartner === 'Sin Asignar' && p.totalPersonal > 0 && <Badge variant="destructive">Pendiente</Badge>}
+                        {p.totalPersonal === 0 && <Badge variant="secondary">N/A</Badge>}
                     </TableCell>
                 </TableRow>
               ))

@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatUnit } from '@/lib/utils';
-import type { PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, EstadoPersonalEntrega } from '@/types';
+import type { PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, EstadoPersonalEntrega, Entrega, PedidoEntrega } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -127,24 +127,6 @@ export default function PartnerPersonalPortalPage() {
         loadData();
     }, [loadData]);
     
-    const handleStatusChange = (turnoId: string, newStatus: PersonalEntregaTurno['statusPartner']) => {
-        const turno = turnos.find(t => t.id === turnoId);
-        if(!turno) return;
-
-        const allPersonalEntregas = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
-        const pedidoIndex = allPersonalEntregas.findIndex(p => p.osId === turno.osId);
-        if(pedidoIndex === -1) return;
-
-        const turnoIndex = allPersonalEntregas[pedidoIndex].turnos.findIndex(t => t.id === turnoId);
-        if(turnoIndex === -1) return;
-
-        allPersonalEntregas[pedidoIndex].turnos[turnoIndex].statusPartner = newStatus;
-        localStorage.setItem('personalEntrega', JSON.stringify(allPersonalEntregas));
-        
-        loadData();
-        toast({ title: 'Estado actualizado', description: `El turno ha sido marcado como "${newStatus}".` });
-    };
-
     const handleSaveAsignaciones = (turnoId: string, asignaciones: AsignacionPersonal[]) => {
         const turno = turnos.find(t => t.id === turnoId);
         if(!turno) return;
@@ -156,7 +138,18 @@ export default function PartnerPersonalPortalPage() {
         const turnoIndex = allPersonalEntregas[pedidoIndex].turnos.findIndex(t => t.id === turnoId);
         if(turnoIndex === -1) return;
 
-        allPersonalEntregas[pedidoIndex].turnos[turnoIndex].asignaciones = asignaciones;
+        const updatedTurno = { ...allPersonalEntregas[pedidoIndex].turnos[turnoIndex] };
+        updatedTurno.asignaciones = asignaciones;
+
+        // Auto-update status if all assignments are filled
+        if (asignaciones.length >= updatedTurno.cantidad) {
+            updatedTurno.statusPartner = 'Gestionado';
+        } else {
+            updatedTurno.statusPartner = 'Pendiente Asignación';
+        }
+
+        allPersonalEntregas[pedidoIndex].turnos[turnoIndex] = updatedTurno;
+
         localStorage.setItem('personalEntrega', JSON.stringify(allPersonalEntregas));
         
         loadData();
@@ -233,15 +226,7 @@ export default function PartnerPersonalPortalPage() {
                                                     </AsignacionDialog>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Select value={turno.statusPartner} onValueChange={(value: PersonalEntregaTurno['statusPartner']) => handleStatusChange(turno.id, value)}>
-                                                        <SelectTrigger className="w-40 h-8 text-xs">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="Pendiente Asignación">Pendiente</SelectItem>
-                                                            <SelectItem value="Gestionado">Gestionado</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
+                                                  <Badge variant={statusVariant[turno.statusPartner]}>{turno.statusPartner}</Badge>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -264,4 +249,3 @@ export default function PartnerPersonalPortalPage() {
         </TooltipProvider>
     );
 }
-

@@ -738,7 +738,3 @@ export type PersonalEntrega = {
     turnos: PersonalEntregaTurno[];
     status: EstadoPersonalEntrega;
 };
-
-
-
-
