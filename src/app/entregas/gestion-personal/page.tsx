@@ -6,8 +6,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Entrega, PersonalEntrega, PedidoEntrega, EntregaHito } from '@/types';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import type { PersonalEntrega, Entrega } from '@/types';
+import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -17,13 +18,30 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -34,6 +52,13 @@ type PedidoConPersonal = {
   status: string;
 };
 
+const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" | "warning" } = {
+  Pendiente: 'destructive',
+  Asignado: 'warning',
+  Confirmado: 'success',
+};
+
+
 export default function GestionPersonalEntregasPage() {
   const [pedidos, setPedidos] = useState<PedidoConPersonal[]>([]);
   const [isMounted, setIsMounted] = useState(false);
@@ -41,6 +66,7 @@ export default function GestionPersonalEntregasPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[])
@@ -171,7 +197,7 @@ export default function GestionPersonalEntregasPage() {
                   <TableCell>{format(new Date(p.os.startDate), 'dd/MM/yyyy')}</TableCell>
                   <TableCell>{p.totalPersonal}</TableCell>
                   <TableCell className="font-semibold">{p.costePersonal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                  <TableCell><Badge variant={p.status === 'Confirmado' ? 'default' : 'secondary'}>{p.status}</Badge></TableCell>
+                  <TableCell><Badge variant={statusVariant[p.status]}>{p.status}</Badge></TableCell>
                 </TableRow>
               ))
             ) : (
