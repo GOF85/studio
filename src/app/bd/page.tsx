@@ -39,11 +39,11 @@ const generalDatabasesList: DatabaseEntry[] = [
     { id: '16', name: 'Book: Tipos de Cocina', description: 'Gestión de los tipos de cocina/origen para las recetas.', itemCount: 0, path: '/tipos-cocina' },
     { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', itemCount: 0, path: '/plantillas-pedidos' },
     { id: '19', name: 'Formatos de Expedición', description: 'Define los formatos de empaquetado para producción.', itemCount: 0, path: '/formatos-expedicion' },
-    { id: '21', name: 'Datos Fiscales (Clientes/Proveedores)', description: 'Base de datos central de información fiscal.', itemCount: 0, path: '/datos-fiscales' },
 ];
 
 const providerDatabasesList: DatabaseEntry[] = [
     { id: '25', name: 'Proveedores', description: 'Base de datos central de proveedores.', itemCount: 0, path: '/proveedores' },
+    { id: '21', name: 'Datos Fiscales (Clientes/Proveedores)', description: 'Base de datos central de información fiscal.', itemCount: 0, path: '/datos-fiscales' },
     { id: '26', name: 'Catálogo de Personal Externo', description: 'Categorías y precios del personal de ETTs.', itemCount: 0, path: '/tipos-personal' },
     { id: '27', name: 'Catálogo de Transporte', description: 'Vehículos y precios de las empresas de transporte.', itemCount: 0, path: '/tipos-transporte' },
 ];
