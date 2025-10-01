@@ -709,7 +709,7 @@ export type Proveedor = {
   tipos: TipoProveedor[];
 }
 
-export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado a ETT', 'Confirmado'] as const;
+export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado', 'Confirmado'] as const;
 export type EstadoPersonalEntrega = typeof ESTADO_PERSONAL_ENTREGA[number];
 
 export type PersonalEntregaTurno = {
@@ -722,9 +722,14 @@ export type PersonalEntregaTurno = {
   categoria: string;
   tipoServicio: string;
   observaciones: string;
+  precioHora: number;
+  horaEntradaReal?: string;
+  horaSalidaReal?: string;
 };
 
 export type PersonalEntrega = {
     osId: string;
     turnos: PersonalEntregaTurno[];
+    status: EstadoPersonalEntrega;
 };
+

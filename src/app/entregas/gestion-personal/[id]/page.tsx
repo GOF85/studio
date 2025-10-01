@@ -81,6 +81,7 @@ export default function GestionPersonalEntregaPage() {
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
   const [deliveryHitos, setDeliveryHitos] = useState<EntregaHito[]>([]);
   const [forceRecalc, setForceRecalc] = useState(0);
+  const [personalEntrega, setPersonalEntrega] = useState<PersonalEntrega | null>(null);
   
   const router = useRouter();
   const params = useParams();
@@ -111,6 +112,7 @@ export default function GestionPersonalEntregaPage() {
 
         const allTurnos = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
         const turnosDelPedido = allTurnos.find(p => p.osId === osId);
+        setPersonalEntrega(turnosDelPedido || { osId, turnos: [], status: 'Pendiente' });
         if(turnosDelPedido) {
             form.reset({ turnos: turnosDelPedido.turnos.map(t => ({...t, fecha: new Date(t.fecha)})) });
         }
@@ -152,8 +154,23 @@ export default function GestionPersonalEntregaPage() {
     }, 0) || 0;
 
     return { totalPlanned: planned };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchedFields, forceRecalc]);
+
+  const handleStatusChange = (newStatus: EstadoPersonalEntrega) => {
+    if (!personalEntrega) return;
+    const updatedPersonalEntrega = { ...personalEntrega, status: newStatus };
+    setPersonalEntrega(updatedPersonalEntrega);
+    
+    const allTurnos = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
+    const index = allTurnos.findIndex(p => p.osId === osId);
+    if (index > -1) {
+      allTurnos[index] = updatedPersonalEntrega;
+    } else {
+      allTurnos.push(updatedPersonalEntrega);
+    }
+    localStorage.setItem('personalEntrega', JSON.stringify(allTurnos));
+    toast({ title: 'Estado actualizado', description: `El estado del personal es ahora: ${newStatus}` });
+  };
 
   const onSubmit = (data: FormValues) => {
     setIsLoading(true);
@@ -168,7 +185,8 @@ export default function GestionPersonalEntregaPage() {
     
     const newPersonalData: PersonalEntrega = {
         osId,
-        turnos: data.turnos.map(t => ({...t, fecha: format(t.fecha, 'yyyy-MM-dd')}))
+        turnos: data.turnos.map(t => ({...t, fecha: format(t.fecha, 'yyyy-MM-dd')})),
+        status: personalEntrega?.status || 'Pendiente'
     }
     
     if (index > -1) {
@@ -250,6 +268,14 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                         </div>
                     </div>
                      <div className="flex gap-2">
+                         <Select value={personalEntrega?.status || 'Pendiente'} onValueChange={(value: EstadoPersonalEntrega) => handleStatusChange(value)}>
+                            <SelectTrigger className="w-[200px] h-10 text-base font-semibold">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {ESTADO_PERSONAL_ENTREGA.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
                         <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
                             {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                             <span className="ml-2">Guardar Cambios</span>
@@ -308,7 +334,7 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                                         <TableHead className="px-2 py-2 w-40">Fecha</TableHead>
                                         <TableHead className="px-2 py-2 min-w-48">Proveedor - Categoría</TableHead>
                                         <TableHead className="px-1 py-2 text-center">Cant.</TableHead>
-                                        <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
+                                        <TableHead colSpan={4} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
                                         <TableHead colSpan={2} className="text-center border-r px-2 py-2">Real</TableHead>
                                         <TableHead className="text-right px-2 py-2">Acción</TableHead>
                                     </TableRow>
@@ -318,6 +344,7 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                                         <TableHead className="px-1 py-2"></TableHead>
                                         <TableHead className="border-l px-1 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
                                         <TableHead className="px-1 py-2 bg-muted/30 w-24">H. Salida</TableHead>
+                                        <TableHead className="px-1 py-2 bg-muted/30 w-20">Horas</TableHead>
                                         <TableHead className="border-r px-1 py-2 bg-muted/30 w-20">€/Hora</TableHead>
                                         <TableHead className="px-1 py-2 w-24">H. Entrada</TableHead>
                                         <TableHead className="border-r px-1 py-2 w-24">H. Salida</TableHead>
@@ -372,6 +399,9 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                                                 <TableCell className="px-1 py-1 bg-muted/30">
                                                     <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
                                                 </TableCell>
+                                                <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center">
+                                                    {calculateHours(watch(`turnos.${index}.horaEntrada`), watch(`turnos.${index}.horaSalida`)).toFixed(2)}h
+                                                </TableCell>
                                                 <TableCell className="border-r px-1 py-1 bg-muted/30">
                                                     <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
                                                 </TableCell>
@@ -390,7 +420,7 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
                                         ))
                                     ) : (
                                         <TableRow>
-                                        <TableCell colSpan={9} className="h-24 text-center">
+                                        <TableCell colSpan={10} className="h-24 text-center">
                                             No hay personal asignado. Haz clic en "Añadir Turno" para empezar.
                                         </TableCell>
                                         </TableRow>
@@ -429,3 +459,4 @@ const hitosConPersonal = useMemo(() => deliveryHitos.filter(h => h.horasCamarero
     </>
   );
 }
+
