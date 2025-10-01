@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -18,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Package, User, Printer, MapPin, Phone, Building } from 'lucide-react';
+import { CheckCircle, Package, User, Printer, MapPin, Phone, Building, Loader2 } from 'lucide-react';
 
 export default function AlbaranPage() {
     const [order, setOrder] = useState<TransporteOrder | null>(null);
@@ -108,20 +107,21 @@ export default function AlbaranPage() {
             const pageWidth = doc.internal.pageSize.getWidth();
             let finalY = margin;
 
-            // --- Estilos ---
-            const primaryColor = '#f97316';
-            const textColor = '#374151';
-            const mutedColor = '#6b7280';
-            const headerColor = '#f3f4f6';
+            // --- TEXTOS ---
+            const texts = {
+                es: { proposalTitle: 'Albarán de Entrega', client: 'Cliente:', item: 'Producto', qty: 'Cantidad', receivedBy: 'Recibido por:', signatureDate: 'Fecha y hora:', signature: 'Firma:', footer: 'MICE Catering - Albarán de Entrega' },
+                en: { proposalTitle: 'Delivery Note', client: 'Client:', item: 'Product', qty: 'Quantity', receivedBy: 'Received by:', signatureDate: 'Date & time:', signature: 'Signature:', footer: 'MICE Catering - Delivery Note' }
+            };
+            const T = texts['es'];
 
-            // --- Cabecera ---
+            // --- CABECERA ---
             doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
-            doc.setTextColor(primaryColor);
-            doc.text('Albarán de Entrega', margin, finalY);
-            
+            doc.setTextColor('#f97316'); // Orange
+            doc.text(T.proposalTitle, margin, finalY);
+
             doc.setFontSize(12);
-            doc.setTextColor(textColor);
+            doc.setTextColor('#374151');
             doc.text(expedicionNumero, margin, finalY + 8);
             
             doc.setFontSize(9);
@@ -146,10 +146,10 @@ export default function AlbaranPage() {
             // --- Artículos ---
             autoTable(doc, {
                 startY: finalY,
-                head: [['Producto', 'Cantidad']],
+                head: [[T.item, T.qty]],
                 body: deliveryItems.map(item => [item.nombre, `${item.quantity} uds.`]),
                 theme: 'grid',
-                headStyles: { fillColor: headerColor, textColor: textColor, fontStyle: 'bold' },
+                headStyles: { fillColor: '#f3f4f6', textColor: '#374151', fontStyle: 'bold' },
                 styles: { fontSize: 9 }
             });
             finalY = (doc as any).lastAutoTable.finalY + 15;
@@ -165,9 +165,9 @@ export default function AlbaranPage() {
             finalY += 6;
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
-            doc.text(`Recibido por: ${order.firmadoPor} ${order.dniReceptor ? `(${order.dniReceptor})` : ''}`, margin, finalY);
+            doc.text(`${T.receivedBy} ${order.firmadoPor} ${order.dniReceptor ? `(${order.dniReceptor})` : ''}`, margin, finalY);
             if(order.fechaFirma) {
-                doc.text(`Fecha y hora: ${format(new Date(order.fechaFirma), 'dd/MM/yyyy HH:mm', { locale: es })}`, margin, finalY + 4);
+                doc.text(`${T.signatureDate} ${format(new Date(order.fechaFirma), 'dd/MM/yyyy HH:mm', { locale: es })}`, margin, finalY + 4);
             }
             finalY += 10;
             doc.addImage(order.firmaUrl, 'PNG', margin, finalY, 80, 40);
@@ -179,11 +179,10 @@ export default function AlbaranPage() {
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
                 doc.setFontSize(8);
-                doc.setTextColor(mutedColor);
-                doc.text(`MICE Catering - Albarán`, margin, pageHeight - 10);
+                doc.setTextColor('#6b7280');
+                doc.text(`${T.footer}`, margin, pageHeight - 10);
                 doc.text(`Página ${i} de ${pageCount}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
             }
-
 
             doc.save(`Albaran_${expedicionNumero}.pdf`);
         } catch (error) {
@@ -192,7 +191,8 @@ export default function AlbaranPage() {
         } finally {
             setIsPrinting(false);
         }
-    }
+    };
+
 
     if (!isMounted || !order) {
         return <LoadingSkeleton title="Cargando Albarán..." />;
@@ -215,15 +215,15 @@ export default function AlbaranPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-6">
-                        <div>
-                            <h3 className="font-bold mb-1">Información de Entrega</h3>
+                     <div className="grid md:grid-cols-2 gap-4 text-sm mb-6">
+                        <div className="space-y-1">
+                            <h3 className="font-bold mb-1 flex items-center gap-2"><Building className="h-4 w-4"/>Información de Entrega</h3>
                             <p className="font-semibold text-base">{entrega?.client || ''}</p>
-                            <p>{order.lugarEntrega}</p>
-                            <p>Hora de entrega: {order.horaEntrega}</p>
+                            <p className="flex items-center gap-2"><MapPin className="h-4 w-4"/>{order.lugarEntrega}</p>
+                            <p className="flex items-center gap-2"><Clock className="h-4 w-4"/>Hora de entrega: {order.horaEntrega}</p>
                         </div>
                         {order.observaciones && (
-                             <div className="col-span-1">
+                             <div className="space-y-1">
                                  <h3 className="font-bold mb-1">Observaciones</h3>
                                  <p className="text-muted-foreground">{order.observaciones}</p>
                             </div>
