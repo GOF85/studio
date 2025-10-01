@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -23,7 +24,6 @@ import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { Header } from '@/components/layout/header';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -31,6 +31,7 @@ type PedidoConPersonal = {
   os: Entrega;
   totalPersonal: number;
   costePersonal: number;
+  status: string;
 };
 
 export default function GestionPersonalEntregasPage() {
@@ -54,7 +55,7 @@ export default function GestionPersonalEntregasPage() {
             return sum + (horas * (turno.precioHora || 0) * turno.cantidad);
         }, 0) || 0;
         
-        return { os, totalPersonal, costePersonal };
+        return { os, totalPersonal, costePersonal, status: personalAsignado?.status || 'Pendiente' };
     });
 
     setPedidos(pedidosConDatos);
@@ -108,8 +109,6 @@ export default function GestionPersonalEntregasPage() {
   }
 
   return (
-    <>
-    <Header />
     <main className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal de Entregas</h1>
@@ -156,6 +155,7 @@ export default function GestionPersonalEntregasPage() {
               <TableHead>Fecha Evento</TableHead>
               <TableHead>Nº Personal Asignado</TableHead>
               <TableHead>Coste Total Personal</TableHead>
+              <TableHead>Estado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -171,11 +171,12 @@ export default function GestionPersonalEntregasPage() {
                   <TableCell>{format(new Date(p.os.startDate), 'dd/MM/yyyy')}</TableCell>
                   <TableCell>{p.totalPersonal}</TableCell>
                   <TableCell className="font-semibold">{p.costePersonal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                  <TableCell><Badge variant={p.status === 'Confirmado' ? 'default' : 'secondary'}>{p.status}</Badge></TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   No hay pedidos de entrega que requieran personal o coincidan con los filtros.
                 </TableCell>
               </TableRow>
@@ -184,7 +185,5 @@ export default function GestionPersonalEntregasPage() {
         </Table>
       </div>
     </main>
-    </>
   );
 }
-
