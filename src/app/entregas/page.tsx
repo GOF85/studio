@@ -136,6 +136,16 @@ export default function EntregasDashboardPage() {
                         </CardContent>
                     </Card>
                 </Link>
+                <Link href="/portal/personal">
+                    <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-3"><Users />Portal de Personal</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">Gestiona los turnos de personal de ETTs.</p>
+                        </CardContent>
+                    </Card>
+                </Link>
                  <Link href="/docs/entregas-manual">
                     <Card className="h-full hover:border-primary/50 hover:shadow-lg transition-all">
                         <CardHeader>
