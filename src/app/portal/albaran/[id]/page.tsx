@@ -6,6 +6,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import SignatureCanvas from 'react-signature-canvas';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import type { TransporteOrder, PedidoEntrega, ProductoVenta, Entrega } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Package, User } from 'lucide-react';
+import { CheckCircle, Package, User, Printer } from 'lucide-react';
 
 export default function AlbaranPage() {
     const [order, setOrder] = useState<TransporteOrder | null>(null);
@@ -91,6 +93,53 @@ export default function AlbaranPage() {
             toast({ title: 'Entrega Confirmada', description: 'El albarán ha sido firmado y guardado.' });
         }
     };
+    
+    const handlePrintSigned = () => {
+        if (!order || !order.firmaUrl || !entrega) return;
+        const doc = new jsPDF();
+
+        // Header
+        doc.setFontSize(18);
+        doc.text('Albarán de Entrega', 15, 20);
+        doc.setFontSize(12);
+        doc.text(expedicionNumero, 15, 28);
+        
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${format(new Date(order.fecha), 'dd/MM/yyyy', { locale: es })}`, 195, 20, { align: 'right' });
+
+        // Delivery Info
+        autoTable(doc, {
+            startY: 35,
+            body: [
+                ['Cliente', entrega.client],
+                ['Lugar Entrega', order.lugarEntrega],
+                ['Hora Entrega', order.horaEntrega],
+            ],
+            theme: 'plain',
+            styles: { fontSize: 9 }
+        });
+
+        // Items
+        autoTable(doc, {
+            startY: (doc as any).lastAutoTable.finalY + 5,
+            head: [['Producto', 'Cantidad']],
+            body: deliveryItems.map(item => [item.nombre, `${item.quantity} uds.`]),
+            theme: 'striped',
+            headStyles: { fillColor: [240, 240, 240] }
+        });
+        
+        // Signature
+        const signatureY = (doc as any).lastAutoTable.finalY + 10;
+        doc.setFontSize(11);
+        doc.text('Confirmación de Entrega:', 15, signatureY);
+        doc.setFontSize(9);
+        doc.text(`Recibido por: ${order.firmadoPor} ${order.dniReceptor ? `(${order.dniReceptor})` : ''}`, 15, signatureY + 5);
+        doc.addImage(order.firmaUrl, 'PNG', 15, signatureY + 10, 80, 40);
+        doc.setDrawColor(200, 200, 200);
+        doc.rect(15, signatureY + 10, 80, 40);
+
+        doc.save(`Albaran_${expedicionNumero}.pdf`);
+    }
 
     if (!isMounted || !order) {
         return <LoadingSkeleton title="Cargando Albarán..." />;
@@ -99,13 +148,13 @@ export default function AlbaranPage() {
     const isDelivered = order.status === 'Entregado';
 
     return (
-        <main className="container mx-auto px-4 py-8 max-w-2xl">
+        <main className="container mx-auto px-4 py-8 max-w-4xl">
             <Card>
                 <CardHeader>
                     <div className="flex justify-between items-start">
                         <div>
                             <CardTitle>Albarán de Entrega</CardTitle>
-                            <CardDescription>{expedicionNumero}</CardDescription>
+                            <CardDescription className="font-mono text-lg">{expedicionNumero}</CardDescription>
                         </div>
                         <Badge variant={isDelivered ? 'default' : 'secondary'} className={isDelivered ? 'bg-green-600' : ''}>
                             {order.status}
@@ -113,16 +162,16 @@ export default function AlbaranPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid grid-cols-1 gap-4 text-sm mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-6">
                         <div>
-                            <h3 className="font-bold">Información de Entrega</h3>
-                            <p className="font-semibold">{entrega?.client || ''}</p>
+                            <h3 className="font-bold mb-1">Información de Entrega</h3>
+                             <p className="font-semibold text-base">{entrega?.client || ''}</p>
                             <p>{order.lugarEntrega}</p>
                             <p>Hora de entrega: {order.horaEntrega}</p>
                         </div>
                         {order.observaciones && (
                              <div className="col-span-1">
-                                 <h3 className="font-bold">Observaciones</h3>
+                                 <h3 className="font-bold mb-1">Observaciones</h3>
                                  <p className="text-muted-foreground">{order.observaciones}</p>
                             </div>
                         )}
@@ -149,6 +198,10 @@ export default function AlbaranPage() {
                             <div className="border rounded-lg p-4 bg-secondary/50">
                                 <p className="flex items-center gap-2 mb-2"><User className="h-4 w-4"/>Recibido por: <span className="font-semibold">{order.firmadoPor} {order.dniReceptor && `(${order.dniReceptor})`}</span></p>
                                 <img src={order.firmaUrl} alt="Firma del receptor" className="border rounded-md bg-white w-full h-auto"/>
+                                <Button onClick={handlePrintSigned} className="mt-4 w-full">
+                                    <Printer className="mr-2" />
+                                    Previsualizar Albarán (PDF)
+                                </Button>
                             </div>
                         </div>
                     ) : (
