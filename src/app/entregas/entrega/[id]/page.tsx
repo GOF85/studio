@@ -1,6 +1,5 @@
 
 
-      
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -40,7 +39,7 @@ export default function ConfeccionarEntregaPage() {
         const currentPedido = allPedidos.find(p => p.osId === osId);
         const currentHito = currentPedido?.hitos?.find(h => h.id === hitoId);
 
-        if (currentPedido && currentHito) {
+        if (currentPedido && currentHito && currentEntrega) {
             const hitoIndex = currentPedido.hitos.findIndex(h => h.id === hitoId);
             if (hitoIndex !== -1 && currentEntrega) {
                 setExpedicionNumero(`${currentEntrega.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`);
@@ -77,7 +76,7 @@ export default function ConfeccionarEntregaPage() {
             if(hitoIndex > -1) {
                 allPedidosEntrega[pedidoIndex].hitos[hitoIndex] = updatedHito;
                 localStorage.setItem('pedidosEntrega', JSON.stringify(allPedidosEntrega));
-                toast({ title: 'Entrega actualizada' });
+                // Do not toast on every change for a smoother experience
             }
         }
     };
@@ -117,7 +116,13 @@ export default function ConfeccionarEntregaPage() {
         const totalProductos = hito.items.reduce((sum, item) => sum + (item.pvp * item.quantity), 0);
         const costePorte = entrega?.tarifa === 'IFEMA' ? 95 : 30;
         const totalPortes = (hito.portes || 0) * costePorte;
-        return totalProductos + totalPortes;
+        
+        const horasCamarero = hito.horasCamarero || 0;
+        const horasFacturables = horasCamarero > 0 && horasCamarero < 4 ? 4 : horasCamarero;
+        const pvpCamareroHora = entrega?.tarifa === 'IFEMA' ? 44.50 : 36.50;
+        const totalPvpCamarero = horasFacturables * pvpCamareroHora;
+
+        return totalProductos + totalPortes + totalPvpCamarero;
     }, [hito, entrega]);
 
 

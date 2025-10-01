@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { ShoppingCart, Trash2, Minus, Plus, Truck, Users } from 'lucide-react';
+import { ShoppingCart, Trash2, Minus, Plus, Truck, Users, AlertTriangle } from 'lucide-react';
 
 import type { PedidoEntregaItem, EntregaHito, Entrega } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import { useFormContext } from 'react-hook-form';
 import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import { cn } from '@/lib/utils';
 
 interface DeliveryOrderSummaryProps {
   entrega: Entrega;
@@ -44,9 +46,12 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
     onUpdateHito({ ...hito, horasCamarero: newQuantity });
   };
 
+  const handleObservacionesChange = (observaciones: string) => {
+    onUpdateHito({ ...hito, observaciones });
+  };
 
   const onClearOrder = () => {
-    onUpdateHito({ ...hito, items: [], portes: 0, horasCamarero: 0 });
+    onUpdateHito({ ...hito, items: [], portes: 0, horasCamarero: 0, observaciones: '' });
   };
 
   const { costeTotal, pvpTotalProductos } = useMemo(() => {
@@ -85,106 +90,127 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
   const pvpTotalFinal = pvpTotalProductos + totalPortes + totalPvpCamarero;
 
   return (
-    <Card className="sticky top-24 h-[calc(100vh-7rem)] flex flex-col theme-orange">
-      <CardHeader className="flex-grow-0 flex-shrink-0 flex flex-row items-center justify-between">
-        <CardTitle className="text-xl font-headline">Resumen de la Entrega</CardTitle>
-        {hito.items.length > 0 && isEditing && (
-          <Button variant="ghost" size="sm" onClick={onClearOrder} aria-label="Vaciar entrega">
-            <Trash2 className="h-4 w-4 mr-1" />
-            Vaciar
-          </Button>
-        )}
-      </CardHeader>
-      <div className="flex-grow overflow-y-auto">
-        <CardContent className="p-4">
-          {hito.items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10">
-              <ShoppingCart className="h-12 w-12 mb-4" />
-              <p className="font-medium">Entrega vacía</p>
-              <p className="text-sm">Añade productos desde el catálogo para empezar.</p>
-            </div>
-          ) : (
-              <div className="space-y-6">
-                {Object.entries(groupedItems).map(([category, items]) => (
-                  <div key={category}>
-                    <h4 className="font-semibold text-sm mb-2 pb-1 border-b">{category}</h4>
-                    <ul className="space-y-4">
-                      {items.map((item) => (
-                        <li key={item.id} className="flex items-center gap-4">
-                          <div className="flex-grow">
-                            <p className="font-medium leading-tight">{item.nombre}</p>
-                            <p className="text-sm text-muted-foreground">
-                              PVP: {formatCurrency(item.pvp)}
-                            </p>
-                          </div>
-                           {isEditing && (
-                            <div className="flex items-center gap-1">
-                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}><Minus className="h-4 w-4" /></Button>
-                              <Input type="number" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
-                              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}><Plus className="h-4 w-4" /></Button>
+    <div className="sticky top-24 space-y-4">
+        <Card className="max-h-[calc(100vh-24rem)] flex flex-col theme-orange">
+        <CardHeader className="flex-grow-0 flex-shrink-0 flex flex-row items-center justify-between">
+            <CardTitle className="text-xl font-headline">Resumen de la Entrega</CardTitle>
+            {hito.items.length > 0 && isEditing && (
+            <Button variant="ghost" size="sm" onClick={onClearOrder} aria-label="Vaciar entrega">
+                <Trash2 className="h-4 w-4 mr-1" />
+                Vaciar
+            </Button>
+            )}
+        </CardHeader>
+        <div className="flex-grow overflow-y-auto">
+            <CardContent className="p-4">
+            {hito.items.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10">
+                <ShoppingCart className="h-12 w-12 mb-4" />
+                <p className="font-medium">Entrega vacía</p>
+                <p className="text-sm">Añade productos desde el catálogo para empezar.</p>
+                </div>
+            ) : (
+                <div className="space-y-6">
+                    {Object.entries(groupedItems).map(([category, items]) => (
+                    <div key={category}>
+                        <h4 className="font-semibold text-sm mb-2 pb-1 border-b">{category}</h4>
+                        <ul className="space-y-4">
+                        {items.map((item) => (
+                            <li key={item.id} className="flex items-center gap-4">
+                            <div className="flex-grow">
+                                <p className="font-medium leading-tight">{item.nombre}</p>
+                                <p className="text-sm text-muted-foreground">
+                                PVP: {formatCurrency(item.pvp)}
+                                </p>
                             </div>
-                          )}
-                          {!isEditing && <span className="font-semibold">{item.quantity} uds.</span>}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-          )}
-        </CardContent>
-      </div>
-      {(hito.items.length > 0 || hito.portes > 0 || hito.horasCamarero > 0) && (
-        <>
-          <Separator />
-          <div className="flex-grow-0 flex-shrink-0 p-4">
-             <div className="mb-4 space-y-4">
-                <Label className="font-semibold text-base">Servicios Adicionales</Label>
-                <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                        <Truck className="h-5 w-5 text-muted-foreground" />
-                        <span>Portes ({formatCurrency(costePorte)}/ud)</span>
+                            {isEditing && (
+                                <div className="flex items-center gap-1">
+                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}><Minus className="h-4 w-4" /></Button>
+                                <Input type="number" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
+                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}><Plus className="h-4 w-4" /></Button>
+                                </div>
+                            )}
+                            {!isEditing && <span className="font-semibold">{item.quantity} uds.</span>}
+                            </li>
+                        ))}
+                        </ul>
                     </div>
-                    <div className="flex items-center gap-1">
-                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handlePortesChange((hito.portes || 0) - 1)}><Minus className="h-4 w-4" /></Button>
-                        <Input type="number" value={hito.portes || 0} onChange={(e) => handlePortesChange(parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
-                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handlePortesChange((hito.portes || 0) + 1)}><Plus className="h-4 w-4" /></Button>
-                    </div>
+                    ))}
                 </div>
-                 <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                        <Users className="h-5 w-5 text-muted-foreground" />
-                        <span>Horas de Camarero ({formatCurrency(pvpCamareroHora)}/h)</span>
+            )}
+            </CardContent>
+        </div>
+        {(hito.items.length > 0 || hito.portes > 0 || hito.horasCamarero > 0) && (
+            <>
+            <Separator />
+            <div className="flex-grow-0 flex-shrink-0 p-4">
+                <div className="mb-4 space-y-4">
+                    <Label className="font-semibold text-base">Servicios Adicionales</Label>
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <Truck className="h-5 w-5 text-muted-foreground" />
+                            <span>Portes ({formatCurrency(costePorte)}/ud)</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handlePortesChange((hito.portes || 0) - 1)}><Minus className="h-4 w-4" /></Button>
+                            <Input type="number" value={hito.portes || 0} onChange={(e) => handlePortesChange(parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handlePortesChange((hito.portes || 0) + 1)}><Plus className="h-4 w-4" /></Button>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleHorasCamareroChange((hito.horasCamarero || 0) - 1)}><Minus className="h-4 w-4" /></Button>
-                        <Input type="number" value={hito.horasCamarero || 0} onChange={(e) => handleHorasCamareroChange(parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
-                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleHorasCamareroChange((hito.horasCamarero || 0) + 1)}><Plus className="h-4 w-4" /></Button>
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <Users className="h-5 w-5 text-muted-foreground" />
+                            <span>Horas de Camarero ({formatCurrency(pvpCamareroHora)}/h)</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleHorasCamareroChange((hito.horasCamarero || 0) - 1)}><Minus className="h-4 w-4" /></Button>
+                            <Input type="number" value={hito.horasCamarero || 0} onChange={(e) => handleHorasCamareroChange(parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleHorasCamareroChange((hito.horasCamarero || 0) + 1)}><Plus className="h-4 w-4" /></Button>
+                        </div>
                     </div>
+                    {horasCamarero > 0 && horasCamarero < 4 && <p className="text-xs text-amber-600 text-center">Se facturará el mínimo de 4 horas de servicio.</p>}
                 </div>
-                 {horasCamarero > 0 && horasCamarero < 4 && <p className="text-xs text-amber-600 text-center">Se facturará el mínimo de 4 horas de servicio.</p>}
-            </div>
 
-            <Separator className="my-4"/>
+                <Separator className="my-4"/>
 
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>Coste Total Productos:</span>
-                <span>{formatCurrency(costeTotal)}</span>
-              </div>
-               <div className="flex justify-between">
-                <span>Coste Total Serv. Camarero:</span>
-                <span>{formatCurrency(totalCosteCamarero)}</span>
-              </div>
-              <Separator className="my-2" />
-              <div className="flex justify-between font-bold text-lg pt-2 text-primary">
-                <span>PVP Total:</span>
-                <span>{formatCurrency(pvpTotalFinal)}</span>
-              </div>
+                <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                    <span>Coste Total Productos:</span>
+                    <span>{formatCurrency(costeTotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span>Coste Total Serv. Camarero:</span>
+                    <span>{formatCurrency(totalCosteCamarero)}</span>
+                </div>
+                <Separator className="my-2" />
+                <div className="flex justify-between font-bold text-lg pt-2 text-primary">
+                    <span>PVP Total:</span>
+                    <span>{formatCurrency(pvpTotalFinal)}</span>
+                </div>
+                </div>
             </div>
-          </div>
-        </>
-        )}
-    </Card>
+            </>
+            )}
+        </Card>
+        <Card className={cn(horasCamarero > 0 && "border-amber-500 bg-amber-50")}>
+            <CardHeader className="py-3">
+                <CardTitle className="text-base font-semibold">Observaciones de la Entrega</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+                <Textarea 
+                    value={hito.observaciones || ''}
+                    onChange={(e) => handleObservacionesChange(e.target.value)}
+                    rows={2}
+                    placeholder="Añadir notas sobre la entrega, contacto, etc."
+                />
+                 {horasCamarero > 0 && (
+                    <div className="mt-2 text-sm text-amber-700 font-bold flex items-center gap-2 p-2 bg-amber-100 rounded-md">
+                        <AlertTriangle className="h-5 w-5" />
+                        <span>IMPORTANTE: Es necesario rellenar los datos para el servicio de camarero.</span>
+                    </div>
+                 )}
+            </CardContent>
+        </Card>
+    </div>
   );
 }
