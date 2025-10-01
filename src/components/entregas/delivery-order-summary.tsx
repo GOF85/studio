@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { ShoppingCart, Trash2, Minus, Plus, Truck } from 'lucide-react';
+import { ShoppingCart, Trash2, Minus, Plus, Truck, Users } from 'lucide-react';
 
 import type { PedidoEntregaItem, EntregaHito, Entrega } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,12 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
     const newQuantity = Math.max(0, quantity);
     onUpdateHito({ ...hito, portes: newQuantity });
   };
+  
+  const handleHorasCamareroChange = (quantity: number) => {
+    const newQuantity = Math.max(0, quantity);
+    onUpdateHito({ ...hito, horasCamarero: newQuantity });
+  };
+
 
   const onClearOrder = () => {
     onUpdateHito({ ...hito, items: [], portes: 0 });
@@ -68,7 +74,15 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
   
   const costePorte = entrega.tarifa === 'IFEMA' ? 95 : 30;
   const totalPortes = (hito.portes || 0) * costePorte;
-  const pvpTotalFinal = pvpTotalProductos + totalPortes;
+  
+  const horasCamarero = hito.horasCamarero || 0;
+  const horasFacturables = horasCamarero > 0 && horasCamarero < 4 ? 4 : horasCamarero;
+  const pvpCamareroHora = entrega.tarifa === 'IFEMA' ? 44.50 : 36.50;
+  const costeCamareroHora = 17.50;
+  const totalPvpCamarero = horasFacturables * pvpCamareroHora;
+  const totalCosteCamarero = horasCamarero * costeCamareroHora;
+
+  const pvpTotalFinal = pvpTotalProductos + totalPortes + totalPvpCamarero;
 
   return (
     <Card className="sticky top-24 h-[calc(100vh-7rem)] flex flex-col theme-orange">
@@ -120,13 +134,13 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
           )}
         </CardContent>
       </div>
-      {(hito.items.length > 0 || hito.portes > 0) && (
+      {(hito.items.length > 0 || hito.portes > 0 || hito.horasCamarero > 0) && (
         <>
           <Separator />
           <div className="flex-grow-0 flex-shrink-0 p-4">
-             <div className="mb-4">
-                <Label className="font-semibold text-base">Logística</Label>
-                <div className="flex justify-between items-center mt-2">
+             <div className="mb-4 space-y-4">
+                <Label className="font-semibold text-base">Servicios Adicionales</Label>
+                <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                         <Truck className="h-5 w-5 text-muted-foreground" />
                         <span>Portes ({formatCurrency(costePorte)}/ud)</span>
@@ -137,18 +151,30 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
                         <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handlePortesChange((hito.portes || 0) + 1)}><Plus className="h-4 w-4" /></Button>
                     </div>
                 </div>
+                 <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <Users className="h-5 w-5 text-muted-foreground" />
+                        <span>Horas de Camarero ({formatCurrency(pvpCamareroHora)}/h)</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleHorasCamareroChange((hito.horasCamarero || 0) - 1)}><Minus className="h-4 w-4" /></Button>
+                        <Input type="number" value={hito.horasCamarero || 0} onChange={(e) => handleHorasCamareroChange(parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
+                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleHorasCamareroChange((hito.horasCamarero || 0) + 1)}><Plus className="h-4 w-4" /></Button>
+                    </div>
+                </div>
+                 {horasCamarero > 0 && horasCamarero < 4 && <p className="text-xs text-amber-600 text-center">Se facturará el mínimo de 4 horas de servicio.</p>}
             </div>
 
             <Separator className="my-4"/>
 
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>Coste Total Producción:</span>
+                <span>Coste Total Productos:</span>
                 <span>{formatCurrency(costeTotal)}</span>
               </div>
                <div className="flex justify-between">
-                <span>Coste Total Portes:</span>
-                <span>{formatCurrency(totalPortes)}</span>
+                <span>Coste Total Serv. Camarero:</span>
+                <span>{formatCurrency(totalCosteCamarero)}</span>
               </div>
               <Separator className="my-2" />
               <div className="flex justify-between font-bold text-lg pt-2 text-primary">

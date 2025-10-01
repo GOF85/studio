@@ -98,7 +98,20 @@ export default function AnaliticaEntregasPage() {
                     const totalPortesHito = (hito.portes || 0) * costePorte;
                     pvpTotal += totalPortesHito;
                     pvpIfemaTotal += totalPortesHito;
-                    costesPorCategoria[GASTO_LABELS.transporte] = (costesPorCategoria[GASTO_LABELS.transporte] || 0); // Placeholder, real cost comes from transport orders
+
+                    const horasCamarero = hito.horasCamarero || 0;
+                    if(horasCamarero > 0) {
+                        const horasFacturables = horasCamarero > 0 && horasCamarero < 4 ? 4 : horasCamarero;
+                        const pvpCamareroHora = os.tarifa === 'IFEMA' ? 44.50 : 36.50;
+                        const costeCamareroHora = 17.50;
+                        const pvpServicioCamarero = horasFacturables * pvpCamareroHora;
+                        const costeServicioCamarero = horasCamarero * costeCamareroHora;
+                        
+                        pvpTotal += pvpServicioCamarero;
+                        pvpIfemaTotal += pvpServicioCamarero;
+                        costeTotal += costeServicioCamarero;
+                        costesPorCategoria['Personal'] = (costesPorCategoria['Personal'] || 0) + costeServicioCamarero;
+                    }
 
                     (hito.items || []).forEach(item => {
                         const producto = productosMap.get(item.id);
@@ -226,15 +239,28 @@ export default function AnaliticaEntregasPage() {
         const costeProductos = Object.entries(costesPorCategoria).reduce((sum, [cat, val]) => {
             return cat === GASTO_LABELS.transporte ? sum : sum + val;
         }, 0);
-
+        
         const pvpTransporte = seleccion.reduce((sum, item) => {
             const costePorte = item.os.tarifa === 'IFEMA' ? 95 : 30;
             const pedido = allPedidosEntrega.find(p => p.osId === item.os.id);
             const portes = pedido?.hitos.reduce((hSum, hito) => hSum + (hito.portes || 0), 0) || 0;
             return sum + (portes * costePorte);
         }, 0);
+
+        const pvpCamareros = seleccion.reduce((sum, item) => {
+            const pvpCamareroHora = item.os.tarifa === 'IFEMA' ? 44.50 : 36.50;
+            const pedido = allPedidosEntrega.find(p => p.osId === item.os.id);
+            const horas = pedido?.hitos.reduce((hSum, hito) => {
+                const h = hito.horasCamarero || 0;
+                return hSum + (h > 0 && h < 4 ? 4 : h);
+            }, 0) || 0;
+            return sum + (horas * pvpCamareroHora);
+        }, 0);
         
-        const pvpPorCategoria: { [key: string]: number } = { [GASTO_LABELS.transporte]: pvpTransporte };
+        const pvpPorCategoria: { [key: string]: number } = { 
+            [GASTO_LABELS.transporte]: pvpTransporte,
+            'Personal': pvpCamareros
+        };
 
         Object.values(productosAgregados).forEach(p => {
              pvpPorCategoria[p.categoria] = (pvpPorCategoria[p.categoria] || 0) + p.pvp;
@@ -608,7 +634,20 @@ export default function AnaliticaEntregasPage() {
                             </Card>
                          </div>
                          <Card>
-                            <CardHeader><CardTitle>Listado de Viajes</CardTitle></CardHeader>
+                            <CardHeader>
+                                <div className="flex justify-between items-center">
+                                    <CardTitle>Listado de Viajes</CardTitle>
+                                    <Select value={transporteProviderFilter} onValueChange={setTransporteProviderFilter}>
+                                        <SelectTrigger className="w-full md:w-[240px]">
+                                            <SelectValue placeholder="Filtrar por transportista" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Todos los transportistas</SelectItem>
+                                            {proveedoresTransporte.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreProveedor}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </CardHeader>
                             <CardContent>
                                  <Table>
                                     <TableHeader><TableRow><TableHead>OS</TableHead><TableHead>Proveedor</TableHead><TableHead>Tipo Vehículo</TableHead><TableHead className="text-right">Coste</TableHead></TableRow></TableHeader>

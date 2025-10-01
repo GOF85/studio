@@ -1,6 +1,5 @@
 
 
-
 import { z } from "zod";
 
 export type CateringItem = {
@@ -648,6 +647,7 @@ export type EntregaHito = {
     observaciones?: string;
     items: PedidoEntregaItem[];
     portes?: number;
+    horasCamarero?: number;
 }
 export type PedidoEntrega = {
     osId: string;
