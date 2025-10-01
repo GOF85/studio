@@ -146,7 +146,7 @@ export default function TransportePortalPage() {
                                                     <MapPin className="h-5 w-5 text-primary" />
                                                     {order.lugarEntrega}
                                                 </p>
-                                                <p className="text-sm text-muted-foreground">{order.os?.client} (OS: {order.os?.serviceNumber})</p>
+                                                <p className="text-sm text-muted-foreground">{order.os?.serviceNumber} - {order.os?.client}</p>
                                             </div>
                                             <Badge variant={statusVariant[order.status]} className="text-base px-3 py-1">{order.status}</Badge>
                                         </div>
