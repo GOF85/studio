@@ -359,19 +359,31 @@ export default function ProductoVentaFormPage() {
                                     </FormItem>
                                 )} />
                                 {isProducidoPorPartner && (
-                                <FormField control={form.control} name="partnerId" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Partner Productor</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar Partner..."/></SelectTrigger></FormControl>
-                                            <SelectContent>
-                                                {partnersDB.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreProveedor}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage/>
+                                    <FormField control={form.control} name="partnerId" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Partner Productor</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar Partner..."/></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    {partnersDB.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreProveedor}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage/>
+                                        </FormItem>
+                                    )} />
+                                )}
+                             </div>
+                             <div className="space-y-4">
+                                <FormField control={form.control} name="exclusivoIfema" render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-[40px]">
+                                    <FormControl>
+                                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                    </FormControl>
+                                    <div className="space-y-1 leading-none">
+                                        <FormLabel>Exclusivo IFEMA</FormLabel>
+                                    </div>
                                     </FormItem>
                                 )} />
-                                )}
                                 <FormField control={form.control} name="recetaId" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Receta Vinculada (Opcional)</FormLabel>
@@ -386,18 +398,6 @@ export default function ProductoVentaFormPage() {
                                     </FormItem>
                                 )} />
                              </div>
-                            <div className="space-y-4">
-                                <FormField control={form.control} name="exclusivoIfema" render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-[40px]">
-                                    <FormControl>
-                                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                    </FormControl>
-                                    <div className="space-y-1 leading-none">
-                                        <FormLabel>Exclusivo IFEMA</FormLabel>
-                                    </div>
-                                    </FormItem>
-                                )} />
-                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -552,4 +552,3 @@ export default function ProductoVentaFormPage() {
     </>
   );
 }
-
