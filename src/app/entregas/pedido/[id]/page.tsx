@@ -1,6 +1,4 @@
 
-
-      
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -413,19 +411,6 @@ export default function EntregaFormPage() {
   const spacePercentage = watch('spacePercentage');
   const spaceCommissionValue = watch('spaceCommissionValue');
 
-  const { totalComisiones, comisionAgenciaTotal, comisionCanonTotal } = useMemo(() => {
-    const agencyDiscount = pvpTotalHitos * ((agencyPercentage || 0) / 100);
-    const spaceDiscount = pvpTotalHitos * ((spacePercentage || 0) / 100);
-    const agenciaTotal = agencyDiscount + (agencyCommissionValue || 0);
-    const canonTotal = spaceDiscount + (spaceCommissionValue || 0);
-    return {
-      totalComisiones: agenciaTotal + canonTotal,
-      comisionAgenciaTotal: agenciaTotal,
-      comisionCanonTotal: canonTotal,
-    };
-  }, [pvpTotalHitos, agencyPercentage, agencyCommissionValue, spacePercentage, spaceCommissionValue]);
-
-
   useEffect(() => {
     if (isEditing) {
       const allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
@@ -515,6 +500,12 @@ export default function EntregaFormPage() {
     let allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
     let message = '';
     let currentId = isEditing ? id : Date.now().toString();
+
+    // Recalculate commissions just before saving
+    const agencyDiscount = pvpTotalHitos * ((data.agencyPercentage || 0) / 100);
+    const spaceDiscount = pvpTotalHitos * ((data.spacePercentage || 0) / 100);
+    const comisionAgenciaTotal = agencyDiscount + (data.agencyCommissionValue || 0);
+    const comisionCanonTotal = spaceDiscount + (data.spaceCommissionValue || 0);
 
     const entregaData: Entrega = {
         ...data,
@@ -646,7 +637,7 @@ export default function EntregaFormPage() {
             body: clientInfo,
             startY: finalY,
             theme: 'plain',
-            styles: { fontSize: 9, cellPadding: 0.8 },
+            styles: { fontSize: 9, cellPadding: 0.5 },
             columnStyles: { 0: { fontStyle: 'bold' } }
         });
         finalY = (doc as any).lastAutoTable.finalY + 10;
@@ -842,7 +833,7 @@ export default function EntregaFormPage() {
                     </CardContent>
                 </Card>
                 
-                 <Accordion type="multiple" defaultValue={['cliente-info', 'financial-info']} className="w-full space-y-4">
+                 <Accordion type="single" defaultValue="cliente-info" collapsible className="w-full space-y-4">
                     <AccordionItem value="cliente-info" className="border-none">
                         <Card>
                             <AccordionTrigger className="p-0"><ClienteTitle /></AccordionTrigger>
@@ -859,10 +850,6 @@ export default function EntregaFormPage() {
                                       <FormField control={control} name="agencyCommissionValue" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (€)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
                                       <FormField control={control} name="spacePercentage" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (%)</FormLabel><FormControl><Input type="number" {...field} className="w-28" readOnly={tarifa === 'IFEMA'} /></FormControl></FormItem>)} />
                                       <FormField control={control} name="spaceCommissionValue" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (€)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
-                                      <FormItem>
-                                          <FormLabel>Total Comisiones</FormLabel>
-                                          <FormControl><Input value={formatCurrency(totalComisiones)} readOnly className="w-32"/></FormControl>
-                                      </FormItem>
                                   </div>
                                 </div>
                              </AccordionContent>
@@ -970,4 +957,3 @@ export default function EntregaFormPage() {
     </main>
   );
 }
-
