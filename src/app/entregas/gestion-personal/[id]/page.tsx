@@ -80,7 +80,7 @@ export default function GestionPersonalEntregaPage() {
   const [entrega, setEntrega] = useState<Entrega | null>(null);
   const [hitos, setHitos] = useState<EntregaHito[]>([]);
   const [isMounted, setIsMounted] = useState(false);
-  const [proveedoresDB, setProveedoresDB] = useState<ProveedorPersonal[]>([]);
+  const [proveedoresDB, setProveedoresDB] = useState<CategoriaPersonal[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
 
@@ -140,7 +140,7 @@ export default function GestionPersonalEntregaPage() {
         const relatedAssignments = allPersonalEntregas.find(pa => pa.osId === osId);
         form.reset({ turnos: relatedAssignments?.turnos.map(t => ({...t, fecha: new Date(t.fecha)})) || [] });
         
-        const dbProveedores = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as ProveedorPersonal[];
+        const dbProveedores = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
         setProveedoresDB(dbProveedores);
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos.' });
@@ -212,12 +212,6 @@ export default function GestionPersonalEntregaPage() {
           return { label: `${proveedorInfo?.nombreComercial || 'Desconocido'} - ${p.categoria}`, value: p.id };
         });
     }, [proveedoresDB]);
-
-    const getProviderName = (proveedorId: string) => {
-        const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-        const proveedor = allProveedores.find(p => p.id === proveedorId);
-        return proveedor?.nombreComercial || 'Desconocido';
-    }
 
 
   if (!isMounted || !entrega) {
