@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import SignatureCanvas from 'react-signature-canvas';
-import type { TransporteOrder, PedidoEntrega, ProductoVenta } from '@/types';
+import type { TransporteOrder, PedidoEntrega, ProductoVenta, Entrega } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,8 @@ import { CheckCircle, Package, User } from 'lucide-react';
 export default function AlbaranPage() {
     const [order, setOrder] = useState<TransporteOrder | null>(null);
     const [deliveryItems, setDeliveryItems] = useState<PedidoEntrega['hitos'][0]['items']>([]);
+    const [entrega, setEntrega] = useState<Entrega | null>(null);
+    const [expedicionNumero, setExpedicionNumero] = useState('');
     const [isMounted, setIsMounted] = useState(false);
     const [signedBy, setSignedBy] = useState('');
     const [dni, setDni] = useState('');
@@ -35,12 +37,23 @@ export default function AlbaranPage() {
         setOrder(currentOrder || null);
         
         if (currentOrder) {
+            const allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
+            const currentEntrega = allEntregas.find(e => e.id === currentOrder.osId);
+            setEntrega(currentEntrega || null);
+
             const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
             const currentPedido = allPedidosEntrega.find(p => p.osId === currentOrder.osId);
             
-            // Assuming one hito per transport order for simplicity for now. This might need adjustment.
-            const hito = currentPedido?.hitos.find(h => h.lugarEntrega === currentOrder.lugarEntrega);
-            setDeliveryItems(hito?.items || []);
+            const hitoId = currentOrder.hitosIds?.[0]; // Assuming one hito per transport for now
+            const hito = currentPedido?.hitos.find(h => h.id === hitoId);
+            
+            if (hito) {
+                setDeliveryItems(hito.items || []);
+                const hitoIndex = currentPedido?.hitos.findIndex(h => h.id === hitoId) ?? -1;
+                if (hitoIndex !== -1 && currentEntrega) {
+                    setExpedicionNumero(`${currentEntrega.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`);
+                }
+            }
         }
 
         setIsMounted(true);
@@ -92,7 +105,7 @@ export default function AlbaranPage() {
                     <div className="flex justify-between items-start">
                         <div>
                             <CardTitle>Albarán de Entrega</CardTitle>
-                            <CardDescription>OS: {order.osId}</CardDescription>
+                            <CardDescription>{expedicionNumero}</CardDescription>
                         </div>
                         <Badge variant={isDelivered ? 'default' : 'secondary'} className={isDelivered ? 'bg-green-600' : ''}>
                             {order.status}
@@ -100,21 +113,19 @@ export default function AlbaranPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid grid-cols-2 gap-4 text-sm mb-6">
-                        <div>
-                            <h3 className="font-bold">Información de Recogida</h3>
-                            <p>{order.lugarRecogida}</p>
-                            <p>Hora: {order.horaRecogida}</p>
-                        </div>
+                    <div className="grid grid-cols-1 gap-4 text-sm mb-6">
                         <div>
                             <h3 className="font-bold">Información de Entrega</h3>
+                            <p className="font-semibold">{entrega?.client || ''}</p>
                             <p>{order.lugarEntrega}</p>
-                            <p>Hora: {order.horaEntrega}</p>
+                            <p>Hora de entrega: {order.horaEntrega}</p>
                         </div>
-                        <div className="col-span-2">
-                             <h3 className="font-bold">Observaciones</h3>
-                             <p className="text-muted-foreground">{order.observaciones || 'Sin observaciones.'}</p>
-                        </div>
+                        {order.observaciones && (
+                             <div className="col-span-1">
+                                 <h3 className="font-bold">Observaciones</h3>
+                                 <p className="text-muted-foreground">{order.observaciones}</p>
+                            </div>
+                        )}
                     </div>
 
                     <h3 className="font-bold mb-2">Contenido del Pedido</h3>
