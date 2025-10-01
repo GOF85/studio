@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -17,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { Card, CardContent } from '@/components/ui/card';
 
 type OrderWithDetails = TransporteOrder & {
     os?: ServiceOrder | Entrega;
@@ -80,10 +80,8 @@ export default function TransportePortalPage() {
             const statusMatch = showCompleted || order.status !== 'Entregado';
             
             const searchMatch = searchTerm === '' ||
-                order.lugarEntrega.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (order.os?.serviceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (order.os?.client || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                order.proveedorNombre.toLowerCase().includes(searchTerm.toLowerCase());
+                (order.os?.client || '').toLowerCase().includes(searchTerm.toLowerCase());
 
             return statusMatch && searchMatch;
         });
@@ -123,7 +121,7 @@ export default function TransportePortalPage() {
                 <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
-                        placeholder="Buscar por OS, cliente, dirección..."
+                        placeholder="Buscar por OS, cliente..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-8"
