@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Package, User, Printer, MapPin, Phone, Building, Loader2 } from 'lucide-react';
+import { CheckCircle, Package, User, Printer, MapPin, Phone, Building, Loader2, Clock } from 'lucide-react';
 
 export default function AlbaranPage() {
     const [order, setOrder] = useState<TransporteOrder | null>(null);
@@ -106,7 +106,7 @@ export default function AlbaranPage() {
             const pageHeight = doc.internal.pageSize.getHeight();
             const pageWidth = doc.internal.pageSize.getWidth();
             let finalY = margin;
-
+            
             // --- TEXTOS ---
             const texts = {
                 es: { proposalTitle: 'Albarán de Entrega', client: 'Cliente:', item: 'Producto', qty: 'Cantidad', receivedBy: 'Recibido por:', signatureDate: 'Fecha y hora:', signature: 'Firma:', footer: 'MICE Catering - Albarán de Entrega' },
