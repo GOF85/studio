@@ -6,8 +6,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, Users, Save, PlusCircle, Trash2, Loader2, Building, Phone } from 'lucide-react';
-import type { Entrega, PedidoEntrega, EntregaHito, Personal, ProveedorPersonal, PersonalEntrega } from '@/types';
+import { ArrowLeft, Users, Save, PlusCircle, Trash2, Loader2, Building, Phone, ArrowRight } from 'lucide-react';
+import type { Entrega, PedidoEntrega, EntregaHito, Personal, ProveedorPersonal, PersonalEntrega, Espacio } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -35,7 +35,8 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const personalAsignadoSchema = z.object({
   id: z.string(),
@@ -61,6 +62,18 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+const calculateHours = (start?: string, end?: string) => {
+    if (!start || !end) return 0;
+    try {
+        const startTime = parse(start, 'HH:mm', new Date());
+        const endTime = parse(end, 'HH:mm', new Date());
+        const diff = differenceInMinutes(endTime, startTime);
+        return diff > 0 ? diff / 60 : 0;
+    } catch (e) {
+        return 0;
+    }
+}
 
 export default function GestionPersonalEntregaPage() {
     const [entrega, setEntrega] = useState<Entrega | null>(null);
@@ -214,7 +227,20 @@ export default function GestionPersonalEntregaPage() {
                             <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
                                 <Users />Asignación de Personal: {entrega.serviceNumber}
                             </h1>
-                            <p className="text-muted-foreground">{entrega.client}</p>
+                            <div className="text-muted-foreground mt-2 space-y-1">
+                                <p>{entrega.client}</p>
+                                {entrega.direccionPrincipal && (
+                                    <p className="flex items-center gap-2">
+                                    <Building className="h-3 w-3" /> {entrega.direccionPrincipal}
+                                    </p>
+                                )}
+                                {entrega.respMetre && (
+                                    <p className="flex items-center gap-2">
+                                        Resp. Metre: {entrega.respMetre} 
+                                        {entrega.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {entrega.respMetrePhone}</span>}
+                                    </p>
+                                )}
+                            </div>
                         </div>
                         <div className="flex gap-2">
                             <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
@@ -223,6 +249,49 @@ export default function GestionPersonalEntregaPage() {
                             </Button>
                         </div>
                     </div>
+                    
+                    <Accordion type="single" collapsible className="w-full mb-8">
+                        <AccordionItem value="item-1">
+                            <Card>
+                                <AccordionTrigger className="p-6">
+                                    <h3 className="text-xl font-semibold">Resumen de Entregas con Personal</h3>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <CardContent>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Fecha / Hora</TableHead>
+                                                    <TableHead>Lugar</TableHead>
+                                                    <TableHead>Horas de Camarero</TableHead>
+                                                    <TableHead>Observaciones</TableHead>
+                                                    <TableHead></TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {hitos.filter(h => (h.horasCamarero || 0) > 0).map(hito => (
+                                                    <TableRow key={hito.id}>
+                                                        <TableCell>{format(new Date(hito.fecha), 'dd/MM/yy')} - {hito.hora}</TableCell>
+                                                        <TableCell>{hito.lugarEntrega}</TableCell>
+                                                        <TableCell>{hito.horasCamarero}</TableCell>
+                                                        <TableCell className="text-sm text-muted-foreground">{hito.observaciones}</TableCell>
+                                                        <TableCell>
+                                                            <Button asChild variant="outline" size="sm">
+                                                                <Link href={`/entregas/entrega/${hito.id}?osId=${osId}`}>
+                                                                    Ver Entrega <ArrowRight className="ml-2 h-4 w-4"/>
+                                                                </Link>
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </CardContent>
+                                </AccordionContent>
+                            </Card>
+                        </AccordionItem>
+                    </Accordion>
+
 
                     <div className="space-y-4">
                         <Button type="button" onClick={addTurno}><PlusCircle className="mr-2"/>Añadir Turno / Proveedor</Button>
@@ -248,7 +317,6 @@ export default function GestionPersonalEntregaPage() {
                                                 </FormItem>
                                             )}
                                         />
-                                        {/* ... turno fields ... */}
                                     </div>
                                     <h4 className="font-semibold mt-6 mb-2">Trabajadores Asignados</h4>
                                     {field.trabajadores.map((trabajador, trabajadorIndex) => (
