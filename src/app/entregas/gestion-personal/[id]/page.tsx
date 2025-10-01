@@ -29,6 +29,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
 
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -71,7 +72,6 @@ export default function GestionPersonalEntregaPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
   const [deliveryHitos, setDeliveryHitos] = useState<EntregaHito[]>([]);
-  const [forceRecalc, setForceRecalc] = useState(0);
   const [personalEntrega, setPersonalEntrega] = useState<PersonalEntrega | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
@@ -146,7 +146,7 @@ export default function GestionPersonalEntregaPage() {
     }, 0) || 0;
 
     return { totalPlanned: planned };
-  }, [watchedFields, forceRecalc]);
+  }, [watchedFields]);
 
   const handleStatusChange = (newStatus: EstadoPersonalEntrega) => {
     if (!personalEntrega) return;
@@ -235,24 +235,25 @@ const hitosConPersonal = useMemo(() => {
 
   return (
     <>
+      <Header />
       <main className="container mx-auto px-4 py-8">
         <FormProvider {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
-                <div className="flex items-start justify-between mb-6">
+                <div className="flex items-start justify-between mb-2">
                     <div>
                         <Button variant="ghost" size="sm" onClick={() => router.push('/entregas/gestion-personal')}>
                             <ArrowLeft className="mr-2" />
                             Volver al listado
                         </Button>
-                        <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Asignación de Personal</h1>
+                        <h1 className="text-3xl font-headline font-bold flex items-center gap-3 mt-2"><Users />Asignación de Personal</h1>
                         <div className="text-muted-foreground mt-1 space-y-0.5">
                             <p>Pedido: {entrega.serviceNumber} - {entrega.client}</p>
                         </div>
                     </div>
                 </div>
 
-                <Card className="mb-6">
-                    <CardHeader className="py-3 flex-row items-center justify-between">
+                <Card className="mb-4">
+                    <CardHeader className="py-2 flex-row items-center justify-between">
                         <CardTitle className="text-lg">Servicios con Personal</CardTitle>
                         <div className='flex items-center gap-2'>
                              <Select value={personalEntrega?.status || 'Pendiente'} onValueChange={(value: EstadoPersonalEntrega) => handleStatusChange(value)}>
@@ -270,7 +271,7 @@ const hitosConPersonal = useMemo(() => {
                         </div>
                     </CardHeader>
                     {hitosConPersonal.length > 0 && (
-                        <CardContent className="pt-0">
+                        <CardContent className="pt-0 p-2">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -299,9 +300,6 @@ const hitosConPersonal = useMemo(() => {
                     <CardHeader className="py-3 flex-row items-center justify-between">
                         <CardTitle className="text-lg">Turnos de Personal</CardTitle>
                         <div className='flex items-center gap-2'>
-                            <Button size="sm" type="button" variant="outline" onClick={() => setForceRecalc(c => c + 1)}>
-                                <RefreshCw className="mr-2 h-4 w-4"/>Recalcular Coste
-                            </Button>
                             <Button type="button" onClick={addRow} size="sm">
                                 <PlusCircle className="mr-2" />
                                 Añadir Turno
