@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ArrowLeft, Users, Save, PlusCircle, Trash2, Loader2, Building, Phone, ArrowRight } from 'lucide-react';
@@ -37,6 +37,29 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { Calendar as CalendarIcon } from 'lucide-react';
+
+
+const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+
+const calculateHours = (start?: string, end?: string) => {
+    if (!start || !end) return 0;
+    try {
+        const startTime = parse(start, 'HH:mm', new Date());
+        const endTime = parse(end, 'HH:mm', new Date());
+        const diff = differenceInMinutes(endTime, startTime);
+        return diff > 0 ? diff / 60 : 0;
+    } catch (e) {
+        return 0;
+    }
+}
+
+const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH'] as const;
+const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
 
 const personalAsignadoSchema = z.object({
   id: z.string(),
@@ -62,18 +85,6 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
-
-const calculateHours = (start?: string, end?: string) => {
-    if (!start || !end) return 0;
-    try {
-        const startTime = parse(start, 'HH:mm', new Date());
-        const endTime = parse(end, 'HH:mm', new Date());
-        const diff = differenceInMinutes(endTime, startTime);
-        return diff > 0 ? diff / 60 : 0;
-    } catch (e) {
-        return 0;
-    }
-}
 
 export default function GestionPersonalEntregaPage() {
     const [entrega, setEntrega] = useState<Entrega | null>(null);
