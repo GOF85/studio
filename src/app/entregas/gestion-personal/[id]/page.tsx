@@ -4,12 +4,12 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
+import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone } from 'lucide-react';
 
 import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, EstadoPersonalEntrega } from '@/types';
 import { ESTADO_PERSONAL_ENTREGA } from '@/types';
@@ -298,11 +298,11 @@ export default function GestionPersonalEntregaPage() {
                                                 <FormField
                                                     control={control}
                                                     name={`turnos.${index}.proveedorId`}
-                                                    render={({ field }) => (
+                                                    render={({ field: formField }) => (
                                                         <FormItem>
                                                             <Combobox
                                                                 options={providerOptions}
-                                                                value={proveedoresDB.find(p => p.id === field.value)?.id || ''}
+                                                                value={proveedoresDB.find(p => p.id === formField.value)?.id || ''}
                                                                 onChange={(value) => handleProviderChange(index, value)}
                                                                 placeholder="Proveedor - Categoría..."
                                                             />
@@ -375,3 +375,5 @@ export default function GestionPersonalEntregaPage() {
     </>
   );
 }
+
+    
