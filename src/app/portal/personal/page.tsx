@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2 } from 'lucide-react';
+import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -15,7 +16,7 @@ import { formatUnit } from '@/lib/utils';
 import type { PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, EstadoPersonalEntrega, Entrega, PedidoEntrega } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +30,7 @@ type TurnoConEstado = PersonalEntregaTurno & {
     cliente: string;
     fechaEntrega: string;
     horaEntrega: string;
+    lugarEntrega?: string; // Add this
 };
 
 const statusVariant: { [key in PersonalEntregaTurno['statusPartner']]: 'default' | 'secondary' | 'outline' } = {
@@ -43,12 +45,18 @@ const statusRowClass: { [key in PersonalEntregaTurno['statusPartner']]?: string 
 
 function AsignacionDialog({ turno, onSave, children }: { turno: TurnoConEstado; onSave: (turnoId: string, asignaciones: AsignacionPersonal[]) => void; children: React.ReactNode }) {
     const [isOpen, setIsOpen] = useState(false);
-    const [asignaciones, setAsignaciones] = useState<AsignacionPersonal[]>(turno.asignaciones || []);
+    const [asignaciones, setAsignaciones] = useState<AsignacionPersonal[]>([]);
+    
+    useEffect(() => {
+        if(isOpen) {
+             setAsignaciones(turno.asignaciones || []);
+        }
+    }, [isOpen, turno.asignaciones]);
 
-    const addAsignacion = () => setAsignaciones(prev => [...prev, { id: Date.now().toString(), nombre: '', dni: '' }]);
+    const addAsignacion = () => setAsignaciones(prev => [...prev, { id: Date.now().toString(), nombre: '', dni: '', telefono: '', comentarios: '' }]);
     const removeAsignacion = (id: string) => setAsignaciones(prev => prev.filter(a => a.id !== id));
     
-    const updateAsignacion = (id: string, field: 'nombre' | 'dni', value: string) => {
+    const updateAsignacion = (id: string, field: keyof Omit<AsignacionPersonal, 'id'>, value: string) => {
         setAsignaciones(prev => prev.map(a => a.id === id ? { ...a, [field]: value } : a));
     };
 
@@ -62,19 +70,29 @@ function AsignacionDialog({ turno, onSave, children }: { turno: TurnoConEstado; 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>{children}</DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Asignar Personal: {turno.categoria}</DialogTitle>
+                    <DialogDescription className="text-sm text-muted-foreground pt-2 space-y-1">
+                        <p className="flex items-center gap-2"><MapPin size={14}/> <strong>Dirección:</strong> {turno.lugarEntrega}</p>
+                        <p className="flex items-center gap-2"><Clock size={14}/> <strong>Horario:</strong> {turno.horaEntrada} - {turno.horaSalida}</p>
+                    </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
-                    <p>Necesitas asignar <strong>{turno.cantidad}</strong> persona(s). {remaining > 0 ? `Faltan ${remaining}.` : 'Completado.'}</p>
-                    <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                    <p>Necesitas asignar <strong>{turno.cantidad}</strong> persona(s). {remaining > 0 ? `Faltan ${remaining}.` : <span className="font-bold text-green-600">Completado.</span>}</p>
+                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
                         {asignaciones.map((asignacion, index) => (
-                            <div key={asignacion.id} className="flex items-center gap-2 p-2 border rounded-md">
-                                <span className="font-bold">{index + 1}.</span>
-                                <Input placeholder="Nombre y Apellidos" value={asignacion.nombre} onChange={e => updateAsignacion(asignacion.id, 'nombre', e.target.value)} />
-                                <Input placeholder="DNI" value={asignacion.dni} onChange={e => updateAsignacion(asignacion.id, 'dni', e.target.value)} className="w-32"/>
-                                <Button size="icon" variant="ghost" className="text-destructive h-8 w-8" onClick={() => removeAsignacion(asignacion.id)}><Trash2 className="h-4 w-4"/></Button>
+                            <div key={asignacion.id} className="flex flex-col gap-2 p-3 border rounded-md relative">
+                                <div className="flex items-start gap-3">
+                                    <span className="font-bold pt-2">{index + 1}.</span>
+                                    <div className="flex-grow grid grid-cols-2 gap-2">
+                                        <div className="space-y-1"><Label htmlFor={`nombre-${asignacion.id}`}>Nombre y Apellidos</Label><Input id={`nombre-${asignacion.id}`} placeholder="Nombre completo" value={asignacion.nombre} onChange={e => updateAsignacion(asignacion.id, 'nombre', e.target.value)} /></div>
+                                        <div className="space-y-1"><Label htmlFor={`dni-${asignacion.id}`}>DNI</Label><Input id={`dni-${asignacion.id}`} placeholder="DNI" value={asignacion.dni} onChange={e => updateAsignacion(asignacion.id, 'dni', e.target.value)} /></div>
+                                        <div className="space-y-1"><Label htmlFor={`tel-${asignacion.id}`}>Teléfono</Label><Input id={`tel-${asignacion.id}`} placeholder="Teléfono de contacto" value={asignacion.telefono} onChange={e => updateAsignacion(asignacion.id, 'telefono', e.target.value)} /></div>
+                                        <div className="space-y-1"><Label htmlFor={`com-${asignacion.id}`}>Comentarios</Label><Input id={`com-${asignacion.id}`} placeholder="Notas (opcional)" value={asignacion.comentarios} onChange={e => updateAsignacion(asignacion.id, 'comentarios', e.target.value)} /></div>
+                                    </div>
+                                </div>
+                                <Button size="icon" variant="ghost" className="absolute top-1 right-1 text-destructive h-7 w-7" onClick={() => removeAsignacion(asignacion.id)}><Trash2 className="h-4 w-4"/></Button>
                             </div>
                         ))}
                     </div>
@@ -99,22 +117,29 @@ export default function PartnerPersonalPortalPage() {
     const loadData = useCallback(() => {
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.status === 'Confirmado');
         const allPersonalEntregas = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
+        const allPedidosEntrega = (JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[]);
 
         const osMap = new Map(allEntregas.map(os => [os.id, os]));
+        const pedidosMap = new Map(allPedidosEntrega.map(p => [p.osId, p]));
+        
         const partnerTurnos: TurnoConEstado[] = [];
 
         allPersonalEntregas.forEach(pedido => {
             const os = osMap.get(pedido.osId);
+            const osPedido = pedidosMap.get(pedido.osId);
+
             if (!os) return;
 
             (pedido.turnos || []).forEach(turno => {
-                partnerTurnos.push({
+                 const hito = osPedido?.hitos.find(h => new Date(h.fecha).toISOString().slice(0,10) === new Date(turno.fecha).toISOString().slice(0,10));
+                 partnerTurnos.push({
                     ...turno,
                     osId: pedido.osId,
                     serviceNumber: os.serviceNumber,
                     cliente: os.client,
                     fechaEntrega: turno.fecha,
                     horaEntrega: turno.horaEntrada,
+                    lugarEntrega: hito?.lugarEntrega || os.direccionPrincipal || 'No especificado',
                 });
             });
         });
@@ -208,7 +233,7 @@ export default function PartnerPersonalPortalPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {dailyTurnos.map(turno => (
-                                            <TableRow key={turno.id} className={cn("transition-colors", statusRowClass[turno.statusPartner])}>
+                                            <TableRow key={turno.id} className={cn("transition-colors", statusRowClass[turno.statusPartner || 'Pendiente Asignación'])}>
                                                 <TableCell>
                                                     <Badge variant="secondary">{turno.serviceNumber}</Badge>
                                                     <p className="text-xs text-muted-foreground">{turno.cliente}</p>
@@ -226,7 +251,7 @@ export default function PartnerPersonalPortalPage() {
                                                     </AsignacionDialog>
                                                 </TableCell>
                                                 <TableCell>
-                                                  <Badge variant={statusVariant[turno.statusPartner]}>{turno.statusPartner}</Badge>
+                                                  <Badge variant={statusVariant[turno.statusPartner || 'Pendiente Asignación']}>{turno.statusPartner || 'Pendiente Asignación'}</Badge>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
