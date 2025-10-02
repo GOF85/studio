@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -16,26 +15,6 @@ function PortalHeader() {
             MICE Portales Externos
           </h1>
         </Link>
-        <nav className="flex flex-1 items-center justify-end space-x-2">
-           <Button asChild variant="ghost" className="hover:bg-gray-700 hover:text-white">
-              <Link href="/portal/partner">
-                <Truck className="mr-2 h-5 w-5"/>
-                Producción
-              </Link>
-            </Button>
-            <Button asChild variant="ghost" className="hover:bg-gray-700 hover:text-white">
-              <Link href="/portal/personal">
-                <Users className="mr-2 h-5 w-5"/>
-                Personal
-              </Link>
-            </Button>
-            <Button asChild variant="ghost" className="hover:bg-gray-700 hover:text-white">
-              <Link href="/portal/transporte">
-                <Truck className="mr-2 h-5 w-5"/>
-                Transporte
-              </Link>
-            </Button>
-        </nav>
       </div>
     </header>
   );
