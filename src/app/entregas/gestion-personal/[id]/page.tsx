@@ -69,7 +69,6 @@ const personalTurnoSchema = z.object({
   id: z.string(),
   proveedorId: z.string().min(1, "El proveedor es obligatorio"),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
-  cantidad: z.coerce.number().min(1, 'La cantidad debe ser mayor que 0'),
   precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
   fecha: z.date({ required_error: "La fecha es obligatoria."}),
   horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
@@ -88,28 +87,37 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 
-function CommentDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; asigIndex: number, form: any }) {
+function CommentDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; asigIndex?: number, form: any }) {
     const [isOpen, setIsOpen] = useState(false);
     const { getValues, setValue } = form;
-    const [comment, setComment] = useState(getValues(`turnos.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`) || '');
+
+    const fieldName = asigIndex !== undefined ? `turnos.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice` : `turnos.${turnoIndex}.observaciones`;
+    const asignacion = asigIndex !== undefined ? getValues(`turnos.${turnoIndex}.asignaciones.${asigIndex}`) : getValues(`turnos.${turnoIndex}`);
+    const dialogTitle = asigIndex !== undefined ? `Comentarios para ${asignacion?.nombre}` : `Observaciones para la ETT`;
+
+    const [comment, setComment] = useState(getValues(fieldName) || '');
 
     const handleSave = () => {
-        setValue(`turnos.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`, comment, { shouldDirty: true });
+        setValue(fieldName, comment, { shouldDirty: true });
         setIsOpen(false);
     };
 
-    const asignacion = getValues(`turnos.${turnoIndex}.asignaciones.${asigIndex}`);
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <Pencil className={cn("h-4 w-4", asignacion.comentariosMice && "text-primary")} />
-                </Button>
+                 <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
+                            <MessageSquare className={cn("h-4 w-4", asignacion.comentariosMice && "text-primary")} />
+                        </Button>
+                    </TooltipTrigger>
+                    {asignacion.comentariosMice && <TooltipContent><p>{asignacion.comentariosMice}</p></TooltipContent>}
+                 </Tooltip>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Comentarios para {asignacion?.nombre}</DialogTitle>
+                    <DialogTitle>{dialogTitle}</DialogTitle>
                 </DialogHeader>
                 <Textarea 
                     value={comment} 
@@ -206,7 +214,7 @@ export default function GestionPersonalEntregaPage() {
   const { totalPlanned } = useMemo(() => {
     const planned = watchedFields?.reduce((acc, order) => {
       const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
-      return acc + plannedHours * (order.precioHora || 0) * (order.cantidad || 1);
+      return acc + plannedHours * (order.precioHora || 0);
     }, 0) || 0;
 
     return { totalPlanned: planned };
@@ -243,7 +251,7 @@ export default function GestionPersonalEntregaPage() {
         osId,
         turnos: data.turnos.map(t => {
             const existingTurno = personalEntrega?.turnos.find(et => et.id === t.id);
-            const requiereActualizacion = existingTurno?.cantidad !== t.cantidad;
+            const requiereActualizacion = !existingTurno; // Simplificado: si es nuevo, requiere atención.
             return {
                 ...t, 
                 fecha: format(t.fecha, 'yyyy-MM-dd'),
@@ -276,13 +284,10 @@ export default function GestionPersonalEntregaPage() {
         id: Date.now().toString(),
         proveedorId: '',
         categoria: '',
-        cantidad: 1,
         precioHora: 0,
         fecha: new Date(entrega.startDate),
         horaEntrada: '09:00',
         horaSalida: '17:00',
-        centroCoste: 'SALA',
-        tipoServicio: 'Servicio',
         observaciones: '',
         statusPartner: 'Pendiente Asignación',
         asignaciones: [],
@@ -297,36 +302,6 @@ export default function GestionPersonalEntregaPage() {
     }
   };
   
-  const saveAjustes = (newAjustes: PersonalExternoAjuste[]) => {
-      if (!osId) return;
-      const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
-      allAjustes[osId] = newAjustes;
-      localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
-  }
-
-  const addAjusteRow = () => {
-      const newAjustes = [...ajustes, { id: Date.now().toString(), concepto: '', ajuste: 0 }];
-      setAjustes(newAjustes);
-      saveAjustes(newAjustes);
-  };
-
-  const updateAjuste = (index: number, field: 'concepto' | 'ajuste', value: string | number) => {
-      const newAjustes = [...ajustes];
-      if (field === 'ajuste') {
-          newAjustes[index][field] = parseFloat(value as string) || 0;
-      } else {
-          newAjustes[index][field] = value as string;
-      }
-      setAjustes(newAjustes);
-      saveAjustes(newAjustes);
-  };
-
-  const removeAjusteRow = (index: number) => {
-      const newAjustes = ajustes.filter((_, i) => i !== index);
-      setAjustes(newAjustes);
-      saveAjustes(newAjustes);
-  };
-
   const providerOptions = useMemo(() => {
     return proveedoresDB.map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
 }, [proveedoresDB, proveedoresMap]);
@@ -427,7 +402,7 @@ const turnosAprobados = useMemo(() => {
                                         <TableHead>Fecha-Horario</TableHead>
                                         <TableHead>Comentarios ETT</TableHead>
                                         <TableHead>Desempeño</TableHead>
-                                        <TableHead className="w-12">Comentarios MICE</TableHead>
+                                        <TableHead className="w-24">Comentarios MICE</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -441,7 +416,7 @@ const turnosAprobados = useMemo(() => {
                                                   <div>{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
                                                   <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
                                                 </TableCell>
-                                                <TableCell>
+                                                 <TableCell>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <div className="flex items-center gap-1 cursor-default">
@@ -473,15 +448,7 @@ const turnosAprobados = useMemo(() => {
                                                     />
                                                 </TableCell>
                                                  <TableCell>
-                                                     <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <div className="flex items-center gap-1 cursor-pointer">
-                                                                {asignacion.comentariosMice && <MessageSquare className="h-4 w-4 text-primary" />}
-                                                                <CommentDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
-                                                            </div>
-                                                        </TooltipTrigger>
-                                                         {asignacion.comentariosMice && <TooltipContent><p>{asignacion.comentariosMice}</p></TooltipContent>}
-                                                     </Tooltip>
+                                                     <CommentDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
                                                 </TableCell>
                                             </TableRow>
                                         ))
@@ -509,12 +476,20 @@ const turnosAprobados = useMemo(() => {
                                     <TableRow>
                                         <TableHead className="px-2 py-1">Fecha</TableHead>
                                         <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
-                                        <TableHead className="px-1 py-1 text-center">Cant.</TableHead>
-                                        <TableHead className="px-1 py-1 w-24">H. Entrada</TableHead>
-                                        <TableHead className="px-1 py-1 w-24">H. Salida</TableHead>
-                                        <TableHead className="px-1 py-1 w-20">Horas</TableHead>
-                                        <TableHead className="px-1 py-1 w-20">€/Hora</TableHead>
+                                        <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
+                                        <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
+                                        <TableHead className="px-2 py-1">Observaciones ETT</TableHead>
                                         <TableHead className="text-right px-2 py-1">Acción</TableHead>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableHead className="px-1 py-2"></TableHead>
+                                        <TableHead className="px-2 py-2"></TableHead>
+                                        <TableHead className="px-2 py-2"></TableHead>
+                                        <TableHead className="border-l px-1 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
+                                        <TableHead className="px-1 py-2 bg-muted/30 w-24">H. Salida</TableHead>
+                                        <TableHead className="border-r px-1 py-2 bg-muted/30 w-20">€/Hora</TableHead>
+                                        <TableHead className="px-2 py-2"></TableHead>
+                                        <TableHead className="px-2 py-2"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -550,26 +525,37 @@ const turnosAprobados = useMemo(() => {
                                                                 options={providerOptions}
                                                                 value={selectField.value}
                                                                 onChange={(value) => handleProviderChange(index, value)}
-                                                                placeholder="Proveedor - Categoría..."
+                                                                placeholder="Proveedor..."
                                                             />
                                                         </FormItem>
                                                         )}
                                                     />
                                                 </TableCell>
-                                                <TableCell className="px-1 py-1">
-                                                    <FormField control={control} name={`turnos.${index}.cantidad`} render={({ field: f }) => <FormItem><FormControl><Input type="number" min="1" {...f} onChange={(e) => f.onChange(parseInt(e.target.value) || 1)} className="w-16 h-9 text-center"/></FormControl></FormItem>} />
+                                                <TableCell className="px-2 py-1">
+                                                    <FormField
+                                                        control={control}
+                                                        name={`turnos.${index}.tipoServicio`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                                    <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
+                                                                    <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                                                                </Select>
+                                                            </FormItem>
+                                                        )}
+                                                    />
                                                 </TableCell>
-                                                <TableCell className="px-1 py-1">
+                                                <TableCell className="border-l px-1 py-1 bg-muted/30">
                                                     <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
                                                 </TableCell>
-                                                <TableCell className="px-1 py-1">
+                                                <TableCell className="px-1 py-1 bg-muted/30">
                                                     <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
                                                 </TableCell>
-                                                <TableCell className="px-1 py-1 font-mono text-center">
-                                                    {calculateHours(watch(`turnos.${index}.horaEntrada`), watch(`turnos.${index}.horaSalida`)).toFixed(2)}h
-                                                </TableCell>
-                                                <TableCell className="px-1 py-1">
+                                                <TableCell className="border-r px-1 py-1 bg-muted/30">
                                                     <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <CommentDialog turnoIndex={index} form={form} />
                                                 </TableCell>
                                                 <TableCell className="text-right px-2 py-1">
                                                     <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
@@ -589,37 +575,35 @@ const turnosAprobados = useMemo(() => {
                             </Table>
                         </div>
                     </CardContent>
-                    {fields.length > 0 && (
-                        <CardFooter className="grid grid-cols-2 gap-8">
-                               <Card>
-                                     <CardHeader className="py-2">
-                                        <CardTitle className="text-lg">Observaciones para el Proveedor</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <FormField
-                                            control={control}
-                                            name="observacionesGenerales"
-                                            render={({ field }) => (
-                                            <FormItem>
-                                                <FormControl>
-                                                <Textarea placeholder="Añade aquí cualquier comentario general sobre el servicio..." rows={2} {...field} />
-                                                </FormControl>
-                                            </FormItem>
-                                            )}
-                                        />
-                                    </CardContent>
-                                </Card>
-                                <Card>
-                                    <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes de Personal</CardTitle></CardHeader>
-                                    <CardContent className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Coste Total Planificado:</span>
-                                            <span className="font-bold">{formatCurrency(totalPlanned)}</span>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                        </CardFooter>
-                    )}
+                    <CardFooter className="grid grid-cols-2 gap-8">
+                       <Card>
+                             <CardHeader className="py-2">
+                                <CardTitle className="text-lg">Observaciones Generales</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <FormField
+                                    control={control}
+                                    name="observacionesGenerales"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormControl>
+                                        <Textarea placeholder="Añade aquí cualquier comentario general para el proveedor..." rows={2} {...field} />
+                                        </FormControl>
+                                    </FormItem>
+                                    )}
+                                />
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes de Personal</CardTitle></CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Planificado:</span>
+                                    <span className="font-bold">{formatCurrency(totalPlanned)}</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </CardFooter>
                 </Card>
             </form>
         </FormProvider>
@@ -638,3 +622,6 @@ const turnosAprobados = useMemo(() => {
     </>
   );
 }
+
+
+    

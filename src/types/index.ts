@@ -728,7 +728,6 @@ export type PersonalEntregaTurno = {
   fecha: string;
   horaEntrada: string;
   horaSalida: string;
-  cantidad: number;
   categoria: string;
   precioHora: number;
   observaciones: string;
@@ -743,3 +742,5 @@ export type PersonalEntrega = {
     status: EstadoPersonalEntrega;
     observacionesGenerales?: string;
 };
+
+    
