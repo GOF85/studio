@@ -88,6 +88,82 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; asigIndex: number, form: any }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const { getValues, setValue } = form;
+
+    const ratingFieldName = `turnos.${turnoIndex}.asignaciones.${asigIndex}.rating`;
+    const commentFieldName = `turnos.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`;
+    const asignacion = getValues(`turnos.${turnoIndex}.asignaciones.${asigIndex}`);
+    
+    const [rating, setRating] = useState(getValues(ratingFieldName) || 3);
+    const [comment, setComment] = useState(getValues(commentFieldName) || '');
+    
+    useEffect(() => {
+        if(isOpen) {
+            setRating(getValues(ratingFieldName) || 3);
+            setComment(getValues(commentFieldName) || '');
+        }
+    }, [isOpen, getValues, ratingFieldName, commentFieldName]);
+
+    const handleSave = () => {
+        setValue(ratingFieldName, rating, { shouldDirty: true });
+        setValue(commentFieldName, comment, { shouldDirty: true });
+        setIsOpen(false);
+    };
+
+    const handleOpenChange = (open: boolean) => {
+        if (!open) {
+            handleSave(); // Auto-save on close
+        }
+        setIsOpen(open);
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
+                    <Pencil className="h-4 w-4" />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Valoración para: {asignacion?.nombre}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-6 py-4">
+                    <div className="space-y-2">
+                        <Label>Desempeño (1-5)</Label>
+                        <div className="flex items-center gap-4 pt-2">
+                            <span className="text-sm text-muted-foreground">Bajo</span>
+                            <Slider
+                                value={[rating]}
+                                onValueChange={(value) => setRating(value[0])}
+                                max={5}
+                                min={1}
+                                step={1}
+                            />
+                            <span className="text-sm text-muted-foreground">Alto</span>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                         <Label>Comentarios Internos MICE</Label>
+                        <Textarea 
+                            value={comment} 
+                            onChange={(e) => setComment(e.target.value)}
+                            rows={4}
+                            placeholder="Añade aquí comentarios internos sobre el desempeño..."
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleSave}>Guardar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 
 function CommentDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; asigIndex?: number, form: any }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -104,18 +180,12 @@ function CommentDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; as
         setIsOpen(false);
     };
 
-
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                 <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
-                            <Pencil className={cn("h-4 w-4", asignacion.comentariosMice && "text-primary")} />
-                        </Button>
-                    </TooltipTrigger>
-                    {asignacion.comentariosMice && <TooltipContent><p>{asignacion.comentariosMice}</p></TooltipContent>}
-                 </Tooltip>
+                <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
+                    <Pencil className={cn("h-4 w-4", asignacion.comentariosMice && "text-primary")} />
+                </Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
@@ -214,9 +284,9 @@ export default function GestionPersonalEntregaPage() {
   const watchedFields = watch('turnos');
 
   const { totalPlanned, totalReal } = useMemo(() => {
-    const planned = watchedFields?.reduce((acc, order) => {
-      const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
-      return acc + plannedHours * (order.precioHora || 0);
+    const planned = watchedFields?.reduce((acc, turno) => {
+      const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
+      return acc + plannedHours * (turno.precioHora || 0);
     }, 0) || 0;
 
     const real = watchedFields.reduce((acc, turno) => {
@@ -313,7 +383,7 @@ export default function GestionPersonalEntregaPage() {
     if (rowToDelete !== null) {
       remove(rowToDelete);
       setRowToDelete(null);
-      toast({ title: 'Asignación eliminada' });
+      toast({ title: 'Turno eliminado' });
     }
   };
   
@@ -417,8 +487,7 @@ const turnosAprobados = useMemo(() => {
                                         <TableHead className="w-24">H. Entrada Real</TableHead>
                                         <TableHead className="w-24">H. Salida Real</TableHead>
                                         <TableHead>Comentarios ETT</TableHead>
-                                        <TableHead>Desempeño</TableHead>
-                                        <TableHead className="w-24">Comentarios MICE</TableHead>
+                                        <TableHead>Desempeño y Comentarios MICE</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -437,7 +506,7 @@ const turnosAprobados = useMemo(() => {
                                                 <TableCell>
                                                   <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                 </TableCell>
-                                                 <TableCell>
+                                                <TableCell>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <div className="flex items-center gap-1 cursor-default">
@@ -449,27 +518,10 @@ const turnosAprobados = useMemo(() => {
                                                     </Tooltip>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <FormField
-                                                        control={control}
-                                                        name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.rating`}
-                                                        render={({ field }) => (
-                                                            <div className="flex items-center gap-2">
-                                                                <Slider
-                                                                    defaultValue={[field.value || 3]}
-                                                                    value={[field.value || 0]}
-                                                                    onValueChange={(value) => field.onChange(value[0])}
-                                                                    max={5}
-                                                                    min={1}
-                                                                    step={1}
-                                                                    className="w-24"
-                                                                />
-                                                                <span className="font-bold text-sm w-4">{field.value || ''}</span>
-                                                            </div>
-                                                        )}
-                                                    />
-                                                </TableCell>
-                                                 <TableCell>
-                                                     <CommentDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
+                                                    <div className="flex items-center gap-1">
+                                                        <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
+                                                        {(asignacion.comentariosMice || (asignacion.rating && asignacion.rating !== 3)) && <MessageSquare className="h-4 w-4 text-primary" />}
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))
@@ -615,7 +667,7 @@ const turnosAprobados = useMemo(() => {
                                 />
                             </CardContent>
                         </Card>
-                        <Card>
+                         <Card>
                             <CardHeader><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
                             <CardContent className="space-y-2 text-sm">
                                 <div className="flex justify-between">
@@ -623,15 +675,8 @@ const turnosAprobados = useMemo(() => {
                                     <span className="font-bold">{formatCurrency(totalPlanned)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Coste Total Real:</span>
+                                    <span className="text-muted-foreground">Coste Total Real (Horas):</span>
                                     <span className="font-bold">{formatCurrency(totalReal)}</span>
-                                </div>
-                                <Separator className="my-2" />
-                                 <div className="flex justify-between font-bold text-base">
-                                    <span>Desviación:</span>
-                                    <span className={totalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
-                                        {formatCurrency(totalReal - totalPlanned)}
-                                    </span>
                                 </div>
                             </CardContent>
                         </Card>
@@ -644,8 +689,10 @@ const turnosAprobados = useMemo(() => {
         <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
             <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>¿Eliminar turno?</AlertDialogTitle>
-                <AlertDialogDescription>El turno se eliminará de la lista. Guarda los cambios para hacerlo permanente.</AlertDialogDescription>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                Se eliminará el turno de la tabla. Guarda los cambios para hacerlo permanente.
+                </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setRowToDelete(null)}>Cancelar</AlertDialogCancel>
@@ -657,4 +704,3 @@ const turnosAprobados = useMemo(() => {
     </>
   );
 }
-
