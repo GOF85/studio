@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -33,13 +32,15 @@ type TurnoConEstado = PersonalEntregaTurno & {
     lugarEntrega?: string; // Add this
 };
 
-const statusVariant: { [key in PersonalEntregaTurno['statusPartner']]: 'default' | 'secondary' | 'outline' } = {
+const statusVariant: { [key in PersonalEntregaTurno['statusPartner']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente Asignación': 'secondary',
   'Gestionado': 'default',
+  'Requiere Revisión': 'destructive',
 };
 
 const statusRowClass: { [key in PersonalEntregaTurno['statusPartner']]?: string } = {
   'Gestionado': 'bg-green-50 hover:bg-green-100/80',
+  'Requiere Revisión': 'bg-amber-50 hover:bg-amber-100/80',
 };
 
 
@@ -73,9 +74,11 @@ function AsignacionDialog({ turno, onSave, children }: { turno: TurnoConEstado; 
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Asignar Personal: {turno.categoria}</DialogTitle>
-                    <DialogDescription className="text-sm text-muted-foreground pt-2 space-y-1">
-                        <p className="flex items-center gap-2"><MapPin size={14}/> <strong>Dirección:</strong> {turno.lugarEntrega}</p>
-                        <p className="flex items-center gap-2"><Clock size={14}/> <strong>Horario:</strong> {turno.horaEntrada} - {turno.horaSalida}</p>
+                    <DialogDescription asChild>
+                        <div className="text-sm text-muted-foreground pt-2 space-y-1">
+                            <div className="flex items-center gap-2"><MapPin size={14}/> <strong>Dirección:</strong> {turno.lugarEntrega}</div>
+                            <div className="flex items-center gap-2"><Clock size={14}/> <strong>Horario:</strong> {turno.horaEntrada} - {turno.horaSalida}</div>
+                        </div>
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
@@ -166,9 +169,9 @@ export default function PartnerPersonalPortalPage() {
         const updatedTurno = { ...allPersonalEntregas[pedidoIndex].turnos[turnoIndex] };
         updatedTurno.asignaciones = asignaciones;
 
-        // Auto-update status if all assignments are filled
         if (asignaciones.length >= updatedTurno.cantidad) {
             updatedTurno.statusPartner = 'Gestionado';
+            updatedTurno.requiereActualizacion = false;
         } else {
             updatedTurno.statusPartner = 'Pendiente Asignación';
         }
@@ -252,6 +255,19 @@ export default function PartnerPersonalPortalPage() {
                                                 </TableCell>
                                                 <TableCell>
                                                   <Badge variant={statusVariant[turno.statusPartner || 'Pendiente Asignación']}>{turno.statusPartner || 'Pendiente Asignación'}</Badge>
+                                                    {turno.requiereActualizacion && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className="ml-2 flex h-3 w-3 relative">
+                                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>La cantidad solicitada ha cambiado. Por favor, revisa las asignaciones.</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
