@@ -739,5 +739,5 @@ export type PersonalEntrega = {
     osId: string;
     turnos: PersonalEntregaTurno[];
     status: EstadoPersonalEntrega;
+    observacionesGenerales?: string;
 };
-

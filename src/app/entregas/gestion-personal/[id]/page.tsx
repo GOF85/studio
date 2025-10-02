@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
@@ -63,7 +63,8 @@ const personalTurnoSchema = z.object({
 });
 
 const formSchema = z.object({
-    turnos: z.array(personalTurnoSchema)
+    turnos: z.array(personalTurnoSchema),
+    observacionesGenerales: z.string().optional().default('')
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -85,7 +86,7 @@ export default function GestionPersonalEntregaPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { turnos: [] },
+    defaultValues: { turnos: [], observacionesGenerales: '' },
   });
 
   const { control, setValue, watch, trigger } = form;
@@ -109,7 +110,10 @@ export default function GestionPersonalEntregaPage() {
         const turnosDelPedido = allTurnos.find(p => p.osId === osId);
         setPersonalEntrega(turnosDelPedido || { osId, turnos: [], status: 'Pendiente' });
         if(turnosDelPedido) {
-            form.reset({ turnos: turnosDelPedido.turnos.map(t => ({...t, fecha: new Date(t.fecha)})) });
+            form.reset({ 
+                turnos: turnosDelPedido.turnos.map(t => ({...t, fecha: new Date(t.fecha)})),
+                observacionesGenerales: turnosDelPedido.observacionesGenerales || ''
+            });
         }
         
         const dbProveedores = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
@@ -180,8 +184,19 @@ export default function GestionPersonalEntregaPage() {
     
     const newPersonalData: PersonalEntrega = {
         osId,
-        turnos: data.turnos.map(t => ({...t, fecha: format(t.fecha, 'yyyy-MM-dd')})),
-        status: personalEntrega?.status || 'Pendiente'
+        turnos: data.turnos.map(t => {
+            const existingTurno = personalEntrega?.turnos.find(et => et.id === t.id);
+            const requiereActualizacion = existingTurno?.cantidad !== t.cantidad;
+            return {
+                ...t, 
+                fecha: format(t.fecha, 'yyyy-MM-dd'),
+                statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
+                asignaciones: existingTurno?.asignaciones || [],
+                requiereActualizacion: requiereActualizacion,
+            }
+        }),
+        status: personalEntrega?.status || 'Pendiente',
+        observacionesGenerales: data.observacionesGenerales,
     }
     
     if (index > -1) {
@@ -210,7 +225,11 @@ export default function GestionPersonalEntregaPage() {
         fecha: new Date(entrega.startDate),
         horaEntrada: '09:00',
         horaSalida: '17:00',
+        centroCoste: 'SALA',
+        tipoServicio: 'Servicio',
         observaciones: '',
+        horaEntradaReal: '',
+        horaSalidaReal: '',
     });
   }
   
@@ -232,6 +251,11 @@ const hitosConPersonal = useMemo(() => {
         .map((hito, index) => ({...hito, expedicionNumero: `${entrega.serviceNumber}.${(index + 1).toString().padStart(2, '0')}`}))
         .filter(h => h.horasCamarero && h.horasCamarero > 0)
 }, [deliveryHitos, entrega]);
+
+const turnosAprobados = useMemo(() => {
+    return personalEntrega?.turnos.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
+}, [personalEntrega]);
+
 
   if (!isMounted || !entrega) {
     return <LoadingSkeleton title="Cargando Asignación de Personal..." />;
@@ -303,6 +327,28 @@ const hitosConPersonal = useMemo(() => {
                     )}
                 </Card>
 
+                {turnosAprobados.length > 0 && (
+                     <Card className="mb-4">
+                        <CardHeader className="py-3"><CardTitle className="text-lg">Turnos Aprobados por ETT</CardTitle></CardHeader>
+                        <CardContent className="p-2">
+                             <Table>
+                                <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>DNI</TableHead><TableHead>Teléfono</TableHead><TableHead>Horario</TableHead><TableHead>Comentarios</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {turnosAprobados.flatMap(t => t.asignaciones.map(a => (
+                                        <TableRow key={a.id}>
+                                            <TableCell className="font-semibold">{a.nombre}</TableCell>
+                                            <TableCell>{a.dni}</TableCell>
+                                            <TableCell>{a.telefono}</TableCell>
+                                            <TableCell>{t.horaEntrada} - {t.horaSalida}</TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">{a.comentarios}</TableCell>
+                                        </TableRow>
+                                    )))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                )}
+                
                 <Card>
                     <CardHeader className="py-3 flex-row items-center justify-between">
                         <CardTitle className="text-lg">Turnos de Personal</CardTitle>
@@ -405,8 +451,24 @@ const hitosConPersonal = useMemo(() => {
                         </div>
                     </CardContent>
                     {fields.length > 0 && (
-                        <CardFooter>
-                            <Card className="w-full md:w-1/2 ml-auto">
+                        <CardFooter className="grid lg:grid-cols-2 gap-4">
+                            <Card>
+                                <CardHeader className="py-2"><CardTitle className="text-base">Observaciones Generales para el Proveedor</CardTitle></CardHeader>
+                                <CardContent>
+                                    <FormField
+                                        control={control}
+                                        name="observacionesGenerales"
+                                        render={({ field }) => (
+                                        <FormItem>
+                                            <FormControl>
+                                            <Textarea placeholder="Añade aquí cualquier comentario general sobre el servicio..." rows={4} {...field} />
+                                            </FormControl>
+                                        </FormItem>
+                                        )}
+                                    />
+                                </CardContent>
+                            </Card>
+                            <Card className="w-full">
                                 <CardHeader className="py-2"><CardTitle className="text-base">Resumen de Costes de Personal</CardTitle></CardHeader>
                                 <CardContent className="space-y-1 text-sm p-3">
                                     <div className="flex justify-between font-bold text-base">
