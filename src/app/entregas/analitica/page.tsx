@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -37,6 +36,7 @@ import {
 } from "recharts"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { GASTO_LABELS } from '@/lib/constants';
+import Link from 'next/link';
 
 
 type AnaliticaItem = {
@@ -89,6 +89,7 @@ export default function AnaliticaEntregasPage() {
     const [selectedPedidos, setSelectedPedidos] = useState<Set<string>>(new Set());
     const [tarifaFilter, setTarifaFilter] = useState<'all' | 'Empresa' | 'IFEMA'>('all');
     const [transporteProviderFilter, setTransporteProviderFilter] = useState('all');
+    const [personalProviderFilter, setPersonalProviderFilter] = useState('all');
 
     useEffect(() => {
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.vertical === 'Entregas');
@@ -418,13 +419,22 @@ export default function AnaliticaEntregasPage() {
         return { costeTotal, totalViajes, costeMedio, pieData, monthlyChartData, listado: filteredByProvider };
     }, [pedidosFiltrados, allTransporte, transporteProviderFilter]);
     
-    const personalAnalysis = useMemo(() => {
+   const personalAnalysis = useMemo(() => {
         const osIdsEnRango = new Set(pedidosFiltrados.map(p => p.os.id));
-        const personalEnRango = allPersonal.filter(p => osIdsEnRango.has(p.osId));
+        let personalEnRango = allPersonal.filter(p => osIdsEnRango.has(p.osId));
         
+        if (personalProviderFilter !== 'all') {
+            personalEnRango = personalEnRango.map(p => ({
+                ...p,
+                turnos: p.turnos.filter(t => t.proveedorId === personalProviderFilter),
+            })).filter(p => p.turnos.length > 0);
+        }
+
         let costeTotalPlan = 0, costeTotalReal = 0, horasPlan = 0, horasReal = 0, totalTurnos = 0, totalAjustes = 0;
         const costePorProveedor: Record<string, number> = {};
         const proveedoresMap = new Map(allProveedores.map(p => [p.id, p.nombreComercial]));
+
+        const ajustesFiltrados: (PersonalExternoAjuste & {os: Entrega})[] = [];
 
         personalEnRango.forEach(p => {
             totalTurnos += p.turnos.length;
@@ -432,20 +442,30 @@ export default function AnaliticaEntregasPage() {
                 horasPlan += calculateHours(turno.horaEntrada, turno.horaSalida);
                 costeTotalPlan += calculateHours(turno.horaEntrada, turno.horaSalida) * turno.precioHora;
                 
-                const hReal = turno.asignaciones?.reduce((sum, asig) => sum + calculateHours(asig.horaEntradaReal, asig.horaSalidaReal), 0) || 0;
+                const hReal = turno.asignaciones?.reduce((sum, asig) => sum + calculateHours(asig.horaEntradaReal, asig.horaSalidaReal), 0) || calculateHours(turno.horaEntrada, turno.horaSalida);
                 horasReal += hReal;
-                costeTotalReal += hReal * turno.precioHora;
+                const costeTurnoReal = hReal * turno.precioHora;
+                costeTotalReal += costeTurnoReal;
 
-                const provName = proveedoresMap.get(turno.proveedorId) || 'Desconocido';
-                costePorProveedor[provName] = (costePorProveedor[provName] || 0) + (hReal * turno.precioHora);
+                const catPersonal = proveedoresPersonal.find(pp => pp.id === turno.proveedorId);
+                const provName = catPersonal?.nombreProveedor || 'Desconocido';
+                costePorProveedor[provName] = (costePorProveedor[provName] || 0) + costeTurnoReal;
             });
-            totalAjustes += (allAjustesPersonal[p.osId] || []).reduce((sum, aj) => sum + aj.ajuste, 0);
+
+            const osAjustes = allAjustesPersonal[p.osId] || [];
+            osAjustes.forEach(ajuste => {
+                 const os = pedidosFiltrados.find(ped => ped.os.id === p.osId)?.os;
+                 if (os) {
+                    ajustesFiltrados.push({ ...ajuste, os});
+                 }
+            });
+            totalAjustes += osAjustes.reduce((sum, aj) => sum + aj.ajuste, 0);
         });
         
         const pieData = Object.entries(costePorProveedor).map(([name, value]) => ({ name, value }));
 
-        return { costeTotalPlan, costeTotalReal, totalAjustes, costeFinal: costeTotalReal + totalAjustes, horasPlan, horasReal, totalTurnos, pieData, ajustes: Object.values(allAjustesPersonal).flat() };
-    }, [pedidosFiltrados, allPersonal, allAjustesPersonal, allProveedores]);
+        return { costeTotalPlan, costeTotalReal, totalAjustes, costeFinal: costeTotalReal + totalAjustes, horasPlan, horasReal, totalTurnos, pieData, ajustes: ajustesFiltrados };
+    }, [pedidosFiltrados, allPersonal, allAjustesPersonal, proveedoresPersonal, personalProviderFilter, allProveedores]);
 
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
@@ -733,8 +753,20 @@ export default function AnaliticaEntregasPage() {
                   </TabsContent>
                    <TabsContent value="personal">
                     <div className="space-y-8">
-                        <div className="grid md:grid-cols-4 gap-4">
+                         <div className="flex gap-2 flex-wrap">
+                            <Button size="sm" variant={personalProviderFilter === 'all' ? 'default' : 'outline'} onClick={() => setPersonalProviderFilter('all')}>Todos</Button>
+                            {Array.from(new Set(proveedoresPersonal.map(p => p.nombreProveedor))).map(name => (
+                                <Button key={name} size="sm" variant={personalProviderFilter === proveedoresPersonal.find(p=>p.nombreProveedor === name)?.id ? 'default' : 'outline'} onClick={() => setPersonalProviderFilter(proveedoresPersonal.find(p=>p.nombreProveedor === name)?.id || 'all')}>
+                                    {name}
+                                </Button>
+                            ))}
+                        </div>
+                        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
                             <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Coste Total Planificado</CardTitle><Wallet className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                                <CardContent><div className="text-2xl font-bold">{formatCurrency(personalAnalysis.costeTotalPlan)}</div></CardContent>
+                            </Card>
+                             <Card>
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Coste Total Personal</CardTitle><Wallet className="h-4 w-4 text-muted-foreground" /></CardHeader>
                                 <CardContent><div className="text-2xl font-bold">{formatCurrency(personalAnalysis.costeFinal)}</div><p className="text-xs text-muted-foreground">Coste real + ajustes</p></CardContent>
                             </Card>
@@ -743,7 +775,7 @@ export default function AnaliticaEntregasPage() {
                                 <CardContent><div className={cn("text-2xl font-bold", personalAnalysis.costeFinal - personalAnalysis.costeTotalPlan >= 0 ? "text-destructive" : "text-green-600")}>{formatCurrency(personalAnalysis.costeFinal - personalAnalysis.costeTotalPlan)}</div><p className="text-xs text-muted-foreground">vs. planificado</p></CardContent>
                             </Card>
                             <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Turnos</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Nº de empleados</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader>
                                 <CardContent><div className="text-2xl font-bold">{personalAnalysis.totalTurnos}</div></CardContent>
                             </Card>
                              <Card>
@@ -771,12 +803,17 @@ export default function AnaliticaEntregasPage() {
                                 <CardHeader><CardTitle>Ajustes Manuales de Coste</CardTitle></CardHeader>
                                 <CardContent>
                                      <Table>
-                                        <TableHeader><TableRow><TableHead>Concepto</TableHead><TableHead className="text-right">Importe</TableHead></TableRow></TableHeader>
+                                        <TableHeader><TableRow><TableHead>Servicio</TableHead><TableHead>Fecha</TableHead><TableHead>Concepto</TableHead><TableHead className="text-right">Importe</TableHead></TableRow></TableHeader>
                                         <TableBody>
                                             {personalAnalysis.ajustes.map((a, i) => (
-                                                <TableRow key={i}><TableCell>{a.concepto}</TableCell><TableCell className="text-right font-medium">{formatCurrency(a.ajuste)}</TableCell></TableRow>
+                                                <TableRow key={i}>
+                                                    <TableCell><Link href={`/entregas/pedido/${a.os.id}`} className="text-primary hover:underline">{a.os.serviceNumber}</Link></TableCell>
+                                                    <TableCell>{format(new Date(a.os.startDate), 'dd/MM/yy')}</TableCell>
+                                                    <TableCell>{a.concepto}</TableCell>
+                                                    <TableCell className="text-right font-medium">{formatCurrency(a.ajuste)}</TableCell>
+                                                </TableRow>
                                             ))}
-                                            <TableRow className="font-bold border-t-2"><TableCell>Total Ajustes</TableCell><TableCell className="text-right">{formatCurrency(personalAnalysis.totalAjustes)}</TableCell></TableRow>
+                                            <TableRow className="font-bold border-t-2"><TableCell colSpan={3}>Total Ajustes</TableCell><TableCell className="text-right">{formatCurrency(personalAnalysis.totalAjustes)}</TableCell></TableRow>
                                         </TableBody>
                                     </Table>
                                 </CardContent>
@@ -823,3 +860,5 @@ export default function AnaliticaEntregasPage() {
         </main>
     )
 }
+
+    
