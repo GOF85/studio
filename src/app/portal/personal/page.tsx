@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,8 +20,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from '@/components/ui/calendar';
+import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
 
 type TurnoConEstado = PersonalEntregaTurno & {
     osId: string;
@@ -43,35 +47,41 @@ const statusRowClass: { [key in PersonalEntregaTurno['statusPartner']]?: string 
   'Requiere Revisión': 'bg-amber-50 hover:bg-amber-100/80',
 };
 
+const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+type DayDetails = {
+    day: Date;
+    events: TurnoConEstado[];
+} | null;
+
 
 function AsignacionDialog({ turno, onSave, children }: { turno: TurnoConEstado; onSave: (turnoId: string, asignaciones: AsignacionPersonal[]) => void; children: React.ReactNode }) {
     const [isOpen, setIsOpen] = useState(false);
-    const [asignaciones, setAsignaciones] = useState<AsignacionPersonal[]>([]);
+    const [asignacion, setAsignacion] = useState<AsignacionPersonal>({ id: '1', nombre: '', dni: '', telefono: '', comentarios: '' });
     
     useEffect(() => {
         if(isOpen) {
-             setAsignaciones(turno.asignaciones || []);
+             setAsignacion(turno.asignaciones?.[0] || { id: '1', nombre: '', dni: '', telefono: '', comentarios: '' });
         }
     }, [isOpen, turno.asignaciones]);
 
-    const addAsignacion = () => setAsignaciones(prev => [...prev, { id: Date.now().toString(), nombre: '', dni: '', telefono: '', comentarios: '' }]);
-    const removeAsignacion = (id: string) => setAsignaciones(prev => prev.filter(a => a.id !== id));
-    
-    const updateAsignacion = (id: string, field: keyof Omit<AsignacionPersonal, 'id'>, value: string) => {
-        setAsignaciones(prev => prev.map(a => a.id === id ? { ...a, [field]: value } : a));
+    const updateAsignacion = (field: keyof Omit<AsignacionPersonal, 'id'>, value: string) => {
+        setAsignacion(prev => ({ ...prev, [field]: value }));
     };
 
     const handleSave = () => {
-        onSave(turno.id, asignaciones);
+        if (!asignacion.nombre) {
+            alert("El nombre es obligatorio.");
+            return;
+        }
+        onSave(turno.id, [asignacion]);
         setIsOpen(false);
     }
-    
-    const remaining = turno.cantidad - asignaciones.length;
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>{children}</DialogTrigger>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-xl">
                 <DialogHeader>
                     <DialogTitle>Asignar Personal: {turno.categoria}</DialogTitle>
                     <DialogDescription asChild>
@@ -82,30 +92,16 @@ function AsignacionDialog({ turno, onSave, children }: { turno: TurnoConEstado; 
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
-                    <p>Necesitas asignar <strong>{turno.cantidad}</strong> persona(s). {remaining > 0 ? `Faltan ${remaining}.` : <span className="font-bold text-green-600">Completado.</span>}</p>
-                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                        {asignaciones.map((asignacion, index) => (
-                            <div key={asignacion.id} className="flex flex-col gap-2 p-3 border rounded-md relative">
-                                <div className="flex items-start gap-3">
-                                    <span className="font-bold pt-2">{index + 1}.</span>
-                                    <div className="flex-grow grid grid-cols-2 gap-2">
-                                        <div className="space-y-1"><Label htmlFor={`nombre-${asignacion.id}`}>Nombre y Apellidos</Label><Input id={`nombre-${asignacion.id}`} placeholder="Nombre completo" value={asignacion.nombre} onChange={e => updateAsignacion(asignacion.id, 'nombre', e.target.value)} /></div>
-                                        <div className="space-y-1"><Label htmlFor={`dni-${asignacion.id}`}>DNI</Label><Input id={`dni-${asignacion.id}`} placeholder="DNI" value={asignacion.dni} onChange={e => updateAsignacion(asignacion.id, 'dni', e.target.value)} /></div>
-                                        <div className="space-y-1"><Label htmlFor={`tel-${asignacion.id}`}>Teléfono</Label><Input id={`tel-${asignacion.id}`} placeholder="Teléfono de contacto" value={asignacion.telefono} onChange={e => updateAsignacion(asignacion.id, 'telefono', e.target.value)} /></div>
-                                        <div className="space-y-1"><Label htmlFor={`com-${asignacion.id}`}>Comentarios</Label><Input id={`com-${asignacion.id}`} placeholder="Notas (opcional)" value={asignacion.comentarios} onChange={e => updateAsignacion(asignacion.id, 'comentarios', e.target.value)} /></div>
-                                    </div>
-                                </div>
-                                <Button size="icon" variant="ghost" className="absolute top-1 right-1 text-destructive h-7 w-7" onClick={() => removeAsignacion(asignacion.id)}><Trash2 className="h-4 w-4"/></Button>
-                            </div>
-                        ))}
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1"><Label htmlFor={`nombre-${asignacion.id}`}>Nombre y Apellidos</Label><Input id={`nombre-${asignacion.id}`} placeholder="Nombre completo" value={asignacion.nombre} onChange={e => updateAsignacion('nombre', e.target.value)} /></div>
+                        <div className="space-y-1"><Label htmlFor={`dni-${asignacion.id}`}>DNI</Label><Input id={`dni-${asignacion.id}`} placeholder="DNI" value={asignacion.dni} onChange={e => updateAsignacion('dni', e.target.value)} /></div>
+                        <div className="space-y-1"><Label htmlFor={`tel-${asignacion.id}`}>Teléfono</Label><Input id={`tel-${asignacion.id}`} placeholder="Teléfono de contacto" value={asignacion.telefono} onChange={e => updateAsignacion('telefono', e.target.value)} /></div>
+                        <div className="space-y-1"><Label htmlFor={`com-${asignacion.id}`}>Comentarios</Label><Input id={`com-${asignacion.id}`} placeholder="Notas (opcional)" value={asignacion.comentarios} onChange={e => updateAsignacion('comentarios', e.target.value)} /></div>
                     </div>
-                    {remaining > 0 && (
-                        <Button variant="outline" size="sm" onClick={addAsignacion}><PlusCircle className="mr-2"/>Añadir Persona</Button>
-                    )}
                 </div>
                 <DialogFooter>
                     <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleSave}>Guardar Asignaciones</Button>
+                    <Button onClick={handleSave}>Guardar Asignación</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -116,6 +112,10 @@ export default function PartnerPersonalPortalPage() {
     const [turnos, setTurnos] = useState<TurnoConEstado[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const { toast } = useToast();
+
+    // State for Calendar View
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
 
     const loadData = useCallback(() => {
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.status === 'Confirmado');
@@ -196,6 +196,27 @@ export default function PartnerPersonalPortalPage() {
         return Object.entries(grouped).sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime());
     }, [turnos]);
 
+    // --- Calendar Logic ---
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const calStartDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const calEndDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    const calendarDays = eachDayOfInterval({ start: calStartDate, end: calEndDate });
+
+     const eventsByDay = useMemo(() => {
+        const grouped: { [dayKey: string]: TurnoConEstado[] } = {};
+        turnos.forEach(event => {
+            const dayKey = format(new Date(event.fechaEntrega), 'yyyy-MM-dd');
+            if (!grouped[dayKey]) grouped[dayKey] = [];
+            grouped[dayKey].push(event);
+        });
+        return grouped;
+    }, [turnos]);
+
+    const nextMonth = () => setCurrentDate(add(currentDate, { months: 1 }));
+    const prevMonth = () => setCurrentDate(sub(currentDate, { months: 1 }));
+
+
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Portal de Personal..." />;
     }
@@ -211,82 +232,161 @@ export default function PartnerPersonalPortalPage() {
                 </div>
             </div>
 
-            <div className="space-y-4">
-                {turnosAgrupadosPorDia.length > 0 ? (
-                    turnosAgrupadosPorDia.map(([date, dailyTurnos]) => (
-                        <Card key={date}>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <CalendarIcon className="h-6 w-6"/>
-                                    <span className="capitalize">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</span>
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Pedido (Cliente)</TableHead>
-                                            <TableHead>Categoría</TableHead>
-                                            <TableHead>Cantidad</TableHead>
-                                            <TableHead>Horario</TableHead>
-                                            <TableHead>Observaciones MICE</TableHead>
-                                            <TableHead>Asignaciones</TableHead>
-                                            <TableHead>Estado</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {dailyTurnos.map(turno => (
-                                            <TableRow key={turno.id} className={cn("transition-colors", statusRowClass[turno.statusPartner || 'Pendiente Asignación'])}>
-                                                <TableCell>
-                                                    <Badge variant="secondary">{turno.serviceNumber}</Badge>
-                                                    <p className="text-xs text-muted-foreground">{turno.cliente}</p>
-                                                </TableCell>
-                                                <TableCell className="font-semibold">{turno.categoria}</TableCell>
-                                                <TableCell className="font-mono text-center">{turno.cantidad}</TableCell>
-                                                <TableCell>{turno.horaEntrada} - {turno.horaSalida}</TableCell>
-                                                <TableCell className="text-sm text-muted-foreground max-w-xs">{turno.observaciones}</TableCell>
-                                                <TableCell>
-                                                    <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones}>
-                                                        <Button variant="outline" size="sm">
-                                                            <Edit className="mr-2 h-3 w-3"/>
-                                                            Gestionar ({turno.asignaciones?.length || 0}/{turno.cantidad})
-                                                        </Button>
-                                                    </AsignacionDialog>
-                                                </TableCell>
-                                                <TableCell>
-                                                  <Badge variant={statusVariant[turno.statusPartner || 'Pendiente Asignación']}>{turno.statusPartner || 'Pendiente Asignación'}</Badge>
-                                                    {turno.requiereActualizacion && (
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <span className="ml-2 flex h-3 w-3 relative">
-                                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-                                                                </span>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>La cantidad solicitada ha cambiado. Por favor, revisa las asignaciones.</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
+            <Tabs defaultValue="lista">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="lista">Lista de Producción</TabsTrigger>
+                    <TabsTrigger value="calendario">Calendario</TabsTrigger>
+                </TabsList>
+                <TabsContent value="lista" className="mt-6">
+                    {turnosAgrupadosPorDia.length > 0 ? (
+                        <Accordion type="multiple" defaultValue={turnosAgrupadosPorDia.map(([date]) => date)} className="w-full space-y-4">
+                            {turnosAgrupadosPorDia.map(([date, dailyTurnos]) => (
+                                <Card key={date}>
+                                    <AccordionItem value={date} className="border-none">
+                                        <AccordionTrigger className="p-4">
+                                            <div className="flex items-center gap-3">
+                                                <CalendarIcon className="h-6 w-6"/>
+                                                <div className="text-left">
+                                                    <h3 className="text-xl font-bold capitalize">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
+                                                    <p className="text-sm text-muted-foreground">{dailyTurnos.length} turnos requeridos</p>
+                                                </div>
+                                            </div>
+                                        </AccordionTrigger>
+                                        <AccordionContent>
+                                            <div className="border-t">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>Pedido (Cliente)</TableHead>
+                                                            <TableHead>Categoría</TableHead>
+                                                            <TableHead>Horario</TableHead>
+                                                            <TableHead>Observaciones MICE</TableHead>
+                                                            <TableHead>Asignaciones</TableHead>
+                                                            <TableHead>Estado</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {dailyTurnos.map(turno => (
+                                                             <TableRow key={turno.id} className={cn("transition-colors", statusRowClass[turno.statusPartner || 'Pendiente Asignación'])}>
+                                                                <TableCell>
+                                                                    <Badge variant="secondary">{turno.serviceNumber}</Badge>
+                                                                    <p className="text-xs text-muted-foreground">{turno.cliente}</p>
+                                                                </TableCell>
+                                                                <TableCell className="font-semibold">{turno.categoria}</TableCell>
+                                                                <TableCell>{turno.horaEntrada} - {turno.horaSalida}</TableCell>
+                                                                <TableCell className="text-sm text-muted-foreground max-w-xs">{turno.observaciones}</TableCell>
+                                                                <TableCell>
+                                                                    <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones}>
+                                                                        <Button variant="outline" size="sm">
+                                                                            <Edit className="mr-2 h-3 w-3"/>
+                                                                            Gestionar
+                                                                        </Button>
+                                                                    </AsignacionDialog>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <Badge variant={statusVariant[turno.statusPartner || 'Pendiente Asignación']}>{turno.statusPartner || 'Pendiente Asignación'}</Badge>
+                                                                    {turno.requiereActualizacion && (
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger asChild>
+                                                                                <span className="ml-2 flex h-3 w-3 relative">
+                                                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                                                                                </span>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                <p>La cantidad solicitada ha cambiado. Por favor, revisa las asignaciones.</p>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    )}
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                </Card>
+                            ))}
+                        </Accordion>
+                    ) : (
+                        <Card>
+                            <CardContent className="py-12 text-center">
+                                <Users className="mx-auto h-12 w-12 text-muted-foreground" />
+                                <h3 className="mt-4 text-lg font-semibold">Todo al día</h3>
+                                <p className="mt-1 text-sm text-muted-foreground">No hay turnos de personal pendientes.</p>
                             </CardContent>
                         </Card>
-                    ))
-                ) : (
-                    <Card>
-                        <CardContent className="py-12 text-center">
-                            <Users className="mx-auto h-12 w-12 text-muted-foreground" />
-                            <h3 className="mt-4 text-lg font-semibold">Todo al día</h3>
-                            <p className="mt-1 text-sm text-muted-foreground">No hay turnos de personal pendientes.</p>
-                        </CardContent>
-                    </Card>
-                )}
-            </div>
+                    )}
+                </TabsContent>
+                <TabsContent value="calendario" className="mt-6">
+                    <div className="flex items-center justify-center gap-4 mb-6">
+                        <Button variant="outline" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
+                        <h2 className="text-xl font-semibold w-40 text-center capitalize">{format(currentDate, 'MMMM yyyy', { locale: es })}</h2>
+                        <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
+                    </div>
+                     <div className="border rounded-lg">
+                        <div className="grid grid-cols-7 border-b">
+                            {WEEKDAYS.map(day => (
+                            <div key={day} className="text-center font-bold p-2 text-xs text-muted-foreground">
+                                {day}
+                            </div>
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-7 auto-rows-fr">
+                            {calendarDays.map((day) => {
+                                const dayKey = format(day, 'yyyy-MM-dd');
+                                const dayEvents = eventsByDay[dayKey] || [];
+                                const isCurrentMonth = isSameMonth(day, currentDate);
+                                const isToday = isSameDay(day, new Date());
+
+                                return (
+                                    <div
+                                        key={day.toString()}
+                                        className={cn(
+                                            'h-20 border-r border-b p-1 flex flex-col',
+                                            !isCurrentMonth && 'bg-muted/50 text-muted-foreground',
+                                            'last:border-r-0',
+                                            dayEvents.length > 0 && 'cursor-pointer hover:bg-secondary'
+                                        )}
+                                        onClick={() => dayEvents.length > 0 && setDayDetails({ day, events: dayEvents })}
+                                    >
+                                        <span className={cn('font-semibold text-xs', isToday && 'text-primary font-bold flex items-center justify-center h-5 w-5 rounded-full bg-primary/20')}>
+                                            {format(day, 'd')}
+                                        </span>
+                                        {dayEvents.length > 0 && (
+                                            <div className="mt-1 flex justify-center">
+                                                <span className="h-2 w-2 rounded-full bg-primary"></span>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
          </main>
+
+        <Dialog open={!!dayDetails} onOpenChange={(open) => !open && setDayDetails(null)}>
+            <DialogContent className="max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Turnos para el {dayDetails?.day ? format(dayDetails.day, 'PPP', { locale: es }) : ''}</DialogTitle>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto -mx-6 px-6">
+                    {dayDetails && dayDetails.events.map((event) => (
+                        <div key={event.id} className="block p-3 hover:bg-muted rounded-md">
+                            <p className="font-bold text-primary">{event.categoria}</p>
+                            <p>Pedido: {event.serviceNumber} ({event.cliente})</p>
+                            <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4">
+                                <span><span className="font-semibold">Cantidad:</span> {event.cantidad}</span>
+                                <span><span className="font-semibold">Horario:</span> {event.horaEntrada} - {event.horaSalida}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </DialogContent>
+        </Dialog>
         </TooltipProvider>
     );
 }
