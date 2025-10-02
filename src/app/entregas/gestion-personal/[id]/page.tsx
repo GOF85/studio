@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -30,8 +31,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -100,11 +102,20 @@ function CommentDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; as
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <Pencil className="h-4 w-4" />
-                </Button>
-            </DialogTrigger>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                             <Pencil className={cn("h-4 w-4", asignacion.comentariosMice && "text-primary fill-primary/20")} />
+                        </Button>
+                    </DialogTrigger>
+                </TooltipTrigger>
+                {asignacion.comentariosMice && (
+                    <TooltipContent>
+                        <p className="max-w-xs">{asignacion.comentariosMice}</p>
+                    </TooltipContent>
+                )}
+            </Tooltip>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Comentarios para {asignacion?.nombre}</DialogTitle>
@@ -327,6 +338,7 @@ const turnosAprobados = useMemo(() => {
   return (
     <>
       <main className="container mx-auto px-4 py-8">
+      <TooltipProvider>
         <FormProvider {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-start justify-between mb-2">
@@ -398,9 +410,9 @@ const turnosAprobados = useMemo(() => {
                                         <TableHead>Nombre</TableHead>
                                         <TableHead>DNI</TableHead>
                                         <TableHead>Teléfono</TableHead>
-                                        <TableHead>Horario</TableHead>
+                                        <TableHead>Fecha-Horario</TableHead>
                                         <TableHead>Comentarios ETT</TableHead>
-                                        <TableHead>Rating (1-5)</TableHead>
+                                        <TableHead>Desempeño</TableHead>
                                         <TableHead className="w-12">Comentarios MICE</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -411,7 +423,10 @@ const turnosAprobados = useMemo(() => {
                                                 <TableCell className="font-semibold">{asignacion.nombre}</TableCell>
                                                 <TableCell>{asignacion.dni}</TableCell>
                                                 <TableCell>{asignacion.telefono}</TableCell>
-                                                <TableCell>{turno.horaEntrada} - {turno.horaSalida}</TableCell>
+                                                <TableCell>
+                                                  <div>{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
+                                                  <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
+                                                </TableCell>
                                                 <TableCell className="text-xs text-muted-foreground">{asignacion.comentarios}</TableCell>
                                                 <TableCell>
                                                     <FormField
@@ -543,37 +558,42 @@ const turnosAprobados = useMemo(() => {
                         </div>
                     </CardContent>
                     {fields.length > 0 && (
-                        <CardFooter className="grid grid-cols-2 gap-8">
-                            <Card>
-                                <CardHeader className="py-2"><CardTitle className="text-base">Observaciones para el Proveedor</CardTitle></CardHeader>
-                                <CardContent>
-                                    <FormField
-                                        control={control}
-                                        name="observacionesGenerales"
-                                        render={({ field }) => (
-                                        <FormItem>
-                                            <FormControl>
-                                            <Textarea placeholder="Añade aquí cualquier comentario general sobre el servicio..." rows={4} {...field} />
-                                            </FormControl>
-                                        </FormItem>
-                                        )}
-                                    />
-                                </CardContent>
-                            </Card>
-                            <Card className="w-full">
-                                <CardHeader className="py-2"><CardTitle className="text-base">Resumen de Costes de Personal</CardTitle></CardHeader>
-                                <CardContent className="space-y-1 text-sm p-3">
-                                    <div className="flex justify-between font-bold text-base">
-                                        <span>Coste Total Planificado:</span>
-                                        <span>{formatCurrency(totalPlanned)}</span>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                        <CardFooter>
+                           <div className="w-full grid grid-cols-2 gap-8">
+                                <Card>
+                                     <CardHeader className="py-2">
+                                        <CardTitle className="text-lg">Observaciones para el Proveedor</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <FormField
+                                            control={control}
+                                            name="observacionesGenerales"
+                                            render={({ field }) => (
+                                            <FormItem>
+                                                <FormControl>
+                                                <Textarea placeholder="Añade aquí cualquier comentario general sobre el servicio..." rows={2} {...field} />
+                                                </FormControl>
+                                            </FormItem>
+                                            )}
+                                        />
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes de Personal</CardTitle></CardHeader>
+                                    <CardContent className="space-y-2 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Coste Total Planificado:</span>
+                                            <span className="font-bold">{formatCurrency(totalPlanned)}</span>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                           </div>
                         </CardFooter>
                     )}
                 </Card>
             </form>
         </FormProvider>
+        </TooltipProvider>
 
         <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
             <AlertDialogContent>
@@ -588,4 +608,3 @@ const turnosAprobados = useMemo(() => {
     </>
   );
 }
-
