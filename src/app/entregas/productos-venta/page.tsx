@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, Package, CheckCircle2, CircleX } from 'lucide-react';
-import type { ProductoVenta, ProveedorGastronomia, Receta } from '@/types';
+import type { ProductoVenta, Proveedor, Receta } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -36,7 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 export default function ProductosVentaPage() {
   const [items, setItems] = useState<ProductoVenta[]>([]);
-  const [partners, setPartners] = useState<ProveedorGastronomia[]>([]);
+  const [partners, setPartners] = useState<Proveedor[]>([]);
   const [recetas, setRecetas] = useState<Receta[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,7 +51,7 @@ export default function ProductosVentaPage() {
     let storedData = localStorage.getItem('productosVenta');
     setItems(storedData ? JSON.parse(storedData) : []);
 
-    let storedPartners = localStorage.getItem('proveedoresGastronomia');
+    let storedPartners = localStorage.getItem('proveedores');
     setPartners(storedPartners ? JSON.parse(storedPartners) : []);
 
     let storedRecetas = localStorage.getItem('recetas');
@@ -61,7 +61,7 @@ export default function ProductosVentaPage() {
   }, []);
 
   const partnersMap = useMemo(() => {
-    return new Map(partners.map(p => [p.id, p.nombre]));
+    return new Map(partners.map(p => [p.id, p.nombreComercial]));
   }, [partners]);
 
   const recetasMap = useMemo(() => {
