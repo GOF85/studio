@@ -175,7 +175,7 @@ export default function PlanificacionPage() {
     const [matrizHeaders, setMatrizHeaders] = useState<MatrizHeader[]>([]);
     const [matrizTotals, setMatrizTotals] = useState({ totalPax: 0, totalContratos: 0, totalServicios: 0 });
 
-
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
@@ -805,7 +805,7 @@ export default function PlanificacionPage() {
                 </div>
 
                 <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-card">
-                    <Popover>
+                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                         <PopoverTrigger asChild>
                             <Button
                                 id="date"
@@ -833,7 +833,12 @@ export default function PlanificacionPage() {
                                 mode="range"
                                 defaultMonth={dateRange?.from}
                                 selected={dateRange}
-                                onSelect={setDateRange}
+                                onSelect={(range) => {
+                                    setDateRange(range);
+                                    if (range?.from && range?.to) {
+                                        setIsDatePickerOpen(false);
+                                    }
+                                }}
                                 numberOfMonths={2}
                                 locale={es}
                             />
@@ -1308,6 +1313,7 @@ export default function PlanificacionPage() {
         </TooltipProvider>
     );
 }
+
 
 
 

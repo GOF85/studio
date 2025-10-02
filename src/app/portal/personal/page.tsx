@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -115,6 +116,7 @@ export default function PartnerPersonalPortalPage() {
     const { toast } = useToast();
     const [showCompleted, setShowCompleted] = useState(false);
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
     // State for Calendar View
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -171,7 +173,7 @@ export default function PartnerPersonalPortalPage() {
         
         allPersonalEntregas[pedidoIndex].turnos[turnoIndex].statusPartner = newStatus;
         localStorage.setItem('personalEntrega', JSON.stringify(allPersonalEntregas));
-        loadData();
+        loadData(); // Recargar datos para reflejar el cambio
         toast({ title: 'Estado actualizado', description: `El estado del turno ha sido cambiado a "${newStatus}".` });
     };
 
@@ -288,7 +290,7 @@ export default function PartnerPersonalPortalPage() {
                 </TabsList>
                 <TabsContent value="lista" className="mt-6">
                     <div className="flex items-center space-x-4 mb-4">
-                        <Popover>
+                        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                             <PopoverTrigger asChild>
                                 <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -296,7 +298,7 @@ export default function PartnerPersonalPortalPage() {
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
+                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false) }}} numberOfMonths={2} locale={es}/>
                             </PopoverContent>
                         </Popover>
                         <div className="flex items-center space-x-2">

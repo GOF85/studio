@@ -34,6 +34,7 @@ export default function ProductividadPage() {
         from: subDays(startOfToday(), 7),
         to: startOfToday(),
     });
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [allOFs, setAllOFs] = useState<OrdenFabricacion[]>([]);
     const [responsableFilter, setResponsableFilter] = useState('all');
 
@@ -115,7 +116,7 @@ export default function ProductividadPage() {
             </div>
 
             <div className="flex flex-col md:flex-row gap-4 mb-6 p-4 border rounded-lg bg-card">
-                <Popover>
+                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                     <PopoverTrigger asChild>
                         <Button
                             id="date"
@@ -143,7 +144,12 @@ export default function ProductividadPage() {
                             mode="range"
                             defaultMonth={dateRange?.from}
                             selected={dateRange}
-                            onSelect={setDateRange}
+                            onSelect={(range) => {
+                                setDateRange(range);
+                                if (range?.from && range?.to) {
+                                    setIsDatePickerOpen(false);
+                                }
+                            }}
                             numberOfMonths={2}
                             locale={es}
                         />

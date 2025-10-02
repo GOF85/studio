@@ -87,6 +87,7 @@ export default function AnaliticaEntregasPage() {
         from: startOfMonth(new Date()),
         to: endOfMonth(new Date()),
     });
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [selectedPedidos, setSelectedPedidos] = useState<Set<string>>(new Set());
     const [tarifaFilter, setTarifaFilter] = useState<'all' | 'Empresa' | 'IFEMA'>('all');
     const [transporteProviderFilter, setTransporteProviderFilter] = useState('all');
@@ -510,7 +511,7 @@ export default function AnaliticaEntregasPage() {
             <Card className="mb-6">
                 <CardContent className="p-4 flex flex-wrap items-center gap-4 justify-between">
                     <div className="flex flex-wrap items-center gap-2">
-                        <Popover>
+                        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                             <PopoverTrigger asChild>
                                 <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -518,7 +519,7 @@ export default function AnaliticaEntregasPage() {
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
+                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
                             </PopoverContent>
                         </Popover>
                         <Button size="sm" variant="outline" onClick={() => setDatePreset('month')}>Mes en curso</Button>

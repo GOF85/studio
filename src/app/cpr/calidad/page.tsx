@@ -61,6 +61,7 @@ export default function CalidadPage() {
     from: subDays(startOfToday(), 7),
     to: startOfToday(),
   });
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -191,7 +192,7 @@ export default function CalidadPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Popover>
+        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
             <PopoverTrigger asChild>
                 <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal md:w-[300px]", !dateRange && "text-muted-foreground")}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -199,7 +200,7 @@ export default function CalidadPage() {
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
+                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false) }}} numberOfMonths={2} locale={es}/>
             </PopoverContent>
         </Popover>
         <div className="flex items-center space-x-2">
