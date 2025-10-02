@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle } from 'lucide-react';
 
 import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, EstadoPersonalEntrega, PedidoEntrega, EntregaHito, AsignacionPersonal } from '@/types';
 import { ESTADO_PERSONAL_ENTREGA } from '@/types';
@@ -495,14 +495,22 @@ const turnosAprobados = useMemo(() => {
                                         <TableHead className="w-24">H. Entrada Real</TableHead>
                                         <TableHead className="w-24">H. Salida Real</TableHead>
                                         <TableHead>Comentarios ETT</TableHead>
-                                        <TableHead>Desempeño y Comentarios MICE</TableHead>
+                                        <TableHead className="w-44 text-center">Desempeño y Comentarios MICE</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {watchedFields.map((turno, turnoIndex) => 
-                                        turno.asignaciones?.map((asignacion, asigIndex) => (
-                                            <TableRow key={asignacion.id}>
-                                                <TableCell className="font-semibold">{asignacion.nombre}</TableCell>
+                                    {watchedFields.map((turno, turnoIndex) => {
+                                        const hasTimeMismatch = (turno.asignaciones || []).some(asig => 
+                                          (asig.horaEntradaReal && asig.horaEntradaReal !== turno.horaEntrada) || 
+                                          (asig.horaSalidaReal && asig.horaSalidaReal !== turno.horaSalida)
+                                        );
+
+                                        return (turno.asignaciones || []).map((asignacion, asigIndex) => (
+                                            <TableRow key={asignacion.id} className={cn(hasTimeMismatch && "bg-amber-50")}>
+                                                <TableCell className="font-semibold flex items-center gap-2">
+                                                    {hasTimeMismatch && <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                                                    {asignacion.nombre}
+                                                </TableCell>
                                                 <TableCell>{asignacion.dni}</TableCell>
                                                 <TableCell>
                                                   <div>{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
@@ -519,33 +527,31 @@ const turnosAprobados = useMemo(() => {
                                                     <TooltipTrigger asChild>
                                                         <div className="flex items-center gap-1 cursor-default">
                                                             {asignacion.comentarios && <MessageSquare className="h-4 w-4 text-primary" />}
-                                                            <span className="text-xs text-muted-foreground truncate max-w-[150px]">{asignacion.comentarios}</span>
+                                                            <span className="text-xs text-muted-foreground truncate max-w-[100px]">{asignacion.comentarios}</span>
                                                         </div>
                                                     </TooltipTrigger>
                                                     {asignacion.comentarios && <TooltipContent><p>{asignacion.comentarios}</p></TooltipContent>}
                                                   </Tooltip>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex items-center gap-1">
-                                                        <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
-                                                        {(asignacion.comentariosMice || (asignacion.rating && asignacion.rating !== 3)) && (
-                                                           <Tooltip>
-                                                             <TooltipTrigger asChild>
-                                                               <span className="flex items-center">
-                                                                <MessageSquare className="h-4 w-4 text-primary" />
-                                                                </span>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p className="font-bold">Rating: {asignacion.rating}/5</p>
-                                                                <p>{asignacion.comentariosMice}</p>
-                                                            </TooltipContent>
-                                                          </Tooltip>
-                                                        )}
-                                                    </div>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="flex items-center justify-center gap-1 cursor-pointer">
+                                                                <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
+                                                                {(asignacion.comentariosMice || (asignacion.rating && asignacion.rating !== 3)) && (
+                                                                    <MessageSquare className="h-4 w-4 text-primary" />
+                                                                )}
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p className="font-bold">Valoración: {'⭐'.repeat(asignacion.rating || 0)}</p>
+                                                            <p className="max-w-xs">{asignacion.comentariosMice}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
                                                 </TableCell>
                                             </TableRow>
                                         ))
-                                    )}
+                                    })}
                                 </TableBody>
                             </Table>
                         </CardContent>
@@ -569,20 +575,10 @@ const turnosAprobados = useMemo(() => {
                                     <TableRow>
                                         <TableHead className="px-2 py-1">Fecha</TableHead>
                                         <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
-                                        <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
-                                        <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
+                                        <TableHead className="px-2 py-1">Horario</TableHead>
+                                        <TableHead className="px-2 py-1 w-20">€/Hora</TableHead>
                                         <TableHead className="px-2 py-1">Observaciones ETT</TableHead>
                                         <TableHead className="text-right px-2 py-1">Acción</TableHead>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableHead className="px-1 py-2"></TableHead>
-                                        <TableHead className="px-2 py-2"></TableHead>
-                                        <TableHead className="px-2 py-2"></TableHead>
-                                        <TableHead className="border-l px-1 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
-                                        <TableHead className="px-1 py-2 bg-muted/30 w-24">H. Salida</TableHead>
-                                        <TableHead className="border-r px-1 py-2 bg-muted/30 w-20">€/Hora</TableHead>
-                                        <TableHead className="px-2 py-2"></TableHead>
-                                        <TableHead className="px-2 py-2"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -624,16 +620,14 @@ const turnosAprobados = useMemo(() => {
                                                         )}
                                                     />
                                                 </TableCell>
-                                                <TableCell className="px-2 py-1">
-                                                    {/* Eliminar tipo servicio */}
+                                                <TableCell className="px-1 py-1">
+                                                    <div className="flex items-center gap-1">
+                                                        <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
+                                                        <span className="text-muted-foreground">-</span>
+                                                        <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
+                                                    </div>
                                                 </TableCell>
-                                                <TableCell className="border-l px-1 py-1 bg-muted/30">
-                                                    <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
-                                                </TableCell>
-                                                <TableCell className="px-1 py-1 bg-muted/30">
-                                                    <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
-                                                </TableCell>
-                                                <TableCell className="border-r px-1 py-1 bg-muted/30">
+                                                <TableCell className="px-1 py-1">
                                                     <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell>
@@ -660,7 +654,7 @@ const turnosAprobados = useMemo(() => {
                     <CardFooter className="grid grid-cols-2 gap-8">
                        <Card>
                              <CardHeader className="py-2">
-                                <CardTitle className="text-lg">Observaciones Generales</CardTitle>
+                                <CardTitle className="text-lg">Observaciones Generales para ETT</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <FormField
@@ -720,3 +714,5 @@ const turnosAprobados = useMemo(() => {
     </>
   );
 }
+
+    
