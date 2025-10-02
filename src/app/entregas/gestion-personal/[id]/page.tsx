@@ -102,20 +102,11 @@ function CommentDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; as
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                             <Pencil className={cn("h-4 w-4", asignacion.comentariosMice && "text-primary fill-primary/20")} />
-                        </Button>
-                    </DialogTrigger>
-                </TooltipTrigger>
-                {asignacion.comentariosMice && (
-                    <TooltipContent>
-                        <p className="max-w-xs">{asignacion.comentariosMice}</p>
-                    </TooltipContent>
-                )}
-            </Tooltip>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Pencil className={cn("h-4 w-4", asignacion.comentariosMice && "text-primary")} />
+                </Button>
+            </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Comentarios para {asignacion?.nombre}</DialogTitle>
@@ -313,6 +304,29 @@ export default function GestionPersonalEntregaPage() {
       localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
   }
 
+  const addAjusteRow = () => {
+      const newAjustes = [...ajustes, { id: Date.now().toString(), concepto: '', ajuste: 0 }];
+      setAjustes(newAjustes);
+      saveAjustes(newAjustes);
+  };
+
+  const updateAjuste = (index: number, field: 'concepto' | 'ajuste', value: string | number) => {
+      const newAjustes = [...ajustes];
+      if (field === 'ajuste') {
+          newAjustes[index][field] = parseFloat(value as string) || 0;
+      } else {
+          newAjustes[index][field] = value as string;
+      }
+      setAjustes(newAjustes);
+      saveAjustes(newAjustes);
+  };
+
+  const removeAjusteRow = (index: number) => {
+      const newAjustes = ajustes.filter((_, i) => i !== index);
+      setAjustes(newAjustes);
+      saveAjustes(newAjustes);
+  };
+
   const providerOptions = useMemo(() => {
     return proveedoresDB.map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
 }, [proveedoresDB, proveedoresMap]);
@@ -427,7 +441,17 @@ const turnosAprobados = useMemo(() => {
                                                   <div>{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
                                                   <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
                                                 </TableCell>
-                                                <TableCell className="text-xs text-muted-foreground">{asignacion.comentarios}</TableCell>
+                                                <TableCell>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="flex items-center gap-1 cursor-default">
+                                                                {asignacion.comentarios && <MessageSquare className="h-4 w-4 text-primary" />}
+                                                                <span className="text-xs text-muted-foreground truncate max-w-xs">{asignacion.comentarios}</span>
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                        {asignacion.comentarios && <TooltipContent><p>{asignacion.comentarios}</p></TooltipContent>}
+                                                    </Tooltip>
+                                                </TableCell>
                                                 <TableCell>
                                                     <FormField
                                                         control={control}
@@ -449,7 +473,15 @@ const turnosAprobados = useMemo(() => {
                                                     />
                                                 </TableCell>
                                                  <TableCell>
-                                                     <CommentDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
+                                                     <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="flex items-center gap-1 cursor-pointer">
+                                                                {asignacion.comentariosMice && <MessageSquare className="h-4 w-4 text-primary" />}
+                                                                <CommentDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                         {asignacion.comentariosMice && <TooltipContent><p>{asignacion.comentariosMice}</p></TooltipContent>}
+                                                     </Tooltip>
                                                 </TableCell>
                                             </TableRow>
                                         ))
@@ -558,9 +590,8 @@ const turnosAprobados = useMemo(() => {
                         </div>
                     </CardContent>
                     {fields.length > 0 && (
-                        <CardFooter>
-                           <div className="w-full grid grid-cols-2 gap-8">
-                                <Card>
+                        <CardFooter className="grid grid-cols-2 gap-8">
+                               <Card>
                                      <CardHeader className="py-2">
                                         <CardTitle className="text-lg">Observaciones para el Proveedor</CardTitle>
                                     </CardHeader>
@@ -587,7 +618,6 @@ const turnosAprobados = useMemo(() => {
                                         </div>
                                     </CardContent>
                                 </Card>
-                           </div>
                         </CardFooter>
                     )}
                 </Card>
