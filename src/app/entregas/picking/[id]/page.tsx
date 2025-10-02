@@ -140,20 +140,34 @@ export default function PickingEntregaPage() {
             (currentHito.items || []).forEach(item => {
                 const producto = productosMap.get(item.id);
                 if (producto) {
-                    if (producto.producidoPorPartner || producto.recetaId) {
-                        // It's a final product (from partner or CPR), not a pack to be composed by warehouse
-                        const uniqueId = `prod_${producto.id}`;
+                    if (producto.producidoPorPartner) {
+                        const uniqueId = `prod_partner_${producto.id}`;
                          if (!items.some(i => i.id === uniqueId)) {
                              items.push({
                                 id: uniqueId,
                                 nombre: producto.nombre,
                                 cantidad: item.quantity,
                                 unidad: 'Uds',
-                                loc: 'N/A', // Location from CPR/Partner
+                                loc: 'N/A', // Location from Partner
                                 categoria: producto.categoria,
-                                origen: producto.producidoPorPartner ? 'Partner' : 'CPR MICE',
-                                producidoPorPartner: producto.producidoPorPartner,
+                                origen: 'Recibido de Partner',
+                                producidoPorPartner: true,
                                 imageUrl: (producto.imagenes.find(i => i.isPrincipal)?.url || producto.imagenes[0]?.url) || (preciosMap.get(producto.id) || {}).imagen,
+                            });
+                         }
+                    } else if (producto.recetaId) {
+                         const uniqueId = `prod_cpr_${producto.id}`;
+                         if (!items.some(i => i.id === uniqueId)) {
+                             items.push({
+                                id: uniqueId,
+                                nombre: producto.nombre,
+                                cantidad: item.quantity,
+                                unidad: 'Uds',
+                                loc: 'N/A', // Location from CPR
+                                categoria: producto.categoria,
+                                origen: 'Preparado por CPR MICE',
+                                producidoPorPartner: false,
+                                imageUrl: (producto.imagenes.find(i => i.isPrincipal)?.url || producto.imagenes[0]?.url) || '',
                             });
                          }
                     } else { // It's a Pack, so we need to pick its components
@@ -161,7 +175,7 @@ export default function PickingEntregaPage() {
                             const compInfo = preciosMap.get(comp.erpId);
                             const cantidadParaHito = comp.cantidad * item.quantity;
                             
-                            const existingItemIndex = items.findIndex(i => i.id === comp.erpId);
+                            const existingItemIndex = items.findIndex(i => i.id === comp.erpId && i.origen === 'Picking de Almacén');
                             if (existingItemIndex > -1) {
                                 items[existingItemIndex].cantidad += cantidadParaHito;
                             } else {
@@ -172,7 +186,7 @@ export default function PickingEntregaPage() {
                                     unidad: compInfo?.unidad || 'Uds',
                                     loc: compInfo?.loc || 'N/A',
                                     categoria: compInfo?.categoria || 'Varios',
-                                    origen: producto.nombre, // Comes from this pack
+                                    origen: 'Picking de Almacén', // This is a component from a pack
                                     imageUrl: compInfo?.imagen || '',
                                 });
                             }
@@ -188,6 +202,8 @@ export default function PickingEntregaPage() {
         const allStates = JSON.parse(localStorage.getItem('pickingEntregasState') || '{}');
         const savedState = allStates[hitoId];
         if (savedState) {
+            const savedItems = savedState.ordenItems ? savedState.ordenItems.map((id: string) => items.find(i => i.id === id)).filter(Boolean) as ItemParaPicking[] : items;
+            setItemsParaPicking(savedItems);
             setPickingState({
                 ...savedState,
                 checkedItems: new Set(savedState.checkedItems || []),
@@ -251,7 +267,9 @@ export default function PickingEntregaPage() {
             setItemsParaPicking((items) => {
                 const oldIndex = items.findIndex(item => item.id === active.id);
                 const newIndex = items.findIndex(item => item.id === over.id);
-                return arrayMove(items, oldIndex, newIndex);
+                const newArray = arrayMove(items, oldIndex, newIndex);
+                saveState({ ordenItems: newArray.map(i => i.id) });
+                return newArray;
             });
         }
     };
@@ -261,7 +279,7 @@ export default function PickingEntregaPage() {
     }
     
     const groupedItems = itemsToShow.reduce((acc, item) => {
-        const key = item.producidoPorPartner ? 'Recibido de Partner' : (item.categoria || 'Varios');
+        const key = item.origen;
         if (!acc[key]) {
             acc[key] = [];
         }
@@ -329,7 +347,7 @@ export default function PickingEntregaPage() {
                                                 </div>
                                                 <div>
                                                     <p className="font-bold text-lg">{item.nombre}</p>
-                                                    <p className="text-sm text-muted-foreground">Ubicación: {item.loc} - Origen: {item.origen}</p>
+                                                    <p className="text-sm text-muted-foreground">Ubicación: {item.loc}</p>
                                                 </div>
                                             </Label>
                                             <div className="text-2xl font-bold text-primary w-24 text-right">
