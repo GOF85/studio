@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket, Truck, UserCheck, Clock, Pencil, MessageSquare, AlertTriangle } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket, Truck, UserCheck, Clock, Pencil, MessageSquare, AlertTriangle, LifeBuoy } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito, TransporteOrder, ProveedorTransporte, PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, PersonalExternoAjuste, Proveedor, CategoriaPersonal } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -787,7 +787,7 @@ export default function AnaliticaEntregasPage() {
                                 <CardContent><div className="text-2xl font-bold">{personalAnalysis.totalTurnos}</div></CardContent>
                             </Card>
                              <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Horas</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Horas</CardTitle><LifeBuoy className="h-4 w-4 text-muted-foreground" /></CardHeader>
                                 <CardContent><div className="text-2xl font-bold">{formatNumber(personalAnalysis.horasReal, 2)}h</div><p className="text-xs text-muted-foreground">Planificadas: {formatNumber(personalAnalysis.horasPlan, 2)}h</p></CardContent>
                              </Card>
                         </div>
@@ -802,7 +802,7 @@ export default function AnaliticaEntregasPage() {
                                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                                 ))}
                                             </Pie>
-                                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                            <Tooltip formatter={(_value, name, props) => [`${formatCurrency(props.payload.value)}`, name]} />
                                         </PieChart>
                                     </ResponsiveContainer>
                                 </CardContent>
