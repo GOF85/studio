@@ -130,9 +130,9 @@ function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; a
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
+                <div className="flex items-center justify-center cursor-pointer">
                     <Pencil className={cn("h-4 w-4", getValues(commentFieldName) && "text-primary")} />
-                </Button>
+                </div>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
@@ -228,6 +228,8 @@ export default function GestionPersonalEntregaPage() {
   const [deliveryHitos, setDeliveryHitos] = useState<EntregaHito[]>([]);
   const [personalEntrega, setPersonalEntrega] = useState<PersonalEntrega | null>(null);
   const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
+  const [showStatusConfirm, setShowStatusConfirm] = useState(false);
+  const [nextAction, setNextAction] = useState<(() => void) | null>(null);
   
   const router = useRouter();
   const params = useParams();
@@ -295,8 +297,10 @@ export default function GestionPersonalEntregaPage() {
     loadData();
   }, [loadData]);
   
-  const onSubmit = useCallback((data: FormValues) => {
+  const handleFinalSave = (newStatus?: EstadoPersonalEntrega) => {
     setIsLoading(true);
+    const data = form.getValues();
+
     if (!osId) {
       toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID del pedido.' });
       setIsLoading(false);
@@ -306,24 +310,22 @@ export default function GestionPersonalEntregaPage() {
     const allTurnos = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
     const index = allTurnos.findIndex(p => p.osId === osId);
     
+    const currentStatus = personalEntrega?.status || 'Pendiente';
+    
     const newPersonalData: PersonalEntrega = {
         osId,
-        turnos: data.turnos.map(t => {
-            const existingTurno = personalEntrega?.turnos.find(et => et.id === t.id);
-            const requiereActualizacion = !existingTurno || !existingTurno.asignaciones;
-            return {
-                ...t, 
-                fecha: format(t.fecha, 'yyyy-MM-dd'),
-                statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
-                requiereActualizacion: requiereActualizacion,
-                asignaciones: (t.asignaciones || []).map(a => ({
-                    ...a,
-                    horaEntradaReal: a.horaEntradaReal || '',
-                    horaSalidaReal: a.horaSalidaReal || '',
-                })),
-            }
-        }),
-        status: personalEntrega?.status || 'Pendiente',
+        turnos: data.turnos.map(t => ({
+            ...t, 
+            fecha: format(t.fecha, 'yyyy-MM-dd'),
+            statusPartner: t.statusPartner || 'Pendiente Asignación',
+            requiereActualizacion: false,
+            asignaciones: (t.asignaciones || []).map(a => ({
+                ...a,
+                horaEntradaReal: a.horaEntradaReal || '',
+                horaSalidaReal: a.horaSalidaReal || '',
+            })),
+        })),
+        status: newStatus || currentStatus,
         observacionesGenerales: data.observacionesGenerales,
     }
     
@@ -334,36 +336,52 @@ export default function GestionPersonalEntregaPage() {
     }
 
     localStorage.setItem('personalEntrega', JSON.stringify(allTurnos));
+    
+    setPersonalEntrega(newPersonalData); // Update local state immediately
 
     setTimeout(() => {
         toast({ title: 'Guardado', description: 'Los cambios se han guardado.' });
         setIsLoading(false);
-        form.reset(data);
+        form.reset(data); // Mark as not dirty
+        if (nextAction) {
+            nextAction();
+            setNextAction(null);
+        }
     }, 500);
-  }, [osId, personalEntrega, toast, form]);
+  };
+  
+  const onSubmit = () => {
+    setNextAction(() => () => {}); // Save and stay on page
+    setShowStatusConfirm(true);
+  };
 
-  const watchedFields = watch('turnos');
+  const onBackToList = () => {
+    if (form.formState.isDirty) {
+        setNextAction(() => () => router.push('/entregas/gestion-personal'));
+        setShowStatusConfirm(true);
+    } else {
+        router.push('/entregas/gestion-personal');
+    }
+  };
 
-  const handleFieldChangeAndSave = useCallback(async () => {
-    const data = form.getValues();
-    onSubmit(data);
-  }, [form, onSubmit]);
 
   const handleProviderChange = useCallback((index: number, proveedorId: string) => {
     if (!proveedorId) return;
     const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
     if (tipoPersonal) {
-        setValue(`turnos.${index}.proveedorId`, tipoPersonal.id);
-        setValue(`turnos.${index}.categoria`, tipoPersonal.categoria);
-        setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0);
-        handleFieldChangeAndSave();
+        setValue(`turnos.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
+        setValue(`turnos.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
+        setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
+        trigger(`turnos.${index}`);
     }
-}, [proveedoresDB, setValue, handleFieldChangeAndSave]);
+}, [proveedoresDB, setValue, trigger]);
+
+  const watchedFields = watch('turnos');
 
   const { totalPlanned, totalReal, totalAjustes, finalTotalReal } = useMemo(() => {
     const planned = watchedFields?.reduce((acc, turno) => {
       const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
-      return acc + plannedHours * (turno.precioHora || 0) * (turno.cantidad || 1);
+      return acc + plannedHours * (turno.precioHora || 0);
     }, 0) || 0;
 
     const real = watchedFields?.reduce((acc, turno) => {
@@ -381,36 +399,17 @@ export default function GestionPersonalEntregaPage() {
 
     return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj };
   }, [watchedFields, ajustes]);
-
-  const handleStatusChange = (newStatus: EstadoPersonalEntrega) => {
-    if (!personalEntrega) return;
-    const updatedPersonalEntrega = { ...personalEntrega, status: newStatus };
-    setPersonalEntrega(updatedPersonalEntrega);
-    
-    const allTurnos = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
-    const index = allTurnos.findIndex(p => p.osId === osId);
-    if (index > -1) {
-      allTurnos[index] = updatedPersonalEntrega;
-    } else {
-      allTurnos.push(updatedPersonalEntrega);
-    }
-    localStorage.setItem('personalEntrega', JSON.stringify(allTurnos));
-    toast({ title: 'Estado actualizado', description: `El estado del personal es ahora: ${newStatus}` });
-  };
-
+  
   const addRow = () => {
     if (!osId || !entrega) return;
     append({
         id: Date.now().toString(),
         proveedorId: '',
         categoria: '',
-        cantidad: 1,
         precioHora: 0,
         fecha: new Date(entrega.startDate),
         horaEntrada: '09:00',
         horaSalida: '17:00',
-        centroCoste: 'SALA',
-        tipoServicio: 'Servicio',
         observaciones: '',
         statusPartner: 'Pendiente Asignación',
         asignaciones: [],
@@ -421,7 +420,6 @@ export default function GestionPersonalEntregaPage() {
     if (rowToDelete !== null) {
       remove(rowToDelete);
       setRowToDelete(null);
-      handleFieldChangeAndSave();
       toast({ title: 'Turno eliminado' });
     }
   };
@@ -488,7 +486,7 @@ const turnosAprobados = useMemo(() => {
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="flex items-start justify-between mb-2">
                     <div>
-                        <Button variant="ghost" size="sm" onClick={() => router.push('/entregas/gestion-personal')}>
+                        <Button variant="ghost" size="sm" onClick={onBackToList}>
                             <ArrowLeft className="mr-2" />
                             Volver al listado
                         </Button>
@@ -501,23 +499,14 @@ const turnosAprobados = useMemo(() => {
 
                 <Card className="mb-4">
                     <CardHeader className="py-2 px-4 flex-row items-center justify-between">
-                        <CardTitle className="text-base">Servicios con Personal</CardTitle>
-                        <div className='flex items-center gap-2'>
-                            <Select value={personalEntrega?.status || 'Pendiente'} onValueChange={(value: EstadoPersonalEntrega) => handleStatusChange(value)}>
-                                <SelectTrigger className="h-8 text-sm font-semibold w-[200px]">
-                                    <SelectValue>
-                                        <Badge variant={statusBadgeVariant}>{personalEntrega?.status || 'Pendiente'}</Badge>
-                                    </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {ESTADO_PERSONAL_ENTREGA.map(s => <SelectItem key={s} value={s}><Badge variant={s === 'Asignado' ? 'success' : 'warning'}>{s}</Badge></SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Button type="button" onClick={handleSubmit(onSubmit)} disabled={isLoading}>
-                                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                                <span className="ml-2">Guardar</span>
-                            </Button>
-                        </div>
+                        <CardTitle className="text-base flex items-center gap-2">
+                            Estado Global del Personal: 
+                            <Badge variant={statusBadgeVariant}>{personalEntrega?.status || 'Pendiente'}</Badge>
+                        </CardTitle>
+                        <Button type="button" onClick={onSubmit} disabled={isLoading}>
+                            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                            <span className="ml-2">Guardar</span>
+                        </Button>
                     </CardHeader>
                     {hitosConPersonal.length > 0 && (
                         <CardContent className="pt-0 p-2">
@@ -535,7 +524,7 @@ const turnosAprobados = useMemo(() => {
                                         {hitosConPersonal.map(hito => (
                                             <TableRow key={hito.id}>
                                                 <TableCell className="py-1 px-2 font-mono"><Badge>{hito.expedicionNumero}</Badge></TableCell>
-                                                <TableCell className="py-1 px-2 font-medium">{hito.lugarEntrega}</TableCell>
+                                                <TableCell className="py-1 px-2 font-medium">{hito.lugarEntrega} {hito.localizacion && `(${hito.localizacion})`}</TableCell>
                                                 <TableCell className="py-1 px-2">{hito.hora}</TableCell>
                                                 <TableCell className="py-1 px-2 text-xs text-muted-foreground">{hito.observaciones}</TableCell>
                                                 <TableCell className="py-1 px-2 font-bold text-center">{hito.horasCamarero || '-'}</TableCell>
@@ -568,11 +557,9 @@ const turnosAprobados = useMemo(() => {
                                         <TableRow>
                                             <TableHead className="px-2 py-1">Fecha</TableHead>
                                             <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
-                                            <TableHead className="px-1 py-1 text-center">Cant.</TableHead>
                                             <TableHead className="px-2 py-1">Horario</TableHead>
-                                            <TableHead className="px-2 py-1 w-20">Horas Plan.</TableHead>
                                             <TableHead className="px-2 py-1 w-20">€/Hora</TableHead>
-                                            <TableHead className="px-2 py-1">Observaciones</TableHead>
+                                            <TableHead className="px-2 py-1">Observaciones para ETT</TableHead>
                                             <TableHead className="px-2 py-1">Estado</TableHead>
                                             <TableHead className="text-right px-2 py-1">Acción</TableHead>
                                         </TableRow>
@@ -617,16 +604,12 @@ const turnosAprobados = useMemo(() => {
                                                         />
                                                     </TableCell>
                                                     <TableCell className="px-1 py-1">
-                                                        <FormField control={control} name={`turnos.${index}.cantidad`} render={({ field: f }) => <FormItem><FormControl><Input type="number" min="1" {...f} className="w-16 h-9 text-center"/></FormControl></FormItem>}/>
-                                                    </TableCell>
-                                                    <TableCell className="px-1 py-1">
                                                         <div className="flex items-center gap-1">
-                                                            <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" onBlur={handleFieldChangeAndSave} /></FormControl></FormItem>} />
+                                                            <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
                                                             <span className="text-muted-foreground">-</span>
-                                                            <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" onBlur={handleFieldChangeAndSave} /></FormControl></FormItem>} />
+                                                            <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="px-2 py-1 w-20 text-center font-mono">{formatDuration(calculateHours(field.horaEntrada, field.horaSalida))}</TableCell>
                                                     <TableCell className="px-1 py-1">
                                                         <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
                                                     </TableCell>
@@ -673,7 +656,7 @@ const turnosAprobados = useMemo(() => {
                                             ))
                                         ) : (
                                             <TableRow>
-                                            <TableCell colSpan={9} className="h-24 text-center">
+                                            <TableCell colSpan={7} className="h-24 text-center">
                                                 No hay personal asignado. Haz clic en "Añadir Turno" para empezar.
                                             </TableCell>
                                             </TableRow>
@@ -726,26 +709,16 @@ const turnosAprobados = useMemo(() => {
                                                         <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
                                                     </TableCell>
                                                     <TableCell>
-                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" onBlur={handleFieldChangeAndSave} />} />
+                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                     </TableCell>
                                                     <TableCell>
-                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" onBlur={handleFieldChangeAndSave} />} />
+                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                     </TableCell>
                                                     <TableCell className="w-[200px]">
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <div className="flex items-center justify-center gap-1 cursor-pointer">
-                                                                    <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
-                                                                    {(asignacion.comentariosMice || (asignacion.rating && asignacion.rating !== 3)) && (
-                                                                        <MessageSquare className="h-4 w-4 text-primary" />
-                                                                    )}
-                                                                </div>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p className="font-bold">Valoración: {'⭐'.repeat(asignacion.rating || 0)}</p>
-                                                                {asignacion.comentariosMice && <p className="max-w-xs">{asignacion.comentariosMice}</p>}
-                                                            </TooltipContent>
-                                                        </Tooltip>
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
+                                                            {asignacion.comentariosMice && <MessageSquare className="h-4 w-4 text-primary" />}
+                                                        </div>
                                                     </TableCell>
                                                 </TableRow>
                                             )})
@@ -841,6 +814,22 @@ const turnosAprobados = useMemo(() => {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+        
+        <AlertDialog open={showStatusConfirm} onOpenChange={setShowStatusConfirm}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Se ha asignado todo el personal?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Selecciona "Sí" si has terminado de asignar personal para este pedido. Esto cambiará el estado a "Asignado".
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogAction onClick={() => { handleFinalSave('Asignado'); setShowStatusConfirm(false); }}>Sí</AlertDialogAction>
+                    <AlertDialogAction onClick={() => { handleFinalSave('Pendiente'); setShowStatusConfirm(false); }}>No</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
       </main>
     </>
   );
