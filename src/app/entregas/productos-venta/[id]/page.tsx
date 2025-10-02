@@ -23,6 +23,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import Image from 'next/image';
+import { Combobox } from '@/components/ui/combobox';
 
 const imagenSchema = z.object({
     id: z.string(),
@@ -89,13 +90,14 @@ export default function ProductoVentaFormPage() {
   const [newImageUrl, setNewImageUrl] = useState('');
   const { toast } = useToast();
   const [useIfemaPrices, setUseIfemaPrices] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   const form = useForm<ProductoVentaFormValues>({
     resolver: zodResolver(productoVentaSchema),
     defaultValues: defaultValues,
   });
 
-  const { control, getValues, setValue, watch } = form;
+  const { control, getValues, setValue, watch, reset } = form;
 
   const { fields: imageFields, append: appendImage, remove: removeImage, update: updateImage } = useFieldArray({
       control,
@@ -131,18 +133,6 @@ export default function ProductoVentaFormPage() {
     
     return partnersDB.filter(p => p.tipos.includes(requiredType));
   }, [partnersDB, categoriaSeleccionada]);
-
-  useEffect(() => {
-    if(isEditing) {
-      // Don't reset partner if the category hasn't changed from the initial load
-      const initialCategory = form.getValues('categoria');
-      if (categoriaSeleccionada !== initialCategory) {
-        setValue('partnerId', undefined);
-      }
-    } else {
-      setValue('partnerId', undefined);
-    }
-  }, [categoriaSeleccionada, setValue, isEditing, form]);
   
   const costeTotal = useMemo(() => {
     if (isProducidoPorPartner) return 0; // Cost is manual for partner products for now
@@ -163,18 +153,30 @@ export default function ProductoVentaFormPage() {
         const allProductos = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
         const producto = allProductos.find(p => p.id === id);
         if (producto) {
-            form.reset(producto);
+            reset(producto);
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'Producto no encontrado.' });
             router.push('/entregas/productos-venta');
         }
     } else {
-         form.reset({
+         reset({
             ...defaultValues,
             id: Date.now().toString(),
         });
     }
-  }, [id, isEditing, form, router, toast]);
+    setIsDataLoaded(true);
+  }, [id, isEditing, reset, router, toast]);
+
+  useEffect(() => {
+    if (isEditing && isDataLoaded) {
+      const initialCategory = getValues('categoria');
+      if (categoriaSeleccionada !== initialCategory) {
+        setValue('partnerId', undefined);
+      }
+    } else if (!isEditing && isDataLoaded) {
+      setValue('partnerId', undefined);
+    }
+  }, [categoriaSeleccionada, setValue, isEditing, getValues, isDataLoaded]);
 
   const { margenBruto, margenPct, comisionIfema, margenFinal } = useMemo(() => {
     const pvp = useIfemaPrices ? (watchedPvpIfema || watchedPvp || 0) : (watchedPvp || 0);
@@ -249,6 +251,10 @@ export default function ProductoVentaFormPage() {
     setShowDeleteConfirm(false);
     router.push('/entregas/productos-venta');
   };
+  
+  if (!isDataLoaded) {
+    return <div>Cargando...</div>
+  }
 
   return (
     <>
