@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +26,8 @@ import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DateRange } from 'react-day-picker';
 
 
 type TurnoConEstado = PersonalEntregaTurno & {
@@ -40,12 +42,10 @@ type TurnoConEstado = PersonalEntregaTurno & {
 const statusVariant: { [key in PersonalEntregaTurno['statusPartner']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente Asignación': 'secondary',
   'Gestionado': 'default',
-  'Requiere Revisión': 'destructive',
 };
 
 const statusRowClass: { [key in PersonalEntregaTurno['statusPartner']]?: string } = {
   'Gestionado': 'bg-green-50 hover:bg-green-100/80',
-  'Requiere Revisión': 'bg-amber-50 hover:bg-amber-100/80',
 };
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -114,6 +114,7 @@ export default function PartnerPersonalPortalPage() {
     const [isMounted, setIsMounted] = useState(false);
     const { toast } = useToast();
     const [showCompleted, setShowCompleted] = useState(false);
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
     // State for Calendar View
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -157,8 +158,8 @@ export default function PartnerPersonalPortalPage() {
         loadData();
     }, [loadData]);
     
-    const handleStatusChange = (pedidoId: string, newStatus: PersonalEntregaTurno['statusPartner']) => {
-        const turno = turnos.find(t => t.id === pedidoId);
+    const handleStatusChange = (turnoId: string, newStatus: PersonalEntregaTurno['statusPartner']) => {
+        const turno = turnos.find(t => t.id === turnoId);
         if(!turno) return;
 
         const allPersonalEntregas = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
@@ -202,8 +203,23 @@ export default function PartnerPersonalPortalPage() {
     }
 
     const filteredTurnos = useMemo(() => {
-        return showCompleted ? turnos : turnos.filter(t => t.statusPartner !== 'Gestionado');
-    }, [turnos, showCompleted]);
+        return turnos.filter(t => {
+            const statusMatch = showCompleted || t.statusPartner !== 'Gestionado';
+
+            let dateMatch = true;
+            if (dateRange?.from) {
+                const turnoDate = new Date(t.fechaEntrega);
+                if (dateRange.to) {
+                    dateMatch = isWithinInterval(turnoDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+                } else {
+                    dateMatch = isSameDay(turnoDate, dateRange.from);
+                }
+            }
+
+            return statusMatch && dateMatch;
+        });
+    }, [turnos, showCompleted, dateRange]);
+
 
     const turnosAgrupadosPorDia = useMemo(() => {
         const groupedByDay: { [date: string]: { [location: string]: TurnoConEstado[] } } = {};
@@ -271,9 +287,22 @@ export default function PartnerPersonalPortalPage() {
                     <TabsTrigger value="calendario">Calendario</TabsTrigger>
                 </TabsList>
                 <TabsContent value="lista" className="mt-6">
-                    <div className="flex items-center space-x-2 mb-4">
-                        <Checkbox id="show-completed" checked={showCompleted} onCheckedChange={(checked) => setShowCompleted(Boolean(checked))} />
-                        <Label htmlFor="show-completed">Mostrar turnos gestionados</Label>
+                    <div className="flex items-center space-x-4 mb-4">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
+                            </PopoverContent>
+                        </Popover>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="show-completed" checked={showCompleted} onCheckedChange={(checked) => setShowCompleted(Boolean(checked))} />
+                            <Label htmlFor="show-completed">Mostrar turnos gestionados</Label>
+                        </div>
                     </div>
                     {turnosAgrupadosPorDia.length > 0 ? (
                         <div className="space-y-4">
@@ -339,19 +368,6 @@ export default function PartnerPersonalPortalPage() {
                                                                                     ))}
                                                                                 </SelectContent>
                                                                             </Select>
-                                                                            {turno.requiereActualizacion && (
-                                                                                <Tooltip>
-                                                                                    <TooltipTrigger asChild>
-                                                                                        <span className="ml-2 flex h-3 w-3 relative">
-                                                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                                                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-                                                                                        </span>
-                                                                                    </TooltipTrigger>
-                                                                                    <TooltipContent>
-                                                                                        <p>La cantidad solicitada ha cambiado. Por favor, revisa las asignaciones.</p>
-                                                                                    </TooltipContent>
-                                                                                </Tooltip>
-                                                                            )}
                                                                         </TableCell>
                                                                     </TableRow>
                                                                 ))}
@@ -435,7 +451,7 @@ export default function PartnerPersonalPortalPage() {
                             <p className="font-bold text-primary">{event.categoria}</p>
                             <p>Pedido: {event.serviceNumber} ({event.cliente})</p>
                             <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4">
-                                <span><span className="font-semibold">Cantidad:</span> {event.cantidad}</span>
+                                <span><span className="font-semibold">Cantidad:</span> 1</span>
                                 <span><span className="font-semibold">Horario:</span> {event.horaEntrada} - {event.horaSalida}</span>
                             </div>
                         </div>
