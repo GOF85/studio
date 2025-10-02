@@ -718,6 +718,8 @@ export type AsignacionPersonal = {
   dni?: string;
   telefono?: string;
   comentarios?: string;
+  comentariosMice?: string;
+  rating?: number;
 };
 
 export type PersonalEntregaTurno = {

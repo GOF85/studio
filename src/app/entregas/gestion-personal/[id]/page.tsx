@@ -9,9 +9,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star } from 'lucide-react';
 
-import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, EstadoPersonalEntrega, PedidoEntrega, EntregaHito } from '@/types';
+import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, EstadoPersonalEntrega, PedidoEntrega, EntregaHito, AsignacionPersonal } from '@/types';
 import { ESTADO_PERSONAL_ENTREGA } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
 
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -50,6 +51,17 @@ const calculateHours = (start?: string, end?: string): number => {
 const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
 
+const asignacionSchema = z.object({
+  id: z.string(),
+  nombre: z.string(),
+  dni: z.string().optional(),
+  telefono: z.string().optional(),
+  comentarios: z.string().optional(),
+  rating: z.number().optional(),
+  comentariosMice: z.string().optional(),
+});
+
+
 const personalTurnoSchema = z.object({
   id: z.string(),
   proveedorId: z.string().min(1, "El proveedor es obligatorio"),
@@ -60,6 +72,9 @@ const personalTurnoSchema = z.object({
   horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   observaciones: z.string().optional().default(''),
+  statusPartner: z.enum(['Pendiente Asignación', 'Gestionado']),
+  asignaciones: z.array(asignacionSchema).optional(),
+  requiereActualizacion: z.boolean().optional(),
 });
 
 const formSchema = z.object({
@@ -89,7 +104,7 @@ export default function GestionPersonalEntregaPage() {
     defaultValues: { turnos: [], observacionesGenerales: '' },
   });
 
-  const { control, setValue, watch, trigger } = form;
+  const { control, setValue, watch, trigger, register } = form;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -191,7 +206,6 @@ export default function GestionPersonalEntregaPage() {
                 ...t, 
                 fecha: format(t.fecha, 'yyyy-MM-dd'),
                 statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
-                asignaciones: existingTurno?.asignaciones || [],
                 requiereActualizacion: requiereActualizacion,
             }
         }),
@@ -225,11 +239,9 @@ export default function GestionPersonalEntregaPage() {
         fecha: new Date(entrega.startDate),
         horaEntrada: '09:00',
         horaSalida: '17:00',
-        centroCoste: 'SALA',
-        tipoServicio: 'Servicio',
         observaciones: '',
-        horaEntradaReal: '',
-        horaSalidaReal: '',
+        statusPartner: 'Pendiente Asignación',
+        asignaciones: [],
     });
   }
   
@@ -253,8 +265,8 @@ const hitosConPersonal = useMemo(() => {
 }, [deliveryHitos, entrega]);
 
 const turnosAprobados = useMemo(() => {
-    return personalEntrega?.turnos.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
-}, [personalEntrega]);
+    return watchedFields.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
+}, [watchedFields]);
 
 
   if (!isMounted || !entrega) {
@@ -332,17 +344,58 @@ const turnosAprobados = useMemo(() => {
                         <CardHeader className="py-3"><CardTitle className="text-lg">Turnos Aprobados por ETT</CardTitle></CardHeader>
                         <CardContent className="p-2">
                              <Table>
-                                <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>DNI</TableHead><TableHead>Teléfono</TableHead><TableHead>Horario</TableHead><TableHead>Comentarios</TableHead></TableRow></TableHeader>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Nombre</TableHead>
+                                        <TableHead>DNI</TableHead>
+                                        <TableHead>Teléfono</TableHead>
+                                        <TableHead>Horario</TableHead>
+                                        <TableHead>Comentarios ETT</TableHead>
+                                        <TableHead>Rating (1-5)</TableHead>
+                                        <TableHead>Comentarios MICE</TableHead>
+                                    </TableRow>
+                                </TableHeader>
                                 <TableBody>
-                                    {turnosAprobados.flatMap(t => t.asignaciones.map(a => (
-                                        <TableRow key={a.id}>
-                                            <TableCell className="font-semibold">{a.nombre}</TableCell>
-                                            <TableCell>{a.dni}</TableCell>
-                                            <TableCell>{a.telefono}</TableCell>
-                                            <TableCell>{t.horaEntrada} - {t.horaSalida}</TableCell>
-                                            <TableCell className="text-xs text-muted-foreground">{a.comentarios}</TableCell>
-                                        </TableRow>
-                                    )))}
+                                    {watchedFields.map((turno, turnoIndex) => 
+                                        turno.asignaciones?.map((asignacion, asigIndex) => (
+                                            <TableRow key={asignacion.id}>
+                                                <TableCell className="font-semibold">{asignacion.nombre}</TableCell>
+                                                <TableCell>{asignacion.dni}</TableCell>
+                                                <TableCell>{asignacion.telefono}</TableCell>
+                                                <TableCell>{turno.horaEntrada} - {turno.horaSalida}</TableCell>
+                                                <TableCell className="text-xs text-muted-foreground">{asignacion.comentarios}</TableCell>
+                                                <TableCell>
+                                                    <FormField
+                                                        control={control}
+                                                        name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.rating`}
+                                                        render={({ field }) => (
+                                                            <div className="flex items-center gap-2">
+                                                                <Slider
+                                                                    defaultValue={[field.value || 3]}
+                                                                    value={[field.value || 0]}
+                                                                    onValueChange={(value) => field.onChange(value[0])}
+                                                                    max={5}
+                                                                    min={1}
+                                                                    step={1}
+                                                                    className="w-24"
+                                                                />
+                                                                <span className="font-bold text-sm w-4">{field.value || ''}</span>
+                                                            </div>
+                                                        )}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                     <FormField
+                                                        control={control}
+                                                        name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`}
+                                                        render={({ field }) => (
+                                                            <Input {...field} placeholder="Comentarios internos..." className="h-8"/>
+                                                        )}
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
                                 </TableBody>
                             </Table>
                         </CardContent>
@@ -351,7 +404,7 @@ const turnosAprobados = useMemo(() => {
                 
                 <Card>
                     <CardHeader className="py-3 flex-row items-center justify-between">
-                        <CardTitle className="text-lg">Turnos de Personal</CardTitle>
+                        <CardTitle className="text-lg">Planificación de Turnos</CardTitle>
                         <div className='flex items-center gap-2'>
                             <Button type="button" onClick={addRow} size="sm">
                                 <PlusCircle className="mr-2" />
@@ -452,7 +505,7 @@ const turnosAprobados = useMemo(() => {
                     </CardContent>
                     {fields.length > 0 && (
                         <CardFooter className="grid lg:grid-cols-2 gap-4">
-                            <Card>
+                             <Card>
                                 <CardHeader className="py-2"><CardTitle className="text-base">Observaciones Generales para el Proveedor</CardTitle></CardHeader>
                                 <CardContent>
                                     <FormField
@@ -496,3 +549,4 @@ const turnosAprobados = useMemo(() => {
     </>
   );
 }
+
