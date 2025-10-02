@@ -8,8 +8,8 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Package, PlusCircle, Trash2, TrendingUp, RefreshCw, Star, Link2 } from 'lucide-react';
-import type { ProductoVenta, IngredienteERP, Receta, CategoriaProductoVenta, ImagenProducto, Proveedor } from '@/types';
-import { CATEGORIAS_PRODUCTO_VENTA } from '@/types';
+import type { ProductoVenta, IngredienteERP, Receta, CategoriaProductoVenta, ImagenProducto, Proveedor, TipoProveedor } from '@/types';
+import { CATEGORIAS_PRODUCTO_VENTA, TIPO_PROVEEDOR_OPCIONES } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -95,7 +95,7 @@ export default function ProductoVentaFormPage() {
     defaultValues: defaultValues,
   });
 
-  const { control, getValues, setValue } = form;
+  const { control, getValues, setValue, watch } = form;
 
   const { fields: imageFields, append: appendImage, remove: removeImage, update: updateImage } = useFieldArray({
       control,
@@ -106,6 +106,34 @@ export default function ProductoVentaFormPage() {
   const watchedPvpIfema = form.watch('pvpIfema');
   const isProducidoPorPartner = form.watch('producidoPorPartner');
   const recetaId = form.watch('recetaId');
+  const categoriaSeleccionada = watch("categoria");
+
+  useEffect(() => {
+    if (isProducidoPorPartner) {
+        setValue('recetaId', undefined);
+    } else {
+        setValue('partnerId', undefined);
+    }
+  }, [isProducidoPorPartner, setValue]);
+  
+  const filteredPartners = useMemo(() => {
+    if (!categoriaSeleccionada || categoriaSeleccionada === 'Transporte') return partnersDB;
+    // Map categories to provider types
+    const categoryToTypeMap: Record<string, TipoProveedor> = {
+        'Gastronomía': 'Gastronomia',
+        'Bodega': 'Otros', // Assuming same provider type for now
+        'Consumibles': 'Otros',
+        'Almacen': 'Otros',
+    };
+    const requiredType = categoryToTypeMap[categoriaSeleccionada];
+    if (!requiredType) return [];
+    
+    return partnersDB.filter(p => p.tipos.includes(requiredType));
+  }, [partnersDB, categoriaSeleccionada]);
+
+  useEffect(() => {
+    setValue('partnerId', undefined);
+  }, [categoriaSeleccionada, setValue]);
   
   const costeTotal = useMemo(() => {
     if (isProducidoPorPartner) return 0; // Cost is manual for partner products for now
@@ -114,13 +142,12 @@ export default function ProductoVentaFormPage() {
   }, [recetaId, isProducidoPorPartner, recetasDB]);
 
   const [categorias, setCategorias] = useState<CategoriaProductoVenta[]>(CATEGORIAS_PRODUCTO_VENTA as any);
-  const categoriasOptions = useMemo(() => categorias.map(c => ({ label: c, value: c })), [categorias]);
   
   useEffect(() => {
     const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     setRecetasDB(storedRecetas);
 
-    const storedPartners = (JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[]).filter(p => p.tipos.includes('Gastronomia'));
+    const storedPartners = (JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[]);
     setPartnersDB(storedPartners);
     
     if (isEditing) {
@@ -285,10 +312,14 @@ export default function ProductoVentaFormPage() {
                                     <FormField control={form.control} name="partnerId" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Partner Productor</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value}>
-                                                <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar Partner..."/></SelectTrigger></FormControl>
+                                            <Select onValueChange={field.onChange} value={field.value} disabled={!categoriaSeleccionada}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder={!categoriaSeleccionada ? "Selecciona una categoría primero" : "Seleccionar Partner..."}/>
+                                                    </SelectTrigger>
+                                                </FormControl>
                                                 <SelectContent>
-                                                    {partnersDB.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>)}
+                                                    {filteredPartners.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                             <FormMessage/>
@@ -426,3 +457,4 @@ export default function ProductoVentaFormPage() {
     </>
   );
 }
+
