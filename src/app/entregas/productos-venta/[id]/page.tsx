@@ -117,13 +117,14 @@ export default function ProductoVentaFormPage() {
   }, [isProducidoPorPartner, setValue]);
   
   const filteredPartners = useMemo(() => {
-    if (!categoriaSeleccionada || categoriaSeleccionada === 'Transporte') return partnersDB;
-    // Map categories to provider types
+    if (!categoriaSeleccionada) return [];
+    
     const categoryToTypeMap: Record<string, TipoProveedor> = {
         'Gastronomía': 'Gastronomia',
-        'Bodega': 'Otros', // Assuming same provider type for now
+        'Bodega': 'Otros',
         'Consumibles': 'Otros',
         'Almacen': 'Otros',
+        'Transporte': 'Transporte',
     };
     const requiredType = categoryToTypeMap[categoriaSeleccionada];
     if (!requiredType) return [];
@@ -132,8 +133,16 @@ export default function ProductoVentaFormPage() {
   }, [partnersDB, categoriaSeleccionada]);
 
   useEffect(() => {
-    setValue('partnerId', undefined);
-  }, [categoriaSeleccionada, setValue]);
+    if(isEditing) {
+      // Don't reset partner if the category hasn't changed from the initial load
+      const initialCategory = form.getValues('categoria');
+      if (categoriaSeleccionada !== initialCategory) {
+        setValue('partnerId', undefined);
+      }
+    } else {
+      setValue('partnerId', undefined);
+    }
+  }, [categoriaSeleccionada, setValue, isEditing, form]);
   
   const costeTotal = useMemo(() => {
     if (isProducidoPorPartner) return 0; // Cost is manual for partner products for now
@@ -457,4 +466,3 @@ export default function ProductoVentaFormPage() {
     </>
   );
 }
-
