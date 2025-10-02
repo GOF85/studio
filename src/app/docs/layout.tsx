@@ -1,8 +1,9 @@
+
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LifeBuoy, Users, Code, BookOpen, Workflow, Database, Bot, Factory, BarChart3, ShieldCheck, Package, Award } from 'lucide-react';
+import { LifeBuoy, Users, Code, BookOpen, Workflow, Database, Bot, Factory, BarChart3, ShieldCheck, Package, Award, GitBranch } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Header } from '@/components/layout/header';
@@ -27,13 +28,12 @@ const entregasManualNav = [
 ];
 
 const techDocsNav = [
-    { title: 'Arquitectura General', path: '/docs/tech-docs#c1-tech', icon: Code },
-    { title: 'Modelo de Datos', path: '/docs/tech-docs#c2-tech', icon: Database },
-    { title: 'Vertical de Entregas', path: '/docs/tech-docs#c3-tech', icon: Package },
-    { title: 'Flujos de IA', path: '/docs/tech-docs#c4-tech', icon: Bot },
-    { title: 'Roles y Permisos', path: '/docs/tech-docs#c5-tech', icon: Users },
-    { title: 'Seguridad y Trazabilidad', path: '/docs/tech-docs#c6-tech', icon: ShieldCheck },
-    { title: 'Informes y Lógica de Negocio', path: '/docs/tech-docs#c7-tech', icon: BarChart3 },
+    { title: 'Módulos Principales', path: '/docs/tech-docs#c1-tech', icon: Code },
+    { title: 'Book Gastronómico', path: '/docs/tech-docs#c2-tech', icon: BookOpen },
+    { title: 'Módulo de Producción (CPR)', path: '/docs/tech-docs#c3-tech', icon: Factory },
+    { title: 'Vertical de Entregas', path: '/docs/tech-docs#c4-tech', icon: Package },
+    { title: 'Portales Externos', path: '/docs/tech-docs#c5-tech', icon: Users },
+    { title: 'Funcionalidades Transversales', path: '/docs/tech-docs#c6-tech', icon: GitBranch },
 ];
 
 
@@ -78,7 +78,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                                                 <Package /> Manual de Entregas
                                             </Link>
                                             <Link href="/docs/tech-docs" className={cn("flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === '/docs/tech-docs' && "bg-accent")}>
-                                                <Code /> Documentación Técnica
+                                                <Code /> Checklist de Funcionalidades
                                             </Link>
                                         </nav>
                                     </div>

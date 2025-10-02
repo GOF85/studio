@@ -1,6 +1,7 @@
+
 'use client';
 
-import { LifeBuoy, Users, Code, Package, Award } from "lucide-react";
+import { LifeBuoy, Users, Code, Package, Award, GitBranch } from "lucide-react";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 
@@ -57,11 +58,11 @@ export default function DocsPage() {
         <Link href="/docs/tech-docs" className="no-underline">
           <Card className="hover:border-primary hover:shadow-lg transition-all h-full">
             <CardHeader>
-              <CardTitle className="flex items-center gap-3"><Code />Documentación Técnica</CardTitle>
+              <CardTitle className="flex items-center gap-3"><Code />Checklist de Funcionalidades</CardTitle>
             </CardHeader>
             <CardContent>
               <CardDescription>
-                Arquitectura, modelo de datos y flujos técnicos para desarrolladores y perfiles técnicos.
+                Un listado técnico y detallado de todas las capacidades implementadas en la plataforma.
               </CardDescription>
             </CardContent>
           </Card>

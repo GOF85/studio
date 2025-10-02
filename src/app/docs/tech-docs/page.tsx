@@ -1,7 +1,18 @@
+
 'use client';
 
-import { Code, Database, Bot, Workflow, Users, ShieldCheck, BarChart3, Package } from "lucide-react";
-import Image from 'next/image';
+import { Code, Database, Bot, Workflow, Users, ShieldCheck, BarChart3, Package, BookOpen, Factory, GitBranch, CheckSquare, XSquare } from "lucide-react";
+
+function Feature({ children, checked = true }: { children: React.ReactNode, checked?: boolean }) {
+    return (
+        <li className="flex items-start gap-3">
+            <div className="mt-1">
+                {checked ? <CheckSquare className="w-5 h-5 text-green-600" /> : <XSquare className="w-5 h-5 text-muted-foreground" />}
+            </div>
+            <span>{children}</span>
+        </li>
+    );
+}
 
 export default function TechDocsPage() {
     return (
@@ -9,119 +20,89 @@ export default function TechDocsPage() {
             <div className="flex items-center gap-4 border-b pb-4 mb-8">
                 <Code className="w-10 h-10 text-primary" />
                 <div>
-                    <h1 className="!m-0">Documentación Técnica</h1>
-                    <p className="lead !m-0">Arquitectura, modelo de datos y flujos técnicos de MICE Catering.</p>
+                    <h1 className="!m-0">Checklist de Funcionalidades</h1>
+                    <p className="lead !m-0">Un listado detallado de las capacidades técnicas y funcionales de la plataforma.</p>
                 </div>
             </div>
 
             <section id="c1-tech">
-                <h2 className="flex items-center gap-3"><Code />Capítulo 1: Arquitectura General</h2>
-                <p>Este capítulo describe la estructura técnica general de la aplicación y las tecnologías utilizadas.</p>
-                <h3>1.1. Pila Tecnológica (Tech Stack)</h3>
+                <h2 className="flex items-center gap-3"><GitBranch />Módulos y Funcionalidades Principales</h2>
                 <ul>
-                    <li><strong>Framework Frontend:</strong> Next.js (con App Router)</li>
-                    <li><strong>Lenguaje:</strong> TypeScript</li>
-                    <li><strong>UI y Estilos:</strong> React, ShadCN UI, Tailwind CSS</li>
-                    <li><strong>Gestión de Estado:</strong> Zustand (para estados globales simples) y React Context/Hooks.</li>
-                    <li><strong>Formularios:</strong> React Hook Form con Zod para validación.</li>
-                    <li><strong>Funcionalidad IA:</strong> Genkit (Google AI)</li>
-                    <li><strong>Almacenamiento de Datos:</strong> `localStorage` del navegador.</li>
-                </ul>
-                <h3>1.2. Estructura de Carpetas del Proyecto</h3>
-                <ul>
-                    <li><code>/src/app</code>: Contiene todas las rutas y páginas de la aplicación, siguiendo la convención de Next.js App Router. Cada módulo principal (ej. `cpr`, `book`, `entregas`) tiene su propio `layout.tsx`.</li>
-                    <li><code>/src/components</code>: Componentes React reutilizables.</li>
-                    <li><code>/src/lib</code>: Utilidades y datos estáticos.</li>
-                    <li><code>/src/hooks</code>: Hooks de React personalizados.</li>
-                    <li><code>/src/types</code>: Definiciones de tipos de TypeScript para todo el modelo de datos.</li>
-                    <li><code>/src/ai</code>: Lógica relacionada con la inteligencia artificial (Genkit).</li>
-                    <li><code>/src/app/portal</code>: Nueva sección para las vistas externas de partners y transportistas.</li>
+                    <Feature>Gestión de Órdenes de Servicio (OS) para Catering y Entregas.</Feature>
+                    <Feature>Calendario de servicios con vista mensual.</Feature>
+                    <Feature>Dashboard principal con acceso a todos los módulos.</Feature>
+                    <Feature>Sistema de gestión de bases de datos maestras (Personal, Espacios, Proveedores, etc.).</Feature>
+                    <Feature>Importación y exportación de datos mediante archivos CSV para todas las BBDD.</Feature>
+                    <Feature>Módulo de configuración del sistema.</Feature>
                 </ul>
             </section>
-
-             <section id="c2-tech">
-                <h2 className="flex items-center gap-3"><Database />Capítulo 2: Modelo de Datos (`/src/types/index.ts`)</h2>
-                <p>A continuación se describen las principales entidades de datos y sus relaciones. Todas las definiciones residen en src/types/index.ts.</p>
-                
-                <h3>Diagrama de Entidad-Relación (Conceptual)</h3>
-                <div className="p-4 border rounded-md my-6 bg-secondary/30 text-sm">
-                    <p><strong>ServiceOrder (OS)</strong> --1:N--&gt; <strong>GastronomyOrder</strong>, <strong>MaterialOrder</strong>, etc.</p>
-                    <p><strong>Receta</strong> --N:M--&gt; <strong>Elaboracion</strong></p>
-                    <p><strong>Elaboracion</strong> --N:M--&gt; <strong>IngredienteInterno</strong></p>
-                    <p><strong>IngredienteInterno</strong> --N:1--&gt; <strong>IngredienteERP</strong></p>
-                    <p><strong>OrdenFabricacion (OF)</strong> --N:1--&gt; <strong>Elaboracion</strong></p>
-                    <p><strong>ProductoVenta</strong> --1:1--&gt; <strong>Receta</strong> (Opcional)</p>
-                    <p><strong>ProductoVenta</strong> --N:M--&gt; <strong>Precio</strong> (como componente)</p>
-                    <p><strong>Entrega (OS con vertical='Entregas')</strong> --1:N--&gt; <strong>PedidoEntrega</strong> (con Hitos)</p>
-                </div>
-
-                <h3>Entidades Clave</h3>
-                <dl>
-                    <dt>ServiceOrder / Entrega</dt>
-                    <dd>La entidad central que representa un evento o entrega. El campo `vertical` ('Catering' o 'Entregas') discrimina el flujo de trabajo.</dd>
-                    <dt>Receta</dt>
-                    <dd>El plato final. Contiene su escandallo (lista de elaboraciones), costes y atributos. Las recetas para "Entregas" se venden por unidades de venta (cajas, bandejas).</dd>
-                    <dt>ProductoVenta</dt>
-                    <dd>Entidad específica para la vertical "Entregas". Es un producto que puede ser una receta simple (ej. "Bandeja de Croquetas") o un pack compuesto (ej. "Box Café"). Se vende como una unidad pero puede desglosarse en múltiples artículos de almacén para el picking.</dd>
-                    <dt>OrdenFabricacion</dt>
-                    <dd>Actúa como **lote de producción** para una elaboración. Es el núcleo de la trazabilidad en CPR.</dd>
-                </dl>
+            
+            <section id="c2-tech">
+                <h2 className="flex items-center gap-3"><BookOpen />Book Gastronómico</h2>
+                <ul>
+                    <Feature>Gestión de Materia Prima (ERP) con costes y unidades.</Feature>
+                    <Feature>Gestión de Ingredientes Internos con vinculación a ERP y control de alérgenos.</Feature>
+                    <Feature>Creación de Elaboraciones con escandallos (ingredientes y sub-elaboraciones).</Feature>
+                    <Feature>Cálculo de coste automático para elaboraciones.</Feature>
+                    <Feature>Creación de Recetas (platos finales) a partir de elaboraciones.</Feature>
+                    <Feature>Cálculo automático de coste de materia prima y precio de venta recomendado.</Feature>
+                    <Feature>Agregación automática de alérgenos desde ingredientes hasta la receta final.</Feature>
+                    <Feature>Gestión de Menaje y su asociación a recetas.</Feature>
+                    <Feature>Clonación de recetas y elaboraciones para agilizar la creación.</Feature>
+                    <Feature>Alertas de revisión en recetas si una elaboración hija es eliminada.</Feature>
+                    <Feature>Gestión de categorías, tipos de cocina y otros atributos gastronómicos.</Feature>
+                </ul>
             </section>
             
             <section id="c3-tech">
-                <h2 className="flex items-center gap-3"><Package />Capítulo 3: Lógica de la Vertical "Entregas"</h2>
-                <p>Esta sección detalla la arquitectura específica de la nueva vertical de negocio.</p>
-                <h3>3.1. Formulario de Pedido Único</h3>
-                <p>A diferencia de las OS de Catering, los pedidos de Entrega no usan un sistema de módulos separados. En su lugar, un único formulario (`/entregas/pedido/[id]`) gestiona la adición de todos los productos (gastronomía, bebidas, consumibles) a través de un **catálogo unificado** que busca en tiempo real en las bases de datos de `ProductoVenta`.</p>
-                <h3>3.2. Flujo de Guardado Inteligente</h3>
-                <p>Al guardar un pedido de Entrega, un orquestador de lógica de negocio se activa:</p>
-                <ol>
-                    <li><strong>Cálculo de Costes y PVP:</strong> Se recupera el coste de producción de cada ítem desde `ProductoVenta`. El sistema calcula el PVP final para el pedido.</li>
-                    <li><strong>Desglose de Necesidades:</strong> El sistema desglosa los "Productos de Venta" de tipo pack en sus componentes individuales (`componentes` de `ProductoVenta`).</li>
-                    <li><strong>Distribución de Tareas:</strong> Las elaboraciones (vinculadas a través de `recetaId` en `ProductoVenta`) se distribuyen a CPR MICE o al Portal del Partner según el campo `producidoPor` del `ProductoVenta`. El resto de artículos (bebidas, consumibles, componentes de packs) se añaden directamente a la "Hoja de Picking" de la entrega.</li>
-                </ol>
-                <h3>3.3. Portales Externos</h3>
-                <p>Se ha creado una nueva sección `/portal` para dar acceso restringido y con una UI adaptada a partners y transportistas. Estos portales leen los datos relevantes (necesidades de producción, rutas de entrega) y permiten actualizar estados, desencadenando acciones en el sistema principal.</p>
-            </section>
-
-            <section id="c4-tech">
-                <h2 className="flex items-center gap-3"><Bot />Capítulo 4: Flujos de Inteligencia Artificial (`/ai/flows`)</h2>
-                <p>La funcionalidad de IA se gestiona a través de Genkit.</p>
-                <h3>4.1. `orderCompletionAssistant`</h3>
-                <p>Este flujo recibe una descripción de un evento y devuelve una lista de artículos de alquiler sugeridos con cantidades.</p>
-                <h3>4.2. `recipeDescriptionGenerator`</h3>
-                <p>Recibe los datos clave de una receta y genera una descripción de marketing atractiva y sugerente para menús y propuestas comerciales.</p>
-            </section>
-
-             <section id="c5-tech">
-                <h2 className="flex items-center gap-3"><Users />Capítulo 5: Roles y Permisos</h2>
-                <p>La aplicación está diseñada para soportar diferentes roles de usuario, cada uno con acceso a las funcionalidades relevantes para su trabajo.</p>
+                <h2 className="flex items-center gap-3"><Factory />Módulo de Producción (CPR)</h2>
                 <ul>
-                    <li><strong>Administrador:</strong> Acceso total.</li>
-                    <li><strong>Comercial:</strong> Gestión de OS (Catering y Entregas).</li>
-                    <li><strong>Jefe de Producción (CPR):</strong> Control total del módulo de producción y calidad.</li>
-                    <li><strong>Partner Externo:</strong> Acceso de solo lectura a su portal de producción.</li>
-                    <li><strong>Transportista:</strong> Acceso de solo lectura a su portal de entregas y al módulo de firma de albaranes.</li>
+                    <Feature><strong>Planificación:</strong> Agregación automática de necesidades de producción desde OS confirmadas en un rango de fechas.</Feature>
+                    <Feature><strong>Matriz de Producción:</strong> Vista consolidada de necesidades por día.</Feature>
+                    <Feature><strong>Gestión de Excedentes:</strong> El sistema calcula los excedentes de producciones anteriores y los descuenta de las nuevas necesidades.</Feature>
+                    <Feature><strong>Generación de Órdenes de Fabricación (OF):</strong> Creación de lotes de producción con un solo clic desde la pantalla de planificación.</Feature>
+                    <Feature><strong>Gestión de OF:</strong> Ciclo de vida completo por estados (Pendiente, Asignada, En Proceso, Finalizado, Calidad, Incidencia).</Feature>
+                    <Feature><strong>Control de Calidad:</strong> Flujo de validación para lotes finalizados.</Feature>
+                    <Feature><strong>Picking y Logística:</strong> Asignación de lotes a contenedores isotermos para cada servicio (hito) de una OS.</Feature>
+                    <Feature><strong>Generación de Etiquetas de Picking (PDF):</strong> Impresión de hojas de carga detalladas por hito y contenedor.</Feature>
+                    <Feature><strong>Trazabilidad:</strong> Visor completo del historial de lotes de producción.</Feature>
+                    <Feature><strong>Informes:</strong> Módulos de productividad (tiempos) e incidencias.</Feature>
+                </ul>
+            </section>
+
+             <section id="c4-tech">
+                <h2 className="flex items-center gap-3"><Package />Vertical de Entregas MICE</h2>
+                <ul>
+                    <Feature>Dashboard específico para la vertical de Entregas.</Feature>
+                    <Feature>Gestión de Pedidos de Entrega con múltiples hitos (entregas por pedido).</Feature>
+                    <Feature><strong>Catálogo Unificado:</strong> Buscador inteligente para añadir productos de gastronomía, packs, bebidas y consumibles desde un único lugar.</Feature>
+                    <Feature><strong>Gestión de "Packs de Venta":</strong> Creación de productos compuestos que se desglosan en componentes para el picking de almacén.</Feature>
+                    <Feature><strong>Distribución de Producción:</strong> El sistema asigna automáticamente la producción a CPR MICE o a un partner externo basado en la configuración del producto.</Feature>
+                    <Feature>Analítica de Rentabilidad específica para la vertical.</Feature>
+                </ul>
+            </section>
+
+            <section id="c5-tech">
+                <h2 className="flex items-center gap-3"><Users />Portales Externos</h2>
+                 <ul>
+                    <Feature><strong>Portal de Partner de Producción:</strong> Vista simplificada para que los partners de gastronomía vean y gestionen los pedidos de producción que tienen asignados.</Feature>
+                    <Feature><strong>Portal de Partner de Personal:</strong> Permite a las ETTs ver los turnos solicitados y asignar a su personal, incluyendo nombre, DNI, teléfono y comentarios.</Feature>
+                    <Feature><strong>Portal de Transporte:</strong> Interfaz móvil para que los transportistas vean sus rutas, los detalles de entrega y recojan la firma digital del cliente.</Feature>
+                    <Feature><strong>Firma Digital:</strong> Captura de firma en el dispositivo para la confirmación de entrega, generando un albarán en PDF.</Feature>
                 </ul>
             </section>
 
             <section id="c6-tech">
-                <h2 className="flex items-center gap-3"><ShieldCheck />Capítulo 6: Seguridad y Trazabilidad</h2>
-                <p>La trazabilidad es un pilar fundamental del sistema de producción.</p>
-                <h3>6.1. Lotes de Producción</h3>
-                <p>Cada `OrdenFabricacion` actúa como un lote único. Esto permite asociar una producción específica (un día, un cocinero) con su fecha de caducidad y los eventos a los que se sirve.</p>
-                <h3>6.2. Trazabilidad Inversa</h3>
-                <p>El modelo de datos permitirá una trazabilidad inversa. Ante una incidencia en un lote, el sistema podrá identificar rápidamente todas las recetas, Órdenes de Servicio (eventos/entregas) y contenedores isotérmicos afectados.</p>
-                <h3>6.3. Albaranes y Firma Digital</h3>
-                <p>La firma del cliente en el portal del transportista se captura como una imagen (data URL) y se almacena asociada al albarán. Esto proporciona una prueba de entrega segura e irrefutable, eliminando la necesidad de papel. El estado del pedido se actualiza atómicamente al guardar la firma.</p>
-            </section>
-
-            <section id="c7-tech">
-                <h2 className="flex items-center gap-3"><BarChart3 />Capítulo 7: Lógica de Informes</h2>
-                <h3>7.1. Productividad</h3>
-                <p>El informe de productividad (`/cpr/productividad`) filtra las `OrdenFabricacion` y calcula la diferencia de tiempo entre los timestamps `fechaAsignacion`, `fechaInicioProduccion` y `fechaFinalizacion`.</p>
-                <h3>7.2. Cuenta de Explotación</h3>
-                <p>Tanto para Catering como para Entregas, este módulo agrega los costes de todos los sub-módulos y los compara con la facturación neta y los objetivos de gasto definidos en plantillas para calcular la rentabilidad del servicio.</p>
+                <h2 className="flex items-center gap-3"><GitBranch />Funcionalidades Transversales</h2>
+                <ul>
+                    <Feature><strong>Módulo Comercial:</strong> Gestión de briefings de eventos con múltiples servicios (hitos).</Feature>
+                    <Feature><strong>Gestión de Personal MICE e Externo:</strong> Asignación y control de costes de personal por evento.</Feature>
+                    <Feature><strong>Gestión de Pedidos Auxiliares:</strong> Módulos para Almacén, Bodega, Bio, Alquiler, Hielo, Transporte, Decoración y Gastos Atípicos.</Feature>
+                    <Feature><strong>Plantillas de Pedidos:</strong> Creación de plantillas para agilizar la solicitud de material recurrente.</Feature>
+                    <Feature><strong>Cuenta de Explotación por OS:</strong> Análisis detallado de rentabilidad, comparando presupuesto, cierre y objetivos.</Feature>
+                    <Feature><strong>Plantillas de Objetivos de Gasto:</strong> Definición de márgenes de coste objetivo por categoría de gasto.</Feature>
+                    <Feature><strong>Integración de IA (Genkit):</strong> Asistente para la creación de pedidos y generación de descripciones de marketing.</Feature>
+                </ul>
             </section>
         </>
     );
