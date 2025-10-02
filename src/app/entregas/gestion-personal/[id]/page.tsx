@@ -186,6 +186,12 @@ function CommentDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; as
         setValue(fieldName, comment, { shouldDirty: true });
         setIsOpen(false);
     };
+    
+    useEffect(() => {
+        if(isOpen) {
+            setComment(getValues(fieldName) || '');
+        }
+    }, [isOpen, getValues, fieldName]);
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -304,12 +310,12 @@ export default function GestionPersonalEntregaPage() {
   const watchedFields = watch('turnos');
 
   const { totalPlanned, totalReal, totalAjustes, finalTotalReal } = useMemo(() => {
-    const planned = watchedFields.reduce((acc, turno) => {
+    const planned = watchedFields?.reduce((acc, turno) => {
       const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
       return acc + plannedHours * (turno.precioHora || 0);
-    }, 0);
+    }, 0) || 0;
 
-    const real = watchedFields.reduce((acc, turno) => {
+    const real = watchedFields?.reduce((acc, turno) => {
         return acc + (turno.asignaciones || []).reduce((sumAsignacion, asignacion) => {
             const realHours = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
             if (realHours > 0) {
@@ -319,7 +325,7 @@ export default function GestionPersonalEntregaPage() {
             const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
             return sumAsignacion + plannedHours * (turno.precioHora || 0);
         }, 0);
-    }, 0);
+    }, 0) || 0;
     
     const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
 
@@ -533,9 +539,9 @@ const turnosAprobados = useMemo(() => {
                 </Card>
 
                 <Tabs defaultValue="planificacion">
-                    <TabsList className="mb-4">
-                        <TabsTrigger value="planificacion">Planificación de Turnos</TabsTrigger>
-                        <TabsTrigger value="aprobados">Turnos Aprobados por ETT</TabsTrigger>
+                     <TabsList className="mb-4 grid w-full grid-cols-2">
+                        <TabsTrigger value="planificacion" className="text-base px-6">Planificación de Turnos</TabsTrigger>
+                        <TabsTrigger value="aprobados" className="text-base px-6">Turnos Aprobados</TabsTrigger>
                     </TabsList>
                     <TabsContent value="planificacion">
                         <Card>
@@ -609,12 +615,12 @@ const turnosAprobados = useMemo(() => {
                                                     <TableCell className="px-1 py-1">
                                                         <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
                                                     </TableCell>
-                                                    <TableCell>
+                                                     <TableCell>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
-                                                                <div className="flex items-center justify-center">
+                                                                <div className="flex items-center justify-center cursor-pointer">
                                                                     <CommentDialog turnoIndex={index} form={form} />
-                                                                    {field.observaciones && <MessageSquare className="h-4 w-4 text-blue-600" />}
+                                                                    {field.observaciones && <MessageSquare className="h-4 w-4 text-primary" />}
                                                                 </div>
                                                             </TooltipTrigger>
                                                             <TooltipContent><p>{field.observaciones}</p></TooltipContent>
@@ -624,7 +630,7 @@ const turnosAprobados = useMemo(() => {
                                                         {field.statusPartner === 'Gestionado' ? (
                                                             <Dialog>
                                                                 <DialogTrigger asChild>
-                                                                    <span className="cursor-pointer">
+                                                                    <span className="cursor-pointer flex items-center">
                                                                         <Badge variant="success"><CheckCircle className="mr-1 h-3 w-3" />Gestionado</Badge>
                                                                     </span>
                                                                 </DialogTrigger>
@@ -673,7 +679,7 @@ const turnosAprobados = useMemo(() => {
                                             <TableHead>Fecha-Horario</TableHead>
                                             <TableHead className="w-24">H. Entrada Real</TableHead>
                                             <TableHead className="w-24">H. Salida Real</TableHead>
-                                            <TableHead className="w-44 text-center">Desempeño y Comentarios MICE</TableHead>
+                                            <TableHead className="w-48 text-center">Desempeño y Comentarios MICE</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -699,7 +705,7 @@ const turnosAprobados = useMemo(() => {
                                                     </TableCell>
                                                     <TableCell>{asignacion.dni}</TableCell>
                                                     <TableCell>
-                                                        <div>{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
+                                                        <div className="font-semibold">{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
                                                         <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
                                                     </TableCell>
                                                     <TableCell>
@@ -708,9 +714,9 @@ const turnosAprobados = useMemo(() => {
                                                     <TableCell>
                                                     <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                     </TableCell>
-                                                    <TableCell className="w-44">
+                                                    <TableCell className="w-48">
                                                         <Tooltip>
-                                                            <TooltipTrigger asChild>
+                                                            <TooltipTrigger className="w-full">
                                                                 <div className="flex items-center justify-center gap-1 cursor-pointer">
                                                                     <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
                                                                     {(asignacion.comentariosMice || (asignacion.rating && asignacion.rating !== 3)) && (
@@ -736,39 +742,36 @@ const turnosAprobados = useMemo(() => {
                     </TabsContent>
                 </Tabs>
                 
-                 <div className="mt-8 grid grid-cols-2 gap-8">
-                    <Card>
-                        <CardHeader className="py-2">
-                            <CardTitle className="text-lg">Observaciones Generales para ETT</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <FormField
-                                control={control}
-                                name="observacionesGenerales"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormControl>
-                                    <Textarea placeholder="Añade aquí cualquier comentario general para el proveedor..." rows={2} {...field} />
-                                    </FormControl>
-                                </FormItem>
-                                )}
-                            />
-                        </CardContent>
-                    </Card>
+                 <div className="mt-8">
                     <Card>
                         <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
-                        <CardContent className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Coste Total Planificado:</span>
-                                <span className="font-bold">{formatCurrency(totalPlanned)}</span>
+                        <CardContent className="grid grid-cols-2 gap-8 p-4">
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Planificado:</span>
+                                    <span className="font-bold">{formatCurrency(totalPlanned)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Real (Horas):</span>
+                                    <span className="font-bold">{formatCurrency(totalReal)}</span>
+                                </div>
+                                <Separator className="my-2" />
+                                <div className="flex justify-between font-bold text-base">
+                                    <span>Coste Total Real (con Ajustes):</span>
+                                    <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
+                                        {formatCurrency(finalTotalReal)}
+                                    </span>
+                                </div>
+                                <Separator className="my-2" />
+                                 <div className="flex justify-between font-bold text-base">
+                                    <span>Desviación (Plan vs Real):</span>
+                                    <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
+                                        {formatCurrency(finalTotalReal - totalPlanned)}
+                                    </span>
+                                </div>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Coste Total Real (Horas):</span>
-                                <span className="font-bold">{formatCurrency(totalReal)}</span>
-                            </div>
-                            <Separator className="my-2" />
-                            <div className="space-y-1">
-                                <h4 className="text-xs font-semibold text-muted-foreground">AJUSTES</h4>
+                            <div className="space-y-2">
+                               <h4 className="text-xs font-semibold text-muted-foreground">AJUSTE DE COSTES</h4>
                                 {ajustes.map((ajuste, index) => (
                                     <div key={ajuste.id} className="flex gap-2 items-center">
                                         <Input 
@@ -789,20 +792,11 @@ const turnosAprobados = useMemo(() => {
                                     </div>
                                 ))}
                                 <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
-                            </div>
-                            <Separator className="my-2" />
-                            <div className="flex justify-between font-bold text-base">
-                                <span>Coste Total Real (con Ajustes):</span>
-                                <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
-                                    {formatCurrency(finalTotalReal)}
-                                </span>
-                            </div>
-                            <Separator className="my-2" />
-                            <div className="flex justify-between font-bold text-base">
-                                <span>Desviación (Plan vs Real):</span>
-                                <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
-                                    {formatCurrency(finalTotalReal - totalPlanned)}
-                                </span>
+                                 <Separator className="my-2" />
+                                  <div className="flex justify-between font-bold">
+                                      <span>Total Ajustes:</span>
+                                      <span>{formatCurrency(totalAjustes)}</span>
+                                  </div>
                             </div>
                         </CardContent>
                     </Card>
