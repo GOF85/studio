@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Save, X, Package, PlusCircle, Trash2, TrendingUp, RefreshCw, Star, Link2 } from 'lucide-react';
+import { Loader2, Save, X, Package, PlusCircle, Trash2, TrendingUp, RefreshCw, Star, Link2, Check } from 'lucide-react';
 import type { ProductoVenta, IngredienteERP, Receta, CategoriaProductoVenta, ImagenProducto, Proveedor, TipoProveedor } from '@/types';
 import { CATEGORIAS_PRODUCTO_VENTA, TIPO_PROVEEDOR_OPCIONES } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -151,6 +151,34 @@ export default function ProductoVentaFormPage() {
   const categoriaSeleccionada = watch("categoria");
 
   useEffect(() => {
+    const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+    setRecetasDB(allRecetas);
+
+    const storedPartners = (JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[]);
+    setPartnersDB(storedPartners);
+    
+    const storedErp = (JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[]);
+    setIngredientesERP(storedErp);
+
+    if (isEditing) {
+        const allProductos = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
+        const producto = allProductos.find(p => p.id === id);
+        if (producto) {
+            reset(producto);
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Producto no encontrado.' });
+            router.push('/entregas/productos-venta');
+        }
+    } else {
+         reset({
+            ...defaultValues,
+            id: Date.now().toString(),
+        });
+    }
+    setIsDataLoaded(true);
+  }, [id, isEditing, reset, router, toast]);
+
+  useEffect(() => {
     if (isProducidoPorPartner) {
         setValue('recetaId', undefined);
     } else {
@@ -186,34 +214,6 @@ export default function ProductoVentaFormPage() {
 
   const [categorias, setCategorias] = useState<CategoriaProductoVenta[]>(CATEGORIAS_PRODUCTO_VENTA as any);
   
-  useEffect(() => {
-    const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-    setRecetasDB(storedRecetas);
-
-    const storedPartners = (JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[]);
-    setPartnersDB(storedPartners);
-    
-    const storedErp = (JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[]);
-    setIngredientesERP(storedErp);
-
-    if (isEditing) {
-        const allProductos = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
-        const producto = allProductos.find(p => p.id === id);
-        if (producto) {
-            reset(producto);
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'Producto no encontrado.' });
-            router.push('/entregas/productos-venta');
-        }
-    } else {
-         reset({
-            ...defaultValues,
-            id: Date.now().toString(),
-        });
-    }
-    setIsDataLoaded(true);
-  }, [id, isEditing, reset, router, toast]);
-
   useEffect(() => {
     if (isEditing && isDataLoaded) {
       const initialCategory = getValues('categoria');
