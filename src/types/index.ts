@@ -716,7 +716,8 @@ export type AsignacionPersonal = {
   id: string;
   nombre: string;
   dni?: string;
-  comentariosPartner?: string;
+  telefono?: string;
+  comentarios?: string;
 };
 
 export type PersonalEntregaTurno = {
@@ -731,6 +732,7 @@ export type PersonalEntregaTurno = {
   observaciones: string;
   statusPartner: 'Pendiente Asignación' | 'Gestionado';
   asignaciones: AsignacionPersonal[];
+  requiereActualizacion?: boolean;
 };
 
 export type PersonalEntrega = {

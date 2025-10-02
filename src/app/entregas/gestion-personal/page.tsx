@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -52,7 +53,7 @@ type PedidoConPersonal = {
   statusPartner: 'Sin Asignar' | 'Parcialmente Gestionado' | 'Todo Gestionado';
 };
 
-const statusVariant: { [key in EstadoPersonalEntrega]: 'warning' | 'success' } = {
+const statusVariant: { [key in EstadoPersonalEntrega]: 'success' | 'warning' } = {
   'Pendiente': 'warning',
   'Asignado': 'success',
 };
@@ -200,13 +201,11 @@ export default function GestionPersonalEntregasPage() {
             <TableBody>
                 {paginatedItems.length > 0 ? (
                 paginatedItems.map(p => (
-                    <TableRow key={p.os.id} className="hover:bg-muted/50 cursor-pointer">
-                        <TableCell>
-                            <Link href={`/entregas/gestion-personal/${p.os.id}`} className="block w-full h-full">
-                                <Badge variant="outline">{p.os.serviceNumber}</Badge>
-                            </Link>
+                    <TableRow key={p.os.id} className="cursor-pointer" onClick={() => router.push(`/entregas/gestion-personal/${p.os.id}`)}>
+                        <TableCell className="font-medium">
+                            <Badge variant="outline">{p.os.serviceNumber}</Badge>
                         </TableCell>
-                        <TableCell className="font-medium">{p.os.client}</TableCell>
+                        <TableCell>{p.os.client}</TableCell>
                         <TableCell>{format(new Date(p.os.startDate), 'dd/MM/yyyy')}</TableCell>
                         <TableCell>{p.totalPersonal}</TableCell>
                         <TableCell className="font-semibold">{p.costePersonal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
