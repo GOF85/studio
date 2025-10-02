@@ -3,9 +3,9 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket, Truck } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket, Truck, UserCheck } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito, TransporteOrder, ProveedorTransporte } from '@/types';
+import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito, TransporteOrder, ProveedorTransporte, PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, PersonalExternoAjuste } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -58,11 +58,27 @@ type AnaliticaItem = {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF'];
 
+const calculateHours = (start?: string, end?: string): number => {
+    if (!start || !end) return 0;
+    try {
+        const startTime = new Date(`1970-01-01T${start}:00`);
+        const endTime = new Date(`1970-01-01T${end}:00`);
+        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
+        const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+        return diff > 0 ? diff : 0;
+    } catch (e) {
+        return 0;
+    }
+}
+
 export default function AnaliticaEntregasPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [allPedidos, setAllPedidos] = useState<AnaliticaItem[]>([]);
     const [allTransporte, setAllTransporte] = useState<TransporteOrder[]>([]);
     const [proveedoresTransporte, setProveedoresTransporte] = useState<ProveedorTransporte[]>([]);
+    const [allPersonal, setAllPersonal] = useState<PersonalEntrega[]>([]);
+    const [allAjustesPersonal, setAllAjustesPersonal] = useState<Record<string, PersonalExternoAjuste[]>>({});
+    const [proveedoresPersonal, setProveedoresPersonal] = useState<any[]>([]);
 
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: startOfMonth(new Date()),
@@ -78,9 +94,15 @@ export default function AnaliticaEntregasPage() {
         const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
         const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
         const allProveedoresTransporte = JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]') as ProveedorTransporte[];
+        const allPersonalData = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
+        const allAjustesData = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
+        const allProveedoresPersonalData = JSON.parse(localStorage.getItem('tiposPersonal') || '[]');
 
         setAllTransporte(allTransporteOrders);
         setProveedoresTransporte(allProveedoresTransporte);
+        setAllPersonal(allPersonalData);
+        setAllAjustesPersonal(allAjustesData);
+        setProveedoresPersonal(allProveedoresPersonalData);
 
         const productosMap = new Map(allProductosVenta.map(p => [p.id, p]));
 
@@ -147,6 +169,18 @@ export default function AnaliticaEntregasPage() {
             const costeTransporteOs = transporteOs.reduce((sum, t) => sum + t.precio, 0);
             costeTotal += costeTransporteOs;
             costesPorCategoria[GASTO_LABELS.transporte] = (costesPorCategoria[GASTO_LABELS.transporte] || 0) + costeTransporteOs;
+            
+            const personalOs = allPersonalData.find(p => p.osId === os.id);
+            if (personalOs) {
+                const costePersonalOs = personalOs.turnos.reduce((sum, turno) => {
+                    const horas = calculateHours(turno.horaEntradaReal || turno.horaEntrada, turno.horaSalidaReal || turno.horaSalida);
+                    return sum + horas * (turno.precioHora || 0);
+                }, 0);
+                const ajustes = (allAjustesData[os.id] || []).reduce((sum, aj) => sum + aj.ajuste, 0);
+                costesPorCategoria['Personal'] = (costesPorCategoria['Personal'] || 0) + costePersonalOs + ajustes;
+                costeTotal += costePersonalOs + ajustes;
+            }
+
 
             return { os, costeTotal, pvpTotal, pvpIfemaTotal, costesPorCategoria, productos };
         });
@@ -379,6 +413,35 @@ export default function AnaliticaEntregasPage() {
 
         return { costeTotal, totalViajes, costeMedio, pieData, monthlyChartData, listado: filteredByProvider };
     }, [pedidosFiltrados, allTransporte, transporteProviderFilter]);
+    
+    const personalAnalysis = useMemo(() => {
+        const osIdsEnRango = new Set(pedidosFiltrados.map(p => p.os.id));
+        const personalEnRango = allPersonal.filter(p => osIdsEnRango.has(p.osId));
+        
+        let costeTotalPlan = 0, costeTotalReal = 0, horasPlan = 0, horasReal = 0, totalTurnos = 0, totalAjustes = 0;
+        const costePorProveedor: Record<string, number> = {};
+        const proveedoresMap = new Map(proveedoresPersonal.map(p => [p.id, p.nombreProveedor]));
+
+        personalEnRango.forEach(p => {
+            totalTurnos += p.turnos.length;
+            p.turnos.forEach(turno => {
+                horasPlan += calculateHours(turno.horaEntrada, turno.horaSalida);
+                costeTotalPlan += calculateHours(turno.horaEntrada, turno.horaSalida) * turno.precioHora;
+                
+                const hReal = turno.asignaciones?.reduce((sum, asig) => sum + calculateHours(asig.horaEntradaReal, asig.horaSalidaReal), 0) || 0;
+                horasReal += hReal;
+                costeTotalReal += hReal * turno.precioHora;
+
+                const provName = proveedoresMap.get(turno.proveedorId) || 'Desconocido';
+                costePorProveedor[provName] = (costePorProveedor[provName] || 0) + (hReal * turno.precioHora);
+            });
+            totalAjustes += (allAjustesPersonal[p.osId] || []).reduce((sum, aj) => sum + aj.ajuste, 0);
+        });
+        
+        const pieData = Object.entries(costePorProveedor).map(([name, value]) => ({ name, value }));
+
+        return { costeTotalPlan, costeTotalReal, totalAjustes, costeFinal: costeTotalReal + totalAjustes, horasPlan, horasReal, totalTurnos, pieData, ajustes: Object.values(allAjustesPersonal).flat() };
+    }, [pedidosFiltrados, allPersonal, allAjustesPersonal, proveedoresPersonal]);
 
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
@@ -445,10 +508,11 @@ export default function AnaliticaEntregasPage() {
             </Card>
 
             <Tabs defaultValue="rentabilidad">
-                <TabsList className="mb-4 grid w-full grid-cols-3">
+                <TabsList className="mb-4 grid w-full grid-cols-4">
                     <TabsTrigger value="rentabilidad">Análisis de Rentabilidad</TabsTrigger>
                     <TabsTrigger value="partner">Análisis Partner</TabsTrigger>
                     <TabsTrigger value="transporte">Análisis de Transporte</TabsTrigger>
+                    <TabsTrigger value="personal">Análisis de Personal</TabsTrigger>
                 </TabsList>
                 <TabsContent value="rentabilidad">
                     <div className="space-y-8">
@@ -661,6 +725,59 @@ export default function AnaliticaEntregasPage() {
                                 </Table>
                             </CardContent>
                          </Card>
+                    </div>
+                  </TabsContent>
+                   <TabsContent value="personal">
+                    <div className="space-y-8">
+                        <div className="grid md:grid-cols-4 gap-4">
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Coste Total Personal</CardTitle><Wallet className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                                <CardContent><div className="text-2xl font-bold">{formatCurrency(personalAnalysis.costeFinal)}</div><p className="text-xs text-muted-foreground">Coste real + ajustes</p></CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Desviación de Costes</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                                <CardContent><div className={cn("text-2xl font-bold", personalAnalysis.costeFinal - personalAnalysis.costeTotalPlan >= 0 ? "text-destructive" : "text-green-600")}>{formatCurrency(personalAnalysis.costeFinal - personalAnalysis.costeTotalPlan)}</div><p className="text-xs text-muted-foreground">vs. planificado</p></CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Turnos</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                                <CardContent><div className="text-2xl font-bold">{personalAnalysis.totalTurnos}</div></CardContent>
+                            </Card>
+                             <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Horas</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                                <CardContent><div className="text-2xl font-bold">{formatNumber(personalAnalysis.horasReal, 2)}h</div><p className="text-xs text-muted-foreground">Planificadas: {formatNumber(personalAnalysis.horasPlan, 2)}h</p></CardContent>
+                            </Card>
+                        </div>
+                        <div className="grid lg:grid-cols-2 gap-4">
+                             <Card>
+                                <CardHeader><CardTitle>Coste por Proveedor de Personal</CardTitle></CardHeader>
+                                <CardContent>
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <PieChart>
+                                            <Pie data={personalAnalysis.pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={(props) => `${props.name} (${formatCurrency(props.value as number)})`}>
+                                                 {personalAnalysis.pieData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                             <Card>
+                                <CardHeader><CardTitle>Ajustes Manuales de Coste</CardTitle></CardHeader>
+                                <CardContent>
+                                     <Table>
+                                        <TableHeader><TableRow><TableHead>Concepto</TableHead><TableHead className="text-right">Importe</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {personalAnalysis.ajustes.map((a, i) => (
+                                                <TableRow key={i}><TableCell>{a.concepto}</TableCell><TableCell className="text-right font-medium">{formatCurrency(a.ajuste)}</TableCell></TableRow>
+                                            ))}
+                                            <TableRow className="font-bold border-t-2"><TableCell>Total Ajustes</TableCell><TableCell className="text-right">{formatCurrency(personalAnalysis.totalAjustes)}</TableCell></TableRow>
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                             </Card>
+                        </div>
                     </div>
                   </TabsContent>
             </Tabs>
