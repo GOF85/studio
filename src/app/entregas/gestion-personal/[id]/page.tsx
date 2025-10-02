@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -121,7 +122,7 @@ function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; a
 
     const handleOpenChange = (open: boolean) => {
         if (!open) {
-            handleSave(); // Auto-save on close
+            handleSave();
         }
         setIsOpen(open);
     }
@@ -362,7 +363,11 @@ export default function GestionPersonalEntregaPage() {
                 fecha: format(t.fecha, 'yyyy-MM-dd'),
                 statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
                 requiereActualizacion: requiereActualizacion,
-                asignaciones: t.asignaciones || [],
+                asignaciones: (t.asignaciones || []).map(a => ({
+                    ...a,
+                    horaEntradaReal: a.horaEntradaReal || undefined,
+                    horaSalidaReal: a.horaSalidaReal || undefined,
+                })),
             }
         }),
         status: personalEntrega?.status || 'Pendiente',
@@ -440,7 +445,7 @@ export default function GestionPersonalEntregaPage() {
 
   const providerOptions = useMemo(() => {
     return proveedoresDB
-        .filter(p => p.nombreProveedor) // Filter out items with empty or null provider names
+        .filter(p => p.nombreProveedor)
         .map(p => ({ label: `${p.nombreProveedor} - ${p.categoria}`, value: p.id }));
 }, [proveedoresDB, proveedoresMap]);
 
@@ -486,7 +491,7 @@ const turnosAprobados = useMemo(() => {
                         <CardTitle className="text-base">Servicios con Personal</CardTitle>
                         <div className='flex items-center gap-2'>
                             <Select value={personalEntrega?.status || 'Pendiente'} onValueChange={(value: EstadoPersonalEntrega) => handleStatusChange(value)}>
-                                <SelectTrigger className="w-[200px] h-8 text-sm font-semibold">
+                                <SelectTrigger className="h-8 text-sm font-semibold">
                                     <SelectValue>
                                         <Badge variant={statusBadgeVariant}>{personalEntrega?.status || 'Pendiente'}</Badge>
                                     </SelectValue>
@@ -605,7 +610,15 @@ const turnosAprobados = useMemo(() => {
                                                         <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
                                                     </TableCell>
                                                     <TableCell>
-                                                        <CommentDialog turnoIndex={index} form={form} />
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <div className="flex items-center justify-center">
+                                                                    <CommentDialog turnoIndex={index} form={form} />
+                                                                    {field.observaciones && <MessageSquare className="h-4 w-4 text-blue-600" />}
+                                                                </div>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent><p>{field.observaciones}</p></TooltipContent>
+                                                        </Tooltip>
                                                     </TableCell>
                                                     <TableCell>
                                                         {field.statusPartner === 'Gestionado' ? (
@@ -679,15 +692,15 @@ const turnosAprobados = useMemo(() => {
                                                         {hasTimeMismatch && (
                                                             <Tooltip>
                                                                 <TooltipTrigger><AlertTriangle className="h-4 w-4 text-amber-500" /></TooltipTrigger>
-                                                                <TooltipContent><p>Desviación de horas: {deviation > 0 ? '+' : ''}{formatDuration(deviation)} horas</p></TooltipContent>
+                                                                <TooltipContent><p>Desviación: {deviation > 0 ? '+' : ''}{formatDuration(deviation)} horas</p></TooltipContent>
                                                             </Tooltip>
                                                         )}
                                                         {asignacion.nombre}
                                                     </TableCell>
                                                     <TableCell>{asignacion.dni}</TableCell>
                                                     <TableCell>
-                                                    <div>{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
-                                                    <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
+                                                        <div>{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
+                                                        <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
                                                     </TableCell>
                                                     <TableCell>
                                                     <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
@@ -695,7 +708,7 @@ const turnosAprobados = useMemo(() => {
                                                     <TableCell>
                                                     <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                     </TableCell>
-                                                    <TableCell>
+                                                    <TableCell className="w-44">
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
                                                                 <div className="flex items-center justify-center gap-1 cursor-pointer">
