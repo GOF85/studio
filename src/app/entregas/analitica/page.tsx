@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket, Truck, UserCheck, Clock } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket, Truck, UserCheck, Clock, Pencil, MessageSquare, AlertTriangle } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito, TransporteOrder, ProveedorTransporte, PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, PersonalExternoAjuste, Proveedor } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -448,7 +449,8 @@ export default function AnaliticaEntregasPage() {
                 costeTotalReal += costeTurnoReal;
 
                 const catPersonal = proveedoresPersonal.find(pp => pp.id === turno.proveedorId);
-                const provName = catPersonal?.nombreProveedor || 'Desconocido';
+                const proveedorMaestro = allProveedores.find(prov => prov.id === catPersonal?.proveedorId);
+                const provName = proveedorMaestro?.nombreComercial || 'Desconocido';
                 costePorProveedor[provName] = (costePorProveedor[provName] || 0) + costeTurnoReal;
             });
 
@@ -753,10 +755,10 @@ export default function AnaliticaEntregasPage() {
                   </TabsContent>
                    <TabsContent value="personal">
                     <div className="space-y-8">
-                         <div className="flex gap-2 flex-wrap">
+                        <div className="flex gap-2 flex-wrap">
                             <Button size="sm" variant={personalProviderFilter === 'all' ? 'default' : 'outline'} onClick={() => setPersonalProviderFilter('all')}>Todos</Button>
                             {Array.from(new Set(proveedoresPersonal.map(p => p.nombreProveedor))).map(name => (
-                                <Button key={name} size="sm" variant={personalProviderFilter === proveedoresPersonal.find(p=>p.nombreProveedor === name)?.id ? 'default' : 'outline'} onClick={() => setPersonalProviderFilter(proveedoresPersonal.find(p=>p.nombreProveedor === name)?.id || 'all')}>
+                                <Button key={name} size="sm" variant={personalProviderFilter === allProveedores.find(p => p.nombreComercial === name)?.id ? 'default' : 'outline'} onClick={() => setPersonalProviderFilter(allProveedores.find(p => p.nombreComercial === name)?.id || 'all')}>
                                     {name}
                                 </Button>
                             ))}
