@@ -424,6 +424,9 @@ export default function AnaliticaEntregasPage() {
         const osIdsEnRango = new Set(pedidosFiltrados.map(p => p.os.id));
         let personalEnRango = allPersonal.filter(p => osIdsEnRango.has(p.osId));
         
+        const proveedoresMap = new Map(allProveedores.map(p => [p.id, p.nombreComercial]));
+        const categoriasMap = new Map(proveedoresPersonal.map(p => [p.id, p]));
+
         if (personalProviderFilter !== 'all') {
             const personalDelProveedor = proveedoresPersonal.filter(pp => pp.proveedorId === personalProviderFilter).map(pp => pp.id);
             personalEnRango = personalEnRango.map(p => ({
@@ -434,7 +437,7 @@ export default function AnaliticaEntregasPage() {
 
         let costeTotalPlan = 0, costeTotalReal = 0, horasPlan = 0, horasReal = 0, totalTurnos = 0, totalAjustes = 0;
         const costePorProveedor: Record<string, number> = {};
-        const proveedoresMap = new Map(allProveedores.map(p => [p.id, p.nombreComercial]));
+        
 
         const ajustesFiltrados: (PersonalExternoAjuste & {os: Entrega})[] = [];
 
@@ -449,9 +452,8 @@ export default function AnaliticaEntregasPage() {
                 const costeTurnoReal = hReal * turno.precioHora;
                 costeTotalReal += costeTurnoReal;
 
-                const catPersonal = proveedoresPersonal.find(pp => pp.id === turno.proveedorId);
-                const proveedorMaestro = allProveedores.find(prov => prov.id === catPersonal?.proveedorId);
-                const provName = proveedorMaestro?.nombreComercial || 'Desconocido';
+                const catPersonal = categoriasMap.get(turno.proveedorId);
+                const provName = catPersonal ? (proveedoresMap.get(catPersonal.proveedorId) || 'Desconocido') : 'Desconocido';
                 costePorProveedor[provName] = (costePorProveedor[provName] || 0) + costeTurnoReal;
             });
 
@@ -787,7 +789,7 @@ export default function AnaliticaEntregasPage() {
                                 <CardContent><div className="text-2xl font-bold">{personalAnalysis.totalTurnos}</div></CardContent>
                             </Card>
                              <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Horas</CardTitle><LifeBuoy className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Horas</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader>
                                 <CardContent><div className="text-2xl font-bold">{formatNumber(personalAnalysis.horasReal, 2)}h</div><p className="text-xs text-muted-foreground">Planificadas: {formatNumber(personalAnalysis.horasPlan, 2)}h</p></CardContent>
                              </Card>
                         </div>
@@ -802,7 +804,11 @@ export default function AnaliticaEntregasPage() {
                                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                                 ))}
                                             </Pie>
-                                            <Tooltip formatter={(_value, name, props) => [`${formatCurrency(props.payload.value)}`, name]} />
+                                            <Tooltip formatter={(_value, name, props) => {
+                                                const total = personalAnalysis.costeFinal;
+                                                const percentage = total > 0 ? ((props.payload.value / total) * 100).toFixed(2) : 0;
+                                                return [`${percentage}%`, name];
+                                            }} />
                                         </PieChart>
                                     </ResponsiveContainer>
                                 </CardContent>
