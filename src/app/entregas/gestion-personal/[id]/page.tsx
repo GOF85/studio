@@ -239,7 +239,7 @@ export default function GestionPersonalEntregaPage() {
     defaultValues: { turnos: [], observacionesGenerales: '' },
   });
 
-  const { control, setValue, watch, trigger, register } = form;
+  const { control, setValue, watch, trigger, register, handleSubmit } = form;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -295,59 +295,7 @@ export default function GestionPersonalEntregaPage() {
     loadData();
   }, [loadData]);
   
-  const handleProviderChange = useCallback((index: number, proveedorId: string) => {
-    if (!proveedorId) return;
-    const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
-    if (tipoPersonal) {
-        setValue(`turnos.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
-        setValue(`turnos.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
-        setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
-        trigger(`turnos.${index}`);
-    }
-}, [proveedoresDB, setValue, trigger]);
-
-  const watchedFields = watch('turnos');
-
-  const { totalPlanned, totalReal, totalAjustes, finalTotalReal } = useMemo(() => {
-    const planned = watchedFields?.reduce((acc, turno) => {
-      const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
-      return acc + plannedHours * (turno.precioHora || 0);
-    }, 0) || 0;
-
-    const real = watchedFields?.reduce((acc, turno) => {
-        return acc + (turno.asignaciones || []).reduce((sumAsignacion, asignacion) => {
-            const realHours = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
-            if (realHours > 0) {
-                return sumAsignacion + realHours * (turno.precioHora || 0);
-            }
-            // If no real hours, use planned hours for this person
-            const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
-            return sumAsignacion + plannedHours * (turno.precioHora || 0);
-        }, 0);
-    }, 0) || 0;
-    
-    const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
-
-    return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj };
-  }, [watchedFields, ajustes]);
-
-  const handleStatusChange = (newStatus: EstadoPersonalEntrega) => {
-    if (!personalEntrega) return;
-    const updatedPersonalEntrega = { ...personalEntrega, status: newStatus };
-    setPersonalEntrega(updatedPersonalEntrega);
-    
-    const allTurnos = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
-    const index = allTurnos.findIndex(p => p.osId === osId);
-    if (index > -1) {
-      allTurnos[index] = updatedPersonalEntrega;
-    } else {
-      allTurnos.push(updatedPersonalEntrega);
-    }
-    localStorage.setItem('personalEntrega', JSON.stringify(allTurnos));
-    toast({ title: 'Estado actualizado', description: `El estado del personal es ahora: ${newStatus}` });
-  };
-
-  const onSubmit = (data: FormValues) => {
+  const onSubmit = useCallback((data: FormValues) => {
     setIsLoading(true);
     if (!osId) {
       toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID del pedido.' });
@@ -388,22 +336,81 @@ export default function GestionPersonalEntregaPage() {
     localStorage.setItem('personalEntrega', JSON.stringify(allTurnos));
 
     setTimeout(() => {
-        toast({ title: 'Personal guardado', description: 'La planificación del personal ha sido guardada.' });
+        toast({ title: 'Guardado', description: 'Los cambios se han guardado.' });
         setIsLoading(false);
         form.reset(data);
     }, 500);
+  }, [osId, personalEntrega, toast, form]);
+
+  const watchedFields = watch('turnos');
+
+  const handleFieldChangeAndSave = useCallback(async () => {
+    const data = form.getValues();
+    onSubmit(data);
+  }, [form, onSubmit]);
+
+  const handleProviderChange = useCallback((index: number, proveedorId: string) => {
+    if (!proveedorId) return;
+    const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
+    if (tipoPersonal) {
+        setValue(`turnos.${index}.proveedorId`, tipoPersonal.id);
+        setValue(`turnos.${index}.categoria`, tipoPersonal.categoria);
+        setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0);
+        handleFieldChangeAndSave();
+    }
+}, [proveedoresDB, setValue, handleFieldChangeAndSave]);
+
+  const { totalPlanned, totalReal, totalAjustes, finalTotalReal } = useMemo(() => {
+    const planned = watchedFields?.reduce((acc, turno) => {
+      const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
+      return acc + plannedHours * (turno.precioHora || 0) * (turno.cantidad || 1);
+    }, 0) || 0;
+
+    const real = watchedFields?.reduce((acc, turno) => {
+        return acc + (turno.asignaciones || []).reduce((sumAsignacion, asignacion) => {
+            const realHours = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
+            if (realHours > 0) {
+                return sumAsignacion + realHours * (turno.precioHora || 0);
+            }
+            const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
+            return sumAsignacion + plannedHours * (turno.precioHora || 0);
+        }, 0);
+    }, 0) || 0;
+    
+    const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
+
+    return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj };
+  }, [watchedFields, ajustes]);
+
+  const handleStatusChange = (newStatus: EstadoPersonalEntrega) => {
+    if (!personalEntrega) return;
+    const updatedPersonalEntrega = { ...personalEntrega, status: newStatus };
+    setPersonalEntrega(updatedPersonalEntrega);
+    
+    const allTurnos = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
+    const index = allTurnos.findIndex(p => p.osId === osId);
+    if (index > -1) {
+      allTurnos[index] = updatedPersonalEntrega;
+    } else {
+      allTurnos.push(updatedPersonalEntrega);
+    }
+    localStorage.setItem('personalEntrega', JSON.stringify(allTurnos));
+    toast({ title: 'Estado actualizado', description: `El estado del personal es ahora: ${newStatus}` });
   };
-  
+
   const addRow = () => {
     if (!osId || !entrega) return;
     append({
         id: Date.now().toString(),
         proveedorId: '',
         categoria: '',
+        cantidad: 1,
         precioHora: 0,
         fecha: new Date(entrega.startDate),
         horaEntrada: '09:00',
         horaSalida: '17:00',
+        centroCoste: 'SALA',
+        tipoServicio: 'Servicio',
         observaciones: '',
         statusPartner: 'Pendiente Asignación',
         asignaciones: [],
@@ -414,6 +421,7 @@ export default function GestionPersonalEntregaPage() {
     if (rowToDelete !== null) {
       remove(rowToDelete);
       setRowToDelete(null);
+      handleFieldChangeAndSave();
       toast({ title: 'Turno eliminado' });
     }
   };
@@ -449,10 +457,9 @@ export default function GestionPersonalEntregaPage() {
   };
 
   const providerOptions = useMemo(() => {
-    return proveedoresDB.map(p => {
-        const providerName = proveedoresMap.get(p.proveedorId) || 'Proveedor Desconocido';
-        return { label: `${providerName} - ${p.categoria}`, value: p.id };
-    });
+    return proveedoresDB
+        .filter(p => proveedoresMap.has(p.proveedorId)) 
+        .map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
 }, [proveedoresDB, proveedoresMap]);
 
 const hitosConPersonal = useMemo(() => {
@@ -478,7 +485,7 @@ const turnosAprobados = useMemo(() => {
       <main className="container mx-auto px-4 py-8">
       <TooltipProvider>
         <FormProvider {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
+            <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="flex items-start justify-between mb-2">
                     <div>
                         <Button variant="ghost" size="sm" onClick={() => router.push('/entregas/gestion-personal')}>
@@ -506,9 +513,9 @@ const turnosAprobados = useMemo(() => {
                                     {ESTADO_PERSONAL_ENTREGA.map(s => <SelectItem key={s} value={s}><Badge variant={s === 'Asignado' ? 'success' : 'warning'}>{s}</Badge></SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            <Button type="submit" disabled={isLoading || !form.formState.isDirty} size="sm">
+                            <Button type="button" onClick={handleSubmit(onSubmit)} disabled={isLoading}>
                                 {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                                <span className="ml-2">Guardar Cambios</span>
+                                <span className="ml-2">Guardar</span>
                             </Button>
                         </div>
                     </CardHeader>
@@ -528,7 +535,7 @@ const turnosAprobados = useMemo(() => {
                                         {hitosConPersonal.map(hito => (
                                             <TableRow key={hito.id}>
                                                 <TableCell className="py-1 px-2 font-mono"><Badge>{hito.expedicionNumero}</Badge></TableCell>
-                                                <TableCell className="py-1 px-2 font-medium">{hito.lugarEntrega} {hito.localizacion && `(${hito.localizacion})`}</TableCell>
+                                                <TableCell className="py-1 px-2 font-medium">{hito.lugarEntrega}</TableCell>
                                                 <TableCell className="py-1 px-2">{hito.hora}</TableCell>
                                                 <TableCell className="py-1 px-2 text-xs text-muted-foreground">{hito.observaciones}</TableCell>
                                                 <TableCell className="py-1 px-2 font-bold text-center">{hito.horasCamarero || '-'}</TableCell>
@@ -561,9 +568,11 @@ const turnosAprobados = useMemo(() => {
                                         <TableRow>
                                             <TableHead className="px-2 py-1">Fecha</TableHead>
                                             <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
+                                            <TableHead className="px-1 py-1 text-center">Cant.</TableHead>
                                             <TableHead className="px-2 py-1">Horario</TableHead>
+                                            <TableHead className="px-2 py-1 w-20">Horas Plan.</TableHead>
                                             <TableHead className="px-2 py-1 w-20">€/Hora</TableHead>
-                                            <TableHead className="px-2 py-1">Observaciones para ETT</TableHead>
+                                            <TableHead className="px-2 py-1">Observaciones</TableHead>
                                             <TableHead className="px-2 py-1">Estado</TableHead>
                                             <TableHead className="text-right px-2 py-1">Acción</TableHead>
                                         </TableRow>
@@ -608,12 +617,16 @@ const turnosAprobados = useMemo(() => {
                                                         />
                                                     </TableCell>
                                                     <TableCell className="px-1 py-1">
+                                                        <FormField control={control} name={`turnos.${index}.cantidad`} render={({ field: f }) => <FormItem><FormControl><Input type="number" min="1" {...f} className="w-16 h-9 text-center"/></FormControl></FormItem>}/>
+                                                    </TableCell>
+                                                    <TableCell className="px-1 py-1">
                                                         <div className="flex items-center gap-1">
-                                                            <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
+                                                            <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" onBlur={handleFieldChangeAndSave} /></FormControl></FormItem>} />
                                                             <span className="text-muted-foreground">-</span>
-                                                            <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
+                                                            <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" onBlur={handleFieldChangeAndSave} /></FormControl></FormItem>} />
                                                         </div>
                                                     </TableCell>
+                                                    <TableCell className="px-2 py-1 w-20 text-center font-mono">{formatDuration(calculateHours(field.horaEntrada, field.horaSalida))}</TableCell>
                                                     <TableCell className="px-1 py-1">
                                                         <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
                                                     </TableCell>
@@ -660,7 +673,7 @@ const turnosAprobados = useMemo(() => {
                                             ))
                                         ) : (
                                             <TableRow>
-                                            <TableCell colSpan={7} className="h-24 text-center">
+                                            <TableCell colSpan={9} className="h-24 text-center">
                                                 No hay personal asignado. Haz clic en "Añadir Turno" para empezar.
                                             </TableCell>
                                             </TableRow>
@@ -713,10 +726,10 @@ const turnosAprobados = useMemo(() => {
                                                         <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
                                                     </TableCell>
                                                     <TableCell>
-                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
+                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" onBlur={handleFieldChangeAndSave} />} />
                                                     </TableCell>
                                                     <TableCell>
-                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
+                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" onBlur={handleFieldChangeAndSave} />} />
                                                     </TableCell>
                                                     <TableCell className="w-[200px]">
                                                         <Tooltip>
@@ -759,10 +772,6 @@ const turnosAprobados = useMemo(() => {
                                     <span className="text-muted-foreground">Coste Total Real (Horas):</span>
                                     <span className="font-bold">{formatCurrency(totalReal)}</span>
                                 </div>
-                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Ajustes:</span>
-                                    <span className="font-bold">{formatCurrency(totalAjustes)}</span>
-                                </div>
                                 <Separator className="my-2" />
                                 <div className="flex justify-between font-bold text-base">
                                     <span>Coste Total Real (con Ajustes):</span>
@@ -800,6 +809,11 @@ const turnosAprobados = useMemo(() => {
                                     </div>
                                 ))}
                                 <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
+                                 <Separator className="my-2" />
+                                  <div className="flex justify-between font-bold">
+                                      <span>Total Ajustes:</span>
+                                      <span>{formatCurrency(totalAjustes)}</span>
+                                  </div>
                             </div>
                         </CardContent>
                     </Card>
