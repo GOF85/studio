@@ -1,6 +1,6 @@
 'use client';
 
-import { LifeBuoy, Users, Code, Package } from "lucide-react";
+import { LifeBuoy, Users, Code, Package, Award } from "lucide-react";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 
@@ -17,7 +17,19 @@ export default function DocsPage() {
         desde una perspectiva funcional como técnica.
       </p>
 
-      <div className="not-prose grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
+      <div className="not-prose grid md:grid-cols-2 lg:grid-cols-2 gap-8 mt-12">
+        <Link href="/docs/features" className="no-underline">
+          <Card className="hover:border-primary hover:shadow-lg transition-all h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3"><Award />Propuesta de Valor</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription>
+                Descubre el potencial de la plataforma, sus características clave y cómo soluciona los problemas críticos del sector.
+              </CardDescription>
+            </CardContent>
+          </Card>
+        </Link>
         <Link href="/docs/user-manual" className="no-underline">
           <Card className="hover:border-primary hover:shadow-lg transition-all h-full">
             <CardHeader>

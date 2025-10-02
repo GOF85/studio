@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LifeBuoy, Users, Code, BookOpen, Workflow, Database, Bot, Factory, BarChart3, ShieldCheck, Package } from 'lucide-react';
+import { LifeBuoy, Users, Code, BookOpen, Workflow, Database, Bot, Factory, BarChart3, ShieldCheck, Package, Award } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Header } from '@/components/layout/header';
@@ -42,6 +42,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
     const isCateringManual = pathname.includes('/user-manual');
     const isEntregasManual = pathname.includes('/entregas-manual');
     const isTechDocs = pathname.includes('/tech-docs');
+    const isFeaturesPage = pathname.includes('/features');
 
     let activeNav = [];
     if (isCateringManual) activeNav = cateringManualNav;
@@ -67,6 +68,9 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                                     <div>
                                         <h3 className="text-sm font-semibold text-primary mb-2">Guías Principales</h3>
                                         <nav className="space-y-1">
+                                            <Link href="/docs/features" className={cn("flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === '/docs/features' && "bg-accent")}>
+                                                <Award /> Propuesta de Valor
+                                            </Link>
                                             <Link href="/docs/user-manual" className={cn("flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === '/docs/user-manual' && "bg-accent")}>
                                                 <Users /> Manual de Catering
                                             </Link>
