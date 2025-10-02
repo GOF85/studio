@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket, Truck, UserCheck, Clock } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito, TransporteOrder, ProveedorTransporte, PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, PersonalExternoAjuste } from '@/types';
+import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito, TransporteOrder, ProveedorTransporte, PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, PersonalExternoAjuste, Proveedor } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -79,6 +79,8 @@ export default function AnaliticaEntregasPage() {
     const [allPersonal, setAllPersonal] = useState<PersonalEntrega[]>([]);
     const [allAjustesPersonal, setAllAjustesPersonal] = useState<Record<string, PersonalExternoAjuste[]>>({});
     const [proveedoresPersonal, setProveedoresPersonal] = useState<any[]>([]);
+    const [allProveedores, setAllProveedores] = useState<Proveedor[]>([]);
+
 
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: startOfMonth(new Date()),
@@ -97,6 +99,8 @@ export default function AnaliticaEntregasPage() {
         const allPersonalData = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
         const allAjustesData = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
         const allProveedoresPersonalData = JSON.parse(localStorage.getItem('tiposPersonal') || '[]');
+        const proveedoresData = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+        setAllProveedores(proveedoresData);
 
         setAllTransporte(allTransporteOrders);
         setProveedoresTransporte(allProveedoresTransporte);
@@ -420,7 +424,7 @@ export default function AnaliticaEntregasPage() {
         
         let costeTotalPlan = 0, costeTotalReal = 0, horasPlan = 0, horasReal = 0, totalTurnos = 0, totalAjustes = 0;
         const costePorProveedor: Record<string, number> = {};
-        const proveedoresMap = new Map(proveedoresPersonal.map(p => [p.id, p.nombreProveedor]));
+        const proveedoresMap = new Map(allProveedores.map(p => [p.id, p.nombreComercial]));
 
         personalEnRango.forEach(p => {
             totalTurnos += p.turnos.length;
@@ -441,7 +445,7 @@ export default function AnaliticaEntregasPage() {
         const pieData = Object.entries(costePorProveedor).map(([name, value]) => ({ name, value }));
 
         return { costeTotalPlan, costeTotalReal, totalAjustes, costeFinal: costeTotalReal + totalAjustes, horasPlan, horasReal, totalTurnos, pieData, ajustes: Object.values(allAjustesPersonal).flat() };
-    }, [pedidosFiltrados, allPersonal, allAjustesPersonal, proveedoresPersonal]);
+    }, [pedidosFiltrados, allPersonal, allAjustesPersonal, allProveedores]);
 
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
@@ -643,7 +647,7 @@ export default function AnaliticaEntregasPage() {
                             <CardContent className="space-y-2">
                                 <div className="flex justify-between font-semibold"><span>Facturación (PVP)</span><span>{formatCurrency(partnerAnalysis.pvp)}</span></div>
                                 <div className="flex justify-between"><span>Coste</span><span>{formatCurrency(partnerAnalysis.coste)}</span></div>
-                                <Separator />
+                                <Separator className="my-2"/>
                                 <div className="flex justify-between font-bold text-lg"><span>Margen Bruto</span><span>{formatCurrency(partnerAnalysis.margen)}</span></div>
                                 <div className="flex justify-between font-bold text-lg"><span>Margen %</span><span className={cn(partnerAnalysis.margenPct < 0 && 'text-destructive')}>{partnerAnalysis.margenPct.toFixed(2)}%</span></div>
                             </CardContent>
