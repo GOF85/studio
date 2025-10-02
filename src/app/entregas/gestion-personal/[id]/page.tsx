@@ -30,7 +30,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 
 
@@ -279,6 +279,8 @@ export default function GestionPersonalEntregaPage() {
         fecha: new Date(entrega.startDate),
         horaEntrada: '09:00',
         horaSalida: '17:00',
+        centroCoste: 'SALA',
+        tipoServicio: 'Servicio',
         observaciones: '',
         statusPartner: 'Pendiente Asignación',
         asignaciones: [],
@@ -289,7 +291,7 @@ export default function GestionPersonalEntregaPage() {
     if (rowToDelete !== null) {
       remove(rowToDelete);
       setRowToDelete(null);
-      toast({ title: 'Turno eliminado de la lista. Guarda los cambios para hacerlo permanente.' });
+      toast({ title: 'Asignación eliminada' });
     }
   };
   
@@ -541,7 +543,7 @@ const turnosAprobados = useMemo(() => {
                         </div>
                     </CardContent>
                     {fields.length > 0 && (
-                        <CardFooter className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <CardFooter className="grid grid-cols-2 gap-8">
                             <Card>
                                 <CardHeader className="py-2"><CardTitle className="text-base">Observaciones para el Proveedor</CardTitle></CardHeader>
                                 <CardContent>
