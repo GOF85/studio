@@ -172,7 +172,7 @@ export default function GestionPersonalEntregasPage() {
         </div>
 
        <div className="space-y-4 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
               <Input
                   placeholder="Buscar por nº pedido, cliente..."
                   value={searchTerm}
@@ -240,8 +240,7 @@ export default function GestionPersonalEntregasPage() {
                         <TableCell>
                             {p.statusPartner === 'Todo Gestionado' && <Badge variant="success"><CheckCircle className="mr-1 h-3 w-3" />Gestionado</Badge>}
                             {p.statusPartner === 'Parcialmente Gestionado' && <Badge variant="warning">Parcial</Badge>}
-                            {p.statusPartner === 'Sin Asignar' && p.totalPersonal > 0 && <Badge variant="destructive">Pendiente</Badge>}
-                            {p.totalPersonal === 0 && <Badge variant="secondary">N/A</Badge>}
+                            {p.statusPartner === 'Sin Asignar' && <Badge variant="destructive">Pendiente</Badge>}
                         </TableCell>
                     </TableRow>
                 ))

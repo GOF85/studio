@@ -1,3 +1,5 @@
+
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -447,9 +449,10 @@ export default function GestionPersonalEntregaPage() {
   };
 
   const providerOptions = useMemo(() => {
-    return proveedoresDB
-        .filter(p => p.nombreProveedor) // Filter out items with empty or null provider names
-        .map(p => ({ label: `${p.nombreProveedor} - ${p.categoria}`, value: p.id }));
+    return proveedoresDB.map(p => {
+        const providerName = proveedoresMap.get(p.proveedorId) || 'Proveedor Desconocido';
+        return { label: `${providerName} - ${p.categoria}`, value: p.id };
+    });
 }, [proveedoresDB, proveedoresMap]);
 
 const hitosConPersonal = useMemo(() => {
@@ -516,6 +519,7 @@ const turnosAprobados = useMemo(() => {
                                         <TableRow>
                                             <TableHead className="py-1 px-2">Nº Expedición</TableHead>
                                             <TableHead className="py-1 px-2">Dirección del servicio</TableHead>
+                                            <TableHead className="py-1 px-2">Horario</TableHead>
                                             <TableHead className="py-1 px-2 w-[40%]">Observaciones</TableHead>
                                             <TableHead className="py-1 px-2 text-center">Horas Camarero</TableHead>
                                         </TableRow>
@@ -525,6 +529,7 @@ const turnosAprobados = useMemo(() => {
                                             <TableRow key={hito.id}>
                                                 <TableCell className="py-1 px-2 font-mono"><Badge>{hito.expedicionNumero}</Badge></TableCell>
                                                 <TableCell className="py-1 px-2 font-medium">{hito.lugarEntrega} {hito.localizacion && `(${hito.localizacion})`}</TableCell>
+                                                <TableCell className="py-1 px-2">{hito.hora}</TableCell>
                                                 <TableCell className="py-1 px-2 text-xs text-muted-foreground">{hito.observaciones}</TableCell>
                                                 <TableCell className="py-1 px-2 font-bold text-center">{hito.horasCamarero || '-'}</TableCell>
                                             </TableRow>
@@ -754,6 +759,10 @@ const turnosAprobados = useMemo(() => {
                                     <span className="text-muted-foreground">Coste Total Real (Horas):</span>
                                     <span className="font-bold">{formatCurrency(totalReal)}</span>
                                 </div>
+                                 <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Ajustes:</span>
+                                    <span className="font-bold">{formatCurrency(totalAjustes)}</span>
+                                </div>
                                 <Separator className="my-2" />
                                 <div className="flex justify-between font-bold text-base">
                                     <span>Coste Total Real (con Ajustes):</span>
@@ -791,11 +800,6 @@ const turnosAprobados = useMemo(() => {
                                     </div>
                                 ))}
                                 <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
-                                 <Separator className="my-2" />
-                                  <div className="flex justify-between font-bold">
-                                      <span>Total Ajustes:</span>
-                                      <span>{formatCurrency(totalAjustes)}</span>
-                                  </div>
                             </div>
                         </CardContent>
                     </Card>
