@@ -91,8 +91,8 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
 
   return (
     <div className="sticky top-24 space-y-4">
-        <Card className="max-h-[calc(100vh-24rem)] flex flex-col theme-orange">
-        <CardHeader className="flex-grow-0 flex-shrink-0 flex flex-row items-center justify-between">
+        <Card className="max-h-[calc(100vh-20rem)] flex flex-col theme-orange">
+        <CardHeader className="flex-grow-0 flex-shrink-0 flex flex-row items-center justify-between p-4">
             <CardTitle className="text-xl font-headline">Resumen de la Entrega</CardTitle>
             {hito.items.length > 0 && isEditing && (
             <Button variant="ghost" size="sm" onClick={onClearOrder} aria-label="Vaciar entrega">
@@ -101,33 +101,33 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
             </Button>
             )}
         </CardHeader>
-        <div className="flex-grow overflow-y-auto">
+        <div className="flex-grow overflow-y-auto min-h-[24rem]">
             <CardContent className="p-4">
             {hito.items.length === 0 ? (
-                <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10">
+                <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10 h-full">
                 <ShoppingCart className="h-12 w-12 mb-4" />
                 <p className="font-medium">Entrega vacía</p>
                 <p className="text-sm">Añade productos desde el catálogo para empezar.</p>
                 </div>
             ) : (
-                <div className="space-y-6">
+                <div className="space-y-4">
                     {Object.entries(groupedItems).map(([category, items]) => (
                     <div key={category}>
                         <h4 className="font-semibold text-sm mb-2 pb-1 border-b">{category}</h4>
-                        <ul className="space-y-4">
+                        <ul className="space-y-2">
                         {items.map((item) => (
-                            <li key={item.id} className="flex items-center gap-4">
+                            <li key={item.id} className="flex items-center gap-2">
                             <div className="flex-grow">
                                 <p className="font-medium leading-tight">{item.nombre}</p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-xs text-muted-foreground">
                                 PVP: {formatCurrency(item.pvp)}
                                 </p>
                             </div>
                             {isEditing && (
                                 <div className="flex items-center gap-1">
-                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}><Minus className="h-4 w-4" /></Button>
-                                <Input type="number" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
-                                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}><Plus className="h-4 w-4" /></Button>
+                                <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}><Minus className="h-3 w-3" /></Button>
+                                <Input type="number" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 0)} className="h-6 w-10 text-center px-1" />
+                                <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}><Plus className="h-3 w-3" /></Button>
                                 </div>
                             )}
                             {!isEditing && <span className="font-semibold">{item.quantity} uds.</span>}
@@ -144,11 +144,11 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
             <>
             <Separator />
             <div className="flex-grow-0 flex-shrink-0 p-4">
-                <div className="mb-4 space-y-4">
-                    <Label className="font-semibold text-base">Servicios Adicionales</Label>
+                <div className="mb-3 space-y-3">
+                    <Label className="font-semibold">Servicios Adicionales</Label>
                     <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                            <Truck className="h-5 w-5 text-muted-foreground" />
+                        <div className="flex items-center gap-2 text-sm">
+                            <Truck className="h-4 w-4 text-muted-foreground" />
                             <span>Portes ({formatCurrency(costePorte)}/ud)</span>
                         </div>
                         <div className="flex items-center gap-1">
@@ -158,8 +158,8 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
                         </div>
                     </div>
                     <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                            <Users className="h-5 w-5 text-muted-foreground" />
+                        <div className="flex items-center gap-2 text-sm">
+                            <Users className="h-4 w-4 text-muted-foreground" />
                             <span>Horas de Camarero ({formatCurrency(pvpCamareroHora)}/h)</span>
                         </div>
                         <div className="flex items-center gap-1">
@@ -171,9 +171,9 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
                     {horasCamarero > 0 && horasCamarero < 4 && <p className="text-xs text-amber-600 text-center">Se facturará el mínimo de 4 horas de servicio.</p>}
                 </div>
 
-                <Separator className="my-4"/>
+                <Separator className="my-3"/>
 
-                <div className="space-y-2 text-sm">
+                <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                     <span>Coste Total Productos:</span>
                     <span>{formatCurrency(costeTotal)}</span>
@@ -183,7 +183,7 @@ export function DeliveryOrderSummary({ entrega, hito, onUpdateHito, isEditing }:
                     <span>{formatCurrency(totalCosteCamarero)}</span>
                 </div>
                 <Separator className="my-2" />
-                <div className="flex justify-between font-bold text-lg pt-2 text-primary">
+                <div className="flex justify-between font-bold text-lg pt-1 text-primary">
                     <span>PVP Total:</span>
                     <span>{formatCurrency(pvpTotalFinal)}</span>
                 </div>
