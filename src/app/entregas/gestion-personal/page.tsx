@@ -83,12 +83,14 @@ export default function GestionPersonalEntregasPage() {
         
         let statusPartner: PedidoConPersonal['statusPartner'] = 'Sin Asignar';
         if (personalAsignado && personalAsignado.turnos.length > 0) {
-            const gestionados = personalAsignado.turnos.filter(t => t.statusPartner === 'Gestionado').length;
-            if (gestionados === 0 && totalPersonal > 0) {
+            const totalTurnos = personalAsignado.turnos.length;
+            const turnosGestionados = personalAsignado.turnos.filter(t => t.statusPartner === 'Gestionado').length;
+
+            if (turnosGestionados === 0 && totalTurnos > 0) {
                 statusPartner = 'Sin Asignar';
-            } else if (gestionados < personalAsignado.turnos.length && gestionados > 0) {
+            } else if (turnosGestionados < totalTurnos) {
                 statusPartner = 'Parcialmente Gestionado';
-            } else if (gestionados === personalAsignado.turnos.length && totalPersonal > 0) {
+            } else if (turnosGestionados === totalTurnos) {
                 statusPartner = 'Todo Gestionado';
             }
         }
