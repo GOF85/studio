@@ -8,7 +8,7 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Package, PlusCircle, Trash2, TrendingUp, RefreshCw, Star, Link2 } from 'lucide-react';
-import type { ProductoVenta, IngredienteERP, Receta, CategoriaProductoVenta, ImagenProducto, ProveedorGastronomia } from '@/types';
+import type { ProductoVenta, IngredienteERP, Receta, CategoriaProductoVenta, ImagenProducto, Proveedor } from '@/types';
 import { CATEGORIAS_PRODUCTO_VENTA } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -85,7 +85,7 @@ export default function ProductoVentaFormPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [recetasDB, setRecetasDB] = useState<Receta[]>([]);
-  const [partnersDB, setPartnersDB] = useState<ProveedorGastronomia[]>([]);
+  const [partnersDB, setPartnersDB] = useState<Proveedor[]>([]);
   const [newImageUrl, setNewImageUrl] = useState('');
   const { toast } = useToast();
   const [useIfemaPrices, setUseIfemaPrices] = useState(false);
@@ -120,7 +120,7 @@ export default function ProductoVentaFormPage() {
     const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     setRecetasDB(storedRecetas);
 
-    const storedPartners = JSON.parse(localStorage.getItem('proveedoresGastronomia') || '[]') as ProveedorGastronomia[];
+    const storedPartners = (JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[]).filter(p => p.tipos.includes('Gastronomia'));
     setPartnersDB(storedPartners);
     
     if (isEditing) {
@@ -174,7 +174,7 @@ export default function ProductoVentaFormPage() {
     let allItems = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
     let message = '';
     
-    const dataToSave: Omit<ProductoVenta, 'componentes'> = {
+    const dataToSave: ProductoVenta = {
         ...data,
         nombre_en: data.nombre_en || '',
         pvpIfema: data.pvpIfema || 0,
@@ -288,7 +288,7 @@ export default function ProductoVentaFormPage() {
                                             <Select onValueChange={field.onChange} value={field.value}>
                                                 <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar Partner..."/></SelectTrigger></FormControl>
                                                 <SelectContent>
-                                                    {partnersDB.map(p => <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>)}
+                                                    {partnersDB.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                             <FormMessage/>

@@ -593,11 +593,6 @@ export type ImagenProducto = {
   isPrincipal: boolean;
 }
 
-export type ProveedorGastronomia = {
-    id: string;
-    nombre: string;
-}
-
 export type ProductoVenta = {
     id: string;
     nombre: string;
