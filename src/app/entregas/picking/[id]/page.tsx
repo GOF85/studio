@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -134,16 +135,15 @@ export default function PickingEntregaPage() {
             const productosMap = new Map(allProductosVenta.map(p => [p.id, p]));
             const preciosMap = new Map(allPrecios.map(p => [p.id, p]));
 
-            const items: ItemParaPicking[] = [];
-            const uniqueIds = new Set<string>();
+            const initialItems: ItemParaPicking[] = [];
 
             (currentHito.items || []).forEach(item => {
                 const producto = productosMap.get(item.id);
                 if (producto) {
                     if (producto.producidoPorPartner) {
                         const uniqueId = `prod_partner_${producto.id}`;
-                         if (!items.some(i => i.id === uniqueId)) {
-                             items.push({
+                         if (!initialItems.some(i => i.id === uniqueId)) {
+                             initialItems.push({
                                 id: uniqueId,
                                 nombre: producto.nombre,
                                 cantidad: item.quantity,
@@ -157,8 +157,8 @@ export default function PickingEntregaPage() {
                          }
                     } else if (producto.recetaId) {
                          const uniqueId = `prod_cpr_${producto.id}`;
-                         if (!items.some(i => i.id === uniqueId)) {
-                             items.push({
+                         if (!initialItems.some(i => i.id === uniqueId)) {
+                             initialItems.push({
                                 id: uniqueId,
                                 nombre: producto.nombre,
                                 cantidad: item.quantity,
@@ -175,11 +175,11 @@ export default function PickingEntregaPage() {
                             const compInfo = preciosMap.get(comp.erpId);
                             const cantidadParaHito = comp.cantidad * item.quantity;
                             
-                            const existingItemIndex = items.findIndex(i => i.id === comp.erpId && i.origen === 'Picking de Almacén');
+                            const existingItemIndex = initialItems.findIndex(i => i.id === comp.erpId && i.origen === 'Picking de Almacén');
                             if (existingItemIndex > -1) {
-                                items[existingItemIndex].cantidad += cantidadParaHito;
+                                initialItems[existingItemIndex].cantidad += cantidadParaHito;
                             } else {
-                                items.push({
+                                initialItems.push({
                                     id: comp.erpId,
                                     nombre: comp.nombre,
                                     cantidad: cantidadParaHito,
@@ -194,20 +194,21 @@ export default function PickingEntregaPage() {
                     }
                 }
             });
-            setItemsParaPicking(items);
+
+            const allStates = JSON.parse(localStorage.getItem('pickingEntregasState') || '{}');
+            const savedState = allStates[hitoId];
+            if (savedState) {
+                const savedItems = savedState.ordenItems ? savedState.ordenItems.map((id: string) => initialItems.find(i => i.id === id)).filter(Boolean) as ItemParaPicking[] : initialItems;
+                setItemsParaPicking(savedItems);
+                setPickingState({
+                    ...savedState,
+                    checkedItems: new Set(savedState.checkedItems || []),
+                });
+            } else {
+                setItemsParaPicking(initialItems);
+            }
         } else {
             router.push('/entregas/picking');
-        }
-
-        const allStates = JSON.parse(localStorage.getItem('pickingEntregasState') || '{}');
-        const savedState = allStates[hitoId];
-        if (savedState) {
-            const savedItems = savedState.ordenItems ? savedState.ordenItems.map((id: string) => items.find(i => i.id === id)).filter(Boolean) as ItemParaPicking[] : items;
-            setItemsParaPicking(savedItems);
-            setPickingState({
-                ...savedState,
-                checkedItems: new Set(savedState.checkedItems || []),
-            });
         }
 
         setIsMounted(true);
