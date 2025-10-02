@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { PersonalEntrega, Entrega, EstadoPersonalEntrega, PersonalEntregaTurno } from '@/types';
@@ -42,6 +42,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -65,6 +66,8 @@ export default function GestionPersonalEntregasPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
+  const [showPastEvents, setShowPastEvents] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const router = useRouter();
   const { toast } = useToast();
 
@@ -75,10 +78,10 @@ export default function GestionPersonalEntregasPage() {
     
     const pedidosConDatos: PedidoConPersonal[] = allEntregas.map(os => {
         const personalAsignado = allPersonal.find(p => p.osId === os.id);
-        const totalPersonal = personalAsignado?.turnos.reduce((sum, turno) => sum + turno.cantidad, 0) || 0;
+        const totalPersonal = personalAsignado?.turnos.length || 0;
         const costePersonal = personalAsignado?.turnos.reduce((sum, turno) => {
             const horas = calculateHours(turno.horaEntrada, turno.horaSalida);
-            return sum + (horas * (turno.precioHora || 0) * turno.cantidad);
+            return sum + (horas * (turno.precioHora || 0));
         }, 0) || 0;
         
         let statusPartner: PedidoConPersonal['statusPartner'] = 'Sin Asignar';
@@ -117,6 +120,7 @@ export default function GestionPersonalEntregasPage() {
 
 
   const filteredPedidos = useMemo(() => {
+    const today = startOfDay(new Date());
     return pedidos.filter(p => {
       const searchMatch = 
         p.os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -133,9 +137,20 @@ export default function GestionPersonalEntregasPage() {
         }
       }
 
-      return searchMatch && dateMatch;
+      let pastEventMatch = true;
+      if (!showPastEvents) {
+          try {
+              pastEventMatch = !isBefore(new Date(p.os.endDate), today);
+          } catch (e) {
+              pastEventMatch = true;
+          }
+      }
+      
+      const statusMatch = statusFilter === 'all' || p.status === statusFilter;
+
+      return searchMatch && dateMatch && pastEventMatch && statusMatch;
     });
-  }, [pedidos, searchTerm, dateRange]);
+  }, [pedidos, searchTerm, dateRange, showPastEvents, statusFilter]);
 
   const paginatedItems = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -156,29 +171,39 @@ export default function GestionPersonalEntregasPage() {
             <p className="text-muted-foreground">Selecciona un pedido para asignar o revisar el personal.</p>
         </div>
 
-       <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-grow">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+       <div className="space-y-4 mb-6">
+          <div className="flex flex-col md:flex-row gap-4">
               <Input
-                  type="search"
                   placeholder="Buscar por nº pedido, cliente..."
-                  className="pl-8 sm:w-full"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-sm"
               />
+              <Popover>
+                <PopoverTrigger asChild>
+                    <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
+                </PopoverContent>
+              </Popover>
+              <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+                    <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
+                    <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-nowrap">
+                        Mostrar pasados
+                    </label>
+            </div>
+              <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateRange(undefined); setCurrentPage(1); setStatusFilter('all'); setShowPastEvents(false); }}>Limpiar Filtros</Button>
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
-                <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} locale={es}/>
-            </PopoverContent>
-          </Popover>
-          <Button variant="secondary" onClick={() => { setSearchTerm(''); setDateRange(undefined); setCurrentPage(1); }}>Limpiar Filtros</Button>
+          <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Estado Gestión:</span>
+                <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
+                <Button size="sm" variant={statusFilter === 'Pendiente' ? 'default' : 'outline'} onClick={() => setStatusFilter('Pendiente')}>Pendiente</Button>
+                <Button size="sm" variant={statusFilter === 'Asignado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Asignado')}>Asignado</Button>
+            </div>
        </div>
 
         <div className="flex items-center justify-end gap-2 mb-4">
