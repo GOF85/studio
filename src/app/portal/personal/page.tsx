@@ -157,6 +157,23 @@ export default function PartnerPersonalPortalPage() {
         loadData();
     }, [loadData]);
     
+    const handleStatusChange = (pedidoId: string, newStatus: PersonalEntregaTurno['statusPartner']) => {
+        const turno = turnos.find(t => t.id === pedidoId);
+        if(!turno) return;
+
+        const allPersonalEntregas = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
+        const pedidoIndex = allPersonalEntregas.findIndex(p => p.osId === turno.osId);
+        if(pedidoIndex === -1) return;
+
+        const turnoIndex = allPersonalEntregas[pedidoIndex].turnos.findIndex(t => t.id === turnoId);
+        if(turnoIndex === -1) return;
+        
+        allPersonalEntregas[pedidoIndex].turnos[turnoIndex].statusPartner = newStatus;
+        localStorage.setItem('personalEntrega', JSON.stringify(allPersonalEntregas));
+        loadData();
+        toast({ title: 'Estado actualizado', description: `El estado del turno ha sido cambiado a "${newStatus}".` });
+    };
+
     const handleSaveAsignaciones = (turnoId: string, asignaciones: AsignacionPersonal[]) => {
         const turno = turnos.find(t => t.id === turnoId);
         if(!turno) return;
@@ -171,11 +188,9 @@ export default function PartnerPersonalPortalPage() {
         const updatedTurno = { ...allPersonalEntregas[pedidoIndex].turnos[turnoIndex] };
         updatedTurno.asignaciones = asignaciones;
 
-        if (asignaciones.length >= updatedTurno.cantidad) {
+        if (asignaciones.length > 0 && asignaciones[0].nombre) {
             updatedTurno.statusPartner = 'Gestionado';
             updatedTurno.requiereActualizacion = false;
-        } else {
-            updatedTurno.statusPartner = 'Pendiente Asignación';
         }
 
         allPersonalEntregas[pedidoIndex].turnos[turnoIndex] = updatedTurno;
@@ -314,7 +329,16 @@ export default function PartnerPersonalPortalPage() {
                                                                             </AsignacionDialog>
                                                                         </TableCell>
                                                                         <TableCell>
-                                                                            <Badge variant={statusVariant[turno.statusPartner || 'Pendiente Asignación']}>{turno.statusPartner || 'Pendiente Asignación'}</Badge>
+                                                                             <Select value={turno.statusPartner} onValueChange={(value: PersonalEntregaTurno['statusPartner']) => handleStatusChange(turno.id, value)}>
+                                                                                <SelectTrigger className="w-40 h-8 text-xs">
+                                                                                    <SelectValue />
+                                                                                </SelectTrigger>
+                                                                                <SelectContent>
+                                                                                    {Object.keys(statusVariant).map(s => (
+                                                                                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                                                                                    ))}
+                                                                                </SelectContent>
+                                                                            </Select>
                                                                             {turno.requiereActualizacion && (
                                                                                 <Tooltip>
                                                                                     <TooltipTrigger asChild>
