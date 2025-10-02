@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone } from 'lucide-react';
+import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -234,7 +234,7 @@ export default function PartnerPersonalPortalPage() {
 
             <Tabs defaultValue="lista">
                 <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="lista">Lista de Producción</TabsTrigger>
+                    <TabsTrigger value="lista">Lista de Turnos</TabsTrigger>
                     <TabsTrigger value="calendario">Calendario</TabsTrigger>
                 </TabsList>
                 <TabsContent value="lista" className="mt-6">
