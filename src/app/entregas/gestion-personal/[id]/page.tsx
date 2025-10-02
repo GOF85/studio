@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -9,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil } from 'lucide-react';
 
 import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, EstadoPersonalEntrega, PedidoEntrega, EntregaHito, AsignacionPersonal } from '@/types';
 import { ESTADO_PERSONAL_ENTREGA } from '@/types';
@@ -31,6 +30,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
@@ -83,6 +84,45 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+
+function CommentDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; asigIndex: number, form: any }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const { getValues, setValue } = form;
+    const [comment, setComment] = useState(getValues(`turnos.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`) || '');
+
+    const handleSave = () => {
+        setValue(`turnos.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`, comment, { shouldDirty: true });
+        setIsOpen(false);
+    };
+
+    const asignacion = getValues(`turnos.${turnoIndex}.asignaciones.${asigIndex}`);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Pencil className="h-4 w-4" />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Comentarios para {asignacion?.nombre}</DialogTitle>
+                </DialogHeader>
+                <Textarea 
+                    value={comment} 
+                    onChange={(e) => setComment(e.target.value)}
+                    rows={4}
+                    placeholder="Añade aquí comentarios internos sobre el desempeño..."
+                />
+                <DialogFooter>
+                    <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleSave}>Guardar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function GestionPersonalEntregaPage() {
   const [entrega, setEntrega] = useState<Entrega | null>(null);
@@ -253,6 +293,13 @@ export default function GestionPersonalEntregaPage() {
     }
   };
   
+  const saveAjustes = (newAjustes: PersonalExternoAjuste[]) => {
+      if (!osId) return;
+      const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
+      allAjustes[osId] = newAjustes;
+      localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
+  }
+
   const providerOptions = useMemo(() => {
     return proveedoresDB.map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
 }, [proveedoresDB, proveedoresMap]);
@@ -352,7 +399,7 @@ const turnosAprobados = useMemo(() => {
                                         <TableHead>Horario</TableHead>
                                         <TableHead>Comentarios ETT</TableHead>
                                         <TableHead>Rating (1-5)</TableHead>
-                                        <TableHead>Comentarios MICE</TableHead>
+                                        <TableHead className="w-12">Comentarios MICE</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -384,14 +431,8 @@ const turnosAprobados = useMemo(() => {
                                                         )}
                                                     />
                                                 </TableCell>
-                                                <TableCell>
-                                                     <FormField
-                                                        control={control}
-                                                        name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`}
-                                                        render={({ field }) => (
-                                                            <Input {...field} placeholder="Comentarios internos..." className="h-8"/>
-                                                        )}
-                                                    />
+                                                 <TableCell>
+                                                     <CommentDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
                                                 </TableCell>
                                             </TableRow>
                                         ))
@@ -424,7 +465,6 @@ const turnosAprobados = useMemo(() => {
                                         <TableHead className="px-1 py-1 w-24">H. Salida</TableHead>
                                         <TableHead className="px-1 py-1 w-20">Horas</TableHead>
                                         <TableHead className="px-1 py-1 w-20">€/Hora</TableHead>
-                                        <TableHead className="px-2 py-1 min-w-40">Observaciones para el proveedor</TableHead>
                                         <TableHead className="text-right px-2 py-1">Acción</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -482,9 +522,6 @@ const turnosAprobados = useMemo(() => {
                                                 <TableCell className="px-1 py-1">
                                                     <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
                                                 </TableCell>
-                                                <TableCell className="px-2 py-1 min-w-40">
-                                                    <FormField control={control} name={`turnos.${index}.observaciones`} render={({ field: f }) => <FormItem><FormControl><Textarea {...f} className="h-9" /></FormControl></FormItem>} />
-                                                </TableCell>
                                                 <TableCell className="text-right px-2 py-1">
                                                     <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
                                                         <Trash2 className="h-4 w-4" />
@@ -494,7 +531,7 @@ const turnosAprobados = useMemo(() => {
                                         ))
                                     ) : (
                                         <TableRow>
-                                        <TableCell colSpan={9} className="h-24 text-center">
+                                        <TableCell colSpan={8} className="h-24 text-center">
                                             No hay personal asignado. Haz clic en "Añadir Turno" para empezar.
                                         </TableCell>
                                         </TableRow>
@@ -504,9 +541,9 @@ const turnosAprobados = useMemo(() => {
                         </div>
                     </CardContent>
                     {fields.length > 0 && (
-                        <CardFooter className="grid lg:grid-cols-2 gap-4">
-                             <Card>
-                                <CardHeader className="py-2"><CardTitle className="text-base">Observaciones Generales para el Proveedor</CardTitle></CardHeader>
+                        <CardFooter className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <Card>
+                                <CardHeader className="py-2"><CardTitle className="text-base">Observaciones para el Proveedor</CardTitle></CardHeader>
                                 <CardContent>
                                     <FormField
                                         control={control}
