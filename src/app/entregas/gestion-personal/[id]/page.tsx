@@ -184,7 +184,7 @@ function CommentDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; as
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
-                    <Pencil className={cn("h-4 w-4", asignacion.comentariosMice && "text-primary")} />
+                    <Pencil className={cn("h-4 w-4", getValues(fieldName) && "text-primary")} />
                 </Button>
             </DialogTrigger>
             <DialogContent>
@@ -195,7 +195,7 @@ function CommentDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; as
                     value={comment} 
                     onChange={(e) => setComment(e.target.value)}
                     rows={4}
-                    placeholder="Añade aquí comentarios internos sobre el desempeño..."
+                    placeholder="Añade aquí comentarios..."
                 />
                 <DialogFooter>
                     <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
@@ -248,7 +248,15 @@ export default function GestionPersonalEntregaPage() {
         setPersonalEntrega(turnosDelPedido || { osId, turnos: [], status: 'Pendiente' });
         if(turnosDelPedido) {
             form.reset({ 
-                turnos: turnosDelPedido.turnos.map(t => ({...t, fecha: new Date(t.fecha)})),
+                turnos: turnosDelPedido.turnos.map(t => ({
+                    ...t,
+                    fecha: new Date(t.fecha),
+                    asignaciones: (t.asignaciones || []).map(a => ({
+                        ...a,
+                        horaEntradaReal: a.horaEntradaReal || '',
+                        horaSalidaReal: a.horaSalidaReal || '',
+                    }))
+                })),
                 observacionesGenerales: turnosDelPedido.observacionesGenerales || ''
             });
         }
@@ -507,20 +515,32 @@ const turnosAprobados = useMemo(() => {
                                                   <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <div className="flex items-center gap-1 cursor-default">
-                                                                {asignacion.comentarios && <MessageSquare className="h-4 w-4 text-primary" />}
-                                                                <span className="text-xs text-muted-foreground truncate max-w-xs">{asignacion.comentarios}</span>
-                                                            </div>
-                                                        </TooltipTrigger>
-                                                        {asignacion.comentarios && <TooltipContent><p>{asignacion.comentarios}</p></TooltipContent>}
-                                                    </Tooltip>
+                                                  <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <div className="flex items-center gap-1 cursor-default">
+                                                            {asignacion.comentarios && <MessageSquare className="h-4 w-4 text-primary" />}
+                                                            <span className="text-xs text-muted-foreground truncate max-w-[150px]">{asignacion.comentarios}</span>
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    {asignacion.comentarios && <TooltipContent><p>{asignacion.comentarios}</p></TooltipContent>}
+                                                  </Tooltip>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-1">
                                                         <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
-                                                        {(asignacion.comentariosMice || (asignacion.rating && asignacion.rating !== 3)) && <MessageSquare className="h-4 w-4 text-primary" />}
+                                                        {(asignacion.comentariosMice || (asignacion.rating && asignacion.rating !== 3)) && (
+                                                           <Tooltip>
+                                                             <TooltipTrigger asChild>
+                                                               <span className="flex items-center">
+                                                                <MessageSquare className="h-4 w-4 text-primary" />
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p className="font-bold">Rating: {asignacion.rating}/5</p>
+                                                                <p>{asignacion.comentariosMice}</p>
+                                                            </TooltipContent>
+                                                          </Tooltip>
+                                                        )}
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
@@ -605,18 +625,7 @@ const turnosAprobados = useMemo(() => {
                                                     />
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1">
-                                                    <FormField
-                                                        control={control}
-                                                        name={`turnos.${index}.tipoServicio`}
-                                                        render={({ field: selectField }) => (
-                                                            <FormItem>
-                                                                <Select onValueChange={selectField.onChange} value={selectField.value}>
-                                                                    <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
-                                                                    <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                                                                </Select>
-                                                            </FormItem>
-                                                        )}
-                                                    />
+                                                    {/* Eliminar tipo servicio */}
                                                 </TableCell>
                                                 <TableCell className="border-l px-1 py-1 bg-muted/30">
                                                     <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
@@ -677,6 +686,13 @@ const turnosAprobados = useMemo(() => {
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Coste Total Real (Horas):</span>
                                     <span className="font-bold">{formatCurrency(totalReal)}</span>
+                                </div>
+                                <Separator className="my-2" />
+                                 <div className="flex justify-between font-bold text-base">
+                                    <span>Desviación:</span>
+                                    <span className={totalReal - totalPlanned > 0 ? 'text-destructive' : 'text-green-600'}>
+                                        {formatCurrency(totalReal - totalPlanned)}
+                                    </span>
                                 </div>
                             </CardContent>
                         </Card>
