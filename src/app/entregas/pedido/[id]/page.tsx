@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -85,6 +86,10 @@ const defaultValues: Partial<EntregaFormValues> = {
   spaceCommissionValue: 0,
   comisionesAgencia: 0,
   comisionesCanon: 0,
+  facturacion: 0,
+  plane: '',
+  comments: '',
+  deliveryLocations: [],
   direccionPrincipal: '',
 };
 
@@ -376,6 +381,7 @@ export default function EntregaFormPage() {
   
   const [hitos, setHitos] = useState<EntregaHito[]>([]);
   const [transporteOrders, setTransporteOrders] = useState<TransporteOrder[]>([]);
+  const [startDateOpen, setStartDateOpen] = useState(false);
   
   const form = useForm<EntregaFormValues>({
     resolver: zodResolver(entregaFormSchema),
@@ -808,7 +814,7 @@ export default function EntregaFormPage() {
                                 <FormItem className="flex flex-col"><FormLabel>Nº Pedido</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={control} name="startDate" render={({ field }) => (
-                                <FormItem className="flex flex-col"><FormLabel>Fecha Principal</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>
+                                <FormItem className="flex flex-col"><FormLabel>Fecha Principal</FormLabel><Popover open={startDateOpen} onOpenChange={setStartDateOpen}><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={(date) => { field.onChange(date); setStartDateOpen(false); }} initialFocus locale={es} /></PopoverContent></Popover><FormMessage /></FormItem>
                             )} />
                              <FormField control={form.control} name="asistentes" render={({ field }) => (
                                 <FormItem><FormLabel>Nº Asistentes</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
