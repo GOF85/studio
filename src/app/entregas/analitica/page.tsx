@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket, Truck, UserCheck } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket, Truck, UserCheck, Clock } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito, TransporteOrder, ProveedorTransporte, PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, PersonalExternoAjuste } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
