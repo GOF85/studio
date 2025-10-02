@@ -295,7 +295,7 @@ function TransporteDialog({ onSave, osId, hitos, existingTransportOrders }: { on
             proveedorNombre: selectedProvider.nombreProveedor,
             tipoTransporte: selectedProvider.tipoTransporte,
             precio: selectedProvider.precio,
-            lugarRecogida: 'Avda. de la Industria, 38, 28108 Alcobendas, Madrid', // Default
+            lugarRecogida: 'C. Mallorca, 1, 28703 San Sebastián de los Reyes, Madrid',
             horaRecogida: '09:00',
             lugarEntrega: firstHito.lugarEntrega,
             horaEntrega: firstHito.hora,
