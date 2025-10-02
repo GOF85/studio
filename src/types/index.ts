@@ -587,13 +587,6 @@ export type ExcedenteProduccion = {
 export const CATEGORIAS_PRODUCTO_VENTA = ['Gastronomía', 'Bodega', 'Consumibles', 'Almacen', 'Personal', 'Transporte', 'Otros'] as const;
 export type CategoriaProductoVenta = typeof CATEGORIAS_PRODUCTO_VENTA[number];
 
-export type ComponenteProductoVenta = {
-    erpId: string;
-    nombre: string;
-    cantidad: number;
-    coste: number;
-}
-
 export type ImagenProducto = {
   id: string;
   url: string;
@@ -616,9 +609,8 @@ export type ProductoVenta = {
     pvpIfema?: number;
     iva: number;
     producidoPorPartner: boolean;
-    partnerId?: string; // Nuevo campo
+    partnerId?: string;
     recetaId?: string;
-    componentes: ComponenteProductoVenta[];
     exclusivoIfema?: boolean;
 }
 

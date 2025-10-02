@@ -8,15 +8,13 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Package, PlusCircle, Trash2, TrendingUp, RefreshCw, Star, Link2 } from 'lucide-react';
-import type { ProductoVenta, IngredienteERP, ComponenteProductoVenta, Receta, CategoriaProductoVenta, ImagenProducto, ProveedorGastronomia } from '@/types';
+import type { ProductoVenta, IngredienteERP, Receta, CategoriaProductoVenta, ImagenProducto, ProveedorGastronomia } from '@/types';
 import { CATEGORIAS_PRODUCTO_VENTA } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { formatCurrency, formatUnit } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -24,15 +22,7 @@ import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Combobox } from '@/components/ui/combobox';
 import Image from 'next/image';
-
-const componenteSchema = z.object({
-    erpId: z.string(),
-    nombre: z.string(),
-    cantidad: z.coerce.number().min(0.001, 'La cantidad debe ser mayor que 0'),
-    coste: z.coerce.number().default(0),
-});
 
 const imagenSchema = z.object({
     id: z.string(),
@@ -53,7 +43,6 @@ const productoVentaSchema = z.object({
   producidoPorPartner: z.boolean().optional().default(false),
   partnerId: z.string().optional(),
   recetaId: z.string().optional(),
-  componentes: z.array(componenteSchema),
   exclusivoIfema: z.boolean().optional().default(false),
 }).superRefine((data, ctx) => {
     if (data.producidoPorPartner && !data.partnerId) {
@@ -61,6 +50,13 @@ const productoVentaSchema = z.object({
             code: z.ZodIssueCode.custom,
             message: "Debe seleccionar un partner.",
             path: ["partnerId"],
+        });
+    }
+    if (!data.producidoPorPartner && !data.recetaId) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Debe seleccionar una receta si no es producido por un partner.",
+            path: ["recetaId"],
         });
     }
 });
@@ -77,50 +73,8 @@ const defaultValues: Partial<ProductoVentaFormValues> = {
     pvpIfema: 0,
     iva: 21,
     producidoPorPartner: false,
-    componentes: [],
     exclusivoIfema: false,
 };
-
-
-function ErpSelectorDialog({ onSelect }: { onSelect: (ingrediente: IngredienteERP) => void }) {
-    const [ingredientesERP, setIngredientesERP] = useState<IngredienteERP[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
-
-    useEffect(() => {
-        const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
-        setIngredientesERP(storedErp);
-    }, []);
-
-    const filtered = useMemo(() => {
-        return ingredientesERP.filter(i => 
-            i.nombreProductoERP.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (i.IdERP || '').toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [ingredientesERP, searchTerm]);
-
-    return (
-        <DialogContent className="max-w-2xl">
-            <DialogHeader><DialogTitle>Seleccionar Componente ERP</DialogTitle></DialogHeader>
-            <Input placeholder="Buscar materia prima por nombre o Id. ERP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-            <div className="max-h-[60vh] overflow-y-auto border rounded-md">
-                <Table>
-                    <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Coste / Unidad</TableHead><TableHead></TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {filtered.map(ing => (
-                            <TableRow key={ing.id}>
-                                <TableCell>{ing.nombreProductoERP}</TableCell>
-                                <TableCell>{formatCurrency(ing.precio)} / {formatUnit(ing.unidad)}</TableCell>
-                                <TableCell className="text-right">
-                                    <Button size="sm" type="button" onClick={() => onSelect(ing)}>Añadir</Button>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </div>
-        </DialogContent>
-    );
-}
 
 export default function ProductoVentaFormPage() {
   const router = useRouter();
@@ -129,7 +83,6 @@ export default function ProductoVentaFormPage() {
   const isEditing = id !== 'nuevo';
   
   const [isLoading, setIsLoading] = useState(false);
-  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [recetasDB, setRecetasDB] = useState<Receta[]>([]);
   const [partnersDB, setPartnersDB] = useState<ProveedorGastronomia[]>([]);
@@ -144,39 +97,25 @@ export default function ProductoVentaFormPage() {
 
   const { control, getValues, setValue } = form;
 
-  const { fields, append, remove } = useFieldArray({
-      control,
-      name: 'componentes',
-  });
-
   const { fields: imageFields, append: appendImage, remove: removeImage, update: updateImage } = useFieldArray({
       control,
       name: 'imagenes'
   });
   
-  const watchedComponentes = form.watch('componentes');
   const watchedPvp = form.watch('pvp');
   const watchedPvpIfema = form.watch('pvpIfema');
   const isProducidoPorPartner = form.watch('producidoPorPartner');
+  const recetaId = form.watch('recetaId');
   
-  const [costeTotal, setCosteTotal] = useState(0);
+  const costeTotal = useMemo(() => {
+    if (isProducidoPorPartner) return 0; // Cost is manual for partner products for now
+    const receta = recetasDB.find(r => r.id === recetaId);
+    return receta?.costeMateriaPrima || 0;
+  }, [recetaId, isProducidoPorPartner, recetasDB]);
 
   const [categorias, setCategorias] = useState<CategoriaProductoVenta[]>(CATEGORIAS_PRODUCTO_VENTA as any);
   const categoriasOptions = useMemo(() => categorias.map(c => ({ label: c, value: c })), [categorias]);
   
-  const recalculateCosts = useCallback(() => {
-    const components = getValues('componentes');
-    const newTotalCost = components.reduce((total, componente) => {
-        return total + (componente.coste || 0) * componente.cantidad;
-    }, 0);
-    setCosteTotal(newTotalCost);
-  }, [getValues]);
-
-  useEffect(() => {
-    recalculateCosts();
-  }, [watchedComponentes, recalculateCosts]);
-
-
   useEffect(() => {
     const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     setRecetasDB(storedRecetas);
@@ -201,16 +140,6 @@ export default function ProductoVentaFormPage() {
     }
   }, [id, isEditing, form, router, toast]);
 
-  const handleSelectComponente = (ingrediente: IngredienteERP) => {
-      append({
-          erpId: ingrediente.id,
-          nombre: ingrediente.nombreProductoERP,
-          cantidad: 1,
-          coste: ingrediente.precio,
-      });
-      setIsSelectorOpen(false);
-  }
-  
   const { margenBruto, margenPct, comisionIfema, margenFinal } = useMemo(() => {
     const pvp = useIfemaPrices ? (watchedPvpIfema || watchedPvp || 0) : (watchedPvp || 0);
     const margen = pvp - costeTotal;
@@ -219,10 +148,6 @@ export default function ProductoVentaFormPage() {
     const final = margen - comision;
     return { margenBruto: margen, margenPct: porcentaje, comisionIfema: comision, margenFinal: final };
   }, [costeTotal, watchedPvp, watchedPvpIfema, useIfemaPrices]);
-  
-  const handleRecalculate = () => {
-    recalculateCosts();
-  }
   
   const handleAddImage = () => {
     try {
@@ -244,28 +169,27 @@ export default function ProductoVentaFormPage() {
     });
   };
 
-
   function onSubmit(data: ProductoVentaFormValues) {
     setIsLoading(true);
     let allItems = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
     let message = '';
     
-    const dataToSave: ProductoVenta = {
+    const dataToSave: Omit<ProductoVenta, 'componentes'> = {
         ...data,
         nombre_en: data.nombre_en || '',
         pvpIfema: data.pvpIfema || 0,
-        recetaId: data.recetaId === 'ninguna' ? undefined : data.recetaId,
+        recetaId: data.producidoPorPartner ? undefined : data.recetaId,
         partnerId: data.producidoPorPartner ? data.partnerId : undefined,
     };
 
     if (isEditing) {
       const index = allItems.findIndex(p => p.id === id);
       if (index !== -1) {
-        allItems[index] = dataToSave;
+        allItems[index] = dataToSave as ProductoVenta;
         message = 'Producto actualizado correctamente.';
       }
     } else {
-      allItems.push(dataToSave);
+      allItems.push(dataToSave as ProductoVenta);
       message = 'Producto creado correctamente.';
     }
 
@@ -326,13 +250,12 @@ export default function ProductoVentaFormPage() {
                              <FormField control={form.control} name="categoria" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Categoría</FormLabel>
-                                    <Combobox
-                                        options={categoriasOptions}
-                                        value={field.value}
-                                        onChange={field.onChange}
-                                        onCreated={(value) => setCategorias(prev => [...prev, value as CategoriaProductoVenta])}
-                                        placeholder="Seleccionar..."
-                                    />
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            {CATEGORIAS_PRODUCTO_VENTA.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
                                     <FormMessage/>
                                 </FormItem>
                             )} />
@@ -365,7 +288,7 @@ export default function ProductoVentaFormPage() {
                                             <Select onValueChange={field.onChange} value={field.value}>
                                                 <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar Partner..."/></SelectTrigger></FormControl>
                                                 <SelectContent>
-                                                    {partnersDB.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreProveedor}</SelectItem>)}
+                                                    {partnersDB.map(p => <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                             <FormMessage/>
@@ -386,8 +309,8 @@ export default function ProductoVentaFormPage() {
                                 )} />
                                 <FormField control={form.control} name="recetaId" render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Receta Vinculada (Opcional)</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value || 'ninguna'}>
+                                        <FormLabel>Receta Vinculada</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value || 'ninguna'} disabled={isProducidoPorPartner}>
                                             <FormControl><SelectTrigger><SelectValue placeholder="Vincular a una receta del Book..."/></SelectTrigger></FormControl>
                                             <SelectContent>
                                                 <SelectItem value="ninguna">Ninguna</SelectItem>
@@ -426,109 +349,60 @@ export default function ProductoVentaFormPage() {
                         </div>
                     </CardContent>
                 </Card>
-
-                <Accordion type="single" collapsible>
-                  <AccordionItem value="item-1" className="border rounded-lg">
-                    <Card className="shadow-none">
-                      <AccordionTrigger className="p-4 w-full">
-                        <div className="flex justify-between items-center w-full">
-                           <h3 className="text-lg font-semibold flex items-center gap-2"><TrendingUp/>Análisis de Rentabilidad</h3>
-                           <div className="font-bold text-green-600">
-                               <span>{formatCurrency(margenFinal)}</span>
-                               <span className="mx-2">-</span>
-                               <span>{margenPct.toFixed(2)}%</span>
-                           </div>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <CardContent className="space-y-2 text-sm pt-0">
-                           <div className="flex items-center space-x-2 my-4">
-                                <Checkbox id="ifema-check" checked={useIfemaPrices} onCheckedChange={(checked) => setUseIfemaPrices(Boolean(checked))} />
-                                <label htmlFor="ifema-check" className="font-semibold">Simular con Tarifa y Comisión IFEMA</label>
-                            </div>
-                          <div className="flex justify-between">
-                            <span>Precio de Venta:</span>
-                            <span className="font-semibold">{formatCurrency(useIfemaPrices ? (watchedPvpIfema || watchedPvp) : watchedPvp)}</span>
-                          </div>
-                           <div className="flex justify-between">
-                            <span>Coste de Componentes:</span>
-                            <span className="font-semibold">{formatCurrency(costeTotal)}</span>
-                          </div>
-                          <Separator className="my-2" />
-                          <div className="flex justify-between font-bold">
-                            <span>Margen Bruto:</span>
-                            <span className={cn(margenBruto < 0 && "text-destructive")}>{formatCurrency(margenBruto)}</span>
-                          </div>
-                          {useIfemaPrices && (
-                            <>
-                              <div className="flex justify-between text-sm pl-2">
-                                <span>Comisión IFEMA (17.85%)</span>
-                                <span className="text-destructive">- {formatCurrency(comisionIfema)}</span>
-                              </div>
-                              <Separator className="my-2"/>
-                              <div className="flex justify-between font-bold text-base text-green-600">
-                                <span>Margen Final:</span>
-                                <span>{formatCurrency(margenFinal)}</span>
-                              </div>
-                            </>
-                          )}
-                        </CardContent>
-                      </AccordionContent>
-                    </Card>
-                  </AccordionItem>
-                </Accordion>
-                <div className="flex gap-2 justify-end">
-                    <Button variant="outline" type="button" onClick={() => router.push('/entregas/productos-venta')}>Cancelar</Button>
-                    <Button type="submit" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                    <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Producto'}</span>
-                    </Button>
-                </div>
               </div>
 
               <Card>
                 <CardHeader className="py-3 flex-row items-center justify-between">
-                    <div className="space-y-1"><CardTitle className="text-lg">Componentes</CardTitle>
-                    <CardDescription className="text-xs">Artículos de ERP que componen este producto.</CardDescription></div>
-                    <div className="flex items-center gap-2">
-                        <div className="p-2 rounded-md bg-green-100 dark:bg-green-900 border border-green-200 dark:border-green-800">
-                            <span className="text-sm text-green-800 dark:text-green-200">Coste Total: </span>
-                            <span className="font-bold text-green-800 dark:text-green-200">{formatCurrency(costeTotal)}</span>
-                        </div>
-                        <Button variant="outline" type="button" size="sm" onClick={handleRecalculate}>
-                            <RefreshCw className="mr-2 h-4 w-4"/>Recalcular
-                        </Button>
-                        <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                            <DialogTrigger asChild>
-                                <Button variant="outline" type="button" size="sm"><PlusCircle className="mr-2"/>Añadir</Button>
-                            </DialogTrigger>
-                            <ErpSelectorDialog onSelect={handleSelectComponente} />
-                        </Dialog>
+                    <div className="space-y-1">
+                        <CardTitle className="text-lg flex items-center gap-2"><TrendingUp/>Análisis de Rentabilidad</CardTitle>
+                        <CardDescription className="text-xs">Cálculo de márgenes basado en el coste de la receta.</CardDescription>
                     </div>
                 </CardHeader>
-                <CardContent>
-                     <div className="border rounded-lg max-h-80 overflow-y-auto">
-                        <Table>
-                            <TableHeader><TableRow><TableHead className="py-2">Componente</TableHead><TableHead className="w-32 py-2">Cantidad</TableHead><TableHead className="w-12 py-2"></TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {fields.length === 0 && <TableRow><TableCell colSpan={3} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
-                                {fields.map((field, index) => (
-                                    <TableRow key={field.id}>
-                                        <TableCell className="font-medium py-1">{field.nombre}</TableCell>
-                                        <TableCell className="py-1">
-                                            <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
-                                                <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
-                                            )} />
-                                        </TableCell>
-                                        <TableCell className="py-1"><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                     </div>
-                     {form.formState.errors.componentes && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.componentes.root?.message}</p>}
+                <CardContent className="space-y-2 text-sm">
+                    <div className="flex items-center space-x-2 my-4">
+                        <Checkbox id="ifema-check" checked={useIfemaPrices} onCheckedChange={(checked) => setUseIfemaPrices(Boolean(checked))} />
+                        <label htmlFor="ifema-check" className="font-semibold">Simular con Tarifa y Comisión IFEMA</label>
+                    </div>
+                    <div className="flex justify-between">
+                    <span>Precio de Venta:</span>
+                    <span className="font-semibold">{formatCurrency(useIfemaPrices ? (watchedPvpIfema || watchedPvp) : watchedPvp)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                    <span>Coste (Receta):</span>
+                    <span className="font-semibold">{formatCurrency(costeTotal)}</span>
+                    </div>
+                    <Separator className="my-2" />
+                    <div className="flex justify-between font-bold">
+                    <span>Margen Bruto:</span>
+                    <span className={cn(margenBruto < 0 && "text-destructive")}>{formatCurrency(margenBruto)}</span>
+                    </div>
+                    {useIfemaPrices && (
+                    <>
+                        <div className="flex justify-between text-sm pl-2">
+                        <span>Comisión IFEMA (17.85%)</span>
+                        <span className="text-destructive">- {formatCurrency(comisionIfema)}</span>
+                        </div>
+                        <Separator className="my-2"/>
+                        <div className="flex justify-between font-bold text-base text-green-600">
+                        <span>Margen Final:</span>
+                        <span>{formatCurrency(margenFinal)}</span>
+                        </div>
+                    </>
+                    )}
+                     <Separator className="my-2" />
+                     <div className="flex justify-between font-bold text-lg text-primary">
+                        <span>Margen Porcentual:</span>
+                        <span>{margenPct.toFixed(2)}%</span>
+                    </div>
                 </CardContent>
               </Card>
+            </div>
+             <div className="flex gap-2 justify-end">
+                <Button variant="outline" type="button" onClick={() => router.push('/entregas/productos-venta')}>Cancelar</Button>
+                <Button type="submit" disabled={isLoading}>
+                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Producto'}</span>
+                </Button>
             </div>
           </form>
         </Form>

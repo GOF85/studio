@@ -1,11 +1,10 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Package } from 'lucide-react';
-import type { Entrega, PedidoEntrega, ProductoVenta, EntregaHito, PedidoEntregaItem } from '@/types';
+import type { Entrega, PedidoEntrega, ProductoVenta, EntregaHito, PedidoEntregaItem, Receta } from '@/types';
 import { Button } from '@/components/ui/button';
 import { CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -18,6 +17,7 @@ export default function ConfeccionarEntregaPage() {
     const [entrega, setEntrega] = useState<Entrega | null>(null);
     const [hito, setHito] = useState<EntregaHito | null>(null);
     const [productosVenta, setProductosVenta] = useState<ProductoVenta[]>([]);
+    const [recetas, setRecetas] = useState<Receta[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const [expedicionNumero, setExpedicionNumero] = useState('');
     
@@ -27,6 +27,8 @@ export default function ConfeccionarEntregaPage() {
     const searchParams = useSearchParams();
     const osId = searchParams.get('osId');
     const { toast } = useToast();
+
+    const recetasMap = useMemo(() => new Map(recetas.map(r => [r.id, r])), [recetas]);
 
     const loadData = useCallback(() => {
         if (!osId || !hitoId) return;
@@ -55,6 +57,9 @@ export default function ConfeccionarEntregaPage() {
         
         const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
         setProductosVenta(allProductosVenta);
+        
+        const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+        setRecetas(allRecetas);
 
         setIsMounted(true);
     }, [osId, hitoId, router, toast]);
@@ -84,7 +89,16 @@ export default function ConfeccionarEntregaPage() {
     const handleAddItem = (item: ProductoVenta, quantity: number) => {
         if(!hito) return;
 
-        const costeComponentes = (item.componentes || []).reduce((sum, comp) => sum + (comp.coste || 0) * comp.cantidad, 0);
+        let itemCoste = 0;
+        if (item.producidoPorPartner) {
+            // Asumimos que el pvp de un producto de partner es su coste de compra para MICE.
+            // Esto debería refinarse si hay un campo de coste explícito.
+            itemCoste = item.pvp; 
+        } else if (item.recetaId) {
+            const receta = recetasMap.get(item.recetaId);
+            itemCoste = receta?.costeMateriaPrima || 0;
+        }
+
         const newItems = [...(hito.items || [])];
         const existingIndex = newItems.findIndex(i => i.id === item.id);
 
@@ -96,7 +110,7 @@ export default function ConfeccionarEntregaPage() {
             nombre: item.nombre,
             quantity: quantity,
             pvp: entrega?.tarifa === 'IFEMA' ? (item.pvpIfema || item.pvp) : item.pvp,
-            coste: costeComponentes,
+            coste: itemCoste,
             categoria: item.categoria,
           });
         }

@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, Package, CheckCircle2, CircleX } from 'lucide-react';
-import type { ProductoVenta, ProveedorGastronomia } from '@/types';
+import type { ProductoVenta, ProveedorGastronomia, Receta } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -37,6 +37,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export default function ProductosVentaPage() {
   const [items, setItems] = useState<ProductoVenta[]>([]);
   const [partners, setPartners] = useState<ProveedorGastronomia[]>([]);
+  const [recetas, setRecetas] = useState<Receta[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -53,12 +54,19 @@ export default function ProductosVentaPage() {
     let storedPartners = localStorage.getItem('proveedoresGastronomia');
     setPartners(storedPartners ? JSON.parse(storedPartners) : []);
 
+    let storedRecetas = localStorage.getItem('recetas');
+    setRecetas(storedRecetas ? JSON.parse(storedRecetas) : []);
+
     setIsMounted(true);
   }, []);
 
   const partnersMap = useMemo(() => {
-    return new Map(partners.map(p => [p.id, p.nombreProveedor]));
+    return new Map(partners.map(p => [p.id, p.nombre]));
   }, [partners]);
+
+  const recetasMap = useMemo(() => {
+    return new Map(recetas.map(r => [r.id, r]));
+  }, [recetas]);
 
   const categories = useMemo(() => {
     const allCategories = new Set(items.map(item => item.categoria));
@@ -93,7 +101,14 @@ export default function ProductosVentaPage() {
   };
 
   const calculateCost = (item: ProductoVenta) => {
-    return (item.componentes || []).reduce((total, comp) => total + comp.coste * comp.cantidad, 0);
+    if (item.producidoPorPartner) {
+        return item.pvp; // Assuming cost is PVP for partner products
+    }
+    if (item.recetaId) {
+        const receta = recetasMap.get(item.recetaId);
+        return receta?.costeMateriaPrima || 0;
+    }
+    return 0;
   }
   
   const calculateMargin = (item: ProductoVenta) => {
