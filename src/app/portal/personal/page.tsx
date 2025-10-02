@@ -25,6 +25,7 @@ import { Calendar } from '@/components/ui/calendar';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 type TurnoConEstado = PersonalEntregaTurno & {
@@ -33,7 +34,7 @@ type TurnoConEstado = PersonalEntregaTurno & {
     cliente: string;
     fechaEntrega: string;
     horaEntrega: string;
-    lugarEntrega?: string; // Add this
+    lugarEntrega: string;
 };
 
 const statusVariant: { [key in PersonalEntregaTurno['statusPartner']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -112,6 +113,7 @@ export default function PartnerPersonalPortalPage() {
     const [turnos, setTurnos] = useState<TurnoConEstado[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const { toast } = useToast();
+    const [showCompleted, setShowCompleted] = useState(false);
 
     // State for Calendar View
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -184,17 +186,33 @@ export default function PartnerPersonalPortalPage() {
         toast({ title: 'Asignaciones guardadas' });
     }
 
+    const filteredTurnos = useMemo(() => {
+        return showCompleted ? turnos : turnos.filter(t => t.statusPartner !== 'Gestionado');
+    }, [turnos, showCompleted]);
+
     const turnosAgrupadosPorDia = useMemo(() => {
-        const grouped: { [key: string]: TurnoConEstado[] } = {};
-        turnos.forEach(turno => {
+        const groupedByDay: { [date: string]: { [location: string]: TurnoConEstado[] } } = {};
+        
+        filteredTurnos.forEach(turno => {
             const dateKey = format(new Date(turno.fechaEntrega), 'yyyy-MM-dd');
-            if (!grouped[dateKey]) {
-                grouped[dateKey] = [];
+            if (!groupedByDay[dateKey]) {
+                groupedByDay[dateKey] = {};
             }
-            grouped[dateKey].push(turno);
+            const locationKey = turno.lugarEntrega;
+            if (!groupedByDay[dateKey][locationKey]) {
+                groupedByDay[dateKey][locationKey] = [];
+            }
+            groupedByDay[dateKey][locationKey].push(turno);
         });
-        return Object.entries(grouped).sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime());
-    }, [turnos]);
+
+        return Object.entries(groupedByDay)
+            .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
+            .map(([date, locations]) => ({
+                date,
+                locations: Object.entries(locations).sort(([locA], [locB]) => locA.localeCompare(locB)),
+            }));
+    }, [filteredTurnos]);
+
 
     // --- Calendar Logic ---
     const monthStart = startOfMonth(currentDate);
@@ -238,77 +256,91 @@ export default function PartnerPersonalPortalPage() {
                     <TabsTrigger value="calendario">Calendario</TabsTrigger>
                 </TabsList>
                 <TabsContent value="lista" className="mt-6">
+                    <div className="flex items-center space-x-2 mb-4">
+                        <Checkbox id="show-completed" checked={showCompleted} onCheckedChange={(checked) => setShowCompleted(Boolean(checked))} />
+                        <Label htmlFor="show-completed">Mostrar turnos gestionados</Label>
+                    </div>
                     {turnosAgrupadosPorDia.length > 0 ? (
-                        <Accordion type="multiple" defaultValue={turnosAgrupadosPorDia.map(([date]) => date)} className="w-full space-y-4">
-                            {turnosAgrupadosPorDia.map(([date, dailyTurnos]) => (
+                        <div className="space-y-4">
+                            {turnosAgrupadosPorDia.map(({ date, locations }) => (
                                 <Card key={date}>
-                                    <AccordionItem value={date} className="border-none">
-                                        <AccordionTrigger className="p-4">
-                                            <div className="flex items-center gap-3">
-                                                <CalendarIcon className="h-6 w-6"/>
-                                                <div className="text-left">
-                                                    <h3 className="text-xl font-bold capitalize">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
-                                                    <p className="text-sm text-muted-foreground">{dailyTurnos.length} turnos requeridos</p>
-                                                </div>
-                                            </div>
-                                        </AccordionTrigger>
-                                        <AccordionContent>
-                                            <div className="border-t">
-                                                <Table>
-                                                    <TableHeader>
-                                                        <TableRow>
-                                                            <TableHead>Pedido (Cliente)</TableHead>
-                                                            <TableHead>Categoría</TableHead>
-                                                            <TableHead>Horario</TableHead>
-                                                            <TableHead>Observaciones MICE</TableHead>
-                                                            <TableHead>Asignaciones</TableHead>
-                                                            <TableHead>Estado</TableHead>
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        {dailyTurnos.map(turno => (
-                                                             <TableRow key={turno.id} className={cn("transition-colors", statusRowClass[turno.statusPartner || 'Pendiente Asignación'])}>
-                                                                <TableCell>
-                                                                    <Badge variant="secondary">{turno.serviceNumber}</Badge>
-                                                                    <p className="text-xs text-muted-foreground">{turno.cliente}</p>
-                                                                </TableCell>
-                                                                <TableCell className="font-semibold">{turno.categoria}</TableCell>
-                                                                <TableCell>{turno.horaEntrada} - {turno.horaSalida}</TableCell>
-                                                                <TableCell className="text-sm text-muted-foreground max-w-xs">{turno.observaciones}</TableCell>
-                                                                <TableCell>
-                                                                    <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones}>
-                                                                        <Button variant="outline" size="sm">
-                                                                            <Edit className="mr-2 h-3 w-3"/>
-                                                                            Gestionar
-                                                                        </Button>
-                                                                    </AsignacionDialog>
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    <Badge variant={statusVariant[turno.statusPartner || 'Pendiente Asignación']}>{turno.statusPartner || 'Pendiente Asignación'}</Badge>
-                                                                    {turno.requiereActualizacion && (
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger asChild>
-                                                                                <span className="ml-2 flex h-3 w-3 relative">
-                                                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-                                                                                </span>
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                <p>La cantidad solicitada ha cambiado. Por favor, revisa las asignaciones.</p>
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    )}
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
-                                            </div>
-                                        </AccordionContent>
-                                    </AccordionItem>
+                                    <CardHeader className="p-4">
+                                        <CardTitle className="flex items-center gap-3">
+                                            <CalendarIcon className="h-6 w-6"/>
+                                            <span className="capitalize">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</span>
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="pt-0 space-y-4">
+                                        {locations.map(([location, dailyTurnos]) => (
+                                            <Accordion key={location} type="single" collapsible defaultValue="item-1">
+                                                <AccordionItem value="item-1">
+                                                    <AccordionTrigger className="bg-muted/50 px-3 rounded-t-md">
+                                                         <div className="flex items-center gap-3">
+                                                            <MapPin className="h-5 w-5 text-muted-foreground"/>
+                                                            <div>
+                                                                <h4 className="font-semibold text-left">{location}</h4>
+                                                                <p className="text-sm text-muted-foreground text-left">{dailyTurnos.length} empleados requeridos</p>
+                                                            </div>
+                                                        </div>
+                                                    </AccordionTrigger>
+                                                    <AccordionContent className="border border-t-0 rounded-b-md">
+                                                        <Table>
+                                                            <TableHeader>
+                                                                <TableRow>
+                                                                    <TableHead>Pedido (Cliente)</TableHead>
+                                                                    <TableHead>Categoría</TableHead>
+                                                                    <TableHead>Horario</TableHead>
+                                                                    <TableHead>Observaciones MICE</TableHead>
+                                                                    <TableHead>Asignaciones</TableHead>
+                                                                    <TableHead>Estado</TableHead>
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {dailyTurnos.map(turno => (
+                                                                    <TableRow key={turno.id} className={cn("transition-colors", statusRowClass[turno.statusPartner || 'Pendiente Asignación'])}>
+                                                                        <TableCell>
+                                                                            <Badge variant="secondary">{turno.serviceNumber}</Badge>
+                                                                            <p className="text-xs text-muted-foreground">{turno.cliente}</p>
+                                                                        </TableCell>
+                                                                        <TableCell className="font-semibold">{turno.categoria}</TableCell>
+                                                                        <TableCell>{turno.horaEntrada} - {turno.horaSalida}</TableCell>
+                                                                        <TableCell className="text-sm text-muted-foreground max-w-xs">{turno.observaciones}</TableCell>
+                                                                        <TableCell>
+                                                                            <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones}>
+                                                                                <Button variant="outline" size="sm">
+                                                                                    <Edit className="mr-2 h-3 w-3"/>
+                                                                                    Gestionar
+                                                                                </Button>
+                                                                            </AsignacionDialog>
+                                                                        </TableCell>
+                                                                        <TableCell>
+                                                                            <Badge variant={statusVariant[turno.statusPartner || 'Pendiente Asignación']}>{turno.statusPartner || 'Pendiente Asignación'}</Badge>
+                                                                            {turno.requiereActualizacion && (
+                                                                                <Tooltip>
+                                                                                    <TooltipTrigger asChild>
+                                                                                        <span className="ml-2 flex h-3 w-3 relative">
+                                                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                                                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                                                                                        </span>
+                                                                                    </TooltipTrigger>
+                                                                                    <TooltipContent>
+                                                                                        <p>La cantidad solicitada ha cambiado. Por favor, revisa las asignaciones.</p>
+                                                                                    </TooltipContent>
+                                                                                </Tooltip>
+                                                                            )}
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </AccordionContent>
+                                                </AccordionItem>
+                                            </Accordion>
+                                        ))}
+                                    </CardContent>
                                 </Card>
                             ))}
-                        </Accordion>
+                        </div>
                     ) : (
                         <Card>
                             <CardContent className="py-12 text-center">
