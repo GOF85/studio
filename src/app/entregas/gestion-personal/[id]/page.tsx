@@ -351,14 +351,23 @@ export default function GestionPersonalEntregaPage() {
   };
   
   const onSubmit = () => {
-    setNextAction(() => () => {}); // Save and stay on page
-    setShowStatusConfirm(true);
+    if (personalEntrega?.status === 'Asignado') {
+        handleFinalSave('Asignado');
+    } else {
+        setNextAction(() => () => {}); // Save and stay on page
+        setShowStatusConfirm(true);
+    }
   };
 
   const onBackToList = () => {
     if (form.formState.isDirty) {
-        setNextAction(() => () => router.push('/entregas/gestion-personal'));
-        setShowStatusConfirm(true);
+        if (personalEntrega?.status === 'Asignado') {
+            handleFinalSave('Asignado');
+            router.push('/entregas/gestion-personal');
+        } else {
+            setNextAction(() => () => router.push('/entregas/gestion-personal'));
+            setShowStatusConfirm(true);
+        }
     } else {
         router.push('/entregas/gestion-personal');
     }
@@ -373,8 +382,9 @@ export default function GestionPersonalEntregaPage() {
         setValue(`turnos.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
         setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
         trigger(`turnos.${index}`);
+        handleFinalSave();
     }
-}, [proveedoresDB, setValue, trigger]);
+}, [proveedoresDB, setValue, trigger, handleFinalSave]);
 
   const watchedFields = watch('turnos');
 
@@ -500,13 +510,24 @@ const turnosAprobados = useMemo(() => {
                 <Card className="mb-4">
                     <CardHeader className="py-2 px-4 flex-row items-center justify-between">
                         <CardTitle className="text-base flex items-center gap-2">
-                            Estado Global del Personal: 
-                            <Badge variant={statusBadgeVariant}>{personalEntrega?.status || 'Pendiente'}</Badge>
+                            Estado Global del Personal:
                         </CardTitle>
-                        <Button type="button" onClick={onSubmit} disabled={isLoading}>
-                            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                            <span className="ml-2">Guardar</span>
-                        </Button>
+                        <div className='flex items-center gap-2'>
+                             <Select value={personalEntrega?.status || 'Pendiente'} onValueChange={(value: EstadoPersonalEntrega) => handleStatusChange(value)}>
+                                <SelectTrigger className={cn("h-8 text-sm font-semibold w-auto border-none focus:ring-0", statusBadgeVariant === 'success' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800' )}>
+                                    <SelectValue>
+                                        {personalEntrega?.status || 'Pendiente'}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {ESTADO_PERSONAL_ENTREGA.map(s => <SelectItem key={s} value={s}><Badge variant={s === 'Asignado' ? 'success' : 'warning'}>{s}</Badge></SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Button type="button" onClick={onSubmit} disabled={isLoading || !form.formState.isDirty}>
+                                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                                <span className="ml-2">Guardar</span>
+                            </Button>
+                        </div>
                     </CardHeader>
                     {hitosConPersonal.length > 0 && (
                         <CardContent className="pt-0 p-2">
@@ -557,7 +578,8 @@ const turnosAprobados = useMemo(() => {
                                         <TableRow>
                                             <TableHead className="px-2 py-1">Fecha</TableHead>
                                             <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
-                                            <TableHead className="px-2 py-1">Horario</TableHead>
+                                            <TableHead className="px-2 py-1">Horario Plan.</TableHead>
+                                            <TableHead className="px-1 py-1">Horas Plan.</TableHead>
                                             <TableHead className="px-2 py-1 w-20">€/Hora</TableHead>
                                             <TableHead className="px-2 py-1">Observaciones para ETT</TableHead>
                                             <TableHead className="px-2 py-1">Estado</TableHead>
@@ -581,7 +603,7 @@ const turnosAprobados = useMemo(() => {
                                                                         </FormControl>
                                                                     </PopoverTrigger>
                                                                     <PopoverContent className="w-auto p-0" align="start">
-                                                                        <Calendar mode="single" selected={dateField.value} onSelect={dateField.onChange} initialFocus locale={es} />
+                                                                        <Calendar mode="single" selected={dateField.value} onSelect={(date) => {dateField.onChange(date); handleFinalSave()}} initialFocus locale={es} />
                                                                     </PopoverContent>
                                                                 </Popover>
                                                             </FormItem>
@@ -605,10 +627,13 @@ const turnosAprobados = useMemo(() => {
                                                     </TableCell>
                                                     <TableCell className="px-1 py-1">
                                                         <div className="flex items-center gap-1">
-                                                            <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
+                                                            <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" onBlur={() => handleFinalSave()} /></FormControl></FormItem>} />
                                                             <span className="text-muted-foreground">-</span>
-                                                            <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
+                                                            <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" onBlur={() => handleFinalSave()} /></FormControl></FormItem>} />
                                                         </div>
+                                                    </TableCell>
+                                                     <TableCell className="px-1 py-1 font-mono text-center">
+                                                        {formatDuration(calculateHours(watchedFields[index].horaEntrada, watchedFields[index].horaSalida))}h
                                                     </TableCell>
                                                     <TableCell className="px-1 py-1">
                                                         <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
@@ -656,7 +681,7 @@ const turnosAprobados = useMemo(() => {
                                             ))
                                         ) : (
                                             <TableRow>
-                                            <TableCell colSpan={7} className="h-24 text-center">
+                                            <TableCell colSpan={8} className="h-24 text-center">
                                                 No hay personal asignado. Haz clic en "Añadir Turno" para empezar.
                                             </TableCell>
                                             </TableRow>
@@ -709,16 +734,26 @@ const turnosAprobados = useMemo(() => {
                                                         <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
                                                     </TableCell>
                                                     <TableCell>
-                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
+                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" onBlur={() => handleFinalSave()} />} />
                                                     </TableCell>
                                                     <TableCell>
-                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
+                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" onBlur={() => handleFinalSave()} />} />
                                                     </TableCell>
                                                     <TableCell className="w-[200px]">
-                                                        <div className="flex items-center justify-center gap-2">
-                                                            <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
-                                                            {asignacion.comentariosMice && <MessageSquare className="h-4 w-4 text-primary" />}
-                                                        </div>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <div className="flex items-center justify-center gap-1 cursor-pointer">
+                                                                    <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
+                                                                    {(asignacion.comentariosMice || (asignacion.rating && asignacion.rating !== 3)) && (
+                                                                        <MessageSquare className="h-4 w-4 text-primary" />
+                                                                    )}
+                                                                </div>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p className="font-bold">Valoración: {'⭐'.repeat(asignacion.rating || 0)}</p>
+                                                                {asignacion.comentariosMice && <p className="max-w-xs">{asignacion.comentariosMice}</p>}
+                                                            </TooltipContent>
+                                                        </Tooltip>
                                                     </TableCell>
                                                 </TableRow>
                                             )})
