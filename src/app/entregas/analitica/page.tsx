@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, Euro, Package, BookOpen, Users, Wallet, Ship, Ticket, Truck, UserCheck, Clock, Pencil, MessageSquare, AlertTriangle } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito, TransporteOrder, ProveedorTransporte, PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, PersonalExternoAjuste, Proveedor } from '@/types';
+import type { Entrega, PedidoEntrega, ProductoVenta, CategoriaProductoVenta, EntregaHito, TransporteOrder, ProveedorTransporte, PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, PersonalExternoAjuste, Proveedor, CategoriaPersonal } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -79,7 +79,7 @@ export default function AnaliticaEntregasPage() {
     const [proveedoresTransporte, setProveedoresTransporte] = useState<ProveedorTransporte[]>([]);
     const [allPersonal, setAllPersonal] = useState<PersonalEntrega[]>([]);
     const [allAjustesPersonal, setAllAjustesPersonal] = useState<Record<string, PersonalExternoAjuste[]>>({});
-    const [proveedoresPersonal, setProveedoresPersonal] = useState<any[]>([]);
+    const [proveedoresPersonal, setProveedoresPersonal] = useState<CategoriaPersonal[]>([]);
     const [allProveedores, setAllProveedores] = useState<Proveedor[]>([]);
 
 
@@ -100,7 +100,7 @@ export default function AnaliticaEntregasPage() {
         const allProveedoresTransporte = JSON.parse(localStorage.getItem('proveedoresTransporte') || '[]') as ProveedorTransporte[];
         const allPersonalData = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
         const allAjustesData = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
-        const allProveedoresPersonalData = JSON.parse(localStorage.getItem('tiposPersonal') || '[]');
+        const allProveedoresPersonalData = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
         const proveedoresData = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
         setAllProveedores(proveedoresData);
 
@@ -425,9 +425,10 @@ export default function AnaliticaEntregasPage() {
         let personalEnRango = allPersonal.filter(p => osIdsEnRango.has(p.osId));
         
         if (personalProviderFilter !== 'all') {
+            const personalDelProveedor = proveedoresPersonal.filter(pp => pp.proveedorId === personalProviderFilter).map(pp => pp.id);
             personalEnRango = personalEnRango.map(p => ({
                 ...p,
-                turnos: p.turnos.filter(t => t.proveedorId === personalProviderFilter),
+                turnos: p.turnos.filter(t => personalDelProveedor.includes(t.proveedorId)),
             })).filter(p => p.turnos.length > 0);
         }
 
@@ -468,6 +469,11 @@ export default function AnaliticaEntregasPage() {
 
         return { costeTotalPlan, costeTotalReal, totalAjustes, costeFinal: costeTotalReal + totalAjustes, horasPlan, horasReal, totalTurnos, pieData, ajustes: ajustesFiltrados };
     }, [pedidosFiltrados, allPersonal, allAjustesPersonal, proveedoresPersonal, personalProviderFilter, allProveedores]);
+
+    const uniquePersonalProviders = useMemo(() => {
+        const providerIds = new Set(proveedoresPersonal.map(p => p.proveedorId));
+        return allProveedores.filter(p => providerIds.has(p.id));
+    }, [proveedoresPersonal, allProveedores]);
 
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
@@ -757,9 +763,9 @@ export default function AnaliticaEntregasPage() {
                     <div className="space-y-8">
                         <div className="flex gap-2 flex-wrap">
                             <Button size="sm" variant={personalProviderFilter === 'all' ? 'default' : 'outline'} onClick={() => setPersonalProviderFilter('all')}>Todos</Button>
-                            {Array.from(new Set(proveedoresPersonal.map(p => p.nombreProveedor))).map(name => (
-                                <Button key={name} size="sm" variant={personalProviderFilter === allProveedores.find(p => p.nombreComercial === name)?.id ? 'default' : 'outline'} onClick={() => setPersonalProviderFilter(allProveedores.find(p => p.nombreComercial === name)?.id || 'all')}>
-                                    {name}
+                            {uniquePersonalProviders.map(proveedor => (
+                                <Button key={proveedor.id} size="sm" variant={personalProviderFilter === proveedor.id ? 'default' : 'outline'} onClick={() => setPersonalProviderFilter(proveedor.id)}>
+                                    {proveedor.nombreComercial}
                                 </Button>
                             ))}
                         </div>
@@ -783,7 +789,7 @@ export default function AnaliticaEntregasPage() {
                              <Card>
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Horas</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader>
                                 <CardContent><div className="text-2xl font-bold">{formatNumber(personalAnalysis.horasReal, 2)}h</div><p className="text-xs text-muted-foreground">Planificadas: {formatNumber(personalAnalysis.horasPlan, 2)}h</p></CardContent>
-                            </Card>
+                             </Card>
                         </div>
                         <div className="grid lg:grid-cols-2 gap-4">
                              <Card>
