@@ -720,6 +720,8 @@ export type AsignacionPersonal = {
   comentarios?: string;
   comentariosMice?: string;
   rating?: number;
+  horaEntradaReal?: string;
+  horaSalidaReal?: string;
 };
 
 export type PersonalEntregaTurno = {

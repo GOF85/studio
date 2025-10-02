@@ -41,8 +41,8 @@ const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style:
 const calculateHours = (start?: string, end?: string): number => {
     if (!start || !end) return 0;
     try {
-        const startTime = parse(start, 'HH:mm', new Date());
-        const endTime = parse(end, 'HH:mm', new Date());
+        const startTime = new Date(`1970-01-01T${start}:00`);
+        const endTime = new Date(`1970-01-01T${end}:00`);
         if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
         const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
         return diff > 0 ? diff : 0;
@@ -62,6 +62,8 @@ const asignacionSchema = z.object({
   comentarios: z.string().optional(),
   rating: z.number().optional(),
   comentariosMice: z.string().optional(),
+  horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+  horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
 });
 
 
@@ -109,7 +111,7 @@ function CommentDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; as
                  <Tooltip>
                     <TooltipTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
-                            <MessageSquare className={cn("h-4 w-4", asignacion.comentariosMice && "text-primary")} />
+                            <Pencil className={cn("h-4 w-4", asignacion.comentariosMice && "text-primary")} />
                         </Button>
                     </TooltipTrigger>
                     {asignacion.comentariosMice && <TooltipContent><p>{asignacion.comentariosMice}</p></TooltipContent>}
@@ -211,13 +213,25 @@ export default function GestionPersonalEntregaPage() {
 
   const watchedFields = watch('turnos');
 
-  const { totalPlanned } = useMemo(() => {
+  const { totalPlanned, totalReal } = useMemo(() => {
     const planned = watchedFields?.reduce((acc, order) => {
       const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
       return acc + plannedHours * (order.precioHora || 0);
     }, 0) || 0;
 
-    return { totalPlanned: planned };
+    const real = watchedFields.reduce((acc, turno) => {
+        return acc + (turno.asignaciones || []).reduce((sumAsignacion, asignacion) => {
+            const realHours = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
+            if (realHours > 0) {
+                return sumAsignacion + realHours * (turno.precioHora || 0);
+            }
+            // If no real hours, use planned hours for this person
+            const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
+            return sumAsignacion + plannedHours * (turno.precioHora || 0);
+        }, 0);
+    }, 0);
+
+    return { totalPlanned: planned, totalReal: real };
   }, [watchedFields]);
 
   const handleStatusChange = (newStatus: EstadoPersonalEntrega) => {
@@ -251,12 +265,13 @@ export default function GestionPersonalEntregaPage() {
         osId,
         turnos: data.turnos.map(t => {
             const existingTurno = personalEntrega?.turnos.find(et => et.id === t.id);
-            const requiereActualizacion = !existingTurno; // Simplificado: si es nuevo, requiere atención.
+            const requiereActualizacion = !existingTurno || (existingTurno && !existingTurno.asignaciones);
             return {
                 ...t, 
                 fecha: format(t.fecha, 'yyyy-MM-dd'),
                 statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
                 requiereActualizacion: requiereActualizacion,
+                asignaciones: t.asignaciones || [],
             }
         }),
         status: personalEntrega?.status || 'Pendiente',
@@ -398,8 +413,9 @@ const turnosAprobados = useMemo(() => {
                                     <TableRow>
                                         <TableHead>Nombre</TableHead>
                                         <TableHead>DNI</TableHead>
-                                        <TableHead>Teléfono</TableHead>
                                         <TableHead>Fecha-Horario</TableHead>
+                                        <TableHead className="w-24">H. Entrada Real</TableHead>
+                                        <TableHead className="w-24">H. Salida Real</TableHead>
                                         <TableHead>Comentarios ETT</TableHead>
                                         <TableHead>Desempeño</TableHead>
                                         <TableHead className="w-24">Comentarios MICE</TableHead>
@@ -411,10 +427,15 @@ const turnosAprobados = useMemo(() => {
                                             <TableRow key={asignacion.id}>
                                                 <TableCell className="font-semibold">{asignacion.nombre}</TableCell>
                                                 <TableCell>{asignacion.dni}</TableCell>
-                                                <TableCell>{asignacion.telefono}</TableCell>
                                                 <TableCell>
                                                   <div>{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
                                                   <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
+                                                </TableCell>
+                                                <TableCell>
+                                                  <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
+                                                </TableCell>
+                                                <TableCell>
+                                                  <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                 </TableCell>
                                                  <TableCell>
                                                     <Tooltip>
@@ -535,9 +556,9 @@ const turnosAprobados = useMemo(() => {
                                                     <FormField
                                                         control={control}
                                                         name={`turnos.${index}.tipoServicio`}
-                                                        render={({ field }) => (
+                                                        render={({ field: selectField }) => (
                                                             <FormItem>
-                                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                                <Select onValueChange={selectField.onChange} value={selectField.value}>
                                                                     <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
                                                                     <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                                                                 </Select>
@@ -595,11 +616,22 @@ const turnosAprobados = useMemo(() => {
                             </CardContent>
                         </Card>
                         <Card>
-                            <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes de Personal</CardTitle></CardHeader>
+                            <CardHeader><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
                             <CardContent className="space-y-2 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Coste Total Planificado:</span>
                                     <span className="font-bold">{formatCurrency(totalPlanned)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Real:</span>
+                                    <span className="font-bold">{formatCurrency(totalReal)}</span>
+                                </div>
+                                <Separator className="my-2" />
+                                 <div className="flex justify-between font-bold text-base">
+                                    <span>Desviación:</span>
+                                    <span className={totalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
+                                        {formatCurrency(totalReal - totalPlanned)}
+                                    </span>
                                 </div>
                             </CardContent>
                         </Card>
@@ -611,11 +643,14 @@ const turnosAprobados = useMemo(() => {
 
         <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
             <AlertDialogContent>
-                <AlertDialogHeader><AlertDialogTitle>¿Eliminar turno?</AlertDialogTitle><AlertDialogDescription>El turno se eliminará de la lista. Guarda los cambios para hacerlo permanente.</AlertDialogDescription></AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setRowToDelete(null)}>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleDeleteRow}>Eliminar</AlertDialogAction>
-                </AlertDialogFooter>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar turno?</AlertDialogTitle>
+                <AlertDialogDescription>El turno se eliminará de la lista. Guarda los cambios para hacerlo permanente.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setRowToDelete(null)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleDeleteRow}>Eliminar</AlertDialogAction>
+            </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
       </main>
@@ -623,5 +658,3 @@ const turnosAprobados = useMemo(() => {
   );
 }
 
-
-    
