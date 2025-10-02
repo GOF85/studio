@@ -49,19 +49,29 @@ export const productoVentaSchema = z.object({
   erpId: z.string().optional(),
   exclusivoIfema: z.boolean().optional().default(false),
 }).superRefine((data, ctx) => {
-    if (data.producidoPorPartner && !data.erpId) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Debe seleccionar un producto del ERP si es de un partner.",
-            path: ["erpId"],
-        });
-    }
-    if (!data.producidoPorPartner && !data.recetaId) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: "Debe seleccionar una receta si no es producido por un partner.",
-            path: ["recetaId"],
-        });
+    if (data.producidoPorPartner) {
+        if (!data.erpId) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Debe seleccionar un producto del ERP si es de un partner.",
+                path: ["erpId"],
+            });
+        }
+        if (!data.partnerId) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Debe seleccionar un partner productor.",
+                path: ["partnerId"],
+            });
+        }
+    } else {
+        if (!data.recetaId) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Debe seleccionar una receta si no es producido por un partner.",
+                path: ["recetaId"],
+            });
+        }
     }
 });
 
@@ -402,10 +412,9 @@ export default function ProductoVentaFormPage() {
                                <FormField control={form.control} name="recetaId" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Receta Vinculada (Producción MICE)</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value || 'ninguna'}>
+                                        <Select onValueChange={field.onChange} value={field.value || undefined}>
                                             <FormControl><SelectTrigger><SelectValue placeholder="Vincular a una receta del Book..."/></SelectTrigger></FormControl>
                                             <SelectContent>
-                                                <SelectItem value="ninguna">Ninguna</SelectItem>
                                                 {recetasDB.map(r => <SelectItem key={r.id} value={r.id}>{r.nombre}</SelectItem>)}
                                             </SelectContent>
                                         </Select>
@@ -413,33 +422,51 @@ export default function ProductoVentaFormPage() {
                                     </FormItem>
                                 )} />
                            ) : (
-                             <FormItem>
-                                <FormLabel>Producto ERP Vinculado (Coste de Partner)</FormLabel>
-                                {selectedErpProduct ? (
-                                     <div className="border rounded-md p-2 space-y-1">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="font-semibold text-sm leading-tight">{selectedErpProduct.nombreProductoERP}</p>
-                                                <p className="text-xs text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
+                            <div className='space-y-4'>
+                                <FormField
+                                    control={form.control}
+                                    name="partnerId"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Partner Productor</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value} disabled={!categoriaSeleccionada}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder={!categoriaSeleccionada ? "Selecciona una categoría primero" : "Seleccionar partner..."} /></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    {filteredPartners.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage/>
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormItem>
+                                    <FormLabel>Producto ERP Vinculado (Coste de Partner)</FormLabel>
+                                    {selectedErpProduct ? (
+                                        <div className="border rounded-md p-2 space-y-1">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <p className="font-semibold text-sm leading-tight">{selectedErpProduct.nombreProductoERP}</p>
+                                                    <p className="text-xs text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
+                                                </div>
+                                                <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" onClick={() => setValue('erpId', undefined)}><X className="mr-1 h-3 w-3"/>Desvincular</Button>
                                             </div>
-                                            <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" onClick={() => setValue('erpId', undefined)}><X className="mr-1 h-3 w-3"/>Desvincular</Button>
                                         </div>
-                                    </div>
-                                ) : (
-                                    <Dialog open={isErpDialogOpen} onOpenChange={setIsErpDialogOpen}>
-                                        <DialogTrigger asChild>
-                                            <Button variant="secondary" className="w-full h-10 border-dashed border-2"><Link2 className="mr-2"/>Vincular Producto ERP</Button>
-                                        </DialogTrigger>
-                                        <ErpSelectorDialog 
-                                            onSelect={handleErpSelect}
-                                            searchTerm={erpSearchTerm}
-                                            setSearchTerm={setErpSearchTerm}
-                                            filteredProducts={filteredErpProducts}
-                                        />
-                                    </Dialog>
-                                )}
-                                <FormMessage className="mt-2 text-red-500">{form.formState.errors.erpId?.message}</FormMessage>
-                            </FormItem>
+                                    ) : (
+                                        <Dialog open={isErpDialogOpen} onOpenChange={setIsErpDialogOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button variant="secondary" className="w-full h-10 border-dashed border-2"><Link2 className="mr-2"/>Vincular Producto ERP</Button>
+                                            </DialogTrigger>
+                                            <ErpSelectorDialog 
+                                                onSelect={handleErpSelect}
+                                                searchTerm={erpSearchTerm}
+                                                setSearchTerm={setErpSearchTerm}
+                                                filteredProducts={filteredErpProducts}
+                                            />
+                                        </Dialog>
+                                    )}
+                                    <FormMessage className="mt-2 text-red-500">{form.formState.errors.erpId?.message}</FormMessage>
+                                </FormItem>
+                            </div>
                            )}
                         </div>
                     </CardContent>
