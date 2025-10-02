@@ -24,6 +24,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import Image from 'next/image';
 import { Combobox } from '@/components/ui/combobox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const imagenSchema = z.object({
     id: z.string(),
@@ -31,7 +33,7 @@ const imagenSchema = z.object({
     isPrincipal: z.boolean(),
 });
 
-const productoVentaSchema = z.object({
+export const productoVentaSchema = z.object({
   id: z.string(),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
   nombre_en: z.string().optional(),
@@ -44,13 +46,14 @@ const productoVentaSchema = z.object({
   producidoPorPartner: z.boolean().optional().default(false),
   partnerId: z.string().optional(),
   recetaId: z.string().optional(),
+  erpId: z.string().optional(),
   exclusivoIfema: z.boolean().optional().default(false),
 }).superRefine((data, ctx) => {
-    if (data.producidoPorPartner && !data.partnerId) {
+    if (data.producidoPorPartner && !data.erpId) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: "Debe seleccionar un partner.",
-            path: ["partnerId"],
+            message: "Debe seleccionar un producto del ERP si es de un partner.",
+            path: ["erpId"],
         });
     }
     if (!data.producidoPorPartner && !data.recetaId) {
@@ -61,6 +64,7 @@ const productoVentaSchema = z.object({
         });
     }
 });
+
 
 type ProductoVentaFormValues = z.infer<typeof productoVentaSchema>;
 
@@ -77,6 +81,35 @@ const defaultValues: Partial<ProductoVentaFormValues> = {
     exclusivoIfema: false,
 };
 
+function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProducts }: { onSelect: (id: string) => void, searchTerm: string, setSearchTerm: (term: string) => void, filteredProducts: IngredienteERP[] }) {
+    return (
+        <DialogContent className="max-w-3xl">
+            <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
+            <Input placeholder="Buscar por nombre, proveedor, referencia..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <div className="max-h-[60vh] overflow-y-auto border rounded-md">
+                <Table>
+                    <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Proveedor</TableHead><TableHead>Precio</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {filteredProducts.map(p => (
+                            <TableRow key={p.id}>
+                                <TableCell>{p.nombreProductoERP}</TableCell>
+                                <TableCell>{p.nombreProveedor}</TableCell>
+                                <TableCell>{formatCurrency(p.precio)}/{p.unidad}</TableCell>
+                                <TableCell>
+                                    <Button size="sm" onClick={() => onSelect(p.id)}>
+                                        <Check className="mr-2 h-4 w-4" />
+                                        Seleccionar
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+        </DialogContent>
+    );
+}
+
 export default function ProductoVentaFormPage() {
   const router = useRouter();
   const params = useParams();
@@ -91,6 +124,12 @@ export default function ProductoVentaFormPage() {
   const { toast } = useToast();
   const [useIfemaPrices, setUseIfemaPrices] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  // States for ERP selector dialog
+  const [ingredientesERP, setIngredientesERP] = useState<IngredienteERP[]>([]);
+  const [erpSearchTerm, setErpSearchTerm] = useState('');
+  const [isErpDialogOpen, setIsErpDialogOpen] = useState(false);
+
 
   const form = useForm<ProductoVentaFormValues>({
     resolver: zodResolver(productoVentaSchema),
@@ -108,6 +147,7 @@ export default function ProductoVentaFormPage() {
   const watchedPvpIfema = form.watch('pvpIfema');
   const isProducidoPorPartner = form.watch('producidoPorPartner');
   const recetaId = form.watch('recetaId');
+  const erpId = form.watch('erpId');
   const categoriaSeleccionada = watch("categoria");
 
   useEffect(() => {
@@ -115,6 +155,7 @@ export default function ProductoVentaFormPage() {
         setValue('recetaId', undefined);
     } else {
         setValue('partnerId', undefined);
+        setValue('erpId', undefined);
     }
   }, [isProducidoPorPartner, setValue]);
   
@@ -135,10 +176,13 @@ export default function ProductoVentaFormPage() {
   }, [partnersDB, categoriaSeleccionada]);
   
   const costeTotal = useMemo(() => {
-    if (isProducidoPorPartner) return 0; // Cost is manual for partner products for now
+    if (isProducidoPorPartner) {
+        const erpProduct = ingredientesERP.find(p => p.id === erpId);
+        return erpProduct?.precio || 0;
+    }
     const receta = recetasDB.find(r => r.id === recetaId);
     return receta?.costeMateriaPrima || 0;
-  }, [recetaId, isProducidoPorPartner, recetasDB]);
+  }, [recetaId, erpId, isProducidoPorPartner, recetasDB, ingredientesERP]);
 
   const [categorias, setCategorias] = useState<CategoriaProductoVenta[]>(CATEGORIAS_PRODUCTO_VENTA as any);
   
@@ -149,6 +193,9 @@ export default function ProductoVentaFormPage() {
     const storedPartners = (JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[]);
     setPartnersDB(storedPartners);
     
+    const storedErp = (JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[]);
+    setIngredientesERP(storedErp);
+
     if (isEditing) {
         const allProductos = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
         const producto = allProductos.find(p => p.id === id);
@@ -217,6 +264,7 @@ export default function ProductoVentaFormPage() {
         nombre_en: data.nombre_en || '',
         pvpIfema: data.pvpIfema || 0,
         recetaId: data.producidoPorPartner ? undefined : data.recetaId,
+        erpId: data.producidoPorPartner ? data.erpId : undefined,
         partnerId: data.producidoPorPartner ? data.partnerId : undefined,
     };
 
@@ -251,6 +299,22 @@ export default function ProductoVentaFormPage() {
     setShowDeleteConfirm(false);
     router.push('/entregas/productos-venta');
   };
+  
+  const filteredErpProducts = useMemo(() => {
+    return ingredientesERP.filter(p => 
+        p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
+        p.nombreProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
+        p.referenciaProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase())
+    );
+  }, [ingredientesERP, erpSearchTerm]);
+
+  const handleErpSelect = (erpId: string) => {
+    setValue('erpId', erpId, { shouldDirty: true });
+    setIsErpDialogOpen(false);
+  }
+
+  const selectedErpProduct = ingredientesERP.find(p => p.id === erpId);
+
   
   if (!isDataLoaded) {
     return <div>Cargando...</div>
@@ -312,51 +376,33 @@ export default function ProductoVentaFormPage() {
                             )} />
                         </div>
                         <div className="grid md:grid-cols-2 gap-4 items-start pt-2">
-                             <div className="space-y-4">
-                                <FormField control={form.control} name="producidoPorPartner" render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-[40px]">
-                                    <FormControl>
-                                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                    </FormControl>
-                                    <div className="space-y-1 leading-none">
-                                        <FormLabel>Producido por Partner</FormLabel>
-                                    </div>
-                                    </FormItem>
-                                )} />
-                                {isProducidoPorPartner && (
-                                    <FormField control={form.control} name="partnerId" render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Partner Productor</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value} disabled={!categoriaSeleccionada}>
-                                                <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder={!categoriaSeleccionada ? "Selecciona una categoría primero" : "Seleccionar Partner..."}/>
-                                                    </SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    {filteredPartners.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage/>
-                                        </FormItem>
-                                    )} />
-                                )}
-                             </div>
-                             <div className="space-y-4">
-                                <FormField control={form.control} name="exclusivoIfema" render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-[40px]">
-                                    <FormControl>
-                                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                    </FormControl>
-                                    <div className="space-y-1 leading-none">
-                                        <FormLabel>Exclusivo IFEMA</FormLabel>
-                                    </div>
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="recetaId" render={({ field }) => (
+                            <FormField control={form.control} name="producidoPorPartner" render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-[40px]">
+                                <FormControl>
+                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel>Producido por Partner</FormLabel>
+                                </div>
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="exclusivoIfema" render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-[40px]">
+                                <FormControl>
+                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel>Exclusivo IFEMA</FormLabel>
+                                </div>
+                                </FormItem>
+                            )} />
+                        </div>
+                         <div className="pt-2">
+                           {!isProducidoPorPartner ? (
+                               <FormField control={form.control} name="recetaId" render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Receta Vinculada</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value || 'ninguna'} disabled={isProducidoPorPartner}>
+                                        <FormLabel>Receta Vinculada (Producción MICE)</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value || 'ninguna'}>
                                             <FormControl><SelectTrigger><SelectValue placeholder="Vincular a una receta del Book..."/></SelectTrigger></FormControl>
                                             <SelectContent>
                                                 <SelectItem value="ninguna">Ninguna</SelectItem>
@@ -366,7 +412,35 @@ export default function ProductoVentaFormPage() {
                                         <FormMessage/>
                                     </FormItem>
                                 )} />
-                             </div>
+                           ) : (
+                             <FormItem>
+                                <FormLabel>Producto ERP Vinculado (Coste de Partner)</FormLabel>
+                                {selectedErpProduct ? (
+                                     <div className="border rounded-md p-2 space-y-1">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="font-semibold text-sm leading-tight">{selectedErpProduct.nombreProductoERP}</p>
+                                                <p className="text-xs text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
+                                            </div>
+                                            <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" onClick={() => setValue('erpId', undefined)}><X className="mr-1 h-3 w-3"/>Desvincular</Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <Dialog open={isErpDialogOpen} onOpenChange={setIsErpDialogOpen}>
+                                        <DialogTrigger asChild>
+                                            <Button variant="secondary" className="w-full h-10 border-dashed border-2"><Link2 className="mr-2"/>Vincular Producto ERP</Button>
+                                        </DialogTrigger>
+                                        <ErpSelectorDialog 
+                                            onSelect={handleErpSelect}
+                                            searchTerm={erpSearchTerm}
+                                            setSearchTerm={setErpSearchTerm}
+                                            filteredProducts={filteredErpProducts}
+                                        />
+                                    </Dialog>
+                                )}
+                                <FormMessage className="mt-2 text-red-500">{form.formState.errors.erpId?.message}</FormMessage>
+                            </FormItem>
+                           )}
                         </div>
                     </CardContent>
                 </Card>
@@ -401,7 +475,7 @@ export default function ProductoVentaFormPage() {
                 <CardHeader className="py-3 flex-row items-center justify-between">
                     <div className="space-y-1">
                         <CardTitle className="text-lg flex items-center gap-2"><TrendingUp/>Análisis de Rentabilidad</CardTitle>
-                        <CardDescription className="text-xs">Cálculo de márgenes basado en el coste de la receta.</CardDescription>
+                        <CardDescription className="text-xs">Cálculo de márgenes basado en el coste.</CardDescription>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
@@ -414,7 +488,7 @@ export default function ProductoVentaFormPage() {
                     <span className="font-semibold">{formatCurrency(useIfemaPrices ? (watchedPvpIfema || watchedPvp) : watchedPvp)}</span>
                     </div>
                     <div className="flex justify-between">
-                    <span>Coste (Receta):</span>
+                    <span>Coste:</span>
                     <span className="font-semibold">{formatCurrency(costeTotal)}</span>
                     </div>
                     <Separator className="my-2" />
@@ -472,3 +546,743 @@ export default function ProductoVentaFormPage() {
     </>
   );
 }
+
+```
+- src/types/index.ts
+- `ProductoVenta`: added `erpId` as optional string
+- `productoVentaSchema` in `productos-venta/[id]/page.tsx`: added `erpId` and updated `superRefine`
+```ts
+import { z } from "zod";
+
+export type CateringItem = {
+  itemCode: string;
+  description: string;
+  price: number;
+  stock: number;
+  imageUrl: string;
+  imageHint: string;
+  category: string;
+};
+
+export type OrderItem = CateringItem & {
+  quantity: number;
+};
+
+export type OrderCompletionAssistantInput = {
+  eventDescription: string;
+};
+
+export type OrderCompletionAssistantOutput = {
+  itemCode: string;
+  description: string;
+  price: number;
+  quantity: number;
+}[];
+
+
+export type ServiceOrder = {
+    id: string;
+    serviceNumber: string;
+    startDate: string;
+    endDate: string;
+    client: string;
+    tipoCliente?: 'Empresa' | 'Agencia' | 'Particular';
+    finalClient: string;
+    contact: string;
+    phone: string;
+    asistentes: number;
+    space: string;
+    spaceAddress: string;
+    spaceContact: string;
+    spacePhone: string;
+    spaceMail: string;
+    respMetre: string;
+    respMetrePhone: string;
+    respMetreMail: string;
+    respCocinaCPR: string;
+    respCocinaCPRPhone: string;
+    respCocinaCPRMail: string;
+    respPase: string;
+    respPasePhone: string;
+    respPaseMail: string;
+    respCocinaPase: string;
+    respCocinaPasePhone: string;
+    respCocinaPaseMail: string;
+    comercialAsiste: boolean;
+    comercial: string;
+    comercialPhone: string;
+    comercialMail: string;
+    rrhhAsiste: boolean;
+    respRRHH: string;
+    respRRHHPhone: string;
+    respRRHHMail: string;
+    agencyPercentage: number;
+    agencyCommissionValue?: number;
+    spacePercentage: number;
+    spaceCommissionValue?: number;
+    comisionesAgencia?: number;
+    comisionesCanon?: number;
+    facturacion: number;
+    plane: string;
+    comments: string;
+    status: 'Borrador' | 'Pendiente' | 'Confirmado';
+    deliveryTime?: string;
+    deliveryLocations?: string[];
+    objetivoGastoId?: string;
+    vertical?: 'Catering' | 'Entregas';
+    direccionPrincipal?: string;
+};
+
+export type MaterialOrder = {
+    id: string;
+    osId: string;
+    type: 'Almacén' | 'Bodega' | 'Bio' | 'Alquiler';
+    status: 'Asignado' | 'En preparación' | 'Listo';
+    items: OrderItem[];
+    days: number;
+    total: number;
+    contractNumber: string;
+    deliveryDate?: string;
+    deliverySpace?: string;
+    deliveryLocation?: string;
+};
+
+
+export type Personal = {
+    id: string;
+    nombre: string;
+    departamento: string;
+    categoria: string;
+    telefono: string;
+    mail: string;
+    dni: string;
+    precioHora: number;
+}
+
+export type Espacio = {
+    id: string;
+    espacio: string;
+    escaparateMICE: string;
+    carpetaDRIVE: string;
+    calle: string;
+    nombreContacto1: string;
+    telefonoContacto1: string;
+    emailContacto1: string;
+    canonEspacioPorcentaje: number;
+    canonEspacioFijo: number;
+    canonMcPorcentaje: number;
+    canonMcFijo: number;
+    comisionAlquilerMcPorcentaje: number;
+    precioOrientativoAlquiler: string;
+    horaLimiteCierre: string;
+    aforoCocktail: number;
+    aforoBanquete: number;
+    auditorio: string;
+    aforoAuditorio: number;
+    zonaExterior: string;
+    capacidadesPorSala: string;
+    numeroDeSalas: number;
+    tipoDeEspacio: string;
+    tipoDeEventos: string;
+    ciudad: string;
+    directorio: string;
+    descripcion: string;
+    comentariosVarios: string;
+    equipoAudiovisuales: string;
+    cocina: string;
+    accesibilidadAsistentes: string;
+    pantalla: string;
+    plato: string;
+aparcamiento: string;
+  accesoVehiculos: string;
+  conexionWifi: string;
+  homologacion: string;
+  comentariosMarketing: string;
+}
+
+export const PRECIO_CATEGORIAS = ['Bebida', 'Menaje', 'Vajilla', 'Cristalería', 'Mantelería', 'Mobiliario', 'Decoración', 'Maquinaria', 'Transporte', 'Hielo'] as const;
+export type PrecioCategoria = typeof PRECIO_CATEGORIAS[number];
+
+export type Precio = {
+    id: string;
+    producto: string;
+    categoria: PrecioCategoria;
+    loc: string;
+    precioUd: number;
+    precioAlquilerUd: number;
+    pvp: number;
+    iva: number;
+    imagen: string;
+    isDeliveryProduct?: boolean;
+}
+
+export type AlquilerDBItem = {
+  id: string;
+  concepto: string;
+  precioAlquiler: number;
+  precioReposicion: number;
+  imagen: string;
+};
+
+export type TipoServicio = {
+    id: string;
+    servicio: string;
+}
+
+export type ProveedorTransporte = {
+    id: string;
+    proveedorId: string;
+    nombreProveedor: string;
+    tipoTransporte: string; // Ej. "Furgoneta Isotermo"
+    precio: number;
+    tipo: 'Catering' | 'Entregas';
+}
+
+export type CategoriaPersonal = {
+  id: string;
+  proveedorId: string;
+  nombreProveedor: string;
+  categoria: string;
+  precioHora: number;
+};
+
+export type ComercialBriefingItem = {
+    id: string;
+    fecha: string;
+    horaInicio: string;
+    horaFin: string;
+    conGastronomia: boolean;
+    descripcion: string;
+    comentarios: string;
+    sala: string;
+    asistentes: number;
+    precioUnitario: number;
+    importeFijo?: number;
+    bebidas?: string;
+    matBebida?: string;
+    materialGastro?: string;
+    manteleria?: string;
+};
+
+export type ComercialBriefing = {
+    osId: string;
+    items: ComercialBriefingItem[];
+}
+
+export type GastronomyOrderStatus = 'Pendiente' | 'En preparación' | 'Listo' | 'Incidencia';
+
+export type GastronomyOrderItem = {
+    id: string; // Receta ID
+    type: 'item' | 'separator';
+    nombre: string;
+    categoria?: string;
+    costeMateriaPrima?: number;
+    quantity?: number;
+}
+
+export type GastronomyOrder = {
+    id: string; // briefing item ID
+    osId: string;
+    status: GastronomyOrderStatus;
+    descripcion: string;
+    fecha: string;
+    horaInicio: string;
+    asistentes: number;
+    comentarios?: string;
+    sala?: string;
+    items: GastronomyOrderItem[];
+    total: number;
+}
+
+export type TransporteOrder = {
+    id: string;
+    osId: string;
+    fecha: string;
+    proveedorId: string;
+    proveedorNombre: string;
+    tipoTransporte: string;
+    precio: number;
+    lugarRecogida: string;
+    horaRecogida: string;
+    lugarEntrega: string;
+    horaEntrega: string;
+    observaciones?: string;
+    status: 'Pendiente' | 'Confirmado' | 'En Ruta' | 'Entregado';
+    firmaUrl?: string;
+    firmadoPor?: string;
+    dniReceptor?: string;
+    fechaFirma?: string;
+    hitosIds?: string[]; // For Entregas, to link multiple deliveries
+}
+
+export type HieloOrder = {
+    id: string;
+    osId: string;
+    fecha: string;
+    proveedorId: string;
+    proveedorNombre: string;
+    items: { id: string; producto: string; precio: number; cantidad: number }[];
+    total: number;
+    observaciones: string;
+    status: 'Pendiente' | 'Confirmado' | 'En reparto' | 'Entregado';
+};
+
+export type DecoracionDBItem = {
+  id: string;
+  concepto: string;
+  precio: number;
+};
+
+export type DecoracionOrder = {
+  id: string;
+  osId: string;
+  fecha: string;
+  concepto: string;
+  precio: number;
+  observaciones?: string;
+};
+
+export type AtipicoDBItem = {
+  id: string;
+  concepto: string;
+  precio: number;
+};
+
+export type AtipicoOrder = {
+  id: string;
+  osId: string;
+  fecha: string;
+  concepto: string;
+  observaciones?: string;
+  precio: number;
+  status: 'Pendiente' | 'Aprobado' | 'Rechazado';
+};
+
+export type PersonalMiceOrder = {
+    id: string;
+    osId: string;
+    centroCoste: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
+    nombre: string;
+    dni: string;
+    tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
+    horaEntrada: string;
+    horaSalida: string;
+    precioHora: number;
+    horaEntradaReal?: string;
+    horaSalidaReal?: string;
+}
+
+export type PersonalExternoOrder = {
+  id: string;
+  osId: string;
+  proveedorId: string;
+  categoria: string;
+  cantidad: number;
+  precioHora: number;
+  fecha: string;
+  horaEntrada: string;
+  horaSalida: string;
+  observaciones?: string;
+  horaEntradaReal?: string;
+  horaSalidaReal?: string;
+};
+
+export type PruebaMenuItem = {
+    id: string;
+    type: 'header' | 'item';
+    mainCategory: 'BODEGA' | 'GASTRONOMÍA';
+    referencia: string;
+    observaciones?: string;
+};
+
+export type PruebaMenuData = {
+    osId: string;
+    items: PruebaMenuItem[];
+    observacionesGenerales: string;
+    costePruebaMenu?: number;
+};
+
+export type CtaExplotacionObjetivos = {
+    gastronomia: number;
+    bodega: number;
+    consumibles: number;
+    hielo: number;
+    almacen: number;
+    alquiler: number;
+    transporte: number;
+    decoracion: number;
+    atipicos: number;
+    personalMice: number;
+    personalExterno: number;
+    costePruebaMenu: number;
+}
+
+export type ObjetivosGasto = CtaExplotacionObjetivos & {
+    id: string;
+    name: string;
+};
+
+export type PersonalExternoAjuste = {
+    id: string;
+    concepto: string;
+    ajuste: number;
+}
+export const UNIDADES_MEDIDA = ['UNIDAD', 'KILO', 'LITRO', 'GRAMO', 'BOTELLA', 'CAJA', 'PACK'] as const;
+export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
+
+export const ingredienteErpSchema = z.object({
+  id: z.string(),
+  IdERP: z.string(),
+  nombreProductoERP: z.string().min(1, 'El nombre del producto es obligatorio'),
+  referenciaProveedor: z.string(),
+  nombreProveedor: z.string(),
+  familiaCategoria: z.string(),
+  precio: z.coerce.number().min(0),
+  unidad: z.enum(UNIDADES_MEDIDA),
+});
+
+export type IngredienteERP = z.infer<typeof ingredienteErpSchema>;
+
+export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS_DE_CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
+export type Alergeno = typeof ALERGENOS[number];
+
+export type IngredienteInterno = {
+    id: string;
+    nombreIngrediente: string;
+    productoERPlinkId: string;
+    mermaPorcentaje: number;
+    alergenosPresentes: Alergeno[];
+    alergenosTrazas: Alergeno[];
+}
+
+export type ComponenteElaboracion = {
+    id: string;
+    tipo: 'ingrediente' | 'elaboracion';
+    componenteId: string; // ID of IngredienteInterno or another Elaboracion
+    nombre: string;
+    cantidad: number;
+    costePorUnidad: number;
+}
+
+export type Elaboracion = {
+    id: string;
+    nombre: string;
+    produccionTotal: number;
+    unidadProduccion: UnidadMedida;
+    partidaProduccion: PartidaProduccion;
+    componentes: ComponenteElaboracion[];
+    instruccionesPreparacion: string;
+    fotosProduccionURLs?: string[];
+    videoProduccionURL?: string;
+    formatoExpedicion: string;
+    ratioExpedicion: number;
+    tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+    costePorUnidad?: number;
+    alergenos?: Alergeno[];
+}
+
+export type ElaboracionEnReceta = {
+  id: string;
+  elaboracionId: string;
+  nombre: string;
+  cantidad: number;
+  coste: number;
+  gramaje: number;
+  alergenos?: Alergeno[];
+  unidad: 'KILO' | 'LITRO' | 'UNIDAD';
+  merma: number;
+}
+
+export type MenajeDB = {
+    id: string;
+    descripcion: string;
+    fotoURL?: string;
+}
+
+export type MenajeEnReceta = {
+    id: string;
+    menajeId: string;
+    descripcion: string;
+    ratio: number;
+}
+
+export const SABORES_PRINCIPALES = ['DULCE', 'SALADO', 'ÁCIDO', 'AMARGO', 'UMAMI'] as const;
+export type SaborPrincipal = typeof SABORES_PRINCIPALES[number];
+
+export const PARTIDAS_PRODUCCION = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'] as const;
+export type PartidaProduccion = typeof PARTIDAS_PRODUCCION[number];
+
+export type Receta = {
+    id: string;
+    nombre: string;
+    visibleParaComerciales: boolean;
+    descripcionComercial: string;
+    responsableEscandallo: string;
+    categoria: string;
+    partidaProduccion?: string; // Calculated field
+    gramajeTotal?: number;
+    estacionalidad: 'INVIERNO' | 'VERANO' | 'MIXTO';
+    tipoDieta: 'VEGETARIANO' | 'VEGANO' | 'AMBOS' | 'NINGUNO';
+    porcentajeCosteProduccion: number;
+    elaboraciones: ElaboracionEnReceta[];
+    menajeAsociado: MenajeEnReceta[];
+    instruccionesMiseEnPlace: string;
+    instruccionesRegeneracion: string;
+    instruccionesEmplatado: string;
+    fotosEmplatadoURLs?: string[];
+    perfilSaborPrincipal?: SaborPrincipal;
+    perfilSaborSecundario?: string[];
+    perfilTextura?: string[];
+    tipoCocina?: string;
+    temperaturaServicio?: 'CALIENTE' | 'TIBIO' | 'AMBIENTE' | 'FRIO' | 'HELADO';
+    tecnicaCoccionPrincipal?: string;
+    potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL' | 'AL_MOMENTO';
+    formatoServicioIdeal?: string[];
+    equipamientoCritico?: string[];
+    dificultadProduccion?: number; // 1-5
+    estabilidadBuffet?: number; // 1-5
+    escalabilidad?: 'FACIL' | 'MEDIA' | 'DIFICIL';
+    etiquetasTendencia?: string[];
+    // Calculated fields
+    costeMateriaPrima?: number;
+    precioVenta?: number;
+    alergenos?: Alergeno[];
+    requiereRevision?: boolean;
+}
+
+export type CategoriaReceta = {
+    id: string;
+    nombre: string;
+}
+export type TipoCocina = {
+    id: string;
+    nombre: string;
+}
+
+export type OrdenFabricacion = {
+    id: string;
+    fechaCreacion: string;
+    fechaProduccionPrevista: string;
+    fechaAsignacion?: string;
+    fechaInicioProduccion?: string;
+    fechaFinalizacion?: string;
+    elaboracionId: string;
+    elaboracionNombre: string;
+    cantidadTotal: number;
+    cantidadReal?: number;
+    necesidadTotal?: number;
+    unidad: UnidadMedida;
+    partidaAsignada: PartidaProduccion;
+    responsable?: string;
+    estado: 'Pendiente' | 'Asignada' | 'En Proceso' | 'Finalizado' | 'Validado' | 'Incidencia';
+    osIDs: string[];
+    incidencia: boolean;
+    incidenciaObservaciones?: string;
+    okCalidad: boolean;
+    responsableCalidad?: string;
+    fechaValidacionCalidad?: string;
+    tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+}
+export type ContenedorIsotermo = {
+    id: string;
+    tipo: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+    numero: number;
+}
+export type LoteAsignado = {
+    allocationId: string;
+    ofId: string;
+    containerId: string;
+    quantity: number;
+    hitoId: string;
+}
+export type ContenedorDinamico = {
+    id: string;
+    hitoId: string;
+    tipo: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+    numero: number;
+}
+export type PickingStatus = 'Pendiente' | 'Preparado' | 'Enviado' | 'Entregado' | 'Retornado';
+export type PickingState = {
+    osId: string;
+    status: PickingStatus;
+    assignedContainers: ContenedorDinamico[];
+    itemStates: LoteAsignado[];
+};
+export type PedidoPlantillaItem = {
+    itemCode: string;
+    quantity: number;
+    description: string;
+};
+export type PedidoPlantilla = {
+    id: string;
+    nombre: string;
+    tipo: MaterialOrderType;
+    items: PedidoPlantillaItem[];
+};
+export type MaterialOrderType = 'Almacén' | 'Bodega' | 'Bio' | 'Alquiler';
+export type FormatoExpedicion = {
+  id: string;
+  nombre: string;
+};
+
+export type ExcedenteProduccion = {
+    ofId: string;
+    fechaProduccion: string;
+    diasCaducidad?: number;
+    cantidadAjustada: number;
+    motivoAjuste: string;
+    fechaAjuste: string;
+}
+
+// ---- NUEVA VERTICAL DE ENTREGAS ----
+
+export const CATEGORIAS_PRODUCTO_VENTA = ['Gastronomía', 'Bodega', 'Consumibles', 'Almacen', 'Personal', 'Transporte', 'Otros'] as const;
+export type CategoriaProductoVenta = typeof CATEGORIAS_PRODUCTO_VENTA[number];
+
+export type ImagenProducto = {
+  id: string;
+  url: string;
+  isPrincipal: boolean;
+}
+
+export type ProductoVenta = {
+    id: string;
+    nombre: string;
+    nombre_en?: string;
+    categoria: CategoriaProductoVenta;
+    ubicacion?: string;
+    imagenes: ImagenProducto[];
+    pvp: number;
+    pvpIfema?: number;
+    iva: number;
+    producidoPorPartner: boolean;
+    partnerId?: string;
+    recetaId?: string;
+    erpId?: string;
+    exclusivoIfema?: boolean;
+}
+
+export type PedidoEntregaItem = {
+    id: string; // ProductoVenta ID
+    nombre: string;
+    quantity: number;
+    pvp: number;
+    coste: number;
+    categoria: CategoriaProductoVenta;
+};
+export type EntregaHito = {
+    id: string;
+    fecha: string;
+    hora: string;
+    lugarEntrega: string;
+    localizacion?: string;
+    contacto?: string;
+    telefono?: string;
+    email?: string;
+    observaciones?: string;
+    items: PedidoEntregaItem[];
+    portes?: number;
+    horasCamarero?: number;
+}
+export type PedidoEntrega = {
+    osId: string;
+    hitos: EntregaHito[];
+};
+export type Entrega = ServiceOrder & {
+    vertical: 'Entregas';
+    tarifa: 'Empresa' | 'IFEMA';
+};
+export type PedidoPartner = {
+    id: string; // hitoId-productoId
+    osId: string;
+    serviceNumber: string;
+    cliente: string;
+    fechaEntrega: string; // En CPR MICE
+    horaEntrega: string;  // En CPR MICE
+    elaboracionId: string;
+    elaboracionNombre: string;
+    cantidad: number;
+    unidad: UnidadMedida;
+}
+export type PedidoPartnerStatus = 'Pendiente' | 'En Producción' | 'Listo para Entrega';
+export type PickingIncidencia = {
+  itemId: string;
+  comment: string;
+  timestamp: string;
+};
+export type PickingEntregaState = {
+  hitoId: string;
+  status: 'Pendiente' | 'En Proceso' | 'Preparado';
+  checkedItems: Set<string>;
+  incidencias: PickingIncidencia[];
+  fotoUrl: string | null;
+  ordenItems?: string[];
+};
+
+export const TIPO_ENTIDAD_FISCAL = ['Cliente', 'Proveedor', 'Propia'] as const;
+export type TipoEntidadFiscal = typeof TIPO_ENTIDAD_FISCAL[number];
+
+export type DatosFiscales = {
+    id: string;
+    cif: string;
+    nombreEmpresa: string;
+    nombreComercial?: string;
+    direccionFacturacion: string;
+    codigoPostal: string;
+    ciudad: string;
+    provincia: string;
+    pais: string;
+    emailContacto: string;
+    telefonoContacto: string;
+    iban?: string;
+    formaDePagoHabitual?: string;
+    tipo: TipoEntidadFiscal;
+}
+
+export const TIPO_PROVEEDOR_OPCIONES = ['Transporte', 'Hielo', 'Gastronomia', 'Personal', 'Atipicos', 'Decoracion', 'Servicios', 'Otros'] as const;
+export type TipoProveedor = typeof TIPO_PROVEEDOR_OPCIONES[number];
+
+export type Proveedor = {
+  id: string;
+  datosFiscalesId: string;
+  nombreComercial: string;
+  tipos: TipoProveedor[];
+}
+
+export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado'] as const;
+export type EstadoPersonalEntrega = typeof ESTADO_PERSONAL_ENTREGA[number];
+
+export type AsignacionPersonal = {
+  id: string;
+  nombre: string;
+  dni?: string;
+  telefono?: string;
+  comentarios?: string;
+  comentariosMice?: string;
+  rating?: number;
+  horaEntradaReal?: string;
+  horaSalidaReal?: string;
+};
+
+export type PersonalEntregaTurno = {
+  id: string;
+  proveedorId: string;
+  fecha: string;
+  horaEntrada: string;
+  horaSalida: string;
+  categoria: string;
+  precioHora: number;
+  observaciones: string;
+  statusPartner: 'Pendiente Asignación' | 'Gestionado';
+  asignaciones: AsignacionPersonal[];
+  requiereActualizacion?: boolean;
+};
+
+export type PersonalEntrega = {
+    osId: string;
+    turnos: PersonalEntregaTurno[];
+    status: EstadoPersonalEntrega;
+    observacionesGenerales?: string;
+};
+
+    

@@ -606,6 +606,7 @@ export type ProductoVenta = {
     producidoPorPartner: boolean;
     partnerId?: string;
     recetaId?: string;
+    erpId?: string;
     exclusivoIfema?: boolean;
 }
 
@@ -731,5 +732,3 @@ export type PersonalEntrega = {
     status: EstadoPersonalEntrega;
     observacionesGenerales?: string;
 };
-
-    
