@@ -1,3 +1,4 @@
+
 'use client';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -6,7 +7,7 @@ import { useEffect } from 'react';
 export default function CPRPage() {
     const router = useRouter();
     useEffect(() => {
-        router.replace('/cpr/planificacion');
+        router.replace('/cpr/dashboard');
     }, [router]);
     return null;
 }

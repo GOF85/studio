@@ -4,7 +4,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer } from 'lucide-react';
+import { LayoutDashboard, Factory, ClipboardList, Package, ListChecks, History, CheckCircle, AlertTriangle, PackagePlus, BarChart3, Printer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/layout/header';
 import { useState, useEffect, useMemo } from 'react';
@@ -13,6 +13,7 @@ import { addDays, differenceInDays } from 'date-fns';
 
 
 const cprNav = [
+    { title: 'Dashboard', href: '/cpr/dashboard', icon: LayoutDashboard, description: 'Visión general del taller de producción.' },
     { title: 'Planificación', href: '/cpr/planificacion', icon: ClipboardList, description: 'Agrega necesidades y genera O.F.' },
     { title: 'Órdenes de Fabricación', href: '/cpr/of', icon: Factory, description: 'Gestiona la producción en cocina.' },
     { title: 'Picking y Logística', href: '/cpr/picking', icon: Package, description: 'Prepara los pedidos para eventos.' },
