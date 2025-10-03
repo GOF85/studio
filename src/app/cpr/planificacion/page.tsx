@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -992,7 +993,7 @@ export default function PlanificacionPage() {
                                                                                 {row.necesidad.eventos.map((e: EventoAfectado) => (
                                                                                     <li key={e.osId + e.serviceType} className="flex items-center gap-1.5">
                                                                                         {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
-                                                                                        {e.serviceNumber} - {e.serviceType} ({format(new Date(e.fecha), 'dd/MM/yy')}) - {e.espacio}
+                                                                                        {e.serviceNumber} - {e.serviceType} - {e.espacio} ({format(new Date(e.fecha), 'dd/MM/yy')})
                                                                                     </li>
                                                                                 ))}
                                                                                 </ul>
@@ -1221,16 +1222,17 @@ export default function PlanificacionPage() {
                                                 <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow>
                                             ) : filteredPlanificacionItems.length > 0 ? (
                                                 filteredPlanificacionItems.map(item => (
-                                                <TableRow 
+                                                <TableRow
                                                     key={item.id}
-                                                    onClick={() => handleSelectRow(item.id)}
+                                                    onClick={() => { if (item.type === 'necesidad') handleSelectRow(item.id) }}
                                                     className={cn(
-                                                        item.type === 'excedente' ? 'bg-green-100/50 hover:bg-green-100/60' : 'cursor-pointer',
+                                                        item.type === 'necesidad' && 'cursor-pointer',
+                                                        item.type === 'excedente' ? 'bg-green-100/50 hover:bg-green-100/60' : '',
                                                         item.type === 'necesidad' && item.partidaProduccion && partidaColorClasses[item.partidaProduccion],
                                                         selectedRows.has(item.id) && 'bg-primary/10 hover:bg-primary/20'
                                                     )}
                                                 >
-                                                    <TableCell className="py-1 px-2" >
+                                                    <TableCell className="py-1 px-2">
                                                     {item.type === 'necesidad' ? (
                                                         <Checkbox checked={selectedRows.has(item.id)} />
                                                     ) : (
@@ -1243,13 +1245,16 @@ export default function PlanificacionPage() {
                                                     <TableCell className="py-1 px-2 font-medium flex items-center gap-2">
                                                         {item.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
                                                         {item.nombre}
+                                                        {item.recetas.length > 0 && (
+                                                            <span className="text-muted-foreground text-xs">({item.recetas[0].recetaNombre}{item.recetas.length > 1 ? ` y ${item.recetas.length - 1} más` : ''})</span>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className={cn("py-1 px-2 text-right font-mono", item.type === 'excedente' && 'text-green-600')} >
                                                     <span>{item.type === 'excedente' && '+ '}{formatNumber(item.cantidad, 2)}</span>
                                                     </TableCell>
                                                     <TableCell className="py-1 px-2" >{formatUnit(item.unidad)}</TableCell>
                                                     <TableCell className="py-1 px-2">
-                                                        <Dialog>
+                                                         <Dialog>
                                                             <DialogTrigger asChild>
                                                                 <Button variant="ghost" size="icon" className="h-10 w-10">
                                                                     <Info size={18} strokeWidth={2.5}/>
