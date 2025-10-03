@@ -57,7 +57,7 @@ type DayDetails = {
 } | null;
 
 
-function CommentDialog({ pedido, onSave }: { pedido: PedidoPartnerConEstado; onSave: (id: string, comment: string) => void; }) {
+function CommentDialog({ pedido, onSave, isReadOnly }: { pedido: PedidoPartnerConEstado; onSave: (id: string, comment: string) => void; isReadOnly: boolean; }) {
     const [comment, setComment] = useState(pedido.comentarios || '');
     const [isOpen, setIsOpen] = useState(false);
 
@@ -68,7 +68,7 @@ function CommentDialog({ pedido, onSave }: { pedido: PedidoPartnerConEstado; onS
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isReadOnly}>
                    <Edit className="h-4 w-4"/>
                 </Button>
             </DialogTrigger>
@@ -94,15 +94,18 @@ export default function PartnerPortalPage() {
     const [proveedorNombre, setProveedorNombre] = useState('');
     const router = useRouter();
     
-    // State for Calendar View
     const [currentDate, setCurrentDate] = useState(new Date());
     const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
 
-    // State for filters
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [showCompleted, setShowCompleted] = useState(false);
 
+    const isReadOnly = useMemo(() => {
+        if (!impersonatedUser) return true;
+        const roles = impersonatedUser.roles || [];
+        return roles.includes('Admin') || roles.includes('Comercial');
+    }, [impersonatedUser]);
 
     const loadData = useCallback(() => {
         if (!impersonatedUser || !impersonatedUser.proveedorId) {
@@ -268,7 +271,6 @@ export default function PartnerPortalPage() {
             });
     }, [filteredPedidos]);
 
-    // --- Calendar Logic ---
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
     const calStartDate = startOfWeek(monthStart, { weekStartsOn: 1 });
@@ -385,14 +387,14 @@ export default function PartnerPortalPage() {
                                                                         <TableCell className="text-right font-mono">{pedido.cantidad.toFixed(2)} {formatUnit(pedido.unidad)}</TableCell>
                                                                         <TableCell>
                                                                             {pedido.status === 'Pendiente' ? (
-                                                                                <Button size="sm" onClick={() => handleAccept(pedido)}>Aceptar Pedido</Button>
+                                                                                <Button size="sm" onClick={() => handleAccept(pedido)} disabled={isReadOnly}>Aceptar Pedido</Button>
                                                                             ) : (
                                                                                 <Badge variant={statusVariant[pedido.status]}>{pedido.status}</Badge>
                                                                             )}
                                                                         </TableCell>
                                                                         <TableCell className="text-xs text-muted-foreground">{pedido.comentarios}</TableCell>
                                                                         <TableCell className="text-right">
-                                                                            <CommentDialog pedido={pedido} onSave={handleSaveComment} />
+                                                                            <CommentDialog pedido={pedido} onSave={handleSaveComment} isReadOnly={isReadOnly} />
                                                                         </TableCell>
                                                                     </TableRow>
                                                                 ))}

@@ -48,6 +48,12 @@ export default function TransportePortalPage() {
     const { impersonatedUser } = useImpersonatedUser();
     const [proveedorNombre, setProveedorNombre] = useState('');
 
+    const isReadOnly = useMemo(() => {
+        if (!impersonatedUser) return true;
+        const roles = impersonatedUser.roles || [];
+        return roles.includes('Admin') || roles.includes('Comercial');
+    }, [impersonatedUser]);
+
     useEffect(() => {
         if(!impersonatedUser || !impersonatedUser.proveedorId) {
             setOrders([]);
@@ -210,12 +216,12 @@ export default function TransportePortalPage() {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {order.status === 'En Ruta' && (
-                                                    <Button size="sm" onClick={() => handleStatusChange(order.id, 'Entregado')}>
+                                                    <Button size="sm" onClick={() => handleStatusChange(order.id, 'Entregado')} disabled={isReadOnly}>
                                                         <CheckCircle className="mr-2"/> Marcar como Entregado
                                                     </Button>
                                                 )}
                                                 {order.status === 'Confirmado' && (
-                                                     <Button size="sm" onClick={() => handleStatusChange(order.id, 'En Ruta')}>
+                                                     <Button size="sm" onClick={() => handleStatusChange(order.id, 'En Ruta')} disabled={isReadOnly}>
                                                         <Truck className="mr-2"/> Iniciar Ruta
                                                     </Button>
                                                 )}
@@ -249,4 +255,5 @@ export default function TransportePortalPage() {
         </main>
     );
 }
+
 

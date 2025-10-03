@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -59,7 +58,7 @@ type DayDetails = {
 } | null;
 
 
-function AsignacionDialog({ turno, onSave, children }: { turno: TurnoConEstado; onSave: (turnoId: string, asignaciones: AsignacionPersonal[]) => void; children: React.ReactNode }) {
+function AsignacionDialog({ turno, onSave, children, isReadOnly }: { turno: TurnoConEstado; onSave: (turnoId: string, asignaciones: AsignacionPersonal[]) => void; children: React.ReactNode, isReadOnly: boolean }) {
     const [isOpen, setIsOpen] = useState(false);
     const [asignacion, setAsignacion] = useState<AsignacionPersonal>({ id: '1', nombre: '', dni: '', telefono: '', comentarios: '' });
     
@@ -105,7 +104,7 @@ function AsignacionDialog({ turno, onSave, children }: { turno: TurnoConEstado; 
                 </div>
                 <DialogFooter>
                     <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleSave}>Guardar Asignación</Button>
+                    <Button onClick={handleSave} disabled={isReadOnly}>Guardar Asignación</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -123,9 +122,14 @@ export default function PartnerPersonalPortalPage() {
     const [proveedorNombre, setProveedorNombre] = useState('');
     const router = useRouter();
 
-    // State for Calendar View
     const [currentDate, setCurrentDate] = useState(new Date());
     const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
+
+    const isReadOnly = useMemo(() => {
+        if (!impersonatedUser) return true;
+        const roles = impersonatedUser.roles || [];
+        return roles.includes('Admin') || roles.includes('Comercial');
+    }, [impersonatedUser]);
 
     const loadData = useCallback(() => {
         if (!impersonatedUser || !impersonatedUser.proveedorId) {
@@ -203,7 +207,7 @@ export default function PartnerPersonalPortalPage() {
         
         logActivity(impersonatedUser, 'Actualización de Estado', `Turno ${turno.categoria} para ${turno.serviceNumber} a "${newStatus}"`, turno.id);
 
-        loadData(); // Recargar datos para reflejar el cambio
+        loadData();
         toast({ title: 'Estado actualizado', description: `El estado del turno ha sido cambiado a "${newStatus}".` });
     };
 
@@ -279,7 +283,6 @@ export default function PartnerPersonalPortalPage() {
     }, [filteredTurnos]);
 
 
-    // --- Calendar Logic ---
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
     const calStartDate = startOfWeek(monthStart, { weekStartsOn: 1 });
@@ -401,8 +404,8 @@ export default function PartnerPersonalPortalPage() {
                                                                         <TableCell>{turno.horaEntrada} - {turno.horaSalida}</TableCell>
                                                                         <TableCell className="text-sm text-muted-foreground max-w-xs">{turno.observaciones}</TableCell>
                                                                         <TableCell>
-                                                                             <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones}>
-                                                                                <Button variant="outline" size="sm">
+                                                                             <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones} isReadOnly={isReadOnly}>
+                                                                                <Button variant="outline" size="sm" disabled={isReadOnly}>
                                                                                     <Edit className="mr-2 h-3 w-3"/>
                                                                                     Gestionar
                                                                                 </Button>
