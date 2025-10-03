@@ -26,6 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { DateRange } from 'react-day-picker';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 
 type SimplifiedPedidoPartnerStatus = 'Pendiente' | 'Aceptado';
@@ -287,10 +288,10 @@ export default function PartnerPortalPage() {
                         </div>
                     </div>
                     {pedidosAgrupadosPorDia.length > 0 ? (
-                        <div className="w-full space-y-4">
+                         <Accordion type="multiple" className="w-full space-y-4">
                             {pedidosAgrupadosPorDia.map(({ date, expediciones, allAccepted, earliestTime }) => (
-                                <Card key={date} className={cn(allAccepted && 'bg-green-100/60')}>
-                                    <AccordionItem value={date} className="border-none">
+                               <AccordionItem value={date} key={date} className="border-none">
+                                <Card className={cn(allAccepted && 'bg-green-100/60')}>
                                         <AccordionTrigger className="p-4 hover:no-underline">
                                             <div className="flex items-center gap-3 w-full">
                                                 {allAccepted ? <CheckCircle className="h-6 w-6 text-green-600"/> : <CalendarIcon className="h-6 w-6"/>}
@@ -343,14 +344,14 @@ export default function PartnerPortalPage() {
                                                 ))}
                                             </div>
                                         </AccordionContent>
-                                    </AccordionItem>
                                 </Card>
+                                </AccordionItem>
                             ))}
-                        </div>
+                        </Accordion>
                     ) : (
                         <Card>
                             <CardContent className="py-12 text-center">
-                                <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
+                                <Factory className="mx-auto h-12 w-12 text-muted-foreground" />
                                 <h3 className="mt-4 text-lg font-semibold">Todo al día</h3>
                                 <p className="mt-1 text-sm text-muted-foreground">No hay pedidos de producción pendientes que coincidan con los filtros.</p>
                             </CardContent>
