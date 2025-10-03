@@ -6,24 +6,26 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Save, UserCog, X } from 'lucide-react';
+import { Loader2, Save, UserCog, X, Building2, Mail, Phone, Hash } from 'lucide-react';
 import type { PortalUser, Proveedor, PortalUserRole } from '@/types';
 import { PORTAL_ROLES } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Combobox } from '@/components/ui/combobox';
 import { useLoadingStore } from '@/hooks/use-loading-store';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { MultiSelect } from '@/components/ui/multi-select';
+import { Input } from '@/components/ui/input';
+
 
 export const portalUserSchema = z.object({
   id: z.string(),
   nombre: z.string().min(1, "El nombre es obligatorio."),
   email: z.string().email("Debe ser un email válido."),
-  role: z.enum(PORTAL_ROLES),
+  roles: z.array(z.string()).min(1, "Debe seleccionar al menos un rol."),
   proveedorId: z.string().optional(),
 });
 
@@ -32,6 +34,7 @@ type PortalUserFormValues = z.infer<typeof portalUserSchema>;
 const defaultValues: Partial<PortalUserFormValues> = {
   nombre: '',
   email: '',
+  roles: [],
 };
 
 export default function PortalUserFormPage() {
@@ -49,6 +52,13 @@ export default function PortalUserFormPage() {
     resolver: zodResolver(portalUserSchema),
     defaultValues,
   });
+
+  const selectedProviderId = form.watch('proveedorId');
+  const selectedFiscalData = useMemo(() => {
+    // This logic needs to be adapted as we don't have fiscal data directly on the provider anymore
+    // For now, we can just show the provider name.
+    return proveedores.find(df => df.id === selectedProviderId);
+  }, [selectedProviderId, proveedores]);
 
   useEffect(() => {
     const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
@@ -77,7 +87,7 @@ export default function PortalUserFormPage() {
     if (isEditing) {
       const index = allItems.findIndex(p => p.id === id);
       if (index !== -1) {
-        allItems[index] = data;
+        allItems[index] = data as PortalUser;
         message = 'Usuario actualizado correctamente.';
       }
     } else {
@@ -87,7 +97,7 @@ export default function PortalUserFormPage() {
             setIsLoading(false);
             return;
         }
-      allItems.push(data);
+      allItems.push(data as PortalUser);
       message = 'Usuario creado correctamente.';
     }
 
@@ -105,7 +115,8 @@ export default function PortalUserFormPage() {
         value: p.id,
         label: p.nombreComercial
     })), [proveedores]);
-
+    
+  const rolesOptions = PORTAL_ROLES.map(r => ({ label: r, value: r }));
 
   return (
     <>
@@ -132,7 +143,7 @@ export default function PortalUserFormPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Datos de Acceso</CardTitle>
-                <CardDescription>Introduce la información del usuario y asígnale un rol y un proveedor si es necesario.</CardDescription>
+                <CardDescription>Introduce la información del usuario y asígnale uno o más roles y un proveedor si es necesario.</CardDescription>
               </CardHeader>
               <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <FormField control={form.control} name="nombre" render={({ field }) => (
@@ -142,15 +153,15 @@ export default function PortalUserFormPage() {
                     <FormItem><FormLabel>Email (será su login)</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <div></div>
-                <FormField control={form.control} name="role" render={({ field }) => (
+                <FormField control={form.control} name="roles" render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Rol / Portal de Acceso</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar rol..."/></SelectTrigger></FormControl>
-                            <SelectContent>
-                                {PORTAL_ROLES.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
+                        <FormLabel>Rol(es) / Portal(es) de Acceso</FormLabel>
+                        <MultiSelect
+                            options={rolesOptions}
+                            selected={field.value}
+                            onChange={field.onChange}
+                            placeholder="Seleccionar rol(es)..."
+                            />
                         <FormMessage />
                     </FormItem>
                 )} />

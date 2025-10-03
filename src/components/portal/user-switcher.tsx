@@ -18,8 +18,8 @@ import type { PortalUser } from '@/types';
 import { Badge } from '@/components/ui/badge';
 
 const INTERNAL_USERS: Partial<PortalUser>[] = [
-    { id: 'internal-admin', nombre: 'Admin', role: 'Admin' },
-    { id: 'internal-comercial', nombre: 'Comercial', role: 'Comercial' },
+    { id: 'internal-admin', nombre: 'Admin', roles: ['Admin'] },
+    { id: 'internal-comercial', nombre: 'Comercial', roles: ['Comercial'] },
 ];
 
 export function UserSwitcher() {
@@ -47,7 +47,11 @@ export function UserSwitcher() {
                     {currentUser ? (
                         <>
                             {currentUser.nombre}
-                            <Badge variant="destructive" className="ml-2">{currentUser.role}</Badge>
+                            <div className="flex gap-1 ml-2">
+                                {currentUser.roles?.map(role => (
+                                    <Badge key={role} variant="destructive" className="text-xs">{role}</Badge>
+                                ))}
+                            </div>
                         </>
                     ) : "Simular Usuario"}
                     <Users className="ml-2" />
@@ -61,7 +65,7 @@ export function UserSwitcher() {
                     {INTERNAL_USERS.map(user => (
                         <DropdownMenuItem key={user.id} onSelect={() => setImpersonatedUser(user as PortalUser)}>
                              <Check className={`mr-2 h-4 w-4 ${currentUser?.id === user.id ? 'opacity-100' : 'opacity-0'}`} />
-                            {user.nombre} <span className="ml-auto text-xs text-muted-foreground">{user.role}</span>
+                            {user.nombre} <span className="ml-auto text-xs text-muted-foreground">{user.roles?.join(', ')}</span>
                         </DropdownMenuItem>
                     ))}
                 </DropdownMenuGroup>
@@ -71,7 +75,7 @@ export function UserSwitcher() {
                     {portalUsers.length > 0 ? portalUsers.map(user => (
                         <DropdownMenuItem key={user.id} onSelect={() => setImpersonatedUser(user)}>
                             <Check className={`mr-2 h-4 w-4 ${currentUser?.id === user.id ? 'opacity-100' : 'opacity-0'}`} />
-                            {user.nombre} <span className="ml-auto text-xs text-muted-foreground">{user.role}</span>
+                            {user.nombre} <span className="ml-auto text-xs text-muted-foreground">{user.roles?.join(', ')}</span>
                         </DropdownMenuItem>
                     )) : <DropdownMenuItem disabled>No hay usuarios externos</DropdownMenuItem>}
                 </DropdownMenuGroup>

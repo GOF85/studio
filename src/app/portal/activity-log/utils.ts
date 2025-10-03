@@ -11,7 +11,7 @@ export function logActivity(user: PortalUser, action: string, details: string, e
         timestamp: new Date().toISOString(),
         userId: user.id,
         userName: user.nombre,
-        userRole: user.role,
+        userRole: user.roles[0], // Log the primary role for simplicity
         action,
         details,
         entityId

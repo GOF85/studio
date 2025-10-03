@@ -747,7 +747,7 @@ export type PortalUser = {
   id: string;
   email: string;
   nombre: string;
-  role: PortalUserRole;
+  roles: PortalUserRole[];
   proveedorId?: string; // Linked to Proveedor DB
 }
 

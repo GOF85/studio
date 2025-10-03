@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -64,7 +65,7 @@ export default function GestionAccesosPage() {
     return users.filter(user => 
       user.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.roles.some(r => r.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (proveedorMap.get(user.proveedorId || '') || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [users, searchTerm, proveedorMap]);
@@ -118,7 +119,7 @@ export default function GestionAccesosPage() {
               <TableRow>
                 <TableHead className="p-2">Nombre</TableHead>
                 <TableHead className="p-2">Email</TableHead>
-                <TableHead className="p-2">Rol</TableHead>
+                <TableHead className="p-2">Roles</TableHead>
                 <TableHead className="p-2">Proveedor Asociado</TableHead>
                 <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
@@ -129,7 +130,11 @@ export default function GestionAccesosPage() {
                   <TableRow key={user.id}>
                     <TableCell className="font-medium p-2">{user.nombre}</TableCell>
                     <TableCell className="p-2">{user.email}</TableCell>
-                    <TableCell className="p-2"><Badge>{user.role}</Badge></TableCell>
+                    <TableCell className="p-2">
+                        <div className="flex flex-wrap gap-1">
+                            {user.roles.map(role => <Badge key={role}>{role}</Badge>)}
+                        </div>
+                    </TableCell>
                     <TableCell className="p-2">{user.proveedorId ? proveedorMap.get(user.proveedorId) || 'N/A' : '-'}</TableCell>
                     <TableCell className="text-right p-2">
                       <DropdownMenu>
