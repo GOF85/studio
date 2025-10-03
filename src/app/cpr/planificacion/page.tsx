@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -1202,38 +1201,38 @@ export default function PlanificacionPage() {
                                             ) : filteredPlanificacionItems.length > 0 ? (
                                                 filteredPlanificacionItems.map(item => (
                                                 <Tooltip key={item.id}>
-                                                    <TooltipTrigger asChild>
-                                                        <TableRow 
-                                                            onClick={() => handleSelectRow(item.id)} 
-                                                            className={cn(
-                                                                'cursor-pointer', 
-                                                                item.type === 'excedente' && 'bg-green-100/50 hover:bg-green-100/60 cursor-default',
-                                                                item.type === 'necesidad' && item.partidaProduccion && partidaColorClasses[item.partidaProduccion]
-                                                            )}
-                                                        >
-                                                            <TableCell>
-                                                            {item.type === 'necesidad' ? (
-                                                                <Checkbox checked={selectedRows.has(item.id)} />
-                                                            ) : (
-                                                                <Tooltip>
-                                                                <TooltipTrigger asChild><div className="flex justify-center"><PackageCheck className="text-green-600"/></div></TooltipTrigger>
-                                                                <TooltipContent><p>Excedente disponible</p></TooltipContent>
-                                                                </Tooltip>
-                                                            )}
-                                                            </TableCell>
-                                                            <TableCell className="font-medium flex items-center gap-2">
-                                                                {item.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
-                                                                {item.nombre}
-                                                            </TableCell>
-                                                            <TableCell className={cn("text-right font-mono", item.type === 'excedente' && 'text-green-600')}>
-                                                            <span>{item.type === 'excedente' && '+ '}{formatNumber(item.cantidad, 2)}</span>
-                                                            </TableCell>
-                                                            <TableCell>{formatUnit(item.unidad)}</TableCell>
-                                                            <TableCell>
-                                                                <div className="flex items-center gap-1.5">{item.eventos!.length} evento(s) <Info size={14}/></div>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    </TooltipTrigger>
+                                                     <TableRow 
+                                                        onClick={() => handleSelectRow(item.id)} 
+                                                        className={cn(
+                                                            'cursor-pointer', 
+                                                            item.type === 'excedente' && 'bg-green-100/50 hover:bg-green-100/60 cursor-default',
+                                                            item.type === 'necesidad' && item.partidaProduccion && partidaColorClasses[item.partidaProduccion]
+                                                        )}
+                                                    >
+                                                        <TooltipTrigger asChild>
+                                                          <TableCell>
+                                                          {item.type === 'necesidad' ? (
+                                                              <Checkbox checked={selectedRows.has(item.id)} />
+                                                          ) : (
+                                                              <Tooltip>
+                                                              <TooltipTrigger asChild><div className="flex justify-center"><PackageCheck className="text-green-600"/></div></TooltipTrigger>
+                                                              <TooltipContent><p>Excedente disponible</p></TooltipContent>
+                                                              </Tooltip>
+                                                          )}
+                                                          </TableCell>
+                                                        </TooltipTrigger>
+                                                        <TooltipTrigger asChild><TableCell className="font-medium flex items-center gap-2">
+                                                            {item.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
+                                                            {item.nombre}
+                                                        </TableCell></TooltipTrigger>
+                                                        <TooltipTrigger asChild><TableCell className={cn("text-right font-mono", item.type === 'excedente' && 'text-green-600')}>
+                                                        <span>{item.type === 'excedente' && '+ '}{formatNumber(item.cantidad, 2)}</span>
+                                                        </TableCell></TooltipTrigger>
+                                                        <TooltipTrigger asChild><TableCell>{formatUnit(item.unidad)}</TableCell></TooltipTrigger>
+                                                        <TooltipTrigger asChild><TableCell>
+                                                            <div className="flex items-center gap-1.5">{item.eventos!.length} evento(s) <Info size={14}/></div>
+                                                        </TableCell></TooltipTrigger>
+                                                    </TableRow>
                                                     <TooltipContent className="p-2 max-w-sm">
                                                         {item.recetas.length > 0 && (
                                                             <div>
@@ -1314,4 +1313,3 @@ export default function PlanificacionPage() {
         </TooltipProvider>
     );
 }
-
