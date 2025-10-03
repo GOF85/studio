@@ -5,7 +5,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useForm, useFieldArray, FieldErrors } from 'react-hook-form';
+import { useForm, useFieldArray, FieldErrors, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -64,8 +64,10 @@ const menajeEnRecetaSchema = z.object({
 const recetaFormSchema = z.object({
   id: z.string(),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
+  nombre_en: z.string().optional().default(''),
   visibleParaComerciales: z.boolean().default(true),
   descripcionComercial: z.string().optional().default(''),
+  descripcionComercial_en: z.string().optional().default(''),
   responsableEscandallo: z.string().optional().default(''),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
   partidaProduccion: z.string().optional(),
@@ -260,7 +262,7 @@ export default function RecetaFormPage() {
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
-    defaultValues: { id: '', nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], fotosMiseEnPlaceURLs: [], fotosRegeneracionURLs: [], perfilSaborSecundario: [], perfilTextura: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] }
+    defaultValues: { id: '', nombre: '', nombre_en: '', visibleParaComerciales: true, descripcionComercial: '', descripcionComercial_en: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], fotosMiseEnPlaceURLs: [], fotosRegeneracionURLs: [], perfilSaborSecundario: [], perfilTextura: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] }
   });
 
   const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab } = useFieldArray({ control: form.control, name: "elaboraciones" });
@@ -373,8 +375,10 @@ export default function RecetaFormPage() {
         form.reset({ 
             id: Date.now().toString(),
             nombre: '', 
+            nombre_en: '',
             visibleParaComerciales: true, 
             descripcionComercial: '', 
+            descripcionComercial_en: '',
             responsableEscandallo: '', 
             categoria: '', 
             estacionalidad: 'MIXTO', 
@@ -505,7 +509,7 @@ export default function RecetaFormPage() {
     <TooltipProvider>
       <Header />
       <main className="container mx-auto px-4 py-8">
-        <Form {...form}>
+        <FormProvider {...form}>
         <div className="grid lg:grid-cols-[1fr_400px] gap-8 items-start">
         
           <form id="receta-form" onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-4">
@@ -830,6 +834,17 @@ export default function RecetaFormPage() {
                         </AccordionContent>
                     </Card>
                 </AccordionItem>
+                <AccordionItem value="item-translations">
+                    <Card>
+                        <AccordionTrigger className="p-4"><CardTitle className="flex items-center gap-2 text-lg">Traducciones / Otros</CardTitle></AccordionTrigger>
+                        <AccordionContent>
+                           <CardContent className="space-y-4 pt-2">
+                                <FormField control={form.control} name="nombre_en" render={({ field }) => (<FormItem><FormLabel>Nombre (Inglés)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                <FormField control={form.control} name="descripcionComercial_en" render={({ field }) => (<FormItem><FormLabel>Descripción Comercial (Inglés)</FormLabel><FormControl><Textarea {...field} rows={2} /></FormControl><FormMessage /></FormItem>)} />
+                           </CardContent>
+                        </AccordionContent>
+                    </Card>
+                </AccordionItem>
                 
             </Accordion>
           </form>
@@ -880,7 +895,7 @@ export default function RecetaFormPage() {
              </CardFooter>
         </Card>
         </div>
-        </Form>
+        </FormProvider>
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -904,6 +919,7 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
+
 
 
 
