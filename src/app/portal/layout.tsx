@@ -22,11 +22,9 @@ export default function PortalLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ImpersonatedUserProvider>
       <div className="no-print">
           <PortalHeader />
           {children}
       </div>
-    </ImpersonatedUserProvider>
   );
 }

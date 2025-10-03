@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { UserSwitcher } from '../portal/user-switcher';
 
 export function Header({ user, onLogout }: { user?: User | null, onLogout?: () => void }) {
   const pathname = usePathname();
@@ -32,24 +33,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
               </h1>
             </Link>
              <nav className="flex flex-1 items-center justify-end space-x-4">
-                {user && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="text-white hover:text-white hover:bg-gray-800">
-                            {user.displayName || user.email}
-                            <Users className="ml-2" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={onLogout}>
-                            <LogOut className="mr-2" />
-                            Cerrar Sesión
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                )}
+                <UserSwitcher />
              </nav>
           </div>
         </header>
@@ -72,11 +56,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
                 Catering
               </Link>
             </Button>
-            <Button asChild variant="ghost" className="hover:bg-white/20 hover:text-white">
-              <Link href="/portal/login">
-                Acceso Portales
-              </Link>
-            </Button>
+            <UserSwitcher />
         </nav>
       </div>
     </header>
@@ -101,11 +81,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
                 Entregas MICE
               </Link>
             </Button>
-            <Button asChild variant="outline">
-              <Link href="/portal/login">
-                Acceso Portales
-              </Link>
-            </Button>
+            <UserSwitcher />
         </nav>
       </div>
     </header>

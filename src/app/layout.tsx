@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { NProgressProvider } from '@/components/providers/nprogress-provider';
+import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 
 export const metadata: Metadata = {
   title: 'CateringStock',
@@ -25,9 +26,11 @@ export default function RootLayout({
         />
       </head>
       <body className={cn('min-h-screen bg-background font-body antialiased no-print')}>
-        <NProgressProvider>
-          {children}
-        </NProgressProvider>
+        <ImpersonatedUserProvider>
+          <NProgressProvider>
+            {children}
+          </NProgressProvider>
+        </ImpersonatedUserProvider>
         <Toaster />
       </body>
     </html>
