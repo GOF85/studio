@@ -1,13 +1,12 @@
 
 
-
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Package, ArrowLeft, Thermometer, Box, Snowflake, PlusCircle, Printer, Loader2, Trash2, Check, Utensils, Building, Phone } from 'lucide-react';
+import { Package, ArrowLeft, Thermometer, Box, Snowflake, PlusCircle, Printer, Loader2, Trash2, Check, Utensils, Building, Phone, Sprout } from 'lucide-react';
 import { format } from 'date-fns';
-import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio, ComercialBriefingItem, ContenedorDinamico } from '@/types';
+import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio, ComercialBriefingItem, ContenedorDinamico, Alergeno, IngredienteInterno, IngredienteERP } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -22,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +35,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { ChevronsUpDown } from 'lucide-react';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { AllergenIcon } from '@/components/icons/allergen-icon';
 
 
 type LotePendiente = {
@@ -47,6 +47,7 @@ type LotePendiente = {
     unidad: string;
     tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
     recetas: { nombre: string, cantidad: number }[];
+    alergenos: Alergeno[];
 };
 
 const expeditionTypeMap = {
@@ -130,6 +131,23 @@ function AllocationDialog({ lote, containers, onAllocate, onAddContainer }: { lo
     )
 }
 
+const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteInterno>): Alergeno[] => {
+    if (!elaboracion || !elaboracion.componentes) {
+      return [];
+    }
+    const elabAlergenos = new Set<Alergeno>();
+    elaboracion.componentes.forEach(comp => {
+        if(comp.tipo === 'ingrediente') {
+            const ingData = ingredientesMap.get(comp.componenteId);
+            if (ingData) {
+              (ingData.alergenosPresentes || []).forEach(a => elabAlergenos.add(a));
+              (ingData.alergenosTrazas || []).forEach(a => elabAlergenos.add(a));
+            }
+        }
+    });
+    return Array.from(elabAlergenos);
+};
+
 export default function PickingDetailPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [spaceAddress, setSpaceAddress] = useState<string>('');
@@ -179,11 +197,20 @@ export default function PickingDetailPage() {
         if (!isMounted) return [];
         const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
         const allElabs = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+        const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+        const ingredientesMap = new Map(storedInternos.map(i => [i.id, i]));
         const elabsMap = new Map(allElabs.map(e => [e.id, e]));
 
         return allOFs
             .filter(of => of.osIDs.includes(osId))
-            .map(of => ({...of, tipoExpedicion: elabsMap.get(of.elaboracionId)?.tipoExpedicion || 'SECO'}));
+            .map(of => {
+                const elab = elabsMap.get(of.elaboracionId);
+                return {
+                    ...of, 
+                    tipoExpedicion: elab?.tipoExpedicion || 'SECO',
+                    alergenos: elab ? calculateElabAlergenos(elab, ingredientesMap) : []
+                }
+            });
 
     }, [osId, isMounted]);
 
@@ -252,7 +279,8 @@ export default function PickingDetailPage() {
                                             cantidadAsignada: 0,
                                             unidad: elabInfo.unidadProduccion,
                                             tipoExpedicion: elabInfo.tipoExpedicion,
-                                            recetas: []
+                                            recetas: [],
+                                            alergenos: of?.alergenos || []
                                         };
                                         necesidadesHito.set(elabInfo.id, existing);
                                     }
@@ -356,10 +384,9 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
             doc.text('Hoja de Carga - Picking', 15, finalY);
             finalY += 10;
             
-            // --- DATOS SERVICIO Y EVENTO ---
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151'); // Gris oscuro
+            doc.setTextColor('#374151');
             
             const serviceData = [
                 ['Nº Serv:', serviceOrder.serviceNumber],
@@ -400,9 +427,10 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
             const containersForType = pickingState.assignedContainers.filter(c => c.hitoId === hito.id && c.tipo === tipo);
             if (containersForType.length === 0) continue;
 
-            if (finalY + 20 > doc.internal.pageSize.getHeight()) { // Check if new section fits
+            if (finalY + 20 > doc.internal.pageSize.getHeight()) {
                 doc.addPage();
                 finalY = 15;
+                addHeader();
             }
             
             doc.setFontSize(14);
@@ -411,13 +439,14 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
             doc.text(expeditionTypeMap[tipo].title, 15, finalY);
             finalY += 8;
 
-            containersForType.forEach(container => {
+            for (const container of containersForType) {
                 const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
-                if(containerItems.length === 0) return;
+                if(containerItems.length === 0) continue;
 
                 if (finalY + 20 > doc.internal.pageSize.getHeight()) {
                     doc.addPage();
                     finalY = 15;
+                    addHeader();
                 }
                 
                 doc.setFontSize(11);
@@ -428,9 +457,11 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                 const tableBody = containerItems.map(assignedLote => {
                     const loteInfo = lotesNecesarios.find(of => of.id === assignedLote.ofId);
                     const recetaNombre = loteInfo ? getRecetaForElaboracion(loteInfo.elaboracionId, osId) : '-';
+                    const alergenosStr = loteInfo?.alergenos?.join(', ') || '';
                     return [
                         loteInfo?.elaboracionNombre || 'Desconocido',
                         recetaNombre,
+                        alergenosStr,
                         assignedLote.ofId,
                         `${formatNumber(assignedLote.quantity, 2)} ${formatUnit(loteInfo?.unidad || 'Uds')}`
                     ];
@@ -438,14 +469,14 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
 
                 autoTable(doc, {
                     startY: finalY,
-                    head: [['Elaboración', 'Receta', 'Lote (OF)', 'Cantidad']],
+                    head: [['Elaboración', 'Receta', 'Alérgenos', 'Lote (OF)', 'Cantidad']],
                     body: tableBody,
                     theme: 'grid',
                     headStyles: { fillColor: [230, 230, 230], textColor: 20 },
-                    styles: { fontSize: 9 },
+                    styles: { fontSize: 8 },
                 });
                 finalY = (doc as any).lastAutoTable.finalY + 10;
-            });
+            }
         }
         
         doc.save(`HojaCarga_${serviceOrder.serviceNumber}_${hito.descripcion.replace(/\s+/g, '_')}.pdf`);
@@ -531,7 +562,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                 </div>
                                     <Button onClick={() => handlePrintHito(hito)} disabled={!hasContentToPrint || !!isPrinting} className="no-print">
                                         {isPrinting === hito.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2" />}
-                                        {isPrinting === hito.id ? 'Generando...' : 'Generar etiquetas'}
+                                        {isPrinting === hito.id ? 'Generando...' : 'Hoja de Carga'}
                                     </Button>
                                 </CardHeader>
                                 <CardContent>
@@ -558,7 +589,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                         {lotesDePartida.length > 0 && (
                                                             <div className="mb-4">
                                                                 <h3 className="font-semibold mb-2">Lotes pendientes de asignar para esta entrega</h3>
-                                                                <Table className="bg-white"><TableHeader><TableRow><TableHead className="w-[20%]">Receta</TableHead><TableHead className="font-bold">Elaboración</TableHead><TableHead>Lote (OF)</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
+                                                                <Table className="bg-white"><TableHeader><TableRow><TableHead className="w-[20%]">Receta</TableHead><TableHead className="font-bold">Elaboración</TableHead><TableHead>Alérgenos</TableHead><TableHead>Lote (OF)</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
                                                                     <TableBody>
                                                                         {lotesDePartida.map(lote => (
                                                                             <TableRow key={lote.ofId}>
@@ -578,6 +609,11 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                                                         </TooltipContent>
                                                                                     </Tooltip>
                                                                                 </TableCell>
+                                                                                <TableCell>
+                                                                                  <div className="flex flex-wrap gap-1">
+                                                                                     {lote.alergenos.map(a => <AllergenIcon key={a} allergen={a} />)}
+                                                                                  </div>
+                                                                                </TableCell>
                                                                                 <TableCell className="font-medium font-mono">{lote.ofId}</TableCell>
                                                                                 <TableCell className="text-right font-mono">{formatNumber(lote.cantidadNecesaria - lote.cantidadAsignada, 2)} {formatUnit(lote.unidad)}</TableCell>
                                                                                 <TableCell className="text-right no-print"><AllocationDialog lote={lote} containers={contenedoresDePartida} onAllocate={(contId, qty) => allocateLote(lote.ofId, contId, qty, hito.id)} onAddContainer={() => addContainer(tipo, hito.id)} /></TableCell>
@@ -596,7 +632,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                                         Contenedor {container.numero}
                                                                         <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeContainer(container.id)}><Trash2 size={14} /></Button>
                                                                         </h3>
-                                                                        <Table className="bg-white/70"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead>Receta</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-16 no-print"></TableHead></TableRow></TableHeader>
+                                                                        <Table className="bg-white/70"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead>Receta</TableHead><TableHead>Alérgenos</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-16 no-print"></TableHead></TableRow></TableHeader>
                                                                             <TableBody>
                                                                                 {containerItems.length > 0 ? (
                                                                                     containerItems.map(item => {
@@ -606,12 +642,17 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                                                             <TableCell className="font-medium font-mono">{item.ofId}</TableCell>
                                                                                             <TableCell>{loteInfo?.elaboracionNombre}</TableCell>
                                                                                             <TableCell className="text-xs text-muted-foreground">({getRecetaForElaboracion(loteInfo?.elaboracionId || '', osId)})</TableCell>
+                                                                                            <TableCell>
+                                                                                                <div className="flex flex-wrap gap-1">
+                                                                                                    {loteInfo?.alergenos.map(a => <AllergenIcon key={a} allergen={a} />)}
+                                                                                                </div>
+                                                                                            </TableCell>
                                                                                             <TableCell className="text-right font-mono">{formatNumber(item.quantity || 0, 2)} {loteInfo ? formatUnit(loteInfo.unidad) : ''}</TableCell>
                                                                                             <TableCell className="no-print"><Button variant="ghost" size="sm" onClick={() => deallocateLote(item.allocationId)}>Quitar</Button></TableCell>
                                                                                         </TableRow>
                                                                                     )})
                                                                                 ) : (
-                                                                                    <TableRow><TableCell colSpan={5} className="text-center h-20 text-muted-foreground">Vacío</TableCell></TableRow>
+                                                                                    <TableRow><TableCell colSpan={6} className="text-center h-20 text-muted-foreground">Vacío</TableCell></TableRow>
                                                                                 )}
                                                                             </TableBody>
                                                                         </Table>
