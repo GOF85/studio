@@ -1218,22 +1218,7 @@ export default function PlanificacionPage() {
                                                             {item.nombre}
                                                         </TableCell>
                                                         <TableCell className={cn("text-right font-mono", item.type === 'excedente' && 'text-green-600')}>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <span>{item.type === 'excedente' && '+ '}{formatNumber(item.cantidad, 2)}</span>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    <div className="p-1">
-                                                                        <h4 className="font-bold mb-2 text-center">Desglose por Receta</h4>
-                                                                        {item.recetas!.map((r, i) => (
-                                                                            <div key={i} className="flex justify-between gap-4 text-xs">
-                                                                                <span>{r.recetaNombre}:</span>
-                                                                                <span className="font-semibold">{formatNumber(r.cantidad, 2)} {formatUnit(item.unidad)}</span>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                </TooltipContent>
-                                                            </Tooltip>
+                                                           <span>{item.type === 'excedente' && '+ '}{formatNumber(item.cantidad, 2)}</span>
                                                         </TableCell>
                                                         <TableCell>{formatUnit(item.unidad)}</TableCell>
                                                         <TableCell>
@@ -1242,14 +1227,31 @@ export default function PlanificacionPage() {
                                                                     <span className="flex items-center gap-1.5">{item.eventos!.length} evento(s) <Info size={14}/></span>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
-                                                                    <div className="p-1 max-w-sm">
-                                                                        <h4 className="font-bold mb-2 text-center">Eventos Implicados</h4>
-                                                                        {item.eventos!.map((e, i) => (
-                                                                            <div key={i} className="text-xs flex items-center gap-2">
-                                                                                {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
-                                                                                {e.serviceNumber} - {e.serviceType}
+                                                                    <div className="p-2 max-w-sm space-y-3">
+                                                                        {item.recetas.length > 0 && (
+                                                                            <div>
+                                                                                <h4 className="font-bold mb-1 text-center">Desglose por Receta</h4>
+                                                                                <ul className="list-disc pl-4 text-xs">
+                                                                                {item.recetas.map((r, i) => (
+                                                                                    <li key={i}>{r.recetaNombre}: <strong>{formatNumber(r.cantidad, 2)} {formatUnit(item.unidad)}</strong></li>
+                                                                                ))}
+                                                                                </ul>
                                                                             </div>
-                                                                        ))}
+                                                                        )}
+                                                                        {item.recetas.length > 0 && item.eventos.length > 0 && <Separator />}
+                                                                        {item.eventos.length > 0 && (
+                                                                             <div>
+                                                                                <h4 className="font-bold mb-1 text-center">Eventos Implicados</h4>
+                                                                                <div className="space-y-1">
+                                                                                {item.eventos!.map((e, i) => (
+                                                                                    <div key={i} className="text-xs flex items-center gap-2">
+                                                                                        {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
+                                                                                        {e.serviceNumber} - {e.serviceType}
+                                                                                    </div>
+                                                                                ))}
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 </TooltipContent>
                                                             </Tooltip>
@@ -1317,3 +1319,6 @@ export default function PlanificacionPage() {
 
 
 
+
+
+    
