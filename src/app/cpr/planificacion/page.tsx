@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -839,7 +840,12 @@ export default function PlanificacionPage() {
                                 mode="range"
                                 defaultMonth={dateRange?.from}
                                 selected={dateRange}
-                                onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}}
+                                onSelect={(range) => {
+                                  setDateRange(range);
+                                  if (range?.from && range.to) {
+                                    setIsDatePickerOpen(false);
+                                  }
+                                }}
                                 numberOfMonths={2}
                                 locale={es}
                             />
@@ -969,7 +975,7 @@ export default function PlanificacionPage() {
                                                             </TooltipTrigger>
                                                              {row.necesidad && (
                                                                 <TooltipContent>
-                                                                    <div className="p-1 max-w-xs">
+                                                                    <div className="p-1 max-w-sm">
                                                                         {row.partida && <p className="text-xs font-bold mb-1">Partida: {row.partida}</p>}
                                                                         <h4 className="font-bold mb-1">Necesario para:</h4>
                                                                         <ul className="list-disc pl-4 text-xs">
@@ -1221,28 +1227,40 @@ export default function PlanificacionPage() {
                                                     </TableCell>
                                                     <TableCell className="font-medium">
                                                         <Tooltip>
-                                                            <TooltipTrigger asChild><div className="flex items-center gap-2">{item.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}{item.nombre}</div></TooltipTrigger>
-                                                            <TooltipContent>
-                                                                {item.recetas.length > 0 && (
-                                                                    <div className="p-1 max-w-sm">
-                                                                        <h4 className="font-bold mb-1 text-center">Desglose por Receta</h4>
-                                                                        <ul className="list-disc pl-4 text-xs">
-                                                                            {item.recetas.map((r, index) => (
-                                                                                <li key={index}><strong>{formatNumber(r.cantidadReceta, 0)} x</strong> {r.recetaNombre} ({formatNumber(r.cantidad, 2)} {formatUnit(item.unidad)})</li>
-                                                                            ))}
-                                                                        </ul>
-                                                                        {item.recetas.length > 0 && item.eventos.length > 0 && <Separator className="my-2" />}
-                                                                        <h4 className="font-bold mb-1 text-center">Eventos Implicados</h4>
-                                                                        <ul className="list-disc pl-4 text-xs">
-                                                                            {item.eventos.map((e, index) => (
-                                                                                <li key={index} className="flex items-center gap-1.5">
-                                                                                    {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
-                                                                                    {e.serviceNumber} - {e.serviceType} - {e.espacio} ({format(new Date(e.fecha), 'dd/MM/yy')})
-                                                                                </li>
-                                                                            ))}
-                                                                        </ul>
-                                                                    </div>
-                                                                )}
+                                                            <TooltipTrigger asChild>
+                                                                <span className="flex items-center gap-2">
+                                                                    {item.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
+                                                                    {item.nombre}
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="max-w-md">
+                                                                <div className="p-1 space-y-2">
+                                                                    {item.partidaProduccion && <p className="text-xs font-bold mb-1">Partida: {item.partidaProduccion}</p>}
+                                                                    {item.recetas.length > 0 && (
+                                                                        <div>
+                                                                            <h4 className="font-bold mb-1 text-center">Desglose por Receta</h4>
+                                                                            <ul className="list-disc pl-4 text-xs">
+                                                                                {item.recetas.map((r, index) => (
+                                                                                    <li key={index}><strong>{formatNumber(r.cantidadReceta, 0)} x</strong> {r.recetaNombre} ({formatNumber(r.cantidad, 2)} {formatUnit(item.unidad)})</li>
+                                                                                ))}
+                                                                            </ul>
+                                                                        </div>
+                                                                    )}
+                                                                    {item.recetas.length > 0 && item.eventos.length > 0 && <Separator />}
+                                                                    {item.eventos.length > 0 && (
+                                                                        <div>
+                                                                            <h4 className="font-bold mb-1 text-center">Eventos Implicados</h4>
+                                                                            <ul className="list-disc pl-4 text-xs">
+                                                                                {item.eventos.map((e, index) => (
+                                                                                    <li key={index} className="flex items-center gap-1.5">
+                                                                                        {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
+                                                                                        {e.serviceNumber} - {e.serviceType} ({format(new Date(e.fecha), 'dd/MM/yy')}) - {e.espacio}
+                                                                                    </li>
+                                                                                ))}
+                                                                            </ul>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             </TooltipContent>
                                                         </Tooltip>
                                                     </TableCell>
