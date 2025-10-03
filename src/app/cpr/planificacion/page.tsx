@@ -39,6 +39,7 @@ type EventoAfectado = {
     osId: string;
     serviceNumber: string;
     serviceType: string;
+    espacio: string;
     isEntrega: boolean;
 };
 
@@ -46,6 +47,7 @@ type RecetaNecesidad = {
     recetaId: string;
     recetaNombre: string;
     cantidad: number;
+    cantidadReceta: number;
 }
 
 type Necesidad = {
@@ -364,11 +366,14 @@ export default function PlanificacionPage() {
                     registro.necesidadesPorDia.set(diaKey, necesidadDiaActual + cantidadNecesaria);
                     
                     if (!registro.eventos.find(e => e.osId === os.id && e.serviceType === hitoDescripcion)) {
-                        registro.eventos.push({ osId: os.id, serviceNumber: os.serviceNumber, serviceType: hitoDescripcion, isEntrega });
+                        registro.eventos.push({ osId: os.id, serviceNumber: os.serviceNumber, serviceType: hitoDescripcion, espacio: os.space || '', isEntrega });
                     }
                     const recetaExistente = registro.recetas.find(r => r.recetaId === receta.id);
-                    if (recetaExistente) recetaExistente.cantidad += cantidadNecesaria;
-                    else registro.recetas.push({ recetaId: receta.id, recetaNombre: receta.nombre, cantidad: cantidadNecesaria });
+                    if (recetaExistente) {
+                        recetaExistente.cantidad += cantidadNecesaria;
+                    } else {
+                        registro.recetas.push({ recetaId: receta.id, recetaNombre: receta.nombre, cantidad: cantidadNecesaria, cantidadReceta: cantidadReceta });
+                    }
                 }
             });
         }
@@ -1234,7 +1239,7 @@ export default function PlanificacionPage() {
                                                                                 <h4 className="font-bold mb-1 text-center">Desglose por Receta</h4>
                                                                                 <ul className="list-disc pl-4 text-xs">
                                                                                 {item.recetas.map((r, i) => (
-                                                                                    <li key={i}>{r.recetaNombre}: <strong>{formatNumber(r.cantidad, 2)} {formatUnit(item.unidad)}</strong></li>
+                                                                                    <li key={i}>{r.cantidadReceta} x {r.recetaNombre}: <strong>{formatNumber(r.cantidad, 2)} {formatUnit(item.unidad)}</strong></li>
                                                                                 ))}
                                                                                 </ul>
                                                                             </div>
@@ -1247,7 +1252,7 @@ export default function PlanificacionPage() {
                                                                                 {item.eventos!.map((e, i) => (
                                                                                     <div key={i} className="text-xs flex items-center gap-2">
                                                                                         {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
-                                                                                        {e.serviceNumber} - {e.serviceType}
+                                                                                        {e.serviceNumber} - {e.serviceType} - {e.espacio}
                                                                                     </div>
                                                                                 ))}
                                                                                 </div>
@@ -1321,5 +1326,7 @@ export default function PlanificacionPage() {
 
 
 
+
+    
 
     
