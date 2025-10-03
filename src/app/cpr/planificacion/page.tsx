@@ -833,12 +833,7 @@ export default function PlanificacionPage() {
                                 mode="range"
                                 defaultMonth={dateRange?.from}
                                 selected={dateRange}
-                                onSelect={(range) => {
-                                    setDateRange(range);
-                                    if (range?.from && range?.to) {
-                                        setIsDatePickerOpen(false);
-                                    }
-                                }}
+                                onSelect={(range) => { setDateRange(range); if(range?.from && range.to) {setIsDatePickerOpen(false);}}}
                                 numberOfMonths={2}
                                 locale={es}
                             />
@@ -892,23 +887,23 @@ export default function PlanificacionPage() {
                                             </TableRow>
                                             <TableRow>
                                                 <TableHead className="p-1 sticky left-0 bg-background z-10"><FileDigit className="inline-block mr-2"/>Nº de Contratos (OS)</TableHead>
-                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizTotals.totalContratos)}</TableCell>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalContratos)}</TableCell>)}
+                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizTotals.totalContratos, 0)}</TableCell>
+                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalContratos, 0)}</TableCell>)}
                                             </TableRow>
                                             <TableRow>
                                                 <TableHead className="p-1 sticky left-0 bg-background z-10"><Utensils className="inline-block mr-2"/>Nº de Servicios</TableHead>
-                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizTotals.totalServicios)}</TableCell>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalServicios)}</TableCell>)}
+                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizTotals.totalServicios, 0)}</TableCell>
+                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalServicios, 0)}</TableCell>)}
                                             </TableRow>
                                             <TableRow>
                                                 <TableHead className="p-1 sticky left-0 bg-background z-10"><Users className="inline-block mr-2"/>Nº de Asistentes (PAX)</TableHead>
-                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizTotals.totalPax)}</TableCell>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalPax)}</TableCell>)}
+                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizTotals.totalPax, 0)}</TableCell>
+                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalPax, 0)}</TableCell>)}
                                             </TableRow>
                                             <TableRow>
                                                 <TableHead className="p-1 sticky left-0 bg-background z-10"><BookOpen className="inline-block mr-2"/>Uds. de Receta</TableHead>
-                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizHeaders.reduce((acc, h) => acc + h.totalRecetaUnits, 0))}</TableCell>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalRecetaUnits)}</TableCell>)}
+                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizHeaders.reduce((acc, h) => acc + h.totalRecetaUnits, 0), 0)}</TableCell>
+                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalRecetaUnits, 0)}</TableCell>)}
                                             </TableRow>
                                             <TableRow>
                                                 <TableHead className="p-1 sticky left-0 bg-background z-10"><Component className="inline-block mr-2"/>Uds. de Elaboración</TableHead>
@@ -947,10 +942,10 @@ export default function PlanificacionPage() {
                                                             )}
                                                         </Tooltip>
                                                     </TableCell>
-                                                    <TableCell className="p-1 text-center font-bold font-mono sticky left-[256px] bg-background z-10">{formatNumber(row.total)} {formatUnit(row.unidad)}</TableCell>
+                                                    <TableCell className="p-1 text-center font-bold font-mono sticky left-[256px] bg-background z-10">{formatNumber(row.total, 0)} {formatUnit(row.unidad)}</TableCell>
                                                     {matrizHeaders.map(h => (
                                                         <TableCell key={h.day.toISOString()} className={cn("p-1 text-center font-mono border-l", row[format(h.day, 'yyyy-MM-dd')] === 0 && 'bg-slate-50')}>
-                                                            {row[format(h.day, 'yyyy-MM-dd')] > 0 ? formatNumber(row[format(h.day, 'yyyy-MM-dd')]) : '-'}
+                                                            {row[format(h.day, 'yyyy-MM-dd')] > 0 ? formatNumber(row[format(h.day, 'yyyy-MM-dd')], 0) : '-'}
                                                         </TableCell>
                                                     ))}
                                                 </TableRow>
@@ -1313,6 +1308,7 @@ export default function PlanificacionPage() {
         </TooltipProvider>
     );
 }
+
 
 
 
