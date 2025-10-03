@@ -1,9 +1,10 @@
+
 import type { ObjetivosGasto } from './types';
 
 export const GASTO_LABELS: Record<keyof Omit<ObjetivosGasto, 'id' | 'name'>, string> = {
     gastronomia: 'Gastronomía',
     bodega: 'Bodega',
-    consumibles: 'Consumibles (Bio)',
+    consumibles: 'Consumibles',
     hielo: 'Hielo',
     almacen: 'Almacén',
     alquiler: 'Alquiler material',
