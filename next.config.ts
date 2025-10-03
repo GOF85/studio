@@ -43,5 +43,3 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
-
-// Cache-busting comment
