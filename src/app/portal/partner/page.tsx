@@ -31,13 +31,13 @@ type PedidoPartnerConEstado = PedidoPartner & {
     comentarios?: string;
 }
 
-const statusVariant: { [key in SimplifiedPedidoPartnerStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
+const statusVariant: { [key in SimplifiedPedidoPartnerStatus]: 'success' | 'secondary' } = {
   'Pendiente': 'secondary',
-  'Aceptado': 'default',
+  'Aceptado': 'success',
 };
 
 const statusRowClass: { [key in SimplifiedPedidoPartnerStatus]?: string } = {
-  'Aceptado': 'bg-green-50 hover:bg-green-100/80',
+  'Aceptado': 'bg-green-100/60 hover:bg-green-100/80',
 };
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -231,7 +231,7 @@ export default function PartnerPortalPage() {
                                                 </div>
                                                 <div className="flex-grow flex items-center justify-end gap-2 text-sm font-semibold text-primary mr-4">
                                                     <Clock className="h-4 w-4"/>
-                                                    <span>Hora Límite: {earliestTime}</span>
+                                                    <span>Hora Límite Entrega en CPR: {earliestTime}</span>
                                                 </div>
                                             </div>
                                         </AccordionTrigger>
@@ -249,35 +249,36 @@ export default function PartnerPortalPage() {
                                                     </TableHeader>
                                                     <TableBody>
                                                         {dailyPedidos.map(pedido => (
-                                                            <Tooltip key={pedido.id}>
-                                                                <TooltipTrigger asChild>
-                                                                    <TableRow className={cn("transition-colors", statusRowClass[pedido.status], pedido.comentarios && 'border-l-4 border-l-blue-400 bg-blue-50/50 hover:bg-blue-50/80')}>
-                                                                        <TableCell className="font-semibold">{pedido.elaboracionNombre}</TableCell>
-                                                                        <TableCell className="text-right font-mono">{pedido.cantidad.toFixed(2)} {formatUnit(pedido.unidad)}</TableCell>
-                                                                        <TableCell>
-                                                                            <Badge variant="secondary">{pedido.serviceNumber}</Badge>
-                                                                        </TableCell>
-                                                                        <TableCell>
-                                                                            {pedido.status === 'Pendiente' ? (
-                                                                                <Button size="sm" onClick={() => handleAccept(pedido.id)}>Aceptar Pedido</Button>
-                                                                            ) : (
-                                                                                <Badge variant="success" className="bg-green-600">Aceptado</Badge>
+                                                            <TableRow key={pedido.id} className={cn("transition-colors", statusRowClass[pedido.status], pedido.comentarios && 'border-l-4 border-l-blue-400 bg-blue-50/50 hover:bg-blue-50/80')}>
+                                                                <TableCell className="font-semibold">{pedido.elaboracionNombre}</TableCell>
+                                                                <TableCell className="text-right font-mono">{pedido.cantidad.toFixed(2)} {formatUnit(pedido.unidad)}</TableCell>
+                                                                <TableCell>
+                                                                    <Badge variant="secondary">{pedido.serviceNumber}</Badge>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    {pedido.status === 'Pendiente' ? (
+                                                                        <Button size="sm" onClick={() => handleAccept(pedido.id)}>Aceptar Pedido</Button>
+                                                                    ) : (
+                                                                        <Badge variant={statusVariant[pedido.status]}>{pedido.status}</Badge>
+                                                                    )}
+                                                                </TableCell>
+                                                                <TableCell className="text-right">
+                                                                     <div className="flex items-center justify-end">
+                                                                         <Tooltip>
+                                                                            <TooltipTrigger asChild>
+                                                                                <div>
+                                                                                    <CommentDialog pedido={pedido} onSave={handleSaveComment} />
+                                                                                </div>
+                                                                            </TooltipTrigger>
+                                                                            {pedido.comentarios && (
+                                                                                <TooltipContent>
+                                                                                    <p className="max-w-xs">{pedido.comentarios}</p>
+                                                                                </TooltipContent>
                                                                             )}
-                                                                        </TableCell>
-                                                                        <TableCell className="text-right">
-                                                                            <div className="flex items-center justify-end">
-                                                                                {pedido.comentarios && <MessageSquare className="h-5 w-5 text-blue-600 mr-2" />}
-                                                                                <CommentDialog pedido={pedido} onSave={handleSaveComment} />
-                                                                            </div>
-                                                                        </TableCell>
-                                                                    </TableRow>
-                                                                </TooltipTrigger>
-                                                                {pedido.comentarios && (
-                                                                    <TooltipContent>
-                                                                        <p className="max-w-xs">{pedido.comentarios}</p>
-                                                                    </TooltipContent>
-                                                                )}
-                                                            </Tooltip>
+                                                                        </Tooltip>
+                                                                    </div>
+                                                                </TableCell>
+                                                            </TableRow>
                                                         ))}
                                                     </TableBody>
                                                 </Table>
