@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle } from 'lucide-react';
 import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatUnit } from '@/lib/utils';
-import type { PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, EstadoPersonalEntrega, Entrega, PedidoEntrega } from '@/types';
+import type { PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, EstadoPersonalEntrega, Entrega, PedidoEntrega, Proveedor } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -29,6 +29,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DateRange } from 'react-day-picker';
+import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { logActivity } from '../activity-log/utils';
 
 
 type TurnoConEstado = PersonalEntregaTurno & {
@@ -117,12 +119,25 @@ export default function PartnerPersonalPortalPage() {
     const [showCompleted, setShowCompleted] = useState(false);
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const { impersonatedUser } = useImpersonatedUser();
+    const [proveedorNombre, setProveedorNombre] = useState('');
 
     // State for Calendar View
     const [currentDate, setCurrentDate] = useState(new Date());
     const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
 
     const loadData = useCallback(() => {
+        if (!impersonatedUser || !impersonatedUser.proveedorId) {
+            setTurnos([]);
+            setProveedorNombre('');
+            setIsMounted(true);
+            return;
+        }
+
+        const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+        const proveedor = allProveedores.find(p => p.id === impersonatedUser.proveedorId);
+        setProveedorNombre(proveedor?.nombreComercial || '');
+
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.status === 'Confirmado');
         const allPersonalEntregas = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
         const allPedidosEntrega = (JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[]);
@@ -154,7 +169,7 @@ export default function PartnerPersonalPortalPage() {
         
         setTurnos(partnerTurnos);
         setIsMounted(true);
-    }, []);
+    }, [impersonatedUser]);
 
     useEffect(() => {
         loadData();
@@ -162,7 +177,7 @@ export default function PartnerPersonalPortalPage() {
     
     const handleStatusChange = (turnoId: string, newStatus: PersonalEntregaTurno['statusPartner']) => {
         const turno = turnos.find(t => t.id === turnoId);
-        if(!turno) return;
+        if(!turno || !impersonatedUser) return;
 
         const allPersonalEntregas = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
         const pedidoIndex = allPersonalEntregas.findIndex(p => p.osId === turno.osId);
@@ -173,13 +188,16 @@ export default function PartnerPersonalPortalPage() {
         
         allPersonalEntregas[pedidoIndex].turnos[turnoIndex].statusPartner = newStatus;
         localStorage.setItem('personalEntrega', JSON.stringify(allPersonalEntregas));
+        
+        logActivity(impersonatedUser, 'Actualización de Estado', `Turno ${turno.categoria} para ${turno.serviceNumber} a "${newStatus}"`, turno.id);
+
         loadData(); // Recargar datos para reflejar el cambio
         toast({ title: 'Estado actualizado', description: `El estado del turno ha sido cambiado a "${newStatus}".` });
     };
 
     const handleSaveAsignaciones = (turnoId: string, asignaciones: AsignacionPersonal[]) => {
         const turno = turnos.find(t => t.id === turnoId);
-        if(!turno) return;
+        if(!turno || !impersonatedUser) return;
 
         const allPersonalEntregas = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
         const pedidoIndex = allPersonalEntregas.findIndex(p => p.osId === turno.osId);
@@ -199,6 +217,8 @@ export default function PartnerPersonalPortalPage() {
         allPersonalEntregas[pedidoIndex].turnos[turnoIndex] = updatedTurno;
 
         localStorage.setItem('personalEntrega', JSON.stringify(allPersonalEntregas));
+        
+        logActivity(impersonatedUser, 'Asignación de Personal', `Asignado ${asignaciones[0].nombre} a turno ${turno.categoria}`, turno.id);
         
         loadData();
         toast({ title: 'Asignaciones guardadas' });
@@ -271,16 +291,29 @@ export default function PartnerPersonalPortalPage() {
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Portal de Personal..." />;
     }
+    
+    if(!impersonatedUser || !impersonatedUser.proveedorId) {
+        return (
+             <main className="container mx-auto px-4 py-16">
+                <Card className="max-w-xl mx-auto">
+                    <CardHeader><CardTitle>Acceso Restringido</CardTitle></CardHeader>
+                    <CardContent><p>Este usuario no está asociado a ningún partner de personal. Por favor, contacta con el administrador.</p></CardContent>
+                </Card>
+            </main>
+        )
+    }
 
     return (
         <TooltipProvider>
          <main className="container mx-auto px-4 py-8">
-             <div className="flex items-center gap-4 border-b pb-4 mb-8">
-                <Users className="w-10 h-10 text-primary" />
-                <div>
-                    <h1 className="text-3xl font-headline font-bold tracking-tight">Portal de Partner de Personal</h1>
-                    <p className="text-lg text-muted-foreground">Listado de turnos de personal pendientes de gestionar.</p>
+             <div className="flex items-center justify-between border-b pb-4 mb-8">
+                <div className="flex items-center gap-4">
+                    <Users className="w-10 h-10 text-primary" />
+                    <div>
+                        <h1 className="text-3xl font-headline font-bold tracking-tight">Portal de Partner de Personal</h1>
+                    </div>
                 </div>
+                 {proveedorNombre && <h1 className="text-3xl font-headline font-bold tracking-tight">{proveedorNombre}</h1>}
             </div>
 
             <Tabs defaultValue="lista">
@@ -325,7 +358,7 @@ export default function PartnerPersonalPortalPage() {
                                                             <MapPin className="h-5 w-5 text-muted-foreground"/>
                                                             <div>
                                                                 <h4 className="font-semibold text-left">{location}</h4>
-                                                                <p className="text-sm text-muted-foreground text-left">{dailyTurnos.length} empleados requeridos</p>
+                                                                <p className="text-sm text-muted-foreground text-left">{dailyTurnos.length} turnos requeridos</p>
                                                             </div>
                                                         </div>
                                                     </AccordionTrigger>
@@ -338,12 +371,11 @@ export default function PartnerPersonalPortalPage() {
                                                                     <TableHead>Horario</TableHead>
                                                                     <TableHead>Observaciones MICE</TableHead>
                                                                     <TableHead>Asignaciones</TableHead>
-                                                                    <TableHead>Estado</TableHead>
                                                                 </TableRow>
                                                             </TableHeader>
                                                             <TableBody>
                                                                 {dailyTurnos.map(turno => (
-                                                                    <TableRow key={turno.id} className={cn("transition-colors", statusRowClass[turno.statusPartner || 'Pendiente Asignación'])}>
+                                                                    <TableRow key={turno.id} className={cn("transition-colors", statusRowClass[turno.statusPartner])}>
                                                                         <TableCell>
                                                                             <Badge variant="secondary">{turno.serviceNumber}</Badge>
                                                                             <p className="text-xs text-muted-foreground">{turno.cliente}</p>
@@ -352,24 +384,12 @@ export default function PartnerPersonalPortalPage() {
                                                                         <TableCell>{turno.horaEntrada} - {turno.horaSalida}</TableCell>
                                                                         <TableCell className="text-sm text-muted-foreground max-w-xs">{turno.observaciones}</TableCell>
                                                                         <TableCell>
-                                                                            <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones}>
+                                                                             <AsignacionDialog turno={turno} onSave={handleSaveAsignaciones}>
                                                                                 <Button variant="outline" size="sm">
                                                                                     <Edit className="mr-2 h-3 w-3"/>
                                                                                     Gestionar
                                                                                 </Button>
                                                                             </AsignacionDialog>
-                                                                        </TableCell>
-                                                                        <TableCell>
-                                                                             <Select value={turno.statusPartner} onValueChange={(value: PersonalEntregaTurno['statusPartner']) => handleStatusChange(turno.id, value)}>
-                                                                                <SelectTrigger className="w-40 h-8 text-xs">
-                                                                                    <SelectValue />
-                                                                                </SelectTrigger>
-                                                                                <SelectContent>
-                                                                                    {Object.keys(statusVariant).map(s => (
-                                                                                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                                                                                    ))}
-                                                                                </SelectContent>
-                                                                            </Select>
                                                                         </TableCell>
                                                                     </TableRow>
                                                                 ))}
@@ -453,7 +473,6 @@ export default function PartnerPersonalPortalPage() {
                             <p className="font-bold text-primary">{event.categoria}</p>
                             <p>Pedido: {event.serviceNumber} ({event.cliente})</p>
                             <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4">
-                                <span><span className="font-semibold">Cantidad:</span> 1</span>
                                 <span><span className="font-semibold">Horario:</span> {event.horaEntrada} - {event.horaSalida}</span>
                             </div>
                         </div>

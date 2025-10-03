@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Truck, Search, Warehouse, User, Phone, Clock, MapPin, CheckCircle } from 'lucide-react';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { TransporteOrder, ServiceOrder, PedidoEntrega, EntregaHito, Entrega, PortalUser } from '@/types';
+import type { TransporteOrder, ServiceOrder, PedidoEntrega, EntregaHito, Entrega, PortalUser, Proveedor } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,9 +46,20 @@ export default function TransportePortalPage() {
     const [showCompleted, setShowCompleted] = useState(false);
     const router = useRouter();
     const { impersonatedUser } = useImpersonatedUser();
+    const [proveedorNombre, setProveedorNombre] = useState('');
 
     useEffect(() => {
-        if(!impersonatedUser || !impersonatedUser.proveedorId) return;
+        if(!impersonatedUser || !impersonatedUser.proveedorId) {
+            setOrders([]);
+            setProveedorNombre('');
+            setIsMounted(true);
+            return;
+        };
+
+        const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+        const proveedor = allProveedores.find(p => p.id === impersonatedUser.proveedorId);
+        setProveedorNombre(proveedor?.nombreComercial || '');
+
 
         const allTransportOrders = (JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[])
             .filter(o => o.proveedorId === impersonatedUser.proveedorId);
@@ -140,12 +151,14 @@ export default function TransportePortalPage() {
 
     return (
         <main className="container mx-auto px-4 py-8">
-            <div className="flex items-center gap-4 border-b pb-4 mb-8">
-                <Truck className="w-10 h-10 text-primary" />
-                <div>
-                    <h1 className="text-3xl font-headline font-bold tracking-tight">Portal de Transporte</h1>
-                    <p className="text-lg text-muted-foreground">Listado de entregas y recogidas asignadas.</p>
+            <div className="flex items-center justify-between border-b pb-4 mb-8">
+                <div className="flex items-center gap-4">
+                    <Truck className="w-10 h-10 text-primary" />
+                    <div>
+                        <h1 className="text-3xl font-headline font-bold tracking-tight">Portal de Transporte</h1>
+                    </div>
                 </div>
+                {proveedorNombre && <h1 className="text-3xl font-headline font-bold tracking-tight">{proveedorNombre}</h1>}
             </div>
 
              <div className="flex flex-col gap-4 my-6">

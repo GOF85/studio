@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatUnit } from '@/lib/utils';
-import type { PedidoPartner, PedidoEntrega, ProductoVenta, Entrega } from '@/types';
+import type { PedidoPartner, PedidoEntrega, ProductoVenta, Entrega, Proveedor } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -91,6 +91,7 @@ export default function PartnerPortalPage() {
     const [isMounted, setIsMounted] = useState(false);
     const { toast } = useToast();
     const { impersonatedUser } = useImpersonatedUser();
+    const [proveedorNombre, setProveedorNombre] = useState('');
     
     // State for Calendar View
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -105,9 +106,14 @@ export default function PartnerPortalPage() {
     const loadData = useCallback(() => {
         if (!impersonatedUser || !impersonatedUser.proveedorId) {
             setPedidos([]);
+            setProveedorNombre('');
             setIsMounted(true);
             return;
         }
+
+        const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+        const proveedor = allProveedores.find(p => p.id === impersonatedUser.proveedorId);
+        setProveedorNombre(proveedor?.nombreComercial || '');
 
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.status === 'Confirmado');
         const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
@@ -284,12 +290,14 @@ export default function PartnerPortalPage() {
     return (
         <TooltipProvider>
          <main className="container mx-auto px-4 py-8">
-             <div className="flex items-center gap-4 border-b pb-4 mb-8">
-                <Factory className="w-10 h-10 text-primary" />
-                <div>
-                    <h1 className="text-3xl font-headline font-bold tracking-tight">Portal de Partner de Producción</h1>
-                    <p className="text-lg text-muted-foreground">Listado de elaboraciones de "Entregas" pendientes de producir.</p>
+             <div className="flex items-center justify-between border-b pb-4 mb-8">
+                <div className="flex items-center gap-4">
+                    <Factory className="w-10 h-10 text-primary" />
+                    <div>
+                        <h1 className="text-3xl font-headline font-bold tracking-tight">Portal de Partner de Producción</h1>
+                    </div>
                 </div>
+                {proveedorNombre && <h1 className="text-3xl font-headline font-bold tracking-tight">{proveedorNombre}</h1>}
             </div>
 
             <Tabs defaultValue="lista">
