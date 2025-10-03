@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Truck, Search, Warehouse, User, Phone, Clock, MapPin, CheckCircle, Building2 } from 'lucide-react';
+import { Truck, Search, Warehouse, User, Phone, Clock, MapPin, CheckCircle, Building2, ArrowLeft } from 'lucide-react';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { TransporteOrder, ServiceOrder, PedidoEntrega, EntregaHito, Entrega, PortalUser, Proveedor } from '@/types';
@@ -267,6 +267,7 @@ export default function TransportePortalPage() {
         </main>
     );
 }
+
 
 
 
