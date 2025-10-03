@@ -65,7 +65,7 @@ export default function GestionAccesosPage() {
     return users.filter(user => 
       user.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.roles.some(r => r.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (user.roles || []).some(r => r.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (proveedorMap.get(user.proveedorId || '') || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [users, searchTerm, proveedorMap]);
@@ -132,7 +132,7 @@ export default function GestionAccesosPage() {
                     <TableCell className="p-2">{user.email}</TableCell>
                     <TableCell className="p-2">
                         <div className="flex flex-wrap gap-1">
-                            {user.roles.map(role => <Badge key={role}>{role}</Badge>)}
+                            {(user.roles || []).map(role => <Badge key={role}>{role}</Badge>)}
                         </div>
                     </TableCell>
                     <TableCell className="p-2">{user.proveedorId ? proveedorMap.get(user.proveedorId) || 'N/A' : '-'}</TableCell>
