@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatUnit } from '@/lib/utils';
-import type { PedidoPartner, PedidoEntrega, ProductoVenta, PedidoPartnerStatus, Entrega } from '@/types';
+import type { PedidoPartner, PedidoEntrega, ProductoVenta, Entrega } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -27,6 +27,7 @@ import Link from 'next/link';
 type SimplifiedPedidoPartnerStatus = 'Pendiente' | 'Aceptado';
 
 type PedidoPartnerConEstado = PedidoPartner & {
+    expedicionNumero: string;
     status: SimplifiedPedidoPartnerStatus;
     comentarios?: string;
 }
@@ -102,16 +103,18 @@ export default function PartnerPortalPage() {
             const os = osMap.get(pedido.osId);
             if (!os) return;
 
-            (pedido.hitos || []).forEach(hito => {
+            (pedido.hitos || []).forEach((hito, hitoIndex) => {
                 (hito.items || []).forEach(item => {
                     const producto = productosMap.get(item.id);
                     if (producto && producto.producidoPorPartner) {
                          const id = `${hito.id}-${item.id}`;
                          const statusInfo = partnerStatusData[id] || { status: 'Pendiente' };
+                         const expedicionNumero = `${os.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
                          partnerPedidos.push({
                             id,
                             osId: pedido.osId,
                             serviceNumber: os.serviceNumber,
+                            expedicionNumero,
                             cliente: os.client,
                             fechaEntrega: hito.fecha,
                             horaEntrega: hito.hora,
@@ -171,7 +174,8 @@ export default function PartnerPortalPage() {
             .map(([date, dailyPedidos]) => {
                 const allAccepted = dailyPedidos.every(p => p.status === 'Aceptado');
                 const earliestTime = dailyPedidos.reduce((earliest, p) => p.horaEntrega < earliest ? p.horaEntrega : earliest, '23:59');
-                return { date, dailyPedidos, allAccepted, earliestTime };
+                const sortedPedidos = dailyPedidos.sort((a, b) => a.expedicionNumero.localeCompare(b.expedicionNumero));
+                return { date, dailyPedidos: sortedPedidos, allAccepted, earliestTime };
             });
     }, [pedidos]);
 
@@ -242,7 +246,7 @@ export default function PartnerPortalPage() {
                                                         <TableRow>
                                                             <TableHead>Elaboración</TableHead>
                                                             <TableHead className="text-right">Cantidad</TableHead>
-                                                            <TableHead>Nº Pedido (OS)</TableHead>
+                                                            <TableHead>Nº Expedición</TableHead>
                                                             <TableHead>Estado</TableHead>
                                                             <TableHead className="text-right">Comentarios</TableHead>
                                                         </TableRow>
@@ -253,7 +257,7 @@ export default function PartnerPortalPage() {
                                                                 <TableCell className="font-semibold">{pedido.elaboracionNombre}</TableCell>
                                                                 <TableCell className="text-right font-mono">{pedido.cantidad.toFixed(2)} {formatUnit(pedido.unidad)}</TableCell>
                                                                 <TableCell>
-                                                                    <Badge variant="secondary">{pedido.serviceNumber}</Badge>
+                                                                    <Badge variant="secondary">{pedido.expedicionNumero}</Badge>
                                                                 </TableCell>
                                                                 <TableCell>
                                                                     {pedido.status === 'Pendiente' ? (
