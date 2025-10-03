@@ -38,6 +38,7 @@ import {
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { GASTO_LABELS } from '@/lib/constants';
 import Link from 'next/link';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 
 
 type AnaliticaItem = {
@@ -54,6 +55,7 @@ type AnaliticaItem = {
         coste: number;
         pvp: number;
         producidoPorPartner: boolean;
+        partnerId?: string;
     }[];
 }
 
@@ -92,6 +94,7 @@ export default function AnaliticaEntregasPage() {
     const [tarifaFilter, setTarifaFilter] = useState<'all' | 'Empresa' | 'IFEMA'>('all');
     const [transporteProviderFilter, setTransporteProviderFilter] = useState('all');
     const [personalProviderFilter, setPersonalProviderFilter] = useState('all');
+    const [partnerProviderFilter, setPartnerProviderFilter] = useState('all');
 
     useEffect(() => {
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.vertical === 'Entregas');
@@ -165,7 +168,8 @@ export default function AnaliticaEntregasPage() {
                                 cantidad: item.quantity,
                                 coste: costeComponentes,
                                 pvp: os.tarifa === 'IFEMA' ? (producto.pvpIfema || producto.pvp) : producto.pvp,
-                                producidoPorPartner: producto.producidoPorPartner
+                                producidoPorPartner: producto.producidoPorPartner,
+                                partnerId: producto.partnerId
                             });
                         }
                     });
@@ -344,14 +348,27 @@ export default function AnaliticaEntregasPage() {
     }, [analisisSeleccion.costesPorCategoria, analisisSeleccion.pvpPorCategoria]);
     
     const partnerAnalysis = useMemo(() => {
-        const partnerProducts = analisisSeleccion.productos.filter(p => p.producidoPorPartner);
+        const allPartnerProducts = analisisSeleccion.productos.filter(p => p.producidoPorPartner);
+        
+        const partnerProducts = partnerProviderFilter === 'all'
+            ? allPartnerProducts
+            : allPartnerProducts.filter(p => p.partnerId === partnerProviderFilter);
+            
         const coste = partnerProducts.reduce((sum, p) => sum + p.coste, 0);
         const pvp = partnerProducts.reduce((sum, p) => sum + p.pvp, 0);
         const margen = pvp - coste;
         const margenPct = pvp > 0 ? (margen / pvp) * 100 : 0;
         const top = partnerProducts.sort((a,b) => b.cantidad - a.cantidad).slice(0,5);
-        return { coste, pvp, margen, margenPct, top };
-    }, [analisisSeleccion.productos]);
+        
+        const costePorPartner: Record<string, number> = {};
+         allPartnerProducts.forEach(p => {
+            const partnerName = allProveedores.find(prov => prov.id === p.partnerId)?.nombreComercial || 'Desconocido';
+            costePorPartner[partnerName] = (costePorPartner[partnerName] || 0) + p.coste;
+        });
+        const pieData = Object.entries(costePorPartner).map(([name, value]) => ({ name, value }));
+
+        return { coste, pvp, margen, margenPct, top, pieData };
+    }, [analisisSeleccion.productos, partnerProviderFilter, allProveedores]);
 
     const monthlyData = useMemo(() => {
         const dataByMonth: { [key: string]: { facturacionNeta: number, coste: number, contratos: Set<string>, entregas: number } } = {};
@@ -473,6 +490,11 @@ export default function AnaliticaEntregasPage() {
         return { costeTotalPlan, costeTotalReal, totalAjustes, costeFinal: costeTotalReal + totalAjustes, horasPlan, horasReal, totalTurnos, pieData, ajustes: ajustesFiltrados };
     }, [pedidosFiltrados, allPersonal, allAjustesPersonal, proveedoresPersonal, personalProviderFilter, allProveedores]);
 
+    const uniquePartnerProviders = useMemo(() => {
+        const providerIds = new Set(analisisSeleccion.productos.filter(p=>p.partnerId).map(p => p.partnerId));
+        return allProveedores.filter(p => providerIds.has(p.id));
+    }, [analisisSeleccion.productos, allProveedores]);
+    
     const uniquePersonalProviders = useMemo(() => {
         const providerIds = new Set(proveedoresPersonal.map(p => p.proveedorId));
         return allProveedores.filter(p => providerIds.has(p.id));
@@ -659,6 +681,14 @@ export default function AnaliticaEntregasPage() {
                     </div>
                 </TabsContent>
                   <TabsContent value="partner">
+                    <div className="flex gap-2 flex-wrap mb-4">
+                        <Button size="sm" variant={partnerProviderFilter === 'all' ? 'default' : 'outline'} onClick={() => setPartnerProviderFilter('all')}>Todos</Button>
+                        {uniquePartnerProviders.map(proveedor => (
+                            <Button key={proveedor.id} size="sm" variant={partnerProviderFilter === proveedor.id ? 'default' : 'outline'} onClick={() => setPartnerProviderFilter(proveedor.id)}>
+                                {proveedor.nombreComercial}
+                            </Button>
+                        ))}
+                    </div>
                     <div className="grid md:grid-cols-[1fr_400px] gap-8 items-start">
                         <Card>
                             <CardHeader><CardTitle>Top 5 Productos de Partner más vendidos</CardTitle></CardHeader>
@@ -673,19 +703,44 @@ export default function AnaliticaEntregasPage() {
                                 </Table>
                             </CardContent>
                         </Card>
-                        <Card>
-                            <CardHeader><CardTitle>Rentabilidad Partner</CardTitle></CardHeader>
-                            <CardContent className="space-y-2">
-                                <div className="flex justify-between font-semibold"><span>Facturación (PVP)</span><span>{formatCurrency(partnerAnalysis.pvp)}</span></div>
-                                <div className="flex justify-between"><span>Coste</span><span>{formatCurrency(partnerAnalysis.coste)}</span></div>
-                                <Separator className="my-2"/>
-                                <div className="flex justify-between font-bold text-lg"><span>Margen Bruto</span><span>{formatCurrency(partnerAnalysis.margen)}</span></div>
-                                <div className="flex justify-between font-bold text-lg"><span>Margen %</span><span className={cn(partnerAnalysis.margenPct < 0 && 'text-destructive')}>{partnerAnalysis.margenPct.toFixed(2)}%</span></div>
-                            </CardContent>
-                        </Card>
+                        <div className="space-y-4">
+                             <Card>
+                                <CardHeader><CardTitle>Rentabilidad de Partner</CardTitle></CardHeader>
+                                <CardContent className="space-y-2">
+                                    <div className="flex justify-between font-semibold"><span>Facturación (PVP)</span><span>{formatCurrency(partnerAnalysis.pvp)}</span></div>
+                                    <div className="flex justify-between"><span>Coste</span><span>{formatCurrency(partnerAnalysis.coste)}</span></div>
+                                    <Separator className="my-2"/>
+                                    <div className="flex justify-between font-bold text-lg"><span>Margen Bruto</span><span>{formatCurrency(partnerAnalysis.margen)}</span></div>
+                                    <div className="flex justify-between font-bold text-lg"><span>Margen %</span><span className={cn(partnerAnalysis.margenPct < 0 && 'text-destructive')}>{partnerAnalysis.margenPct.toFixed(2)}%</span></div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader><CardTitle>Distribución de Coste por Partner</CardTitle></CardHeader>
+                                <CardContent>
+                                    <ResponsiveContainer width="100%" height={250}>
+                                        <PieChart>
+                                            <Pie data={partnerAnalysis.pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(props) => `${props.name} (${formatCurrency(props.value as number)})`}>
+                                                 {partnerAnalysis.pieData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                        </div>
                     </div>
                   </TabsContent>
                   <TabsContent value="transporte">
+                    <div className="flex gap-2 flex-wrap mb-4">
+                        <Button size="sm" variant={transporteProviderFilter === 'all' ? 'default' : 'outline'} onClick={() => setTransporteProviderFilter('all')}>Todos</Button>
+                        {proveedoresTransporte.map(p => p.nombreProveedor).filter((v, i, a) => a.indexOf(v) === i).map(name => (
+                            <Button key={name} size="sm" variant={transporteProviderFilter === proveedoresTransporte.find(p=>p.nombreProveedor === name)?.id ? 'default' : 'outline'} onClick={() => setTransporteProviderFilter(proveedoresTransporte.find(p=>p.nombreProveedor === name)?.id || 'all')}>
+                                {name}
+                            </Button>
+                        ))}
+                    </div>
                     <div className="space-y-8">
                          <div className="grid md:grid-cols-3 gap-4">
                             <Card>
@@ -738,15 +793,6 @@ export default function AnaliticaEntregasPage() {
                             <CardHeader>
                                 <div className="flex justify-between items-center">
                                     <CardTitle>Listado de Viajes</CardTitle>
-                                    <Select value={transporteProviderFilter} onValueChange={setTransporteProviderFilter}>
-                                        <SelectTrigger className="w-full md:w-[240px]">
-                                            <SelectValue placeholder="Filtrar por transportista" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Todos los transportistas</SelectItem>
-                                            {proveedoresTransporte.map(p => <SelectItem key={p.id} value={p.id}>{p.nombreProveedor}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
                                 </div>
                             </CardHeader>
                             <CardContent>
@@ -763,15 +809,15 @@ export default function AnaliticaEntregasPage() {
                     </div>
                   </TabsContent>
                    <TabsContent value="personal">
+                    <div className="flex gap-2 flex-wrap mb-4">
+                        <Button size="sm" variant={personalProviderFilter === 'all' ? 'default' : 'outline'} onClick={() => setPersonalProviderFilter('all')}>Todos</Button>
+                        {uniquePersonalProviders.map(proveedor => (
+                            <Button key={proveedor.id} size="sm" variant={personalProviderFilter === proveedor.id ? 'default' : 'outline'} onClick={() => setPersonalProviderFilter(proveedor.id)}>
+                                {proveedor.nombreComercial}
+                            </Button>
+                        ))}
+                    </div>
                     <div className="space-y-8">
-                        <div className="flex gap-2 flex-wrap">
-                            <Button size="sm" variant={personalProviderFilter === 'all' ? 'default' : 'outline'} onClick={() => setPersonalProviderFilter('all')}>Todos</Button>
-                            {uniquePersonalProviders.map(proveedor => (
-                                <Button key={proveedor.id} size="sm" variant={personalProviderFilter === proveedor.id ? 'default' : 'outline'} onClick={() => setPersonalProviderFilter(proveedor.id)}>
-                                    {proveedor.nombreComercial}
-                                </Button>
-                            ))}
-                        </div>
                         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
                             <Card>
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Coste Total Planificado</CardTitle><Wallet className="h-4 w-4 text-muted-foreground" /></CardHeader>
@@ -838,39 +884,45 @@ export default function AnaliticaEntregasPage() {
                   </TabsContent>
             </Tabs>
             
-            <Card className="mt-8">
-                <CardHeader>
-                    <CardTitle>Listado de Pedidos en el Periodo</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="border rounded-lg max-h-96 overflow-y-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-12"><Checkbox onCheckedChange={handleSelectAll} checked={selectedPedidos.size === pedidosFiltrados.length && pedidosFiltrados.length > 0} /></TableHead>
-                                <TableHead>Nº Pedido</TableHead>
-                                <TableHead>Tarifa</TableHead>
-                                <TableHead>Cliente</TableHead>
-                                <TableHead className="text-right">Coste</TableHead>
-                                <TableHead className="text-right">PVP</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {pedidosFiltrados.map(p => (
-                                <TableRow key={p.os.id} onClick={() => handleSelect(p.os.id)} className="cursor-pointer">
-                                    <TableCell><Checkbox checked={selectedPedidos.has(p.os.id)} /></TableCell>
-                                    <TableCell className="font-medium">{p.os.serviceNumber}</TableCell>
-                                    <TableCell>{p.os.tarifa}</TableCell>
-                                    <TableCell>{p.os.client}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(p.costeTotal)}</TableCell>
-                                    <TableCell className="text-right font-bold">{formatCurrency(p.os.tarifa === 'IFEMA' ? p.pvpIfemaTotal : p.pvpTotal)}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                    </div>
-                </CardContent>
-            </Card>
+            <Accordion type="single" collapsible className="w-full mt-8">
+                <AccordionItem value="item-1" className="border-none">
+                    <Card>
+                        <AccordionTrigger className="py-2 px-4">
+                            <CardTitle>Listado de Pedidos en el Periodo ({pedidosFiltrados.length})</CardTitle>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <CardContent className="pt-2">
+                                <div className="border rounded-lg max-h-96 overflow-y-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-12"><Checkbox onCheckedChange={handleSelectAll} checked={selectedPedidos.size === pedidosFiltrados.length && pedidosFiltrados.length > 0} /></TableHead>
+                                            <TableHead>Nº Pedido</TableHead>
+                                            <TableHead>Tarifa</TableHead>
+                                            <TableHead>Cliente</TableHead>
+                                            <TableHead className="text-right">Coste</TableHead>
+                                            <TableHead className="text-right">PVP</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {pedidosFiltrados.map(p => (
+                                            <TableRow key={p.os.id} onClick={() => handleSelect(p.os.id)} className="cursor-pointer">
+                                                <TableCell><Checkbox checked={selectedPedidos.has(p.os.id)} /></TableCell>
+                                                <TableCell className="font-medium">{p.os.serviceNumber}</TableCell>
+                                                <TableCell>{p.os.tarifa}</TableCell>
+                                                <TableCell>{p.os.client}</TableCell>
+                                                <TableCell className="text-right">{formatCurrency(p.costeTotal)}</TableCell>
+                                                <TableCell className="text-right font-bold">{formatCurrency(p.os.tarifa === 'IFEMA' ? p.pvpIfemaTotal : p.pvpTotal)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                </div>
+                            </CardContent>
+                        </AccordionContent>
+                    </Card>
+                </AccordionItem>
+            </Accordion>
             
         </main>
     )
