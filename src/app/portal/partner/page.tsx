@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
-import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isBefore } from 'date-fns';
+import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,10 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from '@/components/ui/calendar';
 import Link from 'next/link';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DateRange } from 'react-day-picker';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 
 type SimplifiedPedidoPartnerStatus = 'Pendiente' | 'Aceptado';
@@ -82,10 +86,16 @@ export default function PartnerPortalPage() {
     const [pedidos, setPedidos] = useState<PedidoPartnerConEstado[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const { toast } = useToast();
-
+    
     // State for Calendar View
     const [currentDate, setCurrentDate] = useState(new Date());
     const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
+
+    // State for filters
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [showCompleted, setShowCompleted] = useState(false);
+
 
     const loadData = useCallback(() => {
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.status === 'Confirmado');
@@ -159,10 +169,34 @@ export default function PartnerPortalPage() {
         loadData();
         toast({ title: 'Comentario guardado' });
     };
+    
+    const filteredPedidos = useMemo(() => {
+        const today = startOfToday();
+        return pedidos.filter(p => {
+            const deliveryDate = new Date(p.fechaEntrega);
+
+            const isPast = isBefore(deliveryDate, today);
+            if (!showCompleted && isPast) {
+                return false;
+            }
+
+            let dateMatch = true;
+            if (dateRange?.from) {
+                if (dateRange.to) {
+                    dateMatch = isWithinInterval(deliveryDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+                } else {
+                    dateMatch = isSameDay(deliveryDate, dateRange.from);
+                }
+            }
+            
+            return dateMatch;
+        });
+    }, [pedidos, showCompleted, dateRange]);
+
 
     const pedidosAgrupadosPorDia = useMemo(() => {
         const grouped: { [key: string]: PedidoPartnerConEstado[] } = {};
-        pedidos.forEach(pedido => {
+        filteredPedidos.forEach(pedido => {
             const dateKey = format(new Date(pedido.fechaEntrega), 'yyyy-MM-dd');
             if (!grouped[dateKey]) {
                 grouped[dateKey] = [];
@@ -191,7 +225,7 @@ export default function PartnerPortalPage() {
 
                 return { date, expediciones, allAccepted, earliestTime };
             });
-    }, [pedidos]);
+    }, [filteredPedidos]);
 
     // --- Calendar Logic ---
     const monthStart = startOfMonth(currentDate);
@@ -235,8 +269,25 @@ export default function PartnerPortalPage() {
                     <TabsTrigger value="calendario">Calendario</TabsTrigger>
                 </TabsList>
                 <TabsContent value="lista" className="mt-6">
+                     <div className="flex items-center space-x-4 mb-4">
+                        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                            <PopoverTrigger asChild>
+                                <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false) }}} numberOfMonths={2} locale={es}/>
+                            </PopoverContent>
+                        </Popover>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="show-completed" checked={showCompleted} onCheckedChange={(checked) => setShowCompleted(Boolean(checked))} />
+                            <Label htmlFor="show-completed">Mostrar pedidos finalizados</Label>
+                        </div>
+                    </div>
                     {pedidosAgrupadosPorDia.length > 0 ? (
-                        <Accordion type="multiple" defaultValue={pedidosAgrupadosPorDia.filter(g => !g.allAccepted).map(g => g.date)} className="w-full space-y-4">
+                        <div className="w-full space-y-4">
                             {pedidosAgrupadosPorDia.map(({ date, expediciones, allAccepted, earliestTime }) => (
                                 <Card key={date} className={cn(allAccepted && 'bg-green-100/60')}>
                                     <AccordionItem value={date} className="border-none">
@@ -295,13 +346,13 @@ export default function PartnerPortalPage() {
                                     </AccordionItem>
                                 </Card>
                             ))}
-                        </Accordion>
+                        </div>
                     ) : (
                         <Card>
                             <CardContent className="py-12 text-center">
                                 <Utensils className="mx-auto h-12 w-12 text-muted-foreground" />
                                 <h3 className="mt-4 text-lg font-semibold">Todo al día</h3>
-                                <p className="mt-1 text-sm text-muted-foreground">No hay pedidos de producción pendientes.</p>
+                                <p className="mt-1 text-sm text-muted-foreground">No hay pedidos de producción pendientes que coincidan con los filtros.</p>
                             </CardContent>
                         </Card>
                     )}
