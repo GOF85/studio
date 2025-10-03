@@ -1,12 +1,13 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Truck, Search, Warehouse, User, Phone, Clock, MapPin } from 'lucide-react';
+import { Truck, Search, Warehouse, User, Phone, Clock, MapPin, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { TransporteOrder, ServiceOrder, PedidoEntrega, EntregaHito, Entrega } from '@/types';
+import type { TransporteOrder, ServiceOrder, PedidoEntrega, EntregaHito, Entrega, PortalUser } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
+import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { logActivity } from '../activity-log/utils';
 
 type OrderWithDetails = TransporteOrder & {
     os?: ServiceOrder | Entrega;
@@ -42,9 +45,14 @@ export default function TransportePortalPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [showCompleted, setShowCompleted] = useState(false);
     const router = useRouter();
+    const { impersonatedUser } = useImpersonatedUser();
 
     useEffect(() => {
-        const allTransportOrders = (JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[]);
+        if(!impersonatedUser || !impersonatedUser.proveedorId) return;
+
+        const allTransportOrders = (JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[])
+            .filter(o => o.proveedorId === impersonatedUser.proveedorId);
+            
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
         const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
@@ -73,7 +81,7 @@ export default function TransportePortalPage() {
 
         setOrders(ordersWithDetails);
         setIsMounted(true);
-    }, []);
+    }, [impersonatedUser]);
 
     const filteredOrders = useMemo(() => {
         return orders.filter(order => {
@@ -99,12 +107,35 @@ export default function TransportePortalPage() {
         return Object.entries(grouped).sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime());
     }, [filteredOrders]);
     
-    const handleOrderClick = (id: string) => {
-        router.push(`/portal/albaran/${id}`);
+    const handleStatusChange = (orderId: string, newStatus: TransporteOrder['status']) => {
+        if(!impersonatedUser) return;
+        const allTransportOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
+        const orderIndex = allTransportOrders.findIndex(o => o.id === orderId);
+
+        if (orderIndex !== -1) {
+            allTransportOrders[orderIndex].status = newStatus;
+            localStorage.setItem('transporteOrders', JSON.stringify(allTransportOrders));
+            
+            const updatedOrders = orders.map(o => o.id === orderId ? {...o, status: newStatus} : o);
+            setOrders(updatedOrders);
+
+            logActivity(impersonatedUser, `Actualización de Estado`, `El estado del transporte ${orderId} cambió a ${newStatus}.`, orderId);
+        }
     }
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Portal de Transporte..." />;
+    }
+    
+    if(!impersonatedUser || !impersonatedUser.proveedorId) {
+        return (
+             <main className="container mx-auto px-4 py-16">
+                <Card className="max-w-xl mx-auto">
+                    <CardHeader><CardTitle>Acceso Restringido</CardTitle></CardHeader>
+                    <CardContent><p>Este usuario no está asociado a ningún proveedor de transporte. Por favor, contacta con el administrador.</p></CardContent>
+                </Card>
+            </main>
+        )
     }
 
     return (
@@ -139,7 +170,7 @@ export default function TransportePortalPage() {
                             <h3 className="text-xl font-bold capitalize mb-3">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
                             <div className="space-y-3">
                                 {dailyOrders.map(order => (
-                                    <div key={order.id} className={cn("border p-4 rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer", statusRowClass[order.status])} onClick={() => handleOrderClick(order.id)}>
+                                    <div key={order.id} className={cn("border p-4 rounded-lg", statusRowClass[order.status])}>
                                         <div className="flex justify-between items-start mb-3">
                                             <div>
                                                 <p className="font-bold text-lg flex items-center gap-2">
@@ -148,13 +179,28 @@ export default function TransportePortalPage() {
                                                 </p>
                                                 <p className="text-sm text-muted-foreground">{order.os?.serviceNumber} - {order.os?.client}</p>
                                             </div>
-                                            <Badge variant={statusVariant[order.status]} className="text-base px-3 py-1">{order.status}</Badge>
+                                            <div className="flex items-center gap-2">
+                                                {order.status === 'En Ruta' && (
+                                                    <Button size="sm" onClick={() => handleStatusChange(order.id, 'Entregado')}>
+                                                        <CheckCircle className="mr-2"/> Marcar como Entregado
+                                                    </Button>
+                                                )}
+                                                {order.status === 'Confirmado' && (
+                                                     <Button size="sm" onClick={() => handleStatusChange(order.id, 'En Ruta')}>
+                                                        <Truck className="mr-2"/> Iniciar Ruta
+                                                    </Button>
+                                                )}
+                                                <Badge variant={statusVariant[order.status]} className="text-base px-3 py-1">{order.status}</Badge>
+                                            </div>
                                         </div>
                                         <div className="text-sm grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-muted-foreground">
                                             <div className="flex items-center gap-2"><Warehouse className="h-4 w-4" /> <strong>Recogida:</strong> {order.lugarRecogida}</div>
                                             <div className="flex items-center gap-2"><User className="h-4 w-4" /> <strong>Contacto:</strong> {order.hitos[0]?.contacto || order.os?.contact}</div>
                                             <div className="flex items-center gap-2"><Clock className="h-4 w-4" /> <strong>Horas:</strong> {order.horaRecogida} &rarr; {order.horaEntrega}</div>
                                             <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> <strong>Teléfono:</strong> {order.hitos[0]?.telefono || order.os?.phone}</div>
+                                        </div>
+                                        <div className="text-right mt-2">
+                                            <Button variant="link" onClick={() => router.push(`/portal/albaran/${order.id}`)}>Ver y Firmar Albarán <ArrowLeft className="ml-2 h-4 w-4 rotate-180"/></Button>
                                         </div>
                                     </div>
                                 ))}

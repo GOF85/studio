@@ -737,3 +737,27 @@ export type PersonalEntrega = {
     status: EstadoPersonalEntrega;
     observacionesGenerales?: string;
 };
+
+
+// --- PORTAL & AUTH ---
+export const PORTAL_ROLES = ['Partner Gastronomia', 'Partner Personal', 'Transporte', 'Admin', 'Comercial'] as const;
+export type PortalUserRole = typeof PORTAL_ROLES[number];
+
+export type PortalUser = {
+  id: string;
+  email: string;
+  nombre: string;
+  role: PortalUserRole;
+  proveedorId?: string; // Linked to Proveedor DB
+}
+
+export type ActivityLog = {
+    id: string;
+    timestamp: string; // ISO 8601
+    userId: string;
+    userName: string;
+    userRole: PortalUserRole;
+    action: string;
+    details: string;
+    entityId: string; // ID of the entity being acted upon (e.g., OS ID, Turno ID)
+}

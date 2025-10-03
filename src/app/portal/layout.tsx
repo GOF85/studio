@@ -1,9 +1,12 @@
 
+
 'use client';
 
 import Link from 'next/link';
 import { Package, Truck, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { UserSwitcher } from '@/components/portal/user-switcher';
+import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 
 function PortalHeader() {
   return (
@@ -15,6 +18,9 @@ function PortalHeader() {
             MICE Portales Externos
           </h1>
         </Link>
+         <nav className="flex flex-1 items-center justify-end space-x-4">
+            <UserSwitcher />
+         </nav>
       </div>
     </header>
   );
@@ -27,9 +33,11 @@ export default function PortalLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="no-print">
-        <PortalHeader />
-        {children}
-    </div>
+    <ImpersonatedUserProvider>
+      <div className="no-print">
+          <PortalHeader />
+          {children}
+      </div>
+    </ImpersonatedUserProvider>
   );
 }

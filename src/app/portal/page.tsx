@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Factory, Truck, Users } from 'lucide-react';
+import { Factory, Truck, Users, Activity, UserCog } from 'lucide-react';
 
 export default function PortalHomePage() {
   return (
@@ -12,7 +13,7 @@ export default function PortalHomePage() {
         <h1 className="text-4xl font-headline font-bold tracking-tight">Portal de Colaboradores</h1>
         <p className="text-lg text-muted-foreground mt-2">Selecciona tu portal para acceder a tus tareas asignadas.</p>
       </div>
-      <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
         <Link href="/portal/partner">
             <Card className="hover:border-primary hover:shadow-lg transition-all">
                 <CardHeader>
@@ -40,6 +41,26 @@ export default function PortalHomePage() {
                 </CardHeader>
                 <CardContent>
                     <p className="text-sm text-muted-foreground">Consulta tus rutas de entrega y gestiona los albaranes.</p>
+                </CardContent>
+            </Card>
+        </Link>
+        <Link href="/portal/gestion-accesos">
+            <Card className="hover:border-primary hover:shadow-lg transition-all">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-3"><UserCog /> Gestión de Accesos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-muted-foreground">Crea y administra las cuentas de usuario para los portales externos.</p>
+                </CardContent>
+            </Card>
+        </Link>
+         <Link href="/portal/activity-log">
+            <Card className="hover:border-primary hover:shadow-lg transition-all">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-3"><Activity /> Log de Actividad</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-muted-foreground">Revisa las acciones realizadas por los usuarios en los portales.</p>
                 </CardContent>
             </Card>
         </Link>
