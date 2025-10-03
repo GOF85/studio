@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -23,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function PrevisionEntregasPage() {
   const [entregas, setEntregas] = useState<Entrega[]>([]);
@@ -52,7 +54,7 @@ export default function PrevisionEntregasPage() {
     });
     return Array.from(months).sort().reverse();
   }, [entregas]);
-
+  
   const filteredAndSortedOrders = useMemo(() => {
     const today = startOfToday();
     const filtered = entregas.filter(os => {
@@ -132,10 +134,10 @@ export default function PrevisionEntregasPage() {
                 </Select>
                 <div className="flex items-center space-x-2 pt-2 sm:pt-0">
                     <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
-                    <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-nowrap">
-                        Mostrar pasados
+                    <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Mostrar eventos finalizados
                     </label>
-                </div>
+            </div>
             </div>
              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-medium">Estado:</span>
