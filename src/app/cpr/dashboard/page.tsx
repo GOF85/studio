@@ -62,7 +62,7 @@ export default function CprDashboardPage() {
 
 
     if (!isMounted) {
-        return <LoadingSkeleton title="Cargando Dashboard de Producción..." />;
+        return <LoadingSkeleton title="Cargando Panel de control de Producción..." />;
     }
 
     return (
@@ -71,7 +71,7 @@ export default function CprDashboardPage() {
                 <div>
                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
                     <LayoutDashboard />
-                    Dashboard de Producción
+                    Panel de control de Producción
                 </h1>
                 <p className="text-muted-foreground mt-1">Visión general del estado actual del taller de producción.</p>
                 </div>
