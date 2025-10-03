@@ -125,23 +125,30 @@ export default function PartnerPersonalPortalPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
 
-    const isReadOnly = useMemo(() => {
-        if (!impersonatedUser) return true;
+    const isAdminOrComercial = useMemo(() => {
+        if (!impersonatedUser) return false;
         const roles = impersonatedUser.roles || [];
         return roles.includes('Admin') || roles.includes('Comercial');
     }, [impersonatedUser]);
 
+    const isReadOnly = useMemo(() => {
+        if (!impersonatedUser) return true;
+        return isAdminOrComercial;
+    }, [impersonatedUser, isAdminOrComercial]);
+
     const loadData = useCallback(() => {
-        if (!impersonatedUser || !impersonatedUser.proveedorId) {
+        const partnerShouldBeDefined = impersonatedUser?.roles?.includes('Partner Personal');
+        if (partnerShouldBeDefined && !impersonatedUser?.proveedorId) {
             setTurnos([]);
-            setProveedorNombre('');
             setIsMounted(true);
             return;
         }
 
         const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-        const proveedor = allProveedores.find(p => p.id === impersonatedUser.proveedorId);
-        setProveedorNombre(proveedor?.nombreComercial || '');
+        if (impersonatedUser?.proveedorId) {
+            const proveedor = allProveedores.find(p => p.id === impersonatedUser.proveedorId);
+            setProveedorNombre(proveedor?.nombreComercial || '');
+        }
 
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.status === 'Confirmado');
         const allPersonalEntregas = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
@@ -159,16 +166,20 @@ export default function PartnerPersonalPortalPage() {
             if (!os) return;
 
             (pedido.turnos || []).forEach(turno => {
-                 const hito = osPedido?.hitos.find(h => new Date(h.fecha).toISOString().slice(0,10) === new Date(turno.fecha).toISOString().slice(0,10));
-                 partnerTurnos.push({
-                    ...turno,
-                    osId: pedido.osId,
-                    serviceNumber: os.serviceNumber,
-                    cliente: os.client,
-                    fechaEntrega: turno.fecha,
-                    horaEntrega: turno.horaEntrada,
-                    lugarEntrega: hito?.lugarEntrega || os.direccionPrincipal || 'No especificado',
-                });
+                const shouldInclude = !impersonatedUser?.proveedorId || turno.proveedorId === impersonatedUser.proveedorId;
+
+                if (shouldInclude) {
+                    const hito = osPedido?.hitos.find(h => new Date(h.fecha).toISOString().slice(0,10) === new Date(turno.fecha).toISOString().slice(0,10));
+                    partnerTurnos.push({
+                        ...turno,
+                        osId: pedido.osId,
+                        serviceNumber: os.serviceNumber,
+                        cliente: os.client,
+                        fechaEntrega: turno.fecha,
+                        horaEntrega: turno.horaEntrada,
+                        lugarEntrega: hito?.lugarEntrega || os.direccionPrincipal || 'No especificado',
+                    });
+                }
             });
         });
         
@@ -179,12 +190,12 @@ export default function PartnerPersonalPortalPage() {
     useEffect(() => {
         if (impersonatedUser) {
             const userRoles = impersonatedUser.roles || [];
-            const canAccess = userRoles.includes('Partner Personal') || userRoles.includes('Admin') || userRoles.includes('Comercial');
+            const canAccess = userRoles.includes('Partner Personal') || isAdminOrComercial;
             if (!canAccess) {
                 router.push('/portal');
             }
         }
-    }, [impersonatedUser, router]);
+    }, [impersonatedUser, router, isAdminOrComercial]);
 
 
     useEffect(() => {
@@ -307,7 +318,7 @@ export default function PartnerPersonalPortalPage() {
         return <LoadingSkeleton title="Cargando Portal de Personal..." />;
     }
     
-    if(!impersonatedUser || !impersonatedUser.proveedorId) {
+    if(impersonatedUser?.roles?.includes('Partner Personal') && !impersonatedUser?.proveedorId) {
         return (
              <main className="container mx-auto px-4 py-16">
                 <Card className="max-w-xl mx-auto">
@@ -332,6 +343,11 @@ export default function PartnerPersonalPortalPage() {
                     <Badge variant="secondary" className="px-4 py-2 text-lg">
                         <Building2 className="mr-2 h-5 w-5" />
                         {proveedorNombre}
+                    </Badge>
+                )}
+                 {isAdminOrComercial && (
+                     <Badge variant="outline" className="px-4 py-2 text-lg border-primary text-primary">
+                        Vista de Administrador
                     </Badge>
                 )}
             </div>

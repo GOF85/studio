@@ -48,27 +48,34 @@ export default function TransportePortalPage() {
     const { impersonatedUser } = useImpersonatedUser();
     const [proveedorNombre, setProveedorNombre] = useState('');
 
-    const isReadOnly = useMemo(() => {
-        if (!impersonatedUser) return true;
+    const isAdminOrComercial = useMemo(() => {
+        if (!impersonatedUser) return false;
         const roles = impersonatedUser.roles || [];
         return roles.includes('Admin') || roles.includes('Comercial');
     }, [impersonatedUser]);
 
+    const isReadOnly = useMemo(() => {
+        if (!impersonatedUser) return true;
+        return isAdminOrComercial;
+    }, [impersonatedUser, isAdminOrComercial]);
+
     useEffect(() => {
-        if(!impersonatedUser || !impersonatedUser.proveedorId) {
+        const partnerShouldBeDefined = impersonatedUser?.roles?.includes('Transporte');
+        if (partnerShouldBeDefined && !impersonatedUser?.proveedorId) {
             setOrders([]);
-            setProveedorNombre('');
             setIsMounted(true);
             return;
-        };
+        }
 
         const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-        const proveedor = allProveedores.find(p => p.id === impersonatedUser.proveedorId);
-        setProveedorNombre(proveedor?.nombreComercial || '');
+        if (impersonatedUser?.proveedorId) {
+            const proveedor = allProveedores.find(p => p.id === impersonatedUser.proveedorId);
+            setProveedorNombre(proveedor?.nombreComercial || '');
+        }
 
 
         const allTransportOrders = (JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[])
-            .filter(o => o.proveedorId === impersonatedUser.proveedorId);
+            .filter(o => isAdminOrComercial || o.proveedorId === impersonatedUser?.proveedorId);
             
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const allEntregas = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
@@ -98,17 +105,17 @@ export default function TransportePortalPage() {
 
         setOrders(ordersWithDetails);
         setIsMounted(true);
-    }, [impersonatedUser]);
+    }, [impersonatedUser, isAdminOrComercial]);
 
     useEffect(() => {
         if (impersonatedUser) {
             const userRoles = impersonatedUser.roles || [];
-            const canAccess = userRoles.includes('Transporte') || userRoles.includes('Admin') || userRoles.includes('Comercial');
+            const canAccess = userRoles.includes('Transporte') || isAdminOrComercial;
             if (!canAccess) {
                 router.push('/portal');
             }
         }
-    }, [impersonatedUser, router]);
+    }, [impersonatedUser, router, isAdminOrComercial]);
 
 
     const filteredOrders = useMemo(() => {
@@ -155,7 +162,7 @@ export default function TransportePortalPage() {
         return <LoadingSkeleton title="Cargando Portal de Transporte..." />;
     }
     
-    if(!impersonatedUser || !impersonatedUser.proveedorId) {
+    if(impersonatedUser?.roles?.includes('Transporte') && !impersonatedUser?.proveedorId) {
         return (
              <main className="container mx-auto px-4 py-16">
                 <Card className="max-w-xl mx-auto">
@@ -179,6 +186,11 @@ export default function TransportePortalPage() {
                     <Badge variant="secondary" className="px-4 py-2 text-lg">
                         <Building2 className="mr-2 h-5 w-5" />
                         {proveedorNombre}
+                    </Badge>
+                )}
+                 {isAdminOrComercial && (
+                     <Badge variant="outline" className="px-4 py-2 text-lg border-primary text-primary">
+                        Vista de Administrador
                     </Badge>
                 )}
             </div>
@@ -255,5 +267,6 @@ export default function TransportePortalPage() {
         </main>
     );
 }
+
 
 

@@ -101,23 +101,30 @@ export default function PartnerPortalPage() {
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [showCompleted, setShowCompleted] = useState(false);
 
-    const isReadOnly = useMemo(() => {
-        if (!impersonatedUser) return true;
+    const isAdminOrComercial = useMemo(() => {
+        if (!impersonatedUser) return false;
         const roles = impersonatedUser.roles || [];
         return roles.includes('Admin') || roles.includes('Comercial');
     }, [impersonatedUser]);
 
+    const isReadOnly = useMemo(() => {
+        if (!impersonatedUser) return true;
+        return isAdminOrComercial;
+    }, [impersonatedUser, isAdminOrComercial]);
+
     const loadData = useCallback(() => {
-        if (!impersonatedUser || !impersonatedUser.proveedorId) {
+        const partnerShouldBeDefined = impersonatedUser?.roles?.includes('Partner Gastronomia');
+        if (partnerShouldBeDefined && !impersonatedUser?.proveedorId) {
             setPedidos([]);
-            setProveedorNombre('');
             setIsMounted(true);
             return;
         }
 
         const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-        const proveedor = allProveedores.find(p => p.id === impersonatedUser.proveedorId);
-        setProveedorNombre(proveedor?.nombreComercial || '');
+        if (impersonatedUser?.proveedorId) {
+            const proveedor = allProveedores.find(p => p.id === impersonatedUser.proveedorId);
+            setProveedorNombre(proveedor?.nombreComercial || '');
+        }
 
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.status === 'Confirmado');
         const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
@@ -126,7 +133,6 @@ export default function PartnerPortalPage() {
         const osMap = new Map(allEntregas.map(os => [os.id, os]));
         const productosMap = new Map(allProductosVenta.map(p => [p.id, p]));
         const partnerStatusData = JSON.parse(localStorage.getItem('partnerPedidosStatus') || '{}') as Record<string, { status: SimplifiedPedidoPartnerStatus; comentarios?: string }>;
-
 
         const partnerPedidos: PedidoPartnerConEstado[] = [];
 
@@ -137,7 +143,9 @@ export default function PartnerPortalPage() {
             (pedido.hitos || []).forEach((hito, hitoIndex) => {
                 (hito.items || []).forEach(item => {
                     const producto = productosMap.get(item.id);
-                    if (producto && producto.producidoPorPartner && producto.partnerId === impersonatedUser.proveedorId) {
+                    const shouldInclude = producto && producto.producidoPorPartner && (!impersonatedUser?.proveedorId || producto.partnerId === impersonatedUser.proveedorId);
+
+                    if (shouldInclude) {
                          const id = `${hito.id}-${item.id}`;
                          const statusInfo = partnerStatusData[id] || { status: 'Pendiente' };
                          const expedicionNumero = `${os.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
@@ -168,12 +176,12 @@ export default function PartnerPortalPage() {
     useEffect(() => {
         if (impersonatedUser) {
             const userRoles = impersonatedUser.roles || [];
-            const canAccess = userRoles.includes('Partner Gastronomia') || userRoles.includes('Admin') || userRoles.includes('Comercial');
+            const canAccess = userRoles.includes('Partner Gastronomia') || isAdminOrComercial;
             if (!canAccess) {
                 router.push('/portal');
             }
         }
-    }, [impersonatedUser, router]);
+    }, [impersonatedUser, router, isAdminOrComercial]);
 
     useEffect(() => {
         loadData();
@@ -295,7 +303,7 @@ export default function PartnerPortalPage() {
         return <LoadingSkeleton title="Cargando Portal de Partner..." />;
     }
     
-    if(!impersonatedUser || !impersonatedUser.proveedorId) {
+    if(impersonatedUser?.roles?.includes('Partner Gastronomia') && !impersonatedUser?.proveedorId) {
         return (
              <main className="container mx-auto px-4 py-16">
                 <Card className="max-w-xl mx-auto">
@@ -316,10 +324,15 @@ export default function PartnerPortalPage() {
                         <h1 className="text-3xl font-headline font-bold tracking-tight">Portal de Partner de Producción</h1>
                     </div>
                 </div>
-                {proveedorNombre && (
+                 {proveedorNombre && (
                     <Badge variant="secondary" className="px-4 py-2 text-lg">
                         <Building2 className="mr-2 h-5 w-5" />
                         {proveedorNombre}
+                    </Badge>
+                )}
+                {isAdminOrComercial && (
+                     <Badge variant="outline" className="px-4 py-2 text-lg border-primary text-primary">
+                        Vista de Administrador
                     </Badge>
                 )}
             </div>
