@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils';
 import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 
 import type { ServiceOrder, GastronomyOrder, GastronomyOrderItem, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta, ComercialBriefing, ComercialBriefingItem, ExcedenteProduccion, PedidoEntrega, PedidoEntregaItem, Entrega, ProductoVenta } from '@/types';
@@ -977,7 +978,7 @@ export default function PlanificacionPage() {
                                                                 <TooltipContent>
                                                                     <div className="p-1 max-w-sm">
                                                                         {row.partida && <p className="text-xs font-bold mb-1">Partida: {row.partida}</p>}
-                                                                        <h4 className="font-bold mb-1">Necesario para:</h4>
+                                                                        <h4 className="font-bold mb-1 text-center">Necesario para:</h4>
                                                                         <ul className="list-disc pl-4 text-xs">
                                                                             {row.necesidad.recetas.map((r: RecetaNecesidad) => (
                                                                                 <li key={r.recetaId}>{r.recetaNombre}</li>
@@ -1198,7 +1199,7 @@ export default function PlanificacionPage() {
                                                 <TableHead>Elaboración</TableHead>
                                                 <TableHead className="text-right">Cantidad</TableHead>
                                                 <TableHead>Unidad</TableHead>
-                                                <TableHead className="flex items-center gap-1.5">Detalles <Info size={14}/></TableHead>
+                                                <TableHead className="flex items-center gap-1.5">Detalles</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -1225,51 +1226,56 @@ export default function PlanificacionPage() {
                                                         </Tooltip>
                                                     )}
                                                     </TableCell>
-                                                    <TableCell className="font-medium">
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <span className="flex items-center gap-2">
-                                                                    {item.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
-                                                                    {item.nombre}
-                                                                </span>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent className="max-w-md">
-                                                                <div className="p-1 space-y-2">
-                                                                    {item.partidaProduccion && <p className="text-xs font-bold mb-1">Partida: {item.partidaProduccion}</p>}
-                                                                    {item.recetas.length > 0 && (
-                                                                        <div>
-                                                                            <h4 className="font-bold mb-1 text-center">Desglose por Receta</h4>
-                                                                            <ul className="list-disc pl-4 text-xs">
-                                                                                {item.recetas.map((r, index) => (
-                                                                                    <li key={index}><strong>{formatNumber(r.cantidadReceta, 0)} x</strong> {r.recetaNombre} ({formatNumber(r.cantidad, 2)} {formatUnit(item.unidad)})</li>
-                                                                                ))}
-                                                                            </ul>
-                                                                        </div>
-                                                                    )}
-                                                                    {item.recetas.length > 0 && item.eventos.length > 0 && <Separator />}
-                                                                    {item.eventos.length > 0 && (
-                                                                        <div>
-                                                                            <h4 className="font-bold mb-1 text-center">Eventos Implicados</h4>
-                                                                            <ul className="list-disc pl-4 text-xs">
-                                                                                {item.eventos.map((e, index) => (
-                                                                                    <li key={index} className="flex items-center gap-1.5">
-                                                                                        {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
-                                                                                        {e.serviceNumber} - {e.serviceType} ({format(new Date(e.fecha), 'dd/MM/yy')}) - {e.espacio}
-                                                                                    </li>
-                                                                                ))}
-                                                                            </ul>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </TooltipContent>
-                                                        </Tooltip>
+                                                    <TableCell className="font-medium flex items-center gap-2">
+                                                      {item.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
+                                                      {item.nombre}
                                                     </TableCell>
                                                     <TableCell className={cn("text-right font-mono", item.type === 'excedente' && 'text-green-600')}>
                                                     <span>{item.type === 'excedente' && '+ '}{formatNumber(item.cantidad, 2)}</span>
                                                     </TableCell>
                                                     <TableCell>{formatUnit(item.unidad)}</TableCell>
                                                     <TableCell>
-                                                        <div className="flex items-center gap-1.5">{item.eventos!.length} evento(s)</div>
+                                                        <Dialog>
+                                                            <DialogTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                                                                    <Info size={16}/>
+                                                                </Button>
+                                                            </DialogTrigger>
+                                                            <DialogContent className="max-w-2xl">
+                                                                <DialogHeader>
+                                                                    <DialogTitle>Detalles para: {item.nombre}</DialogTitle>
+                                                                </DialogHeader>
+                                                                <div className="max-h-[60vh] overflow-y-auto p-1 -mx-4 px-4">
+                                                                  <div className="p-1 space-y-4">
+                                                                      {item.partidaProduccion && <p className="text-sm font-bold mb-1">Partida: {item.partidaProduccion}</p>}
+                                                                      {item.recetas.length > 0 && (
+                                                                          <div>
+                                                                              <h4 className="font-bold mb-1 text-center">Desglose por Receta</h4>
+                                                                              <ul className="list-disc pl-5 text-sm">
+                                                                                  {item.recetas.map((r, index) => (
+                                                                                      <li key={index}><strong>{formatNumber(r.cantidadReceta, 0)} x</strong> {r.recetaNombre} ({formatNumber(r.cantidad, 2)} {formatUnit(item.unidad)})</li>
+                                                                                  ))}
+                                                                              </ul>
+                                                                          </div>
+                                                                      )}
+                                                                      {item.recetas.length > 0 && item.eventos.length > 0 && <Separator />}
+                                                                      {item.eventos.length > 0 && (
+                                                                          <div>
+                                                                              <h4 className="font-bold mb-1 text-center">Eventos Implicados</h4>
+                                                                              <ul className="list-disc pl-5 text-sm">
+                                                                                  {item.eventos.map((e, index) => (
+                                                                                      <li key={index} className="flex items-center gap-1.5">
+                                                                                          {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
+                                                                                          {e.serviceNumber} - {e.serviceType} ({format(new Date(e.fecha), 'dd/MM/yy')}) - {e.espacio}
+                                                                                      </li>
+                                                                                  ))}
+                                                                              </ul>
+                                                                          </div>
+                                                                      )}
+                                                                  </div>
+                                                                </div>
+                                                            </DialogContent>
+                                                        </Dialog>
                                                     </TableCell>
                                                 </TableRow>
                                                 ))
@@ -1325,3 +1331,4 @@ export default function PlanificacionPage() {
         </TooltipProvider>
     );
 }
+
