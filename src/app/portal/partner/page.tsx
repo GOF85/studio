@@ -264,12 +264,13 @@ export default function PartnerPortalPage() {
                                                                     <TableHead>Elaboración</TableHead>
                                                                     <TableHead className="text-right">Cantidad</TableHead>
                                                                     <TableHead>Estado</TableHead>
-                                                                    <TableHead className="text-right">Comentarios</TableHead>
+                                                                    <TableHead>Comentarios</TableHead>
+                                                                    <TableHead className="text-right w-12"></TableHead>
                                                                 </TableRow>
                                                             </TableHeader>
                                                             <TableBody>
                                                                 {pedidos.map(pedido => (
-                                                                    <TableRow key={pedido.id} className={cn("transition-colors", statusRowClass[pedido.status], pedido.comentarios && 'border-l-4 border-l-blue-400 bg-blue-50/50 hover:bg-blue-50/80')}>
+                                                                    <TableRow key={pedido.id} className={cn("transition-colors", statusRowClass[pedido.status])}>
                                                                         <TableCell className="font-semibold">{pedido.elaboracionNombre}</TableCell>
                                                                         <TableCell className="text-right font-mono">{pedido.cantidad.toFixed(2)} {formatUnit(pedido.unidad)}</TableCell>
                                                                         <TableCell>
@@ -279,13 +280,9 @@ export default function PartnerPortalPage() {
                                                                                 <Badge variant={statusVariant[pedido.status]}>{pedido.status}</Badge>
                                                                             )}
                                                                         </TableCell>
+                                                                        <TableCell className="text-xs text-muted-foreground">{pedido.comentarios}</TableCell>
                                                                         <TableCell className="text-right">
-                                                                            <Tooltip>
-                                                                                <TooltipTrigger asChild>
-                                                                                    <div><CommentDialog pedido={pedido} onSave={handleSaveComment} /></div>
-                                                                                </TooltipTrigger>
-                                                                                {pedido.comentarios && <TooltipContent><p className="max-w-xs">{pedido.comentarios}</p></TooltipContent>}
-                                                                            </Tooltip>
+                                                                            <CommentDialog pedido={pedido} onSave={handleSaveComment} />
                                                                         </TableCell>
                                                                     </TableRow>
                                                                 ))}
