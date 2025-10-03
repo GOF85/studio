@@ -174,8 +174,22 @@ export default function PartnerPortalPage() {
             .map(([date, dailyPedidos]) => {
                 const allAccepted = dailyPedidos.every(p => p.status === 'Aceptado');
                 const earliestTime = dailyPedidos.reduce((earliest, p) => p.horaEntrega < earliest ? p.horaEntrega : earliest, '23:59');
-                const sortedPedidos = dailyPedidos.sort((a, b) => a.expedicionNumero.localeCompare(b.expedicionNumero));
-                return { date, dailyPedidos: sortedPedidos, allAccepted, earliestTime };
+                
+                const groupedByExpedicion: { [key: string]: PedidoPartnerConEstado[] } = {};
+                dailyPedidos.forEach(pedido => {
+                    if(!groupedByExpedicion[pedido.expedicionNumero]) {
+                        groupedByExpedicion[pedido.expedicionNumero] = [];
+                    }
+                    groupedByExpedicion[pedido.expedicionNumero].push(pedido);
+                });
+
+                const expediciones = Object.entries(groupedByExpedicion).map(([expedicionNumero, pedidos]) => ({
+                    numero: expedicionNumero,
+                    pedidos: pedidos.sort((a,b) => a.elaboracionNombre.localeCompare(b.elaboracionNombre)),
+                })).sort((a,b) => a.numero.localeCompare(b.numero));
+
+
+                return { date, expediciones, allAccepted, earliestTime };
             });
     }, [pedidos]);
 
@@ -223,7 +237,7 @@ export default function PartnerPortalPage() {
                 <TabsContent value="lista" className="mt-6">
                     {pedidosAgrupadosPorDia.length > 0 ? (
                         <Accordion type="multiple" defaultValue={pedidosAgrupadosPorDia.filter(g => !g.allAccepted).map(g => g.date)} className="w-full space-y-4">
-                            {pedidosAgrupadosPorDia.map(({ date, dailyPedidos, allAccepted, earliestTime }) => (
+                            {pedidosAgrupadosPorDia.map(({ date, expediciones, allAccepted, earliestTime }) => (
                                 <Card key={date} className={cn(allAccepted && 'bg-green-100/60')}>
                                     <AccordionItem value={date} className="border-none">
                                         <AccordionTrigger className="p-4 hover:no-underline">
@@ -231,7 +245,7 @@ export default function PartnerPortalPage() {
                                                 {allAccepted ? <CheckCircle className="h-6 w-6 text-green-600"/> : <CalendarIcon className="h-6 w-6"/>}
                                                 <div className="text-left">
                                                     <h3 className="text-xl font-bold capitalize">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
-                                                    <p className="text-sm text-muted-foreground">{dailyPedidos.length} elaboraciones requeridas</p>
+                                                    <p className="text-sm text-muted-foreground">{expediciones.flatMap(e => e.pedidos).length} elaboraciones requeridas</p>
                                                 </div>
                                                 <div className="flex-grow flex items-center justify-end gap-2 text-sm font-semibold text-primary mr-4">
                                                     <Clock className="h-4 w-4"/>
@@ -240,52 +254,45 @@ export default function PartnerPortalPage() {
                                             </div>
                                         </AccordionTrigger>
                                         <AccordionContent>
-                                            <div className="border-t">
-                                                <Table>
-                                                    <TableHeader>
-                                                        <TableRow>
-                                                            <TableHead>Elaboración</TableHead>
-                                                            <TableHead className="text-right">Cantidad</TableHead>
-                                                            <TableHead>Nº Expedición</TableHead>
-                                                            <TableHead>Estado</TableHead>
-                                                            <TableHead className="text-right">Comentarios</TableHead>
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        {dailyPedidos.map(pedido => (
-                                                            <TableRow key={pedido.id} className={cn("transition-colors", statusRowClass[pedido.status], pedido.comentarios && 'border-l-4 border-l-blue-400 bg-blue-50/50 hover:bg-blue-50/80')}>
-                                                                <TableCell className="font-semibold">{pedido.elaboracionNombre}</TableCell>
-                                                                <TableCell className="text-right font-mono">{pedido.cantidad.toFixed(2)} {formatUnit(pedido.unidad)}</TableCell>
-                                                                <TableCell>
-                                                                    <Badge variant="secondary">{pedido.expedicionNumero}</Badge>
-                                                                </TableCell>
-                                                                <TableCell>
-                                                                    {pedido.status === 'Pendiente' ? (
-                                                                        <Button size="sm" onClick={() => handleAccept(pedido.id)}>Aceptar Pedido</Button>
-                                                                    ) : (
-                                                                        <Badge variant={statusVariant[pedido.status]}>{pedido.status}</Badge>
-                                                                    )}
-                                                                </TableCell>
-                                                                <TableCell className="text-right">
-                                                                     <div className="flex items-center justify-end">
-                                                                         <Tooltip>
-                                                                            <TooltipTrigger asChild>
-                                                                                <div>
-                                                                                    <CommentDialog pedido={pedido} onSave={handleSaveComment} />
-                                                                                </div>
-                                                                            </TooltipTrigger>
-                                                                            {pedido.comentarios && (
-                                                                                <TooltipContent>
-                                                                                    <p className="max-w-xs">{pedido.comentarios}</p>
-                                                                                </TooltipContent>
+                                            <div className="border-t px-4 pb-4 space-y-4">
+                                                {expediciones.map(({numero, pedidos}) => (
+                                                    <div key={numero} className="pt-4">
+                                                        <h4 className="font-bold mb-2">Nº Expedición: <Badge>{numero}</Badge></h4>
+                                                         <Table>
+                                                            <TableHeader>
+                                                                <TableRow>
+                                                                    <TableHead>Elaboración</TableHead>
+                                                                    <TableHead className="text-right">Cantidad</TableHead>
+                                                                    <TableHead>Estado</TableHead>
+                                                                    <TableHead className="text-right">Comentarios</TableHead>
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {pedidos.map(pedido => (
+                                                                    <TableRow key={pedido.id} className={cn("transition-colors", statusRowClass[pedido.status], pedido.comentarios && 'border-l-4 border-l-blue-400 bg-blue-50/50 hover:bg-blue-50/80')}>
+                                                                        <TableCell className="font-semibold">{pedido.elaboracionNombre}</TableCell>
+                                                                        <TableCell className="text-right font-mono">{pedido.cantidad.toFixed(2)} {formatUnit(pedido.unidad)}</TableCell>
+                                                                        <TableCell>
+                                                                            {pedido.status === 'Pendiente' ? (
+                                                                                <Button size="sm" onClick={() => handleAccept(pedido.id)}>Aceptar Pedido</Button>
+                                                                            ) : (
+                                                                                <Badge variant={statusVariant[pedido.status]}>{pedido.status}</Badge>
                                                                             )}
-                                                                        </Tooltip>
-                                                                    </div>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right">
+                                                                            <Tooltip>
+                                                                                <TooltipTrigger asChild>
+                                                                                    <div><CommentDialog pedido={pedido} onSave={handleSaveComment} /></div>
+                                                                                </TooltipTrigger>
+                                                                                {pedido.comentarios && <TooltipContent><p className="max-w-xs">{pedido.comentarios}</p></TooltipContent>}
+                                                                            </Tooltip>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                ))}
                                             </div>
                                         </AccordionContent>
                                     </AccordionItem>
