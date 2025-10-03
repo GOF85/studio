@@ -38,7 +38,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Slider } from '@/components/ui/slider';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { formatCurrency, formatUnit } from '@/lib/utils';
+import { formatCurrency, formatUnit, cn } from '@/lib/utils';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -849,6 +849,7 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
+
 
 
 
