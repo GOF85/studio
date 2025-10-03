@@ -28,6 +28,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 
 
 import type { ServiceOrder, GastronomyOrder, GastronomyOrderItem, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta, ComercialBriefing, ComercialBriefingItem, ExcedenteProduccion, PedidoEntrega, PedidoEntregaItem, Entrega, ProductoVenta } from '@/types';
@@ -1007,7 +1008,7 @@ export default function PlanificacionPage() {
                                     <Collapsible key={os.osId} className="border rounded-lg p-3">
                                         <CollapsibleTrigger className="w-full flex justify-between items-center group">
                                             <div className="font-semibold">{os.serviceNumber} - {format(new Date(os.fecha), 'dd/MM/yyyy')} - {os.espacio}</div>
-                                            <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180"/>
+                                            <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180"/>
                                         </CollapsibleTrigger>
                                         <CollapsibleContent className="pt-3 space-y-2">
                                             {os.hitos.map(hito => (
