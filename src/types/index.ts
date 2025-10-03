@@ -462,6 +462,7 @@ export type PartidaProduccion = typeof PARTIDAS_PRODUCCION[number];
 
 export type Receta = {
     id: string;
+    numeroReceta?: string;
     nombre: string;
     nombre_en?: string;
     visibleParaComerciales: boolean;

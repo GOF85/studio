@@ -63,6 +63,7 @@ const menajeEnRecetaSchema = z.object({
 
 const recetaFormSchema = z.object({
   id: z.string(),
+  numeroReceta: z.string().optional(),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
   nombre_en: z.string().optional().default(''),
   visibleParaComerciales: z.boolean().default(true),
@@ -270,6 +271,7 @@ export default function RecetaFormPage() {
 
   const watchedElaboraciones = form.watch('elaboraciones');
   const watchedPorcentajeCoste = form.watch('porcentajeCosteProduccion');
+  const numeroReceta = form.watch('numeroReceta');
 
   const { costeMateriaPrima, alergenos, partidasProduccion } = useMemo(() => {
     let coste = 0;
@@ -372,8 +374,19 @@ export default function RecetaFormPage() {
     if (initialValues) {
         form.reset(initialValues);
     } else if (!isEditing) {
+        // Generate new numeroReceta
+        const lastRecipe = allRecetas.reduce((last, current) => {
+            if (!current.numeroReceta) return last;
+            const currentNum = parseInt(current.numeroReceta.substring(2));
+            const lastNum = last ? parseInt(last.numeroReceta!.substring(2)) : 0;
+            return currentNum > lastNum ? current : last;
+        }, null as Receta | null);
+        const lastNum = lastRecipe ? parseInt(lastRecipe.numeroReceta!.substring(2)) : 0;
+        const newNum = `R-${(lastNum + 1).toString().padStart(4, '0')}`;
+
         form.reset({ 
             id: Date.now().toString(),
+            numeroReceta: newNum,
             nombre: '', 
             nombre_en: '',
             visibleParaComerciales: true, 
@@ -533,7 +546,10 @@ export default function RecetaFormPage() {
             <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full space-y-3">
                 <AccordionItem value="item-1">
                     <Card>
-                        <AccordionTrigger className="p-4"><CardTitle className="text-lg">Información General y Clasificación</CardTitle></AccordionTrigger>
+                        <AccordionTrigger className="p-4 flex justify-between w-full">
+                            <CardTitle className="text-lg">Información General y Clasificación</CardTitle>
+                            {numeroReceta && <Badge variant="outline" className="text-base">{numeroReceta}</Badge>}
+                        </AccordionTrigger>
                         <AccordionContent>
                             <CardContent className="space-y-3 pt-2">
                                 <div className="grid md:grid-cols-2 gap-3">
@@ -919,6 +935,7 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
+
 
 
 
