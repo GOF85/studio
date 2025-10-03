@@ -2,8 +2,8 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Package, ListChecks, AlertTriangle, PlusCircle, Camera, Upload, Trash2, GripVertical } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Entrega, PedidoEntrega, ProductoVenta, EntregaHito, PedidoEntregaItem, PickingEntregaState, PickingIncidencia, Elaboracion, OrdenFabricacion, Precio } from '@/types';
@@ -23,7 +23,6 @@ import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSe
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDesc, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
-import { useSearchParams } from 'next/navigation';
 import { CSS } from '@dnd-kit/utilities';
 
 
@@ -74,7 +73,7 @@ function IncidenciaDialog({ item, onSave }: { item: ItemParaPicking; onSave: (it
     )
 }
 
-export default function PickingEntregaPage() {
+function PickingPageContent() {
     const [entrega, setEntrega] = useState<Entrega | null>(null);
     const [hito, setHito] = useState<EntregaHito | null>(null);
     const [pickingState, setPickingState] = useState<PickingEntregaState>({ hitoId: '', checkedItems: new Set(), incidencias: [], fotoUrl: null, status: 'Pendiente' });
@@ -413,4 +412,12 @@ export default function PickingEntregaPage() {
             </div>
         </main>
     );
+}
+
+export default function PickingEntregaPage() {
+    return (
+        <Suspense fallback={<LoadingSkeleton title="Cargando Hoja de Picking..." />}>
+            <PickingPageContent />
+        </Suspense>
+    )
 }
