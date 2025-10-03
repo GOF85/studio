@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Building2 } from 'lucide-react';
 import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -230,22 +230,28 @@ export default function PartnerPortalPage() {
 
 
     const pedidosAgrupadosPorDia = useMemo(() => {
-        const grouped: { [key: string]: PedidoPartnerConEstado[] } = {};
-        filteredPedidos.forEach(pedido => {
-            const dateKey = format(new Date(pedido.fechaEntrega), 'yyyy-MM-dd');
-            if (!grouped[dateKey]) {
-                grouped[dateKey] = [];
+        const groupedByDay: { [date: string]: { [location: string]: PedidoPartnerConEstado[] } } = {};
+        
+        filteredPedidos.forEach(turno => {
+            const dateKey = format(new Date(turno.fechaEntrega), 'yyyy-MM-dd');
+            if (!groupedByDay[dateKey]) {
+                groupedByDay[dateKey] = {};
             }
-            grouped[dateKey].push(pedido);
+            const locationKey = 'CPR MICE'; // Hardcoded for now
+            if (!groupedByDay[dateKey][locationKey]) {
+                groupedByDay[dateKey][locationKey] = [];
+            }
+            groupedByDay[dateKey][locationKey].push(turno);
         });
-        return Object.entries(grouped)
+
+        return Object.entries(groupedByDay)
             .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
-            .map(([date, dailyPedidos]) => {
-                const allAccepted = dailyPedidos.every(p => p.status === 'Aceptado');
-                const earliestTime = dailyPedidos.reduce((earliest, p) => p.horaEntrega < earliest ? p.horaEntrega : earliest, '23:59');
+            .map(([date, locations]) => {
+                const allAccepted = Object.values(locations).flat().every(p => p.status === 'Aceptado');
+                const earliestTime = Object.values(locations).flat().reduce((earliest, p) => p.horaEntrega < earliest ? p.horaEntrega : earliest, '23:59');
                 
                 const groupedByExpedicion: { [key: string]: PedidoPartnerConEstado[] } = {};
-                dailyPedidos.forEach(pedido => {
+                Object.values(locations).flat().forEach(pedido => {
                     if(!groupedByExpedicion[pedido.expedicionNumero]) {
                         groupedByExpedicion[pedido.expedicionNumero] = [];
                     }
@@ -308,7 +314,12 @@ export default function PartnerPortalPage() {
                         <h1 className="text-3xl font-headline font-bold tracking-tight">Portal de Partner de Producción</h1>
                     </div>
                 </div>
-                {proveedorNombre && <h1 className="text-3xl font-headline font-bold tracking-tight">{proveedorNombre}</h1>}
+                {proveedorNombre && (
+                    <Badge variant="secondary" className="px-4 py-2 text-lg">
+                        <Building2 className="mr-2 h-5 w-5" />
+                        {proveedorNombre}
+                    </Badge>
+                )}
             </div>
 
             <Tabs defaultValue="lista">
@@ -476,5 +487,7 @@ export default function PartnerPortalPage() {
         </TooltipProvider>
     );
 }
+
+    
 
     

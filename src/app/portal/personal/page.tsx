@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Building2 } from 'lucide-react';
 import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -121,6 +121,7 @@ export default function PartnerPersonalPortalPage() {
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const { impersonatedUser } = useImpersonatedUser();
     const [proveedorNombre, setProveedorNombre] = useState('');
+    const router = useRouter();
 
     // State for Calendar View
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -170,6 +171,17 @@ export default function PartnerPersonalPortalPage() {
         setTurnos(partnerTurnos);
         setIsMounted(true);
     }, [impersonatedUser]);
+    
+    useEffect(() => {
+        if (impersonatedUser) {
+            const userRoles = impersonatedUser.roles || [];
+            const canAccess = userRoles.includes('Partner Personal') || userRoles.includes('Admin') || userRoles.includes('Comercial');
+            if (!canAccess) {
+                router.push('/portal');
+            }
+        }
+    }, [impersonatedUser, router]);
+
 
     useEffect(() => {
         loadData();
@@ -313,7 +325,12 @@ export default function PartnerPersonalPortalPage() {
                         <h1 className="text-3xl font-headline font-bold tracking-tight">Portal de Partner de Personal</h1>
                     </div>
                 </div>
-                 {proveedorNombre && <h1 className="text-3xl font-headline font-bold tracking-tight">{proveedorNombre}</h1>}
+                 {proveedorNombre && (
+                    <Badge variant="secondary" className="px-4 py-2 text-lg">
+                        <Building2 className="mr-2 h-5 w-5" />
+                        {proveedorNombre}
+                    </Badge>
+                )}
             </div>
 
             <Tabs defaultValue="lista">
@@ -483,3 +500,7 @@ export default function PartnerPersonalPortalPage() {
         </TooltipProvider>
     );
 }
+
+    
+
+    

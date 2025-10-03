@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Truck, Search, Warehouse, User, Phone, Clock, MapPin, CheckCircle } from 'lucide-react';
+import { Truck, Search, Warehouse, User, Phone, Clock, MapPin, CheckCircle, Building2 } from 'lucide-react';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { TransporteOrder, ServiceOrder, PedidoEntrega, EntregaHito, Entrega, PortalUser, Proveedor } from '@/types';
@@ -94,6 +94,17 @@ export default function TransportePortalPage() {
         setIsMounted(true);
     }, [impersonatedUser]);
 
+    useEffect(() => {
+        if (impersonatedUser) {
+            const userRoles = impersonatedUser.roles || [];
+            const canAccess = userRoles.includes('Transporte') || userRoles.includes('Admin') || userRoles.includes('Comercial');
+            if (!canAccess) {
+                router.push('/portal');
+            }
+        }
+    }, [impersonatedUser, router]);
+
+
     const filteredOrders = useMemo(() => {
         return orders.filter(order => {
             const statusMatch = showCompleted || order.status !== 'Entregado';
@@ -158,7 +169,12 @@ export default function TransportePortalPage() {
                         <h1 className="text-3xl font-headline font-bold tracking-tight">Portal de Transporte</h1>
                     </div>
                 </div>
-                {proveedorNombre && <h1 className="text-3xl font-headline font-bold tracking-tight">{proveedorNombre}</h1>}
+                {proveedorNombre && (
+                    <Badge variant="secondary" className="px-4 py-2 text-lg">
+                        <Building2 className="mr-2 h-5 w-5" />
+                        {proveedorNombre}
+                    </Badge>
+                )}
             </div>
 
              <div className="flex flex-col gap-4 my-6">
@@ -233,3 +249,4 @@ export default function TransportePortalPage() {
         </main>
     );
 }
+
