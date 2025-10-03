@@ -1,15 +1,59 @@
 
 import Link from 'next/link';
-import { UtensilsCrossed, Package, LifeBuoy } from 'lucide-react';
+import { UtensilsCrossed, Package, Users, LogOut } from 'lucide-react';
 import { Button } from '../ui/button';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import type { User } from 'firebase/auth';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
-export function Header() {
+export function Header({ user, onLogout }: { user?: User | null, onLogout?: () => void }) {
   const pathname = usePathname();
   const isEntregasModule = pathname.startsWith('/entregas');
   const isPortalModule = pathname.startsWith('/portal');
 
+  if (isPortalModule) {
+      return (
+        <header className="sticky top-0 z-40 w-full border-b bg-gray-900 text-white">
+          <div className="container flex h-16 items-center">
+            <Link href="/portal" className="flex items-center gap-3">
+              <Package className="h-7 w-7 text-orange-500" />
+              <h1 className="text-2xl font-headline font-bold tracking-tight">
+                MICE Portales Externos
+              </h1>
+            </Link>
+             <nav className="flex flex-1 items-center justify-end space-x-4">
+                {user && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="text-white hover:text-white hover:bg-gray-800">
+                            {user.displayName || user.email}
+                            <Users className="ml-2" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={onLogout}>
+                            <LogOut className="mr-2" />
+                            Cerrar Sesión
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
+             </nav>
+          </div>
+        </header>
+      )
+  }
+  
   const getEntregasHeader = () => (
     <header className="sticky top-0 z-40 w-full border-b bg-orange-500 text-white">
       <div className="container flex h-16 items-center">
@@ -19,6 +63,19 @@ export function Header() {
             Entregas MICE
           </h1>
         </Link>
+         <nav className="flex flex-1 items-center justify-end space-x-2">
+            <Button asChild variant="outline" className="border-white/50 text-white hover:bg-white/20 hover:text-white">
+              <Link href="/">
+                <UtensilsCrossed className="mr-2 h-5 w-5"/>
+                Catering
+              </Link>
+            </Button>
+            <Button asChild variant="ghost" className="hover:bg-white/20 hover:text-white">
+              <Link href="/portal/login">
+                Acceso Portales
+              </Link>
+            </Button>
+        </nav>
       </div>
     </header>
   );
@@ -26,8 +83,7 @@ export function Header() {
   const getDefaultHeader = () => (
     <header className={cn(
         "sticky top-0 z-40 w-full border-b",
-        isEntregasModule ? "bg-orange-100/95" : "bg-background/95",
-        "backdrop-blur supports-[backdrop-filter]:bg-background/60"
+        "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
       )}>
       <div className="container flex h-16 items-center">
         <Link href="/" className="flex items-center gap-3">
@@ -44,19 +100,14 @@ export function Header() {
               </Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href="/docs">
-                <LifeBuoy className="mr-2 h-5 w-5" />
-                Documentación
+              <Link href="/portal/login">
+                Acceso Portales
               </Link>
             </Button>
         </nav>
       </div>
     </header>
   );
-  
-  if (isPortalModule) {
-    return null;
-  }
   
   return isEntregasModule ? getEntregasHeader() : getDefaultHeader();
 }
