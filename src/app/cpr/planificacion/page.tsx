@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -7,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday, eachDayOfInterval, isSameDay, isBefore } from 'date-fns';
 import { ClipboardList, Calendar as CalendarIcon, Factory, Info, AlertTriangle, PackageCheck, ChevronRight, ChevronDown, Utensils, Component, Users, FileDigit, Soup, BookOpen, Package } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -28,7 +28,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 
@@ -373,6 +372,7 @@ export default function PlanificacionPage() {
                     const recetaExistente = registro.recetas.find(r => r.recetaId === receta.id);
                     if (recetaExistente) {
                         recetaExistente.cantidad += cantidadNecesaria;
+                        recetaExistente.cantidadReceta += cantidadReceta;
                     } else {
                         registro.recetas.push({ recetaId: receta.id, recetaNombre: receta.nombre, cantidad: cantidadNecesaria, cantidadReceta: cantidadReceta });
                     }
@@ -978,7 +978,7 @@ export default function PlanificacionPage() {
                                                                 <TooltipContent>
                                                                     <div className="p-1 max-w-sm">
                                                                         {row.partida && <p className="text-xs font-bold mb-1">Partida: {row.partida}</p>}
-                                                                        <h4 className="font-bold mb-1 text-center">Desglose por receta:</h4>
+                                                                        <h4 className="font-bold mb-1 text-center">Desglose por receta</h4>
                                                                         <ul className="list-disc pl-4 text-xs">
                                                                             {row.necesidad.recetas.map((r: RecetaNecesidad) => (
                                                                                 <li key={r.recetaId}>{formatNumber(r.cantidadReceta, 0)} x {r.recetaNombre} ({formatNumber(r.cantidad, 2)} {formatUnit(row.unidad)})</li>
@@ -987,12 +987,12 @@ export default function PlanificacionPage() {
                                                                         {row.necesidad.eventos.length > 0 && (
                                                                             <>
                                                                                 <Separator className="my-2"/>
-                                                                                <h4 className="font-bold mb-1 text-center">Eventos Implicados:</h4>
+                                                                                <h4 className="font-bold mb-1 text-center">Eventos Implicados</h4>
                                                                                 <ul className="list-disc pl-4 text-xs">
                                                                                 {row.necesidad.eventos.map((e: EventoAfectado) => (
                                                                                     <li key={e.osId + e.serviceType} className="flex items-center gap-1.5">
                                                                                         {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
-                                                                                        {e.serviceNumber} - {e.serviceType} - {e.espacio} ({format(new Date(e.fecha), 'dd/MM/yy')})
+                                                                                        {e.serviceNumber} - {e.serviceType} ({format(new Date(e.fecha), 'dd/MM/yy')}) - {e.espacio}
                                                                                     </li>
                                                                                 ))}
                                                                                 </ul>
@@ -1199,7 +1199,7 @@ export default function PlanificacionPage() {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead className="w-12"><Checkbox 
+                                                <TableHead className="p-2 w-12"><Checkbox 
                                                     checked={selectedRows.size > 0 && filteredPlanificacionItems.filter(i => i.type === 'necesidad').length > 0 && selectedRows.size === filteredPlanificacionItems.filter(i => i.type === 'necesidad').length}
                                                     onCheckedChange={(checked) => {
                                                         const needItems = filteredPlanificacionItems.filter(i => i.type === 'necesidad').map(i => i.id);
@@ -1210,10 +1210,10 @@ export default function PlanificacionPage() {
                                                         }
                                                     }}
                                                 /></TableHead>
-                                                <TableHead>Elaboración</TableHead>
-                                                <TableHead className="text-right">Cantidad</TableHead>
-                                                <TableHead>Unidad</TableHead>
-                                                <TableHead className="flex items-center gap-1.5">Detalles</TableHead>
+                                                <TableHead className="p-2">Elaboración</TableHead>
+                                                <TableHead className="p-2 text-right">Cantidad</TableHead>
+                                                <TableHead className="p-2">Unidad</TableHead>
+                                                <TableHead className="p-2 flex items-center gap-1.5">Detalles</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -1221,78 +1221,77 @@ export default function PlanificacionPage() {
                                                 <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow>
                                             ) : filteredPlanificacionItems.length > 0 ? (
                                                 filteredPlanificacionItems.map(item => (
-                                                <Tooltip key={item.id}>
-                                                    <TableRow 
-                                                        onClick={() => handleSelectRow(item.id)} 
-                                                        className={cn(
-                                                            'cursor-pointer', 
-                                                            item.type === 'excedente' && 'bg-green-100/50 hover:bg-green-100/60 cursor-default',
-                                                            item.type === 'necesidad' && item.partidaProduccion && partidaColorClasses[item.partidaProduccion]
-                                                        )}
-                                                    >
-                                                        <TableCell>
-                                                        {item.type === 'necesidad' ? (
-                                                            <Checkbox checked={selectedRows.has(item.id)} />
-                                                        ) : (
-                                                            <Tooltip>
-                                                            <TooltipTrigger asChild><div className="flex justify-center"><PackageCheck className="text-green-600"/></div></TooltipTrigger>
-                                                            <TooltipContent><p>Excedente disponible</p></TooltipContent>
-                                                            </Tooltip>
-                                                        )}
-                                                        </TableCell>
-                                                        <TableCell className="font-medium flex items-center gap-2">
-                                                            {item.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
-                                                            <TooltipTrigger asChild><span>{item.nombre}</span></TooltipTrigger>
-                                                        </TableCell>
-                                                        <TableCell className={cn("text-right font-mono", item.type === 'excedente' && 'text-green-600')}>
-                                                        <span>{item.type === 'excedente' && '+ '}{formatNumber(item.cantidad, 2)}</span>
-                                                        </TableCell>
-                                                        <TableCell>{formatUnit(item.unidad)}</TableCell>
-                                                        <TableCell>
-                                                            <Dialog>
-                                                                <DialogTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={(e) => e.stopPropagation()}>
-                                                                        <Info size={18}/>
-                                                                    </Button>
-                                                                </DialogTrigger>
-                                                                <DialogContent className="max-w-2xl">
-                                                                    <DialogHeader>
-                                                                        <DialogTitle>Detalles para: {item.nombre}</DialogTitle>
-                                                                    </DialogHeader>
-                                                                    <div className="max-h-[60vh] overflow-y-auto p-1 -mx-4 px-4">
-                                                                    <div className="p-1 space-y-4">
-                                                                        {item.partidaProduccion && <p className="text-sm font-bold mb-1">Partida: {item.partidaProduccion}</p>}
-                                                                        {item.recetas.length > 0 && (
-                                                                            <div>
-                                                                                <h4 className="font-bold mb-1 text-center">Desglose por Receta</h4>
-                                                                                <ul className="list-disc pl-5 text-sm">
-                                                                                    {item.recetas.map((r, index) => (
-                                                                                        <li key={index}><strong>{formatNumber(r.cantidadReceta, 0)} x</strong> {r.recetaNombre} ({formatNumber(r.cantidad, 2)} {formatUnit(item.unidad)})</li>
-                                                                                    ))}
-                                                                                </ul>
-                                                                            </div>
-                                                                        )}
-                                                                        {item.recetas.length > 0 && item.eventos.length > 0 && <Separator />}
-                                                                        {item.eventos.length > 0 && (
-                                                                            <div>
-                                                                                <h4 className="font-bold mb-1 text-center">Eventos Implicados</h4>
-                                                                                <ul className="list-disc pl-5 text-sm">
-                                                                                {item.eventos.map((e, index) => (
-                                                                                    <li key={index} className="flex items-center gap-1.5">
-                                                                                        {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
-                                                                                        {e.serviceNumber} - {e.serviceType} ({format(new Date(e.fecha), 'dd/MM/yy')}) - {e.espacio}
-                                                                                    </li>
+                                                <TableRow 
+                                                    key={item.id}
+                                                    onClick={() => handleSelectRow(item.id)}
+                                                    className={cn(
+                                                        item.type === 'excedente' ? 'bg-green-100/50 hover:bg-green-100/60' : 'cursor-pointer',
+                                                        item.type === 'necesidad' && item.partidaProduccion && partidaColorClasses[item.partidaProduccion],
+                                                        selectedRows.has(item.id) && 'bg-primary/10 hover:bg-primary/20'
+                                                    )}
+                                                >
+                                                    <TableCell className="py-1 px-2" >
+                                                    {item.type === 'necesidad' ? (
+                                                        <Checkbox checked={selectedRows.has(item.id)} />
+                                                    ) : (
+                                                        <Tooltip>
+                                                        <TooltipTrigger asChild><div className="flex justify-center"><PackageCheck className="text-green-600"/></div></TooltipTrigger>
+                                                        <TooltipContent><p>Excedente disponible</p></TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+                                                    </TableCell>
+                                                    <TableCell className="py-1 px-2 font-medium flex items-center gap-2">
+                                                        {item.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
+                                                        {item.nombre}
+                                                    </TableCell>
+                                                    <TableCell className={cn("py-1 px-2 text-right font-mono", item.type === 'excedente' && 'text-green-600')} >
+                                                    <span>{item.type === 'excedente' && '+ '}{formatNumber(item.cantidad, 2)}</span>
+                                                    </TableCell>
+                                                    <TableCell className="py-1 px-2" >{formatUnit(item.unidad)}</TableCell>
+                                                    <TableCell className="py-1 px-2">
+                                                        <Dialog>
+                                                            <DialogTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-10 w-10">
+                                                                    <Info size={18} strokeWidth={2.5}/>
+                                                                </Button>
+                                                            </DialogTrigger>
+                                                            <DialogContent className="max-w-2xl">
+                                                                <DialogHeader>
+                                                                    <DialogTitle>Detalles para: {item.nombre}</DialogTitle>
+                                                                </DialogHeader>
+                                                                <div className="max-h-[60vh] overflow-y-auto p-1 -mx-4 px-4">
+                                                                <div className="p-1 space-y-4">
+                                                                    {item.partidaProduccion && <p className="text-sm font-bold mb-1">Partida: {item.partidaProduccion}</p>}
+                                                                    {item.recetas.length > 0 && (
+                                                                        <div>
+                                                                            <h4 className="font-bold mb-1 text-center">Desglose por receta</h4>
+                                                                            <ul className="list-disc pl-5 text-sm">
+                                                                                {item.recetas.map((r, index) => (
+                                                                                    <li key={index}><strong>{formatNumber(r.cantidadReceta, 0)} x</strong> {r.recetaNombre} ({formatNumber(r.cantidad, 2)} {formatUnit(item.unidad)})</li>
                                                                                 ))}
-                                                                                </ul>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                    </div>
-                                                                </DialogContent>
-                                                            </Dialog>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                </Tooltip>
+                                                                            </ul>
+                                                                        </div>
+                                                                    )}
+                                                                    {item.recetas.length > 0 && item.eventos.length > 0 && <Separator />}
+                                                                    {item.eventos.length > 0 && (
+                                                                        <div>
+                                                                            <h4 className="font-bold mb-1 text-center">Eventos Implicados</h4>
+                                                                            <ul className="list-disc pl-5 text-sm">
+                                                                            {item.eventos.map((e, index) => (
+                                                                                <li key={index} className="flex items-center gap-1.5">
+                                                                                    {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
+                                                                                    {e.serviceNumber} - {e.serviceType} ({format(new Date(e.fecha), 'dd/MM/yy')}) - {e.espacio}
+                                                                                </li>
+                                                                            ))}
+                                                                            </ul>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                </div>
+                                                            </DialogContent>
+                                                        </Dialog>
+                                                    </TableCell>
+                                                </TableRow>
                                                 ))
                                             ) : (
                                                 <TableRow>
@@ -1346,4 +1345,3 @@ export default function PlanificacionPage() {
         </TooltipProvider>
     );
 }
-
