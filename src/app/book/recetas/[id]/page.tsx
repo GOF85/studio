@@ -241,9 +241,15 @@ export default function RecetaFormPage() {
     };
   }, [watchedElaboraciones, dbElaboraciones]);
 
-  const precioVenta = useMemo(() => {
-    if (!watchedPorcentajeCoste || watchedPorcentajeCoste < 0) return costeMateriaPrima;
-    return costeMateriaPrima + (costeMateriaPrima * (watchedPorcentajeCoste / 100));
+  const { precioVenta, margenBruto, margenPct } = useMemo(() => {
+    if (!watchedPorcentajeCoste || watchedPorcentajeCoste < 0) {
+        const pv = costeMateriaPrima;
+        const margen = pv > 0 ? (pv - costeMateriaPrima) / pv * 100 : 0;
+        return { precioVenta: pv, margenBruto: pv - costeMateriaPrima, margenPct: margen };
+    }
+    const pv = costeMateriaPrima + (costeMateriaPrima * (watchedPorcentajeCoste / 100));
+    const margen = pv > 0 ? (pv - costeMateriaPrima) / pv * 100 : 0;
+    return { precioVenta: pv, margenBruto: pv - costeMateriaPrima, margenPct: margen };
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
   const loadData = useCallback(async () => {
@@ -446,6 +452,7 @@ export default function RecetaFormPage() {
     <TooltipProvider>
       <Header />
       <main className="container mx-auto px-4 py-8">
+        <div className="grid lg:grid-cols-[1fr_400px] gap-8 items-start">
         <Form {...form}>
           <form id="receta-form" onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-4">
              <div className="flex items-center justify-between mb-4">
@@ -533,24 +540,6 @@ export default function RecetaFormPage() {
                                         <FormControl><Input type="number" {...field} /></FormControl>
                                         <FormMessage />
                                     </FormItem>)} />
-                                </div>
-                                
-                                <Separator className="my-4"/>
-
-                                <div className="grid md:grid-cols-3 gap-3">
-                                    <FormItem><FormLabel>Coste Materia Prima</FormLabel><Input readOnly value={formatCurrency(costeMateriaPrima)} className="font-bold h-9" /></FormItem>
-                                    <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => ( <FormItem>
-                                        <FormLabel className="flex items-center gap-1.5">% Imputacion CPR<InfoTooltip text="Porcentaje que se suma al coste de materia prima para obtener el precio de venta." /></FormLabel>
-                                        <FormControl><Input type="number" {...field} className="h-9" /></FormControl>
-                                    </FormItem> )} />
-                                    <FormItem><FormLabel>Precio Venta</FormLabel><Input readOnly value={formatCurrency(precioVenta)} className="font-bold text-primary h-9" /></FormItem>
-                                </div>
-                                
-                                <div className="pt-3">
-                                    <h4 className="font-semibold mb-2 flex items-center gap-2"><Sprout/>Alérgenos de la Receta</h4>
-                                    <div className="border rounded-md p-3 w-full bg-muted/30">
-                                        {alergenos.length > 0 ? <div className="flex flex-wrap gap-2">{alergenos.map(a => <Badge key={a} variant="secondary">{a}</Badge>)}</div> : <p className="text-muted-foreground text-sm">No se han detectado alérgenos en las elaboraciones.</p>}
-                                    </div>
                                 </div>
                             </CardContent>
                         </AccordionContent>
@@ -791,6 +780,52 @@ export default function RecetaFormPage() {
             </Accordion>
           </form>
         </Form>
+        <Card className="sticky top-24">
+            <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2"><TrendingUp/>Análisis de Rentabilidad</CardTitle>
+                <CardDescription className="text-xs">Costes y precios en tiempo real.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                    <FormLabel>Coste Materia Prima</FormLabel>
+                    <span className="font-bold">{formatCurrency(costeMateriaPrima)}</span>
+                </div>
+                <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => ( <FormItem>
+                    <div className="flex justify-between items-center">
+                        <FormLabel className="text-sm">Imputación CPR</FormLabel>
+                         <div className="flex items-center gap-2">
+                            <FormControl><Input type="number" {...field} className="h-8 w-20 text-right" /></FormControl>
+                            <span>%</span>
+                        </div>
+                    </div>
+                </FormItem> )} />
+                 <Separator />
+                <div className="flex justify-between items-center font-bold text-lg">
+                    <FormLabel>Precio Venta</FormLabel>
+                    <span className="text-primary">{formatCurrency(precioVenta)}</span>
+                </div>
+                <Separator />
+                 <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                        <span>Margen Bruto:</span>
+                        <span className={cn(margenBruto < 0 && 'text-destructive')}>{formatCurrency(margenBruto)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span>Margen %:</span>
+                        <span className={cn('font-semibold', margenPct < 30 ? 'text-destructive' : 'text-green-600')}>{margenPct.toFixed(2)}%</span>
+                    </div>
+                 </div>
+            </CardContent>
+             <CardFooter>
+                <div className="w-full">
+                    <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm"><Sprout/>Alérgenos de la Receta</h4>
+                    <div className="border rounded-md p-2 w-full bg-muted/30">
+                        {alergenos.length > 0 ? <div className="flex flex-wrap gap-1.5">{alergenos.map(a => <Badge key={a} variant="secondary" className="text-xs">{a}</Badge>)}</div> : <p className="text-muted-foreground text-xs">No se han detectado alérgenos.</p>}
+                    </div>
+                </div>
+             </CardFooter>
+        </Card>
+        </div>
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -814,6 +849,7 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
+
 
 
 
