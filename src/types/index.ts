@@ -475,7 +475,9 @@ export type Receta = {
     elaboraciones: ElaboracionEnReceta[];
     menajeAsociado: MenajeEnReceta[];
     instruccionesMiseEnPlace: string;
+    fotosMiseEnPlaceURLs?: string[];
     instruccionesRegeneracion: string;
+    fotosRegeneracionURLs?: string[];
     instruccionesEmplatado: string;
     fotosEmplatadoURLs?: string[];
     perfilSaborPrincipal?: SaborPrincipal;

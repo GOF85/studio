@@ -12,7 +12,7 @@ import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSe
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
 
-import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine } from 'lucide-react';
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon } from 'lucide-react';
 import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, IngredienteERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina, PartidaProduccion, ElaboracionEnReceta } from '@/types';
 import { SABORES_PRINCIPALES } from '@/types';
 
@@ -39,6 +39,7 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/comp
 import { Slider } from '@/components/ui/slider';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatUnit, cn } from '@/lib/utils';
+import Image from 'next/image';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -75,7 +76,9 @@ const recetaFormSchema = z.object({
   elaboraciones: z.array(elaboracionEnRecetaSchema).default([]),
   menajeAsociado: z.array(menajeEnRecetaSchema).default([]),
   instruccionesMiseEnPlace: z.string().optional().default(''),
+  fotosMiseEnPlaceURLs: z.array(z.string().url("Debe ser una URL válida")).optional().default([]),
   instruccionesRegeneracion: z.string().optional().default(''),
+  fotosRegeneracionURLs: z.array(z.string().url("Debe ser una URL válida")).optional().default([]),
   instruccionesEmplatado: z.string().optional().default(''),
   fotosEmplatadoURLs: z.array(z.string().url("Debe ser una URL válida")).optional().default([]),
   perfilSaborPrincipal: z.enum(SABORES_PRINCIPALES).optional(),
@@ -180,6 +183,54 @@ const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<s
     return Array.from(elabAlergenos);
 };
 
+function ImageUploadSection({ name, title, form }: { name: "fotosMiseEnPlaceURLs" | "fotosRegeneracionURLs" | "fotosEmplatadoURLs"; title: string; form: any }) {
+    const { fields, append, remove } = useFieldArray({ control: form.control, name });
+    const [newUrl, setNewUrl] = useState('');
+    const { toast } = useToast();
+
+    const handleAdd = () => {
+        try {
+            const url = new URL(newUrl);
+            append({ value: url.href });
+            setNewUrl('');
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'URL inválida', description: 'Por favor, introduce una URL de imagen válida.' });
+        }
+    };
+
+    return (
+        <div>
+            <FormField
+                control={form.control}
+                name={name === "fotosMiseEnPlaceURLs" ? "instruccionesMiseEnPlace" : name === "fotosRegeneracionURLs" ? "instruccionesRegeneracion" : "instruccionesEmplatado"}
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>{title}</FormLabel>
+                        <FormControl><Textarea {...field} rows={5} /></FormControl>
+                    </FormItem>
+                )}
+            />
+            <div className="space-y-2 mt-2">
+                <div className="flex gap-2">
+                    <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="Pega una URL de imagen..." />
+                    <Button type="button" variant="outline" onClick={handleAdd}><LinkIcon className="mr-2" />Añadir</Button>
+                </div>
+                {form.formState.errors[name] && <p className="text-sm font-medium text-destructive">{(form.formState.errors[name] as any).message}</p>}
+                <div className="grid grid-cols-4 gap-2 pt-2">
+                    {fields.map((field, index) => (
+                        <div key={field.id} className="relative aspect-video rounded-md overflow-hidden group">
+                            <Image src={(field as any).value} alt={`Foto ${index + 1}`} fill className="object-cover" />
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}><Trash2 /></Button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function RecetaFormPage() {
   const router = useRouter();
   const params = useParams();
@@ -209,7 +260,7 @@ export default function RecetaFormPage() {
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
-    defaultValues: { id: '', nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], perfilSaborSecundario: [], perfilTextura: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] }
+    defaultValues: { id: '', nombre: '', visibleParaComerciales: true, descripcionComercial: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], fotosMiseEnPlaceURLs: [], fotosRegeneracionURLs: [], perfilSaborSecundario: [], perfilTextura: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] }
   });
 
   const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab } = useFieldArray({ control: form.control, name: "elaboraciones" });
@@ -332,7 +383,9 @@ export default function RecetaFormPage() {
             porcentajeCosteProduccion: 30, 
             elaboraciones: [], 
             menajeAsociado: [], 
-            fotosEmplatadoURLs: [], 
+            fotosEmplatadoURLs: [],
+            fotosMiseEnPlaceURLs: [],
+            fotosRegeneracionURLs: [],
             perfilSaborSecundario: [], 
             perfilTextura: [], 
             equipamientoCritico: [], 
@@ -633,9 +686,9 @@ export default function RecetaFormPage() {
                         <AccordionTrigger className="p-4"><CardTitle className="flex items-center gap-2 text-lg"><FilePenLine />Instrucciones de Pase</CardTitle></AccordionTrigger>
                         <AccordionContent>
                             <CardContent className="grid md:grid-cols-3 gap-3 pt-2">
-                                <FormField control={form.control} name="instruccionesMiseEnPlace" render={({ field }) => ( <FormItem><FormLabel>Mise en Place</FormLabel><FormControl><Textarea {...field} rows={5}/></FormControl></FormItem> )} />
-                                <FormField control={form.control} name="instruccionesRegeneracion" render={({ field }) => ( <FormItem><FormLabel>Regeneración</FormLabel><FormControl><Textarea {...field} rows={5} /></FormControl></FormItem> )} />
-                                <FormField control={form.control} name="instruccionesEmplatado" render={({ field }) => ( <FormItem><FormLabel>Emplatado</FormLabel><FormControl><Textarea {...field} rows={5} /></FormControl></FormItem> )} />
+                               <ImageUploadSection name="fotosMiseEnPlaceURLs" title="Mise en Place" form={form} />
+                               <ImageUploadSection name="fotosRegeneracionURLs" title="Regeneración" form={form} />
+                               <ImageUploadSection name="fotosEmplatadoURLs" title="Emplatado" form={form} />
                             </CardContent>
                         </AccordionContent>
                      </Card>
@@ -851,6 +904,7 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
+
 
 
 
