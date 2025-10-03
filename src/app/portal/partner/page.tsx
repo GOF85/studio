@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Factory, Calendar as CalendarIcon, Utensils, MessageSquare, Edit, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
+import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,20 +24,20 @@ import { Calendar } from '@/components/ui/calendar';
 import Link from 'next/link';
 
 
+type SimplifiedPedidoPartnerStatus = 'Pendiente' | 'Aceptado';
+
 type PedidoPartnerConEstado = PedidoPartner & {
-    status: PedidoPartnerStatus;
+    status: SimplifiedPedidoPartnerStatus;
     comentarios?: string;
 }
 
-const statusVariant: { [key in PedidoPartnerStatus]: 'default' | 'secondary' | 'outline' } = {
+const statusVariant: { [key in SimplifiedPedidoPartnerStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente': 'secondary',
-  'En Producción': 'outline',
-  'Listo para Entrega': 'default',
+  'Aceptado': 'default',
 };
 
-const statusRowClass: { [key in PedidoPartnerStatus]?: string } = {
-  'En Producción': 'bg-yellow-50 hover:bg-yellow-100/80',
-  'Listo para Entrega': 'bg-green-50 hover:bg-green-100/80',
+const statusRowClass: { [key in SimplifiedPedidoPartnerStatus]?: string } = {
+  'Aceptado': 'bg-green-50 hover:bg-green-100/80',
 };
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -92,7 +93,7 @@ export default function PartnerPortalPage() {
         
         const osMap = new Map(allEntregas.map(os => [os.id, os]));
         const productosMap = new Map(allProductosVenta.map(p => [p.id, p]));
-        const partnerStatusData = JSON.parse(localStorage.getItem('partnerPedidosStatus') || '{}') as Record<string, { status: PedidoPartnerStatus; comentarios?: string }>;
+        const partnerStatusData = JSON.parse(localStorage.getItem('partnerPedidosStatus') || '{}') as Record<string, { status: SimplifiedPedidoPartnerStatus; comentarios?: string }>;
 
 
         const partnerPedidos: PedidoPartnerConEstado[] = [];
@@ -134,15 +135,15 @@ export default function PartnerPortalPage() {
         loadData();
     }, [loadData]);
     
-    const handleStatusChange = (pedidoId: string, newStatus: PedidoPartnerStatus) => {
+    const handleAccept = (pedidoId: string) => {
         const partnerStatusData = JSON.parse(localStorage.getItem('partnerPedidosStatus') || '{}');
         if (!partnerStatusData[pedidoId]) {
             partnerStatusData[pedidoId] = {};
         }
-        partnerStatusData[pedidoId].status = newStatus;
+        partnerStatusData[pedidoId].status = 'Aceptado';
         localStorage.setItem('partnerPedidosStatus', JSON.stringify(partnerStatusData));
         loadData(); // Recargar datos para reflejar el cambio
-        toast({ title: 'Estado actualizado', description: `El estado del pedido ha sido cambiado a "${newStatus}".` });
+        toast({ title: 'Pedido Aceptado', description: `El pedido ha sido marcado como "Aceptado".` });
     };
 
     const handleSaveComment = (pedidoId: string, comment: string) => {
@@ -165,7 +166,13 @@ export default function PartnerPortalPage() {
             }
             grouped[dateKey].push(pedido);
         });
-        return Object.entries(grouped).sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime());
+        return Object.entries(grouped)
+            .sort(([dateA], [dateB]) => new Date(dateA).getTime() - new Date(dateB).getTime())
+            .map(([date, dailyPedidos]) => {
+                const allAccepted = dailyPedidos.every(p => p.status === 'Aceptado');
+                const earliestTime = dailyPedidos.reduce((earliest, p) => p.horaEntrega < earliest ? p.horaEntrega : earliest, '23:59');
+                return { date, dailyPedidos, allAccepted, earliestTime };
+            });
     }, [pedidos]);
 
     // --- Calendar Logic ---
@@ -211,16 +218,20 @@ export default function PartnerPortalPage() {
                 </TabsList>
                 <TabsContent value="lista" className="mt-6">
                     {pedidosAgrupadosPorDia.length > 0 ? (
-                        <Accordion type="multiple" defaultValue={pedidosAgrupadosPorDia.map(([date]) => date)} className="w-full space-y-4">
-                            {pedidosAgrupadosPorDia.map(([date, dailyPedidos]) => (
-                                <Card key={date}>
+                        <Accordion type="multiple" defaultValue={pedidosAgrupadosPorDia.filter(g => !g.allAccepted).map(g => g.date)} className="w-full space-y-4">
+                            {pedidosAgrupadosPorDia.map(({ date, dailyPedidos, allAccepted, earliestTime }) => (
+                                <Card key={date} className={cn(allAccepted && 'bg-green-100/60')}>
                                     <AccordionItem value={date} className="border-none">
-                                        <AccordionTrigger className="p-4">
-                                            <div className="flex items-center gap-3">
-                                                <CalendarIcon className="h-6 w-6"/>
+                                        <AccordionTrigger className="p-4 hover:no-underline">
+                                            <div className="flex items-center gap-3 w-full">
+                                                {allAccepted ? <CheckCircle className="h-6 w-6 text-green-600"/> : <CalendarIcon className="h-6 w-6"/>}
                                                 <div className="text-left">
                                                     <h3 className="text-xl font-bold capitalize">{format(new Date(date), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
                                                     <p className="text-sm text-muted-foreground">{dailyPedidos.length} elaboraciones requeridas</p>
+                                                </div>
+                                                <div className="flex-grow flex items-center justify-end gap-2 text-sm font-semibold text-primary mr-4">
+                                                    <Clock className="h-4 w-4"/>
+                                                    <span>Hora Límite: {earliestTime}</span>
                                                 </div>
                                             </div>
                                         </AccordionTrigger>
@@ -232,7 +243,6 @@ export default function PartnerPortalPage() {
                                                             <TableHead>Elaboración</TableHead>
                                                             <TableHead className="text-right">Cantidad</TableHead>
                                                             <TableHead>Nº Pedido (OS)</TableHead>
-                                                            <TableHead>Hora Límite Entrega en CPR</TableHead>
                                                             <TableHead>Estado</TableHead>
                                                             <TableHead className="text-right">Comentarios</TableHead>
                                                         </TableRow>
@@ -247,18 +257,12 @@ export default function PartnerPortalPage() {
                                                                         <TableCell>
                                                                             <Badge variant="secondary">{pedido.serviceNumber}</Badge>
                                                                         </TableCell>
-                                                                        <TableCell>{pedido.horaEntrega}</TableCell>
                                                                         <TableCell>
-                                                                            <Select value={pedido.status} onValueChange={(value: PedidoPartnerStatus) => handleStatusChange(pedido.id, value)}>
-                                                                                <SelectTrigger className="w-40 h-8 text-xs">
-                                                                                    <SelectValue />
-                                                                                </SelectTrigger>
-                                                                                <SelectContent>
-                                                                                    {Object.keys(statusVariant).map(s => (
-                                                                                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                                                                                    ))}
-                                                                                </SelectContent>
-                                                                            </Select>
+                                                                            {pedido.status === 'Pendiente' ? (
+                                                                                <Button size="sm" onClick={() => handleAccept(pedido.id)}>Aceptar Pedido</Button>
+                                                                            ) : (
+                                                                                <Badge variant="success" className="bg-green-600">Aceptado</Badge>
+                                                                            )}
                                                                         </TableCell>
                                                                         <TableCell className="text-right">
                                                                             <div className="flex items-center justify-end">
