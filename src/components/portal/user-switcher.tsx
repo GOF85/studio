@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import type { PortalUser } from '@/types';
+import { Badge } from '@/components/ui/badge';
 
 const INTERNAL_USERS: Partial<PortalUser>[] = [
     { id: 'internal-admin', nombre: 'Admin', role: 'Admin' },
