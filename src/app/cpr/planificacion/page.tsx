@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -40,6 +38,7 @@ type EventoAfectado = {
     serviceNumber: string;
     serviceType: string;
     espacio: string;
+    fecha: string;
     isEntrega: boolean;
 };
 
@@ -366,7 +365,7 @@ export default function PlanificacionPage() {
                     registro.necesidadesPorDia.set(diaKey, necesidadDiaActual + cantidadNecesaria);
                     
                     if (!registro.eventos.find(e => e.osId === os.id && e.serviceType === hitoDescripcion)) {
-                        registro.eventos.push({ osId: os.id, serviceNumber: os.serviceNumber, serviceType: hitoDescripcion, espacio: os.space || '', isEntrega });
+                        registro.eventos.push({ osId: os.id, serviceNumber: os.serviceNumber, serviceType: hitoDescripcion, espacio: os.space || '', fecha: os.startDate, isEntrega });
                     }
                     const recetaExistente = registro.recetas.find(r => r.recetaId === receta.id);
                     if (recetaExistente) {
@@ -839,7 +838,12 @@ export default function PlanificacionPage() {
                                 mode="range"
                                 defaultMonth={dateRange?.from}
                                 selected={dateRange}
-                                onSelect={(range) => { setDateRange(range); if(range?.from && range.to) {setIsDatePickerOpen(false);}}}
+                                onSelect={(range) => {
+                                    setDateRange(range);
+                                    if(range?.from && range.to) {
+                                      setIsDatePickerOpen(false);
+                                    }
+                                }}
                                 numberOfMonths={2}
                                 locale={es}
                             />
@@ -1079,7 +1083,7 @@ export default function PlanificacionPage() {
                                                           {receta.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
                                                           {receta.nombre}
                                                         </TableCell>
-                                                        <TableCell className="text-right font-mono">{formatNumber(receta.cantidadTotal)}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatNumber(receta.cantidadTotal, 0)}</TableCell>
                                                     </TableRow>
                                                 ))
                                             ) : (
@@ -1131,7 +1135,7 @@ export default function PlanificacionPage() {
                                                                                     {receta.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
                                                                                     {receta.nombre}
                                                                                 </TableCell>
-                                                                                <TableCell>{formatNumber(receta.cantidad)}</TableCell>
+                                                                                <TableCell>{formatNumber(receta.cantidad, 0)}</TableCell>
                                                                                 <TableCell>
                                                                                     <ul className="list-disc pl-5 text-xs text-muted-foreground">
                                                                                         {receta.elaboraciones.map(elab => (
@@ -1200,8 +1204,8 @@ export default function PlanificacionPage() {
                                                 <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow>
                                             ) : filteredPlanificacionItems.length > 0 ? (
                                                 filteredPlanificacionItems.map(item => (
+                                                <TooltipTrigger key={item.id} asChild>
                                                     <TableRow 
-                                                        key={item.id} 
                                                         onClick={() => handleSelectRow(item.id)} 
                                                         className={cn(
                                                             'cursor-pointer', 
@@ -1214,7 +1218,7 @@ export default function PlanificacionPage() {
                                                             <Checkbox checked={selectedRows.has(item.id)} />
                                                           ) : (
                                                             <Tooltip>
-                                                              <TooltipTrigger><PackageCheck className="text-green-600"/></TooltipTrigger>
+                                                              <TooltipTrigger asChild><div className="flex justify-center"><PackageCheck className="text-green-600"/></div></TooltipTrigger>
                                                               <TooltipContent><p>Excedente disponible</p></TooltipContent>
                                                             </Tooltip>
                                                           )}
@@ -1228,41 +1232,10 @@ export default function PlanificacionPage() {
                                                         </TableCell>
                                                         <TableCell>{formatUnit(item.unidad)}</TableCell>
                                                         <TableCell>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <span className="flex items-center gap-1.5">{item.eventos!.length} evento(s) <Info size={14}/></span>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    <div className="p-2 max-w-sm space-y-3">
-                                                                        {item.recetas.length > 0 && (
-                                                                            <div>
-                                                                                <h4 className="font-bold mb-1 text-center">Desglose por Receta</h4>
-                                                                                <ul className="list-disc pl-4 text-xs">
-                                                                                {item.recetas.map((r, i) => (
-                                                                                    <li key={i}>{r.cantidadReceta} x {r.recetaNombre}: <strong>{formatNumber(r.cantidad, 2)} {formatUnit(item.unidad)}</strong></li>
-                                                                                ))}
-                                                                                </ul>
-                                                                            </div>
-                                                                        )}
-                                                                        {item.recetas.length > 0 && item.eventos.length > 0 && <Separator />}
-                                                                        {item.eventos.length > 0 && (
-                                                                             <div>
-                                                                                <h4 className="font-bold mb-1 text-center">Eventos Implicados</h4>
-                                                                                <div className="space-y-1">
-                                                                                {item.eventos!.map((e, i) => (
-                                                                                    <div key={i} className="text-xs flex items-center gap-2">
-                                                                                        {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
-                                                                                        {e.serviceNumber} - {e.serviceType} - {e.espacio}
-                                                                                    </div>
-                                                                                ))}
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                </TooltipContent>
-                                                            </Tooltip>
+                                                            <div className="flex items-center gap-1.5">{item.eventos!.length} evento(s) <Info size={14}/></div>
                                                         </TableCell>
                                                     </TableRow>
+                                                </TooltipTrigger>
                                                 ))
                                             ) : (
                                                 <TableRow>
@@ -1316,17 +1289,3 @@ export default function PlanificacionPage() {
         </TooltipProvider>
     );
 }
-
-
-
-
-
-
-
-
-
-
-
-    
-
-    
