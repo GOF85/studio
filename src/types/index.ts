@@ -740,7 +740,7 @@ export type PersonalEntrega = {
 
 
 // --- PORTAL & AUTH ---
-export const PORTAL_ROLES = ['Partner Gastronomia', 'Partner Personal', 'Transporte', 'Admin', 'Comercial'] as const;
+export const PORTAL_ROLES = ['Partner Gastronomia', 'Partner Personal', 'Transporte', 'Admin', 'Comercial', 'CPR', 'Pase', 'Dirección', 'Almacen', 'Operaciones', 'Project Manager'] as const;
 export type PortalUserRole = typeof PORTAL_ROLES[number];
 
 export type PortalUser = {

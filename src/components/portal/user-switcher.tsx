@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -20,6 +21,12 @@ import { Badge } from '@/components/ui/badge';
 const INTERNAL_USERS: Partial<PortalUser>[] = [
     { id: 'internal-admin', nombre: 'Admin', roles: ['Admin'] },
     { id: 'internal-comercial', nombre: 'Comercial', roles: ['Comercial'] },
+    { id: 'internal-cpr', nombre: 'CPR', roles: ['CPR'] },
+    { id: 'internal-pase', nombre: 'Pase', roles: ['Pase'] },
+    { id: 'internal-direccion', nombre: 'Dirección', roles: ['Dirección'] },
+    { id: 'internal-almacen', nombre: 'Almacen', roles: ['Almacen'] },
+    { id: 'internal-operaciones', nombre: 'Operaciones', roles: ['Operaciones'] },
+    { id: 'internal-pm', nombre: 'Project Manager', roles: ['Project Manager'] },
 ];
 
 export function UserSwitcher() {
@@ -48,7 +55,7 @@ export function UserSwitcher() {
                         <>
                             {currentUser.nombre}
                             <div className="flex gap-1 ml-2">
-                                {currentUser.roles?.map(role => (
+                                {(currentUser.roles || []).map(role => (
                                     <Badge key={role} variant="destructive" className="text-xs">{role}</Badge>
                                 ))}
                             </div>
@@ -75,7 +82,7 @@ export function UserSwitcher() {
                     {portalUsers.length > 0 ? portalUsers.map(user => (
                         <DropdownMenuItem key={user.id} onSelect={() => setImpersonatedUser(user)}>
                             <Check className={`mr-2 h-4 w-4 ${currentUser?.id === user.id ? 'opacity-100' : 'opacity-0'}`} />
-                            {user.nombre} <span className="ml-auto text-xs text-muted-foreground">{user.roles?.join(', ')}</span>
+                            {user.nombre} <span className="ml-auto text-xs text-muted-foreground">{(user.roles || []).join(', ')}</span>
                         </DropdownMenuItem>
                     )) : <DropdownMenuItem disabled>No hay usuarios externos</DropdownMenuItem>}
                 </DropdownMenuGroup>
