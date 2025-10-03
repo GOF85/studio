@@ -1,9 +1,9 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle } from 'lucide-react';
 import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -92,6 +92,7 @@ export default function PartnerPortalPage() {
     const { toast } = useToast();
     const { impersonatedUser } = useImpersonatedUser();
     const [proveedorNombre, setProveedorNombre] = useState('');
+    const router = useRouter();
     
     // State for Calendar View
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -160,6 +161,16 @@ export default function PartnerPortalPage() {
         setPedidos(partnerPedidos);
         setIsMounted(true);
     }, [impersonatedUser]);
+
+    useEffect(() => {
+        if (impersonatedUser) {
+            const userRoles = impersonatedUser.roles || [];
+            const canAccess = userRoles.includes('Partner Gastronomia') || userRoles.includes('Admin') || userRoles.includes('Comercial');
+            if (!canAccess) {
+                router.push('/portal');
+            }
+        }
+    }, [impersonatedUser, router]);
 
     useEffect(() => {
         loadData();
@@ -465,3 +476,5 @@ export default function PartnerPortalPage() {
         </TooltipProvider>
     );
 }
+
+    
