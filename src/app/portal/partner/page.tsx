@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -27,6 +28,8 @@ import { DateRange } from 'react-day-picker';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { logActivity } from '../activity-log/utils';
 
 
 type SimplifiedPedidoPartnerStatus = 'Pendiente' | 'Aceptado';
@@ -87,6 +90,7 @@ export default function PartnerPortalPage() {
     const [pedidos, setPedidos] = useState<PedidoPartnerConEstado[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const { toast } = useToast();
+    const { impersonatedUser } = useImpersonatedUser();
     
     // State for Calendar View
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -99,6 +103,12 @@ export default function PartnerPortalPage() {
 
 
     const loadData = useCallback(() => {
+        if (!impersonatedUser || !impersonatedUser.proveedorId) {
+            setPedidos([]);
+            setIsMounted(true);
+            return;
+        }
+
         const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.status === 'Confirmado');
         const allPedidosEntrega = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
         const allProductosVenta = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
@@ -117,7 +127,7 @@ export default function PartnerPortalPage() {
             (pedido.hitos || []).forEach((hito, hitoIndex) => {
                 (hito.items || []).forEach(item => {
                     const producto = productosMap.get(item.id);
-                    if (producto && producto.producidoPorPartner) {
+                    if (producto && producto.producidoPorPartner && producto.partnerId === impersonatedUser.proveedorId) {
                          const id = `${hito.id}-${item.id}`;
                          const statusInfo = partnerStatusData[id] || { status: 'Pendiente' };
                          const expedicionNumero = `${os.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
@@ -143,30 +153,37 @@ export default function PartnerPortalPage() {
         
         setPedidos(partnerPedidos);
         setIsMounted(true);
-    }, []);
+    }, [impersonatedUser]);
 
     useEffect(() => {
         loadData();
     }, [loadData]);
     
-    const handleAccept = (pedidoId: string) => {
+    const handleAccept = (pedido: PedidoPartnerConEstado) => {
+        if (!impersonatedUser) return;
         const partnerStatusData = JSON.parse(localStorage.getItem('partnerPedidosStatus') || '{}');
-        if (!partnerStatusData[pedidoId]) {
-            partnerStatusData[pedidoId] = {};
+        if (!partnerStatusData[pedido.id]) {
+            partnerStatusData[pedido.id] = {};
         }
-        partnerStatusData[pedidoId].status = 'Aceptado';
+        partnerStatusData[pedido.id].status = 'Aceptado';
         localStorage.setItem('partnerPedidosStatus', JSON.stringify(partnerStatusData));
-        loadData(); // Recargar datos para reflejar el cambio
+        logActivity(impersonatedUser, 'Aceptar Pedido', `Aceptado: ${pedido.cantidad} x ${pedido.elaboracionNombre}`, pedido.expedicionNumero);
+        loadData();
         toast({ title: 'Pedido Aceptado', description: `El pedido ha sido marcado como "Aceptado".` });
     };
 
     const handleSaveComment = (pedidoId: string, comment: string) => {
+        if (!impersonatedUser) return;
         const partnerStatusData = JSON.parse(localStorage.getItem('partnerPedidosStatus') || '{}');
         if (!partnerStatusData[pedidoId]) {
             partnerStatusData[pedidoId] = { status: 'Pendiente' };
         }
         partnerStatusData[pedidoId].comentarios = comment;
         localStorage.setItem('partnerPedidosStatus', JSON.stringify(partnerStatusData));
+        const pedido = pedidos.find(p => p.id === pedidoId);
+        if(pedido) {
+            logActivity(impersonatedUser, 'Añadir Comentario', `Comentario en ${pedido.elaboracionNombre}: "${comment}"`, pedido.expedicionNumero);
+        }
         loadData();
         toast({ title: 'Comentario guardado' });
     };
@@ -252,6 +269,17 @@ export default function PartnerPortalPage() {
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Portal de Partner..." />;
     }
+    
+    if(!impersonatedUser || !impersonatedUser.proveedorId) {
+        return (
+             <main className="container mx-auto px-4 py-16">
+                <Card className="max-w-xl mx-auto">
+                    <CardHeader><CardTitle>Acceso Restringido</CardTitle></CardHeader>
+                    <CardContent><p>Este usuario no está asociado a ningún partner de producción. Por favor, contacta con el administrador.</p></CardContent>
+                </Card>
+            </main>
+        )
+    }
 
     return (
         <TooltipProvider>
@@ -284,7 +312,7 @@ export default function PartnerPortalPage() {
                         </Popover>
                         <div className="flex items-center space-x-2">
                             <Checkbox id="show-completed" checked={showCompleted} onCheckedChange={(checked) => setShowCompleted(Boolean(checked))} />
-                            <Label htmlFor="show-completed">Mostrar pedidos finalizados</Label>
+                            <Label htmlFor="show-completed">Mostrar pedidos aceptados</Label>
                         </div>
                     </div>
                     {pedidosAgrupadosPorDia.length > 0 ? (
@@ -327,7 +355,7 @@ export default function PartnerPortalPage() {
                                                                         <TableCell className="text-right font-mono">{pedido.cantidad.toFixed(2)} {formatUnit(pedido.unidad)}</TableCell>
                                                                         <TableCell>
                                                                             {pedido.status === 'Pendiente' ? (
-                                                                                <Button size="sm" onClick={() => handleAccept(pedido.id)}>Aceptar Pedido</Button>
+                                                                                <Button size="sm" onClick={() => handleAccept(pedido)}>Aceptar Pedido</Button>
                                                                             ) : (
                                                                                 <Badge variant={statusVariant[pedido.status]}>{pedido.status}</Badge>
                                                                             )}
