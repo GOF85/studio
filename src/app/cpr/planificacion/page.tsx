@@ -1122,7 +1122,7 @@ export default function PlanificacionPage() {
                                         <div className="flex justify-center items-center h-24"><Loader2 className="mx-auto animate-spin" /></div>
                                     ) : desgloseEventosRecetas.length > 0 ? (
                                         desgloseEventosRecetas.map(os => (
-                                            <Collapsible key={os.osId} className="border rounded-lg p-4 bg-card">
+                                            <Collapsible key={os.osId} className="border rounded-lg p-4 bg-card" defaultOpen>
                                                 <CollapsibleTrigger className="w-full flex justify-between items-center group">
                                                     <div className="text-left flex items-center gap-2">
                                                         {os.isEntrega && <Package size={18} className="text-orange-600 flex-shrink-0" />}
@@ -1157,7 +1157,7 @@ export default function PlanificacionPage() {
                                                                                 <TableCell>
                                                                                     <ul className="list-disc pl-5 text-xs text-muted-foreground">
                                                                                         {receta.elaboraciones.map(elab => (
-                                                                                            <li key={elab.id}>{formatNumber(elab.cantidadPorReceta, 2)} {formatUnit(elab.unidad)} - {elab.nombre}</li>
+                                                                                            <li key={elab.id}>{formatNumber(elab.cantidadPorReceta * receta.cantidad, 2)} {formatUnit(elab.unidad)} - {elab.nombre}</li>
                                                                                         ))}
                                                                                     </ul>
                                                                                 </TableCell>
