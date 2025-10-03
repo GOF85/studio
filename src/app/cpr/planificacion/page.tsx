@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday, eachDayOfInterval, isSameDay, isBefore } from 'date-fns';
-import { ClipboardList, Calendar as CalendarIcon, Factory, Info, AlertTriangle, PackageCheck, ChevronRight, ChevronDown, Utensils, Component, Users, FileDigit, Soup, BookOpen, Package } from 'lucide-react';
+import { ClipboardList, Calendar as CalendarIcon, Factory, Info, AlertTriangle, PackageCheck, ChevronRight, ChevronDown, Utensils, Component, Users, FileDigit, Soup, BookOpen, Package, Separator } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -27,7 +28,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 
 
 import type { ServiceOrder, GastronomyOrder, GastronomyOrderItem, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta, ComercialBriefing, ComercialBriefingItem, ExcedenteProduccion, PedidoEntrega, PedidoEntregaItem, Entrega, ProductoVenta } from '@/types';
@@ -1201,7 +1201,7 @@ export default function PlanificacionPage() {
                                             ) : filteredPlanificacionItems.length > 0 ? (
                                                 filteredPlanificacionItems.map(item => (
                                                 <Tooltip key={item.id}>
-                                                     <TableRow 
+                                                    <TableRow 
                                                         onClick={() => handleSelectRow(item.id)} 
                                                         className={cn(
                                                             'cursor-pointer', 
@@ -1244,7 +1244,7 @@ export default function PlanificacionPage() {
                                                                 </ul>
                                                             </div>
                                                         )}
-                                                        {item.recetas.length > 0 && item.eventos.length > 0 && <Separator />}
+                                                        {item.recetas.length > 0 && item.eventos.length > 0 && <Separator className="my-2"/>}
                                                         {item.eventos.length > 0 && (
                                                             <div>
                                                                 <h4 className="font-bold mb-1 text-center">Eventos Implicados</h4>
@@ -1313,3 +1313,4 @@ export default function PlanificacionPage() {
         </TooltipProvider>
     );
 }
+
