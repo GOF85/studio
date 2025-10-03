@@ -452,8 +452,9 @@ export default function RecetaFormPage() {
     <TooltipProvider>
       <Header />
       <main className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-[1fr_400px] gap-8 items-start">
         <Form {...form}>
+        <div className="grid lg:grid-cols-[1fr_400px] gap-8 items-start">
+        
           <form id="receta-form" onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-4">
              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -779,8 +780,8 @@ export default function RecetaFormPage() {
                 
             </Accordion>
           </form>
-        </Form>
-        <Card className="sticky top-24">
+          
+          <Card className="sticky top-24">
             <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2"><TrendingUp/>Análisis de Rentabilidad</CardTitle>
                 <CardDescription className="text-xs">Costes y precios en tiempo real.</CardDescription>
@@ -826,6 +827,7 @@ export default function RecetaFormPage() {
              </CardFooter>
         </Card>
         </div>
+        </Form>
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -849,6 +851,7 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
+
 
 
 
