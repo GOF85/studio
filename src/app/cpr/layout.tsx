@@ -10,6 +10,7 @@ import { useState, useEffect, useMemo } from 'react';
 import type { OrdenFabricacion, Elaboracion, ServiceOrder, GastronomyOrder, Receta, ExcedenteProduccion } from '@/types';
 import { addDays, differenceInDays } from 'date-fns';
 import { cprNav } from '@/lib/cpr-nav';
+import { Factory } from 'lucide-react';
 
 
 export default function CprLayout({ children }: { children: React.ReactNode }) {
