@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import type { MaterialOrder, ServiceOrder, OrderItem } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -56,8 +56,8 @@ export default function BioPage() {
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const osId = searchParams.get('osId');
+  const params = useParams();
+  const osId = params.id as string;
   const { toast } = useToast();
 
   useEffect(() => {
@@ -122,10 +122,6 @@ export default function BioPage() {
     <>
       <div className="flex items-center justify-between mb-8">
           <div>
-              <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
-                  <ArrowLeft className="mr-2" />
-                  Volver a la OS
-              </Button>
               <h1 className="text-3xl font-headline font-bold">Módulo de Bio</h1>
               <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
           </div>

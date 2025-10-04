@@ -4,8 +4,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, FilePlus } from 'lucide-react';
-import type { AtipicoOrder, ServiceOrder } from '@/types';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, Truck, Phone, Building } from 'lucide-react';
+import type { TransporteOrder, ServiceOrder, Espacio } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -38,15 +38,17 @@ import { format } from 'date-fns';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency } from '@/lib/utils';
 
-const statusVariant: { [key in AtipicoOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
+const statusVariant: { [key in TransporteOrder['status']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   Pendiente: 'secondary',
-  Aprobado: 'default',
-  Rechazado: 'destructive',
+  Confirmado: 'default',
+  'En Ruta': 'outline',
+  Entregado: 'outline',
 };
 
-export default function AtipicosPage() {
+export default function TransportePage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [atipicoOrders, setAtipicoOrders] = useState<AtipicoOrder[]>([]);
+  const [spaceAddress, setSpaceAddress] = useState<string>('');
+  const [transporteOrders, setTransporteOrders] = useState<TransporteOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   
@@ -61,9 +63,15 @@ export default function AtipicosPage() {
       const currentOS = allServiceOrders.find(os => os.id === osId);
       setServiceOrder(currentOS || null);
 
-      const allAtipicoOrders = JSON.parse(localStorage.getItem('atipicoOrders') || '[]') as AtipicoOrder[];
-      const relatedOrders = allAtipicoOrders.filter(order => order.osId === osId);
-      setAtipicoOrders(relatedOrders);
+      if (currentOS?.space) {
+        const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
+        const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
+        setSpaceAddress(currentSpace?.calle || '');
+      }
+
+      const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
+      const relatedOrders = allTransporteOrders.filter(order => order.osId === osId);
+      setTransporteOrders(relatedOrders);
     } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
         router.push('/pes');
@@ -72,64 +80,79 @@ export default function AtipicosPage() {
   }, [osId, router, toast]);
 
   const totalAmount = useMemo(() => {
-    return atipicoOrders.reduce((sum, order) => sum + order.precio, 0);
-  }, [atipicoOrders]);
+    return transporteOrders.reduce((sum, order) => sum + order.precio, 0);
+  }, [transporteOrders]);
 
   const handleDelete = () => {
     if (!orderToDelete) return;
 
-    let allOrders = JSON.parse(localStorage.getItem('atipicoOrders') || '[]') as AtipicoOrder[];
-    const updatedOrders = allOrders.filter((o: AtipicoOrder) => o.id !== orderToDelete);
-    localStorage.setItem('atipicoOrders', JSON.stringify(updatedOrders));
-    setAtipicoOrders(updatedOrders.filter((o: AtipicoOrder) => o.osId === osId));
+    let allOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
+    const updatedOrders = allOrders.filter((o: TransporteOrder) => o.id !== orderToDelete);
+    localStorage.setItem('transporteOrders', JSON.stringify(updatedOrders));
+    setTransporteOrders(updatedOrders.filter((o: TransporteOrder) => o.osId === osId));
     
-    toast({ title: 'Gasto atípico eliminado' });
+    toast({ title: 'Pedido de transporte eliminado' });
     setOrderToDelete(null);
   };
   
   if (!isMounted || !serviceOrder) {
-    return <LoadingSkeleton title="Cargando Módulo de Atípicos..." />;
+    return <LoadingSkeleton title="Cargando Módulo de Transporte..." />;
   }
 
   return (
     <>
       <div className="flex items-start justify-between mb-8">
           <div>
-              <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
-                  <ArrowLeft className="mr-2" />
-                  Volver a la OS
-              </Button>
-              <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><FilePlus />Módulo de Atípicos</h1>
-              <p className="text-muted-foreground mt-2">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
+              <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Truck />Módulo de Transporte</h1>
+              <div className="text-muted-foreground mt-2 space-y-1">
+                  <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
+                   {serviceOrder.space && (
+                      <p className="flex items-center gap-2">
+                          <Building className="h-3 w-3" /> {serviceOrder.space} {spaceAddress && `(${spaceAddress})`}
+                      </p>
+                  )}
+                  {serviceOrder.respMetre && (
+                      <p className="flex items-center gap-2">
+                          Resp. Metre: {serviceOrder.respMetre} 
+                          {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
+                      </p>
+                  )}
+              </div>
           </div>
         <Button asChild>
-          <Link href={`/atipicos/pedido?osId=${osId}`}>
+          <Link href={`/transporte/pedido?osId=${osId}`}>
             <PlusCircle className="mr-2" />
-            Nuevo Gasto Atípico
+            Nuevo Pedido de Transporte
           </Link>
         </Button>
       </div>
 
       <Card>
-          <CardHeader><CardTitle>Gastos Atípicos Registrados</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Pedidos de Transporte Realizados</CardTitle></CardHeader>
           <CardContent>
                <div className="border rounded-lg">
                   <Table>
                       <TableHeader>
                       <TableRow>
                           <TableHead>Fecha</TableHead>
-                          <TableHead>Concepto</TableHead>
+                          <TableHead>Proveedor</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Recogida</TableHead>
+                          <TableHead>Entrega</TableHead>
                           <TableHead>Importe</TableHead>
                           <TableHead>Estado</TableHead>
                           <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
                       </TableHeader>
                       <TableBody>
-                      {atipicoOrders.length > 0 ? (
-                          atipicoOrders.map(order => (
+                      {transporteOrders.length > 0 ? (
+                          transporteOrders.map(order => (
                           <TableRow key={order.id}>
                               <TableCell className="font-medium">{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
-                              <TableCell>{order.concepto}</TableCell>
+                              <TableCell>{order.proveedorNombre}</TableCell>
+                              <TableCell>{order.tipoTransporte}</TableCell>
+                              <TableCell>{order.lugarRecogida} a las {order.horaRecogida}</TableCell>
+                              <TableCell>{order.lugarEntrega} a las {order.horaEntrega}</TableCell>
                               <TableCell>{formatCurrency(order.precio)}</TableCell>
                               <TableCell>
                               <Badge variant={statusVariant[order.status]}>
@@ -145,7 +168,7 @@ export default function AtipicosPage() {
                                   </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => router.push(`/atipicos/pedido?osId=${osId}&orderId=${order.id}`)}>
+                                  <DropdownMenuItem onClick={() => router.push(`/transporte/pedido?osId=${osId}&orderId=${order.id}`)}>
                                       <Pencil className="mr-2 h-4 w-4" />
                                       Editar
                                   </DropdownMenuItem>
@@ -160,15 +183,15 @@ export default function AtipicosPage() {
                           ))
                       ) : (
                           <TableRow>
-                          <TableCell colSpan={5} className="h-24 text-center">
-                              No hay gastos atípicos para esta Orden de Servicio.
+                          <TableCell colSpan={8} className="h-24 text-center">
+                              No hay pedidos de transporte para esta Orden de Servicio.
                           </TableCell>
                           </TableRow>
                       )}
                       </TableBody>
                   </Table>
               </div>
-              {atipicoOrders.length > 0 && (
+              {transporteOrders.length > 0 && (
                   <div className="flex justify-end mt-4 text-xl font-bold">
                       Importe Total: {formatCurrency(totalAmount)}
                   </div>
@@ -181,7 +204,7 @@ export default function AtipicosPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente el gasto atípico.
+              Esta acción no se puede deshacer. Esto eliminará permanentemente el pedido de transporte.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

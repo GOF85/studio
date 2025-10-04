@@ -122,10 +122,6 @@ export default function AlquilerPage() {
     <>
       <div className="flex items-center justify-between mb-8">
           <div>
-              <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
-                  <ArrowLeft className="mr-2" />
-                  Volver a la OS
-              </Button>
               <h1 className="text-3xl font-headline font-bold">Módulo de Alquiler</h1>
               <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
           </div>

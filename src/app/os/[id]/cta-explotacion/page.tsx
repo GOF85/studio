@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, DollarSign, Target, Settings, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,8 +51,8 @@ const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: strin
 
 export default function CtaExplotacionPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const osId = searchParams.get('osId');
+  const params = useParams();
+  const osId = params.id as string;
   const { toast } = useToast();
 
   const [ctaData, setCtaData] = useState<{
@@ -254,10 +254,6 @@ export default function CtaExplotacionPage() {
   return (
     <>
       <div>
-        <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
-          <ArrowLeft className="mr-2" />
-          Volver a la OS
-        </Button>
         <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
           <DollarSign />
           Cuenta de Explotación

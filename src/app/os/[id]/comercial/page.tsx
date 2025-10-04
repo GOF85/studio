@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -109,8 +109,8 @@ export default function ComercialPage() {
     const nuevoAjusteImporteRef = useRef<HTMLInputElement>(null);
 
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const osId = searchParams.get('osId');
+    const params = useParams();
+    const osId = params.id as string;
     const { toast } = useToast();
     
     const totalBriefing = useMemo(() => {
@@ -333,10 +333,6 @@ export default function ComercialPage() {
         asistentes: item?.asistentes || serviceOrder?.asistentes || 0,
         precioUnitario: item?.precioUnitario || 0,
         importeFijo: item?.importeFijo || 0,
-        bebidas: item?.bebidas || '',
-        matBebida: item?.matBebida || '',
-        materialGastro: item?.materialGastro || '',
-        manteleria: item?.manteleria || '',
       }
     });
     
@@ -353,10 +349,6 @@ export default function ComercialPage() {
             asistentes: item?.asistentes || serviceOrder?.asistentes || 0,
             precioUnitario: item?.precioUnitario || 0,
             importeFijo: item?.importeFijo || 0,
-            bebidas: item?.bebidas || '',
-            matBebida: item?.matBebida || '',
-            materialGastro: item?.materialGastro || '',
-            manteleria: item?.manteleria || '',
         })
     }, [item, serviceOrder, form])
 
@@ -435,18 +427,16 @@ export default function ComercialPage() {
                     control={form.control}
                     name="conGastronomia"
                     render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-10">
+                    <FormItem className="flex flex-row items-center justify-start gap-3 rounded-lg border p-3">
                         <FormControl>
                         <Checkbox
                             checked={field.value}
                             onCheckedChange={field.onChange}
                         />
                         </FormControl>
-                        <div className="space-y-1 leading-none">
-                        <FormLabel>
+                        <FormLabel className="!m-0 text-base">
                             Con gastronomía
                         </FormLabel>
-                        </div>
                     </FormItem>
                     )}
                 />
@@ -474,10 +464,6 @@ export default function ComercialPage() {
     <>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
-            <ArrowLeft className="mr-2" />
-            Volver a la OS
-          </Button>
           <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Briefcase />Módulo Comercial</h1>
           <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
         </div>
