@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -22,7 +23,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { differenceInMinutes, parse } from 'date-fns';
+import { differenceInMinutes, parse, format } from 'date-fns';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -104,7 +105,7 @@ export default function PersonalMicePage() {
     name: "personal",
   });
   
-  const handlePersonalChange = useCallback((index: number, name: string) => {
+ const handlePersonalChange = useCallback((index: number, name: string) => {
     if (!name) return;
     const person = personalDB.find(p => p.nombre.toLowerCase() === name.toLowerCase());
     if (person) {
@@ -135,7 +136,7 @@ export default function PersonalMicePage() {
   }, [watchedFields]);
 
   const loadData = useCallback(() => {
-    if (!osId) {
+     if (!osId) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
         router.push('/pes');
         return;
@@ -198,7 +199,6 @@ export default function PersonalMicePage() {
   };
   
   const addRow = () => {
-    if (!osId) return;
     append({
         id: Date.now().toString(),
         osId: osId,
@@ -258,7 +258,7 @@ export default function PersonalMicePage() {
             </div>
       </div>
       
-       <Accordion type="single" collapsible className="w-full mb-8" >
+       <Accordion type="single" collapsible className="w-full mb-8">
           <AccordionItem value="item-1">
             <Card>
                 <AccordionTrigger className="p-6">
@@ -281,7 +281,7 @@ export default function PersonalMicePage() {
                             <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
                             <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
                             <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                            <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaSalida).toFixed(2)}h</TableCell>
+                            <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
                         </TableRow>
                         )) : (
                             <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
@@ -394,7 +394,7 @@ export default function PersonalMicePage() {
                                             <FormField
                                                 control={control}
                                                 name={`personal.${index}.precioHora`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20 h-9" readOnly /></FormControl></FormItem>}
+                                                render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20 h-9"/></FormControl></FormItem>}
                                             />
                                         </TableCell>
                                         <TableCell className="px-2 py-1">
@@ -430,8 +430,8 @@ export default function PersonalMicePage() {
                     </div>
                 </CardContent>
                 {fields.length > 0 && (
-                    <CardFooter className="justify-end">
-                         <Card className="w-full md:w-1/2">
+                    <CardFooter>
+                         <Card className="w-full md:w-1/2 ml-auto">
                             <CardHeader><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
                             <CardContent className="space-y-2 text-sm">
                                 <div className="flex justify-between">
@@ -443,8 +443,8 @@ export default function PersonalMicePage() {
                                     <span className="font-bold">{formatCurrency(totalReal)}</span>
                                 </div>
                                 <Separator className="my-2" />
-                                <div className="flex justify-between font-bold text-base">
-                                    <span>Desviación (Plan vs Real):</span>
+                                 <div className="flex justify-between font-bold text-base">
+                                    <span>Desviación:</span>
                                     <span className={totalReal - totalPlanned > 0 ? 'text-destructive' : 'text-green-600'}>
                                         {formatCurrency(totalReal - totalPlanned)}
                                     </span>
