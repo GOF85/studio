@@ -2,11 +2,11 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, Flower2, FilePlus, Users, UserPlus, DollarSign, ClipboardCheck } from 'lucide-react';
+import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 type NavLink = {
@@ -16,31 +16,30 @@ type NavLink = {
 }
 
 const navLinks: NavLink[] = [
-    { href: 'comercial', title: 'Comercial', icon: Briefcase },
-    { href: 'gastronomia', title: 'Gastronomía', icon: Utensils },
-    { href: 'bodega', title: 'Bodega', icon: Wine },
-    { href: 'hielo', title: 'Hielo', icon: Snowflake },
-    { href: 'bio', title: 'Bio (Consumibles)', icon: Leaf },
-    { href: 'almacen', title: 'Almacén', icon: Warehouse },
-    { href: 'alquiler', title: 'Alquiler', icon: Archive },
-    { href: 'decoracion', title: 'Decoración', icon: Flower2 },
-    { href: 'atipicos', title: 'Atípicos', icon: FilePlus },
-    { href: 'personal-mice', title: 'Personal MICE', icon: Users },
-    { href: 'personal-externo', title: 'Personal Externo', icon: UserPlus },
-    { href: 'transporte', title: 'Transporte', icon: Truck },
-    { href: 'prueba-menu', title: 'Prueba de Menu', icon: ClipboardCheck },
-    { href: 'cta-explotacion', title: 'Cta. Explotación', icon: DollarSign },
+    { href: '/os/comercial', title: 'Comercial', icon: Briefcase },
+    { href: '/os/gastronomia', title: 'Gastronomía', icon: Utensils },
+    { href: '/os/bodega', title: 'Bodega', icon: Wine },
+    { href: '/os/hielo', title: 'Hielo', icon: Snowflake },
+    { href: '/os/bio', title: 'Bio (Consumibles)', icon: Leaf },
+    { href: '/os/almacen', title: 'Almacén', icon: Warehouse },
+    { href: '/os/alquiler', title: 'Alquiler', icon: Archive },
+    { href: '/os/decoracion', title: 'Decoración', icon: Flower2 },
+    { href: '/os/atipicos', title: 'Atípicos', icon: FilePlus },
+    { href: '/os/personal-mice', title: 'Personal MICE', icon: Users },
+    { href: '/os/personal-externo', title: 'Personal Externo', icon: UserPlus },
+    { href: '/os/transporte', title: 'Transporte', icon: Truck },
+    { href: '/os/prueba-menu', title: 'Prueba de Menu', icon: ClipboardCheck },
+    { href: '/os/cta-explotacion', title: 'Cta. Explotación', icon: DollarSign },
 ];
 
 export default function OSLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const searchParams = useSearchParams();
-    const osId = searchParams.get('osId');
+    const params = useParams();
+    const osId = params.id as string;
 
     const getHref = (baseHref: string) => {
-        if (!osId) return '/pes'; // Fallback a la lista de OS si no hay ID
-        if (baseHref === 'personal-mice') return `/personal-mice/${osId}`;
-        return `/${baseHref}?osId=${osId}`;
+        if (!osId) return '/pes'; 
+        return `${baseHref}/${osId}`;
     }
 
     return (
@@ -49,7 +48,7 @@ export default function OSLayout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto">
             <div className="grid lg:grid-cols-[250px_1fr] gap-12">
                 <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)] hidden lg:block">
-                    <div className="w-full">
+                     <div className="w-full">
                         <div className="pb-4">
                             <h2 className="text-xl font-headline font-bold">Módulos del Servicio</h2>
                             <p className="text-sm text-muted-foreground">
@@ -65,7 +64,7 @@ export default function OSLayout({ children }: { children: React.ReactNode }) {
                                     <span
                                         className={cn(
                                             "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                                            pathname.startsWith(`/${item.href}`) || (item.href === 'personal-mice' && pathname.startsWith('/personal-mice')) ? "bg-accent" : "transparent"
+                                            pathname.startsWith(item.href) ? "bg-accent" : "transparent"
                                         )}
                                     >
                                         <item.icon className="mr-2 h-4 w-4" />

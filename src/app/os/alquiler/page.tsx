@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import type { MaterialOrder, ServiceOrder, OrderItem } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -56,8 +56,8 @@ export default function AlquilerPage() {
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const osId = searchParams.get('osId');
+  const params = useParams();
+  const osId = params.id as string;
   const { toast } = useToast();
 
   useEffect(() => {
