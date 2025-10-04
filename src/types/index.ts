@@ -1,5 +1,4 @@
 
-
 import { z } from "zod";
 
 export type CateringItem = {
@@ -79,6 +78,7 @@ export type ServiceOrder = {
     objetivoGastoId?: string;
     vertical?: 'Catering' | 'Entregas';
     direccionPrincipal?: string;
+    isVip?: boolean;
 };
 
 export type MaterialOrder = {

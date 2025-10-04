@@ -22,6 +22,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
   const isEntregasModule = pathname.startsWith('/entregas');
   const isPortalModule = pathname.startsWith('/portal');
   const isOsModule = pathname.startsWith('/os/');
+  const isHome = pathname === '/';
 
   if (isPortalModule) {
       return (
@@ -76,7 +77,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
           </h1>
         </Link>
         <nav className="flex flex-1 items-center justify-end space-x-2">
-            {isOsModule ? (
+            {!isHome ? (
                 <>
                     <Button asChild variant="ghost">
                         <Link href="/pes"><ClipboardList />PES</Link>

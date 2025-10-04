@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format, parseISO, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, Clock, Users } from 'lucide-react';
+import { PlusCircle, Clock, Users, Star } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
@@ -183,11 +183,14 @@ export default function PesPage() {
                   const sameDay = format(osStartDate, 'yyyy-MM-dd') === format(osEndDate, 'yyyy-MM-dd');
 
                   return (
-                  <TableRow key={os.id} onClick={() => router.push(`/os?id=${os.id}`)} className="cursor-pointer">
+                  <TableRow key={os.id} onClick={() => router.push(`/os/${os.id}`)} className="cursor-pointer">
                     <TableCell className="font-medium">
                        <Tooltip>
                         <TooltipTrigger asChild>
-                          <span>{os.serviceNumber}</span>
+                          <span className="flex items-center gap-2">
+                            {os.isVip && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
+                            {os.serviceNumber}
+                          </span>
                         </TooltipTrigger>
                         {osBriefingItems && osBriefingItems.length > 0 && (
                           <TooltipContent>
@@ -207,14 +210,14 @@ export default function PesPage() {
                     <TableCell>{os.space}</TableCell>
                     <TableCell>{os.client}</TableCell>
                     <TableCell>
-                        {sameDay ? (
-                            format(osStartDate, 'dd/MM/yyyy')
-                        ) : (
-                            <div>
-                                <div>{format(osStartDate, 'dd/MM/yyyy')}</div>
-                                <div>{format(osEndDate, 'dd/MM/yyyy')}</div>
-                            </div>
-                        )}
+                      {sameDay ? (
+                          format(osStartDate, 'dd/MM/yyyy')
+                      ) : (
+                          <div>
+                              <div>{format(osStartDate, 'dd/MM/yyyy')}</div>
+                              <div>{format(osEndDate, 'dd/MM/yyyy')}</div>
+                          </div>
+                      )}
                     </TableCell>
                     <TableCell>{os.asistentes}</TableCell>
                     <TableCell>

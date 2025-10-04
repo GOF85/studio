@@ -10,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ServiceOrder } from '@/types';
 import { useEffect, useState, useMemo } from 'react';
-import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText } from 'lucide-react';
+import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type NavLink = {
     path: string;
@@ -19,6 +20,7 @@ type NavLink = {
 }
 
 const navLinks: NavLink[] = [
+    { path: 'info', title: 'Información OS', icon: FileText },
     { path: 'comercial', title: 'Comercial', icon: Briefcase },
     { path: 'gastronomia', title: 'Gastronomía', icon: Utensils },
     { path: 'bodega', title: 'Bodega', icon: Wine },
@@ -58,9 +60,10 @@ function OSSubHeader() {
 
   return (
     <div className="flex items-center gap-6 text-sm text-muted-foreground border-b pb-4 mb-8">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 font-semibold">
         <FileText className="h-4 w-4" />
-        <span className="font-semibold">{serviceOrder.serviceNumber}</span>
+        {serviceOrder.isVip && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
+        <span>{serviceOrder.serviceNumber}</span>
       </div>
       {serviceOrder.space && (
         <div className="flex items-center gap-2">
@@ -85,9 +88,12 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
 
     return (
         <div className="container mx-auto">
-            <div className={cn("grid transition-all duration-300", isCollapsed ? "lg:grid-cols-[60px_1fr] lg:gap-2" : "lg:grid-cols-[220px_1fr] lg:gap-8")}>
-                <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)] hidden lg:block">
-                     <div className="w-full">
+            <div className={cn(
+                "grid transition-all duration-300", 
+                isCollapsed ? "lg:grid-cols-[60px_1fr] lg:gap-2" : "lg:grid-cols-[220px_1fr] lg:gap-4"
+            )}>
+                <aside className="sticky top-20 self-start h-[calc(100vh-5rem)]">
+                     <div className="w-full h-full flex flex-col">
                         <div className={cn("pb-2 flex items-center", isCollapsed ? 'justify-center' : 'justify-between')}>
                              <div className={cn(isCollapsed && 'hidden')}>
                                 <h2 className="text-lg font-semibold tracking-tight">Módulos</h2>
@@ -99,33 +105,35 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                                 <PanelLeft className="h-5 w-5" />
                             </Button>
                         </div>
-                        <nav className="grid items-start gap-1">
-                            {navLinks.map((item, index) => {
-                                const href = `/os/${osId}/${item.path}`;
-                                return (
-                                <Tooltip key={index} delayDuration={0}>
-                                    <TooltipTrigger asChild>
-                                        <Link href={href}>
-                                            <span
-                                                className={cn(
-                                                    "group flex items-center rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                                                    pathname.startsWith(href) ? "bg-accent" : "transparent",
-                                                    isCollapsed && "justify-center"
-                                                )}
-                                            >
-                                                <item.icon className="h-4 w-4" />
-                                                <span className={cn('ml-2', isCollapsed && 'hidden')}>{item.title}</span>
-                                            </span>
-                                        </Link>
-                                    </TooltipTrigger>
-                                    {isCollapsed && (
-                                        <TooltipContent side="right">
-                                            <p>{item.title}</p>
-                                        </TooltipContent>
-                                    )}
-                                </Tooltip>
-                            )})}
-                        </nav>
+                        <ScrollArea className="h-full pr-0 [&>div>div[style]]:!block">
+                            <nav className="grid items-start gap-1">
+                                {navLinks.map((item, index) => {
+                                    const href = `/os/${osId}/${item.path}`;
+                                    return (
+                                    <Tooltip key={index} delayDuration={0}>
+                                        <TooltipTrigger asChild>
+                                            <Link href={href}>
+                                                <span
+                                                    className={cn(
+                                                        "group flex items-center rounded-md px-2 py-1 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                                                        pathname.startsWith(href) ? "bg-accent" : "transparent",
+                                                        isCollapsed && "justify-center"
+                                                    )}
+                                                >
+                                                    <item.icon className="h-4 w-4" />
+                                                    <span className={cn('ml-2', isCollapsed && 'hidden')}>{item.title}</span>
+                                                </span>
+                                            </Link>
+                                        </TooltipTrigger>
+                                        {isCollapsed && (
+                                            <TooltipContent side="right">
+                                                <p>{item.title}</p>
+                                            </TooltipContent>
+                                        )}
+                                    </Tooltip>
+                                )})}
+                            </nav>
+                        </ScrollArea>
                     </div>
                 </aside>
                 <main className="py-8">
