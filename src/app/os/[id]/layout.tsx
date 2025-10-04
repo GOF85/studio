@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -30,20 +31,18 @@ const navLinks: NavLink[] = [
     { path: 'cta-explotacion', title: 'Cta. Explotación', icon: DollarSign },
 ];
 
-export default function OSLayout({ children }: { children: React.ReactNode }) {
+export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const params = useParams();
     const osId = params.id as string;
 
     return (
-        <>
-        <Header />
         <div className="container mx-auto">
-            <div className="grid lg:grid-cols-[250px_1fr] gap-12">
+            <div className="grid lg:grid-cols-[220px_1fr] gap-8">
                 <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)] hidden lg:block">
                      <div className="w-full">
                         <div className="pb-4">
-                            <h2 className="text-xl font-headline font-bold">Módulos del Servicio</h2>
+                            <h2 className="text-lg font-semibold tracking-tight">Módulos del Servicio</h2>
                             <p className="text-sm text-muted-foreground">
                                 Gestión de la Orden de Servicio
                             </p>
@@ -75,6 +74,5 @@ export default function OSLayout({ children }: { children: React.ReactNode }) {
                 </main>
             </div>
         </div>
-        </>
     );
 }
