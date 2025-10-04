@@ -57,18 +57,23 @@ export default function HieloPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (osId) {
-      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allServiceOrders.find(os => os.id === osId);
-      setServiceOrder(currentOS || null);
-
-      const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
-      const relatedOrders = allHieloOrders.filter(order => order.osId === osId);
-      setHieloOrders(relatedOrders);
-    } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
+    if (!osId) return;
+    
+    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    const currentOS = allServiceOrders.find(os => os.id === osId);
+    
+    if (!currentOS) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
         router.push('/pes');
+        return;
     }
+    
+    setServiceOrder(currentOS);
+
+    const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
+    const relatedOrders = allHieloOrders.filter(order => order.osId === osId);
+    setHieloOrders(relatedOrders);
+
     setIsMounted(true);
   }, [osId, router, toast]);
 

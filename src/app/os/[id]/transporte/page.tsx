@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, Truck, Phone, Building } from 'lucide-react';
 import type { TransporteOrder, ServiceOrder, Espacio } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -58,24 +58,29 @@ export default function TransportePage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (osId) {
-      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allServiceOrders.find(os => os.id === osId);
-      setServiceOrder(currentOS || null);
+    if (!osId) return;
 
-      if (currentOS?.space) {
+    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    const currentOS = allServiceOrders.find(os => os.id === osId);
+    
+    if (!currentOS) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
+        router.push('/pes');
+        return;
+    }
+    
+    setServiceOrder(currentOS);
+
+    if (currentOS?.space) {
         const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
         const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
         setSpaceAddress(currentSpace?.calle || '');
-      }
-
-      const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-      const relatedOrders = allTransporteOrders.filter(order => order.osId === osId);
-      setTransporteOrders(relatedOrders);
-    } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
-        router.push('/pes');
     }
+
+    const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
+    const relatedOrders = allTransporteOrders.filter(order => order.osId === osId);
+    setTransporteOrders(relatedOrders);
+
     setIsMounted(true);
   }, [osId, router, toast]);
 

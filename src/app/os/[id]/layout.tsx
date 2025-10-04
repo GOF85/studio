@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname, useParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/layout/header';
-import { Button } from '@/components/ui/button';
 import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -64,7 +63,7 @@ export default function OSLayout({ children }: { children: React.ReactNode }) {
                                     <span
                                         className={cn(
                                             "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                                            pathname.includes(`/${item.path}`) ? "bg-accent" : "transparent"
+                                            pathname === getHref(item.path) ? "bg-accent" : "transparent"
                                         )}
                                     >
                                         <item.icon className="mr-2 h-4 w-4" />

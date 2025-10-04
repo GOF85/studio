@@ -146,7 +146,7 @@ export default function PedidoTransportePage() {
     }
 
     localStorage.setItem('transporteOrders', JSON.stringify(allOrders));
-    router.push(`/transporte?osId=${osId}`);
+    router.push(`/os/${osId}/transporte`);
   };
 
   if (!isMounted || !serviceOrder) {
@@ -161,7 +161,7 @@ export default function PedidoTransportePage() {
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <Button variant="ghost" size="sm" onClick={() => router.push(`/transporte?osId=${osId}`)} className="mb-2">
+                        <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/transporte`)} className="mb-2">
                             <ArrowLeft className="mr-2" />
                             Volver al Módulo
                         </Button>
@@ -169,7 +169,7 @@ export default function PedidoTransportePage() {
                         <p className="text-muted-foreground">Para la OS: {serviceOrder.serviceNumber}</p>
                     </div>
                      <div className="flex gap-2">
-                        <Button variant="outline" type="button" onClick={() => router.push(`/transporte?osId=${osId}`)}>
+                        <Button variant="outline" type="button" onClick={() => router.push(`/os/${osId}/transporte`)}>
                             <X className="mr-2 h-4 w-4" />
                             Cancelar
                         </Button>

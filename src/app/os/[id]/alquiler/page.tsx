@@ -61,18 +61,23 @@ export default function AlquilerPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (osId) {
-      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allServiceOrders.find(os => os.id === osId);
-      setServiceOrder(currentOS || null);
+    if (!osId) return;
 
-      const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-      const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
-      setMaterialOrders(relatedOrders);
-    } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
+    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    const currentOS = allServiceOrders.find(os => os.id === osId);
+    
+    if (!currentOS) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
         router.push('/pes');
+        return;
     }
+    
+    setServiceOrder(currentOS);
+
+    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
+    setMaterialOrders(relatedOrders);
+
     setIsMounted(true);
   }, [osId, router, toast]);
 

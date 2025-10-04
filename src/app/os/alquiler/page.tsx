@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import type { MaterialOrder, ServiceOrder, OrderItem } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -49,35 +49,30 @@ const statusVariant: { [key in MaterialOrder['status']]: 'default' | 'secondary'
   Listo: 'default',
 };
 
-export default function BioPage() {
+export default function AlquilerPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   
   const router = useRouter();
-  const params = useParams();
-  const osId = params.id as string;
+  const searchParams = useSearchParams();
+  const osId = searchParams.get('osId');
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!osId) return;
-    
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
-    
-    if (!currentOS) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
+    if (osId) {
+      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+      const currentOS = allServiceOrders.find(os => os.id === osId);
+      setServiceOrder(currentOS || null);
+
+      const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+      const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
+      setMaterialOrders(relatedOrders);
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
         router.push('/pes');
-        return;
     }
-    
-    setServiceOrder(currentOS);
-
-    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bio');
-    setMaterialOrders(relatedOrders);
-
     setIsMounted(true);
   }, [osId, router, toast]);
 
@@ -105,7 +100,7 @@ export default function BioPage() {
     let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
     localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
-    setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Bio'));
+    setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Alquiler'));
 
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
@@ -116,24 +111,28 @@ export default function BioPage() {
       toast({ variant: 'destructive', title: 'No permitido', description: 'Solo se pueden editar pedidos en estado "Asignado".'});
       return;
     }
-    router.push(`/pedidos?osId=${osId}&type=Bio&orderId=${order.id}`);
+    router.push(`/pedidos?osId=${osId}&type=Alquiler&orderId=${order.id}`);
   }
 
   if (!isMounted || !serviceOrder) {
-    return <LoadingSkeleton title="Cargando Módulo de Bio..." />;
+    return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
   }
 
   return (
     <>
       <div className="flex items-center justify-between mb-8">
           <div>
-              <h1 className="text-3xl font-headline font-bold">Módulo de Bio</h1>
+              <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
+                  <ArrowLeft className="mr-2" />
+                  Volver a la OS
+              </Button>
+              <h1 className="text-3xl font-headline font-bold">Módulo de Alquiler</h1>
               <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
           </div>
         <Button asChild>
-          <Link href={`/pedidos?osId=${osId}&type=Bio`}>
+          <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
             <PlusCircle className="mr-2" />
-            Nuevo Pedido de Bio
+            Nuevo Pedido de Alquiler
           </Link>
         </Button>
       </div>
@@ -238,7 +237,7 @@ export default function BioPage() {
                       ) : (
                           <TableRow>
                           <TableCell colSpan={8} className="h-24 text-center">
-                              No hay pedidos de bio para esta Orden de Servicio.
+                              No hay pedidos de alquiler para esta Orden de Servicio.
                           </TableCell>
                           </TableRow>
                       )}
