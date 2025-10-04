@@ -39,7 +39,6 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -391,15 +390,15 @@ function PageContent() {
   return (
     <>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold">{osId ? 'Editar' : 'Nueva'} Orden de Servicio</h1>
+          <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nueva'} Orden de Servicio</h1>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleBackToList}>Volver al listado</Button>
-            {osId && (
+            {isEditing && (
                 <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/>Borrar OS</Button>
             )}
             <Button type="submit" form="os-form" disabled={isLoading}>
               {isLoading ? <Loader2 className="animate-spin" /> : <FileDown />}
-              <span className="ml-2">{osId ? 'Guardar Cambios' : 'Guardar OS'}</span>
+              <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar OS'}</span>
             </Button>
           </div>
         </div>
@@ -416,7 +415,7 @@ function PageContent() {
                       <FormField control={form.control} name="serviceNumber" render={({ field }) => (
                         <FormItem className="flex flex-col">
                           <FormLabel>Nº Servicio</FormLabel>
-                          <FormControl><Input {...field} readOnly={!!osId} /></FormControl>
+                          <FormControl><Input {...field} readOnly={isEditing} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
@@ -802,7 +801,22 @@ function PageContent() {
 }
 
 export default function OsPage() {
-    return (
-        <PageContent />
-    );
+    const params = useParams();
+    const osId = params.id as string;
+    const router = useRouter();
+
+    if (osId === 'nuevo') {
+        return <PageContent />;
+    }
+    
+    // Redirect to the first module if it's an existing OS
+    useEffect(() => {
+        if(osId && osId !== 'nuevo') {
+            router.replace(`/os/${osId}/comercial`);
+        }
+    }, [osId, router]);
+
+    return <LoadingSkeleton title="Cargando Orden de Servicio..." />;
 }
+
+    
