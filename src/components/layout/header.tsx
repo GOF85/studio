@@ -50,7 +50,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
           </h1>
         </Link>
          <nav className="flex flex-1 items-center justify-end space-x-2">
-            <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button asChild className="bg-emerald-700 text-white hover:bg-emerald-800">
               <Link href="/">
                 <UtensilsCrossed className="mr-2 h-5 w-5"/>
                 Catering
