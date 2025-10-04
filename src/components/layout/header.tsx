@@ -1,8 +1,7 @@
-
 'use client';
 
 import Link from 'next/link';
-import { UtensilsCrossed, Leaf, Users, LogOut } from 'lucide-react';
+import { UtensilsCrossed, Leaf, Users, LogOut, Package } from 'lucide-react';
 import { Button } from '../ui/button';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -77,7 +76,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
         <nav className="flex flex-1 items-center justify-end space-x-2">
             <Button asChild variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700">
               <Link href="/entregas">
-                <Leaf className="mr-2 h-5 w-5"/>
+                <Package className="mr-2 h-5 w-5"/>
                 Entregas MICE
               </Link>
             </Button>
