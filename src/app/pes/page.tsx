@@ -118,7 +118,7 @@ export default function PesPage() {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-headline font-bold">Previsión de Servicios</h1>
           <Button asChild>
-            <Link href="/os">
+            <Link href="/os/nuevo">
               <PlusCircle className="mr-2" />
               Nueva Orden
             </Link>
