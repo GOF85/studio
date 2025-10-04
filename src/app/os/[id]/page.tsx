@@ -190,6 +190,7 @@ function PageContent() {
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
+  const isEditing = osId !== 'nuevo';
 
   const [isMounted, setIsMounted] = useState(false);
   const { isLoading, setIsLoading } = useLoadingStore();
@@ -269,7 +270,7 @@ function PageContent() {
     setPersonal(allPersonal.filter(p => p.nombre));
     setEspacios(allEspacios.filter(e => e.espacio));
     
-    if (osId) {
+    if (isEditing) {
       setAccordionDefaultValue([]); // Collapse for existing
       const allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allOS.find(os => os.id === osId) || null;
@@ -291,12 +292,12 @@ function PageContent() {
         router.push('/pes');
       }
     } else { // Creating new OS
-      const initialValues = {...defaultValues};
+      const initialValues = {...defaultValues, startDate: new Date(), endDate: new Date()};
       form.reset(initialValues);
       setAccordionDefaultValue(['cliente', 'espacio', 'responsables']); // Expand for new
     }
     setIsMounted(true);
-  }, [osId, form, router, toast]);
+  }, [osId, isEditing, form, router, toast]);
 
   function onSubmit(data: OsFormValues) {
     setIsLoading(true);
@@ -305,7 +306,7 @@ function PageContent() {
     let message = '';
     let currentOsId = osId;
     
-    if (osId) { // Update existing
+    if (isEditing) { // Update existing
       const osIndex = allOS.findIndex(os => os.id === osId);
       if (osIndex !== -1) {
         allOS[osIndex] = { ...allOS[osIndex], ...data, id: osId };
@@ -483,11 +484,7 @@ function PageContent() {
                             <FormLabel>Estado</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl><SelectTrigger className={cn(statusValue === 'Confirmado' && 'bg-green-100 dark:bg-green-900 border-green-400', statusValue === 'Pendiente' && 'bg-red-100 dark:bg-red-900 border-red-400')}><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                <SelectItem value="Borrador">Borrador</SelectItem>
-                                <SelectItem value="Pendiente">Pendiente</SelectItem>
-                                <SelectItem value="Confirmado">Confirmado</SelectItem>
-                                </SelectContent>
+                                <SelectContent><SelectItem value="Borrador">Borrador</SelectItem><SelectItem value="Pendiente">Pendiente</SelectItem><SelectItem value="Confirmado">Confirmado</SelectItem></SelectContent>
                             </Select>
                             </FormItem>
                         )} />
