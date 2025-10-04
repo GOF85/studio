@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 import { useSidebarStore } from '@/hooks/use-sidebar-store';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ServiceOrder } from '@/types';
 import { useEffect, useState, useMemo } from 'react';
 import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star } from 'lucide-react';
@@ -124,8 +124,8 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                                                             isCollapsed && "justify-center"
                                                         )}
                                                     >
-                                                        <item.icon className="h-4 w-4 mr-2" />
-                                                        <span className={cn(isCollapsed && 'hidden')}>{item.title}</span>
+                                                        <item.icon className="h-4 w-4" />
+                                                        <span className={cn('ml-2', isCollapsed && 'hidden')}>{item.title}</span>
                                                     </span>
                                                 </Link>
                                             </TooltipTrigger>
