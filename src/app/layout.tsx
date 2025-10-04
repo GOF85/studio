@@ -27,11 +27,13 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className={cn('min-h-screen bg-background font-body antialiased no-print')}>
+      <body className={cn('min-h-screen bg-background font-body antialiased')}>
         <ImpersonatedUserProvider>
           <NProgressProvider>
             <TooltipProvider>
-                {children}
+                <div className="relative flex min-h-screen flex-col">
+                    {children}
+                </div>
             </TooltipProvider>
           </NProgressProvider>
         </ImpersonatedUserProvider>
