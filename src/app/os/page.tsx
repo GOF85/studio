@@ -404,103 +404,7 @@ function PageContent() {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[120px_1fr]">
-            <aside className="lg:sticky top-24 self-start flex flex-col">
-                <h2 className="text-base font-semibold mb-2 px-1">Módulos</h2>
-                <nav className="space-y-0.5">
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                    <Link href={osId ? `/comercial?osId=${osId}` : '#'}>
-                        <Briefcase />
-                        <span className="font-medium">Comercial</span>
-                    </Link>
-                </Button>
-                {hasPruebaDeMenu && (
-                    <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                    <Link href={osId ? `/prueba-menu?osId=${osId}` : '#'}>
-                        <ClipboardCheck />
-                        <span className="font-medium">Prueba Menu</span>
-                    </Link>
-                    </Button>
-                )}
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                    <Link href={osId ? `/gastronomia?osId=${osId}` : '#'}>
-                        <Utensils />
-                        <span className="font-medium">Gastronomía</span>
-                    </Link>
-                </Button>
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                    <Link href={osId ? `/bodega?osId=${osId}` : '#'}>
-                        <Wine />
-                        <span className="font-medium">Bodega</span>
-                    </Link>
-                </Button>
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                    <Link href={osId ? `/hielo?osId=${osId}` : '#'}>
-                        <Snowflake />
-                        <span className="font-medium">Hielo</span>
-                    </Link>
-                </Button>
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                    <Link href={osId ? `/bio?osId=${osId}` : '#'}>
-                        <Leaf />
-                        <span className="font-medium">Bio</span>
-                    </Link>
-                </Button>
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                    <Link href={osId ? `/almacen?osId=${osId}` : '#'}>
-                        <Warehouse />
-                        <span className="font-medium">Almacén</span>
-                    </Link>
-                </Button>
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                    <Link href={osId ? `/alquiler?osId=${osId}` : '#'}>
-                        <Archive />
-                        <span className="font-medium">Alquiler</span>
-                    </Link>
-                </Button>
-                    
-                    <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                    <Link href={osId ? `/decoracion?osId=${osId}` : '#'}>
-                        <Flower2 />
-                        <span className="font-medium">Decoración</span>
-                    </Link>
-                </Button>
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                    <Link href={osId ? `/atipicos?osId=${osId}` : '#'}>
-                        <FilePlus />
-                        <span className="font-medium">Atípicos</span>
-                    </Link>
-                </Button>
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                    <Link href={osId ? `/personal-mice/${osId}` : '#'}>
-                        <Users />
-                        <span className="font-medium">Personal MICE</span>
-                    </Link>
-                </Button>
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                    <Link href={osId ? `/personal-externo?osId=${osId}` : '#'}>
-                        <UserPlus />
-                        <span className="font-medium">Personal Ext.</span>
-                    </Link>
-                </Button>
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                    <Link href={osId ? `/transporte?osId=${osId}` : '#'}>
-                        <Truck />
-                        <span className="font-medium">Transporte</span>
-                    </Link>
-                </Button>
-                <Separator className="my-2" />
-                <Button asChild variant="ghost" className="w-full flex items-center justify-start p-1 text-xs h-auto gap-1.5" disabled={!osId}>
-                    <Link href={osId ? `/cta-explotacion?osId=${osId}` : '#'}>
-                        <DollarSign />
-                        <span className="font-medium">Cta. Explotación</span>
-                    </Link>
-                </Button>
-                <Separator />
-                </nav>
-            </aside>
-          
-          <main>
+        <main>
             <FormProvider {...form}>
               <form id="os-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
                 <Card>
@@ -522,7 +426,7 @@ function PageContent() {
                             <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
                               <PopoverTrigger asChild>
                                 <FormControl>
-                                  <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                  <Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>
                                     {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige una fecha</span>}
                                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                   </Button>
@@ -547,7 +451,7 @@ function PageContent() {
                             <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
                               <PopoverTrigger asChild>
                                 <FormControl>
-                                  <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                  <Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>
                                     {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige una fecha</span>}
                                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                   </Button>
@@ -863,7 +767,7 @@ function PageContent() {
               </form>
             </FormProvider>
           </main>
-        </div>
+        
       <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -903,11 +807,6 @@ function PageContent() {
 
 export default function OsPage() {
     return (
-        <>
-            <Header />
-            <div className="container mx-auto px-4 py-8">
-              <PageContent />
-            </div>
-        </>
+        <PageContent />
     );
 }
