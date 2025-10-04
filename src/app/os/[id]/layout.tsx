@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -36,11 +35,6 @@ export default function OSLayout({ children }: { children: React.ReactNode }) {
     const params = useParams();
     const osId = params.id as string;
 
-    const getHref = (pathSegment: string) => {
-        if (!osId) return '/pes'; 
-        return `/os/${osId}/${pathSegment}`;
-    }
-
     return (
         <>
         <Header />
@@ -55,22 +49,24 @@ export default function OSLayout({ children }: { children: React.ReactNode }) {
                             </p>
                         </div>
                         <nav className="grid items-start gap-1">
-                            {navLinks.map((item, index) => (
+                            {navLinks.map((item, index) => {
+                                const href = `/os/${osId}/${item.path}`;
+                                return (
                                 <Link
                                     key={index}
-                                    href={getHref(item.path)}
+                                    href={href}
                                 >
                                     <span
                                         className={cn(
                                             "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                                            pathname === getHref(item.path) ? "bg-accent" : "transparent"
+                                            pathname === href ? "bg-accent" : "transparent"
                                         )}
                                     >
                                         <item.icon className="mr-2 h-4 w-4" />
                                         <span>{item.title}</span>
                                     </span>
                                 </Link>
-                            ))}
+                            )})}
                         </nav>
                     </div>
                 </aside>
