@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, FormProvider, useWatch } from 'react-hook-form';
@@ -395,20 +394,22 @@ export default function InfoPage() {
               <form id="os-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
                 <Card>
                   <CardHeader className="py-3 flex-row items-center justify-between">
-                    <CardTitle className="text-xl">Datos del Servicio</CardTitle>
                     <div className="flex items-center gap-4">
+                        <CardTitle className="text-xl">Datos del Servicio</CardTitle>
                         <FormField control={form.control} name="isVip" render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-2">
-                                    <FormControl>
-                                        <Checkbox checked={field.value} onCheckedChange={field.onChange} id="vip-check" />
-                                    </FormControl>
-                                    <FormLabel htmlFor="vip-check" className="flex items-center gap-2 !mt-0 font-bold"><Star className="h-4 w-4 text-amber-500 fill-amber-500" /> Evento VIP</FormLabel>
-                                </FormItem>
+                            <FormItem className="flex flex-row items-center space-x-2">
+                                <FormControl>
+                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} id="vip-check" />
+                                </FormControl>
+                                <FormLabel htmlFor="vip-check" className="flex items-center gap-2 !mt-0 font-bold"><Star className="h-4 w-4 text-amber-500 fill-amber-500" /> Evento VIP</FormLabel>
+                            </FormItem>
                         )} />
+                    </div>
+                    <div className="flex items-center gap-2">
                         {isEditing && (
                             <Button variant="destructive" size="sm" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/>Borrar OS</Button>
                         )}
-                        <Button type="submit" size="sm" disabled={isLoading}>
+                        <Button type="submit" form="os-form" size="sm" disabled={isLoading}>
                             {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                             <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar OS'}</span>
                         </Button>
@@ -802,3 +803,5 @@ export default function InfoPage() {
     </>
   );
 }
+
+    
