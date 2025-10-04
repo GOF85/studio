@@ -42,7 +42,7 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
 
     return (
         <div className="container mx-auto">
-            <div className={cn("grid gap-8 transition-all duration-300", isCollapsed ? "lg:grid-cols-[80px_1fr]" : "lg:grid-cols-[220px_1fr]")}>
+            <div className={cn("grid gap-6 transition-all duration-300", isCollapsed ? "lg:grid-cols-[60px_1fr]" : "lg:grid-cols-[220px_1fr]")}>
                 <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)] hidden lg:block">
                      <div className="w-full">
                         <div className={cn("pb-2 flex items-center", isCollapsed ? 'justify-center' : 'justify-between')}>
@@ -70,7 +70,7 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                                                     isCollapsed && "justify-center"
                                                 )}
                                             >
-                                                <item.icon className={cn("mr-2", isCollapsed && "h-6 w-6 mr-0")} />
+                                                <item.icon className={cn("mr-2 transition-all", isCollapsed ? 'h-6 w-6' : 'h-4 w-4')} />
                                                 <span className={cn(isCollapsed && 'hidden')}>{item.title}</span>
                                             </span>
                                         </Link>
