@@ -42,7 +42,7 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
 
     return (
         <div className="container mx-auto">
-            <div className={cn("grid gap-6 transition-all duration-300", isCollapsed ? "lg:grid-cols-[60px_1fr] lg:gap-4" : "lg:grid-cols-[220px_1fr]")}>
+            <div className={cn("grid gap-2 transition-all duration-300", isCollapsed ? "lg:grid-cols-[60px_1fr] lg:gap-2" : "lg:grid-cols-[220px_1fr]")}>
                 <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)] hidden lg:block">
                      <div className="w-full">
                         <div className={cn("pb-2 flex items-center", isCollapsed ? 'justify-center' : 'justify-between')}>
@@ -65,12 +65,12 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                                         <Link href={href}>
                                             <span
                                                 className={cn(
-                                                    "group flex items-center rounded-md px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                                                    "group flex items-center rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
                                                     pathname === href ? "bg-accent" : "transparent",
                                                     isCollapsed && "justify-center"
                                                 )}
                                             >
-                                                <item.icon className={cn("mr-2 transition-all", isCollapsed ? 'h-6 w-6' : 'h-4 w-4')} />
+                                                <item.icon className={cn("mr-1 transition-all", isCollapsed ? 'h-6 w-6' : 'h-4 w-4')} />
                                                 <span className={cn(isCollapsed && 'hidden')}>{item.title}</span>
                                             </span>
                                         </Link>
