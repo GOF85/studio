@@ -5,8 +5,11 @@ import Link from 'next/link';
 import { usePathname, useParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/layout/header';
-import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck } from 'lucide-react';
+import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useSidebarStore } from '@/hooks/use-sidebar-store';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 type NavLink = {
     path: string;
@@ -35,36 +38,49 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
     const pathname = usePathname();
     const params = useParams();
     const osId = params.id as string;
+    const { isCollapsed, toggleSidebar } = useSidebarStore();
 
     return (
         <div className="container mx-auto">
-            <div className="grid lg:grid-cols-[220px_1fr] gap-8">
+            <div className={cn("grid gap-8 transition-all duration-300", isCollapsed ? "lg:grid-cols-[80px_1fr]" : "lg:grid-cols-[220px_1fr]")}>
                 <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)] hidden lg:block">
                      <div className="w-full">
-                        <div className="pb-4">
-                            <h2 className="text-lg font-semibold tracking-tight">Módulos del Servicio</h2>
-                            <p className="text-sm text-muted-foreground">
-                                Gestión de la Orden de Servicio
-                            </p>
+                        <div className={cn("pb-2 flex items-center", isCollapsed ? 'justify-center' : 'justify-between')}>
+                             <div className={cn(isCollapsed && 'hidden')}>
+                                <h2 className="text-lg font-semibold tracking-tight">Módulos</h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Gestión de la OS
+                                </p>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+                                <PanelLeft className="h-5 w-5" />
+                            </Button>
                         </div>
                         <nav className="grid items-start gap-1">
                             {navLinks.map((item, index) => {
                                 const href = `/os/${osId}/${item.path}`;
                                 return (
-                                <Link
-                                    key={index}
-                                    href={href}
-                                >
-                                    <span
-                                        className={cn(
-                                            "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                                            pathname === href ? "bg-accent" : "transparent"
-                                        )}
-                                    >
-                                        <item.icon className="mr-2 h-4 w-4" />
-                                        <span>{item.title}</span>
-                                    </span>
-                                </Link>
+                                <Tooltip key={index} delayDuration={0}>
+                                    <TooltipTrigger asChild>
+                                        <Link href={href}>
+                                            <span
+                                                className={cn(
+                                                    "group flex items-center rounded-md px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                                                    pathname === href ? "bg-accent" : "transparent",
+                                                    isCollapsed && "justify-center"
+                                                )}
+                                            >
+                                                <item.icon className={cn("mr-2", isCollapsed && "h-6 w-6 mr-0")} />
+                                                <span className={cn(isCollapsed && 'hidden')}>{item.title}</span>
+                                            </span>
+                                        </Link>
+                                    </TooltipTrigger>
+                                    {isCollapsed && (
+                                        <TooltipContent side="right">
+                                            <p>{item.title}</p>
+                                        </TooltipContent>
+                                    )}
+                                </Tooltip>
                             )})}
                         </nav>
                     </div>

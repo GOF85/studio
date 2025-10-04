@@ -1,9 +1,11 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { NProgressProvider } from '@/components/providers/nprogress-provider';
 import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 export const metadata: Metadata = {
   title: 'CateringStock',
@@ -28,7 +30,9 @@ export default function RootLayout({
       <body className={cn('min-h-screen bg-background font-body antialiased no-print')}>
         <ImpersonatedUserProvider>
           <NProgressProvider>
-            {children}
+            <TooltipProvider>
+                {children}
+            </TooltipProvider>
           </NProgressProvider>
         </ImpersonatedUserProvider>
         <Toaster />
