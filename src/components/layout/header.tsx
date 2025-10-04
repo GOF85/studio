@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -49,7 +50,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
           </h1>
         </Link>
          <nav className="flex flex-1 items-center justify-end space-x-2">
-            <Button asChild variant="outline" className="border-white/50 text-white hover:bg-white/20 hover:text-white">
+            <Button asChild variant="default" className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Link href="/">
                 <UtensilsCrossed className="mr-2 h-5 w-5"/>
                 Catering
