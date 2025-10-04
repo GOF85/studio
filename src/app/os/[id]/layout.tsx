@@ -12,8 +12,6 @@ import { ServiceOrder } from '@/types';
 import { useEffect, useState, useMemo } from 'react';
 import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Header } from '@/components/layout/header';
-
 
 type NavLink = {
     path: string;
@@ -89,8 +87,6 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
     const { isCollapsed, toggleSidebar } = useSidebarStore();
 
     return (
-        <>
-            <Header />
             <div className="container mx-auto">
                 <div className={cn(
                     "grid transition-all duration-300", 
@@ -146,6 +142,5 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                     </main>
                 </div>
             </div>
-        </>
     );
 }
