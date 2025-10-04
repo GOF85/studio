@@ -11,7 +11,7 @@ import { PlusCircle, Trash2, ArrowLeft, Briefcase, Save, Pencil, X, Check, Dolla
 import { format, differenceInMinutes, parse } from 'date-fns';
 
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, TipoServicio, ComercialAjuste } from '@/types';
-import { osFormSchema, OsFormValues } from '@/app/os/page';
+import { osFormSchema, OsFormValues } from '@/app/os/[id]/page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -152,6 +152,8 @@ export default function ComercialPage() {
   }, [serviceOrder, osId]);
 
   useEffect(() => {
+    if(!osId) return;
+
     const storedTipos = localStorage.getItem('tipoServicio');
     if (storedTipos) {
       setTiposServicio(JSON.parse(storedTipos));
@@ -159,7 +161,6 @@ export default function ComercialPage() {
     
     const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}') as {[key: string]: ComercialAjuste[]};
 
-    if (osId) {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allServiceOrders.find(os => os.id === osId);
       setServiceOrder(currentOS || null);
@@ -168,6 +169,9 @@ export default function ComercialPage() {
             agencyPercentage: currentOS.agencyPercentage,
             spacePercentage: currentOS.spacePercentage
         });
+      } else {
+         toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
+        router.push('/pes');
       }
 
       const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
@@ -175,10 +179,7 @@ export default function ComercialPage() {
       setBriefing(currentBriefing || { osId, items: [] });
       
       setAjustes(allAjustes[osId] || []);
-    } else {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
-      router.push('/pes');
-    }
+   
     setIsMounted(true);
   }, [osId, router, toast, financialForm]);
 
@@ -434,7 +435,7 @@ export default function ComercialPage() {
                             onCheckedChange={field.onChange}
                         />
                         </FormControl>
-                        <FormLabel className="!m-0 text-base">
+                        <FormLabel className="!m-0">
                             Con gastronomía
                         </FormLabel>
                     </FormItem>
@@ -471,7 +472,7 @@ export default function ComercialPage() {
       
       <FormProvider {...financialForm}>
            <Accordion type="single" collapsible className="w-full mb-8">
-              <AccordionItem value="item-1" className="border-none">
+              <AccordionItem value="item-1">
                   <Card>
                       <AccordionTrigger className="py-2 px-4">
                           <div className="flex items-center justify-between w-full">
