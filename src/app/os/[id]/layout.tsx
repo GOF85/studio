@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -12,7 +11,6 @@ import { ServiceOrder } from '@/types';
 import { useEffect, useState, useMemo } from 'react';
 import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Header } from '@/components/layout/header';
 
 type NavLink = {
     path: string;
@@ -85,66 +83,45 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
     const pathname = usePathname();
     const params = useParams();
     const osId = params.id as string;
-    const { isCollapsed, toggleSidebar } = useSidebarStore();
 
     return (
-        <>
-            <Header />
-            <div className="container mx-auto">
-                <div className={cn(
-                    "grid transition-all duration-300", 
-                    isCollapsed ? "lg:grid-cols-[60px_1fr] lg:gap-2" : "lg:grid-cols-[220px_1fr] lg:gap-4"
-                )}>
-                    <aside className="sticky top-20 self-start h-[calc(100vh-5rem)]">
-                        <div className="w-full h-full flex flex-col">
-                            <div className={cn("pb-2 flex items-center", isCollapsed ? 'justify-center' : 'justify-between')}>
-                                <div className={cn(isCollapsed && 'hidden')}>
-                                    <h2 className="text-lg font-semibold tracking-tight">Módulos</h2>
-                                    <p className="text-sm text-muted-foreground">
-                                        Gestión de la OS
-                                    </p>
-                                </div>
-                                <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-                                    <PanelLeft className="h-5 w-5" />
-                                </Button>
-                            </div>
-                            <ScrollArea className="h-full pr-0 [&>div>div[style]]:!block">
-                                <nav className="grid items-start gap-1">
-                                    {navLinks.map((item, index) => {
-                                        const href = `/os/${osId}/${item.path}`;
-                                        return (
-                                        <Tooltip key={index} delayDuration={0}>
-                                            <TooltipTrigger asChild>
-                                                <Link href={href}>
-                                                    <span
-                                                        className={cn(
-                                                            "group flex items-center rounded-md px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                                                            pathname.startsWith(href) ? "bg-accent" : "transparent",
-                                                            isCollapsed && "justify-center"
-                                                        )}
-                                                    >
-                                                        <item.icon className="h-4 w-4" />
-                                                        <span className={cn('ml-2', isCollapsed && 'hidden')}>{item.title}</span>
-                                                    </span>
-                                                </Link>
-                                            </TooltipTrigger>
-                                            {isCollapsed && (
-                                                <TooltipContent side="right">
-                                                    <p>{item.title}</p>
-                                                </TooltipContent>
-                                            )}
-                                        </Tooltip>
-                                    )})}
-                                </nav>
-                            </ScrollArea>
-                        </div>
-                    </aside>
-                    <main className="py-8">
-                        <OSSubHeader />
-                        {children}
-                    </main>
-                </div>
-            </div>
-        </>
+      <div className="container mx-auto">
+          <div className="grid lg:grid-cols-[250px_1fr] gap-12">
+              <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)]">
+                   <div className="w-full">
+                      <div className="pb-4">
+                          <h2 className="text-xl font-headline font-bold">Módulos</h2>
+                          <p className="text-sm text-muted-foreground">
+                              Gestión de la OS
+                          </p>
+                      </div>
+                      <nav className="grid items-start gap-1">
+                          {navLinks.map((item, index) => {
+                              const href = `/os/${osId}/${item.path}`;
+                              return (
+                              <Link
+                                  key={index}
+                                  href={href}
+                              >
+                                  <span
+                                      className={cn(
+                                          "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                                          pathname.startsWith(href) ? "bg-accent" : "transparent"
+                                      )}
+                                  >
+                                      <item.icon className="mr-2 h-4 w-4" />
+                                      <span>{item.title}</span>
+                                  </span>
+                              </Link>
+                          )})}
+                      </nav>
+                  </div>
+              </aside>
+              <main className="py-8">
+                  <OSSubHeader />
+                  {children}
+              </main>
+          </div>
+      </div>
     );
 }
