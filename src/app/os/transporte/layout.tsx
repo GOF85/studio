@@ -26,14 +26,6 @@ export default function TransporteLayout({
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-8">
-                <div>
-                    <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}`)} className="mb-2">
-                        <ArrowLeft className="mr-2" />
-                        Volver a la OS
-                    </Button>
-                </div>
-            </div>
             {children}
         </div>
     )

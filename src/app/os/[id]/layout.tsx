@@ -4,12 +4,13 @@
 import Link from 'next/link';
 import { usePathname, useParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Header } from '@/components/layout/header';
-import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useSidebarStore } from '@/hooks/use-sidebar-store';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ServiceOrder } from '@/types';
+import { useEffect, useState } from 'react';
+import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText } from 'lucide-react';
 
 type NavLink = {
     path: string;
@@ -34,6 +35,48 @@ const navLinks: NavLink[] = [
     { path: 'cta-explotacion', title: 'Cta. Explotación', icon: DollarSign },
 ];
 
+function OSSubHeader() {
+  const params = useParams();
+  const pathname = usePathname();
+  const osId = params.id as string;
+  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+
+  const currentModule = useMemo(() => {
+    const pathSegment = pathname.split('/').pop();
+    return navLinks.find(link => link.path === pathSegment);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (osId) {
+      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+      const currentOS = allServiceOrders.find(os => os.id === osId);
+      setServiceOrder(currentOS || null);
+    }
+  }, [osId]);
+
+  if (!serviceOrder || !currentModule) return null;
+
+  return (
+    <div className="flex items-center gap-6 text-sm text-muted-foreground border-b pb-4 mb-8">
+      <div className="flex items-center gap-2">
+        <FileText className="h-4 w-4" />
+        <span className="font-semibold">{serviceOrder.serviceNumber}</span>
+      </div>
+      {serviceOrder.space && (
+        <div className="flex items-center gap-2">
+          <Building className="h-4 w-4" />
+          <span className="font-semibold">{serviceOrder.space}</span>
+        </div>
+      )}
+      <div className="flex items-center gap-2 text-primary font-bold">
+        <currentModule.icon className="h-4 w-4" />
+        <span>{currentModule.title}</span>
+      </div>
+    </div>
+  );
+}
+
+
 export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const params = useParams();
@@ -42,7 +85,7 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
 
     return (
         <div className="container mx-auto">
-            <div className={cn("grid gap-2 transition-all duration-300", isCollapsed ? "lg:grid-cols-[60px_1fr]" : "lg:grid-cols-[220px_1fr]")}>
+            <div className={cn("grid gap-2 transition-all duration-300", isCollapsed ? "lg:grid-cols-[60px_1fr] lg:gap-2" : "lg:grid-cols-[220px_1fr] lg:gap-8")}>
                 <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)] hidden lg:block">
                      <div className="w-full">
                         <div className={cn("pb-2 flex items-center", isCollapsed ? 'justify-center' : 'justify-between')}>
@@ -65,13 +108,13 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                                         <Link href={href}>
                                             <span
                                                 className={cn(
-                                                    "group flex items-center rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                                                    "group flex items-center rounded-md px-2 py-1 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
                                                     pathname.startsWith(href) ? "bg-accent" : "transparent",
                                                     isCollapsed && "justify-center"
                                                 )}
                                             >
-                                                <item.icon className={cn("h-4 w-4", !isCollapsed && "mr-2")} />
-                                                <span className={cn(isCollapsed && 'hidden')}>{item.title}</span>
+                                                <item.icon className="h-4 w-4" />
+                                                <span className={cn('ml-2', isCollapsed && 'hidden')}>{item.title}</span>
                                             </span>
                                         </Link>
                                     </TooltipTrigger>
@@ -86,6 +129,7 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                     </div>
                 </aside>
                 <main className="py-8">
+                    <OSSubHeader />
                     {children}
                 </main>
             </div>

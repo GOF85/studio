@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import type { MaterialOrder, ServiceOrder, OrderItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -50,7 +50,6 @@ const statusVariant: { [key in MaterialOrder['status']]: 'default' | 'secondary'
 };
 
 export default function AlquilerPage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
@@ -62,17 +61,6 @@ export default function AlquilerPage() {
 
   useEffect(() => {
     if (!osId) return;
-
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
-    
-    if (!currentOS) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
-        router.push('/pes');
-        return;
-    }
-    
-    setServiceOrder(currentOS);
 
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
@@ -119,17 +107,13 @@ export default function AlquilerPage() {
     router.push(`/pedidos?osId=${osId}&type=Alquiler&orderId=${order.id}`);
   }
 
-  if (!isMounted || !serviceOrder) {
+  if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
   }
 
   return (
     <>
-      <div className="flex items-center justify-between mb-8">
-          <div>
-              <h1 className="text-3xl font-headline font-bold">Módulo de Alquiler</h1>
-              <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-          </div>
+      <div className="flex items-center justify-end mb-8">
         <Button asChild>
           <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
             <PlusCircle className="mr-2" />

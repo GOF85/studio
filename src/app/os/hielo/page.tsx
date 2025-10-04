@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, Snowflake, Phone, Building } from 'lucide-react';
 import type { HieloOrder, ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -46,29 +46,22 @@ const statusVariant: { [key in HieloOrder['status']]: 'default' | 'secondary' | 
 };
 
 export default function HieloPage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [hieloOrders, setHieloOrders] = useState<HieloOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const osId = searchParams.get('osId');
+  const params = useParams();
+  const osId = params.id as string;
   const { toast } = useToast();
 
   useEffect(() => {
-    if (osId) {
-      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allServiceOrders.find(os => os.id === osId);
-      setServiceOrder(currentOS || null);
+    if (!osId) return;
 
-      const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
-      const relatedOrders = allHieloOrders.filter(order => order.osId === osId);
-      setHieloOrders(relatedOrders);
-    } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
-        router.push('/pes');
-    }
+    const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
+    const relatedOrders = allHieloOrders.filter(order => order.osId === osId);
+    setHieloOrders(relatedOrders);
+
     setIsMounted(true);
   }, [osId, router, toast]);
 
@@ -88,29 +81,13 @@ export default function HieloPage() {
     setOrderToDelete(null);
   };
   
-  if (!isMounted || !serviceOrder) {
+  if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Hielo..." />;
   }
 
   return (
     <>
-      <div className="flex items-start justify-between mb-8">
-          <div>
-              <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
-                  <ArrowLeft className="mr-2" />
-                  Volver a la OS
-              </Button>
-              <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Snowflake />Módulo de Hielo</h1>
-              <div className="text-muted-foreground mt-2 space-y-1">
-                  <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-                   {serviceOrder.respMetre && (
-                      <p className="flex items-center gap-2">
-                          Resp. Metre: {serviceOrder.respMetre} 
-                          {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
-                      </p>
-                  )}
-              </div>
-          </div>
+      <div className="flex items-start justify-end mb-8">
         <Button asChild>
           <Link href={`/hielo/pedido?osId=${osId}`}>
             <PlusCircle className="mr-2" />

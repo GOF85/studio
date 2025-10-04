@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import type { MaterialOrder, ServiceOrder, OrderItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -50,7 +50,6 @@ const statusVariant: { [key in MaterialOrder['status']]: 'default' | 'secondary'
 };
 
 export default function BodegaPage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
@@ -62,15 +61,6 @@ export default function BodegaPage() {
 
   useEffect(() => {
     if (!osId) return;
-
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
-    if (!currentOS) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
-        router.push('/pes');
-        return;
-    }
-    setServiceOrder(currentOS);
 
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bodega');
@@ -117,13 +107,13 @@ export default function BodegaPage() {
     router.push(`/pedidos?osId=${osId}&type=Bodega&orderId=${order.id}`);
   }
 
-  if (!isMounted || !serviceOrder) {
+  if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Bodega..." />;
   }
 
   return (
     <>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-end mb-8">
         <Button asChild>
           <Link href={`/pedidos?osId=${osId}&type=Bodega`}>
             <PlusCircle className="mr-2" />
