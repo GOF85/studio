@@ -61,18 +61,21 @@ export default function AlquilerPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (osId) {
-      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allServiceOrders.find(os => os.id === osId);
-      setServiceOrder(currentOS || null);
-
-      const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-      const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
-      setMaterialOrders(relatedOrders);
-    } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
+    if (!osId) return;
+    
+    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+    const currentOS = allServiceOrders.find(os => os.id === osId);
+    if (!currentOS) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
         router.push('/pes');
+        return;
     }
+    setServiceOrder(currentOS);
+
+    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
+    setMaterialOrders(relatedOrders);
+
     setIsMounted(true);
   }, [osId, router, toast]);
 
@@ -121,14 +124,6 @@ export default function AlquilerPage() {
   return (
     <>
       <div className="flex items-center justify-between mb-8">
-          <div>
-              <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
-                  <ArrowLeft className="mr-2" />
-                  Volver a la OS
-              </Button>
-              <h1 className="text-3xl font-headline font-bold">Módulo de Alquiler</h1>
-              <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-          </div>
         <Button asChild>
           <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
             <PlusCircle className="mr-2" />

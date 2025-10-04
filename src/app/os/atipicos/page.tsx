@@ -3,9 +3,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, Truck, Phone, Building } from 'lucide-react';
-import type { TransporteOrder, ServiceOrder, Espacio } from '@/types';
+import { useSearchParams, useRouter, useParams } from 'next/navigation';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, FilePlus } from 'lucide-react';
+import type { AtipicoOrder, ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -38,17 +38,15 @@ import { format } from 'date-fns';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency } from '@/lib/utils';
 
-const statusVariant: { [key in TransporteOrder['status']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
+const statusVariant: { [key in AtipicoOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
   Pendiente: 'secondary',
-  Confirmado: 'default',
-  'En Ruta': 'outline',
-  Entregado: 'outline',
+  Aprobado: 'default',
+  Rechazado: 'destructive',
 };
 
-export default function TransportePage() {
+export default function AtipicosPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [spaceAddress, setSpaceAddress] = useState<string>('');
-  const [transporteOrders, setTransporteOrders] = useState<TransporteOrder[]>([]);
+  const [atipicoOrders, setAtipicoOrders] = useState<AtipicoOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   
@@ -58,89 +56,72 @@ export default function TransportePage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!osId) return;
+    if (osId) {
+      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+      const currentOS = allServiceOrders.find(os => os.id === osId);
+      setServiceOrder(currentOS || null);
 
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
-    
-    if (!currentOS) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
+      const allAtipicoOrders = JSON.parse(localStorage.getItem('atipicoOrders') || '[]') as AtipicoOrder[];
+      const relatedOrders = allAtipicoOrders.filter(order => order.osId === osId);
+      setAtipicoOrders(relatedOrders);
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
         router.push('/pes');
-        return;
     }
-    
-    setServiceOrder(currentOS);
-
-    if (currentOS?.space) {
-        const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-        const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
-        setSpaceAddress(currentSpace?.calle || '');
-    }
-
-    const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-    const relatedOrders = allTransporteOrders.filter(order => order.osId === osId);
-    setTransporteOrders(relatedOrders);
-
     setIsMounted(true);
   }, [osId, router, toast]);
 
   const totalAmount = useMemo(() => {
-    return transporteOrders.reduce((sum, order) => sum + order.precio, 0);
-  }, [transporteOrders]);
+    return atipicoOrders.reduce((sum, order) => sum + order.precio, 0);
+  }, [atipicoOrders]);
 
   const handleDelete = () => {
     if (!orderToDelete) return;
 
-    let allOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-    const updatedOrders = allOrders.filter((o: TransporteOrder) => o.id !== orderToDelete);
-    localStorage.setItem('transporteOrders', JSON.stringify(updatedOrders));
-    setTransporteOrders(updatedOrders.filter((o: TransporteOrder) => o.osId === osId));
+    let allOrders = JSON.parse(localStorage.getItem('atipicoOrders') || '[]') as AtipicoOrder[];
+    const updatedOrders = allOrders.filter((o: AtipicoOrder) => o.id !== orderToDelete);
+    localStorage.setItem('atipicoOrders', JSON.stringify(updatedOrders));
+    setAtipicoOrders(updatedOrders.filter((o: AtipicoOrder) => o.osId === osId));
     
-    toast({ title: 'Pedido de transporte eliminado' });
+    toast({ title: 'Gasto atípico eliminado' });
     setOrderToDelete(null);
   };
   
   if (!isMounted || !serviceOrder) {
-    return <LoadingSkeleton title="Cargando Módulo de Transporte..." />;
+    return <LoadingSkeleton title="Cargando Módulo de Atípicos..." />;
   }
 
   return (
     <>
       <div className="flex items-start justify-between mb-8">
         <Button asChild>
-          <Link href={`/os/${osId}/transporte/pedido`}>
+          <Link href={`/atipicos/pedido?osId=${osId}`}>
             <PlusCircle className="mr-2" />
-            Nuevo Pedido de Transporte
+            Nuevo Gasto Atípico
           </Link>
         </Button>
       </div>
 
       <Card>
-          <CardHeader><CardTitle>Pedidos de Transporte Realizados</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Gastos Atípicos Registrados</CardTitle></CardHeader>
           <CardContent>
                <div className="border rounded-lg">
                   <Table>
                       <TableHeader>
                       <TableRow>
                           <TableHead>Fecha</TableHead>
-                          <TableHead>Proveedor</TableHead>
-                          <TableHead>Tipo</TableHead>
-                          <TableHead>Recogida</TableHead>
-                          <TableHead>Entrega</TableHead>
+                          <TableHead>Concepto</TableHead>
                           <TableHead>Importe</TableHead>
                           <TableHead>Estado</TableHead>
                           <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
                       </TableHeader>
                       <TableBody>
-                      {transporteOrders.length > 0 ? (
-                          transporteOrders.map(order => (
+                      {atipicoOrders.length > 0 ? (
+                          atipicoOrders.map(order => (
                           <TableRow key={order.id}>
                               <TableCell className="font-medium">{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
-                              <TableCell>{order.proveedorNombre}</TableCell>
-                              <TableCell>{order.tipoTransporte}</TableCell>
-                              <TableCell>{order.lugarRecogida} a las {order.horaRecogida}</TableCell>
-                              <TableCell>{order.lugarEntrega} a las {order.horaEntrega}</TableCell>
+                              <TableCell>{order.concepto}</TableCell>
                               <TableCell>{formatCurrency(order.precio)}</TableCell>
                               <TableCell>
                               <Badge variant={statusVariant[order.status]}>
@@ -156,14 +137,14 @@ export default function TransportePage() {
                                   </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => router.push(`/os/${osId}/transporte/${order.id}`)}>
+                                  <DropdownMenuItem onClick={() => router.push(`/os/${osId}/atipicos/pedido?orderId=${order.id}`)}>
                                       <Pencil className="mr-2 h-4 w-4" />
                                       Editar
-                                  </DropdownMenuItem>
+                                  DropdownMenuItem>
                                   <DropdownMenuItem className="text-destructive" onClick={() => setOrderToDelete(order.id)}>
                                       <Trash2 className="mr-2 h-4 w-4" />
                                       Eliminar
-                                  DropdownMenuItem>
+                                  </DropdownMenuItem>
                                   </DropdownMenuContent>
                               </DropdownMenu>
                               </TableCell>
@@ -171,15 +152,15 @@ export default function TransportePage() {
                           ))
                       ) : (
                           <TableRow>
-                          <TableCell colSpan={8} className="h-24 text-center">
-                              No hay pedidos de transporte para esta Orden de Servicio.
+                          <TableCell colSpan={5} className="h-24 text-center">
+                              No hay gastos atípicos para esta Orden de Servicio.
                           </TableCell>
                           </TableRow>
                       )}
                       </TableBody>
                   </Table>
               </div>
-              {transporteOrders.length > 0 && (
+              {atipicoOrders.length > 0 && (
                   <div className="flex justify-end mt-4 text-xl font-bold">
                       Importe Total: {formatCurrency(totalAmount)}
                   </div>
@@ -192,7 +173,7 @@ export default function TransportePage() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente el pedido de transporte.
+              Esta acción no se puede deshacer. Esto eliminará permanentemente el gasto atípico.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

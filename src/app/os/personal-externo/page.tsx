@@ -3,13 +3,12 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2 } from 'lucide-react';
-import type { PersonalExternoOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem, ProveedorPersonal, PersonalExternoAjuste } from '@/types';
-import { Header } from '@/components/layout/header';
+import type { PersonalExternoOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem, Proveedor, CategoriaPersonal, PersonalExternoAjuste } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -92,15 +91,15 @@ export default function PersonalExternoPage() {
   const [spaceAddress, setSpaceAddress] = useState<string>('');
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [isMounted, setIsMounted] = useState(false);
-  const [proveedoresDB, setProveedoresDB] = useState<ProveedorPersonal[]>([]);
+  const [proveedoresDB, setProveedoresDB] = useState<CategoriaPersonal[]>([]);
   const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const osId = searchParams.get('osId');
+  const params = useParams();
+  const osId = params.id as string;
   const { toast } = useToast();
 
   const form = useForm<PersonalExternoFormValues>({
@@ -117,12 +116,12 @@ export default function PersonalExternoPage() {
   
  const handleProviderChange = useCallback((index: number, proveedorId: string) => {
     if (!proveedorId) return;
-    const provider = proveedoresDB.find(p => p.id === proveedorId);
-    if (provider) {
-      setValue(`personal.${index}.proveedorId`, provider.id, { shouldDirty: true });
-      setValue(`personal.${index}.categoria`, provider.categoria, { shouldDirty: true });
-      setValue(`personal.${index}.precioHora`, provider.precioHora || 0, { shouldDirty: true });
-    }
+    // This logic needs to be updated to reflect the new structure for personal providers
+    // const provider = proveedoresDB.find(p => p.id === proveedorId);
+    // if (provider) {
+    //   setValue(`personal.${index}.proveedorId`, provider.id, { shouldDirty: true });
+    //   // Logic to find category and price needs to be added
+    // }
   }, [proveedoresDB, setValue]);
   
   const watchedFields = useWatch({ control, name: 'personal' });
@@ -172,7 +171,7 @@ export default function PersonalExternoPage() {
         const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
         setAjustes(storedAjustes[osId] || []);
 
-        const dbProveedores = JSON.parse(localStorage.getItem('proveedoresPersonal') || '[]') as ProveedorPersonal[];
+        const dbProveedores = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
         setProveedoresDB(dbProveedores);
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos.' });
@@ -282,7 +281,7 @@ export default function PersonalExternoPage() {
   }
 
   return (
-    <>
+    <div>
       <div className="flex items-start justify-between mb-8">
           <div>
               <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
@@ -291,323 +290,321 @@ export default function PersonalExternoPage() {
               </Button>
               <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Módulo de Personal Externo</h1>
               <div className="text-muted-foreground mt-2 space-y-1">
-                <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-                 {serviceOrder.space && (
-                    <p className="flex items-center gap-2">
-                      <Building className="h-3 w-3" /> {serviceOrder.space} {spaceAddress && `(${spaceAddress})`}
-                    </p>
-                )}
-                 {serviceOrder.respMetre && (
-                    <p className="flex items-center gap-2">
-                        Resp. Metre: {serviceOrder.respMetre} 
-                        {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
-                    </p>
-                )}
+              <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
+              {serviceOrder.space && (
+                  <p className="flex items-center gap-2">
+                    <Building className="h-3 w-3" /> {serviceOrder.space} {spaceAddress && `(${spaceAddress})`}
+                  </p>
+              )}
+               {serviceOrder.respMetre && (
+                  <p className="flex items-center gap-2">
+                      Resp. Metre: {serviceOrder.respMetre} 
+                      {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
+                  </p>
+              )}
               </div>
           </div>
            <div className="flex gap-2">
-                <Button type="submit" form="personal-form" disabled={isLoading || !form.formState.isDirty}>
-                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                    <span className="ml-2">Guardar Cambios</span>
-                </Button>
-            </div>
+              <Button type="submit" form="personal-form" disabled={isLoading || !form.formState.isDirty}>
+                  {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                  <span className="ml-2">Guardar Cambios</span>
+              </Button>
+          </div>
       </div>
       
        <Accordion type="single" collapsible className="w-full mb-8" >
           <AccordionItem value="item-1">
-            <Card>
-                <AccordionTrigger className="p-6">
-                    <h3 className="text-xl font-semibold">Servicios del Evento</h3>
-                </AccordionTrigger>
-                <AccordionContent>
-                <CardContent className="pt-0">
-                    <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead className="py-2 px-3">Fecha</TableHead>
-                        <TableHead className="py-2 px-3">Descripción</TableHead>
-                        <TableHead className="py-2 px-3">Asistentes</TableHead>
-                        <TableHead className="py-2 px-3">Duración</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {briefingItems.length > 0 ? briefingItems.map(item => (
-                        <TableRow key={item.id}>
-                            <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
-                            <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
-                            <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                            <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
-                        </TableRow>
-                        )) : (
-                            <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
-                        )}
-                    </TableBody>
-                    </Table>
-                </CardContent>
-                </AccordionContent>
-            </Card>
-            </AccordionItem>
-        </Accordion>
+          <Card>
+              <AccordionTrigger className="p-6">
+                  <h3 className="text-xl font-semibold">Servicios del Evento</h3>
+              </AccordionTrigger>
+              <AccordionContent>
+              <CardContent className="pt-0">
+                  <Table>
+                  <TableHeader>
+                      <TableRow>
+                      <TableHead className="py-2 px-3">Fecha</TableHead>
+                      <TableHead className="py-2 px-3">Descripción</TableHead>
+                      <TableHead className="py-2 px-3">Asistentes</TableHead>
+                      <TableHead className="py-2 px-3">Duración</TableHead>
+                      </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                      {briefingItems.length > 0 ? briefingItems.map(item => (
+                      <TableRow key={item.id}>
+                          <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
+                          <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
+                          <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
+                          <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
+                      </TableRow>
+                      )) : (
+                          <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                      )}
+                  </TableBody>
+                  </Table>
+              </CardContent>
+              </AccordionContent>
+          </Card>
+          </AccordionItem>
+      </Accordion>
 
-      <FormProvider {...form}>
-       <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)}>
-            <Card>
-                <CardHeader className="flex-row items-center justify-between">
-                    <CardTitle>Personal Asignado</CardTitle>
-                    <Button type="button" onClick={addRow}>
-                        <PlusCircle className="mr-2" />
-                        Añadir Personal
-                    </Button>
-                </CardHeader>
-                <CardContent>
-                    <div className="border rounded-lg overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="px-2 py-2">Fecha</TableHead>
-                                    <TableHead className="px-2 py-2">Centro Coste</TableHead>
-                                    <TableHead className="px-2 py-2 min-w-48">Proveedor - Categoría</TableHead>
-                                    <TableHead className="px-1 py-2 text-center">Cant.</TableHead>
-                                    <TableHead className="px-2 py-2">Tipo Servicio</TableHead>
-                                    <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
-                                    <TableHead colSpan={2} className="text-center border-r px-2 py-2">Real</TableHead>
-                                    <TableHead className="text-right px-2 py-2">Acción</TableHead>
-                                </TableRow>
-                                <TableRow>
-                                    <TableHead className="px-1 py-2"></TableHead>
-                                    <TableHead className="px-2 py-2"></TableHead>
-                                    <TableHead className="px-2 py-2"></TableHead>
-                                    <TableHead className="px-1 py-2"></TableHead>
-                                    <TableHead className="px-2 py-2"></TableHead>
-                                    <TableHead className="border-l px-1 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
-                                    <TableHead className="px-1 py-2 bg-muted/30 w-24">H. Salida</TableHead>
-                                    <TableHead className="border-r px-1 py-2 bg-muted/30 w-20">€/Hora</TableHead>
-                                    <TableHead className="px-1 py-2 w-24">H. Entrada</TableHead>
-                                    <TableHead className="border-r px-1 py-2 w-24">H. Salida</TableHead>
-                                    <TableHead className="px-2 py-2"></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                            {fields.length > 0 ? (
-                                fields.map((field, index) => (
-                                    <TableRow key={field.id}>
-                                        <TableCell className="px-2 py-1">
-                                            <FormField control={control} name={`personal.${index}.fecha`} render={({ field: dateField }) => (
-                                                <FormItem>
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <FormControl>
-                                                                <Button variant={"outline"} className={cn("w-32 h-9 pl-3 text-left font-normal", !dateField.value && "text-muted-foreground")}>
-                                                                    {dateField.value ? format(dateField.value, "dd/MM/yy") : <span>Elige</span>}
-                                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                                </Button>
-                                                            </FormControl>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0" align="start">
-                                                            <Calendar mode="single" selected={dateField.value} onSelect={dateField.onChange} initialFocus locale={es} />
-                                                        </PopoverContent>
-                                                    </Popover>
-                                                </FormItem>
-                                            )} />
-                                        </TableCell>
-                                        <TableCell className="px-2 py-1">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.centroCoste`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <Select onValueChange={field.onChange} value={field.value}>
-                                                            <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
-                                                            <SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                                                        </Select>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="px-2 py-1 min-w-48">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.proveedorId`}
-                                                render={({ field }) => (
-                                                <FormItem>
-                                                    <Combobox
-                                                        options={providerOptions}
-                                                        value={field.value}
-                                                        onChange={(value) => handleProviderChange(index, value)}
-                                                        placeholder="Proveedor..."
-                                                    />
-                                                </FormItem>
-                                                )}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="px-1 py-1">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.cantidad`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="number" min="1" {...field} className="w-16 h-9 text-center"/></FormControl></FormItem>}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="px-2 py-1">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.tipoServicio`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <Select onValueChange={field.onChange} value={field.value}>
-                                                            <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
-                                                            <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                                                        </Select>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="border-l px-1 py-1 bg-muted/30">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.horaEntrada`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="px-1 py-1 bg-muted/30">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.horaSalida`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="border-r px-1 py-1 bg-muted/30">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.precioHora`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20 h-9" readOnly /></FormControl></FormItem>}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="px-1 py-1">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.horaEntradaReal`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="border-r px-1 py-1">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.horaSalidaReal`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="text-right px-2 py-1">
-                                            <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                <TableCell colSpan={11} className="h-24 text-center">
-                                    No hay personal asignado. Haz clic en "Añadir Personal" para empezar.
-                                </TableCell>
-                                </TableRow>
-                            )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-                {fields.length > 0 && (
-                    <CardFooter className="grid grid-cols-2 gap-8">
-                       <Card>
-                            <CardHeader className="flex-row items-center justify-between pb-2">
-                                <CardTitle className="text-lg">Ajuste de Costes</CardTitle>
-                                <Button size="sm" type="button" variant="outline" onClick={addAjusteRow}><PlusCircle className="mr-2"/>Añadir Ajuste</Button>
-                            </CardHeader>
-                            <CardContent>
-                               <div className="space-y-2">
-                                  {ajustes.map((ajuste, index) => (
-                                    <div key={ajuste.id} className="flex gap-2 items-center">
-                                        <Input 
-                                            placeholder="Concepto" 
-                                            value={ajuste.concepto} 
-                                            onChange={(e) => updateAjuste(index, 'concepto', e.target.value)}
-                                            className="h-9"
-                                        />
-                                        <Input 
-                                            type="number"
-                                            step="0.01"
-                                            placeholder="Ajuste"
-                                            value={ajuste.ajuste}
-                                            onChange={(e) => updateAjuste(index, 'ajuste', e.target.value)}
-                                            className="w-32 h-9"
-                                        />
-                                        <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => removeAjusteRow(index)}><Trash2 className="h-4 w-4"/></Button>
-                                    </div>
-                                  ))}
-                                  {ajustes.length > 0 && <Separator />}
-                                  <div className="flex justify-between font-bold">
-                                      <span>Total Ajustes:</span>
-                                      <span>{formatCurrency(totalAjustes)}</span>
+     <FormProvider {...form}>
+      <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)}>
+          <Card>
+              <CardHeader className="flex-row items-center justify-between">
+                  <CardTitle>Personal Asignado</CardTitle>
+                  <Button type="button" onClick={addRow}>
+                      <PlusCircle className="mr-2" />
+                      Añadir Personal
+                  </Button>
+              </CardHeader>
+              <CardContent>
+                  <div className="border rounded-lg overflow-x-auto">
+                      <Table>
+                          <TableHeader>
+                              <TableRow>
+                                  <TableHead className="px-2 py-2">Fecha</TableHead>
+                                  <TableHead className="px-2 py-2">Centro Coste</TableHead>
+                                  <TableHead className="px-2 py-2 min-w-48">Proveedor - Categoría</TableHead>
+                                  <TableHead className="px-1 py-2 text-center">Cant.</TableHead>
+                                  <TableHead className="px-2 py-2">Tipo Servicio</TableHead>
+                                  <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
+                                  <TableHead colSpan={2} className="text-center border-r px-2 py-2">Real</TableHead>
+                                  <TableHead className="text-right px-2 py-2">Acción</TableHead>
+                              </TableRow>
+                              <TableRow>
+                                  <TableHead className="px-1 py-2"></TableHead>
+                                  <TableHead className="px-2 py-2"></TableHead>
+                                  <TableHead className="px-2 py-2"></TableHead>
+                                  <TableHead className="px-1 py-2"></TableHead>
+                                  <TableHead className="px-2 py-2"></TableHead>
+                                  <TableHead className="border-l px-1 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
+                                  <TableHead className="px-1 py-2 bg-muted/30 w-24">H. Salida</TableHead>
+                                  <TableHead className="border-r px-1 py-2 bg-muted/30 w-20">€/Hora</TableHead>
+                                  <TableHead className="px-1 py-2 w-24">H. Entrada</TableHead>
+                                  <TableHead className="border-r px-1 py-2 w-24">H. Salida</TableHead>
+                                  <TableHead className="px-2 py-2"></TableHead>
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                          {fields.length > 0 ? (
+                              fields.map((field, index) => (
+                                  <TableRow key={field.id}>
+                                      <TableCell className="px-2 py-1">
+                                          <FormField control={control} name={`personal.${index}.fecha`} render={({ field: dateField }) => (
+                                              <FormItem>
+                                                  <Popover>
+                                                      <PopoverTrigger asChild>
+                                                          <FormControl>
+                                                              <Button variant={"outline"} className={cn("w-32 h-9 pl-3 text-left font-normal", !dateField.value && "text-muted-foreground")}>
+                                                                  {dateField.value ? format(dateField.value, "dd/MM/yy") : <span>Elige</span>}
+                                                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                              </Button>
+                                                          </FormControl>
+                                                      </PopoverTrigger>
+                                                      <PopoverContent className="w-auto p-0" align="start">
+                                                          <Calendar mode="single" selected={dateField.value} onSelect={dateField.onChange} initialFocus locale={es} />
+                                                      </PopoverContent>
+                                                  </Popover>
+                                              </FormItem>
+                                          )} />
+                                      </TableCell>
+                                      <TableCell className="px-2 py-1">
+                                          <FormField
+                                              control={control}
+                                              name={`personal.${index}.centroCoste`}
+                                              render={({ field }) => (
+                                                  <FormItem>
+                                                      <Select onValueChange={field.onChange} value={field.value}>
+                                                          <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
+                                                          <SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                                                      </Select>
+                                                  </FormItem>
+                                              )}
+                                          />
+                                      </TableCell>
+                                      <TableCell className="px-2 py-1 min-w-48">
+                                          <FormField
+                                              control={control}
+                                              name={`personal.${index}.proveedorId`}
+                                              render={({ field }) => (
+                                              <FormItem>
+                                                  <Combobox
+                                                      options={providerOptions}
+                                                      value={field.value}
+                                                      onChange={(value) => handleProviderChange(index, value)}
+                                                      placeholder="Proveedor..."
+                                                  />
+                                              </FormItem>
+                                              )}
+                                          />
+                                      </TableCell>
+                                      <TableCell className="px-1 py-1">
+                                          <FormField
+                                              control={control}
+                                              name={`personal.${index}.cantidad`}
+                                              render={({ field }) => <FormItem><FormControl><Input type="number" min="1" {...field} className="w-16 h-9 text-center"/></FormControl></FormItem>}
+                                          />
+                                      </TableCell>
+                                      <TableCell className="px-2 py-1">
+                                          <FormField
+                                              control={control}
+                                              name={`personal.${index}.tipoServicio`}
+                                              render={({ field }) => (
+                                                  <FormItem>
+                                                      <Select onValueChange={field.onChange} value={field.value}>
+                                                          <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
+                                                          <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                                                      </Select>
+                                                  </FormItem>
+                                              )}
+                                          />
+                                      </TableCell>
+                                      <TableCell className="border-l px-1 py-1 bg-muted/30">
+                                          <FormField
+                                              control={control}
+                                              name={`personal.${index}.horaEntrada`}
+                                              render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
+                                          />
+                                      </TableCell>
+                                      <TableCell className="px-1 py-1 bg-muted/30">
+                                          <FormField
+                                              control={control}
+                                              name={`personal.${index}.horaSalida`}
+                                              render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
+                                          />
+                                      </TableCell>
+                                      <TableCell className="border-r px-1 py-1 bg-muted/30">
+                                          <FormField
+                                              control={control}
+                                              name={`personal.${index}.precioHora`}
+                                              render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20 h-9" readOnly /></FormControl></FormItem>}
+                                          />
+                                      </TableCell>
+                                      <TableCell className="px-1 py-1">
+                                          <FormField
+                                              control={control}
+                                              name={`personal.${index}.horaEntradaReal`}
+                                              render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
+                                          />
+                                      </TableCell>
+                                      <TableCell className="border-r px-1 py-1">
+                                          <FormField
+                                              control={control}
+                                              name={`personal.${index}.horaSalidaReal`}
+                                              render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
+                                          />
+                                      </TableCell>
+                                      <TableCell className="text-right px-2 py-1">
+                                          <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
+                                              <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                      </TableCell>
+                                  </TableRow>
+                              ))
+                          ) : (
+                              <TableRow>
+                              <TableCell colSpan={11} className="h-24 text-center">
+                                  No hay personal asignado. Haz clic en "Añadir Personal" para empezar.
+                              </TableCell>
+                              </TableRow>
+                          )}
+                          </TableBody>
+                      </Table>
+                  </div>
+              </CardContent>
+              {fields.length > 0 && (
+                  <CardFooter className="grid grid-cols-2 gap-8">
+                     <Card>
+                          <CardHeader className="flex-row items-center justify-between pb-2">
+                              <CardTitle className="text-lg">Ajuste de Costes</CardTitle>
+                              <Button size="sm" type="button" variant="outline" onClick={addAjusteRow}><PlusCircle className="mr-2"/>Añadir Ajuste</Button>
+                          </CardHeader>
+                          <CardContent>
+                             <div className="space-y-2">
+                                {ajustes.map((ajuste, index) => (
+                                  <div key={ajuste.id} className="flex gap-2 items-center">
+                                      <Input 
+                                          placeholder="Concepto" 
+                                          value={ajuste.concepto} 
+                                          onChange={(e) => updateAjuste(index, 'concepto', e.target.value)}
+                                          className="h-9"
+                                      />
+                                      <Input 
+                                          type="number"
+                                          step="0.01"
+                                          placeholder="Ajuste"
+                                          value={ajuste.ajuste}
+                                          onChange={(e) => updateAjuste(index, 'ajuste', e.target.value)}
+                                          className="w-32 h-9"
+                                      />
+                                      <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => removeAjusteRow(index)}><Trash2 className="h-4 w-4"/></Button>
                                   </div>
-                               </div>
-                            </CardContent>
-                        </Card>
-                         <Card>
-                            <CardHeader><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
-                            <CardContent className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Coste Total Planificado:</span>
-                                    <span className="font-bold">{formatCurrency(totalPlanned)}</span>
+                                ))}
+                                {ajustes.length > 0 && <Separator />}
+                                <div className="flex justify-between font-bold">
+                                    <span>Total Ajustes:</span>
+                                    <span>{formatCurrency(totalAjustes)}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Coste Total Real (Horas):</span>
-                                    <span className="font-bold">{formatCurrency(totalReal)}</span>
-                                </div>
-                                 <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Ajustes:</span>
-                                    <span className="font-bold">{formatCurrency(totalAjustes)}</span>
-                                </div>
-                                <Separator className="my-2" />
-                                <div className="flex justify-between font-bold text-base">
-                                    <span>Coste Total Real (con Ajustes):</span>
-                                    <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
-                                        {formatCurrency(finalTotalReal)}
-                                    </span>
-                                </div>
-                                <Separator className="my-2" />
-                                 <div className="flex justify-between font-bold text-base">
-                                    <span>Desviación (Plan vs Real):</span>
-                                    <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
-                                        {formatCurrency(finalTotalReal - totalPlanned)}
-                                    </span>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </CardFooter>
-                )}
-            </Card>
-        </form>
-       </FormProvider>
+                             </div>
+                          </CardContent>
+                      </Card>
+                       <Card>
+                          <CardHeader><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
+                          <CardContent className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Coste Total Planificado:</span>
+                                  <span className="font-bold">{formatCurrency(totalPlanned)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Coste Total Real (Horas):</span>
+                                  <span className="font-bold">{formatCurrency(totalReal)}</span>
+                              </div>
+                               <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Ajustes:</span>
+                                  <span className="font-bold">{formatCurrency(totalAjustes)}</span>
+                              </div>
+                              <Separator className="my-2" />
+                              <div className="flex justify-between font-bold text-base">
+                                  <span>Coste Total Real (con Ajustes):</span>
+                                  <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
+                                      {formatCurrency(finalTotalReal)}
+                                  </span>
+                              </div>
+                              <Separator className="my-2" />
+                               <div className="flex justify-between font-bold text-base">
+                                  <span>Desviación (Plan vs Real):</span>
+                                  <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
+                                      {formatCurrency(finalTotalReal - totalPlanned)}
+                                  </span>
+                              </div>
+                          </CardContent>
+                      </Card>
+                  </CardFooter>
+              )}
+          </Card>
+      </form>
+     </FormProvider>
 
-        <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
-            <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                <AlertDialogDescription>
-                Esta acción no se puede deshacer. Se eliminará la asignación de personal de la tabla.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setRowToDelete(null)}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                className="bg-destructive hover:bg-destructive/90"
-                onClick={handleDeleteRow}
-                >
-                Eliminar
-                </AlertDialogAction>
-            </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-
-      </main>
-    </>
+      <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
+          <AlertDialogContent>
+          <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará la asignación de personal de la tabla.
+              </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setRowToDelete(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDeleteRow}
+              >
+              Eliminar
+              </AlertDialogAction>
+          </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }

@@ -4,8 +4,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, Truck, Phone, Building } from 'lucide-react';
-import type { TransporteOrder, ServiceOrder, Espacio } from '@/types';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, Snowflake, Phone, Building } from 'lucide-react';
+import type { HieloOrder, ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { useToast from '@/hooks/use-toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,17 +38,16 @@ import { format } from 'date-fns';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency } from '@/lib/utils';
 
-const statusVariant: { [key in TransporteOrder['status']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
+const statusVariant: { [key in HieloOrder['status']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   Pendiente: 'secondary',
   Confirmado: 'default',
-  'En Ruta': 'outline',
+  'En reparto': 'outline',
   Entregado: 'outline',
 };
 
-export default function TransportePage() {
+export default function HieloPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [spaceAddress, setSpaceAddress] = useState<string>('');
-  const [transporteOrders, setTransporteOrders] = useState<TransporteOrder[]>([]);
+  const [hieloOrders, setHieloOrders] = useState<HieloOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   
@@ -59,7 +58,7 @@ export default function TransportePage() {
 
   useEffect(() => {
     if (!osId) return;
-
+    
     const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const currentOS = allServiceOrders.find(os => os.id === osId);
     
@@ -71,52 +70,58 @@ export default function TransportePage() {
     
     setServiceOrder(currentOS);
 
-    if (currentOS?.space) {
-        const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-        const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
-        setSpaceAddress(currentSpace?.calle || '');
-    }
-
-    const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-    const relatedOrders = allTransporteOrders.filter(order => order.osId === osId);
-    setTransporteOrders(relatedOrders);
+    const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
+    const relatedOrders = allHieloOrders.filter(order => order.osId === osId);
+    setHieloOrders(relatedOrders);
 
     setIsMounted(true);
   }, [osId, router, toast]);
 
   const totalAmount = useMemo(() => {
-    return transporteOrders.reduce((sum, order) => sum + order.precio, 0);
-  }, [transporteOrders]);
+    return hieloOrders.reduce((sum, order) => sum + order.total, 0);
+  }, [hieloOrders]);
 
   const handleDelete = () => {
     if (!orderToDelete) return;
 
-    let allOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
-    const updatedOrders = allOrders.filter((o: TransporteOrder) => o.id !== orderToDelete);
-    localStorage.setItem('transporteOrders', JSON.stringify(updatedOrders));
-    setTransporteOrders(updatedOrders.filter((o: TransporteOrder) => o.osId === osId));
+    let allOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
+    const updatedOrders = allOrders.filter((o: HieloOrder) => o.id !== orderToDelete);
+    localStorage.setItem('hieloOrders', JSON.stringify(updatedOrders));
+    setHieloOrders(updatedOrders.filter((o: HieloOrder) => o.osId === osId));
     
-    toast({ title: 'Pedido de transporte eliminado' });
+    toast({ title: 'Pedido de hielo eliminado' });
     setOrderToDelete(null);
   };
   
   if (!isMounted || !serviceOrder) {
-    return <LoadingSkeleton title="Cargando Módulo de Transporte..." />;
+    return <LoadingSkeleton title="Cargando Módulo de Hielo..." />;
   }
 
   return (
     <>
       <div className="flex items-start justify-between mb-8">
+          <div>
+              <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Snowflake />Módulo de Hielo</h1>
+              <div className="text-muted-foreground mt-2 space-y-1">
+                  <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
+                   {serviceOrder.respMetre && (
+                      <p className="flex items-center gap-2">
+                          Resp. Metre: {serviceOrder.respMetre} 
+                          {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
+                      </p>
+                  )}
+              </div>
+          </div>
         <Button asChild>
-          <Link href={`/os/${osId}/transporte/pedido`}>
+          <Link href={`/hielo/pedido?osId=${osId}`}>
             <PlusCircle className="mr-2" />
-            Nuevo Pedido de Transporte
+            Nuevo Pedido de Hielo
           </Link>
         </Button>
       </div>
 
       <Card>
-          <CardHeader><CardTitle>Pedidos de Transporte Realizados</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Pedidos de Hielo Realizados</CardTitle></CardHeader>
           <CardContent>
                <div className="border rounded-lg">
                   <Table>
@@ -124,24 +129,20 @@ export default function TransportePage() {
                       <TableRow>
                           <TableHead>Fecha</TableHead>
                           <TableHead>Proveedor</TableHead>
-                          <TableHead>Tipo</TableHead>
-                          <TableHead>Recogida</TableHead>
-                          <TableHead>Entrega</TableHead>
+                          <TableHead>Nº Artículos</TableHead>
                           <TableHead>Importe</TableHead>
                           <TableHead>Estado</TableHead>
                           <TableHead className="text-right">Acciones</TableHead>
                       </TableRow>
                       </TableHeader>
                       <TableBody>
-                      {transporteOrders.length > 0 ? (
-                          transporteOrders.map(order => (
+                      {hieloOrders.length > 0 ? (
+                          hieloOrders.map(order => (
                           <TableRow key={order.id}>
                               <TableCell className="font-medium">{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
                               <TableCell>{order.proveedorNombre}</TableCell>
-                              <TableCell>{order.tipoTransporte}</TableCell>
-                              <TableCell>{order.lugarRecogida} a las {order.horaRecogida}</TableCell>
-                              <TableCell>{order.lugarEntrega} a las {order.horaEntrega}</TableCell>
-                              <TableCell>{formatCurrency(order.precio)}</TableCell>
+                              <TableCell>{order.items?.length || 0}</TableCell>
+                              <TableCell>{formatCurrency(order.total)}</TableCell>
                               <TableCell>
                               <Badge variant={statusVariant[order.status]}>
                                   {order.status}
@@ -156,14 +157,14 @@ export default function TransportePage() {
                                   </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => router.push(`/os/${osId}/transporte/${order.id}`)}>
+                                  <DropdownMenuItem onClick={() => router.push(`/os/${osId}/hielo/pedido?orderId=${order.id}`)}>
                                       <Pencil className="mr-2 h-4 w-4" />
                                       Editar
                                   </DropdownMenuItem>
                                   <DropdownMenuItem className="text-destructive" onClick={() => setOrderToDelete(order.id)}>
                                       <Trash2 className="mr-2 h-4 w-4" />
                                       Eliminar
-                                  DropdownMenuItem>
+                                  </DropdownMenuItem>
                                   </DropdownMenuContent>
                               </DropdownMenu>
                               </TableCell>
@@ -171,15 +172,15 @@ export default function TransportePage() {
                           ))
                       ) : (
                           <TableRow>
-                          <TableCell colSpan={8} className="h-24 text-center">
-                              No hay pedidos de transporte para esta Orden de Servicio.
+                          <TableCell colSpan={6} className="h-24 text-center">
+                              No hay pedidos de hielo para esta Orden de Servicio.
                           </TableCell>
                           </TableRow>
                       )}
                       </TableBody>
                   </Table>
               </div>
-              {transporteOrders.length > 0 && (
+              {hieloOrders.length > 0 && (
                   <div className="flex justify-end mt-4 text-xl font-bold">
                       Importe Total: {formatCurrency(totalAmount)}
                   </div>
@@ -192,7 +193,7 @@ export default function TransportePage() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente el pedido de transporte.
+              Esta acción no se puede deshacer. Esto eliminará permanentemente el pedido de hielo.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

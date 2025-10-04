@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft } from 'lucide-react';
@@ -49,7 +49,7 @@ const statusVariant: { [key in MaterialOrder['status']]: 'default' | 'secondary'
   Listo: 'default',
 };
 
-export default function BodegaPage() {
+export default function AlmacenPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
@@ -65,15 +65,17 @@ export default function BodegaPage() {
 
     const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const currentOS = allServiceOrders.find(os => os.id === osId);
+    
     if (!currentOS) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
         router.push('/pes');
         return;
     }
+    
     setServiceOrder(currentOS);
 
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bodega');
+    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Almacén');
     setMaterialOrders(relatedOrders);
 
     setIsMounted(true);
@@ -103,8 +105,8 @@ export default function BodegaPage() {
     let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
     localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
-    setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Bodega'));
-
+    setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Almacén'));
+    
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
   };
@@ -114,20 +116,20 @@ export default function BodegaPage() {
       toast({ variant: 'destructive', title: 'No permitido', description: 'Solo se pueden editar pedidos en estado "Asignado".'});
       return;
     }
-    router.push(`/pedidos?osId=${osId}&type=Bodega&orderId=${order.id}`);
+    router.push(`/pedidos?osId=${osId}&type=Almacén&orderId=${order.id}`);
   }
 
   if (!isMounted || !serviceOrder) {
-    return <LoadingSkeleton title="Cargando Módulo de Bodega..." />;
+    return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
   }
 
   return (
     <>
       <div className="flex items-center justify-between mb-8">
         <Button asChild>
-          <Link href={`/pedidos?osId=${osId}&type=Bodega`}>
+          <Link href={`/pedidos?osId=${osId}&type=Almacén`}>
             <PlusCircle className="mr-2" />
-            Nuevo Pedido de Bodega
+            Nuevo Pedido de Almacén
           </Link>
         </Button>
       </div>
@@ -232,7 +234,7 @@ export default function BodegaPage() {
                       ) : (
                           <TableRow>
                           <TableCell colSpan={8} className="h-24 text-center">
-                              No hay pedidos de bodega para esta Orden de Servicio.
+                              No hay pedidos de almacén para esta Orden de Servicio.
                           </TableCell>
                           </TableRow>
                       )}
