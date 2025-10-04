@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -170,7 +169,7 @@ export default function PesPage() {
                 <TableHead>Nº Servicio</TableHead>
                 <TableHead>Espacio</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead>Fecha Inicio-Fin</TableHead>
+                <TableHead>Fecha</TableHead>
                 <TableHead>Asistentes</TableHead>
                 <TableHead>Estado</TableHead>
               </TableRow>
@@ -179,6 +178,10 @@ export default function PesPage() {
               {filteredAndSortedOrders.length > 0 ? (
                 filteredAndSortedOrders.map(os => {
                   const osBriefingItems = briefingsMap.get(os.id);
+                  const osStartDate = new Date(os.startDate);
+                  const osEndDate = new Date(os.endDate);
+                  const sameDay = format(osStartDate, 'yyyy-MM-dd') === format(osEndDate, 'yyyy-MM-dd');
+
                   return (
                   <TableRow key={os.id} onClick={() => router.push(`/os?id=${os.id}`)} className="cursor-pointer">
                     <TableCell className="font-medium">
@@ -204,8 +207,14 @@ export default function PesPage() {
                     <TableCell>{os.space}</TableCell>
                     <TableCell>{os.client}</TableCell>
                     <TableCell>
-                        <div>{format(new Date(os.startDate), 'dd/MM/yyyy')}</div>
-                        <div>{format(new Date(os.endDate), 'dd/MM/yyyy')}</div>
+                        {sameDay ? (
+                            format(osStartDate, 'dd/MM/yyyy')
+                        ) : (
+                            <div>
+                                <div>{format(osStartDate, 'dd/MM/yyyy')}</div>
+                                <div>{format(osEndDate, 'dd/MM/yyyy')}</div>
+                            </div>
+                        )}
                     </TableCell>
                     <TableCell>{os.asistentes}</TableCell>
                     <TableCell>
