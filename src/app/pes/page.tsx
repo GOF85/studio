@@ -154,7 +154,7 @@ export default function PesPage() {
                     </label>
             </div>
             </div>
-            <div className="flex items-center gap-2">
+             <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Estado:</span>
                 <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
                 <Button size="sm" variant={statusFilter === 'Borrador' ? 'default' : 'outline'} onClick={() => setStatusFilter('Borrador')}>Borrador</Button>
@@ -170,8 +170,7 @@ export default function PesPage() {
                 <TableHead>Nº Servicio</TableHead>
                 <TableHead>Espacio</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead>Fecha Inicio</TableHead>
-                <TableHead>Fecha Fin</TableHead>
+                <TableHead>Fecha Inicio-Fin</TableHead>
                 <TableHead>Asistentes</TableHead>
                 <TableHead>Estado</TableHead>
               </TableRow>
@@ -204,8 +203,10 @@ export default function PesPage() {
                     </TableCell>
                     <TableCell>{os.space}</TableCell>
                     <TableCell>{os.client}</TableCell>
-                    <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
-                    <TableCell>{format(new Date(os.endDate), 'dd/MM/yyyy')}</TableCell>
+                    <TableCell>
+                        <div>{format(new Date(os.startDate), 'dd/MM/yyyy')}</div>
+                        <div>{format(new Date(os.endDate), 'dd/MM/yyyy')}</div>
+                    </TableCell>
                     <TableCell>{os.asistentes}</TableCell>
                     <TableCell>
                       <Badge variant={statusVariant[os.status]}>
@@ -216,7 +217,7 @@ export default function PesPage() {
                 )})
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     No hay órdenes de servicio que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>
