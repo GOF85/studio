@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -13,7 +12,6 @@ import { format, differenceInMinutes, parse } from 'date-fns';
 
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, TipoServicio, ComercialAjuste } from '@/types';
 import { osFormSchema, OsFormValues } from '@/app/os/page';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -474,160 +472,157 @@ export default function ComercialPage() {
 
   return (
     <>
-      <Header />
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
-              <ArrowLeft className="mr-2" />
-              Volver a la OS
-            </Button>
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Briefcase />Módulo Comercial</h1>
-            <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-          </div>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
+            <ArrowLeft className="mr-2" />
+            Volver a la OS
+          </Button>
+          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Briefcase />Módulo Comercial</h1>
+          <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
         </div>
-        
-        <FormProvider {...financialForm}>
-             <Accordion type="single" collapsible className="w-full mb-8">
-                <AccordionItem value="item-1" className="border-none">
-                    <Card>
-                        <AccordionTrigger className="py-2 px-4">
-                            <div className="flex items-center justify-between w-full">
-                                <CardTitle className="text-lg">Información Financiera y Ajustes</CardTitle>
-                                 <div className="text-base font-bold pr-4">
-                                    <span className="text-black dark:text-white">Facturación Neta: </span>
-                                    <span className="text-green-600">{facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-                                </div>
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                             <div className="grid lg:grid-cols-2 gap-6 p-4 pt-2">
-                                <form onChange={() => financialForm.handleSubmit(handleSaveFinancials)()} className="flex flex-col space-y-4">
-                                    <h3 className="text-lg font-semibold border-b pb-2">Información Financiera</h3>
-                                    <div className="grid grid-cols-2 gap-4 items-end">
-                                        <FormItem>
-                                            <FormLabel>Fact. Briefing</FormLabel>
-                                            <FormControl><Input readOnly value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8" /></FormControl>
-                                        </FormItem>
-                                        <FormItem>
-                                            <FormLabel>Facturación Final</FormLabel>
-                                            <FormControl><Input readOnly value={facturacionFinal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8"/></FormControl>
-                                        </FormItem>
-                                        <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (
-                                            <FormItem>
-                                            <FormLabel>% Agencia</FormLabel>
-                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8" /></FormControl>
-                                            </FormItem>
-                                        )} />
-                                        <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
-                                            <FormItem>
-                                            <FormLabel>% Espacio</FormLabel>
-                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8" /></FormControl>
-                                            </FormItem>
-                                        )} />
-                                    </div>
-                                </form>
-                                <div className="space-y-4">
-                                    <h3 className="text-lg font-semibold border-b pb-2">Ajustes a la Facturación</h3>
-                                    <div className="border rounded-lg">
-                                        <Table>
-                                            <TableBody>
-                                                {ajustes.map(ajuste => (
-                                                <TableRow key={ajuste.id}>
-                                                    <TableCell className="font-medium p-1">{ajuste.concepto}</TableCell>
-                                                    <TableCell className="text-right p-1">{ajuste.importe.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}</TableCell>
-                                                    <TableCell className="w-12 text-right p-0 pr-1">
-                                                        <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteAjuste(ajuste.id)}>
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                                ))}
-                                            </TableBody>
-                                            <TableFooter>
-                                            <TableRow>
-                                                <TableCell className="p-1">
-                                                    <Input ref={nuevoAjusteConceptoRef} placeholder="Nuevo concepto" className="h-8 text-xs"/>
-                                                </TableCell>
-                                                <TableCell className="text-right p-1">
-                                                    <Input ref={nuevoAjusteImporteRef} type="number" step="0.01" placeholder="Importe" className="text-right h-8 w-24 text-xs"/>
-                                                </TableCell>
-                                                <TableCell className="text-right p-1">
-                                                    <Button type="button" onClick={handleAddAjuste} size="sm" className="h-8 text-xs">Añadir</Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        </TableFooter>
-                                        </Table>
-                                    </div>
-                                </div>
-                            </div>
-                        </AccordionContent>
-                    </Card>
-                </AccordionItem>
-            </Accordion>
-        </FormProvider>
+      </div>
+      
+      <FormProvider {...financialForm}>
+           <Accordion type="single" collapsible className="w-full mb-8">
+              <AccordionItem value="item-1" className="border-none">
+                  <Card>
+                      <AccordionTrigger className="py-2 px-4">
+                          <div className="flex items-center justify-between w-full">
+                              <CardTitle className="text-lg">Información Financiera y Ajustes</CardTitle>
+                               <div className="text-base font-bold pr-4">
+                                  <span className="text-black dark:text-white">Facturación Neta: </span>
+                                  <span className="text-green-600">{facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                              </div>
+                          </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                           <div className="grid lg:grid-cols-2 gap-6 p-4 pt-2">
+                              <form onChange={() => financialForm.handleSubmit(handleSaveFinancials)()} className="flex flex-col space-y-4">
+                                  <h3 className="text-lg font-semibold border-b pb-2">Información Financiera</h3>
+                                  <div className="grid grid-cols-2 gap-4 items-end">
+                                      <FormItem>
+                                          <FormLabel>Fact. Briefing</FormLabel>
+                                          <FormControl><Input readOnly value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8" /></FormControl>
+                                      </FormItem>
+                                      <FormItem>
+                                          <FormLabel>Facturación Final</FormLabel>
+                                          <FormControl><Input readOnly value={facturacionFinal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8"/></FormControl>
+                                      </FormItem>
+                                      <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (
+                                          <FormItem>
+                                          <FormLabel>% Agencia</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8" /></FormControl>
+                                          </FormItem>
+                                      )} />
+                                      <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
+                                          <FormItem>
+                                          <FormLabel>% Espacio</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8" /></FormControl>
+                                          </FormItem>
+                                      )} />
+                                  </div>
+                              </form>
+                              <div className="space-y-4">
+                                  <h3 className="text-lg font-semibold border-b pb-2">Ajustes a la Facturación</h3>
+                                  <div className="border rounded-lg">
+                                      <Table>
+                                          <TableBody>
+                                              {ajustes.map(ajuste => (
+                                              <TableRow key={ajuste.id}>
+                                                  <TableCell className="font-medium p-1">{ajuste.concepto}</TableCell>
+                                                  <TableCell className="text-right p-1">{ajuste.importe.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}</TableCell>
+                                                  <TableCell className="w-12 text-right p-0 pr-1">
+                                                      <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteAjuste(ajuste.id)}>
+                                                          <Trash2 className="h-4 w-4" />
+                                                      </Button>
+                                                  </TableCell>
+                                              </TableRow>
+                                              ))}
+                                          </TableBody>
+                                          <TableFooter>
+                                          <TableRow>
+                                              <TableCell className="p-1">
+                                                  <Input ref={nuevoAjusteConceptoRef} placeholder="Nuevo concepto" className="h-8 text-xs"/>
+                                              </TableCell>
+                                              <TableCell className="text-right p-1">
+                                                  <Input ref={nuevoAjusteImporteRef} type="number" step="0.01" placeholder="Importe" className="text-right h-8 w-24 text-xs"/>
+                                              </TableCell>
+                                              <TableCell className="text-right p-1">
+                                                  <Button type="button" onClick={handleAddAjuste} size="sm" className="h-8 text-xs">Añadir</Button>
+                                              </TableCell>
+                                          </TableRow>
+                                      </TableFooter>
+                                      </Table>
+                                  </div>
+                              </div>
+                          </div>
+                      </AccordionContent>
+                  </Card>
+              </AccordionItem>
+          </Accordion>
+      </FormProvider>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between py-2">
-            <CardTitle className="text-lg">Briefing del Contrato</CardTitle>
-            <Button onClick={handleNewClick}><PlusCircle className="mr-2" /> Nuevo Hito</Button>
-          </CardHeader>
-          <CardContent>
-            <div className="border rounded-lg overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="py-2 px-3">Fecha</TableHead>
-                    <TableHead className="py-2 px-3">Inicio</TableHead>
-                    <TableHead className="py-2 px-3">Fin</TableHead>
-                    <TableHead className="py-2 px-3">Duración</TableHead>
-                    <TableHead className="py-2 px-3">Gastro</TableHead>
-                    <TableHead className="py-2 px-3">Descripción</TableHead>
-                    <TableHead className="py-2 px-3">Comentarios</TableHead>
-                    <TableHead className="py-2 px-3">Sala</TableHead>
-                    <TableHead className="py-2 px-3">Asistentes</TableHead>
-                    <TableHead className="py-2 px-3">P.Unitario</TableHead>
-                    <TableHead className="py-2 px-3">Imp. Fijo</TableHead>
-                    <TableHead className="py-2 px-3">Total</TableHead>
-                    <TableHead className="py-2 px-3 text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedBriefingItems.length > 0 ? (
-                    sortedBriefingItems.map(item => (
-                      <TableRow key={item.id} onClick={() => handleRowClick(item)} className="cursor-pointer">
-                        <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
-                        <TableCell className="py-2 px-3">{item.horaInicio}</TableCell>
-                        <TableCell className="py-2 px-3">{item.horaFin}</TableCell>
-                        <TableCell className="py-2 px-3">{calculateDuration(item.horaInicio, item.horaFin)}</TableCell>
-                        <TableCell className="py-2 px-3">{item.conGastronomia ? <Check className="h-4 w-4" /> : null}</TableCell>
-                        <TableCell className="py-2 px-3 min-w-[200px]">{item.descripcion}</TableCell>
-                        <TableCell className="py-2 px-3 min-w-[200px]">{item.comentarios}</TableCell>
-                        <TableCell className="py-2 px-3">{item.sala}</TableCell>
-                        <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                        <TableCell className="py-2 px-3">{item.precioUnitario.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                        <TableCell className="py-2 px-3">{(item.importeFijo || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                        <TableCell className="py-2 px-3">{((item.asistentes * item.precioUnitario) + (item.importeFijo || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                        <TableCell className="py-2 px-3 text-right" onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem(item.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={13} className="h-24 text-center">
-                        No hay hitos en el briefing. Añade uno para empezar.
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between py-2">
+          <CardTitle className="text-lg">Briefing del Contrato</CardTitle>
+          <Button onClick={handleNewClick}><PlusCircle className="mr-2" /> Nuevo Hito</Button>
+        </CardHeader>
+        <CardContent>
+          <div className="border rounded-lg overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="py-2 px-3">Fecha</TableHead>
+                  <TableHead className="py-2 px-3">Inicio</TableHead>
+                  <TableHead className="py-2 px-3">Fin</TableHead>
+                  <TableHead className="py-2 px-3">Duración</TableHead>
+                  <TableHead className="py-2 px-3">Gastro</TableHead>
+                  <TableHead className="py-2 px-3">Descripción</TableHead>
+                  <TableHead className="py-2 px-3">Comentarios</TableHead>
+                  <TableHead className="py-2 px-3">Sala</TableHead>
+                  <TableHead className="py-2 px-3">Asistentes</TableHead>
+                  <TableHead className="py-2 px-3">P.Unitario</TableHead>
+                  <TableHead className="py-2 px-3">Imp. Fijo</TableHead>
+                  <TableHead className="py-2 px-3">Total</TableHead>
+                  <TableHead className="py-2 px-3 text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedBriefingItems.length > 0 ? (
+                  sortedBriefingItems.map(item => (
+                    <TableRow key={item.id} onClick={() => handleRowClick(item)} className="cursor-pointer">
+                      <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell className="py-2 px-3">{item.horaInicio}</TableCell>
+                      <TableCell className="py-2 px-3">{item.horaFin}</TableCell>
+                      <TableCell className="py-2 px-3">{calculateDuration(item.horaInicio, item.horaFin)}</TableCell>
+                      <TableCell className="py-2 px-3">{item.conGastronomia ? <Check className="h-4 w-4" /> : null}</TableCell>
+                      <TableCell className="py-2 px-3 min-w-[200px]">{item.descripcion}</TableCell>
+                      <TableCell className="py-2 px-3 min-w-[200px]">{item.comentarios}</TableCell>
+                      <TableCell className="py-2 px-3">{item.sala}</TableCell>
+                      <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
+                      <TableCell className="py-2 px-3">{item.precioUnitario.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                      <TableCell className="py-2 px-3">{(item.importeFijo || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                      <TableCell className="py-2 px-3">{((item.asistentes * item.precioUnitario) + (item.importeFijo || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                      <TableCell className="py-2 px-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem(item.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </main>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={13} className="h-24 text-center">
+                      No hay hitos en el briefing. Añade uno para empezar.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
       <BriefingItemDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} item={editingItem} onSave={handleSaveItem} serviceOrder={serviceOrder} onAddLocation={handleAddLocation} />
     </>
   );

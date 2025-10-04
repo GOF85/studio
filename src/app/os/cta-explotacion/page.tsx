@@ -1,11 +1,9 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, DollarSign, Target, Settings, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -255,161 +253,158 @@ export default function CtaExplotacionPage() {
 
   return (
     <>
-      <Header />
-      <main className="container mx-auto px-4 py-8">
-        <div>
-          <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
-            <ArrowLeft className="mr-2" />
-            Volver a la OS
-          </Button>
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-            <DollarSign />
-            Cuenta de Explotación
-          </h1>
-          <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-        </div>
+      <div>
+        <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
+          <ArrowLeft className="mr-2" />
+          Volver a la OS
+        </Button>
+        <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
+          <DollarSign />
+          Cuenta de Explotación
+        </h1>
+        <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
+      </div>
 
-        <div className="grid lg:grid-cols-3 gap-8 mt-8">
-          <div className="lg:col-span-2 space-y-8">
-            <Card>
-                <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <CardTitle>Análisis de Costes</CardTitle>
-                        <Button onClick={handleRecalculate}><RefreshCw className="mr-2 h-4 w-4"/>Actualizar Totales</Button>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                <Table>
-                    <TableHeader>
-                    <TableRow>
-                        <TableHead className="py-2 px-3">Partida</TableHead>
-                        <TableHead className="py-2 px-3 text-right">Presupuesto</TableHead>
-                        <TableHead className="py-2 px-3 text-right">% s/ Fact.</TableHead>
-                        <TableHead className="py-2 px-3 text-right">Cierre</TableHead>
-                        <TableHead className="py-2 px-3 text-right">Objetivo MC</TableHead>
-                        <TableHead className="py-2 px-3 text-right">Desv. €</TableHead>
-                        <TableHead className="py-2 px-3 text-right">Desv. %</TableHead>
-                    </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    <TableRow className="font-bold bg-muted/50">
-                        <TableCell className="py-1 px-3">Facturación Neta</TableCell>
-                        <TableCell className="py-1 px-3 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
-                        <TableCell className="py-1 px-3 text-right text-primary">{formatPercentage(1)}</TableCell>
-                        <TableCell className="py-1 px-3 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
-                        <TableCell className="py-1 px-3 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
-                        <TableCell className="py-1 px-3"></TableCell>
-                        <TableCell className="py-1 px-3"></TableCell>
-                    </TableRow>
-                    {processedCostes.map(row => {
-                        const cierreActual = cierreInputs[row.label] ?? row.cierre;
-                        const pctSFact = facturacionNeta > 0 ? cierreActual / facturacionNeta : 0;
-                        const desviacion = row.objetivo - cierreActual;
-                        const desviacionPct = row.objetivo > 0 ? desviacion / row.objetivo : 0;
-                        return (
-                            <TableRow key={row.label}>
-                                <TableCell className="py-1 px-3">{row.label}</TableCell>
-                                <TableCell className="py-1 px-3 text-right">{formatCurrency(row.presupuesto)}</TableCell>
-                                <TableCell className={cn("py-1 px-3 text-right", pctSFact > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFact)}</TableCell>
-                                <TableCell className="py-1 px-3 text-right">
-                                    <Input type="number" step="0.01" value={cierreInputs[row.label] ?? 0} onChange={(e) => handleCierreInputChange(row.label, e.target.value)} className="h-7 text-right bg-secondary/30 w-24" />
-                                </TableCell>
-                                <TableCell className="py-1 px-3 text-right">{formatCurrency(row.objetivo)}</TableCell>
-                                <TableCell className={cn("py-1 px-3 text-right", desviacion < 0 && "text-destructive", desviacion > 0 && "text-green-600")}>
-                                    {formatCurrency(desviacion)}
-                                </TableCell>
-                                <TableCell className={cn("py-1 px-3 text-right", desviacionPct < 0 && "text-destructive", desviacionPct > 0 && "text-green-600")}>
-                                    {formatPercentage(desviacionPct)}
-                                </TableCell>
-                            </TableRow>
-                        );
-                    })}
-                    </TableBody>
-                </Table>
-                </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><TrendingUp/>Análisis de Rentabilidad</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Concepto</TableHead>
-                                <TableHead className="text-right">Presupuesto</TableHead>
-                                <TableHead className="text-right">Cierre</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                             <TableRow>
-                                <TableCell className="font-medium">Facturación Neta</TableCell>
-                                <TableCell className="text-right">{formatCurrency(facturacionNeta)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(facturacionNeta)}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                                <TableCell className="font-medium">Total Costes</TableCell>
-                                <TableCell className="text-right">{formatCurrency(totals.totalPresupuesto)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(totals.totalCierre)}</TableCell>
-                            </TableRow>
-                             <TableRow className="font-bold bg-muted/30">
-                                <TableCell>Rentabilidad</TableCell>
-                                <TableCell className={cn("text-right", rentabilidadPresupuesto > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPresupuesto)}</TableCell>
-                                <TableCell className={cn("text-right", rentabilidadCierre > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadCierre)}</TableCell>
-                            </TableRow>
-                             <TableRow>
-                                <TableCell className="font-medium">Repercusión HQ (25%)</TableCell>
-                                <TableCell className="text-right">{formatCurrency(repercusionHQPresupuesto)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(repercusionHQCierre)}</TableCell>
-                            </TableRow>
-                             <TableRow className="font-bold bg-muted/30">
-                                <TableCell>Rentabilidad Post-HQ</TableCell>
-                                <TableCell className={cn("text-right", rentabilidadPostHQPresupuesto > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQPresupuesto)}</TableCell>
-                                <TableCell className={cn("text-right", rentabilidadPostHQCierre > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQCierre)}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                                <TableCell className="font-medium">Ingresos / Asistente</TableCell>
-                                <TableCell className="text-right">{formatCurrency(ingresosAsistente)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(ingresosAsistente)}</TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="py-2 pb-2">
-                <CardTitle className="flex items-center gap-2 text-lg"><Target /> Objetivos de Gasto</CardTitle>
+      <div className="grid lg:grid-cols-3 gap-8 mt-8">
+        <div className="lg:col-span-2 space-y-8">
+          <Card>
+              <CardHeader>
+                  <div className="flex justify-between items-center">
+                      <CardTitle>Análisis de Costes</CardTitle>
+                      <Button onClick={handleRecalculate}><RefreshCw className="mr-2 h-4 w-4"/>Actualizar Totales</Button>
+                  </div>
               </CardHeader>
-              <CardContent className="space-y-3 pt-4">
-                 <Select onValueChange={handleObjetivoChange} value={serviceOrder.objetivoGastoId}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar plantilla..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {objetivosPlantillas.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                    </SelectContent>
-                </Select>
-                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground p-3 border rounded-md">
-                    {Object.keys(GASTO_LABELS).map((key) => {
-                        const objKey = key as keyof typeof GASTO_LABELS;
-                        const value = (objetivos as any)[objKey];
-                        if (value === undefined || value === null) return null;
-                        return (
-                            <div key={key} className="flex justify-between">
-                                <span className="font-medium">{GASTO_LABELS[objKey]}:</span>
-                                <span>{(value || 0).toFixed(2)}%</span>
-                            </div>
-                        )
-                    })}
-                </div>
+              <CardContent>
+              <Table>
+                  <TableHeader>
+                  <TableRow>
+                      <TableHead className="py-2 px-3">Partida</TableHead>
+                      <TableHead className="py-2 px-3 text-right">Presupuesto</TableHead>
+                      <TableHead className="py-2 px-3 text-right">% s/ Fact.</TableHead>
+                      <TableHead className="py-2 px-3 text-right">Cierre</TableHead>
+                      <TableHead className="py-2 px-3 text-right">Objetivo MC</TableHead>
+                      <TableHead className="py-2 px-3 text-right">Desv. €</TableHead>
+                      <TableHead className="py-2 px-3 text-right">Desv. %</TableHead>
+                  </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                  <TableRow className="font-bold bg-muted/50">
+                      <TableCell className="py-1 px-3">Facturación Neta</TableCell>
+                      <TableCell className="py-1 px-3 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
+                      <TableCell className="py-1 px-3 text-right text-primary">{formatPercentage(1)}</TableCell>
+                      <TableCell className="py-1 px-3 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
+                      <TableCell className="py-1 px-3 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
+                      <TableCell className="py-1 px-3"></TableCell>
+                      <TableCell className="py-1 px-3"></TableCell>
+                  </TableRow>
+                  {processedCostes.map(row => {
+                      const cierreActual = cierreInputs[row.label] ?? row.cierre;
+                      const pctSFact = facturacionNeta > 0 ? cierreActual / facturacionNeta : 0;
+                      const desviacion = row.objetivo - cierreActual;
+                      const desviacionPct = row.objetivo > 0 ? desviacion / row.objetivo : 0;
+                      return (
+                          <TableRow key={row.label}>
+                              <TableCell className="py-1 px-3">{row.label}</TableCell>
+                              <TableCell className="py-1 px-3 text-right">{formatCurrency(row.presupuesto)}</TableCell>
+                              <TableCell className={cn("py-1 px-3 text-right", pctSFact > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFact)}</TableCell>
+                              <TableCell className="py-1 px-3 text-right">
+                                  <Input type="number" step="0.01" value={cierreInputs[row.label] ?? 0} onChange={(e) => handleCierreInputChange(row.label, e.target.value)} className="h-7 text-right bg-secondary/30 w-24" />
+                              </TableCell>
+                              <TableCell className="py-1 px-3 text-right">{formatCurrency(row.objetivo)}</TableCell>
+                              <TableCell className={cn("py-1 px-3 text-right", desviacion < 0 && "text-destructive", desviacion > 0 && "text-green-600")}>
+                                  {formatCurrency(desviacion)}
+                              </TableCell>
+                              <TableCell className={cn("py-1 px-3 text-right", desviacionPct < 0 && "text-destructive", desviacionPct > 0 && "text-green-600")}>
+                                  {formatPercentage(desviacionPct)}
+                              </TableCell>
+                          </TableRow>
+                      );
+                  })}
+                  </TableBody>
+              </Table>
               </CardContent>
-            </Card>
-          </div>
+          </Card>
         </div>
-      </main>
+
+        <div className="space-y-8">
+          <Card>
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><TrendingUp/>Análisis de Rentabilidad</CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <Table>
+                      <TableHeader>
+                          <TableRow>
+                              <TableHead>Concepto</TableHead>
+                              <TableHead className="text-right">Presupuesto</TableHead>
+                              <TableHead className="text-right">Cierre</TableHead>
+                          </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                           <TableRow>
+                              <TableCell className="font-medium">Facturación Neta</TableCell>
+                              <TableCell className="text-right">{formatCurrency(facturacionNeta)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(facturacionNeta)}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                              <TableCell className="font-medium">Total Costes</TableCell>
+                              <TableCell className="text-right">{formatCurrency(totals.totalPresupuesto)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(totals.totalCierre)}</TableCell>
+                          </TableRow>
+                           <TableRow className="font-bold bg-muted/30">
+                              <TableCell>Rentabilidad</TableCell>
+                              <TableCell className={cn("text-right", rentabilidadPresupuesto > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPresupuesto)}</TableCell>
+                              <TableCell className={cn("text-right", rentabilidadCierre > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadCierre)}</TableCell>
+                          </TableRow>
+                           <TableRow>
+                              <TableCell className="font-medium">Repercusión HQ (25%)</TableCell>
+                              <TableCell className="text-right">{formatCurrency(repercusionHQPresupuesto)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(repercusionHQCierre)}</TableCell>
+                          </TableRow>
+                           <TableRow className="font-bold bg-muted/30">
+                              <TableCell>Rentabilidad Post-HQ</TableCell>
+                              <TableCell className={cn("text-right", rentabilidadPostHQPresupuesto > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQPresupuesto)}</TableCell>
+                              <TableCell className={cn("text-right", rentabilidadPostHQCierre > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQCierre)}</TableCell>
+                          </TableRow>
+                          <TableRow>
+                              <TableCell className="font-medium">Ingresos / Asistente</TableCell>
+                              <TableCell className="text-right">{formatCurrency(ingresosAsistente)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(ingresosAsistente)}</TableCell>
+                          </TableRow>
+                      </TableBody>
+                  </Table>
+              </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="py-2 pb-2">
+              <CardTitle className="flex items-center gap-2 text-lg"><Target /> Objetivos de Gasto</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-4">
+               <Select onValueChange={handleObjetivoChange} value={serviceOrder.objetivoGastoId}>
+                  <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar plantilla..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {objetivosPlantillas.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                  </SelectContent>
+              </Select>
+               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground p-3 border rounded-md">
+                  {Object.keys(GASTO_LABELS).map((key) => {
+                      const objKey = key as keyof typeof GASTO_LABELS;
+                      const value = (objetivos as any)[objKey];
+                      if (value === undefined || value === null) return null;
+                      return (
+                          <div key={key} className="flex justify-between">
+                              <span className="font-medium">{GASTO_LABELS[objKey]}:</span>
+                              <span>{(value || 0).toFixed(2)}%</span>
+                          </div>
+                      )
+                  })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </>
   );
 }

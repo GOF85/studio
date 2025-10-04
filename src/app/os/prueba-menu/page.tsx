@@ -353,110 +353,107 @@ const handlePrint = async () => {
 
   return (
     <>
-      <Header />
-      <main className="container mx-auto px-4 py-8">
-        <Form {...form}>
-             <div className="flex items-start justify-between mb-4">
-                <div>
-                <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="no-print">
-                    <ArrowLeft className="mr-2" />
-                    Volver a la OS
-                </Button>
-                <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                    <ClipboardCheck />
-                    Prueba de Menú
-                </h1>
-                </div>
-                <div className="flex gap-2 no-print">
-                    <Button variant="outline" type="button" onClick={handlePrint} disabled={isPrinting}>
-                    {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
-                    {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
-                    </Button>
-                <Button type="button" onClick={handleSubmit(onSubmit)} disabled={!formState.isDirty}>
-                    <Save className="mr-2" />
-                    Guardar Cambios
-                </Button>
-                </div>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+        <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="no-print">
+            <ArrowLeft className="mr-2" />
+            Volver a la OS
+        </Button>
+        <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
+            <ClipboardCheck />
+            Prueba de Menú
+        </h1>
+        </div>
+        <div className="flex gap-2 no-print">
+            <Button variant="outline" type="button" onClick={handlePrint} disabled={isPrinting}>
+            {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
+            {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
+            </Button>
+        <Button type="button" onClick={handleSubmit(onSubmit)} disabled={!formState.isDirty}>
+            <Save className="mr-2" />
+            Guardar Cambios
+        </Button>
+        </div>
+    </div>
+    
+    <Card className="mb-4">
+        <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <div>
+                <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
+                <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
+                <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
+                <div><strong>Cliente:</strong> {serviceOrder.client}</div>
+                <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
             </div>
-            
-            <Card className="mb-4">
-                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                    <div>
-                        <h4 className="font-bold col-span-full mb-1">Datos del Servicio</h4>
-                        <div><strong>Nº Servicio:</strong> {serviceOrder.serviceNumber}</div>
-                        <div><strong>Comercial:</strong> {serviceOrder.comercial || '-'}</div>
-                        <div><strong>Cliente:</strong> {serviceOrder.client}</div>
-                        <div><strong>Cliente Final:</strong> {serviceOrder.finalClient || '-'}</div>
-                    </div>
-                    <Separator className="my-2 md:hidden" />
-                    <div>
-                        <h4 className="font-bold col-span-full mb-1">Datos del Evento</h4>
-                        <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
-                        <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
-                        <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
-                    </div>
+            <Separator className="my-2 md:hidden" />
+            <div>
+                <h4 className="font-bold col-span-full mb-1">Datos del Evento</h4>
+                <div><strong>Fecha:</strong> {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}</div>
+                <div><strong>Asistentes:</strong> {serviceOrder.asistentes}</div>
+                <div className="col-span-2"><strong>Servicios:</strong> {briefingItems.map(i => i.descripcion).join(', ') || '-'}</div>
+            </div>
+        </CardContent>
+    </Card>
+    <Separator className="my-6" />
+
+    <Form {...form}>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <div className="no-print flex items-center gap-6 p-4 border rounded-lg bg-background">
+             <div className="flex items-center gap-2">
+                <FormLabel className="font-semibold text-base whitespace-nowrap">Asistentes a la prueba</FormLabel>
+                <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
+            </div>
+             <div className="flex items-center gap-2">
+                <FormLabel className="font-semibold text-base flex items-center gap-2 whitespace-nowrap">Coste de la prueba de menú</FormLabel>
+                <FormField
+                    control={control}
+                    name="costePruebaMenu"
+                    render={({ field }) => (
+                        <FormItem className="flex items-center gap-2">
+                            <FormControl>
+                                <Input 
+                                    type="number" 
+                                    step="0.01" 
+                                    {...field} 
+                                    className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
+                                />
+                            </FormControl>
+                            <span className="text-lg font-bold">€</span>
+                        </FormItem>
+                    )}
+                />
+            </div>
+        </div>
+
+        <div className="space-y-6">
+            {renderSection('BODEGA')}
+            {renderSection('GASTRONOMÍA')}
+
+            <Card>
+                <CardHeader className="py-4">
+                <CardTitle>Observaciones Generales</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                    <FormField
+                    control={control}
+                    name="observacionesGenerales"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormControl>
+                            <Textarea
+                            placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
+                            rows={4}
+                            {...field}
+                            />
+                        </FormControl>
+                        </FormItem>
+                    )}
+                    />
                 </CardContent>
             </Card>
-            <Separator className="my-6" />
-
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                <div className="no-print flex items-center gap-6 p-4 border rounded-lg bg-background">
-                     <div className="flex items-center gap-2">
-                        <FormLabel className="font-semibold text-base whitespace-nowrap">Asistentes a la prueba</FormLabel>
-                        <Input value={asistentesPrueba} readOnly className="h-10 w-20 text-center font-bold text-lg"/>
-                    </div>
-                     <div className="flex items-center gap-2">
-                        <FormLabel className="font-semibold text-base flex items-center gap-2 whitespace-nowrap">Coste de la prueba de menú</FormLabel>
-                        <FormField
-                            control={control}
-                            name="costePruebaMenu"
-                            render={({ field }) => (
-                                <FormItem className="flex items-center gap-2">
-                                    <FormControl>
-                                        <Input 
-                                            type="number" 
-                                            step="0.01" 
-                                            {...field} 
-                                            className="h-10 w-32 font-bold text-lg border-2 border-primary/50 focus-visible:ring-primary"
-                                        />
-                                    </FormControl>
-                                    <span className="text-lg font-bold">€</span>
-                                </FormItem>
-                            )}
-                        />
-                    </div>
-                </div>
-
-                <div className="space-y-6">
-                    {renderSection('BODEGA')}
-                    {renderSection('GASTRONOMÍA')}
-
-                    <Card>
-                        <CardHeader className="py-4">
-                        <CardTitle>Observaciones Generales</CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                            <FormField
-                            control={control}
-                            name="observacionesGenerales"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormControl>
-                                    <Textarea
-                                    placeholder="Añade aquí cualquier comentario o nota adicional sobre la prueba de menú..."
-                                    rows={4}
-                                    {...field}
-                                    />
-                                </FormControl>
-                                </FormItem>
-                            )}
-                            />
-                        </CardContent>
-                    </Card>
-                </div>
-            </form>
-        </Form>
-      </main>
+        </div>
+      </form>
+    </Form>
     </>
   );
 }
