@@ -9,9 +9,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PlusCircle, Trash2, ArrowLeft, Briefcase, Save, Pencil, X, Check, DollarSign } from 'lucide-react';
 import { format, differenceInMinutes, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, TipoServicio, ComercialAjuste } from '@/types';
-import { osFormSchema, OsFormValues } from '@/app/os/[id]/page';
+import { osFormSchema, type OsFormValues } from '@/app/os/[id]/info/page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -61,7 +62,9 @@ type BriefingItemFormValues = z.infer<typeof briefingItemSchema>;
 
 const financialSchema = osFormSchema.pick({
     agencyPercentage: true,
+    agencyCommissionValue: true,
     spacePercentage: true,
+    spaceCommissionValue: true,
 });
 
 type FinancialFormValues = z.infer<typeof financialSchema>;
@@ -128,32 +131,49 @@ export default function ComercialPage() {
         defaultValues: {
             agencyPercentage: 0,
             spacePercentage: 0,
+            agencyCommissionValue: 0,
+            spaceCommissionValue: 0,
         }
     });
 
     const watchedAgencyPercentage = financialForm.watch('agencyPercentage');
     const watchedSpacePercentage = financialForm.watch('spacePercentage');
+    const watchedAgencyValue = financialForm.watch('agencyCommissionValue');
+    const watchedSpaceValue = financialForm.watch('spaceCommissionValue');
 
     const facturacionNeta = useMemo(() => {
-        const totalPercentage = (watchedAgencyPercentage || 0) + (watchedSpacePercentage || 0);
-        return facturacionFinal * (1 - totalPercentage / 100);
-    }, [facturacionFinal, watchedAgencyPercentage, watchedSpacePercentage]);
+      const agencyCommission = (facturacionFinal * (watchedAgencyPercentage || 0) / 100) + (watchedAgencyValue || 0);
+      const spaceCommission = (facturacionFinal * (watchedSpacePercentage || 0) / 100) + (watchedSpaceValue || 0);
+      return facturacionFinal - agencyCommission - spaceCommission;
+    }, [facturacionFinal, watchedAgencyPercentage, watchedSpacePercentage, watchedAgencyValue, watchedSpaceValue]);
 
 
-   const saveFinancials = useCallback((data: { facturacion: number, agencyPercentage: number, spacePercentage: number }) => {
+   const saveFinancials = useCallback(() => {
     if (!serviceOrder) return;
+
+    const data = financialForm.getValues();
+    const agencyCommission = (facturacionFinal * (data.agencyPercentage || 0) / 100) + (data.agencyCommissionValue || 0);
+    const spaceCommission = (facturacionFinal * (data.spacePercentage || 0) / 100) + (data.spaceCommissionValue || 0);
+
     const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const index = allServiceOrders.findIndex(os => os.id === osId);
     if (index !== -1) {
-        allServiceOrders[index] = { ...allServiceOrders[index], ...data };
+        allServiceOrders[index] = { 
+            ...allServiceOrders[index], 
+            facturacion: facturacionFinal,
+            agencyPercentage: data.agencyPercentage,
+            spacePercentage: data.spacePercentage,
+            agencyCommissionValue: data.agencyCommissionValue,
+            spaceCommissionValue: data.spaceCommissionValue,
+            comisionesAgencia: agencyCommission,
+            comisionesCanon: spaceCommission,
+        };
         localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
         setServiceOrder(allServiceOrders[index]);
     }
-  }, [serviceOrder, osId]);
+  }, [serviceOrder, osId, facturacionFinal, financialForm]);
 
   useEffect(() => {
-    if(!osId) return;
-
     const storedTipos = localStorage.getItem('tipoServicio');
     if (storedTipos) {
       setTiposServicio(JSON.parse(storedTipos));
@@ -161,16 +181,19 @@ export default function ComercialPage() {
     
     const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}') as {[key: string]: ComercialAjuste[]};
 
+    if (osId) {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allServiceOrders.find(os => os.id === osId);
-      setServiceOrder(currentOS || null);
-      if (currentOS) {
+      if(currentOS){
+        setServiceOrder(currentOS);
         financialForm.reset({
-            agencyPercentage: currentOS.agencyPercentage,
-            spacePercentage: currentOS.spacePercentage
+            agencyPercentage: currentOS.agencyPercentage || 0,
+            spacePercentage: currentOS.spacePercentage || 0,
+            agencyCommissionValue: currentOS.agencyCommissionValue || 0,
+            spaceCommissionValue: currentOS.spaceCommissionValue || 0,
         });
       } else {
-         toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
+        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
         router.push('/pes');
       }
 
@@ -179,17 +202,13 @@ export default function ComercialPage() {
       setBriefing(currentBriefing || { osId, items: [] });
       
       setAjustes(allAjustes[osId] || []);
-   
+    }
     setIsMounted(true);
   }, [osId, router, toast, financialForm]);
 
    useEffect(() => {
     if (serviceOrder && facturacionFinal !== serviceOrder.facturacion) {
-      saveFinancials({
-        facturacion: facturacionFinal,
-        agencyPercentage: serviceOrder.agencyPercentage,
-        spacePercentage: serviceOrder.spacePercentage
-      });
+        saveFinancials();
     }
   }, [facturacionFinal, serviceOrder, saveFinancials]);
 
@@ -215,15 +234,8 @@ export default function ComercialPage() {
   };
   
   const handleSaveFinancials = (data: FinancialFormValues) => {
-    if (!serviceOrder) return;
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const index = allServiceOrders.findIndex(os => os.id === osId);
-    if (index !== -1) {
-        allServiceOrders[index] = { ...allServiceOrders[index], ...data };
-        localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
-        setServiceOrder(allServiceOrders[index]);
-        toast({ title: 'Datos financieros actualizados' });
-    }
+    saveFinancials();
+    toast({ title: 'Datos financieros actualizados' });
   };
 
   const handleRowClick = (item: ComercialBriefingItem) => {
@@ -457,26 +469,19 @@ export default function ComercialPage() {
     )
   }
 
-  if (!isMounted || !serviceOrder) {
+  if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo Comercial..." />;
   }
 
   return (
     <>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Briefcase />Módulo Comercial</h1>
-          <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-        </div>
-      </div>
-      
       <FormProvider {...financialForm}>
            <Accordion type="single" collapsible className="w-full mb-8">
               <AccordionItem value="item-1">
                   <Card>
                       <AccordionTrigger className="py-2 px-4">
                           <div className="flex items-center justify-between w-full">
-                              <CardTitle className="text-lg">Información Financiera y Ajustes</CardTitle>
+                              <CardTitle className="text-lg flex items-center gap-2"><DollarSign/>Información Financiera y Ajustes</CardTitle>
                                <div className="text-base font-bold pr-4">
                                   <span className="text-black dark:text-white">Facturación Neta: </span>
                                   <span className="text-green-600">{facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
@@ -502,9 +507,21 @@ export default function ComercialPage() {
                                           <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8" /></FormControl>
                                           </FormItem>
                                       )} />
-                                      <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
+                                      <FormField control={financialForm.control} name="agencyCommissionValue" render={({ field }) => (
+                                          <FormItem>
+                                          <FormLabel>Comisión Agencia (€)</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8" /></FormControl>
+                                          </FormItem>
+                                      )} />
+                                       <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
                                           <FormItem>
                                           <FormLabel>% Espacio</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8" /></FormControl>
+                                          </FormItem>
+                                      )} />
+                                        <FormField control={financialForm.control} name="spaceCommissionValue" render={({ field }) => (
+                                          <FormItem>
+                                          <FormLabel>Canon Espacio (€)</FormLabel>
                                           <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8" /></FormControl>
                                           </FormItem>
                                       )} />
