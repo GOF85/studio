@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { differenceInMinutes, parse, format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -232,70 +233,76 @@ export default function PersonalMicePage() {
 
   return (
     <>
-      <div className="flex items-start justify-between mb-8">
-          <div>
-              <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Módulo de Personal MICE</h1>
-              <div className="text-muted-foreground mt-2 space-y-1">
-                <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-                {serviceOrder.space && (
-                    <p className="flex items-center gap-2">
-                      <Building className="h-3 w-3" /> {serviceOrder.space} {spaceAddress && `(${spaceAddress})`}
-                    </p>
-                )}
-                {serviceOrder.respMetre && (
-                    <p className="flex items-center gap-2">
-                        Resp. Metre: {serviceOrder.respMetre} 
-                        {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
-                    </p>
-                )}
-              </div>
-          </div>
-           <div className="flex gap-2">
-                <Button type="submit" form="personal-form" disabled={isLoading || !form.formState.isDirty}>
-                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                    <span className="ml-2">Guardar Cambios</span>
-                </Button>
+      <Header />
+      <main className="container mx-auto px-4 py-8">
+       <FormProvider {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+            <div className="flex items-start justify-between mb-8">
+                <div>
+                    <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
+                        <ArrowLeft className="mr-2" />
+                        Volver a la OS
+                    </Button>
+                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Módulo de Personal MICE</h1>
+                    <div className="text-muted-foreground mt-2 space-y-1">
+                    <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
+                    {serviceOrder.space && (
+                        <p className="flex items-center gap-2">
+                        <Building className="h-3 w-3" /> {serviceOrder.space} {spaceAddress && `(${spaceAddress})`}
+                        </p>
+                    )}
+                    {serviceOrder.respMetre && (
+                        <p className="flex items-center gap-2">
+                            Resp. Metre: {serviceOrder.respMetre} 
+                            {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
+                        </p>
+                    )}
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
+                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                        <span className="ml-2">Guardar Cambios</span>
+                    </Button>
+                </div>
             </div>
-      </div>
-      
-       <Accordion type="single" collapsible className="w-full mb-8">
-          <AccordionItem value="item-1">
-            <Card>
-                <AccordionTrigger className="p-6">
-                    <h3 className="text-xl font-semibold">Servicios del Evento</h3>
-                </AccordionTrigger>
-                <AccordionContent>
-                <CardContent className="pt-0">
-                    <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead className="py-2 px-3">Fecha</TableHead>
-                        <TableHead className="py-2 px-3">Descripción</TableHead>
-                        <TableHead className="py-2 px-3">Asistentes</TableHead>
-                        <TableHead className="py-2 px-3">Duración</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {briefingItems.length > 0 ? briefingItems.map(item => (
-                        <TableRow key={item.id}>
-                            <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
-                            <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
-                            <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                            <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
-                        </TableRow>
-                        )) : (
-                            <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
-                        )}
-                    </TableBody>
-                    </Table>
-                </CardContent>
-                </AccordionContent>
-            </Card>
-            </AccordionItem>
-        </Accordion>
+            
+             <Accordion type="single" collapsible className="w-full mb-8">
+                <AccordionItem value="item-1">
+                <Card>
+                    <AccordionTrigger className="p-6">
+                        <h3 className="text-xl font-semibold">Servicios del Evento</h3>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                    <CardContent className="pt-0">
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead className="py-2 px-3">Fecha</TableHead>
+                            <TableHead className="py-2 px-3">Descripción</TableHead>
+                            <TableHead className="py-2 px-3">Asistentes</TableHead>
+                            <TableHead className="py-2 px-3">Duración</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {briefingItems.length > 0 ? briefingItems.map(item => (
+                            <TableRow key={item.id}>
+                                <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
+                                <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
+                                <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
+                                <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
+                            </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                        </Table>
+                    </CardContent>
+                    </AccordionContent>
+                </Card>
+                </AccordionItem>
+            </Accordion>
 
-      <FormProvider {...form}>
-       <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)}>
             <Card>
                 <CardHeader className="flex-row items-center justify-between">
                     <CardTitle>Personal Asignado</CardTitle>
