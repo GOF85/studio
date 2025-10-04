@@ -9,7 +9,7 @@ import { useSidebarStore } from '@/hooks/use-sidebar-store';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ServiceOrder } from '@/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText } from 'lucide-react';
 
 type NavLink = {
@@ -85,7 +85,7 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
 
     return (
         <div className="container mx-auto">
-            <div className={cn("grid gap-2 transition-all duration-300", isCollapsed ? "lg:grid-cols-[60px_1fr] lg:gap-2" : "lg:grid-cols-[220px_1fr] lg:gap-8")}>
+            <div className={cn("grid transition-all duration-300", isCollapsed ? "lg:grid-cols-[60px_1fr] lg:gap-2" : "lg:grid-cols-[220px_1fr] lg:gap-8")}>
                 <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)] hidden lg:block">
                      <div className="w-full">
                         <div className={cn("pb-2 flex items-center", isCollapsed ? 'justify-center' : 'justify-between')}>
@@ -108,7 +108,7 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                                         <Link href={href}>
                                             <span
                                                 className={cn(
-                                                    "group flex items-center rounded-md px-2 py-1 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                                                    "group flex items-center rounded-md px-2 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
                                                     pathname.startsWith(href) ? "bg-accent" : "transparent",
                                                     isCollapsed && "justify-center"
                                                 )}
