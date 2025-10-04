@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -9,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, ShoppingBag, Star } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, ShoppingBag, Star, Save } from 'lucide-react';
 
 import type { ServiceOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { cn } from '@/lib/utils';
@@ -389,25 +390,29 @@ export default function InfoPage() {
 
   return (
     <>
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleBackToList}>Volver al listado</Button>
-            {isEditing && (
-                <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/>Borrar OS</Button>
-            )}
-            <Button type="submit" form="os-form" disabled={isLoading}>
-              {isLoading ? <Loader2 className="animate-spin" /> : <FileDown />}
-              <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar OS'}</span>
-            </Button>
-          </div>
-        </div>
-
         <main>
             <FormProvider {...form}>
               <form id="os-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
                 <Card>
-                  <CardHeader className="py-3">
+                  <CardHeader className="py-3 flex-row items-center justify-between">
                     <CardTitle className="text-xl">Datos del Servicio</CardTitle>
+                    <div className="flex items-center gap-4">
+                        <FormField control={form.control} name="isVip" render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2">
+                                    <FormControl>
+                                        <Checkbox checked={field.value} onCheckedChange={field.onChange} id="vip-check" />
+                                    </FormControl>
+                                    <FormLabel htmlFor="vip-check" className="flex items-center gap-2 !mt-0 font-bold"><Star className="h-4 w-4 text-amber-500 fill-amber-500" /> Evento VIP</FormLabel>
+                                </FormItem>
+                        )} />
+                        {isEditing && (
+                            <Button variant="destructive" size="sm" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/>Borrar OS</Button>
+                        )}
+                        <Button type="submit" size="sm" disabled={isLoading}>
+                            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                            <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar OS'}</span>
+                        </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-3 pt-2">
                     <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-3 items-center">
@@ -485,16 +490,6 @@ export default function InfoPage() {
                                 <FormMessage />
                                 </FormItem>
                             )} />
-                        <FormField control={form.control} name="isVip" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-10 mt-auto">
-                                <FormControl>
-                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                </FormControl>
-                                <div className="space-y-1 leading-none">
-                                    <FormLabel className="flex items-center gap-2"><Star className="h-4 w-4 text-amber-500 fill-amber-500" /> Evento VIP</FormLabel>
-                                </div>
-                            </FormItem>
-                        )} />
                     </div>
                     
                        <Accordion type="multiple" defaultValue={accordionDefaultValue} className="w-full space-y-3 pt-3">
