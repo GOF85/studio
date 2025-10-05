@@ -6,13 +6,11 @@ import Link from 'next/link';
 import { usePathname, useParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
-import { useSidebarStore } from '@/hooks/use-sidebar-store';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ServiceOrder } from '@/types';
 import { useEffect, useState, useMemo } from 'react';
+import type { ServiceOrder } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetTrigger, SheetContent } from '@/components/ui/sheet';
 import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 type NavLink = {
     path: string;
@@ -38,6 +36,35 @@ const navLinks: NavLink[] = [
     { path: 'cta-explotacion', title: 'Cta. Explotación', icon: DollarSign },
 ];
 
+function OSSidebarNav({ className }: { className?: string }) {
+    const pathname = usePathname();
+    const params = useParams();
+    const osId = params.id as string;
+
+    return (
+        <nav className={cn("grid items-start gap-1", className)}>
+          {navLinks.map((item, index) => {
+              const href = `/os/${osId}/${item.path}`;
+              return (
+              <Link
+                  key={index}
+                  href={href}
+              >
+                  <span
+                      className={cn(
+                          "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                          pathname.startsWith(href) ? "bg-accent" : "transparent"
+                      )}
+                  >
+                      <item.icon className="mr-2 h-4 w-4" />
+                      <span>{item.title}</span>
+                  </span>
+              </Link>
+          )})}
+      </nav>
+    );
+}
+
 function OSSubHeader() {
   const params = useParams();
   const pathname = usePathname();
@@ -61,13 +88,30 @@ function OSSubHeader() {
 
   return (
     <div className="flex items-center gap-6 text-sm text-muted-foreground border-b pb-4 mb-8">
+       <div className="lg:hidden">
+            <Sheet>
+                <SheetTrigger asChild>
+                    <Button variant="outline" size="icon">
+                        <PanelLeft className="h-5 w-5" />
+                        <span className="sr-only">Abrir menú de módulos</span>
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[220px] sm:w-[250px]">
+                    <div className="pb-4 mt-6">
+                        <h2 className="text-xl font-headline font-bold">Módulos</h2>
+                        <p className="text-sm text-muted-foreground">Gestión de la OS</p>
+                    </div>
+                    <OSSidebarNav />
+                </SheetContent>
+            </Sheet>
+        </div>
       <div className="flex items-center gap-2 font-semibold">
         {serviceOrder.isVip && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
         <FileText className="h-4 w-4" />
         <span>{serviceOrder.serviceNumber}</span>
       </div>
       {serviceOrder.space && (
-        <div className="flex items-center gap-2">
+        <div className="hidden sm:flex items-center gap-2">
           <Building className="h-4 w-4" />
           <span className="font-semibold">{serviceOrder.space}</span>
         </div>
@@ -82,41 +126,18 @@ function OSSubHeader() {
 
 
 export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
-    const pathname = usePathname();
-    const params = useParams();
-    const osId = params.id as string;
-
     return (
       <div className="container mx-auto">
-          <div className="grid lg:grid-cols-[250px_1fr] gap-12">
-              <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)]">
+          <div className="grid lg:grid-cols-[180px_1fr] gap-12">
+              <aside className="hidden lg:block lg:sticky top-24 self-start h-[calc(100vh-7rem)] py-8">
                    <div className="w-full">
                       <div className="pb-4">
-                          <h2 className="text-xl font-headline font-bold">Módulos</h2>
+                          <h2 className="text-lg font-semibold tracking-tight">Módulos</h2>
                           <p className="text-sm text-muted-foreground">
                               Gestión de la OS
                           </p>
                       </div>
-                      <nav className="grid items-start gap-1">
-                          {navLinks.map((item, index) => {
-                              const href = `/os/${osId}/${item.path}`;
-                              return (
-                              <Link
-                                  key={index}
-                                  href={href}
-                              >
-                                  <span
-                                      className={cn(
-                                          "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                                          pathname.startsWith(href) ? "bg-accent" : "transparent"
-                                      )}
-                                  >
-                                      <item.icon className="mr-2 h-4 w-4" />
-                                      <span>{item.title}</span>
-                                  </span>
-                              </Link>
-                          )})}
-                      </nav>
+                      <OSSidebarNav />
                   </div>
               </aside>
               <main className="py-8">
