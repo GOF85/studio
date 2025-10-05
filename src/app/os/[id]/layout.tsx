@@ -131,11 +131,11 @@ function OSSubHeader() {
                     )}
                 </div>
                  <div className="flex items-center gap-2">
-                    <Button asChild variant="ghost" className="text-base gap-2">
-                        <Link href="/pes"><ClipboardList className="h-5 w-5 text-primary"/>PES</Link>
+                    <Button asChild variant="ghost">
+                        <Link href="/pes"><ClipboardList />PES</Link>
                     </Button>
-                    <Button asChild variant="ghost" className="text-base gap-2">
-                        <Link href="/calendario"><Calendar className="h-5 w-5 text-primary"/>Calendario PES</Link>
+                    <Button asChild variant="ghost">
+                        <Link href="/calendario"><Calendar />Calendario PES</Link>
                     </Button>
                 </div>
             </div>

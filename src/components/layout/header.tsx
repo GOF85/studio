@@ -78,11 +78,11 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
         <nav className="flex flex-1 items-center justify-end space-x-2">
             {isOsModule ? (
                 <>
-                    <Button asChild variant="ghost">
-                        <Link href="/pes"><ClipboardList />PES</Link>
+                    <Button asChild variant="ghost" className="text-base gap-2">
+                        <Link href="/pes"><ClipboardList className="h-5 w-5 text-primary"/>PES</Link>
                     </Button>
-                    <Button asChild variant="ghost">
-                        <Link href="/calendario"><Calendar />Calendario PES</Link>
+                    <Button asChild variant="ghost" className="text-base gap-2">
+                        <Link href="/calendario"><Calendar className="h-5 w-5 text-primary"/>Calendario PES</Link>
                     </Button>
                 </>
             ) : (
