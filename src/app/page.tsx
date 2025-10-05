@@ -72,10 +72,6 @@ export default function DashboardPage() {
     <TooltipProvider>
       <div className="flex flex-col min-h-screen">
         <main className="flex-grow container mx-auto px-4 py-8">
-          <div className="text-center mb-6">
-              <h1 className="text-4xl font-headline font-bold tracking-tight">Bienvenido a MICE Catering</h1>
-          </div>
-
           <section className="mb-10">
             <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4 text-center">Planificación de Servicios</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
