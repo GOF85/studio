@@ -148,13 +148,19 @@ export default function PlanificacionAlmacenPage() {
             const itemData = necesidadDia?.necesidades[tipo as keyof NecesidadesPorTipo]?.find(i => i.itemCode === itemCode && i.osId === osId);
 
             if (itemData) {
-                 sheetsToGenerate[sheetKey].items.push(itemData);
+                 sheetsToGenerate[sheetKey].items.push({...itemData, type: tipo});
             }
         });
         
         Object.values(sheetsToGenerate).forEach(sheet => {
             const sheetKey = `${sheet.osId}-${sheet.fechaNecesidad}`;
-            allSheets[sheetKey] = sheet;
+            allSheets[sheetKey] = {
+                id: sheetKey,
+                osId: sheet.osId,
+                fechaNecesidad: sheet.fechaNecesidad,
+                items: sheet.items,
+                status: 'Pendiente',
+            };
         })
 
         localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
