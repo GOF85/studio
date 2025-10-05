@@ -14,14 +14,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import type { ServiceOrder } from '@/types';
+import type { ServiceOrder, ReturnSheet } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-
-// Placeholder for return status, we will develop this logic
-type ReturnStatus = 'Pendiente' | 'Procesando' | 'Completado';
 
 export default function GestionRetornosPage() {
     const [isMounted, setIsMounted] = useState(false);
@@ -33,14 +30,17 @@ export default function GestionRetornosPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
     const [showPastEvents, setShowPastEvents] = useState(false);
+    const [returnSheets, setReturnSheets] = useState<Record<string, ReturnSheet>>({});
     const router = useRouter();
 
     useEffect(() => {
         setIsMounted(true);
-        // We only care about confirmed orders that might have material to return.
         const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[])
             .filter(os => os.status === 'Confirmado');
         setServiceOrders(allServiceOrders);
+        
+        const allReturnSheets = JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>;
+        setReturnSheets(allReturnSheets);
     }, []);
 
     const filteredOrders = useMemo(() => {
@@ -63,12 +63,11 @@ export default function GestionRetornosPage() {
         }).sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
     }, [serviceOrders, dateRange, searchTerm, showPastEvents]);
     
-    const getReturnStatus = (osId: string): ReturnStatus => {
-        // Placeholder logic
-        return 'Pendiente';
+    const getReturnStatus = (osId: string): ReturnSheet['status'] => {
+        return returnSheets[osId]?.status || 'Pendiente';
     }
     
-    const getStatusVariant = (status: ReturnStatus): 'default' | 'secondary' | 'outline' => {
+    const getStatusVariant = (status: ReturnSheet['status']): 'default' | 'secondary' | 'outline' => {
         if(status === 'Completado') return 'default';
         if(status === 'Procesando') return 'outline';
         return 'secondary'

@@ -555,6 +555,20 @@ export type PickingSheet = {
     os?: ServiceOrder;
 };
 
+export type ReturnItemState = {
+    returnedQuantity: number;
+    incidentComment?: string;
+};
+
+export type ReturnSheet = {
+    id: string; // osId
+    osId: string;
+    items: (OrderItem & { sentQuantity: number })[];
+    status: 'Pendiente' | 'Procesando' | 'Completado';
+    itemStates: Record<string, ReturnItemState>;
+    os?: ServiceOrder;
+}
+
 export type ContenedorIsotermo = {
     id: string;
     tipo: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
