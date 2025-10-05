@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -37,7 +36,7 @@ const navLinks: NavLink[] = [
     { path: 'cta-explotacion', title: 'Cta. Explotación', icon: DollarSign },
 ];
 
-function OSSidebarNav({ className }: { className?: string }) {
+function OSSidebarNav({ className, onLinkClick }: { className?: string; onLinkClick?: () => void; }) {
     const pathname = usePathname();
     const params = useParams();
     const osId = params.id as string;
@@ -50,6 +49,7 @@ function OSSidebarNav({ className }: { className?: string }) {
               <Link
                   key={index}
                   href={href}
+                  onClick={onLinkClick}
               >
                   <span
                       className={cn(
@@ -71,6 +71,7 @@ function OSSubHeader() {
   const pathname = usePathname();
   const osId = params.id as string;
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const currentModule = useMemo(() => {
     const pathSegment = pathname.split('/').pop();
@@ -88,9 +89,9 @@ function OSSubHeader() {
   if (!serviceOrder || !currentModule) return null;
 
   return (
-    <div className="flex items-center gap-6 text-sm text-muted-foreground border-b pb-4 mb-8">
+    <div className="flex items-center gap-4 text-sm text-muted-foreground border-b pb-4 mb-6">
        <div className="lg:hidden">
-            <Sheet>
+            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                 <SheetTrigger asChild>
                     <Button variant="outline">
                         <PanelLeft className="h-5 w-5 mr-2" />
@@ -102,7 +103,7 @@ function OSSubHeader() {
                        <SheetTitle>Módulos</SheetTitle>
                     </SheetHeader>
                     <ScrollArea className="h-full p-4">
-                        <OSSidebarNav />
+                        <OSSidebarNav onLinkClick={() => setIsSheetOpen(false)} />
                     </ScrollArea>
                 </SheetContent>
             </Sheet>
@@ -131,10 +132,10 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
     return (
       <div className="container mx-auto">
           <div className="grid lg:grid-cols-[180px_1fr] gap-4">
-              <aside className="hidden lg:block lg:sticky top-24 self-start h-[calc(100vh-7rem)] py-8">
+              <aside className="hidden lg:block lg:sticky top-24 self-start h-[calc(100vh-7rem)] py-6">
                    <OSSidebarNav />
               </aside>
-              <main className="py-8">
+              <main className="py-6">
                   <OSSubHeader />
                   {children}
               </main>
