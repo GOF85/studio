@@ -32,6 +32,7 @@ export default function PesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [showPastEvents, setShowPastEvents] = useState(false);
+  const [showAnulados, setShowAnulados] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const router = useRouter();
   const { toast } = useToast();
@@ -69,6 +70,10 @@ export default function PesPage() {
   const filteredAndSortedOrders = useMemo(() => {
     const today = startOfToday();
     const filtered = serviceOrders.filter(os => {
+      if (os.status === 'Anulado' && !showAnulados) {
+          return false;
+      }
+      
       const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || os.client.toLowerCase().includes(searchTerm.toLowerCase());
       
       let monthMatch = true;
@@ -97,12 +102,13 @@ export default function PesPage() {
 
     return filtered.sort((a, b) => parseISO(a.startDate).getTime() - parseISO(b.startDate).getTime());
 
-  }, [serviceOrders, searchTerm, selectedMonth, showPastEvents, statusFilter]);
+  }, [serviceOrders, searchTerm, selectedMonth, showPastEvents, showAnulados, statusFilter]);
   
   const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
     Borrador: 'secondary',
     Pendiente: 'destructive',
     Confirmado: 'default',
+    Anulado: 'destructive',
   };
 
 
@@ -123,7 +129,7 @@ export default function PesPage() {
           </Button>
         </div>
 
-        <div className="space-y-4 mb-6">
+       <div className="space-y-4 mb-6">
             <div className="flex flex-col sm:flex-row gap-4">
             <Input
                 placeholder="Buscar por Nº Servicio o Cliente..."
@@ -150,6 +156,12 @@ export default function PesPage() {
                         Mostrar eventos finalizados
                     </label>
             </div>
+             <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+                    <Checkbox id="show-anulados" checked={showAnulados} onCheckedChange={(checked) => setShowAnulados(Boolean(checked))} />
+                    <label htmlFor="show-anulados" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Mostrar eventos anulados
+                    </label>
+            </div>
             </div>
              <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Estado:</span>
@@ -157,6 +169,7 @@ export default function PesPage() {
                 <Button size="sm" variant={statusFilter === 'Borrador' ? 'default' : 'outline'} onClick={() => setStatusFilter('Borrador')}>Borrador</Button>
                 <Button size="sm" variant={statusFilter === 'Pendiente' ? 'default' : 'outline'} onClick={() => setStatusFilter('Pendiente')}>Pendiente</Button>
                 <Button size="sm" variant={statusFilter === 'Confirmado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Confirmado')}>Confirmado</Button>
+                <Button size="sm" variant={statusFilter === 'Anulado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Anulado')}>Anulado</Button>
             </div>
       </div>
 
@@ -165,9 +178,9 @@ export default function PesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nº Servicio</TableHead>
+                <TableHead>Fecha</TableHead>
                 <TableHead>Espacio</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead>Fecha</TableHead>
                 <TableHead>Asistentes</TableHead>
                 <TableHead>Estado</TableHead>
               </TableRow>
@@ -193,6 +206,7 @@ export default function PesPage() {
                         {osBriefingItems && osBriefingItems.length > 0 && (
                           <TooltipContent>
                             <div className="space-y-2 p-2 max-w-xs">
+                              {os.isVip && <p className="font-bold text-amber-500 flex items-center gap-2"><Star className="h-4 w-4 fill-amber-500"/> Evento VIP</p>}
                               <h4 className="font-bold">{os.finalClient || os.client}</h4>
                               {osBriefingItems.map(item => (
                                 <div key={item.id} className="text-sm">
@@ -205,8 +219,6 @@ export default function PesPage() {
                         )}
                       </Tooltip>
                     </TableCell>
-                    <TableCell>{os.space}</TableCell>
-                    <TableCell>{os.client}</TableCell>
                     <TableCell>
                       {sameDay ? (
                           format(osStartDate, 'dd/MM/yyyy')
@@ -217,6 +229,8 @@ export default function PesPage() {
                           </div>
                       )}
                     </TableCell>
+                    <TableCell>{os.space}</TableCell>
+                    <TableCell>{os.client}</TableCell>
                     <TableCell>{os.asistentes}</TableCell>
                     <TableCell>
                       <Badge variant={statusVariant[os.status]}>

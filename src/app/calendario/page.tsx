@@ -60,13 +60,14 @@ const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' 
   Borrador: 'secondary',
   Pendiente: 'destructive',
   Confirmado: 'default',
+  Anulado: 'destructive'
 };
 
 export default function CalendarioServiciosPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isMounted, setIsMounted] = useState(false);
-  const [dayDetails, setDayDetails] = useState<DayDetails>(null);
+  const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
 
 
   useEffect(() => {
@@ -77,7 +78,7 @@ export default function CalendarioServiciosPage() {
     
     briefings.forEach(briefing => {
       const serviceOrder = serviceOrders.find(os => os.id === briefing.osId);
-      if (serviceOrder) {
+      if (serviceOrder && serviceOrder.status !== 'Anulado') {
         briefing.items.forEach(item => {
           allEvents.push({
             date: new Date(item.fecha),
