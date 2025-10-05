@@ -281,41 +281,20 @@ export default function PersonalExternoPage() {
   }
 
   return (
-    <div>
-      <div className="flex items-start justify-between mb-8">
-          <div>
-              <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
-                  <ArrowLeft className="mr-2" />
-                  Volver a la OS
-              </Button>
-              <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Módulo de Personal Externo</h1>
-              <div className="text-muted-foreground mt-2 space-y-1">
-              <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-              {serviceOrder.space && (
-                  <p className="flex items-center gap-2">
-                    <Building className="h-3 w-3" /> {serviceOrder.space} {spaceAddress && `(${spaceAddress})`}
-                  </p>
-              )}
-               {serviceOrder.respMetre && (
-                  <p className="flex items-center gap-2">
-                      Resp. Metre: {serviceOrder.respMetre} 
-                      {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
-                  </p>
-              )}
-              </div>
-          </div>
-           <div className="flex gap-2">
-              <Button type="submit" form="personal-form" disabled={isLoading || !form.formState.isDirty}>
-                  {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                  <span className="ml-2">Guardar Cambios</span>
-              </Button>
-          </div>
+    <>
+      <div className="flex items-start justify-end mb-4">
+        <div className="flex gap-2">
+            <Button type="submit" form="personal-form" disabled={isLoading || !form.formState.isDirty}>
+                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                <span className="ml-2">Guardar Cambios</span>
+            </Button>
+        </div>
       </div>
       
-       <Accordion type="single" collapsible className="w-full mb-8" >
+       <Accordion type="single" collapsible className="w-full mb-4" >
           <AccordionItem value="item-1">
           <Card>
-              <AccordionTrigger className="p-6">
+              <AccordionTrigger className="p-4">
                   <h3 className="text-xl font-semibold">Servicios del Evento</h3>
               </AccordionTrigger>
               <AccordionContent>
@@ -538,7 +517,7 @@ export default function PersonalExternoPage() {
                                           onChange={(e) => updateAjuste(index, 'ajuste', e.target.value)}
                                           className="w-32 h-9"
                                       />
-                                      <Button type="button" variant="ghost" size="icon" className="text-destructive" onClick={() => removeAjusteRow(index)}><Trash2 className="h-4 w-4"/></Button>
+                                      <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjusteRow(index)}><Trash2 className="h-4 w-4"/></Button>
                                   </div>
                                 ))}
                                 {ajustes.length > 0 && <Separator />}
@@ -608,5 +587,3 @@ export default function PersonalExternoPage() {
     </div>
   );
 }
-
-    

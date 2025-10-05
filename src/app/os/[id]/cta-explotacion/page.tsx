@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, DollarSign, Target, Settings, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { DollarSign, Target, Settings, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -266,24 +266,24 @@ export default function CtaExplotacionPage() {
               <Table>
                   <TableHeader>
                   <TableRow>
-                      <TableHead className="py-2 px-3">Partida</TableHead>
-                      <TableHead className="py-2 px-3 text-right">Presupuesto</TableHead>
-                      <TableHead className="py-2 px-3 text-right">% s/ Fact.</TableHead>
-                      <TableHead className="py-2 px-3 text-right">Cierre</TableHead>
-                      <TableHead className="py-2 px-3 text-right">Objetivo MC</TableHead>
-                      <TableHead className="py-2 px-3 text-right">Desv. €</TableHead>
-                      <TableHead className="py-2 px-3 text-right">Desv. %</TableHead>
+                      <TableHead className="p-2">Partida</TableHead>
+                      <TableHead className="p-2 text-right">Presupuesto</TableHead>
+                      <TableHead className="p-2 text-right">% s/ Fact.</TableHead>
+                      <TableHead className="p-2 text-right">Cierre</TableHead>
+                      <TableHead className="p-2 text-right">Objetivo MC</TableHead>
+                      <TableHead className="p-2 text-right">Desv. €</TableHead>
+                      <TableHead className="p-2 text-right">Desv. %</TableHead>
                   </TableRow>
                   </TableHeader>
                   <TableBody>
                   <TableRow className="font-bold bg-muted/50">
-                      <TableCell className="py-1 px-3">Facturación Neta</TableCell>
-                      <TableCell className="py-1 px-3 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
-                      <TableCell className="py-1 px-3 text-right text-primary">{formatPercentage(1)}</TableCell>
-                      <TableCell className="py-1 px-3 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
-                      <TableCell className="py-1 px-3 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
-                      <TableCell className="py-1 px-3"></TableCell>
-                      <TableCell className="py-1 px-3"></TableCell>
+                      <TableCell className="py-1 px-2">Facturación Neta</TableCell>
+                      <TableCell className="py-1 px-2 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
+                      <TableCell className="py-1 px-2 text-right text-primary">{formatPercentage(1)}</TableCell>
+                      <TableCell className="py-1 px-2 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
+                      <TableCell className="py-1 px-2 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
+                      <TableCell className="py-1 px-2"></TableCell>
+                      <TableCell className="py-1 px-2"></TableCell>
                   </TableRow>
                   {processedCostes.map(row => {
                       const cierreActual = cierreInputs[row.label] ?? row.cierre;
@@ -292,17 +292,17 @@ export default function CtaExplotacionPage() {
                       const desviacionPct = row.objetivo > 0 ? desviacion / row.objetivo : 0;
                       return (
                           <TableRow key={row.label}>
-                              <TableCell className="py-1 px-3">{row.label}</TableCell>
-                              <TableCell className="py-1 px-3 text-right">{formatCurrency(row.presupuesto)}</TableCell>
-                              <TableCell className={cn("py-1 px-3 text-right", pctSFact > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFact)}</TableCell>
-                              <TableCell className="py-1 px-3 text-right">
+                              <TableCell className="py-1 px-2">{row.label}</TableCell>
+                              <TableCell className="py-1 px-2 text-right">{formatCurrency(row.presupuesto)}</TableCell>
+                              <TableCell className={cn("py-1 px-2 text-right", pctSFact > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFact)}</TableCell>
+                              <TableCell className="py-1 px-2 text-right">
                                   <Input type="number" step="0.01" value={cierreInputs[row.label] ?? 0} onChange={(e) => handleCierreInputChange(row.label, e.target.value)} className="h-7 text-right bg-secondary/30 w-24" />
                               </TableCell>
-                              <TableCell className="py-1 px-3 text-right">{formatCurrency(row.objetivo)}</TableCell>
-                              <TableCell className={cn("py-1 px-3 text-right", desviacion < 0 && "text-destructive", desviacion > 0 && "text-green-600")}>
+                              <TableCell className="py-1 px-2 text-right">{formatCurrency(row.objetivo)}</TableCell>
+                              <TableCell className={cn("py-1 px-2 text-right", desviacion < 0 && "text-destructive", desviacion > 0 && "text-green-600")}>
                                   {formatCurrency(desviacion)}
                               </TableCell>
-                              <TableCell className={cn("py-1 px-3 text-right", desviacionPct < 0 && "text-destructive", desviacionPct > 0 && "text-green-600")}>
+                              <TableCell className={cn("py-1 px-2 text-right", desviacionPct < 0 && "text-destructive", desviacionPct > 0 && "text-green-600")}>
                                   {formatPercentage(desviacionPct)}
                               </TableCell>
                           </TableRow>
@@ -339,7 +339,7 @@ export default function CtaExplotacionPage() {
                               <TableCell className="text-right">{formatCurrency(totals.totalPresupuesto)}</TableCell>
                               <TableCell className="text-right">{formatCurrency(totals.totalCierre)}</TableCell>
                           </TableRow>
-                           <TableRow className="font-bold bg-muted/30">
+                           <TableRow className="font-bold bg-muted/50">
                               <TableCell>Rentabilidad</TableCell>
                               <TableCell className={cn("text-right", rentabilidadPresupuesto > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPresupuesto)}</TableCell>
                               <TableCell className={cn("text-right", rentabilidadCierre > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadCierre)}</TableCell>
@@ -349,7 +349,7 @@ export default function CtaExplotacionPage() {
                               <TableCell className="text-right">{formatCurrency(repercusionHQPresupuesto)}</TableCell>
                               <TableCell className="text-right">{formatCurrency(repercusionHQCierre)}</TableCell>
                           </TableRow>
-                           <TableRow className="font-bold bg-muted/30">
+                           <TableRow className="font-bold bg-muted/50">
                               <TableCell>Rentabilidad Post-HQ</TableCell>
                               <TableCell className={cn("text-right", rentabilidadPostHQPresupuesto > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQPresupuesto)}</TableCell>
                               <TableCell className={cn("text-right", rentabilidadPostHQCierre > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQCierre)}</TableCell>

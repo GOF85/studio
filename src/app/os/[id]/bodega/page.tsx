@@ -125,11 +125,7 @@ export default function BodegaPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-8">
-          <div>
-              <h1 className="text-3xl font-headline font-bold">Módulo de Bodega</h1>
-              <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-          </div>
+      <div className="flex items-center justify-end mb-4">
         <Button asChild>
           <Link href={`/pedidos?osId=${osId}&type=Bodega`}>
             <PlusCircle className="mr-2" />
@@ -138,7 +134,7 @@ export default function BodegaPage() {
         </Button>
       </div>
 
-      <Card className="mb-8">
+      <Card className="mb-6">
           <CardHeader><CardTitle>Artículos Totales del Módulo</CardTitle></CardHeader>
           <CardContent>
               <Tabs defaultValue="Asignado">

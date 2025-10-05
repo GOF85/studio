@@ -106,7 +106,7 @@ export default function TransportePage() {
 
   return (
     <>
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex items-start justify-end mb-4">
         <Button asChild>
           <Link href={`/os/${osId}/transporte/pedido`}>
             <PlusCircle className="mr-2" />
@@ -156,14 +156,14 @@ export default function TransportePage() {
                                   </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => router.push(`/os/${osId}/transporte/${order.id}`)}>
+                                  <DropdownMenuItem onClick={() => router.push(`/os/${osId}/transporte/pedido?orderId=${order.id}`)}>
                                       <Pencil className="mr-2 h-4 w-4" />
                                       Editar
                                   </DropdownMenuItem>
                                   <DropdownMenuItem className="text-destructive" onClick={() => setOrderToDelete(order.id)}>
                                       <Trash2 className="mr-2 h-4 w-4" />
                                       Eliminar
-                                  DropdownMenuItem>
+                                  </DropdownMenuItem>
                                   </DropdownMenuContent>
                               </DropdownMenu>
                               </TableCell>

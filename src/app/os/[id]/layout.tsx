@@ -9,8 +9,9 @@ import { useEffect, useState, useMemo } from 'react';
 import type { ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star } from 'lucide-react';
+import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card } from '@/components/ui/card';
 
 type NavLink = {
     path: string;
@@ -89,40 +90,48 @@ function OSSubHeader() {
   if (!serviceOrder || !currentModule) return null;
 
   return (
-    <div className="flex items-center gap-4 text-sm text-muted-foreground border-b pb-4 mb-6">
-       <div className="lg:hidden">
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                <SheetTrigger asChild>
-                    <Button variant="outline">
-                        <PanelLeft className="h-5 w-5 mr-2" />
-                        Módulos
-                    </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
-                    <SheetHeader className="p-4 border-b">
-                       <SheetTitle>Módulos</SheetTitle>
-                    </SheetHeader>
-                    <ScrollArea className="h-full p-4">
-                        <OSSidebarNav onLinkClick={() => setIsSheetOpen(false)} />
-                    </ScrollArea>
-                </SheetContent>
-            </Sheet>
-        </div>
-      <div className="flex items-center gap-2 font-semibold">
-        {serviceOrder.isVip && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
-        <FileText className="h-4 w-4" />
-        <span>{serviceOrder.serviceNumber}</span>
-      </div>
-      {serviceOrder.space && (
-        <div className="hidden sm:flex items-center gap-2">
-          <Building className="h-4 w-4" />
-          <span className="font-semibold">{serviceOrder.space}</span>
-        </div>
-      )}
-      <div className="flex items-center gap-2 text-primary font-bold">
-        <currentModule.icon className="h-4 w-4" />
-        <span>{currentModule.title}</span>
-      </div>
+    <div className="mb-4">
+        <Card>
+             <div className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <div className="lg:hidden">
+                        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                            <SheetTrigger asChild>
+                                <Button variant="outline">
+                                    <Menu className="h-5 w-5 mr-2" />
+                                    Módulos
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
+                                <SheetHeader className="p-4 border-b">
+                                    <SheetTitle>Módulos</SheetTitle>
+                                </SheetHeader>
+                                <ScrollArea className="h-full p-4">
+                                    <OSSidebarNav onLinkClick={() => setIsSheetOpen(false)} />
+                                </ScrollArea>
+                            </SheetContent>
+                        </Sheet>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <currentModule.icon className="h-7 w-7 text-primary" />
+                        <h1 className="text-2xl font-headline font-bold">{currentModule.title}</h1>
+                    </div>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2 font-semibold">
+                        {serviceOrder.isVip && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
+                        <FileText className="h-4 w-4" />
+                        <span>{serviceOrder.serviceNumber}</span>
+                    </div>
+                    {serviceOrder.space && (
+                        <div className="hidden sm:flex items-center gap-2">
+                        <Building className="h-4 w-4" />
+                        <span className="font-semibold">{serviceOrder.space}</span>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </Card>
     </div>
   );
 }
@@ -132,10 +141,10 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
     return (
       <div className="container mx-auto">
           <div className="grid lg:grid-cols-[180px_1fr] gap-4">
-              <aside className="hidden lg:block lg:sticky top-24 self-start h-[calc(100vh-7rem)] py-6">
+              <aside className="hidden lg:block lg:sticky top-20 self-start h-[calc(100vh-6rem)] py-4">
                    <OSSidebarNav />
               </aside>
-              <main className="py-6">
+              <main className="py-4">
                   <OSSubHeader />
                   {children}
               </main>

@@ -244,7 +244,7 @@ export default function PersonalMicePage() {
           <AccordionItem value="item-1">
           <Card>
               <AccordionTrigger className="p-4">
-                  <h3 className="text-lg font-semibold">Servicios del Evento</h3>
+                  <h3 className="text-xl font-semibold">Servicios del Evento</h3>
               </AccordionTrigger>
               <AccordionContent>
               <CardContent className="pt-0">
@@ -433,7 +433,7 @@ export default function PersonalMicePage() {
                                   </span>
                               </div>
                           </CardContent>
-                      </Card>
+                        </Card>
                   </CardFooter>
               )}
           </Card>
@@ -459,7 +459,6 @@ export default function PersonalMicePage() {
           </AlertDialogFooter>
           </AlertDialogContent>
       </AlertDialog>
-
     </>
   );
 }

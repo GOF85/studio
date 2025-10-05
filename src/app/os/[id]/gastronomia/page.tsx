@@ -1,9 +1,8 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { Utensils, ArrowLeft } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing, GastronomyOrder, GastronomyOrderStatus } from '@/types';
@@ -116,10 +115,10 @@ export default function GastronomiaPage() {
             </Button>
       </div>
 
-      <Card>
-          <CardHeader><CardTitle>Pedidos de Gastronomía Generados</CardTitle></CardHeader>
-          <CardContent>
-               <div className="border rounded-lg overflow-x-auto">
+        <Card>
+            <CardHeader><CardTitle>Pedidos de Gastronomía Generados</CardTitle></CardHeader>
+            <CardContent>
+                 <div className="border rounded-lg overflow-x-auto">
                     <Table>
                         <TableHeader>
                         <TableRow>

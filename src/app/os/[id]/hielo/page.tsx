@@ -99,19 +99,7 @@ export default function HieloPage() {
 
   return (
     <>
-      <div className="flex items-start justify-between mb-8">
-          <div>
-              <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Snowflake />Módulo de Hielo</h1>
-              <div className="text-muted-foreground mt-2 space-y-1">
-                  <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-                   {serviceOrder.respMetre && (
-                      <p className="flex items-center gap-2">
-                          Resp. Metre: {serviceOrder.respMetre} 
-                          {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
-                      </p>
-                  )}
-              </div>
-          </div>
+      <div className="flex items-start justify-end mb-4">
         <Button asChild>
           <Link href={`/hielo/pedido?osId=${osId}`}>
             <PlusCircle className="mr-2" />
