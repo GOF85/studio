@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
@@ -135,7 +136,7 @@ const ClienteTitle = () => {
     <div className="flex w-full items-center justify-between p-4">
         <h3 className="text-lg font-semibold">Cliente</h3>
         {(client || finalClient) && (
-            <span className="text-lg font-bold text-primary text-right">
+             <span className="text-lg font-bold text-primary text-right">
                 {client}{finalClient && ` / ${finalClient}`}
             </span>
         )}
@@ -144,17 +145,19 @@ const ClienteTitle = () => {
 };
 
 const EspacioTitle = () => {
-    const space = useWatch({ name: 'space' });
+    const { watch } = useFormContext();
+    const space = watch('space');
+    const spaceAddress = watch('spaceAddress');
+    
     return (
-      <h3 className="text-lg font-semibold">
-        Espacio
-        {space && (
-          <>
-            {' - '}
-            <span className="text-primary">{space}</span>
-          </>
-        )}
-      </h3>
+        <div className="flex w-full items-center justify-between p-4">
+            <h3 className="text-lg font-semibold">Espacio</h3>
+            {space && (
+                <span className="text-base font-semibold text-primary text-right">
+                    {space} {spaceAddress && <span className="font-normal text-muted-foreground">({spaceAddress})</span>}
+                </span>
+            )}
+        </div>
     );
 };
 
@@ -162,27 +165,16 @@ const ResponsablesTitle = () => {
   const metre = useWatch({ name: 'respMetre' });
   const pase = useWatch({ name: 'respPase' });
 
-  if (!metre && !pase) {
-    return <h3 className="text-lg font-semibold">Responsables</h3>;
-  }
-
   return (
-    <h3 className="text-lg font-semibold">
-      <span className="text-foreground">Responsables - </span>
-      {metre && (
-        <>
-          <span className="text-foreground">Metre: </span>
-          <span className="text-primary">{metre}</span>
-        </>
-      )}
-      {metre && pase && <span className="text-foreground"> / </span>}
-      {pase && (
-        <>
-          <span className="text-foreground">Pase: </span>
-          <span className="text-primary">{pase}</span>
-        </>
-      )}
-    </h3>
+    <div className="flex w-full items-center justify-between p-4">
+        <h3 className="text-lg font-semibold">Responsables</h3>
+        {(metre || pase) && (
+            <div className="text-right">
+                {metre && <p className="text-sm"><span className="font-semibold text-muted-foreground">Metre:</span> <span className="font-semibold text-primary">{metre}</span></p>}
+                {pase && <p className="text-sm"><span className="font-semibold text-muted-foreground">Pase:</span> <span className="font-semibold text-primary">{pase}</span></p>}
+            </div>
+        )}
+    </div>
   );
 };
 
@@ -573,7 +565,7 @@ export default function InfoPage() {
 
                           <AccordionItem value="espacio" className="border-none">
                           <Card>
-                            <AccordionTrigger className="p-4"><EspacioTitle /></AccordionTrigger>
+                            <AccordionTrigger><EspacioTitle /></AccordionTrigger>
                             <AccordionContent>
                               <div className="space-y-4 px-4 pb-4">
                                 <FormField control={form.control} name="space" render={({ field }) => (
@@ -627,7 +619,7 @@ export default function InfoPage() {
                           
                           <AccordionItem value="responsables" className="border-none">
                             <Card>
-                            <AccordionTrigger className="p-4"><ResponsablesTitle /></AccordionTrigger>
+                            <AccordionTrigger><ResponsablesTitle /></AccordionTrigger>
                             <AccordionContent>
                               <div className="grid md:grid-cols-3 gap-4 px-4 pb-4">
                                   <FormField control={form.control} name="respMetre" render={({ field }) => (
