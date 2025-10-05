@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -20,7 +21,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 type NecesidadItem = OrderItem & { osId: string; serviceNumber: string; deliverySpace: string; deliveryLocation: string };
 type NecesidadesPorTipo = {
-    [key in 'Almacén' | 'Bodega' | 'Bio' | 'Alquiler' | 'Hielo']: NecesidadItem[];
+    [key in 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler' | 'Hielo']: NecesidadItem[];
 }
 type NecesidadesPorDia = {
     fecha: string;
@@ -75,7 +76,7 @@ export default function PlanificacionAlmacenPage() {
 
                     const dateKey = format(new Date(deliveryDate), 'yyyy-MM-dd');
                     if (!necesidadesPorDia[dateKey]) {
-                        necesidadesPorDia[dateKey] = { 'Almacén': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] };
+                        necesidadesPorDia[dateKey] = { 'Almacen': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] };
                     }
                     
                     const os = osMap.get(order.osId)!;
@@ -163,7 +164,7 @@ export default function PlanificacionAlmacenPage() {
     }
 
     if (!isMounted) {
-        return <LoadingSkeleton title="Cargando Planificación de Almacén..." />;
+        return <LoadingSkeleton title="Cargando Planificación de Almacen..." />;
     }
 
     return (

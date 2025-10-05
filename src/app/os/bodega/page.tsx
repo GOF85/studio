@@ -134,7 +134,7 @@ export default function BodegaPage() {
         </Button>
       </div>
 
-      <Card className="mb-4">
+      <Card className="mb-6">
           <CardHeader><CardTitle>Artículos Totales del Módulo</CardTitle></CardHeader>
           <CardContent>
               <Tabs defaultValue="Asignado">

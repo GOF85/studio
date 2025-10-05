@@ -55,7 +55,7 @@ const mainMenuItems: MenuItem[] = [
         ]
     },
     { 
-        title: 'Almacén', 
+        title: 'Almacen', 
         href: '/almacen', 
         icon: Warehouse, 
         description: 'Gestiona picking, retornos y logística de material.',

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -44,7 +45,7 @@ const plantillaItemSchema = z.object({
 const plantillaSchema = z.object({
   id: z.string(),
   nombre: z.string().min(1, "El nombre de la plantilla es obligatorio"),
-  tipo: z.enum(['Almacén', 'Bodega', 'Bio', 'Alquiler'], {
+  tipo: z.enum(['Almacen', 'Bodega', 'Bio', 'Alquiler'], {
     errorMap: () => ({ message: "Debe seleccionar un tipo" }),
   }),
   items: z.array(plantillaItemSchema).min(1, "La plantilla debe tener al menos un artículo"),
@@ -93,7 +94,7 @@ export default function PlantillaFormPage() {
         category: 'Alquiler',
       }));
     } else if (selectedType) {
-      const categoryMap = { 'Almacén': 'ALMACEN', 'Bodega': 'BODEGA', 'Bio': 'BIO' };
+      const categoryMap = { 'Almacen': 'ALMACEN', 'Bodega': 'BODEGA', 'Bio': 'BIO' };
       const filterCategory = categoryMap[selectedType];
       itemsToLoad = allPrecios
         .filter(p => p.categoria === filterCategory)
@@ -208,7 +209,7 @@ export default function PlantillaFormPage() {
                     <Select onValueChange={field.onChange} value={field.value} disabled={isEditing}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un tipo..." /></SelectTrigger></FormControl>
                       <SelectContent>
-                        <SelectItem value="Almacén">Almacén</SelectItem>
+                        <SelectItem value="Almacen">Almacen</SelectItem>
                         <SelectItem value="Bodega">Bodega</SelectItem>
                         <SelectItem value="Bio">Bio</SelectItem>
                         <SelectItem value="Alquiler">Alquiler</SelectItem>

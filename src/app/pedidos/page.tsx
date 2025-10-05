@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -25,7 +24,7 @@ export default function PedidosPage() {
   const searchParams = useSearchParams();
   
   const osId = searchParams.get('osId');
-  const orderType = searchParams.get('type') as 'Almacén' | 'Bodega' | 'Bio' | 'Alquiler' | null;
+  const orderType = searchParams.get('type') as 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler' | null;
   const editOrderId = searchParams.get('orderId');
 
   useEffect(() => {
@@ -52,7 +51,7 @@ export default function PedidosPage() {
       }));
     } else if (orderType) {
         const categoryMap = {
-            'Almacén': 'ALMACEN',
+            'Almacen': 'ALMACEN',
             'Bodega': 'BODEGA',
             'Bio': 'BIO',
         }
@@ -201,7 +200,7 @@ export default function PedidosPage() {
     setOrderItems([]);
     
     let modulePath = '';
-    if (orderType === 'Almacén') modulePath = 'almacen';
+    if (orderType === 'Almacen') modulePath = 'almacen';
     else if (orderType === 'Bodega') modulePath = 'bodega';
     else if (orderType === 'Bio') modulePath = 'bio';
     else if (orderType === 'Alquiler') modulePath = 'alquiler';

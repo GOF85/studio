@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 
 export type CateringItem = {
@@ -84,7 +85,7 @@ export type ServiceOrder = {
 export type MaterialOrder = {
     id: string;
     osId: string;
-    type: 'Almacén' | 'Bodega' | 'Bio' | 'Alquiler';
+    type: 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';
     status: 'Asignado' | 'En preparación' | 'Listo';
     items: OrderItem[];
     days: number;
@@ -590,7 +591,7 @@ export type PedidoPlantilla = {
     tipo: MaterialOrderType;
     items: PedidoPlantillaItem[];
 };
-export type MaterialOrderType = 'Almacén' | 'Bodega' | 'Bio' | 'Alquiler';
+export type MaterialOrderType = 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';
 export type FormatoExpedicion = {
   id: string;
   nombre: string;

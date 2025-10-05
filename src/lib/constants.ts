@@ -6,7 +6,7 @@ export const GASTO_LABELS: Record<keyof Omit<ObjetivosGasto, 'id' | 'name'>, str
     bodega: 'Bodega',
     consumibles: 'Consumibles',
     hielo: 'Hielo',
-    almacen: 'Almacén',
+    almacen: 'Almacen',
     alquiler: 'Alquiler material',
     transporte: 'Transporte',
     decoracion: 'Decoración',

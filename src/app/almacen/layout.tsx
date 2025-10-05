@@ -21,7 +21,7 @@ export default function AlmacenLayout({ children }: { children: React.ReactNode 
                 <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)] hidden lg:block">
                      <div className="w-full">
                         <div className="pb-4 mb-4 border-b">
-                            <h2 className="text-xl font-headline font-bold flex items-center gap-3"><Warehouse size={24}/>Panel de Almacén</h2>
+                            <h2 className="text-xl font-headline font-bold flex items-center gap-3"><Warehouse size={24}/>Panel de Almacen</h2>
                             <p className="text-sm text-muted-foreground">
                                 Logística de material y expediciones.
                             </p>
