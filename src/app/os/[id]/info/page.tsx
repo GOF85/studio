@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, ShoppingBag, Star, Save } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, Star, Save, AlertTriangle } from 'lucide-react';
 
 import type { ServiceOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { cn } from '@/lib/utils';
@@ -765,15 +765,15 @@ export default function InfoPage() {
             </FormProvider>
              {isEditing && (
                  <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="danger-zone" className="border-none">
+                    <AccordionItem value="danger-zone">
                       <Card className="mt-4 border-destructive bg-destructive/5">
-                        <AccordionTrigger className="py-2 px-4">
-                          <CardTitle className="text-destructive text-base">Borrar OS</CardTitle>
+                        <AccordionTrigger className="py-3 px-4 text-destructive hover:no-underline">
+                            <CardTitle className="text-destructive text-base flex items-center gap-2"><AlertTriangle/>Borrar OS</CardTitle>
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="px-4 pb-4">
                             <p className="text-sm text-destructive/80 mb-4">
-                              Esta acción es irreversible. Se eliminará la OS y todos los pedidos y datos asociados a ella.
+                              Esta acción es irreversible. Se eliminará la OS y todos los datos asociados a ella.
                             </p>
                             <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}>
                               <Trash2 className="mr-2" /> Eliminar Orden de Servicio
