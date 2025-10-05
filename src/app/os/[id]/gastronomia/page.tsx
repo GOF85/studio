@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -6,7 +7,6 @@ import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { Utensils, ArrowLeft } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing, GastronomyOrder, GastronomyOrderStatus } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -30,7 +30,6 @@ const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' |
 };
 
 export default function GastronomiaPage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [gastronomyOrders, setGastronomyOrders] = useState<GastronomyOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   
@@ -90,18 +89,10 @@ export default function GastronomiaPage() {
 
   useEffect(() => {
     if (osId) {
-      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allServiceOrders.find(os => os.id === osId);
-      if(currentOS){
-        setServiceOrder(currentOS);
-        loadAndSyncOrders();
-      } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
-        router.push('/pes');
-      }
+      loadAndSyncOrders();
     }
     setIsMounted(true);
-  }, [osId, router, toast, loadAndSyncOrders]);
+  }, [osId, loadAndSyncOrders]);
 
   const sortedGastronomyOrders = useMemo(() => {
     return [...gastronomyOrders].sort((a, b) => {
@@ -113,70 +104,66 @@ export default function GastronomiaPage() {
     });
   }, [gastronomyOrders]);
   
-  if (!isMounted || !serviceOrder) {
+  if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Gastronomía..." />;
   }
 
   return (
     <>
-      <div className="flex items-center justify-between mb-8">
-          <div>
-              <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Utensils />Módulo de Gastronomía</h1>
-              <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-          </div>
-          <Button onClick={loadAndSyncOrders}>
-              Sincronizar con Briefing
-          </Button>
+      <div className="flex items-center justify-end mb-4">
+            <Button onClick={loadAndSyncOrders}>
+                Sincronizar con Briefing
+            </Button>
       </div>
 
       <Card>
           <CardHeader><CardTitle>Pedidos de Gastronomía Generados</CardTitle></CardHeader>
           <CardContent>
                <div className="border rounded-lg overflow-x-auto">
-                  <Table>
-                      <TableHeader>
-                      <TableRow>
-                          <TableHead>Fecha</TableHead>
-                          <TableHead>Hora</TableHead>
-                          <TableHead>Descripción</TableHead>
-                          <TableHead>Asistentes</TableHead>
-                          <TableHead>Comentarios</TableHead>
-                          <TableHead>Estado</TableHead>
-                      </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                      {sortedGastronomyOrders.length > 0 ? (
-                          sortedGastronomyOrders.map(order => (
-                          <TableRow 
-                              key={order.id} 
-                              onClick={() => router.push(`/gastronomia/pedido?osId=${osId}&briefingItemId=${order.id}`)} 
-                              className={cn(
-                                  "cursor-pointer", 
-                                  order.descripcion.toLowerCase() === 'prueba de menu' && "bg-muted hover:bg-muted/80"
-                              )}
-                          >
-                              <TableCell>{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
-                              <TableCell>{order.horaInicio}</TableCell>
-                              <TableCell className="min-w-[200px] font-medium">{order.descripcion}</TableCell>
-                              <TableCell>{order.asistentes}</TableCell>
-                              <TableCell className="min-w-[200px]">{order.comentarios}</TableCell>
-                              <TableCell>
-                                  <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
-                              </TableCell>
-                          </TableRow>
-                          ))
-                      ) : (
-                          <TableRow>
-                          <TableCell colSpan={6} className="h-24 text-center">
-                              No hay pedidos de gastronomía. Activa la opción "Con gastronomía" en las entregas del briefing comercial.
-                          </TableCell>
-                          </TableRow>
-                      )}
-                      </TableBody>
-                  </Table>
-              </div>
-          </CardContent>
-      </Card>
+                    <Table>
+                        <TableHeader>
+                        <TableRow>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Hora</TableHead>
+                            <TableHead>Descripción</TableHead>
+                            <TableHead>Asistentes</TableHead>
+                            <TableHead>Comentarios</TableHead>
+                            <TableHead>Estado</TableHead>
+                        </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {sortedGastronomyOrders.length > 0 ? (
+                            sortedGastronomyOrders.map(order => (
+                            <TableRow 
+                                key={order.id} 
+                                onClick={() => router.push(`/gastronomia/pedido?osId=${osId}&briefingItemId=${order.id}`)} 
+                                className={cn(
+                                    "cursor-pointer", 
+                                    order.descripcion.toLowerCase() === 'prueba de menu' && "bg-muted hover:bg-muted/80"
+                                )}
+                            >
+                                <TableCell>{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
+                                <TableCell>{order.horaInicio}</TableCell>
+                                <TableCell className="min-w-[200px] font-medium">{order.descripcion}</TableCell>
+                                <TableCell>{order.asistentes}</TableCell>
+                                <TableCell className="min-w-[200px]">{order.comentarios}</TableCell>
+                                <TableCell>
+                                    <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
+                                </TableCell>
+                            </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                            <TableCell colSpan={6} className="h-24 text-center">
+                                No hay pedidos de gastronomía. Activa la opción "Con gastronomía" en las entregas del briefing comercial.
+                            </TableCell>
+                            </TableRow>
+                        )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
     </>
   );
 }
