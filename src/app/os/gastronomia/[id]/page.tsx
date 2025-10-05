@@ -113,7 +113,14 @@ export default function AlmacenPage() {
 
   return (
     <>
-      <div className="flex items-center justify-end mb-4">
+      <div className="flex items-center justify-between mb-8">
+          <div>
+              <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
+                  <ArrowLeft className="mr-2" />
+                  Volver a la OS
+              </Button>
+              <h1 className="text-3xl font-headline font-bold">Módulo de Almacén</h1>
+          </div>
         <Button asChild>
           <Link href={`/pedidos?osId=${osId}&type=Almacén`}>
             <PlusCircle className="mr-2" />
@@ -122,7 +129,7 @@ export default function AlmacenPage() {
         </Button>
       </div>
 
-      <Card className="mb-4">
+      <Card className="mb-8">
           <CardHeader><CardTitle>Artículos Totales del Módulo</CardTitle></CardHeader>
           <CardContent>
               <Tabs defaultValue="Asignado">
