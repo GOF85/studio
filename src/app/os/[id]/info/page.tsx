@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
@@ -456,7 +455,7 @@ export default function InfoPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3 pt-2">
-                    <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-3 items-center">
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                       <FormField control={form.control} name="serviceNumber" render={({ field }) => (
                         <FormItem className="flex flex-col">
                           <FormLabel>Nº Servicio</FormLabel>
@@ -514,15 +513,13 @@ export default function InfoPage() {
                             <FormMessage />
                           </FormItem>
                       )} />
-                    </div>
-                      <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-3 items-center pt-2">
-                         <FormField control={form.control} name="asistentes" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Asistentes</FormLabel>
-                                <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )} />
+                      <FormField control={form.control} name="asistentes" render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Asistentes</FormLabel>
+                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )} />
                     </div>
                     
                        <Accordion type="multiple" defaultValue={accordionDefaultValue} className="w-full space-y-3 pt-3">
