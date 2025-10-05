@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ClipboardList, Calendar, BookHeart, Factory, Settings, ChefHat, Component, Package, GlassWater, ChevronRight, ClipboardCheck, ListChecks, History, AlertTriangle, PackagePlus, BarChart3, ShieldCheck, LifeBuoy, Sprout } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
 
 type SubLink = {
     title: string;
@@ -71,7 +71,6 @@ export default function DashboardPage() {
   return (
     <TooltipProvider>
       <div className="flex flex-col min-h-screen">
-        <Header />
         <main className="flex-grow container mx-auto px-4 py-8">
           <div className="text-center mb-6">
               <h1 className="text-4xl font-headline font-bold tracking-tight">Bienvenido a MICE Catering</h1>

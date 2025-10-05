@@ -8,7 +8,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2 } from 'lucide-react';
 import type { PersonalMiceOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem, Personal } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -22,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { differenceInMinutes, parse, format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -59,15 +59,16 @@ const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', '
 
 const personalMiceSchema = z.object({
   id: z.string(),
+  osId: z.string(),
   centroCoste: z.enum(centroCosteOptions),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
   dni: z.string().optional().default(''),
   tipoServicio: z.enum(tipoServicioOptions),
-  horaEntrada: z.string().regex(/^([01]\\d|2[0-3]):([0-5]\\d)$/, "Formato HH:MM"),
-  horaSalida: z.string().regex(/^([01]\\d|2[0-3]):([0-5]\\d)$/, "Formato HH:MM"),
+  horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
+  horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
-  horaEntradaReal: z.string().regex(/^([01]\\d|2[0-3]):([0-5]\\d)$/, "Formato HH:MM").optional().or(z.literal('')),
-  horaSalidaReal: z.string().regex(/^([01]\\d|2[0-3]):([0-5]\\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+  horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+  horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
 });
 
 const formSchema = z.object({
@@ -198,6 +199,7 @@ export default function PersonalMiceFormPage() {
   const addRow = () => {
     append({
         id: Date.now().toString(),
+        osId: osId,
         centroCoste: 'SALA',
         nombre: '',
         dni: '',
@@ -228,7 +230,6 @@ export default function PersonalMiceFormPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
        <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -285,7 +286,7 @@ export default function PersonalMiceFormPage() {
                                 <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
                                 <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
                                 <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                                <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaSalida).toFixed(2)}h</TableCell>
+                                <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
                             </TableRow>
                             )) : (
                                 <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>

@@ -5,7 +5,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { OrderItem, CateringItem, MaterialOrder, ServiceOrder, AlquilerDBItem, Precio, PedidoPlantilla } from '@/types';
-import { Header } from '@/components/layout/header';
 import { ItemCatalog } from '@/components/catalog/item-catalog';
 import { OrderSummary, type ExistingOrderData } from '@/components/order/order-summary';
 import { useToast } from '@/hooks/use-toast';
@@ -222,7 +221,6 @@ export default function PedidosPage() {
   if (!osId || !orderType) {
     return (
         <div className="flex flex-col min-h-screen">
-            <Header />
             <main className="flex-grow container mx-auto px-4 py-8 flex items-center justify-center">
                 <div className="text-center">
                     <h1 className="text-2xl font-bold">Acceso no válido</h1>
@@ -237,7 +235,6 @@ export default function PedidosPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-[1fr_400px] lg:gap-8">
           <ItemCatalog

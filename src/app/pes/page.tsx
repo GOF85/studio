@@ -8,7 +8,6 @@ import { format, parseISO, isBefore, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, Clock, Users, Star } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -113,7 +112,6 @@ export default function PesPage() {
 
   return (
     <TooltipProvider>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-headline font-bold">Previsión de Servicios</h1>
