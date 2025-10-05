@@ -93,11 +93,7 @@ export default function AtipicosPage() {
 
   return (
     <>
-      <div className="flex items-start justify-between mb-8">
-          <div>
-              <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><FilePlus />Módulo de Atípicos</h1>
-              <p className="text-muted-foreground mt-2">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-          </div>
+      <div className="flex items-start justify-end mb-4">
         <Button asChild>
           <Link href={`/atipicos/pedido?osId=${osId}`}>
             <PlusCircle className="mr-2" />

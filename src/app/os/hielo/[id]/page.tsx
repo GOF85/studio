@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { useToast from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -99,19 +99,7 @@ export default function HieloPage() {
 
   return (
     <>
-      <div className="flex items-start justify-between mb-8">
-          <div>
-              <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Snowflake />Módulo de Hielo</h1>
-              <div className="text-muted-foreground mt-2 space-y-1">
-                  <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-                   {serviceOrder.respMetre && (
-                      <p className="flex items-center gap-2">
-                          Resp. Metre: {serviceOrder.respMetre} 
-                          {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
-                      </p>
-                  )}
-              </div>
-          </div>
+      <div className="flex items-start justify-end mb-4">
         <Button asChild>
           <Link href={`/hielo/pedido?osId=${osId}`}>
             <PlusCircle className="mr-2" />
@@ -157,7 +145,7 @@ export default function HieloPage() {
                                   </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => router.push(`/os/${osId}/hielo/pedido?orderId=${order.id}`)}>
+                                  <DropdownMenuItem onClick={() => router.push(`/hielo/pedido?osId=${osId}&orderId=${order.id}`)}>
                                       <Pencil className="mr-2 h-4 w-4" />
                                       Editar
                                   </DropdownMenuItem>

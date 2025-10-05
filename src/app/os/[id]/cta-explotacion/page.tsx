@@ -253,16 +253,8 @@ export default function CtaExplotacionPage() {
 
   return (
     <>
-      <div>
-        <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-          <DollarSign />
-          Cuenta de Explotación
-        </h1>
-        <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-8 mt-8">
-        <div className="lg:col-span-2 space-y-8">
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
           <Card>
               <CardHeader>
                   <div className="flex justify-between items-center">
@@ -322,7 +314,7 @@ export default function CtaExplotacionPage() {
           </Card>
         </div>
 
-        <div className="space-y-8">
+        <div className="space-y-6">
           <Card>
               <CardHeader>
                   <CardTitle className="flex items-center gap-2"><TrendingUp/>Análisis de Rentabilidad</CardTitle>
@@ -372,10 +364,10 @@ export default function CtaExplotacionPage() {
               </CardContent>
           </Card>
           <Card>
-            <CardHeader className="py-2 pb-2">
-              <CardTitle className="flex items-center gap-2 text-lg"><Target /> Objetivos de Gasto</CardTitle>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Target /> Objetivos de Gasto</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 pt-4">
+            <CardContent className="space-y-3">
                <Select onValueChange={handleObjetivoChange} value={serviceOrder.objetivoGastoId}>
                   <SelectTrigger>
                       <SelectValue placeholder="Seleccionar plantilla..." />

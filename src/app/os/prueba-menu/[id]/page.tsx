@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -360,7 +360,17 @@ const handlePrint = async () => {
 
   return (
     <>
-    <div className="flex items-start justify-between mb-4">
+    <div className="flex items-start justify-end mb-4 no-print">
+        <div className="flex gap-2">
+            <Button variant="outline" type="button" onClick={handlePrint} disabled={isPrinting}>
+            {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
+            {isPrinting ? 'Generando...' : 'Imprimir / PDF'}
+            </Button>
+        <Button type="button" onClick={handleSubmit(onSubmit)} disabled={!formState.isDirty}>
+            <Save className="mr-2" />
+            Guardar Cambios
+        </Button>
+        </div>
     </div>
     
     <Card className="mb-4">

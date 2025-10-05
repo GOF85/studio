@@ -3,15 +3,16 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, ArrowLeft, Briefcase, Save, Pencil, X, Check, DollarSign } from 'lucide-react';
+import { PlusCircle, Trash2, ArrowLeft, Briefcase, Save, Pencil, X, Check, Euro } from 'lucide-react';
 import { format, differenceInMinutes, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, TipoServicio, ComercialAjuste } from '@/types';
-import { osFormSchema, OsFormValues } from '@/app/os/page';
+import { osFormSchema, type OsFormValues } from '@/app/os/[id]/info/page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -62,6 +63,8 @@ type BriefingItemFormValues = z.infer<typeof briefingItemSchema>;
 const financialSchema = osFormSchema.pick({
     agencyPercentage: true,
     spacePercentage: true,
+    agencyCommissionValue: true,
+    spaceCommissionValue: true,
 });
 
 type FinancialFormValues = z.infer<typeof financialSchema>;
@@ -128,28 +131,47 @@ export default function ComercialPage() {
         defaultValues: {
             agencyPercentage: 0,
             spacePercentage: 0,
+            agencyCommissionValue: 0,
+            spaceCommissionValue: 0,
         }
     });
 
     const watchedAgencyPercentage = financialForm.watch('agencyPercentage');
     const watchedSpacePercentage = financialForm.watch('spacePercentage');
+    const watchedAgencyValue = financialForm.watch('agencyCommissionValue');
+    const watchedSpaceValue = financialForm.watch('spaceCommissionValue');
 
     const facturacionNeta = useMemo(() => {
-        const totalPercentage = (watchedAgencyPercentage || 0) + (watchedSpacePercentage || 0);
-        return facturacionFinal * (1 - totalPercentage / 100);
-    }, [facturacionFinal, watchedAgencyPercentage, watchedSpacePercentage]);
+      const agencyCommission = (facturacionFinal * (watchedAgencyPercentage || 0) / 100) + (watchedAgencyValue || 0);
+      const spaceCommission = (facturacionFinal * (watchedSpacePercentage || 0) / 100) + (watchedSpaceValue || 0);
+      return facturacionFinal - agencyCommission - spaceCommission;
+    }, [facturacionFinal, watchedAgencyPercentage, watchedSpacePercentage, watchedAgencyValue, watchedSpaceValue]);
 
 
-   const saveFinancials = useCallback((data: { facturacion: number, agencyPercentage: number, spacePercentage: number }) => {
+   const saveFinancials = useCallback(() => {
     if (!serviceOrder) return;
+
+    const data = financialForm.getValues();
+    const agencyCommission = (facturacionFinal * (data.agencyPercentage || 0) / 100) + (data.agencyCommissionValue || 0);
+    const spaceCommission = (facturacionFinal * (data.spacePercentage || 0) / 100) + (data.spaceCommissionValue || 0);
+
     const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const index = allServiceOrders.findIndex(os => os.id === osId);
     if (index !== -1) {
-        allServiceOrders[index] = { ...allServiceOrders[index], ...data };
+        allServiceOrders[index] = { 
+            ...allServiceOrders[index], 
+            facturacion: facturacionFinal,
+            agencyPercentage: data.agencyPercentage,
+            spacePercentage: data.spacePercentage,
+            agencyCommissionValue: data.agencyCommissionValue,
+            spaceCommissionValue: data.spaceCommissionValue,
+            comisionesAgencia: agencyCommission,
+            comisionesCanon: spaceCommission,
+        };
         localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
         setServiceOrder(allServiceOrders[index]);
     }
-  }, [serviceOrder, osId]);
+  }, [serviceOrder, osId, facturacionFinal, financialForm]);
 
   useEffect(() => {
     const storedTipos = localStorage.getItem('tipoServicio');
@@ -162,12 +184,16 @@ export default function ComercialPage() {
     if (osId) {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allServiceOrders.find(os => os.id === osId);
-      setServiceOrder(currentOS || null);
-      if (currentOS) {
+      if(currentOS){
+        setServiceOrder(currentOS);
         financialForm.reset({
-            agencyPercentage: currentOS.agencyPercentage,
-            spacePercentage: currentOS.spacePercentage
+            agencyPercentage: currentOS.agencyPercentage || 0,
+            spacePercentage: currentOS.spacePercentage || 0,
+            agencyCommissionValue: currentOS.agencyCommissionValue || 0,
+            spaceCommissionValue: currentOS.spaceCommissionValue || 0,
         });
+      } else {
+        router.push('/pes');
       }
 
       const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
@@ -184,11 +210,7 @@ export default function ComercialPage() {
 
    useEffect(() => {
     if (serviceOrder && facturacionFinal !== serviceOrder.facturacion) {
-      saveFinancials({
-        facturacion: facturacionFinal,
-        agencyPercentage: serviceOrder.agencyPercentage,
-        spacePercentage: serviceOrder.spacePercentage
-      });
+        saveFinancials();
     }
   }, [facturacionFinal, serviceOrder, saveFinancials]);
 
@@ -214,15 +236,8 @@ export default function ComercialPage() {
   };
   
   const handleSaveFinancials = (data: FinancialFormValues) => {
-    if (!serviceOrder) return;
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const index = allServiceOrders.findIndex(os => os.id === osId);
-    if (index !== -1) {
-        allServiceOrders[index] = { ...allServiceOrders[index], ...data };
-        localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
-        setServiceOrder(allServiceOrders[index]);
-        toast({ title: 'Datos financieros actualizados' });
-    }
+    saveFinancials();
+    toast({ title: 'Datos financieros actualizados' });
   };
 
   const handleRowClick = (item: ComercialBriefingItem) => {
@@ -462,66 +477,67 @@ export default function ComercialPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}`)} className="mb-2">
-            <ArrowLeft className="mr-2" />
-            Volver a la OS
-          </Button>
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Briefcase />Módulo Comercial</h1>
-          <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-        </div>
-      </div>
-      
       <FormProvider {...financialForm}>
-           <Accordion type="single" collapsible className="w-full mb-8">
-              <AccordionItem value="item-1" className="border-none">
+           <Accordion type="single" collapsible className="w-full mb-4">
+              <AccordionItem value="item-1">
                   <Card>
-                      <AccordionTrigger className="py-2 px-4">
+                      <AccordionTrigger className="p-2">
                           <div className="flex items-center justify-between w-full">
-                              <CardTitle className="text-lg">Información Financiera y Ajustes</CardTitle>
-                               <div className="text-base font-bold pr-4">
+                              <CardTitle className="text-base flex items-center gap-2 px-2"><Euro/>Información Financiera y Ajustes</CardTitle>
+                               <div className="text-sm font-bold pr-4">
                                   <span className="text-black dark:text-white">Facturación Neta: </span>
                                   <span className="text-green-600">{facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
                               </div>
                           </div>
                       </AccordionTrigger>
                       <AccordionContent>
-                           <div className="grid lg:grid-cols-2 gap-6 p-4 pt-2">
-                              <form onChange={() => financialForm.handleSubmit(handleSaveFinancials)()} className="flex flex-col space-y-4">
-                                  <h3 className="text-lg font-semibold border-b pb-2">Información Financiera</h3>
+                           <div className="grid lg:grid-cols-2 gap-4 p-4 pt-0">
+                              <form onChange={() => financialForm.handleSubmit(handleSaveFinancials)()} className="flex flex-col space-y-2">
+                                  <h3 className="text-base font-semibold border-b pb-1">Información Financiera</h3>
                                   <div className="grid grid-cols-2 gap-4 items-end">
                                       <FormItem>
-                                          <FormLabel>Fact. Briefing</FormLabel>
-                                          <FormControl><Input readOnly value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8" /></FormControl>
+                                          <FormLabel className="text-xs">Fact. Briefing</FormLabel>
+                                          <FormControl><Input readOnly value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8 text-sm" /></FormControl>
                                       </FormItem>
                                       <FormItem>
-                                          <FormLabel>Facturación Final</FormLabel>
-                                          <FormControl><Input readOnly value={facturacionFinal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8"/></FormControl>
+                                          <FormLabel className="text-xs">Facturación Final</FormLabel>
+                                          <FormControl><Input readOnly value={facturacionFinal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8 text-sm"/></FormControl>
                                       </FormItem>
                                       <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (
                                           <FormItem>
-                                          <FormLabel>% Agencia</FormLabel>
-                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8" /></FormControl>
+                                          <FormLabel className="text-xs">% Agencia</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
                                           </FormItem>
                                       )} />
-                                      <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
+                                      <FormField control={financialForm.control} name="agencyCommissionValue" render={({ field }) => (
                                           <FormItem>
-                                          <FormLabel>% Espacio</FormLabel>
-                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8" /></FormControl>
+                                          <FormLabel className="text-xs">Comisión Agencia (€)</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
+                                          </FormItem>
+                                      )} />
+                                       <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
+                                          <FormItem>
+                                          <FormLabel className="text-xs">% Espacio</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
+                                          </FormItem>
+                                      )} />
+                                        <FormField control={financialForm.control} name="spaceCommissionValue" render={({ field }) => (
+                                          <FormItem>
+                                          <FormLabel className="text-xs">Canon Espacio (€)</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
                                           </FormItem>
                                       )} />
                                   </div>
                               </form>
-                              <div className="space-y-4">
-                                  <h3 className="text-lg font-semibold border-b pb-2">Ajustes a la Facturación</h3>
+                              <div className="space-y-2">
+                                  <h3 className="text-base font-semibold border-b pb-1">Ajustes a la Facturación</h3>
                                   <div className="border rounded-lg">
                                       <Table>
                                           <TableBody>
                                               {ajustes.map(ajuste => (
                                               <TableRow key={ajuste.id}>
-                                                  <TableCell className="font-medium p-1">{ajuste.concepto}</TableCell>
-                                                  <TableCell className="text-right p-1">{ajuste.importe.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}</TableCell>
+                                                  <TableCell className="font-medium p-1 text-sm">{ajuste.concepto}</TableCell>
+                                                  <TableCell className="text-right p-1 text-sm">{ajuste.importe.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}</TableCell>
                                                   <TableCell className="w-12 text-right p-0 pr-1">
                                                       <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteAjuste(ajuste.id)}>
                                                           <Trash2 className="h-4 w-4" />
@@ -554,8 +570,8 @@ export default function ComercialPage() {
       </FormProvider>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between py-2">
-          <CardTitle className="text-lg">Briefing del Contrato</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Briefing del Contrato</CardTitle>
           <Button onClick={handleNewClick}><PlusCircle className="mr-2" /> Nuevo Hito</Button>
         </CardHeader>
         <CardContent>
@@ -563,38 +579,38 @@ export default function ComercialPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="py-2 px-3">Fecha</TableHead>
-                  <TableHead className="py-2 px-3">Inicio</TableHead>
-                  <TableHead className="py-2 px-3">Fin</TableHead>
-                  <TableHead className="py-2 px-3">Duración</TableHead>
-                  <TableHead className="py-2 px-3">Gastro</TableHead>
-                  <TableHead className="py-2 px-3">Descripción</TableHead>
-                  <TableHead className="py-2 px-3">Comentarios</TableHead>
-                  <TableHead className="py-2 px-3">Sala</TableHead>
-                  <TableHead className="py-2 px-3">Asistentes</TableHead>
-                  <TableHead className="py-2 px-3">P.Unitario</TableHead>
-                  <TableHead className="py-2 px-3">Imp. Fijo</TableHead>
-                  <TableHead className="py-2 px-3">Total</TableHead>
-                  <TableHead className="py-2 px-3 text-right">Acciones</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Inicio</TableHead>
+                  <TableHead>Fin</TableHead>
+                  <TableHead>Duración</TableHead>
+                  <TableHead>Gastro</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Comentarios</TableHead>
+                  <TableHead>Sala</TableHead>
+                  <TableHead>Asistentes</TableHead>
+                  <TableHead>P.Unitario</TableHead>
+                  <TableHead>Imp. Fijo</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sortedBriefingItems.length > 0 ? (
                   sortedBriefingItems.map(item => (
                     <TableRow key={item.id} onClick={() => handleRowClick(item)} className="cursor-pointer">
-                      <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
-                      <TableCell className="py-2 px-3">{item.horaInicio}</TableCell>
-                      <TableCell className="py-2 px-3">{item.horaFin}</TableCell>
-                      <TableCell className="py-2 px-3">{calculateDuration(item.horaInicio, item.horaFin)}</TableCell>
-                      <TableCell className="py-2 px-3">{item.conGastronomia ? <Check className="h-4 w-4" /> : null}</TableCell>
-                      <TableCell className="py-2 px-3 min-w-[200px]">{item.descripcion}</TableCell>
-                      <TableCell className="py-2 px-3 min-w-[200px]">{item.comentarios}</TableCell>
-                      <TableCell className="py-2 px-3">{item.sala}</TableCell>
-                      <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                      <TableCell className="py-2 px-3">{item.precioUnitario.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                      <TableCell className="py-2 px-3">{(item.importeFijo || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                      <TableCell className="py-2 px-3">{((item.asistentes * item.precioUnitario) + (item.importeFijo || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                      <TableCell className="py-2 px-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell>{item.horaInicio}</TableCell>
+                      <TableCell>{item.horaFin}</TableCell>
+                      <TableCell>{calculateDuration(item.horaInicio, item.horaFin)}</TableCell>
+                      <TableCell>{item.conGastronomia ? <Check className="h-4 w-4" /> : null}</TableCell>
+                      <TableCell className="min-w-[200px]">{item.descripcion}</TableCell>
+                      <TableCell className="min-w-[200px]">{item.comentarios}</TableCell>
+                      <TableCell>{item.sala}</TableCell>
+                      <TableCell>{item.asistentes}</TableCell>
+                      <TableCell>{item.precioUnitario.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                      <TableCell>{(item.importeFijo || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                      <TableCell>{((item.asistentes * item.precioUnitario) + (item.importeFijo || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem(item.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>

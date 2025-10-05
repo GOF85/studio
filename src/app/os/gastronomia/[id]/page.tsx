@@ -50,7 +50,6 @@ const statusVariant: { [key in MaterialOrder['status']]: 'default' | 'secondary'
 };
 
 export default function AlmacenPage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
@@ -62,18 +61,7 @@ export default function AlmacenPage() {
 
   useEffect(() => {
     if (!osId) return;
-
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
     
-    if (!currentOS) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
-        router.push('/pes');
-        return;
-    }
-    
-    setServiceOrder(currentOS);
-
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Almacén');
     setMaterialOrders(relatedOrders);
@@ -119,13 +107,13 @@ export default function AlmacenPage() {
     router.push(`/pedidos?osId=${osId}&type=Almacén&orderId=${order.id}`);
   }
 
-  if (!isMounted || !serviceOrder) {
+  if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
   }
 
   return (
     <>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-end mb-4">
         <Button asChild>
           <Link href={`/pedidos?osId=${osId}&type=Almacén`}>
             <PlusCircle className="mr-2" />
@@ -134,7 +122,7 @@ export default function AlmacenPage() {
         </Button>
       </div>
 
-      <Card className="mb-8">
+      <Card className="mb-4">
           <CardHeader><CardTitle>Artículos Totales del Módulo</CardTitle></CardHeader>
           <CardContent>
               <Tabs defaultValue="Asignado">
