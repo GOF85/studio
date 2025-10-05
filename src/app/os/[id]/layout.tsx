@@ -9,7 +9,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useEffect, useState, useMemo } from 'react';
 import type { ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetTrigger, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -98,8 +98,11 @@ function OSSubHeader() {
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
-                    <ScrollArea className="h-full py-6">
-                        <OSSidebarNav className="px-4" />
+                    <SheetHeader className="p-4 border-b">
+                       <SheetTitle>Módulos</SheetTitle>
+                    </SheetHeader>
+                    <ScrollArea className="h-full p-4">
+                        <OSSidebarNav />
                     </ScrollArea>
                 </SheetContent>
             </Sheet>
@@ -127,7 +130,7 @@ function OSSubHeader() {
 export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="container mx-auto">
-          <div className="grid lg:grid-cols-[180px_1fr] gap-8">
+          <div className="grid lg:grid-cols-[180px_1fr] gap-4">
               <aside className="hidden lg:block lg:sticky top-24 self-start h-[calc(100vh-7rem)] py-8">
                    <OSSidebarNav />
               </aside>
