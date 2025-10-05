@@ -8,7 +8,7 @@ import { ShoppingCart, Trash2, Minus, Plus, Calendar as CalendarIcon, FilePlus }
 import { format } from "date-fns";
 import { es } from 'date-fns/locale';
 
-import type { OrderItem, ServiceOrder } from '@/types';
+import type { OrderItem, ServiceOrder, PedidoPlantilla } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,20 +23,11 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
-import { ScrollArea } from '../ui/scroll-area';
 import { Combobox } from '../ui/combobox';
 
 export type ExistingOrderData = {
@@ -119,6 +110,10 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const handleSubmit = () => {
     if (!contractNumber) {
         toast({ variant: 'destructive', title: 'Error', description: 'El Nº de Contrato (Nº de Servicio de la OS) es obligatorio.' });
+        return;
+    }
+     if (!deliveryDate) {
+        toast({ variant: 'destructive', title: 'Error', description: 'La fecha de entrega es obligatoria.' });
         return;
     }
     onSubmitOrder({
@@ -255,7 +250,8 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                     <Input id="contract-number-dialog" value={contractNumber} onChange={(e) => setContractNumber(e.target.value)} placeholder="Nº de Servicio de la OS" readOnly />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="delivery-date-dialog">Fecha de Entrega</Label>
+                  <Label htmlFor="delivery-date-dialog" className="font-bold">Fecha de Entrega (Requerido)</Label>
+                  <p className="text-xs text-muted-foreground">Esta fecha es crucial para la planificación del almacén.</p>
                   <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                     <PopoverTrigger asChild>
                       <Button

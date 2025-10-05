@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -188,7 +189,7 @@ export default function PedidoAtipicoPage() {
                         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                            <FormField control={form.control} name="fecha" render={({ field }) => (
                                 <FormItem className="flex flex-col">
-                                    <FormLabel>Fecha del Gasto</FormLabel>
+                                    <FormLabel>Fecha de Entrega/Necesidad</FormLabel>
                                     <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                                     <PopoverTrigger asChild>
                                         <FormControl>

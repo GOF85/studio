@@ -250,7 +250,7 @@ export default function PedidoHieloPage() {
                                 <div className="grid md:grid-cols-2 gap-6">
                                     <FormField control={form.control} name="fecha" render={({ field }) => (
                                         <FormItem className="flex flex-col">
-                                            <FormLabel>Fecha del Servicio</FormLabel>
+                                            <FormLabel>Fecha de Entrega</FormLabel>
                                             <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                                             <PopoverTrigger asChild>
                                                 <FormControl>
