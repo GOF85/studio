@@ -127,9 +127,6 @@ export default function GastronomiaPage() {
                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Utensils />Módulo de Gastronomía</h1>
                 <p className="text-muted-foreground">OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
             </div>
-            <Button onClick={loadAndSyncOrders}>
-                Sincronizar con Briefing
-            </Button>
         </div>
 
         <Card>

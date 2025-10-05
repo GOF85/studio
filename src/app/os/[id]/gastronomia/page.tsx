@@ -1,8 +1,7 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSearchParams, useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { Utensils, ArrowLeft } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing, GastronomyOrder, GastronomyOrderStatus } from '@/types';
@@ -79,7 +78,6 @@ export default function GastronomiaPage() {
         const updatedAllOrders = [...otherOsGastroOrders, ...finalOrders];
         localStorage.setItem('gastronomyOrders', JSON.stringify(updatedAllOrders));
         setGastronomyOrders(finalOrders);
-        toast({ title: "Sincronizado", description: "Los pedidos de gastronomía se han actualizado desde el briefing comercial." });
     } else {
         setGastronomyOrders(osGastroOrders);
     }
@@ -109,12 +107,6 @@ export default function GastronomiaPage() {
 
   return (
     <>
-      <div className="flex items-center justify-end mb-4">
-            <Button onClick={loadAndSyncOrders}>
-                Sincronizar con Briefing
-            </Button>
-      </div>
-
         <Card>
             <CardHeader><CardTitle>Pedidos de Gastronomía Generados</CardTitle></CardHeader>
             <CardContent>
