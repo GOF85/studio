@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -24,6 +22,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -303,4 +302,3 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
     </Card>
   );
 }
-
