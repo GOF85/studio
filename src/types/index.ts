@@ -538,6 +538,17 @@ export type OrdenFabricacion = {
     fechaValidacionCalidad?: string;
     tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
 }
+
+export type PickingSheet = {
+    id: string; // Composite key: `${osId}-${fechaNecesidad}`
+    osId: string;
+    fechaNecesidad: string;
+    items: (OrderItem & { type: MaterialOrderType })[];
+    status: 'Pendiente' | 'En Proceso' | 'Listo';
+    checkedItems?: string[];
+    os?: ServiceOrder;
+};
+
 export type ContenedorIsotermo = {
     id: string;
     tipo: 'REFRIGERADO' | 'CONGELADO' | 'SECO';

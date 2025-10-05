@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -16,14 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { ServiceOrder } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-
-type EventoParaPicking = {
-    osId: string;
-    os: ServiceOrder;
-    fechaNecesidad: string;
-    totalItems: number; // Placeholder for now
-    estadoPicking: 'Pendiente' | 'En Proceso' | 'Listo'; // Placeholder
-}
+import { Badge } from '@/components/ui/badge';
+import type { PickingSheet } from '@/types';
 
 export default function GestionPickingPage() {
     const [isMounted, setIsMounted] = useState(false);
@@ -31,10 +26,9 @@ export default function GestionPickingPage() {
         from: startOfToday(),
         to: addDays(startOfToday(), 7),
     });
-    const [isLoading, setIsLoading] = useState(false);
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [eventos, setEventos] = useState<EventoParaPicking[]>([]);
+    const [pickingSheets, setPickingSheets] = useState<PickingSheet[]>([]);
     const router = useRouter();
 
     useEffect(() => {
@@ -42,35 +36,35 @@ export default function GestionPickingPage() {
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const serviceOrdersMap = new Map(allServiceOrders.map(os => [os.id, os]));
         
-        const allPickingSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
-        const initialEvents: EventoParaPicking[] = Object.values(allPickingSheets).map((sheet: any) => {
-            const os = serviceOrdersMap.get(sheet.osId);
-            return {
-                osId: sheet.osId,
-                os: os as ServiceOrder,
-                fechaNecesidad: sheet.fechaNecesidad,
-                totalItems: sheet.items.length,
-                estadoPicking: 'Pendiente'
-            }
-        }).filter(e => e.os); // Filter out events where OS might not be found
+        const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
+        const sheetsArray: PickingSheet[] = Object.values(allSheets).map(sheet => ({
+            ...sheet,
+            os: serviceOrdersMap.get(sheet.osId)
+        })).filter(sheet => sheet.os); // Filter out sheets without a valid OS
 
-        setEventos(initialEvents);
+        setPickingSheets(sheetsArray);
     }, []);
 
-    const filteredEvents = useMemo(() => {
-        return eventos.filter(evento => {
-            if (!evento.os) return false;
-            const osDate = new Date(evento.fechaNecesidad);
-            const isInDateRange = dateRange?.from && isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) });
-            const matchesSearch = evento.os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                 evento.os.client.toLowerCase().includes(searchTerm.toLowerCase());
+    const filteredSheets = useMemo(() => {
+        return pickingSheets.filter(sheet => {
+            if (!sheet.os) return false;
+            const sheetDate = new Date(sheet.fechaNecesidad);
+            const isInDateRange = dateRange?.from && isWithinInterval(sheetDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) });
+            const matchesSearch = sheet.os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                 sheet.os.client.toLowerCase().includes(searchTerm.toLowerCase());
             
             return isInDateRange && matchesSearch;
-        });
-    }, [eventos, dateRange, searchTerm]);
+        }).sort((a, b) => new Date(a.fechaNecesidad).getTime() - new Date(b.fechaNecesidad).getTime());
+    }, [pickingSheets, dateRange, searchTerm]);
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Gestión de Picking..." />;
+    }
+    
+    const getStatusVariant = (status: PickingSheet['status']): 'default' | 'secondary' | 'outline' => {
+        if(status === 'Listo') return 'default';
+        if(status === 'En Proceso') return 'outline';
+        return 'secondary'
     }
 
     return (
@@ -116,13 +110,15 @@ export default function GestionPickingPage() {
                         <Table>
                             <TableHeader><TableRow><TableHead>Nº Servicio</TableHead><TableHead>Cliente</TableHead><TableHead>Fecha Necesidad</TableHead><TableHead>Estado</TableHead><TableHead>Acción</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {filteredEvents.length > 0 ? (
-                                    filteredEvents.map(evento => (
-                                        <TableRow key={evento.os.id + evento.fechaNecesidad} onClick={() => router.push(`/almacen/picking/${evento.os.id}?fecha=${evento.fechaNecesidad}`)} className="cursor-pointer">
-                                            <TableCell>{evento.os.serviceNumber}</TableCell>
-                                            <TableCell>{evento.os.client}</TableCell>
-                                            <TableCell>{format(new Date(evento.fechaNecesidad), 'dd/MM/yyyy')}</TableCell>
-                                            <TableCell>{evento.estadoPicking}</TableCell>
+                                {filteredSheets.length > 0 ? (
+                                    filteredSheets.map(sheet => (
+                                        <TableRow key={sheet.id} onClick={() => router.push(`/almacen/picking/${sheet.osId}?fecha=${sheet.fechaNecesidad}`)} className="cursor-pointer">
+                                            <TableCell>{sheet.os?.serviceNumber}</TableCell>
+                                            <TableCell>{sheet.os?.client}</TableCell>
+                                            <TableCell>{format(new Date(sheet.fechaNecesidad), 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={getStatusVariant(sheet.status)}>{sheet.status}</Badge>
+                                            </TableCell>
                                             <TableCell>
                                                 <Button size="sm">Iniciar Picking</Button>
                                             </TableCell>
