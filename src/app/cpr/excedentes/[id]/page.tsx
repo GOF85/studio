@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -136,8 +137,8 @@ export default function ExcedenteDetailPage() {
                 </div>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 items-start">
-                <form onSubmit={handleSubmit(onSubmit)} className="lg:col-span-2 space-y-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+                <form onSubmit={handleSubmit(onSubmit)} className="lg:col-span-2 space-y-4">
                     <Card>
                         <CardHeader>
                             <CardTitle>Ajuste y Caducidad</CardTitle>
@@ -198,7 +199,7 @@ export default function ExcedenteDetailPage() {
                     </Card>
                 </form>
                 
-                <div className="space-y-6">
+                <div className="space-y-4">
                     <Card>
                         <CardHeader>
                             <CardTitle>Información del Lote</CardTitle>

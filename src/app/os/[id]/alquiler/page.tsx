@@ -113,7 +113,7 @@ export default function AlquilerPage() {
 
   return (
     <>
-      <div className="flex items-center justify-end mb-8">
+      <div className="flex items-center justify-end mb-4">
         <Button asChild>
           <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
             <PlusCircle className="mr-2" />
@@ -122,7 +122,7 @@ export default function AlquilerPage() {
         </Button>
       </div>
 
-      <Card className="mb-8">
+      <Card className="mb-4">
           <CardHeader><CardTitle>Artículos Totales del Módulo</CardTitle></CardHeader>
           <CardContent>
               <Tabs defaultValue="Asignado">

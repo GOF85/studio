@@ -93,7 +93,7 @@ export default function AtipicosPage() {
 
   return (
     <>
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex items-start justify-between mb-4">
         <Button asChild>
           <Link href={`/atipicos/pedido?osId=${osId}`}>
             <PlusCircle className="mr-2" />
@@ -137,10 +137,10 @@ export default function AtipicosPage() {
                                   </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => router.push(`/os/${osId}/atipicos/pedido?orderId=${order.id}`)}>
+                                  <DropdownMenuItem onClick={() => router.push(`/atipicos/pedido?osId=${osId}&orderId=${order.id}`)}>
                                       <Pencil className="mr-2 h-4 w-4" />
                                       Editar
-                                  DropdownMenuItem>
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem className="text-destructive" onClick={() => setOrderToDelete(order.id)}>
                                       <Trash2 className="mr-2 h-4 w-4" />
                                       Eliminar

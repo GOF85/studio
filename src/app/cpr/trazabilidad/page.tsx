@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -68,7 +69,7 @@ export default function TrazabilidadPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
             <History />
@@ -78,7 +79,7 @@ export default function TrazabilidadPage() {
         </div>
       </div>
 
-       <div className="flex flex-col md:flex-row gap-4 mb-6">
+       <div className="flex flex-col md:flex-row gap-4 mb-4">
         <div className="relative flex-grow">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -89,29 +90,12 @@ export default function TrazabilidadPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex items-center justify-end gap-2">
-            <span className="text-sm text-muted-foreground">
-                Página {currentPage} de {totalPages || 1}
-            </span>
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-            >
-                <ChevronLeft className="h-4 w-4" />
-                Anterior
-            </Button>
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages || totalPages === 0}
-            >
-                Siguiente
-                <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+      </div>
+      
+      <div className="flex items-center justify-end gap-2 mb-4">
+        <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
+        <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+        <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
       </div>
 
       <div className="border rounded-lg">
