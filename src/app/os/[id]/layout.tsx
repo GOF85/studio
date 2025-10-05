@@ -9,7 +9,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useEffect, useState, useMemo } from 'react';
 import type { ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetTrigger, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star } from 'lucide-react';
 
 type NavLink = {
@@ -97,10 +97,12 @@ function OSSubHeader() {
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-[220px] sm:w-[250px]">
-                    <div className="pb-4 mt-6">
-                        <h2 className="text-xl font-headline font-bold">Módulos</h2>
-                        <p className="text-sm text-muted-foreground">Gestión de la OS</p>
-                    </div>
+                    <SheetHeader className="pb-4 mt-6 text-left">
+                        <SheetTitle className="text-xl font-headline font-bold">Módulos</SheetTitle>
+                        <p className="text-sm text-muted-foreground">
+                            Gestión de la OS
+                        </p>
+                    </SheetHeader>
                     <OSSidebarNav />
                 </SheetContent>
             </Sheet>
