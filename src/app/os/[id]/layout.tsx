@@ -9,8 +9,9 @@ import type { LucideIcon } from 'lucide-react';
 import { useEffect, useState, useMemo } from 'react';
 import type { ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetTrigger, SheetContent } from '@/components/ui/sheet';
 import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type NavLink = {
     path: string;
@@ -91,19 +92,15 @@ function OSSubHeader() {
        <div className="lg:hidden">
             <Sheet>
                 <SheetTrigger asChild>
-                    <Button variant="outline" size="icon">
-                        <PanelLeft className="h-5 w-5" />
-                        <span className="sr-only">Abrir menú de módulos</span>
+                    <Button variant="outline">
+                        <PanelLeft className="h-5 w-5 mr-2" />
+                        Módulos
                     </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-[220px] sm:w-[250px]">
-                    <SheetHeader className="pb-4 mt-6 text-left">
-                        <SheetTitle className="text-xl font-headline font-bold">Módulos</SheetTitle>
-                        <p className="text-sm text-muted-foreground">
-                            Gestión de la OS
-                        </p>
-                    </SheetHeader>
-                    <OSSidebarNav />
+                <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
+                    <ScrollArea className="h-full py-6">
+                        <OSSidebarNav className="px-4" />
+                    </ScrollArea>
                 </SheetContent>
             </Sheet>
         </div>
@@ -130,17 +127,9 @@ function OSSubHeader() {
 export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="container mx-auto">
-          <div className="grid lg:grid-cols-[180px_1fr] gap-12">
+          <div className="grid lg:grid-cols-[180px_1fr] gap-8">
               <aside className="hidden lg:block lg:sticky top-24 self-start h-[calc(100vh-7rem)] py-8">
-                   <div className="w-full">
-                      <div className="pb-4">
-                          <h2 className="text-lg font-semibold tracking-tight">Módulos</h2>
-                          <p className="text-sm text-muted-foreground">
-                              Gestión de la OS
-                          </p>
-                      </div>
-                      <OSSidebarNav />
-                  </div>
+                   <OSSidebarNav />
               </aside>
               <main className="py-8">
                   <OSSubHeader />
