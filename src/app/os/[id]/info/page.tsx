@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
@@ -763,19 +764,25 @@ export default function InfoPage() {
               </form>
             </FormProvider>
              {isEditing && (
-                <Card className="mt-6 border-destructive bg-destructive/5">
-                    <CardHeader>
-                        <CardTitle className="text-destructive">Zona de Peligro</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
-                            <Trash2 className="mr-2" /> Eliminar Orden de Servicio
-                        </Button>
-                        <p className="text-xs text-destructive/80 mt-2">
-                            Esta acción es irreversible. Se eliminará la OS y todos los pedidos y datos asociados a ella.
-                        </p>
-                    </CardContent>
-                </Card>
+                 <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="danger-zone" className="border-none">
+                      <Card className="mt-4 border-destructive bg-destructive/5">
+                        <AccordionTrigger className="py-2 px-4">
+                          <CardTitle className="text-destructive text-base">Borrar OS</CardTitle>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="px-4 pb-4">
+                            <p className="text-sm text-destructive/80 mb-4">
+                              Esta acción es irreversible. Se eliminará la OS y todos los pedidos y datos asociados a ella.
+                            </p>
+                            <Button variant="destructive" type="button" onClick={() => setShowDeleteConfirm(true)}>
+                              <Trash2 className="mr-2" /> Eliminar Orden de Servicio
+                            </Button>
+                          </div>
+                        </AccordionContent>
+                      </Card>
+                    </AccordionItem>
+                  </Accordion>
             )}
           </main>
         
@@ -815,4 +822,3 @@ export default function InfoPage() {
     </>
   );
 }
-
