@@ -1,5 +1,3 @@
-
-
 import { z } from "zod";
 
 export type CateringItem = {
@@ -539,6 +537,12 @@ export type OrdenFabricacion = {
     tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
 }
 
+export type PickingItemState = {
+    checked: boolean;
+    pickedQuantity: number;
+    incidentComment?: string;
+};
+
 export type PickingSheet = {
     id: string; // Composite key: `${osId}-${fechaNecesidad}`
     osId: string;
@@ -546,6 +550,7 @@ export type PickingSheet = {
     items: (OrderItem & { type: MaterialOrderType })[];
     status: 'Pendiente' | 'En Proceso' | 'Listo';
     checkedItems?: string[];
+    itemStates?: Record<string, Omit<PickingItemState, 'itemCode'>>;
     os?: ServiceOrder;
 };
 
