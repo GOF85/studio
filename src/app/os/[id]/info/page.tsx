@@ -37,7 +37,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -406,9 +406,14 @@ export default function InfoPage() {
                         )} />
                     </div>
                     <div className="flex items-center gap-2">
-                        {isEditing && (
-                            <Button variant="destructive" size="sm" onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2"/>Borrar OS</Button>
-                        )}
+                        <FormField control={form.control} name="status" render={({ field }) => (
+                            <FormItem>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl><SelectTrigger className={cn("w-[150px] font-semibold h-9", statusValue === 'Confirmado' && 'bg-green-100 dark:bg-green-900 border-green-400', statusValue === 'Pendiente' && 'bg-red-100 dark:bg-red-900 border-red-400')}><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                <SelectContent><SelectItem value="Borrador">Borrador</SelectItem><SelectItem value="Pendiente">Pendiente</SelectItem><SelectItem value="Confirmado">Confirmado</SelectItem></SelectContent>
+                            </Select>
+                            </FormItem>
+                        )} />
                         <Button type="submit" form="os-form" size="sm" disabled={isLoading}>
                             {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                             <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar OS'}</span>
@@ -474,14 +479,6 @@ export default function InfoPage() {
                             <FormMessage />
                           </FormItem>
                       )} />
-                        <FormField control={form.control} name="status" render={({ field }) => (
-                            <FormItem className="self-end">
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl><SelectTrigger className={cn(statusValue === 'Confirmado' && 'bg-green-100 dark:bg-green-900 border-green-400', statusValue === 'Pendiente' && 'bg-red-100 dark:bg-red-900 border-red-400')}><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                <SelectContent><SelectItem value="Borrador">Borrador</SelectItem><SelectItem value="Pendiente">Pendiente</SelectItem><SelectItem value="Confirmado">Confirmado</SelectItem></SelectContent>
-                            </Select>
-                            </FormItem>
-                        )} />
                     </div>
                       <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-3 items-center pt-2">
                          <FormField control={form.control} name="asistentes" render={({ field }) => (
@@ -765,6 +762,21 @@ export default function InfoPage() {
                 </Card>
               </form>
             </FormProvider>
+             {isEditing && (
+                <Card className="mt-6 border-destructive bg-destructive/5">
+                    <CardHeader>
+                        <CardTitle className="text-destructive">Zona de Peligro</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
+                            <Trash2 className="mr-2" /> Eliminar Orden de Servicio
+                        </Button>
+                        <p className="text-xs text-destructive/80 mt-2">
+                            Esta acción es irreversible. Se eliminará la OS y todos los pedidos y datos asociados a ella.
+                        </p>
+                    </CardContent>
+                </Card>
+            )}
           </main>
         
       <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
@@ -804,4 +816,3 @@ export default function InfoPage() {
   );
 }
 
-    
