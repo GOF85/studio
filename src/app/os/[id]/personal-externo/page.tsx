@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -7,7 +8,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2 } from 'lucide-react';
+import { PlusCircle, Trash2, Save, Loader2, Users } from 'lucide-react';
 import type { PersonalExternoOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem, Proveedor, CategoriaPersonal, PersonalExternoAjuste } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,7 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { differenceInMinutes, parse, format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -282,16 +283,14 @@ export default function PersonalExternoPage() {
 
   return (
     <>
-      <div className="flex items-start justify-end mb-4">
-        <div className="flex gap-2">
-            <Button type="submit" form="personal-form" disabled={isLoading || !form.formState.isDirty}>
-                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                <span className="ml-2">Guardar Cambios</span>
-            </Button>
-        </div>
+      <div className="flex items-center justify-end mb-4">
+        <Button type="submit" form="personal-form" disabled={isLoading || !form.formState.isDirty}>
+            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+            <span className="ml-2">Guardar Cambios</span>
+        </Button>
       </div>
       
-       <Accordion type="single" collapsible className="w-full mb-4" >
+       <Accordion type="single" collapsible className="w-full mb-4">
           <AccordionItem value="item-1">
           <Card>
               <AccordionTrigger className="p-4">
@@ -558,7 +557,7 @@ export default function PersonalExternoPage() {
                                   </span>
                               </div>
                           </CardContent>
-                      </Card>
+                        </Card>
                   </CardFooter>
               )}
           </Card>
@@ -584,6 +583,6 @@ export default function PersonalExternoPage() {
           </AlertDialogFooter>
           </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }
