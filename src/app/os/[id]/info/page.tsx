@@ -5,7 +5,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, FormProvider, useWatch } from 'react-hook-form';
+import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -101,7 +101,8 @@ export const osFormSchema = z.object({
   facturacion: z.coerce.number().optional().default(0),
   plane: z.string().optional().default(''),
   comments: z.string().optional().default(''),
-  status: z.enum(['Borrador', 'Pendiente', 'Confirmado']).default('Borrador'),
+  status: z.enum(['Borrador', 'Pendiente', 'Confirmado', 'Anulado']).default('Borrador'),
+  anulacionMotivo: z.string().optional(),
   deliveryLocations: z.array(z.string()).optional().default([]),
   objetivoGastoId: z.string().optional(),
   direccionPrincipal: z.string().optional().default(''),
@@ -205,6 +206,10 @@ export default function InfoPage() {
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
+  const [isAnulacionDialogOpen, setIsAnulacionDialogOpen] = useState(false);
+  const [anulacionMotivo, setAnulacionMotivo] = useState("");
+  const [pendingStatus, setPendingStatus] = useState<OsFormValues['status'] | null>(null);
+
   
   const hasPruebaDeMenu = useMemo(() => {
     return briefingItems.some(item => item.descripcion.toLowerCase() === 'prueba de menu');
@@ -383,6 +388,30 @@ export default function InfoPage() {
   };
 
   const statusValue = watch("status");
+  const anulacionMotivoSaved = watch("anulacionMotivo");
+
+  const handleStatusChange = (value: OsFormValues['status']) => {
+    if (value === 'Anulado') {
+        setPendingStatus(value);
+        setIsAnulacionDialogOpen(true);
+    } else {
+        setValue('status', value, { shouldDirty: true });
+        setValue('anulacionMotivo', undefined, { shouldDirty: true });
+    }
+  }
+
+  const handleConfirmAnulacion = () => {
+      if (pendingStatus && anulacionMotivo.trim()) {
+          setValue('status', pendingStatus, { shouldDirty: true });
+          setValue('anulacionMotivo', anulacionMotivo, { shouldDirty: true });
+          setIsAnulacionDialogOpen(false);
+          setAnulacionMotivo("");
+          setPendingStatus(null);
+      } else {
+          toast({ variant: 'destructive', description: "El motivo de anulación no puede estar vacío."})
+      }
+  }
+
 
   if (!isMounted) {
     return <LoadingSkeleton title={isEditing ? 'Editando Orden de Servicio...' : 'Creando Orden de Servicio...'} />;
@@ -409,9 +438,14 @@ export default function InfoPage() {
                     <div className="flex items-center gap-2">
                         <FormField control={form.control} name="status" render={({ field }) => (
                             <FormItem>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl><SelectTrigger className={cn("w-[150px] font-semibold h-9", statusValue === 'Confirmado' && 'bg-green-100 dark:bg-green-900 border-green-400', statusValue === 'Pendiente' && 'bg-red-100 dark:bg-red-900 border-red-400')}><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                <SelectContent><SelectItem value="Borrador">Borrador</SelectItem><SelectItem value="Pendiente">Pendiente</SelectItem><SelectItem value="Confirmado">Confirmado</SelectItem></SelectContent>
+                            <Select onValueChange={handleStatusChange} value={field.value}>
+                                <FormControl><SelectTrigger className={cn("w-[150px] font-semibold h-9", statusValue === 'Confirmado' && 'bg-green-100 dark:bg-green-900 border-green-400', statusValue === 'Pendiente' && 'bg-yellow-100 dark:bg-yellow-800 border-yellow-400', statusValue === 'Anulado' && 'bg-destructive/20 text-destructive-foreground border-destructive/40')}><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                  <SelectItem value="Borrador">Borrador</SelectItem>
+                                  <SelectItem value="Pendiente">Pendiente</SelectItem>
+                                  <SelectItem value="Confirmado">Confirmado</SelectItem>
+                                  <SelectItem value="Anulado">Anulado</SelectItem>
+                                </SelectContent>
                             </Select>
                             </FormItem>
                         )} />
@@ -753,12 +787,18 @@ export default function InfoPage() {
                     <div className="space-y-4 pt-4 border-t">
                       <FormField control={form.control} name="comments" render={({ field }) => (
                           <FormItem>
-                              <FormLabel>Comentarios</FormLabel>
+                              <FormLabel>Comentarios Generales</FormLabel>
                               <FormControl><Textarea rows={4} {...field} /></FormControl>
                           </FormItem>
                       )} />
                     </div>
 
+                    {statusValue === 'Anulado' && (
+                        <div className="space-y-2 pt-4 border-t border-destructive">
+                            <h3 className="text-destructive font-bold">Motivo de Anulación</h3>
+                            <p className="text-muted-foreground p-4 bg-destructive/10 rounded-md">{anulacionMotivoSaved}</p>
+                        </div>
+                    )}
                   </CardContent>
                 </Card>
               </form>
@@ -768,7 +808,7 @@ export default function InfoPage() {
                     <AccordionItem value="danger-zone">
                       <Card className="mt-4 border-destructive bg-destructive/5">
                         <AccordionTrigger className="py-3 px-4 text-destructive hover:no-underline">
-                            <CardTitle className="text-destructive text-base flex items-center gap-2"><AlertTriangle/>Borrar OS</CardTitle>
+                            <div className="flex items-center gap-2"><AlertTriangle/>Borrar OS</div>
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="px-4 pb-4">
@@ -816,6 +856,29 @@ export default function InfoPage() {
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar Permanentemente</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        <AlertDialog open={isAnulacionDialogOpen} onOpenChange={setIsAnulacionDialogOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Vas a anular esta orden de servicio?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        ¿Es correcto? Indica, por favor, el motivo de la anulación.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <Textarea 
+                    placeholder="Escribe aquí el motivo de la anulación..."
+                    value={anulacionMotivo}
+                    onChange={(e) => setAnulacionMotivo(e.target.value)}
+                    rows={4}
+                />
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => {
+                        setIsAnulacionDialogOpen(false);
+                        form.setValue('status', form.getValues('status')); // revert select
+                    }}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirmAnulacion} disabled={!anulacionMotivo.trim()}>Confirmar Anulación</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

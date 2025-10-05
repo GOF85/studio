@@ -1,4 +1,5 @@
 
+
 import { z } from "zod";
 
 export type CateringItem = {
@@ -72,7 +73,8 @@ export type ServiceOrder = {
     facturacion: number;
     plane: string;
     comments: string;
-    status: 'Borrador' | 'Pendiente' | 'Confirmado';
+    status: 'Borrador' | 'Pendiente' | 'Confirmado' | 'Anulado';
+    anulacionMotivo?: string;
     deliveryTime?: string;
     deliveryLocations?: string[];
     objetivoGastoId?: string;
