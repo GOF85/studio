@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -62,8 +63,8 @@ type BriefingItemFormValues = z.infer<typeof briefingItemSchema>;
 
 const financialSchema = osFormSchema.pick({
     agencyPercentage: true,
-    agencyCommissionValue: true,
     spacePercentage: true,
+    agencyCommissionValue: true,
     spaceCommissionValue: true,
 });
 
@@ -469,7 +470,7 @@ export default function ComercialPage() {
     )
   }
 
-  if (!isMounted) {
+  if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo Comercial..." />;
   }
 

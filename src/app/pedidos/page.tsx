@@ -206,7 +206,7 @@ export default function PedidosPage() {
     else if (orderType === 'Bio') modulePath = 'bio';
     else if (orderType === 'Alquiler') modulePath = 'alquiler';
 
-    const destination = `/${modulePath}?osId=${osId}`;
+    const destination = `/os/${osId}/${modulePath}`;
     router.push(destination);
   };
 
