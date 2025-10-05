@@ -203,20 +203,20 @@ export default function PesPage() {
                             {os.serviceNumber}
                           </span>
                         </TooltipTrigger>
-                        {osBriefingItems && osBriefingItems.length > 0 && (
-                          <TooltipContent>
+                        <TooltipContent>
                             <div className="space-y-2 p-2 max-w-xs">
                               {os.isVip && <p className="font-bold text-amber-500 flex items-center gap-2"><Star className="h-4 w-4 fill-amber-500"/> Evento VIP</p>}
                               <h4 className="font-bold">{os.finalClient || os.client}</h4>
-                              {osBriefingItems.map(item => (
-                                <div key={item.id} className="text-sm">
-                                  <p className="font-medium flex items-center gap-1.5"><Clock className="h-3 w-3"/>{format(new Date(item.fecha), 'dd/MM/yy')} {item.horaInicio} - {item.descripcion}</p>
-                                  <p className="flex items-center gap-1 text-muted-foreground pl-5"><Users className="h-3 w-3"/>{item.asistentes} asistentes</p>
-                                </div>
-                              ))}
+                              {osBriefingItems && osBriefingItems.length > 0 ? (
+                                osBriefingItems.map(item => (
+                                  <div key={item.id} className="text-sm">
+                                    <p className="font-medium flex items-center gap-1.5"><Clock className="h-3 w-3"/>{format(new Date(item.fecha), 'dd/MM/yy')} {item.horaInicio} - {item.descripcion}</p>
+                                    <p className="flex items-center gap-1 text-muted-foreground pl-5"><Users className="h-3 w-3"/>{item.asistentes} asistentes</p>
+                                  </div>
+                                ))
+                              ) : <p className="text-xs text-muted-foreground">Sin servicios en el briefing.</p>}
                             </div>
                           </TooltipContent>
-                        )}
                       </Tooltip>
                     </TableCell>
                     <TableCell>
@@ -233,9 +233,22 @@ export default function PesPage() {
                     <TableCell>{os.client}</TableCell>
                     <TableCell>{os.asistentes}</TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant[os.status]}>
-                        {os.status}
-                      </Badge>
+                      {os.status === 'Anulado' && os.anulacionMotivo ? (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Badge variant={statusVariant[os.status]}>
+                              {os.status}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{os.anulacionMotivo}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Badge variant={statusVariant[os.status]}>
+                          {os.status}
+                        </Badge>
+                      )}
                     </TableCell>
                   </TableRow>
                 )})
