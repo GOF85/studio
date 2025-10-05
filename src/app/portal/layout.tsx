@@ -33,6 +33,7 @@ export default function PortalLayout({
 }) {
   return (
       <div className="no-print">
+          <PortalHeader />
           {children}
       </div>
   );

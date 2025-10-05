@@ -1,7 +1,7 @@
+
 'use client';
 
 import Link from 'next/link';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { BookHeart, ChefHat, Component, Package, GlassWater, ChevronRight, ChevronLeft, PlusCircle, Menu, Sprout } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
@@ -57,7 +57,6 @@ export default function BookDashboardPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-headline font-bold flex items-center gap-3"><BookHeart size={24}/>Book Gastronómico</h1>

@@ -1,7 +1,7 @@
+
 'use client';
 
 import Link from 'next/link';
-import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Database, Target, FilePlus2, Trash2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,6 @@ const configItems = [
 export default function ConfiguracionPage() {
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
          <div className="mb-12">
             <h1 className="text-4xl font-headline font-bold tracking-tight">Configuración del Sistema</h1>

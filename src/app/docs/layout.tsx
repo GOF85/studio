@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { LifeBuoy, Users, Code, BookOpen, Workflow, Database, Bot, Factory, BarChart3, ShieldCheck, Package, Award, GitBranch } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Header } from '@/components/layout/header';
 
 const DOC_VERSION = "0.3.0";
 const LAST_UPDATED = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -51,7 +50,6 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
 
     return (
         <>
-            <Header />
             <div className="container mx-auto">
                 <div className="grid lg:grid-cols-[280px_1fr] gap-12">
                     <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)] hidden lg:block">

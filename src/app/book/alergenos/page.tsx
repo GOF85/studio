@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -5,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { Sprout } from 'lucide-react';
 import type { Receta, ElaboracionEnReceta, Alergeno, CategoriaReceta } from '@/types';
 import { ALERGENOS } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -50,7 +50,6 @@ export default function AlergenosPage() {
 
   return (
     <TooltipProvider>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Sprout />Información de Alérgenos</h1>

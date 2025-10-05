@@ -5,8 +5,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Header } from '@/components/layout/header';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import type { OrdenFabricacion, Elaboracion, ServiceOrder, GastronomyOrder, Receta, ExcedenteProduccion } from '@/types';
 import { addDays, differenceInDays } from 'date-fns';
 import { cprNav } from '@/lib/cpr-nav';
@@ -99,7 +98,6 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <>
-        <Header />
         <div className="container mx-auto">
             <div className="grid lg:grid-cols-[250px_1fr] gap-12">
                 <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)] hidden lg:block">
