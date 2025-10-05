@@ -9,7 +9,7 @@ import { useEffect, useState, useMemo } from 'react';
 import type { ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu } from 'lucide-react';
+import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 
@@ -129,6 +129,14 @@ function OSSubHeader() {
                         <span className="font-semibold">{serviceOrder.space}</span>
                         </div>
                     )}
+                </div>
+                 <div className="flex items-center gap-2">
+                    <Button asChild variant="ghost" className="text-base gap-2">
+                        <Link href="/pes"><ClipboardList className="h-5 w-5 text-primary"/>PES</Link>
+                    </Button>
+                    <Button asChild variant="ghost" className="text-base gap-2">
+                        <Link href="/calendario"><Calendar className="h-5 w-5 text-primary"/>Calendario PES</Link>
+                    </Button>
                 </div>
             </div>
         </Card>
