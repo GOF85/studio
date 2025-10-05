@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday, isWithinInterval, startOfDay, endOfDay, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ClipboardList, Calendar as CalendarIcon, Factory, ChevronDown, Checkbox, ListChecks, Loader2 } from 'lucide-react';
+import { ClipboardList, Calendar as CalendarIcon, Factory, ChevronDown, ListChecks, Loader2, Warehouse } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -15,6 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { ServiceOrder, MaterialOrder, OrderItem, HieloOrder } from '@/types';
+import { Checkbox } from '@/components/ui/checkbox';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 type NecesidadItem = OrderItem & { osId: string; serviceNumber: string; deliverySpace: string; deliveryLocation: string };
 type NecesidadesPorTipo = {
