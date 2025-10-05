@@ -43,7 +43,7 @@ function OSSidebarNav({ className, onLinkClick }: { className?: string; onLinkCl
     const osId = params.id as string;
 
     return (
-        <nav className={cn("grid items-start gap-1", className)}>
+        <nav className={cn("grid items-start gap-1 pb-4", className)}>
           {navLinks.map((item, index) => {
               const href = `/os/${osId}/${item.path}`;
               return (
@@ -94,7 +94,7 @@ function OSSubHeader() {
         <Card>
              <div className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <div className="lg:hidden">
+                    <div>
                         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                             <SheetTrigger asChild>
                                 <Button variant="outline">
@@ -104,7 +104,7 @@ function OSSubHeader() {
                             </SheetTrigger>
                             <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
                                 <SheetHeader className="p-4 border-b">
-                                    <SheetTitle>Módulos</SheetTitle>
+                                  <SheetTitle>Módulos</SheetTitle>
                                 </SheetHeader>
                                 <ScrollArea className="h-full p-4">
                                     <OSSidebarNav onLinkClick={() => setIsSheetOpen(false)} />
@@ -140,10 +140,7 @@ function OSSubHeader() {
 export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="container mx-auto">
-          <div className="grid lg:grid-cols-[180px_1fr] gap-4">
-              <aside className="hidden lg:block lg:sticky top-20 self-start h-[calc(100vh-6rem)] py-4">
-                   <OSSidebarNav />
-              </aside>
+          <div className="grid lg:grid-cols-1 gap-2">
               <main className="py-4">
                   <OSSubHeader />
                   {children}

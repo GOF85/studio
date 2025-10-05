@@ -231,29 +231,7 @@ export default function PersonalMicePage() {
 
   return (
     <>
-      <main>
-        <div className="flex items-start justify-between mb-8">
-            <div>
-                <Button variant="ghost" size="sm" onClick={() => router.push(`/os?id=${osId}`)} className="mb-2">
-                    <ArrowLeft className="mr-2" />
-                    Volver a la OS
-                </Button>
-                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Módulo de Personal MICE</h1>
-                <div className="text-muted-foreground mt-2 space-y-1">
-                <p>OS: {serviceOrder.serviceNumber} - {serviceOrder.client}</p>
-                {serviceOrder.space && (
-                    <p className="flex items-center gap-2">
-                    <Building className="h-3 w-3" /> {serviceOrder.space} {spaceAddress && `(${spaceAddress})`}
-                    </p>
-                )}
-                {serviceOrder.respMetre && (
-                    <p className="flex items-center gap-2">
-                        Resp. Metre: {serviceOrder.respMetre} 
-                        {serviceOrder.respMetrePhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {serviceOrder.respMetrePhone}</span>}
-                    </p>
-                )}
-                </div>
-            </div>
+        <div className="flex items-start justify-end mb-4">
             <div className="flex gap-2">
                 <Button type="submit" form="personal-form" disabled={isLoading || !form.formState.isDirty}>
                     {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
@@ -262,10 +240,10 @@ export default function PersonalMicePage() {
             </div>
         </div>
         
-         <Accordion type="single" collapsible className="w-full mb-8">
+         <Accordion type="single" collapsible className="w-full mb-4" >
             <AccordionItem value="item-1">
             <Card>
-                <AccordionTrigger className="p-6">
+                <AccordionTrigger className="p-4">
                     <h3 className="text-xl font-semibold">Servicios del Evento</h3>
                 </AccordionTrigger>
                 <AccordionContent>
@@ -361,6 +339,7 @@ export default function PersonalMicePage() {
                                                         value={field.value}
                                                         onChange={(value) => handlePersonalChange(index, value)}
                                                         placeholder="Nombre..."
+                                                        onCreated={(value) => handlePersonalChange(index, value)}
                                                     />
                                                 </FormItem>
                                                 )}
@@ -461,27 +440,25 @@ export default function PersonalMicePage() {
         </form>
        </FormProvider>
 
-        <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
-            <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                <AlertDialogDescription>
-                Esta acción no se puede deshacer. Se eliminará la asignación de personal de la tabla.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setRowToDelete(null)}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                className="bg-destructive hover:bg-destructive/90"
-                onClick={handleDeleteRow}
-                >
-                Eliminar
-                </AlertDialogAction>
-            </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-
-      </main>
+      <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
+          <AlertDialogContent>
+          <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará la asignación de personal de la tabla.
+              </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setRowToDelete(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDeleteRow}
+              >
+              Eliminar
+              </AlertDialogAction>
+          </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
