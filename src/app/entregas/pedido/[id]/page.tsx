@@ -58,7 +58,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { osFormSchema } from '@/app/os/page';
+import { osFormSchema } from '@/app/os/[id]/info/page';
 
 
 export const entregaFormSchema = osFormSchema.extend({
@@ -226,7 +226,7 @@ const ClientInfo = () => {
                     <FormControl><Input {...field} /></FormControl>
                   </FormItem>
                 )} />
-                 <FormField control={control} name="email" render={({ field }) => (
+                 <FormField control={form.control} name="email" render={({ field }) => (
                     <FormItem><FormLabel>Email Principal</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                  <FormField control={control} name="direccionPrincipal" render={({ field }) => (
@@ -809,7 +809,7 @@ export default function EntregaFormPage() {
                         <CardTitle className="text-xl">Información General del Pedido</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3 pt-2">
-                         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                             <FormField control={control} name="serviceNumber" render={({ field }) => (
                                 <FormItem className="flex flex-col"><FormLabel>Nº Pedido</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
                             )} />
@@ -830,7 +830,7 @@ export default function EntregaFormPage() {
                              <FormField control={form.control} name="status" render={({ field }) => (
                                 <FormItem><FormLabel>Estado</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger className={cn(getValues('status') === 'Confirmado' && 'bg-green-100 dark:bg-green-900 border-green-400', getValues('status') === 'Pendiente' && 'bg-red-100 dark:bg-red-900 border-red-400')}><SelectValue/></SelectTrigger></FormControl>
+                                    <FormControl><SelectTrigger className={cn(getValues('status') === 'Confirmado' && 'bg-green-100 dark:bg-green-900 border-green-400', getValues('status') === 'Pendiente' && 'bg-yellow-100 dark:bg-yellow-800 border-yellow-400')}><SelectValue/></SelectTrigger></FormControl>
                                     <SelectContent><SelectItem value="Borrador">Borrador</SelectItem><SelectItem value="Confirmado">Confirmado</SelectItem><SelectItem value="Enviado">Enviado</SelectItem><SelectItem value="Entregado">Entregado</SelectItem></SelectContent>
                                     </Select>
                                 </FormItem>
