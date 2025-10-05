@@ -1,9 +1,10 @@
+
 'use client';
 
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, Calendar, BookHeart, Factory, Settings, ChefHat, Component, Package, GlassWater, ChevronRight, ClipboardCheck, ListChecks, History, AlertTriangle, PackagePlus, BarChart3, ShieldCheck, LifeBuoy, Sprout } from 'lucide-react';
+import { ClipboardList, Calendar, BookHeart, Factory, Settings, ChefHat, Component, Package, GlassWater, ChevronRight, ClipboardCheck, ListChecks, History, AlertTriangle, PackagePlus, BarChart3, ShieldCheck, LifeBuoy, Sprout, Warehouse } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
@@ -54,15 +55,14 @@ const mainMenuItems: MenuItem[] = [
         ]
     },
     { 
-        title: 'Configuración', 
-        href: '/configuracion', 
-        icon: Settings, 
-        description: 'Administra las bases de datos y plantillas del sistema.',
+        title: 'Almacén', 
+        href: '/almacen', 
+        icon: Warehouse, 
+        description: 'Gestiona picking, retornos y logística de material.',
         sublinks: [
-            { title: 'Bases de Datos', href: '/bd', icon: Package },
-            { title: 'Objetivos de Gasto', href: '/objetivos-gasto', icon: Package },
-            { title: 'Plantillas de Pedidos', href: '/plantillas-pedidos', icon: Package },
-            { title: 'Documentación', href: '/docs', icon: LifeBuoy },
+            { title: 'Planificación de Pedidos', href: '/almacen/planificacion', icon: ClipboardCheck },
+            { title: 'Gestión de Picking', href: '/almacen/picking', icon: ListChecks },
+            { title: 'Gestión de Retornos', href: '/almacen/retornos', icon: History },
         ]
     },
 ]
@@ -129,6 +129,41 @@ export default function DashboardPage() {
                       )}
                   </Card>
               ))}
+                <Card className="flex flex-col hover:border-primary/50 hover:shadow-lg transition-all">
+                    <Link href="/configuracion" className="flex-grow">
+                        <CardHeader className="flex-row items-start gap-4 space-y-0 pb-3">
+                              <Settings className="w-8 h-8 text-primary flex-shrink-0 mt-1" />
+                            <div>
+                                <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <CardTitle>Configuración</CardTitle>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Administra las bases de datos y plantillas del sistema.</p>
+                                </TooltipContent>
+                                </Tooltip>
+                            </div>
+                        </CardHeader>
+                    </Link>
+                    <CardContent className="flex-grow pt-0">
+                        <div className="border-t pt-2 mt-2">
+                                <Button asChild variant="ghost" className="w-full justify-start text-muted-foreground">
+                                    <Link href="/bd">
+                                        <Package className="w-4 h-4 mr-2" />
+                                        Bases de Datos
+                                        <ChevronRight className="w-4 h-4 ml-auto" />
+                                    </Link>
+                                </Button>
+                                 <Button asChild variant="ghost" className="w-full justify-start text-muted-foreground">
+                                    <Link href="/docs">
+                                        <LifeBuoy className="w-4 h-4 mr-2" />
+                                        Documentación
+                                        <ChevronRight className="w-4 h-4 ml-auto" />
+                                    </Link>
+                                </Button>
+                        </div>
+                    </CardContent>
+                </Card>
           </div>
         </main>
         <footer className="py-4 border-t mt-auto">
