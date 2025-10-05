@@ -39,6 +39,7 @@ export default function PlanificacionAlmacenPage() {
     const [necesidades, setNecesidades] = useState<NecesidadesPorDia[]>([]);
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const { toast } = useToast();
+    const router = useRouter();
 
     const calcularNecesidades = useCallback(() => {
         setIsLoading(true);
@@ -111,8 +112,54 @@ export default function PlanificacionAlmacenPage() {
         calcularNecesidades();
     }, [calcularNecesidades]);
 
+    const handleSelectItem = (id: string) => {
+        setSelectedItems(prev => {
+            const newSelection = new Set(prev);
+            if (newSelection.has(id)) {
+                newSelection.delete(id);
+            } else {
+                newSelection.add(id);
+            }
+            return newSelection;
+        });
+    }
+
     const handleGeneratePicking = () => {
-        toast({ title: "Funcionalidad en desarrollo", description: `Se generarían hojas de picking para ${selectedItems.size} artículos.` });
+        if (selectedItems.size === 0) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Selecciona al menos un artículo para generar una hoja de picking.' });
+            return;
+        }
+
+        const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
+        const itemsToProcess = Array.from(selectedItems);
+        
+        const sheetsToGenerate: Record<string, {osId: string, fechaNecesidad: string, items: any[]}> = {};
+
+        itemsToProcess.forEach(itemId => {
+            const [itemCode, osId, fecha, tipo] = itemId.split('__');
+            const sheetKey = `${osId}-${fecha}`;
+
+            if (!sheetsToGenerate[sheetKey]) {
+                sheetsToGenerate[sheetKey] = { osId, fechaNecesidad: fecha, items: [] };
+            }
+
+            const necesidadDia = necesidades.find(n => n.fecha === fecha);
+            const itemData = necesidadDia?.necesidades[tipo as keyof NecesidadesPorTipo]?.find(i => i.itemCode === itemCode && i.osId === osId);
+
+            if (itemData) {
+                 sheetsToGenerate[sheetKey].items.push(itemData);
+            }
+        });
+        
+        Object.values(sheetsToGenerate).forEach(sheet => {
+            const sheetKey = `${sheet.osId}-${sheet.fechaNecesidad}`;
+            allSheets[sheetKey] = sheet;
+        })
+
+        localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
+        
+        toast({ title: "Hojas de Picking Generadas", description: `Se han creado o actualizado ${Object.keys(sheetsToGenerate).length} hojas de picking.` });
+        router.push('/almacen/picking');
     }
 
     if (!isMounted) {
@@ -141,7 +188,7 @@ export default function PlanificacionAlmacenPage() {
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); setIsDatePickerOpen(false); }} numberOfMonths={2} locale={es} />
+                        <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range.to){ setIsDatePickerOpen(false) }}} numberOfMonths={2} locale={es} />
                     </PopoverContent>
                 </Popover>
                 <Button onClick={calcularNecesidades} disabled={isLoading}>
@@ -177,15 +224,17 @@ export default function PlanificacionAlmacenPage() {
                                                         <Table>
                                                             <TableHeader><TableRow><TableHead className="w-8"></TableHead><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead><TableHead>OS</TableHead><TableHead>Lugar</TableHead></TableRow></TableHeader>
                                                             <TableBody>
-                                                                {items.map((item, index) => (
-                                                                    <TableRow key={`${item.itemCode}-${index}`}>
-                                                                        <TableCell><Checkbox /></TableCell>
+                                                                {items.map((item, index) => {
+                                                                    const itemId = `${item.itemCode}__${item.osId}__${fecha}__${tipo}`;
+                                                                    return (
+                                                                    <TableRow key={itemId}>
+                                                                        <TableCell><Checkbox onCheckedChange={() => handleSelectItem(itemId)} checked={selectedItems.has(itemId)} /></TableCell>
                                                                         <TableCell>{item.description}</TableCell>
                                                                         <TableCell>{item.quantity}</TableCell>
                                                                         <TableCell>{item.serviceNumber}</TableCell>
                                                                         <TableCell>{item.deliverySpace} {item.deliveryLocation && `(${item.deliveryLocation})`}</TableCell>
                                                                     </TableRow>
-                                                                ))}
+                                                                )})}
                                                             </TableBody>
                                                         </Table>
                                                     </div>

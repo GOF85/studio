@@ -18,7 +18,9 @@ import type { ServiceOrder } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 type EventoParaPicking = {
+    osId: string;
     os: ServiceOrder;
+    fechaNecesidad: string;
     totalItems: number; // Placeholder for now
     estadoPicking: 'Pendiente' | 'En Proceso' | 'Listo'; // Placeholder
 }
@@ -33,24 +35,32 @@ export default function GestionPickingPage() {
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [eventos, setEventos] = useState<EventoParaPicking[]>([]);
+    const router = useRouter();
 
     useEffect(() => {
         setIsMounted(true);
-        // Cargar eventos iniciales
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const initialEvents = allServiceOrders
-            .filter(os => os.status === 'Confirmado')
-            .map(os => ({
-                os,
-                totalItems: 0, // Calculate this properly later
+        const serviceOrdersMap = new Map(allServiceOrders.map(os => [os.id, os]));
+        
+        const allPickingSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
+        const initialEvents: EventoParaPicking[] = Object.values(allPickingSheets).map((sheet: any) => {
+            const os = serviceOrdersMap.get(sheet.osId);
+            return {
+                osId: sheet.osId,
+                os: os as ServiceOrder,
+                fechaNecesidad: sheet.fechaNecesidad,
+                totalItems: sheet.items.length,
                 estadoPicking: 'Pendiente'
-            }));
+            }
+        }).filter(e => e.os); // Filter out events where OS might not be found
+
         setEventos(initialEvents);
     }, []);
 
     const filteredEvents = useMemo(() => {
         return eventos.filter(evento => {
-            const osDate = new Date(evento.os.startDate);
+            if (!evento.os) return false;
+            const osDate = new Date(evento.fechaNecesidad);
             const isInDateRange = dateRange?.from && isWithinInterval(osDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) });
             const matchesSearch = evento.os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                  evento.os.client.toLowerCase().includes(searchTerm.toLowerCase());
@@ -104,14 +114,14 @@ export default function GestionPickingPage() {
                 <CardContent>
                     <div className="border rounded-lg">
                         <Table>
-                            <TableHeader><TableRow><TableHead>Nº Servicio</TableHead><TableHead>Cliente</TableHead><TableHead>Fecha</TableHead><TableHead>Estado</TableHead><TableHead>Acción</TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead>Nº Servicio</TableHead><TableHead>Cliente</TableHead><TableHead>Fecha Necesidad</TableHead><TableHead>Estado</TableHead><TableHead>Acción</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {filteredEvents.length > 0 ? (
                                     filteredEvents.map(evento => (
-                                        <TableRow key={evento.os.id}>
+                                        <TableRow key={evento.os.id + evento.fechaNecesidad} onClick={() => router.push(`/almacen/picking/${evento.os.id}?fecha=${evento.fechaNecesidad}`)} className="cursor-pointer">
                                             <TableCell>{evento.os.serviceNumber}</TableCell>
                                             <TableCell>{evento.os.client}</TableCell>
-                                            <TableCell>{format(new Date(evento.os.startDate), 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell>{format(new Date(evento.fechaNecesidad), 'dd/MM/yyyy')}</TableCell>
                                             <TableCell>{evento.estadoPicking}</TableCell>
                                             <TableCell>
                                                 <Button size="sm">Iniciar Picking</Button>
@@ -121,7 +131,7 @@ export default function GestionPickingPage() {
                                 ) : (
                                      <TableRow>
                                         <TableCell colSpan={5} className="h-24 text-center">
-                                            No hay eventos para preparar en las fechas seleccionadas.
+                                            No hay hojas de picking en las fechas seleccionadas.
                                         </TableCell>
                                     </TableRow>
                                 )}
