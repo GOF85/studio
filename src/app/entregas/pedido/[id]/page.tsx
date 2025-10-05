@@ -226,7 +226,7 @@ const ClientInfo = () => {
                     <FormControl><Input {...field} /></FormControl>
                   </FormItem>
                 )} />
-                 <FormField control={form.control} name="email" render={({ field }) => (
+                 <FormField control={control} name="email" render={({ field }) => (
                     <FormItem><FormLabel>Email Principal</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                  <FormField control={control} name="direccionPrincipal" render={({ field }) => (
@@ -382,6 +382,7 @@ export default function EntregaFormPage() {
   const [hitos, setHitos] = useState<EntregaHito[]>([]);
   const [transporteOrders, setTransporteOrders] = useState<TransporteOrder[]>([]);
   const [startDateOpen, setStartDateOpen] = useState(false);
+  const [endDateOpen, setEndDateOpen] = useState(false);
   
   const form = useForm<EntregaFormValues>({
     resolver: zodResolver(entregaFormSchema),
@@ -430,7 +431,7 @@ export default function EntregaFormPage() {
 
       if (currentEntrega) {
         reset({
-            ...defaultValues,
+            ...defaultValues, // Ensure all keys are present
             ...currentEntrega,
             startDate: new Date(currentEntrega.startDate),
             endDate: new Date(currentEntrega.endDate)
@@ -836,32 +837,33 @@ export default function EntregaFormPage() {
                                 </FormItem>
                             )} />
                         </div>
+                    
+                       <Accordion type="single" defaultValue="cliente-info" collapsible className="w-full space-y-4 pt-3">
+                          <AccordionItem value="cliente-info" className="border-none">
+                          <Card>
+                            <AccordionTrigger className="p-0"><ClienteTitle /></AccordionTrigger>
+                            <ClientInfo />
+                          </Card>
+                          </AccordionItem>
+                          <AccordionItem value="financial-info" className="border-none">
+                            <Card>
+                                 <AccordionTrigger className="p-0"><FinancialTitle pvpBruto={pvpTotalHitos} /></AccordionTrigger>
+                                 <AccordionContent>
+                                    <div className="p-4 pt-2 space-y-4">
+                                      <div className="flex flex-wrap items-center gap-4">
+                                          <FormField control={control} name="agencyPercentage" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (%)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
+                                          <FormField control={control} name="agencyCommissionValue" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (€)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
+                                          <FormField control={control} name="spacePercentage" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (%)</FormLabel><FormControl><Input type="number" {...field} className="w-28" readOnly={tarifa === 'IFEMA'} /></FormControl></FormItem>)} />
+                                          <FormField control={control} name="spaceCommissionValue" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (€)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
+                                      </div>
+                                    </div>
+                                 </AccordionContent>
+                            </Card>
+                        </AccordionItem>
+                        </Accordion>
                     </CardContent>
                 </Card>
                 
-                 <Accordion type="single" defaultValue="cliente-info" collapsible className="w-full space-y-4">
-                    <AccordionItem value="cliente-info" className="border-none">
-                        <Card>
-                            <AccordionTrigger className="p-0"><ClienteTitle /></AccordionTrigger>
-                            <ClientInfo />
-                        </Card>
-                    </AccordionItem>
-                    <AccordionItem value="financial-info" className="border-none">
-                        <Card>
-                             <AccordionTrigger className="p-0"><FinancialTitle pvpBruto={pvpTotalHitos} /></AccordionTrigger>
-                             <AccordionContent>
-                                <div className="p-4 pt-2 space-y-4">
-                                  <div className="flex flex-wrap items-center gap-4">
-                                      <FormField control={control} name="agencyPercentage" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (%)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
-                                      <FormField control={control} name="agencyCommissionValue" render={({ field }) => (<FormItem><FormLabel>Comisión Agencia (€)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
-                                      <FormField control={control} name="spacePercentage" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (%)</FormLabel><FormControl><Input type="number" {...field} className="w-28" readOnly={tarifa === 'IFEMA'} /></FormControl></FormItem>)} />
-                                      <FormField control={control} name="spaceCommissionValue" render={({ field }) => (<FormItem><FormLabel>Canon Espacio (€)</FormLabel><FormControl><Input type="number" {...field} className="w-28"/></FormControl></FormItem>)} />
-                                  </div>
-                                </div>
-                             </AccordionContent>
-                        </Card>
-                    </AccordionItem>
-                </Accordion>
               </form>
             </FormProvider>
             
