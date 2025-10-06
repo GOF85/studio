@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -30,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { Combobox } from '../ui/combobox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 export type ExistingOrderData = {
     days: number;
@@ -37,12 +37,13 @@ export type ExistingOrderData = {
     deliveryDate?: string;
     deliverySpace?: string;
     deliveryLocation?: string;
+    solicita?: 'Sala' | 'Cocina';
 }
 interface OrderSummaryProps {
   items: OrderItem[];
   onUpdateQuantity: (itemCode: string, quantity: number) => void;
   onRemoveItem: (itemCode: string) => void;
-  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber: string, deliveryDate?: string, deliverySpace?: string, deliveryLocation?: string }) => void;
+  onSubmitOrder: (finalOrder: { items: OrderItem[], days: number, total: number, contractNumber: string, deliveryDate?: string, deliverySpace?: string, deliveryLocation?: string, solicita?: 'Sala' | 'Cocina' }) => void;
   onClearOrder: () => void;
   isEditing?: boolean;
   serviceOrder: ServiceOrder | null;
@@ -67,10 +68,11 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
   const [deliverySpace, setDeliverySpace] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
+  const [solicita, setSolicita] = useState<'Sala' | 'Cocina' | undefined>();
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { toast } = useToast();
 
-  const isRental = orderType !== 'Bebida' && orderType !== 'Bio';
+  const isRental = orderType === 'Alquiler';
 
   useEffect(() => {
     if (isEditing && existingOrderData) {
@@ -79,6 +81,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
         setDeliveryDate(existingOrderData.deliveryDate ? new Date(existingOrderData.deliveryDate) : new Date());
         setDeliverySpace(existingOrderData.deliverySpace || '');
         setDeliveryLocation(existingOrderData.deliveryLocation || '');
+        setSolicita(existingOrderData.solicita);
     } else if (serviceOrder) {
       setContractNumber(serviceOrder.serviceNumber || '');
       setDeliverySpace(serviceOrder.space || '');
@@ -125,6 +128,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
       deliveryDate: deliveryDate ? format(deliveryDate, "yyyy-MM-dd") : undefined,
       deliverySpace,
       deliveryLocation,
+      solicita,
     });
     setReviewOpen(false);
   };
@@ -221,74 +225,83 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
               {isEditing ? 'Actualizar Pedido' : 'Guardar Pedido'}
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>{isEditing ? 'Actualizar Pedido de Material' : 'Guardar Pedido de Material'}</DialogTitle>
               <DialogDescription>
                 Revisa los detalles y confirma para guardar el pedido en la Orden de Servicio.
               </DialogDescription>
             </DialogHeader>
-             <div className="space-y-4 py-4">
-                <ul className="space-y-2 max-h-48 overflow-y-auto">
-                    {items.map(item => (
-                        <li key={item.itemCode} className="flex justify-between items-center text-sm">
-                            <span>{item.quantity} x {item.description}</span>
-                            <span>{(item.quantity * item.price).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-                        </li>
-                    ))}
-                </ul>
-                <Separator />
-                <div className="space-y-1 text-sm">
-                    <div className="flex justify-between"><span>Subtotal:</span> <span>{subtotal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></div>
-                    {isRental && 
-                      <div className="flex justify-between"><span>Días de alquiler:</span> <span>x{rentalDays}</span></div>
-                    }
-                    <div className="flex justify-between font-bold text-base pt-2"><span>Total Pedido:</span> <span>{total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></div>
+             <div className="grid grid-cols-2 gap-x-8 py-4">
+                <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="delivery-date-dialog" className="font-bold">Fecha de Entrega</Label>
+                      <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            id="delivery-date-dialog"
+                            variant={"outline"}
+                            className={cn("w-full justify-start text-left font-normal", !deliveryDate && "text-muted-foreground")}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {deliveryDate ? format(deliveryDate, "PPP", { locale: es }) : <span>Elige una fecha</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={deliveryDate}
+                            onSelect={(date) => { setDeliveryDate(date); setIsCalendarOpen(false); }}
+                            initialFocus
+                            locale={es}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="delivery-space-dialog">Lugar de Entrega</Label>
+                        <Input id="delivery-space-dialog" value={deliverySpace} readOnly placeholder="Espacio definido en la OS" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="delivery-location-dialog">Localización</Label>
+                        <Combobox
+                          options={locationOptions}
+                          value={deliveryLocation}
+                          onChange={handleLocationChange}
+                          placeholder="Busca o crea una localización..."
+                          searchPlaceholder="Buscar localización..."
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Solicita</Label>
+                        <Select onValueChange={(value: 'Sala' | 'Cocina') => setSolicita(value)} value={solicita}>
+                            <SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Sala">Sala</SelectItem>
+                                <SelectItem value="Cocina">Cocina</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
-                 <Separator />
-                  <div className="space-y-2">
-                    <Label htmlFor="contract-number-dialog">Número de Contrato</Label>
-                    <Input id="contract-number-dialog" value={contractNumber} onChange={(e) => setContractNumber(e.target.value)} placeholder="Nº de Servicio de la OS" readOnly />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="delivery-date-dialog" className="font-bold">Fecha de Entrega (Requerido)</Label>
-                  <p className="text-xs text-muted-foreground">Esta fecha es crucial para la planificación del almacén.</p>
-                  <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="delivery-date-dialog"
-                        variant={"outline"}
-                        className={cn("w-full justify-start text-left font-normal", !deliveryDate && "text-muted-foreground")}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {deliveryDate ? format(deliveryDate, "PPP", { locale: es }) : <span>Elige una fecha</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={deliveryDate}
-                        onSelect={(date) => { setDeliveryDate(date); setIsCalendarOpen(false); }}
-                        initialFocus
-                        locale={es}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="delivery-space-dialog">Lugar de Entrega</Label>
-                    <Input id="delivery-space-dialog" value={deliverySpace} readOnly placeholder="Espacio definido en la OS" />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="delivery-location-dialog">Localización</Label>
-                    <Combobox
-                      options={locationOptions}
-                      value={deliveryLocation}
-                      onChange={handleLocationChange}
-                      placeholder="Busca o crea una localización..."
-                      searchPlaceholder="Buscar localización..."
-                    />
-                </div>
+                 <div className="space-y-4">
+                    <h4 className="font-semibold">Resumen del Pedido</h4>
+                    <ul className="space-y-2 max-h-48 overflow-y-auto border p-2 rounded-md">
+                        {items.map(item => (
+                            <li key={item.itemCode} className="flex justify-between items-center text-sm">
+                                <span>{item.quantity} x {item.description}</span>
+                                <span>{(item.quantity * item.price).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                            </li>
+                        ))}
+                    </ul>
+                    <Separator />
+                    <div className="space-y-1 text-sm">
+                        <div className="flex justify-between"><span>Subtotal:</span> <span>{subtotal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></div>
+                        {isRental && 
+                          <div className="flex justify-between"><span>Días de alquiler:</span> <span>x{rentalDays}</span></div>
+                        }
+                        <div className="flex justify-between font-bold text-base pt-2"><span>Total Pedido:</span> <span>{total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></div>
+                    </div>
+                 </div>
             </div>
             <DialogFooter>
               <DialogClose asChild>
