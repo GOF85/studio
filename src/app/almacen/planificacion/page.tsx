@@ -113,7 +113,7 @@ export default function PlanificacionAlmacenPage() {
                             necesidadesPorDia[dateKey] = {};
                         }
                         
-                        const osKey = `${os.id}__${solicitante || 'general'}`;
+                        const osKey = `${os.id}__${dateKey}__${solicitante || 'general'}`;
 
                         if (!necesidadesPorDia[dateKey][osKey]) {
                             necesidadesPorDia[dateKey][osKey] = { os, necesidades: { 'Almacen': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] }, totalItems: 0, solicitante };
@@ -255,7 +255,7 @@ export default function PlanificacionAlmacenPage() {
             }
 
             const necesidadDia = necesidades.find(n => n.fecha === fecha);
-            const osKey = `${osId}__${solicitante || 'general'}`;
+            const osKey = `${osId}__${fecha}__${solicitante || 'general'}`;
             const osData = necesidadDia?.ordenes[osKey];
             const itemData = osData?.necesidades[tipo as keyof NecesidadesPorTipo]?.find(i => i.itemCode === itemCode && i.osId === osId);
 
