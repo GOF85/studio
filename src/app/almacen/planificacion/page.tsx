@@ -120,13 +120,17 @@ export default function PlanificacionAlmacenPage() {
         setNecesidades(resultado);
         setIsLoading(false);
     }, [dateRange, toast]);
+    
+    useEffect(() => {
+        if(isMounted) {
+            calcularNecesidades();
+        }
+    }, [dateRange, isMounted]);
 
     useEffect(() => {
         setIsMounted(true);
-        if (dateRange?.from) {
-            calcularNecesidades();
-        }
-    }, [dateRange]);
+    }, []);
+
 
     const handleSelectItem = (id: string) => {
         setSelectedItems(prev => {
@@ -273,10 +277,6 @@ export default function PlanificacionAlmacenPage() {
                         <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range.to){ setIsDatePickerOpen(false) }}} numberOfMonths={2} locale={es} />
                     </PopoverContent>
                 </Popover>
-                <Button onClick={calcularNecesidades} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin mr-2"/> : <CalendarIcon className="mr-2" />}
-                    {isLoading ? 'Calculando...' : 'Calcular Necesidades'}
-                </Button>
             </div>
 
             {isLoading ? <div className="flex justify-center items-center h-48"><Loader2 className="mx-auto animate-spin text-primary" size={48} /></div>
