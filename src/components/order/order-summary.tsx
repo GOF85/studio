@@ -1,3 +1,5 @@
+
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -68,7 +70,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const { toast } = useToast();
 
-  const isRental = orderType !== 'Bodega' && orderType !== 'Bio';
+  const isRental = orderType !== 'Bebida' && orderType !== 'Bio';
 
   useEffect(() => {
     if (isEditing && existingOrderData) {

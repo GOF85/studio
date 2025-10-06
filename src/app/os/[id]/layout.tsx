@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -23,10 +24,10 @@ const navLinks: NavLink[] = [
     { path: 'info', title: 'Información OS', icon: FileText },
     { path: 'comercial', title: 'Comercial', icon: Briefcase },
     { path: 'gastronomia', title: 'Gastronomía', icon: Utensils },
-    { path: 'bodega', title: 'Bodega', icon: Wine },
+    { path: 'bodega', title: 'Bebida', icon: Wine },
     { path: 'hielo', title: 'Hielo', icon: Snowflake },
     { path: 'bio', title: 'Bio (Consumibles)', icon: Leaf },
-    { path: 'almacen', title: 'Almacén', icon: Warehouse },
+    { path: 'almacen', title: 'Almacen', icon: Warehouse },
     { path: 'alquiler', title: 'Alquiler', icon: Archive },
     { path: 'decoracion', title: 'Decoración', icon: Flower2 },
     { path: 'atipicos', title: 'Atípicos', icon: FilePlus },
