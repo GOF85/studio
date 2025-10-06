@@ -172,6 +172,14 @@ export default function PlanificacionAlmacenPage() {
         });
         return allSelected;
     };
+    
+    const numSheetsToGenerate = useMemo(() => {
+        const sheetsKeys = new Set(Array.from(selectedItems).map(id => {
+            const [,, osId, fecha] = id.split('__');
+            return `${osId}__${fecha}`;
+        }));
+        return sheetsKeys.size;
+    }, [selectedItems]);
 
 
     const handleGeneratePicking = () => {
@@ -181,6 +189,7 @@ export default function PlanificacionAlmacenPage() {
         }
 
         const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const itemsToProcess = Array.from(selectedItems);
         
         const sheetsToGenerate: Record<string, {osId: string, fechaNecesidad: string, items: any[]}> = {};
@@ -236,8 +245,8 @@ export default function PlanificacionAlmacenPage() {
                     <ClipboardList /> Planificación de Necesidades
                 </h1>
                 <div className="flex items-center gap-4">
-                     <Button onClick={handleGeneratePicking} disabled={selectedItems.size === 0}>
-                        <ListChecks className="mr-2"/> Generar Hoja de Picking ({selectedItems.size})
+                     <Button onClick={handleGeneratePicking} disabled={numSheetsToGenerate === 0}>
+                        <ListChecks className="mr-2"/> Generar Hoja de Picking ({numSheetsToGenerate})
                      </Button>
                 </div>
             </div>
