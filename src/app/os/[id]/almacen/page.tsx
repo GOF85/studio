@@ -4,38 +4,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
-import type { MaterialOrder, ServiceOrder, OrderItem, PickingSheet } from '@/types';
+import { PlusCircle } from 'lucide-react';
+import type { MaterialOrder, OrderItem, PickingSheet } from '@/types';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { format } from 'date-fns';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 type ItemWithOrderInfo = OrderItem & {
@@ -43,22 +16,22 @@ type ItemWithOrderInfo = OrderItem & {
   orderStatus: PickingSheet['status'];
 };
 
-const statusVariant: { [key in PickingSheet['status']]: 'default' | 'secondary' | 'outline' } = {
-  Pendiente: 'secondary',
-  'En Proceso': 'outline',
-  Listo: 'default',
-};
+type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
+
+const statusMap: Record<PickingSheet['status'], StatusColumn> = {
+    'Pendiente': 'En Preparación',
+    'En Proceso': 'En Preparación',
+    'Listo': 'Listo',
+}
 
 export default function AlmacenPage() {
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [pickingSheets, setPickingSheets] = useState<PickingSheet[]>([]);
   
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
-  const { toast } = useToast();
 
   useEffect(() => {
     if (!osId) return;
@@ -71,21 +44,21 @@ export default function AlmacenPage() {
     setPickingSheets(allPickingSheets.filter(sheet => sheet.osId === osId));
 
     setIsMounted(true);
-  }, [osId, router, toast]);
+  }, [osId]);
 
   const allItemsByStatus = useMemo(() => {
-    const items: { [key in PickingSheet['status'] | 'Asignado']: ItemWithOrderInfo[] } = {
+    const items: Record<StatusColumn, ItemWithOrderInfo[]> = {
       Asignado: [],
-      'Pendiente': [],
-      'En Proceso': [],
+      'En Preparación': [],
       Listo: [],
     };
     
     const pickedItemCodes = new Set<string>();
     pickingSheets.forEach(sheet => {
+        const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
              if (item.type === 'Almacen') {
-                 items[sheet.status].push({
+                 items[targetStatus].push({
                     ...item,
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
@@ -101,7 +74,7 @@ export default function AlmacenPage() {
                 items['Asignado'].push({
                     ...item,
                     orderContract: order.contractNumber || 'N/A',
-                    orderStatus: 'Pendiente', // Not in a sheet yet
+                    orderStatus: 'Pendiente',
                 });
             }
         });
@@ -109,29 +82,31 @@ export default function AlmacenPage() {
     return items;
   }, [materialOrders, pickingSheets]);
 
-  const handleDelete = () => {
-    if (!orderToDelete) return;
-
-    let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
-    localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
-    setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Almacen'));
-    
-    toast({ title: 'Pedido de material eliminado' });
-    setOrderToDelete(null);
-  };
-  
-  const handleEdit = (order: MaterialOrder) => {
-    if (order.status !== 'Asignado') {
-      toast({ variant: 'destructive', title: 'No permitido', description: 'Solo se pueden editar pedidos en estado "Asignado".'});
-      return;
-    }
-    router.push(`/pedidos?osId=${osId}&type=Almacen&orderId=${order.id}`);
-  }
-
   if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Módulo de Almacen..." />;
+    return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
   }
+
+  const renderColumn = (title: string, items: ItemWithOrderInfo[], columnType: StatusColumn) => (
+    <Card className="flex-1 bg-muted/30">
+        <CardHeader className="pb-4">
+            <CardTitle className="text-lg flex items-center justify-between">
+                {title}
+                <Badge variant={columnType === 'Listo' ? 'default' : 'secondary'} className="text-sm">{items.length}</Badge>
+            </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+            {items.length > 0 ? items.map((item, index) => (
+                <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-3">
+                    <p className="font-semibold">{item.description}</p>
+                    <div className="flex justify-between items-center text-sm text-muted-foreground">
+                        <span>Cantidad: {item.quantity}</span>
+                        {columnType !== 'Asignado' && <Badge variant="outline">{item.orderContract}</Badge>}
+                    </div>
+                </Card>
+            )) : <p className="text-sm text-muted-foreground text-center py-4">No hay artículos.</p>}
+        </CardContent>
+    </Card>
+  );
 
   return (
     <>
@@ -139,56 +114,16 @@ export default function AlmacenPage() {
         <Button asChild>
           <Link href={`/pedidos?osId=${osId}&type=Almacen`}>
             <PlusCircle className="mr-2" />
-            Nuevo Pedido de Almacen
+            Nuevo Pedido de Almacén
           </Link>
         </Button>
       </div>
-
-      <Card className="mb-6">
-          <CardHeader><CardTitle>Artículos Totales del Módulo por Estado de Picking</CardTitle></CardHeader>
-          <CardContent>
-              <Tabs defaultValue="Asignado">
-                  <TabsList>
-                      <TabsTrigger value="Asignado">Asignado ({allItemsByStatus['Asignado'].length})</TabsTrigger>
-                      <TabsTrigger value="Pendiente">Picking Pendiente ({allItemsByStatus['Pendiente'].length})</TabsTrigger>
-                      <TabsTrigger value="En Proceso">En Preparación ({allItemsByStatus['En Proceso'].length})</TabsTrigger>
-                      <TabsTrigger value="Listo">Listo para Servir ({allItemsByStatus['Listo'].length})</TabsTrigger>
-                  </TabsList>
-                  {(Object.keys(allItemsByStatus) as Array<keyof typeof allItemsByStatus>).map(status => (
-                      <TabsContent key={status} value={status}>
-                           <div className="border rounded-lg mt-4">
-                              <Table>
-                                  <TableHeader>
-                                      <TableRow>
-                                          <TableHead>Artículo</TableHead>
-                                          <TableHead>Cantidad</TableHead>
-                                          <TableHead>Ref. Hoja Picking</TableHead>
-                                      </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                      {allItemsByStatus[status].length > 0 ? (
-                                          allItemsByStatus[status].map((item, index) => (
-                                              <TableRow key={`${item.itemCode}-${item.orderContract}-${index}`}>
-                                                  <TableCell className="font-medium">{item.description}</TableCell>
-                                                  <TableCell>{item.quantity}</TableCell>
-                                                  <TableCell><Badge variant="outline">{item.orderContract}</Badge></TableCell>
-                                              </TableRow>
-                                          ))
-                                      ) : (
-                                          <TableRow>
-                                              <TableCell colSpan={3} className="h-24 text-center">
-                                                  No hay artículos en estado "{status}".
-                                              </TableCell>
-                                          </TableRow>
-                                      )}
-                                  </TableBody>
-                              </Table>
-                          </div>
-                      </TabsContent>
-                  ))}
-              </Tabs>
-          </CardContent>
-      </Card>
+      
+       <div className="grid md:grid-cols-3 gap-6">
+            {renderColumn('Asignado', allItemsByStatus['Asignado'], 'Asignado')}
+            {renderColumn('En Preparación', allItemsByStatus['En Preparación'], 'En Preparación')}
+            {renderColumn('Listo', allItemsByStatus['Listo'], 'Listo')}
+       </div>
     </>
   );
 }
