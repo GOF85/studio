@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -43,7 +44,7 @@ export function Combobox({ options, value, onChange, onCreated, placeholder, sea
     : options;
 
   const handleCreate = () => {
-    if (query && onCreated && !options.some(opt => opt.value.toLowerCase() === query.toLowerCase())) {
+    if (query && onCreated) {
         onCreated(query);
     }
     onChange(query);

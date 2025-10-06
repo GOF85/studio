@@ -104,10 +104,6 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const total = itemsTotal;
 
   const handleLocationChange = (value: string) => {
-    const isNew = !locationOptions.some(opt => opt.value === value);
-    if (isNew && value) {
-        onAddLocation(value);
-    }
     setDeliveryLocation(value);
   }
 
@@ -225,12 +221,9 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
               {isEditing ? 'Actualizar Pedido' : 'Guardar Pedido'}
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>{isEditing ? 'Actualizar Pedido de Material' : 'Guardar Pedido de Material'}</DialogTitle>
-              <DialogDescription>
-                Revisa los detalles y confirma para guardar el pedido en la Orden de Servicio.
-              </DialogDescription>
             </DialogHeader>
              <div className="grid grid-cols-2 gap-x-8 py-4">
                 <div className="space-y-4">
@@ -268,6 +261,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                           options={locationOptions}
                           value={deliveryLocation}
                           onChange={handleLocationChange}
+                          onCreated={onAddLocation}
                           placeholder="Busca o crea una localización..."
                           searchPlaceholder="Buscar localización..."
                         />
@@ -285,14 +279,16 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                 </div>
                  <div className="space-y-4">
                     <h4 className="font-semibold">Resumen del Pedido</h4>
-                    <ul className="space-y-2 max-h-48 overflow-y-auto border p-2 rounded-md">
-                        {items.map(item => (
-                            <li key={item.itemCode} className="flex justify-between items-center text-sm">
-                                <span>{item.quantity} x {item.description}</span>
-                                <span>{(item.quantity * item.price).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-                            </li>
-                        ))}
-                    </ul>
+                    <div className="border rounded-md max-h-60 overflow-y-auto">
+                        <ul className="space-y-2 p-2">
+                            {items.map(item => (
+                                <li key={item.itemCode} className="flex justify-between items-center text-sm">
+                                    <span>{item.quantity} x {item.description}</span>
+                                    <span>{(item.quantity * item.price).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
                     <Separator />
                     <div className="space-y-1 text-sm">
                         <div className="flex justify-between"><span>Subtotal:</span> <span>{subtotal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></div>
