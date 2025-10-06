@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday, isWithinInterval, startOfDay, endOfDay, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ListChecks, Calendar as CalendarIcon, Loader2, Warehouse, Search } from 'lucide-react';
+import { ListChecks, Calendar as CalendarIcon, Search, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -19,6 +19,16 @@ import type { ServiceOrder } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
 import type { PickingSheet } from '@/types';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function GestionPickingPage() {
     const [isMounted, setIsMounted] = useState(false);
@@ -29,7 +39,9 @@ export default function GestionPickingPage() {
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [pickingSheets, setPickingSheets] = useState<PickingSheet[]>([]);
+    const [sheetToDelete, setSheetToDelete] = useState<string | null>(null);
     const router = useRouter();
+    const { toast } = useToast();
 
     useEffect(() => {
         setIsMounted(true);
@@ -44,6 +56,17 @@ export default function GestionPickingPage() {
 
         setPickingSheets(sheetsArray);
     }, []);
+    
+    const handleDeleteSheet = () => {
+        if (!sheetToDelete) return;
+        const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
+        delete allSheets[sheetToDelete];
+        localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
+        
+        setPickingSheets(prev => prev.filter(s => s.id !== sheetToDelete));
+        toast({ title: "Hoja de Picking eliminada" });
+        setSheetToDelete(null);
+    }
 
     const filteredSheets = useMemo(() => {
         return pickingSheets.filter(sheet => {
@@ -68,6 +91,7 @@ export default function GestionPickingPage() {
     }
 
     return (
+        <>
         <div>
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
@@ -112,15 +136,20 @@ export default function GestionPickingPage() {
                             <TableBody>
                                 {filteredSheets.length > 0 ? (
                                     filteredSheets.map(sheet => (
-                                        <TableRow key={sheet.id} onClick={() => router.push(`/almacen/picking/${sheet.osId}?fecha=${sheet.fechaNecesidad}`)} className="cursor-pointer">
-                                            <TableCell>{sheet.os?.serviceNumber}</TableCell>
-                                            <TableCell>{sheet.os?.client}</TableCell>
-                                            <TableCell>{format(new Date(sheet.fechaNecesidad), 'dd/MM/yyyy')}</TableCell>
-                                            <TableCell>
+                                        <TableRow key={sheet.id} className="cursor-pointer">
+                                            <TableCell onClick={() => router.push(`/almacen/picking/${sheet.osId}?fecha=${sheet.fechaNecesidad}`)}>{sheet.os?.serviceNumber}</TableCell>
+                                            <TableCell onClick={() => router.push(`/almacen/picking/${sheet.osId}?fecha=${sheet.fechaNecesidad}`)}>{sheet.os?.client}</TableCell>
+                                            <TableCell onClick={() => router.push(`/almacen/picking/${sheet.osId}?fecha=${sheet.fechaNecesidad}`)}>{format(new Date(sheet.fechaNecesidad), 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell onClick={() => router.push(`/almacen/picking/${sheet.osId}?fecha=${sheet.fechaNecesidad}`)}>
                                                 <Badge variant={getStatusVariant(sheet.status)}>{sheet.status}</Badge>
                                             </TableCell>
                                             <TableCell>
-                                                <Button size="sm">Iniciar Picking</Button>
+                                                <div className="flex gap-2 justify-end">
+                                                    <Button size="sm" onClick={() => router.push(`/almacen/picking/${sheet.osId}?fecha=${sheet.fechaNecesidad}`)}>Iniciar Picking</Button>
+                                                    <Button variant="destructive" size="icon" onClick={(e) => { e.stopPropagation(); setSheetToDelete(sheet.id); }}>
+                                                        <Trash2 className="h-4 w-4"/>
+                                                    </Button>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))
@@ -137,5 +166,25 @@ export default function GestionPickingPage() {
                 </CardContent>
             </Card>
         </div>
+        <AlertDialog open={!!sheetToDelete} onOpenChange={(open) => !open && setSheetToDelete(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción no se puede deshacer. Esto eliminará permanentemente la hoja de picking.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive hover:bg-destructive/90"
+                  onClick={handleDeleteSheet}
+                >
+                  Eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        </>
     );
 }
