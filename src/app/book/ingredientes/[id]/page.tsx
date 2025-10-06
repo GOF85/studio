@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -14,7 +15,6 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
-import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -26,6 +26,7 @@ export const ingredienteFormSchema = z.object({
   id: z.string(),
   nombreIngrediente: z.string().min(1, 'El nombre es obligatorio'),
   productoERPlinkId: z.string().min(1, 'Debe enlazar un producto ERP'),
+  mermaPorcentaje: z.coerce.number().min(0).max(100).default(0),
   alergenosPresentes: z.array(z.string()).default([]),
   alergenosTrazas: z.array(z.string()).default([]),
 });
@@ -78,7 +79,7 @@ export default function IngredienteFormPage() {
 
   const form = useForm<IngredienteFormValues>({
     resolver: zodResolver(ingredienteFormSchema),
-    defaultValues: { nombreIngrediente: '', productoERPlinkId: '', alergenosPresentes: [], alergenosTrazas: [] },
+    defaultValues: { nombreIngrediente: '', productoERPlinkId: '', alergenosPresentes: [], alergenosTrazas: [], mermaPorcentaje: 0 },
   });
   
   const selectedErpId = form.watch('productoERPlinkId');
@@ -117,7 +118,7 @@ export default function IngredienteFormPage() {
         router.push('/book/ingredientes');
       }
     } else {
-        form.reset({ id: Date.now().toString(), nombreIngrediente: '', productoERPlinkId: '', alergenosPresentes: [], alergenosTrazas: [] });
+        form.reset({ id: Date.now().toString(), nombreIngrediente: '', productoERPlinkId: '', alergenosPresentes: [], alergenosTrazas: [], mermaPorcentaje: 0 });
     }
   }, [id, isEditing, form, router, toast]);
 
@@ -266,7 +267,6 @@ export default function IngredienteFormPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
           <form id="ingrediente-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -291,12 +291,15 @@ export default function IngredienteFormPage() {
                 <CardHeader className="py-3"><CardTitle className="text-lg">Información del Ingrediente</CardTitle></CardHeader>
                 <CardContent className="pt-2">
                     <div className="grid grid-cols-12 gap-4 items-start">
-                        <div className="col-span-6">
+                        <div className="col-span-5 space-y-4">
                             <FormField control={form.control} name="nombreIngrediente" render={({ field }) => (
                                 <FormItem><FormLabel>Nombre del Ingrediente</FormLabel><FormControl><Input {...field} placeholder="Ej: Harina de Trigo" /></FormControl><FormMessage /></FormItem>
                             )} />
+                            <FormField control={form.control} name="mermaPorcentaje" render={({ field }) => (
+                                <FormItem><FormLabel>% Merma</FormLabel><FormControl><Input type="number" {...field} placeholder="Ej: 10" /></FormControl><FormMessage /></FormItem>
+                            )} />
                         </div>
-                         <div className="col-span-6">
+                         <div className="col-span-7">
                              <FormItem>
                                 <FormLabel>Vínculo con Materia Prima (ERP)</FormLabel>
                                 {selectedErpProduct ? (

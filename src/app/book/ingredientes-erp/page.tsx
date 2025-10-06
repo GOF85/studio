@@ -10,7 +10,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { PlusCircle, Save, Trash2, ArrowLeft, Loader2 } from 'lucide-react';
 import type { IngredienteERP, UnidadMedida } from '@/types';
 import { UNIDADES_MEDIDA, ingredienteErpSchema } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -125,7 +124,6 @@ export default function IngredientesERPPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>

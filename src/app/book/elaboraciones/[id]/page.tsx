@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -15,7 +16,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
-import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -278,7 +278,6 @@ export default function ElaboracionFormPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
           <form id="elaboracion-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -404,7 +403,7 @@ export default function ElaboracionFormPage() {
                             <div className="grid grid-cols-3 gap-2 pt-2">
                                 {fotosFields.map((field, index) => (
                                     <div key={field.id} className="relative aspect-video rounded-md overflow-hidden group">
-                                        <Image src={field.value} alt={`Foto de producción ${index+1}`} fill className="object-cover" />
+                                        <Image src={(field as any).value} alt={`Foto de producción ${index+1}`} fill className="object-cover" />
                                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                             <Button type="button" variant="destructive" size="icon" onClick={() => removeFoto(index)}><Trash2/></Button>
                                         </div>

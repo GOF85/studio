@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
+import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import type { MaterialOrder, ServiceOrder, OrderItem } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -63,7 +63,7 @@ export default function AlmacenPage() {
     if (!osId) return;
     
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Almacén');
+    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
     setMaterialOrders(relatedOrders);
 
     setIsMounted(true);
@@ -93,7 +93,7 @@ export default function AlmacenPage() {
     let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
     localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
-    setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Almacén'));
+    setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Almacen'));
     
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
@@ -104,7 +104,7 @@ export default function AlmacenPage() {
       toast({ variant: 'destructive', title: 'No permitido', description: 'Solo se pueden editar pedidos en estado "Asignado".'});
       return;
     }
-    router.push(`/pedidos?osId=${osId}&type=Almacén&orderId=${order.id}`);
+    router.push(`/pedidos?osId=${osId}&type=Almacen&orderId=${order.id}`);
   }
 
   if (!isMounted) {
@@ -122,7 +122,7 @@ export default function AlmacenPage() {
               <h1 className="text-3xl font-headline font-bold">Módulo de Almacén</h1>
           </div>
         <Button asChild>
-          <Link href={`/pedidos?osId=${osId}&type=Almacén`}>
+          <Link href={`/pedidos?osId=${osId}&type=Almacen`}>
             <PlusCircle className="mr-2" />
             Nuevo Pedido de Almacén
           </Link>

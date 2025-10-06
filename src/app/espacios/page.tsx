@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Building, ArrowLeft } from 'lucide-react';
 import type { Espacio } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -194,10 +193,9 @@ export default function EspaciosPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <div>
+            <div>
                 <Button variant="ghost" size="sm" onClick={() => router.push('/bd')} className="mb-2">
                     <ArrowLeft className="mr-2" />
                     Volver a Bases de Datos

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -14,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Combobox } from '@/components/ui/combobox';
@@ -23,6 +21,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 export const categoriaPersonalSchema = z.object({
   id: z.string(),
   proveedorId: z.string().min(1, "Debes seleccionar un proveedor."),
+  nombreProveedor: z.string(),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
   precioHora: z.coerce.number().min(0, 'El precio debe ser positivo'),
 });
@@ -31,6 +30,7 @@ type CategoriaPersonalFormValues = z.infer<typeof categoriaPersonalSchema>;
 
 const defaultValues: Partial<CategoriaPersonalFormValues> = {
     proveedorId: '',
+    nombreProveedor: '',
     categoria: '',
     precioHora: 0,
 };
@@ -80,10 +80,15 @@ export default function CategoriaPersonalFormPage() {
     let allItems = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
     let message = '';
     
+    const finalData = {
+        ...data,
+        nombreProveedor: selectedProviderData?.nombreComercial || '',
+    };
+    
     if (isEditing) {
       const index = allItems.findIndex(p => p.id === id);
       if (index !== -1) {
-        allItems[index] = data;
+        allItems[index] = finalData;
         message = 'Registro actualizado correctamente.';
       }
     } else {
@@ -93,7 +98,7 @@ export default function CategoriaPersonalFormPage() {
             setIsLoading(false);
             return;
         }
-      allItems.push(data);
+      allItems.push(finalData);
       message = 'Registro creado correctamente.';
     }
 
@@ -114,7 +119,6 @@ export default function CategoriaPersonalFormPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">

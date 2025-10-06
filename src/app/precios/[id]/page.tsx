@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, FileDown, DollarSign } from 'lucide-react';
+import { Loader2, DollarSign, X } from 'lucide-react';
 import type { Precio, PrecioCategoria } from '@/types';
 import { PRECIO_CATEGORIAS } from '@/types';
 
@@ -15,7 +15,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -111,7 +110,6 @@ export default function PrecioFormPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
@@ -119,9 +117,12 @@ export default function PrecioFormPage() {
                 <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Precio</h1>
             </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push('/precios')}>Volver al listado</Button>
+            <Button variant="outline" type="button" onClick={() => router.push('/precios')}>
+                <X className="mr-2 h-4 w-4" />
+                Cancelar
+            </Button>
             <Button type="submit" form="precio-form" disabled={isLoading}>
-              {isLoading ? <Loader2 className="animate-spin" /> : <FileDown />}
+              {isLoading ? <Loader2 className="animate-spin" /> : <DollarSign />}
               <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Precio'}</span>
             </Button>
           </div>

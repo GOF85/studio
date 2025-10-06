@@ -7,14 +7,13 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, FileDown, Truck, X, Building2, Mail, Phone, Hash } from 'lucide-react';
-import type { TipoTransporte, Proveedor } from '@/types';
+import { Loader2, FileDown, Truck, X, Building2 } from 'lucide-react';
+import type { ProveedorTransporte, Proveedor } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Combobox } from '@/components/ui/combobox';
@@ -23,7 +22,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 export const tipoTransporteSchema = z.object({
   id: z.string(),
   proveedorId: z.string().min(1, "Debes seleccionar un proveedor."),
-  descripcion: z.string().min(1, 'La descripción del vehículo es obligatoria'),
+  tipoTransporte: z.string().min(1, 'La descripción del vehículo es obligatoria'),
   precio: z.coerce.number().min(0, 'El precio debe ser positivo'),
 });
 
@@ -31,7 +30,7 @@ type TipoTransporteFormValues = z.infer<typeof tipoTransporteSchema>;
 
 const defaultValues: Partial<TipoTransporteFormValues> = {
     proveedorId: '',
-    descripcion: '',
+    tipoTransporte: '',
     precio: 0,
 };
 
@@ -61,7 +60,7 @@ export default function TipoTransporteFormPage() {
     setProveedores(allProveedores.filter(p => p.tipos.includes('Transporte')));
     
     if (isEditing) {
-      const items = JSON.parse(localStorage.getItem('tiposTransporte') || '[]') as TipoTransporte[];
+      const items = JSON.parse(localStorage.getItem('tiposTransporte') || '[]') as ProveedorTransporte[];
       const item = items.find(p => p.id === id);
       if (item) {
         form.reset(item);
@@ -77,23 +76,25 @@ export default function TipoTransporteFormPage() {
   function onSubmit(data: TipoTransporteFormValues) {
     setIsLoading(true);
 
-    let allItems = JSON.parse(localStorage.getItem('tiposTransporte') || '[]') as TipoTransporte[];
+    let allItems = JSON.parse(localStorage.getItem('tiposTransporte') || '[]') as ProveedorTransporte[];
     let message = '';
+    
+    const finalData = { ...data, nombreProveedor: selectedProviderData?.nombreComercial || '' };
 
     if (isEditing) {
       const index = allItems.findIndex(p => p.id === id);
       if (index !== -1) {
-        allItems[index] = data;
+        allItems[index] = finalData;
         message = 'Servicio de transporte actualizado correctamente.';
       }
     } else {
-       const existing = allItems.find(p => p.proveedorId === data.proveedorId && p.descripcion.toLowerCase() === data.descripcion.toLowerCase());
+       const existing = allItems.find(p => p.proveedorId === data.proveedorId && p.tipoTransporte.toLowerCase() === data.tipoTransporte.toLowerCase());
         if (existing) {
             toast({ variant: 'destructive', title: 'Error', description: 'Ya existe este servicio para este proveedor.' });
             setIsLoading(false);
             return;
         }
-      allItems.push(data);
+      allItems.push(finalData);
       message = 'Servicio de transporte creado correctamente.';
     }
 
@@ -114,7 +115,6 @@ export default function TipoTransporteFormPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
@@ -167,7 +167,7 @@ export default function TipoTransporteFormPage() {
                     </Accordion>
                 )}
                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
-                     <FormField control={form.control} name="descripcion" render={({ field }) => (
+                     <FormField control={form.control} name="tipoTransporte" render={({ field }) => (
                         <FormItem><FormLabel>Descripción (ej: Furgoneta Isotermo)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="precio" render={({ field }) => (

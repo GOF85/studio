@@ -103,7 +103,7 @@ export default function AlquilerFormPage() {
                 <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Artículo de Alquiler</h1>
             </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push('/alquiler-db')}>
+            <Button variant="outline" type="button" onClick={() => router.push('/alquiler-db')}>
                 <X className="mr-2 h-4 w-4" />
                 Cancelar
             </Button>

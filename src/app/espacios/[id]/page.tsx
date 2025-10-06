@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -5,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, FileDown, Building } from 'lucide-react';
+import { Loader2, FileDown, Building, X } from 'lucide-react';
 import type { Espacio } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -135,7 +135,6 @@ export default function EspacioFormPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
@@ -143,7 +142,10 @@ export default function EspacioFormPage() {
                 <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Espacio</h1>
             </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push('/espacios')}>Volver al listado</Button>
+            <Button variant="outline" type="button" onClick={() => router.push('/espacios')}>
+                <X className="mr-2 h-4 w-4" />
+                Cancelar
+            </Button>
             <Button type="submit" form="espacio-form" disabled={isLoading}>
               {isLoading ? <Loader2 className="animate-spin" /> : <FileDown />}
               <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Espacio'}</span>

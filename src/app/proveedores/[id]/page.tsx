@@ -8,13 +8,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, FileDown, Users, X, Building2, Mail, Phone, Hash } from 'lucide-react';
-import type { Proveedor, DatosFiscales } from '@/types';
+import type { Proveedor, DatosFiscales, TipoProveedor } from '@/types';
 import { TIPO_PROVEEDOR_OPCIONES } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Combobox } from '@/components/ui/combobox';
@@ -129,7 +128,6 @@ export default function ProveedorFormPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">

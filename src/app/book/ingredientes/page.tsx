@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -5,7 +6,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle, MoreHorizontal, Pencil } from 'lucide-react';
 import type { IngredienteInterno, IngredienteERP, Alergeno, Elaboracion } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -29,7 +29,7 @@ type IngredienteConERP = IngredienteInterno & {
     alergenos: Alergeno[];
 }
 
-const CSV_HEADERS = ["id", "nombreIngrediente", "productoERPlinkId", "alergenosPresentes", "alergenosTrazas"];
+const CSV_HEADERS = ["id", "nombreIngrediente", "productoERPlinkId", "mermaPorcentaje", "alergenosPresentes", "alergenosTrazas"];
 const ITEMS_PER_PAGE = 20;
 
 export default function IngredientesPage() {
@@ -134,6 +134,7 @@ export default function IngredientesPage() {
                     id: item.id || Date.now().toString() + Math.random(),
                     nombreIngrediente: item.nombreIngrediente || '',
                     productoERPlinkId: item.productoERPlinkId || '',
+                    mermaPorcentaje: parseFloat(item.mermaPorcentaje) || 0,
                     alergenosPresentes,
                     alergenosTrazas,
                 };
@@ -181,10 +182,10 @@ export default function IngredientesPage() {
 
   const handleAttemptDelete = (ingrediente: IngredienteConERP) => {
     const allElaboraciones: Elaboracion[] = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    const elaboracionesUsingIngrediente = allElaboraciones.filter(elab => 
+    const elaboracionesUsingIngredient = allElaboraciones.filter(elab => 
       elab.componentes.some(c => c.tipo === 'ingrediente' && c.componenteId === ingrediente.id)
     );
-    setAffectedElaboraciones(elaboracionesUsingIngrediente);
+    setAffectedElaboraciones(elaboracionesUsingIngredient);
     setItemToDelete(ingrediente);
   };
 
@@ -206,7 +207,6 @@ export default function IngredientesPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><ChefHat />Gestión de Ingredientes</h1>

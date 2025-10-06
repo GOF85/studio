@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Users, ArrowLeft } from 'lucide-react';
 import type { Personal } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -61,7 +60,7 @@ export default function PersonalPage() {
   
   const departments = useMemo(() => {
     if (!personal) return ['all'];
-    const allDepartments = personal.map(p => p.departamento);
+    const allDepartments = personal.map(p => p.departamento).filter(Boolean); // Filter out empty strings
     return ['all', ...Array.from(new Set(allDepartments))];
   }, [personal]);
 
@@ -165,7 +164,6 @@ export default function PersonalPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
             <div>

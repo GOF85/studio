@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 
@@ -93,7 +92,6 @@ export default function DecoracionFormPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
@@ -101,7 +99,7 @@ export default function DecoracionFormPage() {
                 <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Concepto de Decoración</h1>
             </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push('/decoracion-db')}>
+            <Button variant="outline" type="button" onClick={() => router.push('/decoracion-db')}>
                 <X className="mr-2 h-4 w-4" />
                 Cancelar
             </Button>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -5,14 +6,13 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, FileDown, List } from 'lucide-react';
+import { Loader2, FileDown, List, X } from 'lucide-react';
 import type { TipoServicio } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Header } from '@/components/layout/header';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 
@@ -90,7 +90,6 @@ export default function TipoServicioFormPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
@@ -98,7 +97,10 @@ export default function TipoServicioFormPage() {
                 <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Tipo de Servicio</h1>
             </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => router.push('/tipo-servicio')}>Volver al listado</Button>
+            <Button variant="outline" type="button" onClick={() => router.push('/tipo-servicio')}>
+                <X className="mr-2 h-4 w-4" />
+                Cancelar
+            </Button>
             <Button type="submit" form="tipo-servicio-form" disabled={isLoading}>
               {isLoading ? <Loader2 className="animate-spin" /> : <FileDown />}
               <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Servicio'}</span>
