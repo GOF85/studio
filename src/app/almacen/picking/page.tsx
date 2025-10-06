@@ -67,6 +67,16 @@ export default function GestionPickingPage() {
         toast({ title: "Hoja de Picking eliminada" });
         setSheetToDelete(null);
     }
+    
+    const handleStartPicking = (sheetId: string) => {
+        const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
+        if (allSheets[sheetId] && allSheets[sheetId].status === 'Pendiente') {
+            allSheets[sheetId].status = 'En Proceso';
+            localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
+            setPickingSheets(prev => prev.map(s => s.id === sheetId ? {...s, status: 'En Proceso'} : s));
+        }
+        router.push(`/almacen/picking/${sheetId}`);
+    }
 
     const filteredSheets = useMemo(() => {
         return pickingSheets.filter(sheet => {
@@ -137,7 +147,7 @@ export default function GestionPickingPage() {
                             <TableBody>
                                 {filteredSheets.length > 0 ? (
                                     filteredSheets.map(sheet => (
-                                        <TableRow key={sheet.id} onClick={() => router.push(`/almacen/picking/${sheet.id}`)} className="cursor-pointer">
+                                        <TableRow key={sheet.id} onClick={() => handleStartPicking(sheet.id)} className="cursor-pointer">
                                             <TableCell className="font-mono"><Badge>{sheet.id}</Badge></TableCell>
                                             <TableCell>{sheet.os?.serviceNumber}</TableCell>
                                             <TableCell>{sheet.os?.client}</TableCell>
@@ -147,7 +157,9 @@ export default function GestionPickingPage() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex gap-2 justify-end">
-                                                    <Button size="sm">Iniciar Picking</Button>
+                                                    <Button size="sm">
+                                                      {sheet.status === 'Pendiente' ? 'Iniciar Picking' : 'Ver / Continuar'}
+                                                    </Button>
                                                     <Button variant="destructive" size="icon" onClick={(e) => { e.stopPropagation(); setSheetToDelete(sheet.id); }}>
                                                         <Trash2 className="h-4 w-4"/>
                                                     </Button>

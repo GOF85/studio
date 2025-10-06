@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, ListChecks, Calendar as CalendarIcon, User, Building, AlertTriangle, MessageSquare } from 'lucide-react';
+import { ArrowLeft, ListChecks, Calendar as CalendarIcon, User, Building, AlertTriangle, MessageSquare, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -22,6 +22,8 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
+
 
 export default function PickingSheetPage() {
     const [sheet, setSheet] = useState<PickingSheet | null>(null);
@@ -31,6 +33,7 @@ export default function PickingSheetPage() {
     const params = useParams();
     const sheetId = params.id as string;
     const { toast } = useToast();
+    const [isFinalizeDialogOpen, setIsFinalizeDialogOpen] = useState(false);
 
     const loadSheet = useCallback(() => {
         const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
@@ -65,7 +68,7 @@ export default function PickingSheetPage() {
         loadSheet();
     }, [loadSheet]);
     
-    const saveProgress = useCallback((newStates: Map<string, PickingItemState>) => {
+    const saveProgress = useCallback((newStates: Map<string, PickingItemState>, newStatus?: PickingSheet['status']) => {
         if(!sheet) return;
         
         const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
@@ -78,15 +81,18 @@ export default function PickingSheetPage() {
             };
         });
 
-        // Make sure to not store the full 'os' object in pickingSheets localStorage
         const { os, ...sheetToSave } = sheet;
 
         const updatedSheet: PickingSheet = {
             ...sheetToSave,
             itemStates: itemStatesForStorage,
+            status: newStatus || sheet.status,
         };
         allSheets[sheetId] = updatedSheet;
         localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
+        
+        setSheet(updatedSheet);
+        setItemStates(newStates);
         
     }, [sheet, sheetId]);
 
@@ -104,16 +110,32 @@ export default function PickingSheetPage() {
         });
     }
     
-    const { progress, totalItems, checkedCount } = useMemo(() => {
-        if (!sheet) return { progress: 0, totalItems: 0, checkedCount: 0 };
+    const { progress, totalItems, checkedCount, isComplete } = useMemo(() => {
+        if (!sheet) return { progress: 0, totalItems: 0, checkedCount: 0, isComplete: false };
         const total = sheet.items.length;
         const checked = Array.from(itemStates.values()).filter(s => s.checked).length;
+        
+        const allItemsChecked = checked === total;
+        const allQuantitiesMatchOrHaveIncident = Array.from(itemStates.values()).every(s => {
+            const originalItem = sheet.items.find(i => i.itemCode === s.itemCode);
+            if (!originalItem) return true;
+            return originalItem.quantity === s.pickedQuantity || !!s.incidentComment;
+        });
+
         return {
             progress: total > 0 ? (checked / total) * 100 : 0,
             totalItems: total,
             checkedCount: checked,
+            isComplete: allItemsChecked && allQuantitiesMatchOrHaveIncident
         };
     }, [sheet, itemStates]);
+
+    const handleFinalizePicking = () => {
+        saveProgress(itemStates, 'Listo');
+        toast({ title: "Picking Finalizado", description: "La hoja de picking ha sido marcada como 'Lista'."});
+        setIsFinalizeDialogOpen(false);
+        router.push('/almacen/picking');
+    }
 
     const groupedItems = useMemo(() => {
         if (!sheet) return {};
@@ -142,6 +164,10 @@ export default function PickingSheetPage() {
                         <ListChecks /> Hoja de Picking <Badge className="text-2xl">{sheet.id}</Badge>
                     </h1>
                 </div>
+                 <Button onClick={() => setIsFinalizeDialogOpen(true)} disabled={!isComplete || sheet.status === 'Listo'}>
+                    <CheckCircle className="mr-2" />
+                    {sheet.status === 'Listo' ? 'Picking Finalizado' : 'Finalizar Picking'}
+                </Button>
             </div>
             
             <Card className="mb-6">
@@ -251,6 +277,23 @@ export default function PickingSheetPage() {
                 </Card>
             ))}
             </div>
+            
+            <AlertDialog open={isFinalizeDialogOpen} onOpenChange={setIsFinalizeDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Confirmar finalización del Picking?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esto marcará la hoja de picking como "Lista" para su expedición y no se podrá modificar.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleFinalizePicking}>
+                            Confirmar y Finalizar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
         </TooltipProvider>
     );

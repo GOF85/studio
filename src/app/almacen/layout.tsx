@@ -1,14 +1,15 @@
+
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Warehouse, ClipboardList, ListChecks, History } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Warehouse, ClipboardList, ListChecks, History, AlertTriangle } from 'lucide-react';
 
 const almacenNav = [
     { title: 'Planificación', href: '/almacen/planificacion', icon: ClipboardList },
     { title: 'Gestión de Picking', href: '/almacen/picking', icon: ListChecks },
+    { title: 'Incidencias de Picking', href: '/almacen/incidencias', icon: AlertTriangle },
     { title: 'Gestión de Retornos', href: '/almacen/retornos', icon: History },
 ];
 
