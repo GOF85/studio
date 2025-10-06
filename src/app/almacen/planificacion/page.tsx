@@ -1,6 +1,7 @@
 
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
