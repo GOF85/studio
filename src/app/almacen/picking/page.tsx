@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import type { ServiceOrder, PickingSheet } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -101,6 +102,14 @@ export default function GestionPickingPage() {
         return 'secondary'
     }
 
+    const getPickingProgress = (sheet: PickingSheet): number => {
+        if (!sheet.itemStates || !sheet.items) return 0;
+        const total = sheet.items.length;
+        if (total === 0) return 0;
+        const checked = Object.values(sheet.itemStates).filter(s => s.checked).length;
+        return (checked / total) * 100;
+    }
+
     return (
         <>
         <div>
@@ -143,10 +152,12 @@ export default function GestionPickingPage() {
                 <CardContent>
                     <div className="border rounded-lg">
                         <Table>
-                            <TableHeader><TableRow><TableHead>Expedición</TableHead><TableHead>Nº Servicio</TableHead><TableHead>Cliente</TableHead><TableHead>Fecha Necesidad</TableHead><TableHead>Estado</TableHead><TableHead className="text-right">Acción</TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead>Expedición</TableHead><TableHead>Nº Servicio</TableHead><TableHead>Cliente</TableHead><TableHead>Fecha Necesidad</TableHead><TableHead>Estado</TableHead><TableHead>Progreso</TableHead><TableHead className="text-right">Acción</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {filteredSheets.length > 0 ? (
-                                    filteredSheets.map(sheet => (
+                                    filteredSheets.map(sheet => {
+                                        const progress = getPickingProgress(sheet);
+                                        return (
                                         <TableRow key={sheet.id} onClick={() => handleStartPicking(sheet.id)} className="cursor-pointer">
                                             <TableCell className="font-mono"><Badge>{sheet.id}</Badge></TableCell>
                                             <TableCell>{sheet.os?.serviceNumber}</TableCell>
@@ -154,6 +165,12 @@ export default function GestionPickingPage() {
                                             <TableCell>{format(new Date(sheet.fechaNecesidad), 'dd/MM/yyyy')}</TableCell>
                                             <TableCell>
                                                 <Badge variant={getStatusVariant(sheet.status)}>{sheet.status}</Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <Progress value={progress} className="w-24 h-2" />
+                                                    <span className="text-xs text-muted-foreground">{progress.toFixed(0)}%</span>
+                                                </div>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex gap-2 justify-end">
@@ -166,10 +183,10 @@ export default function GestionPickingPage() {
                                                 </div>
                                             </TableCell>
                                         </TableRow>
-                                    ))
+                                    )})
                                 ) : (
                                      <TableRow>
-                                        <TableCell colSpan={6} className="h-24 text-center">
+                                        <TableCell colSpan={7} className="h-24 text-center">
                                             No hay hojas de picking en las fechas seleccionadas.
                                         </TableCell>
                                     </TableRow>
@@ -202,4 +219,3 @@ export default function GestionPickingPage() {
         </>
     );
 }
-
