@@ -23,6 +23,7 @@ import {
   DialogFooter,
   DialogClose,
   DialogTrigger,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -116,6 +117,14 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
         toast({ variant: 'destructive', title: 'Error', description: 'La fecha de entrega es obligatoria.' });
         return;
     }
+     if (!deliveryLocation) {
+        toast({ variant: 'destructive', title: 'Error', description: 'La localización es obligatoria.' });
+        return;
+    }
+    if (!solicita) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Debe seleccionar quién solicita el pedido.' });
+        return;
+    }
     onSubmitOrder({
       items,
       days: isRental ? rentalDays : 1,
@@ -131,7 +140,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   
   return (
     <Card className="sticky top-24 h-[calc(100vh-7rem)] flex flex-col">
-      <CardHeader className="flex-grow-0 flex-shrink-0 flex flex-row items-center justify-between">
+      <CardHeader className="flex-grow-0 flex-shrink-0 flex flex-row items-center justify-between p-4">
         <CardTitle className="text-xl font-headline">Tu Pedido</CardTitle>
         {items.length > 0 && (
           <Button variant="ghost" size="sm" onClick={onClearOrder} aria-label="Vaciar pedido">
@@ -141,9 +150,9 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
         )}
       </CardHeader>
       <div className="flex-grow overflow-y-auto">
-        <CardContent>
+        <CardContent className="p-4">
           {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10">
+            <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-10 h-full">
               <ShoppingCart className="h-12 w-12 mb-4" />
               <p className="font-medium">Tu cesta está vacía</p>
               <p className="text-sm">Añade artículos desde el catálogo para empezar.</p>
@@ -221,11 +230,11 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
               {isEditing ? 'Actualizar Pedido' : 'Guardar Pedido'}
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>{isEditing ? 'Actualizar Pedido de Material' : 'Guardar Pedido de Material'}</DialogTitle>
             </DialogHeader>
-             <div className="grid grid-cols-2 gap-x-8 py-4">
+             <div className="grid grid-cols-2 gap-x-8 gap-y-4 py-4">
                 <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="delivery-date-dialog" className="font-bold">Fecha de Entrega</Label>
@@ -280,6 +289,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                  <div className="space-y-4">
                     <h4 className="font-semibold">Resumen del Pedido</h4>
                     <div className="border rounded-md max-h-60 overflow-y-auto">
+                      <ScrollArea className="h-full">
                         <ul className="space-y-2 p-2">
                             {items.map(item => (
                                 <li key={item.itemCode} className="flex justify-between items-center text-sm">
@@ -288,6 +298,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                                 </li>
                             ))}
                         </ul>
+                      </ScrollArea>
                     </div>
                     <Separator />
                     <div className="space-y-1 text-sm">
@@ -313,5 +324,3 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
     </Card>
   );
 }
-
-    

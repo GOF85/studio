@@ -48,6 +48,7 @@ export function Combobox({ options, value, onChange, onCreated, placeholder, sea
         onCreated(query);
     }
     onChange(query);
+    setQuery('');
     setOpen(false);
   }
 
@@ -77,17 +78,26 @@ export function Combobox({ options, value, onChange, onCreated, placeholder, sea
           />
           <CommandList>
             <CommandEmpty>
-              <div
-                className="cursor-pointer px-2 py-1.5 text-sm"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleCreate();
-                }}
-              >
-                {query && onCreated ? (
-                    <span className="flex items-center"><PlusCircle className="mr-2"/>Añadir "{query}"</span>
-                ) : (emptyPlaceholder || "No se encontraron resultados.")}
-              </div>
+                <div
+                    role="button"
+                    tabIndex={0}
+                    className="cursor-pointer px-2 py-1.5 text-sm flex items-center"
+                    onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleCreate();
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                             e.preventDefault();
+                             handleCreate();
+                        }
+                    }}
+                >
+                    {query && onCreated ? (
+                        <><PlusCircle className="mr-2"/>Añadir "{query}"</>
+                    ) : (emptyPlaceholder || "No se encontraron resultados.")}
+                </div>
             </CommandEmpty>
             <CommandGroup>
               {filteredOptions.map((option) => (

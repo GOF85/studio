@@ -50,43 +50,35 @@ export default function BioPage() {
     setIsMounted(true);
   }, [osId]);
 
-  const allItemsByStatus = useMemo(() => {
-    const items: Record<StatusColumn, ItemWithOrderInfo[]> = {
-      Asignado: [],
-      'En Preparación': [],
-      Listo: [],
-    };
-    
-    const pickedItemCodes = new Set<string>();
+  const { assignedOrders, itemsEnPreparacion, itemsListos } = useMemo(() => {
+    const enPreparacion: ItemWithOrderInfo[] = [];
+    const listos: ItemWithOrderInfo[] = [];
+    const pickedOrderIds = new Set<string>();
+
     pickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
-             if (item.type === 'Bio') {
-                 items[targetStatus].push({
+            if (item.type === 'Bio') {
+                const orderInfo = {
                     ...item,
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante
-                });
-                pickedItemCodes.add(`${item.itemCode}__${sheet.solicitante || 'general'}`);
+                };
+                if (targetStatus === 'En Preparación') enPreparacion.push(orderInfo);
+                else if (targetStatus === 'Listo') listos.push(orderInfo);
+                
+                 const materialOrderForSheet = materialOrders.find(mo => mo.contractNumber === sheet.id && mo.solicita === sheet.solicitante);
+                 if (materialOrderForSheet) {
+                    pickedOrderIds.add(materialOrderForSheet.id);
+                 }
             }
         });
     });
-
-    materialOrders.forEach(order => {
-        order.items.forEach(item => {
-            const itemKey = `${item.itemCode}__${order.solicita || 'general'}`;
-            if (!pickedItemCodes.has(itemKey)) {
-                items['Asignado'].push({
-                    ...item,
-                    orderContract: order.contractNumber || 'N/A',
-                    orderStatus: 'Pendiente', 
-                    solicita: order.solicita
-                });
-            }
-        });
-    });
-    return items;
+    
+    const assigned = materialOrders.filter(order => order.status === 'Asignado' && !pickedOrderIds.has(order.id));
+    
+    return { assignedOrders: assigned, itemsEnPreparacion: enPreparacion, itemsListos: listos };
   }, [materialOrders, pickingSheets]);
 
   const summaryItems = useMemo(() => {
@@ -121,7 +113,7 @@ export default function BioPage() {
     return <LoadingSkeleton title="Cargando Módulo de Bio..." />;
   }
 
-  const renderColumn = (title: string, items: ItemWithOrderInfo[]) => (
+  const renderItemsColumn = (title: string, items: ItemWithOrderInfo[]) => (
     <Card className="flex-1 bg-muted/30">
         <CardHeader className="pb-4">
             <CardTitle className="text-lg flex items-center justify-between">
@@ -135,13 +127,13 @@ export default function BioPage() {
                     <p className="font-semibold">{item.description}</p>
                     <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
                         <span>Cantidad: {item.quantity}</span>
-                        {item.solicita && (
+                         {item.solicita && (
                             <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
                                 {item.solicita === 'Sala' ? <Users size={12} className="mr-1.5"/> : <Soup size={12} className="mr-1.5"/>}
                                 {item.solicita}
                             </Badge>
                         )}
-                        {title !== 'Asignado' && <Badge variant="outline">{item.orderContract}</Badge>}
+                        <Badge variant="outline">{item.orderContract}</Badge>
                     </div>
                 </Card>
             )) : <p className="text-sm text-muted-foreground text-center py-4">No hay artículos.</p>}
@@ -184,9 +176,32 @@ export default function BioPage() {
 
        <div className="flex flex-col h-[65vh]">
             <div className="flex gap-6 flex-grow">
-                {renderColumn('Asignado', allItemsByStatus['Asignado'])}
-                {renderColumn('En Preparación', allItemsByStatus['En Preparación'])}
-                {renderColumn('Listo', allItemsByStatus['Listo'])}
+               <Card className="flex-1 bg-muted/30">
+                  <CardHeader className="pb-4">
+                      <CardTitle className="text-lg flex items-center justify-between">Asignado<Badge variant='secondary' className="text-sm">{assignedOrders.length}</Badge></CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 h-full overflow-y-auto">
+                      {assignedOrders.map(order => (
+                          <Button key={order.id} variant="secondary" className="w-full h-auto text-left" onClick={() => router.push(`/pedidos?osId=${osId}&type=Bio&orderId=${order.id}`)}>
+                              <div className="p-2 w-full">
+                                  <p className="font-semibold">{order.items.length} tipo(s) de artículo</p>
+                                  <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
+                                      <span>Total: {order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                                      {order.solicita && (
+                                          <Badge variant={order.solicita === 'Sala' ? 'default' : 'outline'} className={order.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
+                                              {order.solicita === 'Sala' ? <Users size={12} className="mr-1.5"/> : <Soup size={12} className="mr-1.5"/>}
+                                              {order.solicita}
+                                          </Badge>
+                                      )}
+                                      <Badge variant="outline">{order.contractNumber || 'N/A'}</Badge>
+                                  </div>
+                              </div>
+                          </Button>
+                      ))}
+                  </CardContent>
+              </Card>
+                {renderItemsColumn('En Preparación', itemsEnPreparacion)}
+                {renderItemsColumn('Listo', itemsListos)}
            </div>
        </div>
 
