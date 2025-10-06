@@ -540,13 +540,16 @@ export type OrdenFabricacion = {
 }
 
 export type PickingItemState = {
+    itemCode: string;
     checked: boolean;
     pickedQuantity: number;
     incidentComment?: string;
 };
 
+export type MaterialOrderType = 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';
+
 export type PickingSheet = {
-    id: string; // Composite key: `${osId}-${fechaNecesidad}`
+    id: string; // Composite key: osId + fechaNecesidad
     osId: string;
     fechaNecesidad: string;
     items: (OrderItem & { type: MaterialOrderType })[];
@@ -606,7 +609,6 @@ export type PedidoPlantilla = {
     tipo: MaterialOrderType;
     items: PedidoPlantillaItem[];
 };
-export type MaterialOrderType = 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';
 export type FormatoExpedicion = {
   id: string;
   nombre: string;
@@ -794,4 +796,10 @@ export type ActivityLog = {
     action: string;
     details: string;
     entityId: string; // ID of the entity being acted upon (e.g., OS ID, Turno ID)
+}
+
+export type ComercialAjuste = {
+    id: string;
+    concepto: string;
+    importe: number;
 }

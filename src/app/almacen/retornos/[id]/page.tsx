@@ -37,7 +37,7 @@ export default function RetornoSheetPage() {
         let currentSheet = allSheets[osId];
 
         if (!currentSheet) {
-            const allMaterialOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]');
+            const allMaterialOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
             const osOrders = allMaterialOrders.filter(o => o.osId === osId);
             
             const itemsMap = new Map<string, OrderItem & { sentQuantity: number }>();
