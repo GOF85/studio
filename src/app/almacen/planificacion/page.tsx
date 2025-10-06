@@ -123,8 +123,10 @@ export default function PlanificacionAlmacenPage() {
 
     useEffect(() => {
         setIsMounted(true);
-        calcularNecesidades();
-    }, [calcularNecesidades]);
+        if (dateRange?.from) {
+            calcularNecesidades();
+        }
+    }, [dateRange]);
 
     const handleSelectItem = (id: string) => {
         setSelectedItems(prev => {
