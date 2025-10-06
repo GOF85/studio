@@ -142,7 +142,6 @@ export default function PlanificacionAlmacenPage() {
         const osData = necesidades.find(d => d.fecha === fecha)?.ordenes[osId];
         if (!osData) return;
     
-        const newSelection = new Set(selectedItems);
         const osItemIds: string[] = [];
         Object.entries(osData.necesidades).forEach(([tipo, items]) => {
             items.forEach(item => {
@@ -150,6 +149,7 @@ export default function PlanificacionAlmacenPage() {
             });
         });
     
+        const newSelection = new Set(selectedItems);
         const areAllSelected = osItemIds.every(id => newSelection.has(id));
         
         osItemIds.forEach(id => {
@@ -357,5 +357,3 @@ export default function PlanificacionAlmacenPage() {
         </div>
     );
 }
-
-    
