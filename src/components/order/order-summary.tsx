@@ -20,7 +20,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
   DialogClose,
   DialogTrigger,
@@ -64,7 +63,6 @@ function isValidHttpUrl(string: string) {
 export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOrder, onClearOrder, isEditing = false, serviceOrder, onAddLocation, existingOrderData, orderType }: OrderSummaryProps) {
   const [rentalDays, setRentalDays] = useState(1);
   const [isReviewOpen, setReviewOpen] = useState(false);
-  const [contractNumber, setContractNumber] = useState('');
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
   const [deliverySpace, setDeliverySpace] = useState('');
   const [deliveryLocation, setDeliveryLocation] = useState('');
@@ -77,13 +75,11 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   useEffect(() => {
     if (isEditing && existingOrderData) {
         setRentalDays(existingOrderData.days || 1);
-        setContractNumber(existingOrderData.contractNumber || '');
         setDeliveryDate(existingOrderData.deliveryDate ? new Date(existingOrderData.deliveryDate) : new Date());
         setDeliverySpace(existingOrderData.deliverySpace || '');
         setDeliveryLocation(existingOrderData.deliveryLocation || '');
         setSolicita(existingOrderData.solicita);
     } else if (serviceOrder) {
-      setContractNumber(serviceOrder.serviceNumber || '');
       setDeliverySpace(serviceOrder.space || '');
       if (serviceOrder.startDate) {
         setDeliveryDate(new Date(serviceOrder.startDate));
@@ -104,12 +100,16 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
   const total = itemsTotal;
 
   const handleLocationChange = (value: string) => {
+    const isNew = !locationOptions.some(opt => opt.value === value);
+    if(isNew && value) {
+      onAddLocation(value);
+    }
     setDeliveryLocation(value);
   }
 
   const handleSubmit = () => {
-    if (!contractNumber) {
-        toast({ variant: 'destructive', title: 'Error', description: 'El Nº de Contrato (Nº de Servicio de la OS) es obligatorio.' });
+    if (!serviceOrder?.serviceNumber) {
+        toast({ variant: 'destructive', title: 'Error', description: 'El Nº de Servicio de la OS es obligatorio.' });
         return;
     }
      if (!deliveryDate) {
@@ -120,7 +120,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
       items,
       days: isRental ? rentalDays : 1,
       total,
-      contractNumber,
+      contractNumber: serviceOrder.serviceNumber,
       deliveryDate: deliveryDate ? format(deliveryDate, "yyyy-MM-dd") : undefined,
       deliverySpace,
       deliveryLocation,
@@ -221,7 +221,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
               {isEditing ? 'Actualizar Pedido' : 'Guardar Pedido'}
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>{isEditing ? 'Actualizar Pedido de Material' : 'Guardar Pedido de Material'}</DialogTitle>
             </DialogHeader>
@@ -266,7 +266,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                           searchPlaceholder="Buscar localización..."
                         />
                     </div>
-                    <div className="space-y-2">
+                     <div className="space-y-2">
                         <Label>Solicita</Label>
                         <Select onValueChange={(value: 'Sala' | 'Cocina') => setSolicita(value)} value={solicita}>
                             <SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger>
@@ -313,3 +313,5 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
     </Card>
   );
 }
+
+    

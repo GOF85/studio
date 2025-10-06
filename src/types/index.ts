@@ -95,6 +95,7 @@ export type MaterialOrder = {
     deliveryDate?: string;
     deliverySpace?: string;
     deliveryLocation?: string;
+    solicita?: 'Sala' | 'Cocina';
 };
 
 
@@ -804,3 +805,5 @@ export type ComercialAjuste = {
     concepto: string;
     importe: number;
 }
+
+    

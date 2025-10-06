@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday, isWithinInterval, startOfDay, endOfDay, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ClipboardList, Calendar as CalendarIcon, Factory, ChevronRight, ListChecks, Loader2, Warehouse } from 'lucide-react';
+import { ClipboardList, Calendar as CalendarIcon, Factory, ChevronRight, ListChecks, Loader2, Warehouse, Users, Soup } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -19,8 +19,15 @@ import type { ServiceOrder, MaterialOrder, OrderItem, HieloOrder, PickingSheet }
 import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Badge } from '@/components/ui/badge';
 
-type NecesidadItem = OrderItem & { osId: string; serviceNumber: string; deliverySpace: string; deliveryLocation: string };
+type NecesidadItem = OrderItem & { 
+    osId: string; 
+    serviceNumber: string; 
+    deliverySpace: string; 
+    deliveryLocation: string;
+    solicitante?: 'Sala' | 'Cocina';
+};
 type NecesidadesPorTipo = {
     [key in 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler' | 'Hielo']: NecesidadItem[];
 }
@@ -28,6 +35,7 @@ type OSConNecesidades = {
     os: ServiceOrder;
     necesidades: NecesidadesPorTipo;
     totalItems: number;
+    solicitante?: 'Sala' | 'Cocina';
 };
 type NecesidadesPorDia = {
     fecha: string;
@@ -103,11 +111,15 @@ export default function PlanificacionAlmacenPage() {
                         if (!necesidadesPorDia[dateKey]) {
                             necesidadesPorDia[dateKey] = {};
                         }
-                        if (!necesidadesPorDia[dateKey][os.id]) {
-                            necesidadesPorDia[dateKey][os.id] = { os, necesidades: { 'Almacen': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] }, totalItems: 0 };
+                        
+                        const solicitante = 'solicita' in order ? order.solicita : undefined;
+                        const osKey = `${os.id}__${solicitante || 'general'}`;
+
+                        if (!necesidadesPorDia[dateKey][osKey]) {
+                            necesidadesPorDia[dateKey][osKey] = { os, necesidades: { 'Almacen': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] }, totalItems: 0, solicitante };
                         }
                         
-                        const osNecesidades = necesidadesPorDia[dateKey][os.id];
+                        const osNecesidades = necesidadesPorDia[dateKey][osKey];
                         const orderType = 'contractNumber' in order ? order.type : 'Hielo';
 
                         if (orderType in osNecesidades.necesidades) {
@@ -116,7 +128,8 @@ export default function PlanificacionAlmacenPage() {
                                 osId: os.id,
                                 serviceNumber: os.serviceNumber,
                                 deliverySpace: order.deliverySpace || os.space || '',
-                                deliveryLocation: 'deliveryLocation' in order ? order.deliveryLocation || '' : ''
+                                deliveryLocation: 'deliveryLocation' in order ? order.deliveryLocation || '' : '',
+                                solicitante: solicitante,
                             });
                             osNecesidades.totalItems++;
                         }
@@ -142,7 +155,13 @@ export default function PlanificacionAlmacenPage() {
         if(isMounted) {
             calcularNecesidades();
         }
-    }, [dateRange, isMounted, calcularNecesidades]);
+    }, [isMounted, calcularNecesidades]);
+
+    useEffect(() => {
+        if(dateRange?.from && dateRange.to){
+            calcularNecesidades();
+        }
+    }, [dateRange, calcularNecesidades]);
 
     useEffect(() => {
         setIsMounted(true);
@@ -161,14 +180,14 @@ export default function PlanificacionAlmacenPage() {
         });
     }
 
-    const handleSelectOS = (osId: string, fecha: string) => {
-        const osData = necesidades.find(d => d.fecha === fecha)?.ordenes[osId];
+    const handleSelectOS = (osKey: string, fecha: string) => {
+        const osData = necesidades.find(d => d.fecha === fecha)?.ordenes[osKey];
         if (!osData) return;
     
         const osItemIds: string[] = [];
         Object.entries(osData.necesidades).forEach(([tipo, items]) => {
             items.forEach(item => {
-                osItemIds.push(`${item.itemCode}__${osId}__${fecha}__${tipo}`);
+                osItemIds.push(`${item.itemCode}__${osData.os.id}__${fecha}__${tipo}__${item.solicitante || 'general'}`);
             });
         });
     
@@ -186,14 +205,14 @@ export default function PlanificacionAlmacenPage() {
         });
     };
     
-    const getOsSelectionState = (osId: string, fecha: string): boolean | 'indeterminate' => {
-        const osData = necesidades.find(d => d.fecha === fecha)?.ordenes[osId];
+    const getOsSelectionState = (osKey: string, fecha: string): boolean | 'indeterminate' => {
+        const osData = necesidades.find(d => d.fecha === fecha)?.ordenes[osKey];
         if (!osData || osData.totalItems === 0) return false;
     
         let osItemIds: string[] = [];
         Object.keys(osData.necesidades).forEach((tipo) => {
              osData.necesidades[tipo as keyof NecesidadesPorTipo].forEach(item => {
-                 osItemIds.push(`${item.itemCode}__${osId}__${fecha}__${tipo}`);
+                 osItemIds.push(`${item.itemCode}__${osData.os.id}__${fecha}__${tipo}__${item.solicitante || 'general'}`);
              })
         });
 
@@ -207,8 +226,8 @@ export default function PlanificacionAlmacenPage() {
     const numSheetsToGenerate = useMemo(() => {
         const sheetsKeys = new Set<string>();
         selectedItems.forEach(id => {
-            const [,, osId, fecha] = id.split('__');
-            sheetsKeys.add(`${osId}__${fecha}`);
+            const [,, osId, fecha, , solicitante] = id.split('__');
+            sheetsKeys.add(`${osId}__${fecha}__${solicitante || 'general'}`);
         });
         return sheetsKeys.size;
     }, [selectedItems]);
@@ -227,15 +246,16 @@ export default function PlanificacionAlmacenPage() {
         const sheetsToGenerate: Record<string, {osId: string, fechaNecesidad: string, items: any[]}> = {};
 
         itemsToProcess.forEach(itemId => {
-            const [itemCode, osId, fecha, tipo] = itemId.split('__');
-            const sheetKey = `${osId}__${fecha}`; // Use composite key with date
+            const [itemCode, osId, fecha, tipo, solicitante] = itemId.split('__');
+            const sheetKey = `${osId}__${fecha}__${solicitante || 'general'}`; 
 
             if (!sheetsToGenerate[sheetKey]) {
                 sheetsToGenerate[sheetKey] = { osId, fechaNecesidad: fecha, items: [] };
             }
 
             const necesidadDia = necesidades.find(n => n.fecha === fecha);
-            const osData = necesidadDia?.ordenes[osId];
+            const osKey = `${osId}__${solicitante || 'general'}`;
+            const osData = necesidadDia?.ordenes[osKey];
             const itemData = osData?.necesidades[tipo as keyof NecesidadesPorTipo]?.find(i => i.itemCode === itemCode && i.osId === osId);
 
             if (itemData) {
@@ -295,10 +315,6 @@ export default function PlanificacionAlmacenPage() {
                         <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range.to){ setIsDatePickerOpen(false) }}} numberOfMonths={2} locale={es} />
                     </PopoverContent>
                 </Popover>
-                 <Button onClick={calcularNecesidades} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin mr-2"/> : <CalendarIcon className="mr-2" />}
-                    {isLoading ? 'Calculando...' : 'Calcular Necesidades'}
-                </Button>
             </div>
 
             {isLoading ? <div className="flex justify-center items-center h-48"><Loader2 className="mx-auto animate-spin text-primary" size={48} /></div>
@@ -318,17 +334,20 @@ export default function PlanificacionAlmacenPage() {
                                 </AccordionTrigger>
                                 <AccordionContent className="border-t">
                                     <div className="p-4 space-y-3">
-                                    {Object.values(ordenes).sort((a,b) => a.os.serviceNumber.localeCompare(b.os.serviceNumber)).map(({os, necesidades: necesidadesOs}) => (
-                                        <Collapsible key={os.id} className="border rounded-lg">
+                                    {Object.entries(ordenes).sort(([, a], [, b]) => a.os.serviceNumber.localeCompare(b.os.serviceNumber)).map(([osKey, {os, necesidades: necesidadesOs, solicitante}]) => (
+                                        <Collapsible key={osKey} className="border rounded-lg">
                                             <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-t-lg">
                                                 <Checkbox
-                                                    checked={getOsSelectionState(os.id, fecha)}
-                                                    onCheckedChange={() => handleSelectOS(os.id, fecha)}
+                                                    checked={getOsSelectionState(osKey, fecha)}
+                                                    onCheckedChange={() => handleSelectOS(osKey, fecha)}
                                                     aria-label={`Seleccionar todos los artículos para OS ${os.serviceNumber}`}
                                                 />
                                                 <CollapsibleTrigger className="flex-grow flex items-center justify-between group">
                                                     <div className="text-left">
-                                                        <p className="font-bold">{os.serviceNumber} - {os.client}</p>
+                                                        <div className="flex items-center gap-3">
+                                                            <p className="font-bold">{os.serviceNumber} - {os.client}</p>
+                                                            {solicitante && <Badge variant={solicitante === 'Sala' ? 'default' : 'outline'} className={solicitante === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>{solicitante === 'Sala' ? <Users size={12} className="mr-1.5"/> : <Soup size={12} className="mr-1.5"/>}{solicitante}</Badge>}
+                                                        </div>
                                                         <p className="text-xs text-muted-foreground">{os.space}</p>
                                                     </div>
                                                     <ChevronRight className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-90"/>
@@ -346,7 +365,7 @@ export default function PlanificacionAlmacenPage() {
                                                                     <TableHeader><TableRow><TableHead className="w-8"></TableHead><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead></TableRow></TableHeader>
                                                                     <TableBody>
                                                                         {items.map((item) => {
-                                                                            const itemId = `${item.itemCode}__${item.osId}__${fecha}__${tipo}`;
+                                                                            const itemId = `${item.itemCode}__${item.osId}__${fecha}__${tipo}__${item.solicitante || 'general'}`;
                                                                             return (
                                                                             <TableRow key={itemId}>
                                                                                 <TableCell><Checkbox onCheckedChange={() => handleSelectItem(itemId)} checked={selectedItems.has(itemId)} aria-label={`Seleccionar ${item.description}`} /></TableCell>
