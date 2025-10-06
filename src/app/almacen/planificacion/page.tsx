@@ -71,6 +71,16 @@ export default function PlanificacionAlmacenPage() {
 
         const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
         const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
+        const allPickingSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
+
+        // Create a set of items already in picking sheets for quick lookup
+        const pickedItems = new Set<string>();
+        Object.values(allPickingSheets).forEach(sheet => {
+            sheet.items.forEach(item => {
+                const key = `${sheet.osId}__${sheet.fechaNecesidad}__${item.itemCode}`;
+                pickedItems.add(key);
+            });
+        });
         
         const necesidadesPorDia: { [key: string]: Record<string, OSConNecesidades> } = {};
 
@@ -82,17 +92,24 @@ export default function PlanificacionAlmacenPage() {
                     if (!deliveryDate) return;
 
                     const dateKey = format(new Date(deliveryDate), 'yyyy-MM-dd');
-                    if (!necesidadesPorDia[dateKey]) {
-                        necesidadesPorDia[dateKey] = {};
-                    }
-                    if (!necesidadesPorDia[dateKey][os.id]) {
-                        necesidadesPorDia[dateKey][os.id] = { os, necesidades: { 'Almacen': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] }, totalItems: 0 };
-                    }
-                    
-                    const osNecesidades = necesidadesPorDia[dateKey][os.id];
 
                     order.items.forEach(item => {
+                        const itemKey = `${os.id}__${dateKey}__${item.itemCode}`;
+                        // If item is already in a picking sheet, skip it
+                        if (pickedItems.has(itemKey)) {
+                            return;
+                        }
+
+                        if (!necesidadesPorDia[dateKey]) {
+                            necesidadesPorDia[dateKey] = {};
+                        }
+                        if (!necesidadesPorDia[dateKey][os.id]) {
+                            necesidadesPorDia[dateKey][os.id] = { os, necesidades: { 'Almacen': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] }, totalItems: 0 };
+                        }
+                        
+                        const osNecesidades = necesidadesPorDia[dateKey][os.id];
                         const orderType = 'contractNumber' in order ? order.type : 'Hielo';
+
                         if (orderType in osNecesidades.necesidades) {
                            osNecesidades.necesidades[orderType as keyof NecesidadesPorTipo].push({
                                 ...item,
@@ -125,7 +142,7 @@ export default function PlanificacionAlmacenPage() {
         if(isMounted) {
             calcularNecesidades();
         }
-    }, [dateRange, isMounted]);
+    }, [dateRange, isMounted, calcularNecesidades]);
 
     useEffect(() => {
         setIsMounted(true);
@@ -155,18 +172,18 @@ export default function PlanificacionAlmacenPage() {
             });
         });
     
-        const newSelection = new Set(selectedItems);
-        const areAllSelected = osItemIds.every(id => newSelection.has(id));
-        
-        osItemIds.forEach(id => {
-            if (areAllSelected) {
-                newSelection.delete(id);
-            } else {
-                newSelection.add(id);
-            }
+        setSelectedItems(prev => {
+            const newSelection = new Set(prev);
+            const allSelected = osItemIds.every(id => newSelection.has(id));
+            osItemIds.forEach(id => {
+                if (allSelected) {
+                    newSelection.delete(id);
+                } else {
+                    newSelection.add(id);
+                }
+            });
+            return newSelection;
         });
-        
-        setSelectedItems(newSelection);
     };
     
     const getOsSelectionState = (osId: string, fecha: string): boolean | 'indeterminate' => {
@@ -188,10 +205,11 @@ export default function PlanificacionAlmacenPage() {
     };
     
     const numSheetsToGenerate = useMemo(() => {
-        const sheetsKeys = new Set(Array.from(selectedItems).map(id => {
+        const sheetsKeys = new Set<string>();
+        selectedItems.forEach(id => {
             const [,, osId, fecha] = id.split('__');
-            return `${osId}__${fecha}`;
-        }));
+            sheetsKeys.add(`${osId}__${fecha}`);
+        });
         return sheetsKeys.size;
     }, [selectedItems]);
 
@@ -277,6 +295,10 @@ export default function PlanificacionAlmacenPage() {
                         <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range.to){ setIsDatePickerOpen(false) }}} numberOfMonths={2} locale={es} />
                     </PopoverContent>
                 </Popover>
+                 <Button onClick={calcularNecesidades} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin mr-2"/> : <CalendarIcon className="mr-2" />}
+                    {isLoading ? 'Calculando...' : 'Calcular Necesidades'}
+                </Button>
             </div>
 
             {isLoading ? <div className="flex justify-center items-center h-48"><Loader2 className="mx-auto animate-spin text-primary" size={48} /></div>
@@ -359,3 +381,5 @@ export default function PlanificacionAlmacenPage() {
         </div>
     );
 }
+
+    
