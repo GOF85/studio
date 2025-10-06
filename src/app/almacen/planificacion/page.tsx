@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -21,7 +22,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 type NecesidadItem = OrderItem & { osId: string; serviceNumber: string; deliverySpace: string; deliveryLocation: string };
 type NecesidadesPorTipo = {
-    [key in 'Almacen' | 'Bebida' | 'Bio' | 'Alquiler' | 'Hielo']: NecesidadItem[];
+    [key in 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler' | 'Hielo']: NecesidadItem[];
 }
 type NecesidadesPorDia = {
     fecha: string;
@@ -76,22 +77,14 @@ export default function PlanificacionAlmacenPage() {
 
                     const dateKey = format(new Date(deliveryDate), 'yyyy-MM-dd');
                     if (!necesidadesPorDia[dateKey]) {
-                        necesidadesPorDia[dateKey] = { 'Almacen': [], 'Bebida': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] };
+                        necesidadesPorDia[dateKey] = { 'Almacen': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] };
                     }
                     
                     const os = osMap.get(order.osId)!;
 
                     order.items.forEach(item => {
                         const orderType = (order as MaterialOrder).type || 'Hielo';
-                        if (orderType === 'Bodega') { // Remap Bodega to Bebida
-                            necesidadesPorDia[dateKey]['Bebida'].push({
-                                ...item,
-                                osId: os.id,
-                                serviceNumber: os.serviceNumber,
-                                deliverySpace: order.deliverySpace || os.space,
-                                deliveryLocation: order.deliveryLocation || ''
-                            });
-                        } else if (orderType in necesidadesPorDia[dateKey]) {
+                        if (orderType in necesidadesPorDia[dateKey]) {
                            necesidadesPorDia[dateKey][orderType as keyof NecesidadesPorTipo].push({
                                 ...item,
                                 osId: os.id,

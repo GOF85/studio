@@ -25,7 +25,7 @@ export default function PedidosPage() {
   const searchParams = useSearchParams();
   
   const osId = searchParams.get('osId');
-  const orderType = searchParams.get('type') as 'Almacen' | 'Bebida' | 'Bio' | 'Alquiler' | null;
+  const orderType = searchParams.get('type') as 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler' | null;
   const editOrderId = searchParams.get('orderId');
 
   useEffect(() => {
@@ -53,8 +53,8 @@ export default function PedidosPage() {
     } else if (orderType) {
         const categoryMap = {
             'Almacen': 'Almacen',
-            'Bebida': 'Bebida',
-            'Bio': 'Consumibles', // Assuming 'Bio' maps to 'Consumibles' in precios
+            'Bodega': 'BODEGA',
+            'Bio': 'Consumibles',
         }
         const filterCategory = categoryMap[orderType as keyof typeof categoryMap] || 'Varios';
         
@@ -63,7 +63,7 @@ export default function PedidosPage() {
             .map(p => ({
                 itemCode: p.id,
                 description: p.producto,
-                price: orderType === 'Bebida' ? p.precioUd : p.precioAlquilerUd,
+                price: orderType === 'Bodega' ? p.precioUd : p.precioAlquilerUd,
                 stock: 999, // Assuming infinite stock from external providers
                 imageUrl: p.imagen || `https://picsum.photos/seed/${p.id}/400/300`,
                 imageHint: p.producto.toLowerCase(),
@@ -202,7 +202,7 @@ export default function PedidosPage() {
     
     let modulePath = '';
     if (orderType === 'Almacen') modulePath = 'almacen';
-    else if (orderType === 'Bebida') modulePath = 'bodega';
+    else if (orderType === 'Bodega') modulePath = 'bodega';
     else if (orderType === 'Bio') modulePath = 'bio';
     else if (orderType === 'Alquiler') modulePath = 'alquiler';
 

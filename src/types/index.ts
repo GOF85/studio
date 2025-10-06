@@ -86,7 +86,7 @@ export type ServiceOrder = {
 export type MaterialOrder = {
     id: string;
     osId: string;
-    type: 'Almacen' | 'Bebida' | 'Bio' | 'Alquiler';
+    type: 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';
     status: 'Asignado' | 'En preparación' | 'Listo';
     items: OrderItem[];
     days: number;
@@ -150,7 +150,7 @@ aparcamiento: string;
   comentariosMarketing: string;
 }
 
-export const PRECIO_CATEGORIAS = ['Bebida', 'Menaje', 'Vajilla', 'Cristalería', 'Mantelería', 'Mobiliario', 'Decoración', 'Maquinaria', 'Transporte', 'Hielo'] as const;
+export const PRECIO_CATEGORIAS = ['BODEGA', 'Menaje', 'Vajilla', 'Cristalería', 'Mantelería', 'Mobiliario', 'Decoración', 'Maquinaria', 'Transporte', 'Hielo'] as const;
 export type PrecioCategoria = typeof PRECIO_CATEGORIAS[number];
 
 export type Precio = {
@@ -606,7 +606,7 @@ export type PedidoPlantilla = {
     tipo: MaterialOrderType;
     items: PedidoPlantillaItem[];
 };
-export type MaterialOrderType = 'Almacen' | 'Bebida' | 'Bio' | 'Alquiler';
+export type MaterialOrderType = 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';
 export type FormatoExpedicion = {
   id: string;
   nombre: string;
