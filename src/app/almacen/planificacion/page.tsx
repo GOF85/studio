@@ -139,38 +139,42 @@ export default function PlanificacionAlmacenPage() {
         });
     }
 
-    const handleSelectOS = (osId: string, fecha: string, checked: boolean) => {
+    const handleSelectOS = (osId: string, fecha: string) => {
         const osData = necesidades.find(d => d.fecha === fecha)?.ordenes[osId];
         if (!osData) return;
-
+    
         const newSelection = new Set(selectedItems);
+        const osItemIds: string[] = [];
         Object.entries(osData.necesidades).forEach(([tipo, items]) => {
             items.forEach(item => {
-                const itemId = `${item.itemCode}__${osId}__${fecha}__${tipo}`;
-                if (checked) {
-                    newSelection.add(itemId);
-                } else {
-                    newSelection.delete(itemId);
-                }
+                osItemIds.push(`${item.itemCode}__${osId}__${fecha}__${tipo}`);
             });
         });
+    
+        const areAllSelected = osItemIds.every(id => newSelection.has(id));
+        
+        osItemIds.forEach(id => {
+            if (areAllSelected) {
+                newSelection.delete(id);
+            } else {
+                newSelection.add(id);
+            }
+        });
+        
         setSelectedItems(newSelection);
     };
-
-    const isOsSelected = (osId: string, fecha: string) => {
+    
+    const getOsSelectionState = (osId: string, fecha: string): boolean | 'indeterminate' => {
         const osData = necesidades.find(d => d.fecha === fecha)?.ordenes[osId];
         if (!osData || osData.totalItems === 0) return false;
+    
+        const osItemIds = Object.values(osData.necesidades).flat().map(item => `${item.itemCode}__${osId}__${fecha}__${item.type}`);
         
-        let allSelected = true;
-        Object.entries(osData.necesidades).forEach(([tipo, items]) => {
-            items.forEach(item => {
-                const itemId = `${item.itemCode}__${osId}__${fecha}__${tipo}`;
-                if (!selectedItems.has(itemId)) {
-                    allSelected = false;
-                }
-            });
-        });
-        return allSelected;
+        const selectedCount = osItemIds.filter(id => selectedItems.has(id)).length;
+    
+        if (selectedCount === 0) return false;
+        if (selectedCount === osItemIds.length) return true;
+        return 'indeterminate';
     };
     
     const numSheetsToGenerate = useMemo(() => {
@@ -290,8 +294,8 @@ export default function PlanificacionAlmacenPage() {
                                         <Collapsible key={os.id} className="border rounded-lg">
                                             <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-t-lg">
                                                 <Checkbox
-                                                    checked={isOsSelected(os.id, fecha)}
-                                                    onCheckedChange={(checked) => handleSelectOS(os.id, fecha, Boolean(checked))}
+                                                    checked={getOsSelectionState(os.id, fecha)}
+                                                    onCheckedChange={() => handleSelectOS(os.id, fecha)}
                                                 />
                                                 <CollapsibleTrigger className="flex-grow flex items-center justify-between group">
                                                     <div className="text-left">
