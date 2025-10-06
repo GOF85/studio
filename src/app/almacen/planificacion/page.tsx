@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday, isWithinInterval, startOfDay, endOfDay, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ClipboardList, Calendar as CalendarIcon, Factory, ChevronDown, ListChecks, Loader2, Warehouse } from 'lucide-react';
+import { ClipboardList, Calendar as CalendarIcon, Factory, ChevronRight, ListChecks, Loader2, Warehouse } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -16,17 +16,23 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import type { ServiceOrder, MaterialOrder, OrderItem, HieloOrder } from '@/types';
+import type { ServiceOrder, MaterialOrder, OrderItem, HieloOrder, PickingSheet } from '@/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 type NecesidadItem = OrderItem & { osId: string; serviceNumber: string; deliverySpace: string; deliveryLocation: string };
 type NecesidadesPorTipo = {
     [key in 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler' | 'Hielo']: NecesidadItem[];
 }
+type OSConNecesidades = {
+    os: ServiceOrder;
+    necesidades: NecesidadesPorTipo;
+    totalItems: number;
+};
 type NecesidadesPorDia = {
     fecha: string;
-    necesidades: NecesidadesPorTipo;
+    ordenes: Record<string, OSConNecesidades>;
     totalItems: number;
 }
 
@@ -67,31 +73,36 @@ export default function PlanificacionAlmacenPage() {
         const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
         const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
         
-        const necesidadesPorDia: { [key: string]: NecesidadesPorTipo } = {};
+        const necesidadesPorDia: { [key: string]: Record<string, OSConNecesidades> } = {};
 
         const processOrders = (orders: (MaterialOrder | HieloOrder)[]) => {
             orders.forEach(order => {
                 if (osIdsEnRango.has(order.osId)) {
-                    const deliveryDate = order.deliveryDate || osMap.get(order.osId)?.startDate;
+                    const os = osMap.get(order.osId)!;
+                    const deliveryDate = order.deliveryDate || os.startDate;
                     if (!deliveryDate) return;
 
                     const dateKey = format(new Date(deliveryDate), 'yyyy-MM-dd');
                     if (!necesidadesPorDia[dateKey]) {
-                        necesidadesPorDia[dateKey] = { 'Almacen': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] };
+                        necesidadesPorDia[dateKey] = {};
+                    }
+                    if (!necesidadesPorDia[dateKey][os.id]) {
+                        necesidadesPorDia[dateKey][os.id] = { os, necesidades: { 'Almacen': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] }, totalItems: 0 };
                     }
                     
-                    const os = osMap.get(order.osId)!;
+                    const osNecesidades = necesidadesPorDia[dateKey][os.id];
 
                     order.items.forEach(item => {
                         const orderType = (order as MaterialOrder).type || 'Hielo';
-                        if (orderType in necesidadesPorDia[dateKey]) {
-                           necesidadesPorDia[dateKey][orderType as keyof NecesidadesPorTipo].push({
+                        if (orderType in osNecesidades.necesidades) {
+                           osNecesidades.necesidades[orderType as keyof NecesidadesPorTipo].push({
                                 ...item,
                                 osId: os.id,
                                 serviceNumber: os.serviceNumber,
                                 deliverySpace: order.deliverySpace || os.space,
                                 deliveryLocation: order.deliveryLocation || ''
                             });
+                            osNecesidades.totalItems++;
                         }
                     });
                 }
@@ -101,10 +112,10 @@ export default function PlanificacionAlmacenPage() {
         processOrders(allMaterialOrders);
         processOrders(allHieloOrders);
         
-        const resultado: NecesidadesPorDia[] = Object.entries(necesidadesPorDia).map(([fecha, necesidades]) => ({
+        const resultado: NecesidadesPorDia[] = Object.entries(necesidadesPorDia).map(([fecha, ordenes]) => ({
             fecha,
-            necesidades,
-            totalItems: Object.values(necesidades).flat().length
+            ordenes,
+            totalItems: Object.values(ordenes).reduce((sum, os) => sum + os.totalItems, 0)
         })).sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
 
         setNecesidades(resultado);
@@ -128,40 +139,82 @@ export default function PlanificacionAlmacenPage() {
         });
     }
 
+    const handleSelectOS = (osId: string, fecha: string, checked: boolean) => {
+        const osData = necesidades.find(d => d.fecha === fecha)?.ordenes[osId];
+        if (!osData) return;
+
+        const newSelection = new Set(selectedItems);
+        Object.entries(osData.necesidades).forEach(([tipo, items]) => {
+            items.forEach(item => {
+                const itemId = `${item.itemCode}__${osId}__${fecha}__${tipo}`;
+                if (checked) {
+                    newSelection.add(itemId);
+                } else {
+                    newSelection.delete(itemId);
+                }
+            });
+        });
+        setSelectedItems(newSelection);
+    };
+
+    const isOsSelected = (osId: string, fecha: string) => {
+        const osData = necesidades.find(d => d.fecha === fecha)?.ordenes[osId];
+        if (!osData || osData.totalItems === 0) return false;
+        
+        let allSelected = true;
+        Object.entries(osData.necesidades).forEach(([tipo, items]) => {
+            items.forEach(item => {
+                const itemId = `${item.itemCode}__${osId}__${fecha}__${tipo}`;
+                if (!selectedItems.has(itemId)) {
+                    allSelected = false;
+                }
+            });
+        });
+        return allSelected;
+    };
+
+
     const handleGeneratePicking = () => {
         if (selectedItems.size === 0) {
             toast({ variant: 'destructive', title: 'Error', description: 'Selecciona al menos un artículo para generar una hoja de picking.' });
             return;
         }
 
-        const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
+        const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
         const itemsToProcess = Array.from(selectedItems);
         
         const sheetsToGenerate: Record<string, {osId: string, fechaNecesidad: string, items: any[]}> = {};
 
         itemsToProcess.forEach(itemId => {
             const [itemCode, osId, fecha, tipo] = itemId.split('__');
-            const sheetKey = `${osId}-${fecha}`;
+            const sheetKey = `${osId}__${fecha}`; // Use composite key with date
 
             if (!sheetsToGenerate[sheetKey]) {
                 sheetsToGenerate[sheetKey] = { osId, fechaNecesidad: fecha, items: [] };
             }
 
             const necesidadDia = necesidades.find(n => n.fecha === fecha);
-            const itemData = necesidadDia?.necesidades[tipo as keyof NecesidadesPorTipo]?.find(i => i.itemCode === itemCode && i.osId === osId);
+            const osData = necesidadDia?.ordenes[osId];
+            const itemData = osData?.necesidades[tipo as keyof NecesidadesPorTipo]?.find(i => i.itemCode === itemCode && i.osId === osId);
 
             if (itemData) {
                  sheetsToGenerate[sheetKey].items.push({...itemData, type: tipo});
             }
         });
         
-        Object.values(sheetsToGenerate).forEach(sheet => {
-            const sheetKey = `${sheet.osId}-${sheet.fechaNecesidad}`;
-            allSheets[sheetKey] = {
-                id: sheetKey,
-                osId: sheet.osId,
-                fechaNecesidad: sheet.fechaNecesidad,
-                items: sheet.items,
+        Object.values(sheetsToGenerate).forEach(sheetData => {
+            const os = allServiceOrders.find(o => o.id === sheetData.osId);
+            if (!os) return;
+
+            const baseId = os.serviceNumber.slice(-5);
+            const dateSuffix = Object.keys(allSheets).filter(k => k.startsWith(`${baseId}.`)).length + 1;
+            const sheetId = `${baseId}.${dateSuffix.toString().padStart(2, '0')}`;
+            
+            allSheets[sheetId] = {
+                id: sheetId,
+                osId: sheetData.osId,
+                fechaNecesidad: sheetData.fechaNecesidad,
+                items: sheetData.items,
                 status: 'Pendiente',
             };
         })
@@ -210,10 +263,10 @@ export default function PlanificacionAlmacenPage() {
             {isLoading ? <div className="flex justify-center items-center h-48"><Loader2 className="mx-auto animate-spin text-primary" size={48} /></div>
             : necesidades.length > 0 ? (
                 <Accordion type="multiple" defaultValue={necesidades.map(n => n.fecha)} className="w-full space-y-4">
-                    {necesidades.map(({ fecha, necesidades: necesidadesDelDia, totalItems }) => (
-                         <AccordionItem value={fecha} key={fecha}>
+                    {necesidades.map(({ fecha, ordenes, totalItems }) => (
+                         <AccordionItem value={fecha} key={fecha} className="border-none">
                             <Card>
-                                <AccordionTrigger className="p-4 hover:no-underline">
+                                <AccordionTrigger className="p-4 hover:no-underline rounded-lg">
                                     <div className="flex items-center gap-3 w-full">
                                         <CalendarIcon className="h-6 w-6"/>
                                         <div className="text-left">
@@ -222,35 +275,52 @@ export default function PlanificacionAlmacenPage() {
                                         </div>
                                     </div>
                                 </AccordionTrigger>
-                                <AccordionContent>
-                                    <div className="px-4 pb-4 space-y-4 border-t pt-4">
-                                       {(Object.keys(necesidadesDelDia) as Array<keyof NecesidadesPorTipo>).map(tipo => {
-                                            const items = necesidadesDelDia[tipo];
-                                            if (items.length === 0) return null;
-                                            return (
-                                                 <div key={tipo}>
-                                                    <h4 className="font-semibold mb-2">{tipo}</h4>
-                                                    <div className="border rounded-md">
-                                                        <Table>
-                                                            <TableHeader><TableRow><TableHead className="w-8"></TableHead><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead><TableHead>OS</TableHead><TableHead>Lugar</TableHead></TableRow></TableHeader>
-                                                            <TableBody>
-                                                                {items.map((item, index) => {
-                                                                    const itemId = `${item.itemCode}__${item.osId}__${fecha}__${tipo}`;
-                                                                    return (
-                                                                    <TableRow key={itemId}>
-                                                                        <TableCell><Checkbox onCheckedChange={() => handleSelectItem(itemId)} checked={selectedItems.has(itemId)} /></TableCell>
-                                                                        <TableCell>{item.description}</TableCell>
-                                                                        <TableCell>{item.quantity}</TableCell>
-                                                                        <TableCell>{item.serviceNumber}</TableCell>
-                                                                        <TableCell>{item.deliverySpace} {item.deliveryLocation && `(${item.deliveryLocation})`}</TableCell>
-                                                                    </TableRow>
-                                                                )})}
-                                                            </TableBody>
-                                                        </Table>
+                                <AccordionContent className="border-t">
+                                    <div className="p-4 space-y-3">
+                                    {Object.values(ordenes).sort((a,b) => a.os.serviceNumber.localeCompare(b.os.serviceNumber)).map(({os, necesidades: necesidadesOs}) => (
+                                        <Collapsible key={os.id} className="border rounded-lg">
+                                            <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-t-lg">
+                                                <Checkbox
+                                                    checked={isOsSelected(os.id, fecha)}
+                                                    onCheckedChange={(checked) => handleSelectOS(os.id, fecha, Boolean(checked))}
+                                                />
+                                                <CollapsibleTrigger className="flex-grow flex items-center justify-between group">
+                                                    <div className="text-left">
+                                                        <p className="font-bold">{os.serviceNumber} - {os.client}</p>
+                                                        <p className="text-xs text-muted-foreground">{os.space}</p>
                                                     </div>
-                                                 </div>
-                                            )
-                                       })}
+                                                    <ChevronRight className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-90"/>
+                                                </CollapsibleTrigger>
+                                            </div>
+                                            <CollapsibleContent className="p-3">
+                                                 {(Object.keys(necesidadesOs) as Array<keyof NecesidadesPorTipo>).map(tipo => {
+                                                    const items = necesidadesOs[tipo];
+                                                    if (items.length === 0) return null;
+                                                    return (
+                                                        <div key={tipo} className="mb-2 last:mb-0">
+                                                            <h4 className="font-semibold mb-1 text-sm">{tipo}</h4>
+                                                            <div className="border rounded-md">
+                                                                <Table>
+                                                                    <TableHeader><TableRow><TableHead className="w-8"></TableHead><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead></TableRow></TableHeader>
+                                                                    <TableBody>
+                                                                        {items.map((item) => {
+                                                                            const itemId = `${item.itemCode}__${item.osId}__${fecha}__${tipo}`;
+                                                                            return (
+                                                                            <TableRow key={itemId}>
+                                                                                <TableCell><Checkbox onCheckedChange={() => handleSelectItem(itemId)} checked={selectedItems.has(itemId)} /></TableCell>
+                                                                                <TableCell>{item.description}</TableCell>
+                                                                                <TableCell>{item.quantity}</TableCell>
+                                                                            </TableRow>
+                                                                        )})}
+                                                                    </TableBody>
+                                                                </Table>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </CollapsibleContent>
+                                        </Collapsible>
+                                    ))}
                                     </div>
                                 </AccordionContent>
                             </Card>
@@ -269,3 +339,4 @@ export default function PlanificacionAlmacenPage() {
         </div>
     );
 }
+

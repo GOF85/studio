@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, ListChecks, Calendar as CalendarIcon, User, Building, AlertTriangle, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -28,12 +29,8 @@ export default function PickingSheetPage() {
     const [isMounted, setIsMounted] = useState(false);
     const router = useRouter();
     const params = useParams();
-    const searchParams = useSearchParams();
-    const osId = params.id as string;
-    const fecha = searchParams.get('fecha');
+    const sheetId = params.id as string;
     const { toast } = useToast();
-
-    const sheetId = `${osId}-${fecha}`;
 
     const loadSheet = useCallback(() => {
         const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
@@ -142,7 +139,7 @@ export default function PickingSheetPage() {
                         <ArrowLeft className="mr-2" /> Volver al listado
                     </Button>
                     <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                        <ListChecks /> Hoja de Picking
+                        <ListChecks /> Hoja de Picking <Badge className="text-2xl">{sheet.id}</Badge>
                     </h1>
                 </div>
             </div>
@@ -258,3 +255,4 @@ export default function PickingSheetPage() {
         </TooltipProvider>
     );
 }
+

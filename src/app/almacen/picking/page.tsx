@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -15,10 +16,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import type { ServiceOrder } from '@/types';
+import type { ServiceOrder, PickingSheet } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
-import type { PickingSheet } from '@/types';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -74,7 +74,8 @@ export default function GestionPickingPage() {
             const sheetDate = new Date(sheet.fechaNecesidad);
             const isInDateRange = dateRange?.from && isWithinInterval(sheetDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to || dateRange.from) });
             const matchesSearch = sheet.os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                 sheet.os.client.toLowerCase().includes(searchTerm.toLowerCase());
+                                 sheet.os.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                 sheet.id.toLowerCase().includes(searchTerm.toLowerCase());
             
             return isInDateRange && matchesSearch;
         }).sort((a, b) => new Date(a.fechaNecesidad).getTime() - new Date(b.fechaNecesidad).getTime());
@@ -104,7 +105,7 @@ export default function GestionPickingPage() {
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         type="search"
-                        placeholder="Buscar por Nº de Servicio o Cliente..."
+                        placeholder="Buscar por Expedición, OS o Cliente..."
                         className="pl-8 w-full"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -132,20 +133,21 @@ export default function GestionPickingPage() {
                 <CardContent>
                     <div className="border rounded-lg">
                         <Table>
-                            <TableHeader><TableRow><TableHead>Nº Servicio</TableHead><TableHead>Cliente</TableHead><TableHead>Fecha Necesidad</TableHead><TableHead>Estado</TableHead><TableHead>Acción</TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead>Expedición</TableHead><TableHead>Nº Servicio</TableHead><TableHead>Cliente</TableHead><TableHead>Fecha Necesidad</TableHead><TableHead>Estado</TableHead><TableHead className="text-right">Acción</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {filteredSheets.length > 0 ? (
                                     filteredSheets.map(sheet => (
-                                        <TableRow key={sheet.id} className="cursor-pointer">
-                                            <TableCell onClick={() => router.push(`/almacen/picking/${sheet.osId}?fecha=${sheet.fechaNecesidad}`)}>{sheet.os?.serviceNumber}</TableCell>
-                                            <TableCell onClick={() => router.push(`/almacen/picking/${sheet.osId}?fecha=${sheet.fechaNecesidad}`)}>{sheet.os?.client}</TableCell>
-                                            <TableCell onClick={() => router.push(`/almacen/picking/${sheet.osId}?fecha=${sheet.fechaNecesidad}`)}>{format(new Date(sheet.fechaNecesidad), 'dd/MM/yyyy')}</TableCell>
-                                            <TableCell onClick={() => router.push(`/almacen/picking/${sheet.osId}?fecha=${sheet.fechaNecesidad}`)}>
+                                        <TableRow key={sheet.id} onClick={() => router.push(`/almacen/picking/${sheet.id}`)} className="cursor-pointer">
+                                            <TableCell className="font-mono"><Badge>{sheet.id}</Badge></TableCell>
+                                            <TableCell>{sheet.os?.serviceNumber}</TableCell>
+                                            <TableCell>{sheet.os?.client}</TableCell>
+                                            <TableCell>{format(new Date(sheet.fechaNecesidad), 'dd/MM/yyyy')}</TableCell>
+                                            <TableCell>
                                                 <Badge variant={getStatusVariant(sheet.status)}>{sheet.status}</Badge>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="text-right">
                                                 <div className="flex gap-2 justify-end">
-                                                    <Button size="sm" onClick={() => router.push(`/almacen/picking/${sheet.osId}?fecha=${sheet.fechaNecesidad}`)}>Iniciar Picking</Button>
+                                                    <Button size="sm">Iniciar Picking</Button>
                                                     <Button variant="destructive" size="icon" onClick={(e) => { e.stopPropagation(); setSheetToDelete(sheet.id); }}>
                                                         <Trash2 className="h-4 w-4"/>
                                                     </Button>
@@ -155,7 +157,7 @@ export default function GestionPickingPage() {
                                     ))
                                 ) : (
                                      <TableRow>
-                                        <TableCell colSpan={5} className="h-24 text-center">
+                                        <TableCell colSpan={6} className="h-24 text-center">
                                             No hay hojas de picking en las fechas seleccionadas.
                                         </TableCell>
                                     </TableRow>
@@ -188,3 +190,4 @@ export default function GestionPickingPage() {
         </>
     );
 }
+

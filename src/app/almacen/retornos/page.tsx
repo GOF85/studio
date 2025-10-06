@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -128,7 +129,7 @@ export default function GestionRetornosPage() {
                                         const status = getReturnStatus(os.id);
                                         return (
                                         <TableRow key={os.id} onClick={() => router.push(`/almacen/retornos/${os.id}`)} className="cursor-pointer">
-                                            <TableCell>{os.serviceNumber}</TableCell>
+                                            <TableCell><Badge variant="outline">{os.serviceNumber}</Badge></TableCell>
                                             <TableCell>{os.client}{os.finalClient && ` - ${os.finalClient}`}</TableCell>
                                             <TableCell>{format(new Date(os.endDate), 'dd/MM/yyyy')}</TableCell>
                                             <TableCell>
@@ -154,4 +155,5 @@ export default function GestionRetornosPage() {
         </div>
     );
 }
+
 
