@@ -148,7 +148,7 @@ export default function AlquilerPage() {
         </CardContent>
     </Card>
   );
-  
+
   const renderSummaryTable = (title: string, items: (OrderItem & {solicitantes?: Set<string>})[]) => (
     <div>
         {title && <h4 className="font-semibold mb-2">{title}</h4>}
@@ -182,12 +182,14 @@ export default function AlquilerPage() {
         </Button>
       </div>
 
-       <div className="flex gap-6 h-[60vh]">
-            {renderColumn('Asignado', allItemsByStatus['Asignado'])}
-            {renderColumn('En Preparación', allItemsByStatus['En Preparación'])}
-            {renderColumn('Listo', allItemsByStatus['Listo'])}
+       <div className="flex flex-col h-[65vh]">
+            <div className="flex gap-6 flex-grow">
+                {renderColumn('Asignado', allItemsByStatus['Asignado'])}
+                {renderColumn('En Preparación', allItemsByStatus['En Preparación'])}
+                {renderColumn('Listo', allItemsByStatus['Listo'])}
+           </div>
        </div>
-
+       
        <Card className="mt-6">
             <CardHeader>
                  <div className="flex justify-between items-center">

@@ -68,7 +68,6 @@ export default function AlmacenPage() {
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
                 });
-                // Create a unique key for item + solicitante to track picked items correctly
                 pickedItemCodes.add(`${item.itemCode}__${sheet.solicitante || 'general'}`);
             }
         });
@@ -89,7 +88,7 @@ export default function AlmacenPage() {
     });
     return items;
   }, [materialOrders, pickingSheets]);
-
+  
   const summaryItems = useMemo(() => {
     const allItems: (OrderItem & { solicita?: 'Sala' | 'Cocina' })[] = [];
     materialOrders.forEach(order => {
@@ -183,10 +182,12 @@ export default function AlmacenPage() {
         </Button>
       </div>
       
-       <div className="flex gap-6 h-[60vh]">
-            {renderColumn('Asignado', allItemsByStatus['Asignado'])}
-            {renderColumn('En Preparación', allItemsByStatus['En Preparación'])}
-            {renderColumn('Listo', allItemsByStatus['Listo'])}
+       <div className="flex flex-col h-[65vh]">
+            <div className="flex gap-6 flex-grow">
+                {renderColumn('Asignado', allItemsByStatus['Asignado'])}
+                {renderColumn('En Preparación', allItemsByStatus['En Preparación'])}
+                {renderColumn('Listo', allItemsByStatus['Listo'])}
+           </div>
        </div>
 
        <Card className="mt-6">
