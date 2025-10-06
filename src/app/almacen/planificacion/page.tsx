@@ -84,18 +84,24 @@ export default function PlanificacionAlmacenPage() {
                 return os.status === 'Confirmado' && isWithinInterval(osDate, { start: startOfDay(dateRange.from!), end: endOfDay(toDate) });
             } catch (e) { return false; }
         });
+
         const osIdsEnRango = new Set(osEnRango.map(os => os.id));
+        if (osIdsEnRango.size === 0) {
+            setNecesidades([]);
+            setIsLoading(false);
+            return;
+        }
+        
         const osMap = new Map(osEnRango.map(os => [os.id, os]));
 
-        const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-        const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
+        const allMaterialOrders = (JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[]).filter(o => osIdsEnRango.has(o.osId));
+        const allHieloOrders = (JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[]).filter(o => osIdsEnRango.has(o.osId));
         const allPickingSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
 
         // Create a set of items already in picking sheets for quick lookup
         const pickedItems = new Set<string>();
         Object.values(allPickingSheets).forEach(sheet => {
             sheet.items.forEach(item => {
-                // Correct Key: Must include solicitante to differentiate requests
                 const key = `${sheet.osId}__${sheet.fechaNecesidad}__${item.itemCode}__${sheet.solicitante || 'general'}`;
                 pickedItems.add(key);
             });
@@ -105,48 +111,47 @@ export default function PlanificacionAlmacenPage() {
 
         const processOrders = (orders: (MaterialOrder | HieloOrder)[]) => {
             orders.forEach(order => {
-                if (osIdsEnRango.has(order.osId)) {
-                    const os = osMap.get(order.osId)!;
-                    const solicitante = 'solicita' in order ? order.solicita : undefined;
-                    // For MaterialOrder, deliveryDate is optional, fallback to OS start date
-                    const deliveryDate = ('deliveryDate' in order && order.deliveryDate) ? order.deliveryDate : os.startDate;
+                const os = osMap.get(order.osId);
+                if (!os) return;
 
-                    if (!deliveryDate) return;
+                const solicitante = 'solicita' in order ? order.solicita : undefined;
+                const deliveryDate = ('deliveryDate' in order && order.deliveryDate) ? order.deliveryDate : os.startDate;
 
-                    const dateKey = format(new Date(deliveryDate), 'yyyy-MM-dd');
+                if (!deliveryDate) return;
 
-                    order.items.forEach(item => {
-                        const itemKey = `${os.id}__${dateKey}__${item.itemCode}__${solicitante || 'general'}`;
-                        if (pickedItems.has(itemKey)) {
-                            return;
-                        }
+                const dateKey = format(new Date(deliveryDate), 'yyyy-MM-dd');
 
-                        if (!necesidadesPorDia[dateKey]) {
-                            necesidadesPorDia[dateKey] = {};
-                        }
-                        
-                        const osKey = `${os.id}__${dateKey}__${solicitante || 'general'}`;
+                order.items.forEach(item => {
+                    const itemKey = `${os.id}__${dateKey}__${item.itemCode}__${solicitante || 'general'}`;
+                    if (pickedItems.has(itemKey)) {
+                        return;
+                    }
 
-                        if (!necesidadesPorDia[dateKey][osKey]) {
-                            necesidadesPorDia[dateKey][osKey] = { os, necesidades: { 'Almacen': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] }, totalItems: 0, solicitante };
-                        }
-                        
-                        const osNecesidades = necesidadesPorDia[dateKey][osKey];
-                        const orderType = 'type' in order ? order.type : 'Hielo';
+                    if (!necesidadesPorDia[dateKey]) {
+                        necesidadesPorDia[dateKey] = {};
+                    }
+                    
+                    const osKey = `${os.id}__${dateKey}__${solicitante || 'general'}`;
 
-                        if (orderType in osNecesidades.necesidades) {
-                           osNecesidades.necesidades[orderType as keyof NecesidadesPorTipo].push({
-                                ...item,
-                                osId: os.id,
-                                serviceNumber: os.serviceNumber,
-                                deliverySpace: ('deliverySpace' in order && order.deliverySpace) ? order.deliverySpace : (os.space || ''),
-                                deliveryLocation: ('deliveryLocation' in order && order.deliveryLocation) ? order.deliveryLocation : '',
-                                solicitante: solicitante,
-                            });
-                            osNecesidades.totalItems++;
-                        }
-                    });
-                }
+                    if (!necesidadesPorDia[dateKey][osKey]) {
+                        necesidadesPorDia[dateKey][osKey] = { os, necesidades: { 'Almacen': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] }, totalItems: 0, solicitante };
+                    }
+                    
+                    const osNecesidades = necesidadesPorDia[dateKey][osKey];
+                    const orderType = 'type' in order ? order.type : 'Hielo';
+
+                    if (orderType in osNecesidades.necesidades) {
+                       osNecesidades.necesidades[orderType as keyof NecesidadesPorTipo].push({
+                            ...item,
+                            osId: os.id,
+                            serviceNumber: os.serviceNumber,
+                            deliverySpace: ('deliverySpace' in order && order.deliverySpace) ? order.deliverySpace : (os.space || ''),
+                            deliveryLocation: ('deliveryLocation' in order && order.deliveryLocation) ? order.deliveryLocation : '',
+                            solicitante: solicitante,
+                        });
+                        osNecesidades.totalItems++;
+                    }
+                });
             });
         };
 
@@ -158,7 +163,7 @@ export default function PlanificacionAlmacenPage() {
             ordenes,
             totalItems: Object.values(ordenes).reduce((sum, os) => sum + os.totalItems, 0)
         })).sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
-
+        
         setNecesidades(resultado);
         setIsLoading(false);
     }, [dateRange, toast]);
@@ -467,4 +472,6 @@ export default function PlanificacionAlmacenPage() {
     );
 }
     
+    
+
     
