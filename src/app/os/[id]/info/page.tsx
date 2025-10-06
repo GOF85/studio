@@ -130,8 +130,9 @@ const defaultValues: Partial<OsFormValues> = {
 };
 
 const ClienteTitle = () => {
-  const client = useWatch({ name: 'client' });
-  const finalClient = useWatch({ name: 'finalClient' });
+  const { watch } = useFormContext();
+  const client = watch('client');
+  const finalClient = watch('finalClient');
   return (
     <div className="flex w-full items-center justify-between p-4">
         <h3 className="text-lg font-semibold">Cliente</h3>
@@ -565,7 +566,7 @@ export default function InfoPage() {
 
                           <AccordionItem value="espacio" className="border-none">
                           <Card>
-                            <AccordionTrigger><EspacioTitle /></AccordionTrigger>
+                            <AccordionTrigger className="p-0"><EspacioTitle /></AccordionTrigger>
                             <AccordionContent>
                               <div className="space-y-4 px-4 pb-4">
                                 <FormField control={form.control} name="space" render={({ field }) => (
@@ -619,7 +620,7 @@ export default function InfoPage() {
                           
                           <AccordionItem value="responsables" className="border-none">
                             <Card>
-                            <AccordionTrigger><ResponsablesTitle /></AccordionTrigger>
+                            <AccordionTrigger className="p-0"><ResponsablesTitle /></AccordionTrigger>
                             <AccordionContent>
                               <div className="grid md:grid-cols-3 gap-4 px-4 pb-4">
                                   <FormField control={form.control} name="respMetre" render={({ field }) => (
@@ -874,3 +875,4 @@ export default function InfoPage() {
     </>
   );
 }
+
