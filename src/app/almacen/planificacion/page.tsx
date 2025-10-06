@@ -85,7 +85,7 @@ export default function PlanificacionAlmacenPage() {
         const pickedItems = new Set<string>();
         Object.values(allPickingSheets).forEach(sheet => {
             sheet.items.forEach(item => {
-                const key = `${sheet.osId}__${sheet.fechaNecesidad}__${item.itemCode}`;
+                const key = `${sheet.osId}__${sheet.fechaNecesidad}__${item.itemCode}__${sheet.solicitante || 'general'}`;
                 pickedItems.add(key);
             });
         });
@@ -96,14 +96,15 @@ export default function PlanificacionAlmacenPage() {
             orders.forEach(order => {
                 if (osIdsEnRango.has(order.osId)) {
                     const os = osMap.get(order.osId)!;
-                    const deliveryDate = 'deliveryDate' in order ? order.deliveryDate || os.startDate : os.startDate;
+                    const solicitante = 'solicita' in order ? order.solicita : undefined;
+                    const deliveryDate = ('deliveryDate' in order && order.deliveryDate) ? order.deliveryDate : os.startDate;
+
                     if (!deliveryDate) return;
 
                     const dateKey = format(new Date(deliveryDate), 'yyyy-MM-dd');
 
                     order.items.forEach(item => {
-                        const itemKey = `${os.id}__${dateKey}__${item.itemCode}`;
-                        // If item is already in a picking sheet, skip it
+                        const itemKey = `${os.id}__${dateKey}__${item.itemCode}__${solicitante || 'general'}`;
                         if (pickedItems.has(itemKey)) {
                             return;
                         }
@@ -112,7 +113,6 @@ export default function PlanificacionAlmacenPage() {
                             necesidadesPorDia[dateKey] = {};
                         }
                         
-                        const solicitante = 'solicita' in order ? order.solicita : undefined;
                         const osKey = `${os.id}__${solicitante || 'general'}`;
 
                         if (!necesidadesPorDia[dateKey][osKey]) {
@@ -120,15 +120,15 @@ export default function PlanificacionAlmacenPage() {
                         }
                         
                         const osNecesidades = necesidadesPorDia[dateKey][osKey];
-                        const orderType = 'contractNumber' in order ? order.type : 'Hielo';
+                        const orderType = 'type' in order ? order.type : 'Hielo';
 
                         if (orderType in osNecesidades.necesidades) {
                            osNecesidades.necesidades[orderType as keyof NecesidadesPorTipo].push({
                                 ...item,
                                 osId: os.id,
                                 serviceNumber: os.serviceNumber,
-                                deliverySpace: 'deliverySpace' in order ? order.deliverySpace || os.space || '' : os.space || '',
-                                deliveryLocation: 'deliveryLocation' in order ? order.deliveryLocation || '' : '',
+                                deliverySpace: ('deliverySpace' in order && order.deliverySpace) ? order.deliverySpace : (os.space || ''),
+                                deliveryLocation: ('deliveryLocation' in order && order.deliveryLocation) ? order.deliveryLocation : '',
                                 solicitante: solicitante,
                             });
                             osNecesidades.totalItems++;
@@ -226,7 +226,7 @@ export default function PlanificacionAlmacenPage() {
     const numSheetsToGenerate = useMemo(() => {
         const sheetsKeys = new Set<string>();
         selectedItems.forEach(id => {
-            const [,, osId, fecha, , solicitante] = id.split('__');
+            const [itemCode, osId, fecha, tipo, solicitante] = id.split('__');
             sheetsKeys.add(`${osId}__${fecha}__${solicitante || 'general'}`);
         });
         return sheetsKeys.size;
@@ -402,6 +402,5 @@ export default function PlanificacionAlmacenPage() {
         </div>
     );
 }
-
     
     
