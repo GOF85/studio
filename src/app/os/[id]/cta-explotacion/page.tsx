@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { DollarSign, Target, Settings, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { Euro, Target, Settings, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -140,7 +140,7 @@ export default function CtaExplotacionPage() {
       { label: GASTO_LABELS.bodega, presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Bodega')), cierre: 0 },
       { label: GASTO_LABELS.consumibles, presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Bio')), cierre: 0 },
       { label: GASTO_LABELS.hielo, presupuesto: getModuleTotal(allHieloOrders.filter(o => o.osId === osId)), cierre: 0 },
-      { label: GASTO_LABELS.almacen, presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Almacén')), cierre: 0 },
+      { label: GASTO_LABELS.almacen, presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Almacen')), cierre: 0 },
       { label: GASTO_LABELS.alquiler, presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Alquiler')), cierre: 0 },
       { label: GASTO_LABELS.transporte, presupuesto: getModuleTotal(allTransporteOrders.filter(o => o.osId === osId)), cierre: 0 },
       { label: GASTO_LABELS.decoracion, presupuesto: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)), cierre: 0 },

@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, DollarSign, X } from 'lucide-react';
+import { Loader2, Euro, X } from 'lucide-react';
 import type { Precio, PrecioCategoria } from '@/types';
 import { PRECIO_CATEGORIAS } from '@/types';
 
@@ -113,7 +113,7 @@ export default function PrecioFormPage() {
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
-                <DollarSign className="h-8 w-8" />
+                <Euro className="h-8 w-8" />
                 <h1 className="text-3xl font-headline font-bold">{isEditing ? 'Editar' : 'Nuevo'} Precio</h1>
             </div>
           <div className="flex gap-2">
@@ -122,7 +122,7 @@ export default function PrecioFormPage() {
                 Cancelar
             </Button>
             <Button type="submit" form="precio-form" disabled={isLoading}>
-              {isLoading ? <Loader2 className="animate-spin" /> : <DollarSign />}
+              {isLoading ? <Loader2 className="animate-spin" /> : <Euro />}
               <span className="ml-2">{isEditing ? 'Guardar Cambios' : 'Guardar Precio'}</span>
             </Button>
           </div>

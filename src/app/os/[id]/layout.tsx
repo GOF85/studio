@@ -10,7 +10,7 @@ import { useEffect, useState, useMemo } from 'react';
 import type { ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar } from 'lucide-react';
+import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 
@@ -35,7 +35,7 @@ const navLinks: NavLink[] = [
     { path: 'personal-externo', title: 'Personal Externo', icon: UserPlus },
     { path: 'transporte', title: 'Transporte', icon: Truck },
     { path: 'prueba-menu', title: 'Prueba de Menu', icon: ClipboardCheck },
-    { path: 'cta-explotacion', title: 'Cta. Explotación', icon: DollarSign },
+    { path: 'cta-explotacion', title: 'Cta. Explotación', icon: Euro },
 ];
 
 function OSSidebarNav({ className, onLinkClick }: { className?: string; onLinkClick?: () => void; }) {
