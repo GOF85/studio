@@ -559,6 +559,7 @@ export type PickingSheet = {
     checkedItems?: string[];
     itemStates?: Record<string, Omit<PickingItemState, 'itemCode'>>;
     os?: ServiceOrder;
+    solicitante?: 'Sala' | 'Cocina';
 };
 
 export type ReturnItemState = {
@@ -806,4 +807,5 @@ export type ComercialAjuste = {
     importe: number;
 }
 
+    
     

@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, ListChecks, Calendar as CalendarIcon, User, Building, AlertTriangle, MessageSquare, CheckCircle } from 'lucide-react';
+import { ArrowLeft, ListChecks, Calendar as CalendarIcon, User, Building, AlertTriangle, MessageSquare, CheckCircle, Soup, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -183,7 +183,14 @@ export default function PickingSheetPage() {
                         <ArrowLeft className="mr-2" /> Volver al listado
                     </Button>
                     <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                        <ListChecks /> Hoja de Picking <Badge className="text-2xl">{sheet.id}</Badge>
+                        <ListChecks /> Hoja de Picking 
+                        <Badge className="text-2xl">{sheet.id}</Badge>
+                        {sheet.solicitante && (
+                            <Badge variant={sheet.solicitante === 'Sala' ? 'default' : 'outline'} className={cn("text-lg", sheet.solicitante === 'Sala' ? 'bg-blue-600' : 'bg-orange-500')}>
+                                {sheet.solicitante === 'Sala' ? <Users size={16} className="mr-1.5"/> : <Soup size={16} className="mr-1.5"/>}
+                                {sheet.solicitante}
+                            </Badge>
+                        )}
                     </h1>
                 </div>
                  <Button onClick={() => setIsFinalizeDialogOpen(true)} disabled={!isComplete || sheet.status === 'Listo'}>
@@ -321,3 +328,5 @@ export default function PickingSheetPage() {
     );
 }
 
+
+    

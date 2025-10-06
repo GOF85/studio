@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday, isWithinInterval, startOfDay, endOfDay, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ListChecks, Calendar as CalendarIcon, Search, Trash2 } from 'lucide-react';
+import { ListChecks, Calendar as CalendarIcon, Search, Trash2, Users, Soup } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -151,7 +151,7 @@ export default function GestionPickingPage() {
                 <CardContent>
                     <div className="border rounded-lg">
                         <Table>
-                            <TableHeader><TableRow><TableHead>Expedición</TableHead><TableHead>Nº Servicio</TableHead><TableHead>Cliente</TableHead><TableHead>Fecha Necesidad</TableHead><TableHead>Estado</TableHead><TableHead>Progreso</TableHead><TableHead className="text-right">Acción</TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead>Expedición</TableHead><TableHead>Nº Servicio</TableHead><TableHead>Cliente</TableHead><TableHead>Solicita</TableHead><TableHead>Fecha Necesidad</TableHead><TableHead>Estado</TableHead><TableHead>Progreso</TableHead><TableHead className="text-right">Acción</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {filteredSheets.length > 0 ? (
                                     filteredSheets.map(sheet => {
@@ -161,6 +161,14 @@ export default function GestionPickingPage() {
                                             <TableCell className="font-mono"><Badge>{sheet.id}</Badge></TableCell>
                                             <TableCell>{sheet.os?.serviceNumber}</TableCell>
                                             <TableCell>{sheet.os?.client}</TableCell>
+                                             <TableCell>
+                                                {sheet.solicitante && (
+                                                    <Badge variant={sheet.solicitante === 'Sala' ? 'default' : 'outline'} className={sheet.solicitante === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
+                                                        {sheet.solicitante === 'Sala' ? <Users size={12} className="mr-1.5"/> : <Soup size={12} className="mr-1.5"/>}
+                                                        {sheet.solicitante}
+                                                    </Badge>
+                                                )}
+                                            </TableCell>
                                             <TableCell>{format(new Date(sheet.fechaNecesidad), 'dd/MM/yyyy')}</TableCell>
                                             <TableCell>
                                                 <Badge variant={getStatusVariant(sheet.status)}>{sheet.status}</Badge>
@@ -185,7 +193,7 @@ export default function GestionPickingPage() {
                                     )})
                                 ) : (
                                      <TableRow>
-                                        <TableCell colSpan={7} className="h-24 text-center">
+                                        <TableCell colSpan={8} className="h-24 text-center">
                                             No hay hojas de picking en las fechas seleccionadas.
                                         </TableCell>
                                     </TableRow>
@@ -218,3 +226,6 @@ export default function GestionPickingPage() {
         </>
     );
 }
+
+
+    

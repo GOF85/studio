@@ -96,7 +96,7 @@ export default function PlanificacionAlmacenPage() {
             orders.forEach(order => {
                 if (osIdsEnRango.has(order.osId)) {
                     const os = osMap.get(order.osId)!;
-                    const deliveryDate = order.deliveryDate || os.startDate;
+                    const deliveryDate = 'deliveryDate' in order ? order.deliveryDate || os.startDate : os.startDate;
                     if (!deliveryDate) return;
 
                     const dateKey = format(new Date(deliveryDate), 'yyyy-MM-dd');
@@ -127,7 +127,7 @@ export default function PlanificacionAlmacenPage() {
                                 ...item,
                                 osId: os.id,
                                 serviceNumber: os.serviceNumber,
-                                deliverySpace: order.deliverySpace || os.space || '',
+                                deliverySpace: 'deliverySpace' in order ? order.deliverySpace || os.space || '' : os.space || '',
                                 deliveryLocation: 'deliveryLocation' in order ? order.deliveryLocation || '' : '',
                                 solicitante: solicitante,
                             });
@@ -243,14 +243,15 @@ export default function PlanificacionAlmacenPage() {
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const itemsToProcess = Array.from(selectedItems);
         
-        const sheetsToGenerate: Record<string, {osId: string, fechaNecesidad: string, items: any[]}> = {};
+        const sheetsToGenerate: Record<string, {osId: string, fechaNecesidad: string, items: any[], solicitante?: 'Sala' | 'Cocina'}> = {};
 
         itemsToProcess.forEach(itemId => {
-            const [itemCode, osId, fecha, tipo, solicitante] = itemId.split('__');
+            const [itemCode, osId, fecha, tipo, solicitanteStr] = itemId.split('__');
+            const solicitante = solicitanteStr === 'Sala' || solicitanteStr === 'Cocina' ? solicitanteStr : undefined;
             const sheetKey = `${osId}__${fecha}__${solicitante || 'general'}`; 
 
             if (!sheetsToGenerate[sheetKey]) {
-                sheetsToGenerate[sheetKey] = { osId, fechaNecesidad: fecha, items: [] };
+                sheetsToGenerate[sheetKey] = { osId, fechaNecesidad: fecha, items: [], solicitante };
             }
 
             const necesidadDia = necesidades.find(n => n.fecha === fecha);
@@ -277,6 +278,7 @@ export default function PlanificacionAlmacenPage() {
                 fechaNecesidad: sheetData.fechaNecesidad,
                 items: sheetData.items,
                 status: 'Pendiente',
+                solicitante: sheetData.solicitante
             };
         })
 
@@ -401,4 +403,5 @@ export default function PlanificacionAlmacenPage() {
     );
 }
 
+    
     
