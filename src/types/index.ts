@@ -544,6 +544,7 @@ export type PickingItemState = {
     checked: boolean;
     pickedQuantity: number;
     incidentComment?: string;
+    resolved?: boolean;
 };
 
 export type MaterialOrderType = 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';

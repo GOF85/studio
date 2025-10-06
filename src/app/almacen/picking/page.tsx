@@ -103,9 +103,8 @@ export default function GestionPickingPage() {
     }
 
     const getPickingProgress = (sheet: PickingSheet): number => {
-        if (!sheet.itemStates || !sheet.items) return 0;
+        if (!sheet.itemStates || !sheet.items || sheet.items.length === 0) return 0;
         const total = sheet.items.length;
-        if (total === 0) return 0;
         const checked = Object.values(sheet.itemStates).filter(s => s.checked).length;
         return (checked / total) * 100;
     }

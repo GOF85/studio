@@ -54,6 +54,7 @@ export default function PickingSheetPage() {
                     checked: savedState?.checked || false,
                     pickedQuantity: savedState?.pickedQuantity ?? item.quantity,
                     incidentComment: savedState?.incidentComment,
+                    resolved: savedState?.resolved || false,
                 });
             });
             setItemStates(initialStates);
@@ -73,11 +74,24 @@ export default function PickingSheetPage() {
         
         const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
         const itemStatesForStorage: Record<string, Omit<PickingItemState, 'itemCode'>> = {};
+        
         newStates.forEach((value, key) => {
+            const originalItem = sheet.items.find(i => i.itemCode === key);
+            let finalComment = value.incidentComment;
+
+            if (originalItem && originalItem.quantity !== value.pickedQuantity && !finalComment) {
+                 if (value.pickedQuantity === 0) {
+                    finalComment = "No habia disponible el articulo";
+                } else {
+                    finalComment = `Discrepancia de cantidad: Requerido ${originalItem.quantity}, Recogido ${value.pickedQuantity}`;
+                }
+            }
+            
             itemStatesForStorage[key] = {
                 checked: value.checked,
                 pickedQuantity: value.pickedQuantity,
-                incidentComment: value.incidentComment,
+                incidentComment: finalComment,
+                resolved: value.resolved,
             };
         });
 
@@ -92,7 +106,13 @@ export default function PickingSheetPage() {
         localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
         
         setSheet(updatedSheet);
-        setItemStates(newStates);
+        
+        // Re-create map from the now-updated storage object to ensure consistency
+        const reloadedStates = new Map<string, PickingItemState>();
+        Object.entries(itemStatesForStorage).forEach(([key, value]) => {
+            reloadedStates.set(key, { itemCode: key, ...value });
+        });
+        setItemStates(reloadedStates);
         
     }, [sheet, sheetId]);
 
@@ -116,9 +136,11 @@ export default function PickingSheetPage() {
         const checked = Array.from(itemStates.values()).filter(s => s.checked).length;
         
         const allItemsChecked = checked === total;
-        const allQuantitiesMatchOrHaveIncident = Array.from(itemStates.values()).every(s => {
+
+        const allQuantitiesValid = Array.from(itemStates.values()).every(s => {
             const originalItem = sheet.items.find(i => i.itemCode === s.itemCode);
-            if (!originalItem) return true;
+            if (!originalItem) return true; // Should not happen
+            // Valid if quantity matches OR if there's a discrepancy but a comment exists
             return originalItem.quantity === s.pickedQuantity || !!s.incidentComment;
         });
 
@@ -126,7 +148,7 @@ export default function PickingSheetPage() {
             progress: total > 0 ? (checked / total) * 100 : 0,
             totalItems: total,
             checkedCount: checked,
-            isComplete: allItemsChecked && allQuantitiesMatchOrHaveIncident
+            isComplete: allItemsChecked && allQuantitiesValid
         };
     }, [sheet, itemStates]);
 
@@ -252,7 +274,7 @@ export default function PickingSheetPage() {
                                                 <DialogHeader>
                                                     <DialogTitle>Registrar Incidencia: {item.description}</DialogTitle>
                                                     <DialogDescription>
-                                                        Describe el problema encontrado. La cantidad recogida ya se ha ajustado a {state.pickedQuantity}.
+                                                        Describe el problema encontrado. La cantidad recogida ya se ha ajustado a {state.pickedQuantity}. Si no añades un comentario, se generará uno por defecto.
                                                     </DialogDescription>
                                                 </DialogHeader>
                                                 <Textarea 
