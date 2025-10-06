@@ -97,6 +97,7 @@ export default function PlanificacionAlmacenPage() {
                 if (osIdsEnRango.has(order.osId)) {
                     const os = osMap.get(order.osId)!;
                     const solicitante = 'solicita' in order ? order.solicita : undefined;
+                    // For MaterialOrder, deliveryDate is optional, fallback to OS start date
                     const deliveryDate = ('deliveryDate' in order && order.deliveryDate) ? order.deliveryDate : os.startDate;
 
                     if (!deliveryDate) return;
