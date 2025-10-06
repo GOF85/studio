@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -93,14 +92,14 @@ export default function PlanificacionAlmacenPage() {
                     const osNecesidades = necesidadesPorDia[dateKey][os.id];
 
                     order.items.forEach(item => {
-                        const orderType = (order as MaterialOrder).type || 'Hielo';
+                        const orderType = 'contractNumber' in order ? order.type : 'Hielo';
                         if (orderType in osNecesidades.necesidades) {
                            osNecesidades.necesidades[orderType as keyof NecesidadesPorTipo].push({
                                 ...item,
                                 osId: os.id,
                                 serviceNumber: os.serviceNumber,
-                                deliverySpace: order.deliverySpace || os.space,
-                                deliveryLocation: order.deliveryLocation || ''
+                                deliverySpace: order.deliverySpace || os.space || '',
+                                deliveryLocation: 'deliveryLocation' in order ? order.deliveryLocation || '' : ''
                             });
                             osNecesidades.totalItems++;
                         }
@@ -168,8 +167,13 @@ export default function PlanificacionAlmacenPage() {
         const osData = necesidades.find(d => d.fecha === fecha)?.ordenes[osId];
         if (!osData || osData.totalItems === 0) return false;
     
-        const osItemIds = Object.values(osData.necesidades).flat().map(item => `${item.itemCode}__${osId}__${fecha}__${item.type}`);
-        
+        let osItemIds: string[] = [];
+        Object.keys(osData.necesidades).forEach((tipo) => {
+             osData.necesidades[tipo as keyof NecesidadesPorTipo].forEach(item => {
+                 osItemIds.push(`${item.itemCode}__${osId}__${fecha}__${tipo}`);
+             })
+        });
+
         const selectedCount = osItemIds.filter(id => selectedItems.has(id)).length;
     
         if (selectedCount === 0) return false;
@@ -296,6 +300,7 @@ export default function PlanificacionAlmacenPage() {
                                                 <Checkbox
                                                     checked={getOsSelectionState(os.id, fecha)}
                                                     onCheckedChange={() => handleSelectOS(os.id, fecha)}
+                                                    aria-label={`Seleccionar todos los artículos para OS ${os.serviceNumber}`}
                                                 />
                                                 <CollapsibleTrigger className="flex-grow flex items-center justify-between group">
                                                     <div className="text-left">
@@ -320,7 +325,7 @@ export default function PlanificacionAlmacenPage() {
                                                                             const itemId = `${item.itemCode}__${item.osId}__${fecha}__${tipo}`;
                                                                             return (
                                                                             <TableRow key={itemId}>
-                                                                                <TableCell><Checkbox onCheckedChange={() => handleSelectItem(itemId)} checked={selectedItems.has(itemId)} /></TableCell>
+                                                                                <TableCell><Checkbox onCheckedChange={() => handleSelectItem(itemId)} checked={selectedItems.has(itemId)} aria-label={`Seleccionar ${item.description}`} /></TableCell>
                                                                                 <TableCell>{item.description}</TableCell>
                                                                                 <TableCell>{item.quantity}</TableCell>
                                                                             </TableRow>
@@ -353,3 +358,4 @@ export default function PlanificacionAlmacenPage() {
     );
 }
 
+    
