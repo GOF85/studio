@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { Combobox } from '../ui/combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { ScrollArea } from '../ui/scroll-area';
 
 export type ExistingOrderData = {
     days: number;
@@ -170,7 +171,7 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                       <p className="font-medium leading-tight">{item.description}</p>
                       <p className="text-sm text-muted-foreground">
                         {item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                        {isRental && '/día'}
+                        {(orderType !== 'Bebida' && orderType !== 'Bio' && orderType !== 'Almacen') && '/día'}
                         </p>
                     </div>
                     <div className="flex items-center gap-1">
