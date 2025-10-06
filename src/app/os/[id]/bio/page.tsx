@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
-import type { MaterialOrder, ServiceOrder, OrderItem } from '@/types';
+import type { MaterialOrder, ServiceOrder, OrderItem, PickingSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -40,12 +40,12 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
-  orderStatus: MaterialOrder['status'];
+  orderStatus: PickingSheet['status'];
 };
 
-const statusVariant: { [key in MaterialOrder['status']]: 'default' | 'secondary' | 'outline' } = {
-  Asignado: 'secondary',
-  'En preparación': 'outline',
+const statusVariant: { [key in PickingSheet['status']]: 'default' | 'secondary' | 'outline' } = {
+  Pendiente: 'secondary',
+  'En Proceso': 'outline',
   Listo: 'default',
 };
 
@@ -53,6 +53,7 @@ export default function BioPage() {
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [pickingSheets, setPickingSheets] = useState<PickingSheet[]>([]);
   
   const router = useRouter();
   const params = useParams();
@@ -66,26 +67,47 @@ export default function BioPage() {
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bio');
     setMaterialOrders(relatedOrders);
 
+    const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
+    setPickingSheets(allPickingSheets.filter(sheet => sheet.osId === osId));
+
     setIsMounted(true);
   }, [osId, router, toast]);
 
   const allItemsByStatus = useMemo(() => {
-    const items: { [key in MaterialOrder['status']]: ItemWithOrderInfo[] } = {
+    const items: { [key in PickingSheet['status'] | 'Asignado']: ItemWithOrderInfo[] } = {
       Asignado: [],
-      'En preparación': [],
+      'Pendiente': [],
+      'En Proceso': [],
       Listo: [],
     };
-    materialOrders.forEach(order => {
-      order.items.forEach(item => {
-        items[order.status].push({
-          ...item,
-          orderContract: order.contractNumber || 'N/A',
-          orderStatus: order.status,
+    
+    const pickedItemCodes = new Set<string>();
+    pickingSheets.forEach(sheet => {
+        sheet.items.forEach(item => {
+            if (item.type === 'Bio') {
+                 items[sheet.status].push({
+                    ...item,
+                    orderContract: sheet.id,
+                    orderStatus: sheet.status,
+                });
+                pickedItemCodes.add(item.itemCode);
+            }
         });
-      });
+    });
+
+    materialOrders.forEach(order => {
+        order.items.forEach(item => {
+            if (!pickedItemCodes.has(item.itemCode)) {
+                items['Asignado'].push({
+                    ...item,
+                    orderContract: order.contractNumber || 'N/A',
+                    orderStatus: 'Pendiente', // Not in a sheet yet
+                });
+            }
+        });
     });
     return items;
-  }, [materialOrders]);
+  }, [materialOrders, pickingSheets]);
 
   const handleDelete = () => {
     if (!orderToDelete) return;
@@ -123,15 +145,16 @@ export default function BioPage() {
       </div>
 
       <Card className="mb-6">
-          <CardHeader><CardTitle>Artículos Totales del Módulo</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Artículos Totales del Módulo por Estado de Picking</CardTitle></CardHeader>
           <CardContent>
               <Tabs defaultValue="Asignado">
                   <TabsList>
-                      <TabsTrigger value="Asignado">Asignado ({allItemsByStatus['Asignado'].length})</TabsTrigger>
-                      <TabsTrigger value="En preparación">En preparación ({allItemsByStatus['En preparación'].length})</TabsTrigger>
-                      <TabsTrigger value="Listo">Listo ({allItemsByStatus['Listo'].length})</TabsTrigger>
+                       <TabsTrigger value="Asignado">Asignado ({allItemsByStatus['Asignado'].length})</TabsTrigger>
+                      <TabsTrigger value="Pendiente">Picking Pendiente ({allItemsByStatus['Pendiente'].length})</TabsTrigger>
+                      <TabsTrigger value="En Proceso">En Preparación ({allItemsByStatus['En Proceso'].length})</TabsTrigger>
+                      <TabsTrigger value="Listo">Listo para Servir ({allItemsByStatus['Listo'].length})</TabsTrigger>
                   </TabsList>
-                  {(Object.keys(allItemsByStatus) as Array<MaterialOrder['status']>).map(status => (
+                  {(Object.keys(allItemsByStatus) as Array<keyof typeof allItemsByStatus>).map(status => (
                       <TabsContent key={status} value={status}>
                            <div className="border rounded-lg mt-4">
                               <Table>
@@ -139,6 +162,7 @@ export default function BioPage() {
                                       <TableRow>
                                           <TableHead>Artículo</TableHead>
                                           <TableHead>Cantidad</TableHead>
+                                          <TableHead>Ref. Hoja Picking</TableHead>
                                       </TableRow>
                                   </TableHeader>
                                   <TableBody>
@@ -147,11 +171,12 @@ export default function BioPage() {
                                               <TableRow key={`${item.itemCode}-${item.orderContract}-${index}`}>
                                                   <TableCell className="font-medium">{item.description}</TableCell>
                                                   <TableCell>{item.quantity}</TableCell>
+                                                  <TableCell><Badge variant="outline">{item.orderContract}</Badge></TableCell>
                                               </TableRow>
                                           ))
                                       ) : (
                                           <TableRow>
-                                              <TableCell colSpan={2} className="h-24 text-center">
+                                              <TableCell colSpan={3} className="h-24 text-center">
                                                   No hay artículos en estado "{status}".
                                               </TableCell>
                                           </TableRow>
@@ -164,93 +189,6 @@ export default function BioPage() {
               </Tabs>
           </CardContent>
       </Card>
-
-      <Card>
-          <CardHeader><CardTitle>Pedidos Realizados</CardTitle></CardHeader>
-          <CardContent>
-               <div className="border rounded-lg">
-                  <Table>
-                      <TableHeader>
-                      <TableRow>
-                          <TableHead>Nº Contrato</TableHead>
-                          <TableHead>Fecha Entrega</TableHead>
-                          <TableHead>Lugar Entrega</TableHead>
-                          <TableHead>Localización</TableHead>
-                          <TableHead>Artículos</TableHead>
-                          <TableHead>Importe Total</TableHead>
-                          <TableHead>Estado</TableHead>
-                          <TableHead className="text-right">Acciones</TableHead>
-                      </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                      {materialOrders.length > 0 ? (
-                          materialOrders.map(order => (
-                          <TableRow key={order.id}>
-                              <TableCell className="font-medium">{order.contractNumber}</TableCell>
-                              <TableCell>{order.deliveryDate ? format(new Date(order.deliveryDate), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                              <TableCell>{order.deliverySpace || 'N/A'}</TableCell>
-                              <TableCell>{order.deliveryLocation || 'N/A'}</TableCell>
-                              <TableCell>{order.items.length}</TableCell>
-                              <TableCell>{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                              <TableCell>
-                              <Badge variant={statusVariant[order.status]}>
-                                  {order.status}
-                              </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                              <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                      <span className="sr-only">Abrir menú</span>
-                                      <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleEdit(order)} disabled={order.status !== 'Asignado'}>
-                                      <Pencil className="mr-2 h-4 w-4" />
-                                      Editar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-destructive" onClick={() => setOrderToDelete(order.id)} disabled={order.status !== 'Asignado'}>
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Eliminar
-                                  </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                              </DropdownMenu>
-                              </TableCell>
-                          </TableRow>
-                          ))
-                      ) : (
-                          <TableRow>
-                          <TableCell colSpan={8} className="h-24 text-center">
-                              No hay pedidos de bio para esta Orden de Servicio.
-                          </TableCell>
-                          </TableRow>
-                      )}
-                      </TableBody>
-                  </Table>
-              </div>
-          </CardContent>
-      </Card>
-
-      <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente el pedido de material.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
-              onClick={handleDelete}
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }
