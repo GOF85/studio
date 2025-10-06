@@ -7,7 +7,7 @@ import { ArrowLeft, ListChecks, Calendar as CalendarIcon, User, Building, AlertT
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import type { PickingSheet, OrderItem, PickingItemState } from '@/types';
+import type { PickingSheet, OrderItem, PickingItemState, ServiceOrder } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -37,9 +37,14 @@ export default function PickingSheetPage() {
 
     const loadSheet = useCallback(() => {
         const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
-        const currentSheet = allSheets[sheetId];
+        let currentSheet = allSheets[sheetId];
         
         if (currentSheet) {
+             if (!currentSheet.os) {
+                const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+                currentSheet.os = allServiceOrders.find(os => os.id === currentSheet.osId);
+            }
+
             setSheet(currentSheet);
             const initialStates = new Map<string, PickingItemState>();
             currentSheet.items.forEach(item => {
@@ -76,8 +81,11 @@ export default function PickingSheetPage() {
             };
         });
 
+        // Make sure to not store the full 'os' object in pickingSheets localStorage
+        const { os, ...sheetToSave } = sheet;
+
         const updatedSheet: PickingSheet = {
-            ...sheet,
+            ...sheetToSave,
             itemStates: itemStatesForStorage,
         };
         allSheets[sheetId] = updatedSheet;
