@@ -4,25 +4,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Users, Soup } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet } from '@/types';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
   orderStatus: PickingSheet['status'];
+  solicita?: 'Sala' | 'Cocina';
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -42,7 +34,6 @@ export default function BodegaPage() {
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
-  const { toast } = useToast();
 
   useEffect(() => {
     if (!osId) return;
@@ -73,6 +64,7 @@ export default function BodegaPage() {
                     ...item,
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
+                    solicita: sheet.solicitante,
                 });
                 pickedItemCodes.add(item.itemCode);
             }
@@ -85,7 +77,8 @@ export default function BodegaPage() {
                 items['Asignado'].push({
                     ...item,
                     orderContract: order.contractNumber || 'N/A',
-                    orderStatus: 'Pendiente', 
+                    orderStatus: 'Pendiente',
+                    solicita: order.solicita,
                 });
             }
         });
@@ -110,8 +103,14 @@ export default function BodegaPage() {
             {items.length > 0 ? items.map((item, index) => (
                 <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-3">
                     <p className="font-semibold">{item.description}</p>
-                    <div className="flex justify-between items-center text-sm text-muted-foreground">
+                    <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
                         <span>Cantidad: {item.quantity}</span>
+                         {item.solicita && (
+                            <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
+                                {item.solicita === 'Sala' ? <Users size={12} className="mr-1.5"/> : <Soup size={12} className="mr-1.5"/>}
+                                {item.solicita}
+                            </Badge>
+                        )}
                         {columnType !== 'Asignado' && <Badge variant="outline">{item.orderContract}</Badge>}
                     </div>
                 </Card>
