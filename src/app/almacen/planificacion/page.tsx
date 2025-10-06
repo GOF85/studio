@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday, isWithinInterval, startOfDay, endOfDay, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ClipboardList, Calendar as CalendarIcon, Factory, ChevronRight, ListChecks, Loader2, Warehouse, Users, Soup } from 'lucide-react';
+import { ClipboardList, Calendar as CalendarIcon, Factory, ChevronRight, ListChecks, Loader2, Warehouse, Users, Soup, AlertTriangle, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -15,7 +15,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import type { ServiceOrder, MaterialOrder, OrderItem, HieloOrder, PickingSheet } from '@/types';
+import type { ServiceOrder, MaterialOrder, OrderItem, HieloOrder, PickingSheet, ReturnSheet } from '@/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -42,6 +42,13 @@ type NecesidadesPorDia = {
     ordenes: Record<string, OSConNecesidades>;
     totalItems: number;
 }
+type DashboardStats = {
+    pickingPendiente: number;
+    pickingEnProceso: number;
+    incidenciasAbiertas: number;
+    retornosPendientes: number;
+};
+
 
 export default function PlanificacionAlmacenPage() {
     const [isMounted, setIsMounted] = useState(false);
@@ -53,11 +60,13 @@ export default function PlanificacionAlmacenPage() {
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
     const [necesidades, setNecesidades] = useState<NecesidadesPorDia[]>([]);
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+    const [dashboardStats, setDashboardStats] = useState<DashboardStats>({ pickingPendiente: 0, pickingEnProceso: 0, incidenciasAbiertas: 0, retornosPendientes: 0 });
     const { toast } = useToast();
     const router = useRouter();
 
     const calcularNecesidades = useCallback(() => {
         setIsLoading(true);
+        setSelectedItems(new Set());
 
         if (!dateRange?.from) {
             toast({ variant: 'destructive', title: 'Error', description: 'Por favor, selecciona un rango de fechas.' });
@@ -85,6 +94,7 @@ export default function PlanificacionAlmacenPage() {
         const pickedItems = new Set<string>();
         Object.values(allPickingSheets).forEach(sheet => {
             sheet.items.forEach(item => {
+                // Correct Key: Must include solicitante to differentiate requests
                 const key = `${sheet.osId}__${sheet.fechaNecesidad}__${item.itemCode}__${sheet.solicitante || 'general'}`;
                 pickedItems.add(key);
             });
@@ -151,12 +161,40 @@ export default function PlanificacionAlmacenPage() {
         setNecesidades(resultado);
         setIsLoading(false);
     }, [dateRange, toast]);
+
+    const calculateDashboardStats = useCallback(() => {
+        const allSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
+        const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}')) as ReturnSheet[];
+        
+        let pickingPendiente = 0;
+        let pickingEnProceso = 0;
+        let incidenciasAbiertas = 0;
+
+        allSheets.forEach(sheet => {
+            if (sheet.status === 'Pendiente') pickingPendiente++;
+            if (sheet.status === 'En Proceso') pickingEnProceso++;
+            if (sheet.itemStates) {
+                const hasUnresolvedIncident = Object.values(sheet.itemStates).some(state => state.incidentComment && !state.resolved);
+                if (hasUnresolvedIncident) incidenciasAbiertas++;
+            }
+        });
+
+        const retornosPendientes = allReturnSheets.filter(sheet => sheet.status !== 'Completado').length;
+
+        setDashboardStats({
+            pickingPendiente,
+            pickingEnProceso,
+            incidenciasAbiertas,
+            retornosPendientes
+        });
+    }, []);
     
     useEffect(() => {
         if(isMounted) {
             calcularNecesidades();
+            calculateDashboardStats();
         }
-    }, [isMounted, calcularNecesidades]);
+    }, [isMounted, calcularNecesidades, calculateDashboardStats]);
 
     useEffect(() => {
         if(dateRange?.from && dateRange.to){
@@ -293,8 +331,32 @@ export default function PlanificacionAlmacenPage() {
         return <LoadingSkeleton title="Cargando Planificación de Almacen..." />;
     }
 
+    const statsCards = [
+        { title: 'Hojas de Picking Pendientes', value: dashboardStats.pickingPendiente, icon: ListChecks, color: 'text-yellow-500', href: '/almacen/picking' },
+        { title: 'Hojas en Proceso', value: dashboardStats.pickingEnProceso, icon: Factory, color: 'text-blue-500', href: '/almacen/picking' },
+        { title: 'Incidencias Abiertas', value: dashboardStats.incidenciasAbiertas, icon: AlertTriangle, color: 'text-red-500', href: '/almacen/incidencias' },
+        { title: 'Retornos Pendientes', value: dashboardStats.retornosPendientes, icon: History, color: 'text-indigo-500', href: '/almacen/retornos' },
+    ];
+
+
     return (
         <div>
+             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+                {statsCards.map(card => (
+                    <Link href={card.href} key={card.title}>
+                        <Card className="hover:bg-accent transition-colors">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                            <card.icon className={cn("h-4 w-4", card.color)} />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{card.value}</div>
+                        </CardContent>
+                        </Card>
+                    </Link>
+                ))}
+            </div>
+
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
                     <ClipboardList /> Planificación de Necesidades
