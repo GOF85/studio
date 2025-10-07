@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday, isWithinInterval, startOfDay, endOfDay, format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ClipboardList, Calendar as CalendarIcon, Factory, ChevronRight, ListChecks, Loader2, Warehouse, Users, Soup, AlertTriangle, History } from 'lucide-react';
+import { ClipboardList, Calendar as CalendarIcon, Factory, ChevronRight, ListChecks, Loader2, Warehouse, Users, Soup, AlertTriangle, History, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -297,10 +297,31 @@ export default function PlanificacionAlmacenPage() {
     const numSheetsToGenerate = useMemo(() => {
         const sheetsKeys = new Set<string>();
         selectedItems.forEach(id => {
-            const [itemCode, orderId, fecha, tipo, solicitante] = id.split('__');
-            const osData = necesidades.find(d => d.fecha === fecha)?.ordenes[`${orderId}__${fecha}__${solicitante || 'general'}`];
-            const osId = osData ? osData.os.id : orderId; // Fallback for direct orders
-            sheetsKeys.add(`${osId}__${fecha}__${solicitante || 'general'}`);
+            const [itemCode, orderId, fecha, tipo, solicitanteStr] = id.split('__');
+            const solicitante = solicitanteStr === 'general' ? undefined : solicitanteStr;
+            
+            // Find the OS that contains this need to build the correct key
+            let osForThisItem: ServiceOrder | undefined;
+            for (const dia of necesidades) {
+                if (dia.fecha === fecha) {
+                    for (const osKey in dia.ordenes) {
+                         const osConNecesidades = dia.ordenes[osKey];
+                         // Check if the current osConNecesidades matches the solicitante of the item
+                        if ((osConNecesidades.solicitante || 'general') === (solicitante || 'general')) {
+                           const itemsOfType = osConNecesidades.necesidades[tipo as keyof NecesidadesPorTipo];
+                            const foundItem = itemsOfType.find(i => i.itemCode === itemCode && (i as any).orderId === orderId);
+                            if (foundItem) {
+                                osForThisItem = osConNecesidades.os;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (osForThisItem) break;
+            }
+             if (osForThisItem) {
+                sheetsKeys.add(`${osForThisItem.id}__${fecha}__${solicitante || 'general'}`);
+             }
         });
         return sheetsKeys.size;
     }, [selectedItems, necesidades]);
@@ -427,6 +448,10 @@ export default function PlanificacionAlmacenPage() {
                         <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range.to){ setIsDatePickerOpen(false) }}} numberOfMonths={2} locale={es} />
                     </PopoverContent>
                 </Popover>
+                 <Button onClick={calcularNecesidades} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin mr-2" /> : <RefreshCw className="mr-2" />}
+                    {isLoading ? 'Calculando...' : 'Recalcular Necesidades'}
+                </Button>
             </div>
 
             {isLoading ? <div className="flex justify-center items-center h-48"><Loader2 className="mx-auto animate-spin text-primary" size={48} /></div>

@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
 import { addDays, startOfToday, isWithinInterval, startOfDay, endOfDay, format, isPast } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { History, Calendar as CalendarIcon, Search } from 'lucide-react';
+import { History, Calendar as CalendarIcon, Search, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,6 +20,8 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 export default function GestionRetornosPage() {
     const [isMounted, setIsMounted] = useState(false);
@@ -33,6 +35,7 @@ export default function GestionRetornosPage() {
     const [showPastEvents, setShowPastEvents] = useState(false);
     const [returnSheets, setReturnSheets] = useState<Record<string, ReturnSheet>>({});
     const router = useRouter();
+    const { toast } = useToast();
 
     useEffect(() => {
         setIsMounted(true);
@@ -43,6 +46,27 @@ export default function GestionRetornosPage() {
         const allReturnSheets = JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>;
         setReturnSheets(allReturnSheets);
     }, []);
+
+    const handleCleanOrphanedReturns = () => {
+        const allReturnSheets = JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>;
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const osIds = new Set(allServiceOrders.map(os => os.id));
+        
+        const orphanedIds = Object.keys(allReturnSheets).filter(osId => !osIds.has(osId));
+        
+        if (orphanedIds.length === 0) {
+            toast({ title: 'No hay retornos huérfanos', description: 'Todo está en orden.' });
+            return;
+        }
+
+        orphanedIds.forEach(id => {
+            delete allReturnSheets[id];
+        });
+
+        localStorage.setItem('returnSheets', JSON.stringify(allReturnSheets));
+        setReturnSheets(allReturnSheets);
+        toast({ title: 'Limpieza completada', description: `Se han eliminado ${orphanedIds.length} retornos huérfanos.` });
+    };
 
     const filteredOrders = useMemo(() => {
         return serviceOrders.filter(os => {
@@ -84,6 +108,25 @@ export default function GestionRetornosPage() {
                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
                     <History /> Gestión de Retornos
                 </h1>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm">
+                            <Trash2 className="mr-2 h-4 w-4" /> Limpiar Retornos Huérfanos
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>¿Confirmar limpieza?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Esta acción buscará y eliminará permanentemente todas las hojas de retorno asociadas a Órdenes de Servicio que ya no existen. Esta acción no se puede deshacer.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleCleanOrphanedReturns}>Sí, limpiar ahora</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
 
             <div className="flex flex-col md:flex-row gap-4 mb-6">
