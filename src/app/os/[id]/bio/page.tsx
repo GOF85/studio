@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -224,21 +225,20 @@ export default function BioPage() {
 
         <Collapsible>
             <Card>
-                <CollapsibleTrigger className="w-full">
-                    <CardHeader className="flex flex-row items-center justify-between hover:bg-muted/50">
-                        <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
-                        <div className="flex items-center gap-4">
-                             <Button onClick={(e) => { e.stopPropagation(); handleSaveAll();}} disabled={isLoading}>
-                                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                                <span className="ml-2">Guardar Cambios</span>
-                            </Button>
-                            <ChevronDown className="h-6 w-6 transition-transform duration-200 group-data-[state=open]:rotate-180"/>
+                <div className="flex items-center justify-between p-4 hover:bg-muted/50 rounded-t-lg">
+                    <CollapsibleTrigger asChild>
+                         <div className="flex flex-1 items-center cursor-pointer">
+                            <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
+                            <ChevronDown className="h-6 w-6 transition-transform duration-200 group-data-[state=open]:rotate-180 ml-2" />
                         </div>
-                    </CardHeader>
-                </CollapsibleTrigger>
+                    </CollapsibleTrigger>
+                    <Button onClick={(e) => { e.stopPropagation(); handleSaveAll(); }} disabled={isLoading}>
+                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                        <span className="ml-2">Guardar Cambios</span>
+                    </Button>
+                </div>
                 <CollapsibleContent>
                     <CardContent>
-                        {/* Bloqueado */}
                         <h3 className="font-semibold text-lg my-2 text-destructive">Bloqueado (En Preparación / Listo)</h3>
                          <div className="border rounded-lg mb-6">
                              <Table>
@@ -268,7 +268,6 @@ export default function BioPage() {
                              </Table>
                          </div>
                          
-                        {/* Pendiente */}
                         <h3 className="font-semibold text-lg my-2 text-green-700">Pendiente (Asignado)</h3>
                         <div className="border rounded-lg">
                             <Table>
@@ -278,10 +277,12 @@ export default function BioPage() {
                                             <>
                                                 <TableRow>
                                                     <TableCell className="p-0">
-                                                      <CollapsibleTrigger className="flex items-center gap-2 font-medium w-full text-left p-4">
-                                                        <ChevronDown className="h-4 w-4"/>
-                                                        <span className="flex-1">{order.contractNumber}</span>
-                                                        <span className="text-right font-normal">{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                                                      <CollapsibleTrigger asChild>
+                                                        <div className="flex items-center gap-2 font-medium w-full text-left p-4 cursor-pointer">
+                                                            <ChevronDown className="h-4 w-4"/>
+                                                            <span className="flex-1">{order.contractNumber}</span>
+                                                            <span className="text-right font-normal">{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                                                        </div>
                                                       </CollapsibleTrigger>
                                                     </TableCell>
                                                     <TableCell className="w-48">

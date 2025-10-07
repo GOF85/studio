@@ -226,9 +226,11 @@ export default function AlmacenPage() {
         <Collapsible>
             <Card>
                 <div className="flex items-center justify-between p-4 hover:bg-muted/50 rounded-t-lg">
-                    <CollapsibleTrigger className="flex flex-1 items-center">
-                        <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
-                        <ChevronDown className="h-6 w-6 transition-transform duration-200 group-data-[state=open]:rotate-180 ml-2" />
+                    <CollapsibleTrigger asChild>
+                        <div className="flex flex-1 items-center cursor-pointer">
+                            <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
+                            <ChevronDown className="h-6 w-6 transition-transform duration-200 group-data-[state=open]:rotate-180 ml-2" />
+                        </div>
                     </CollapsibleTrigger>
                     <Button onClick={(e) => { e.stopPropagation(); handleSaveAll(); }} disabled={isLoading}>
                         {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
@@ -237,7 +239,6 @@ export default function AlmacenPage() {
                 </div>
                 <CollapsibleContent>
                     <CardContent>
-                        {/* Bloqueado */}
                         <h3 className="font-semibold text-lg my-2 text-destructive">Bloqueado (En Preparación / Listo)</h3>
                          <div className="border rounded-lg mb-6">
                              <Table>
@@ -267,7 +268,6 @@ export default function AlmacenPage() {
                              </Table>
                          </div>
                          
-                        {/* Pendiente */}
                         <h3 className="font-semibold text-lg my-2 text-green-700">Pendiente (Asignado)</h3>
                         <div className="border rounded-lg">
                             <Table>
@@ -277,10 +277,12 @@ export default function AlmacenPage() {
                                             <>
                                                 <TableRow>
                                                     <TableCell className="p-0">
-                                                      <CollapsibleTrigger className="flex items-center gap-2 font-medium w-full text-left p-4">
-                                                        <ChevronDown className="h-4 w-4"/>
-                                                        <span className="flex-1">{order.contractNumber}</span>
-                                                        <span className="text-right font-normal">{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                                                      <CollapsibleTrigger asChild>
+                                                        <div className="flex items-center gap-2 font-medium w-full text-left p-4 cursor-pointer">
+                                                            <ChevronDown className="h-4 w-4"/>
+                                                            <span className="flex-1">{order.contractNumber}</span>
+                                                            <span className="text-right font-normal">{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                                                        </div>
                                                       </CollapsibleTrigger>
                                                     </TableCell>
                                                     <TableCell className="w-48">
@@ -357,4 +359,3 @@ export default function AlmacenPage() {
     </>
   );
 }
-
