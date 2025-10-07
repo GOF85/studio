@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2 } from 'lucide-react';
+import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, MoreHorizontal, Pencil } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -59,10 +60,10 @@ export default function BioPage() {
   }, [osId]);
 
   const allItems = useMemo(() => {
-    return materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id})));
+    return materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
   }, [materialOrders]);
 
-  const allItemsByStatus = useMemo(() => {
+ const allItemsByStatus = useMemo(() => {
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = {
       Asignado: [],
       'En Preparación': [],
@@ -74,9 +75,11 @@ export default function BioPage() {
     pickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
-             if (item.type === 'Bio') {
-                 const itemKey = `${sheet.id}-${item.itemCode}`;
-                 items[targetStatus].push({
+            if (item.type === 'Bio') {
+                const materialOrderOrigin = materialOrders.find(mo => mo.id === item.orderId);
+                // The unique key should be based on the original MaterialOrder ID and item code
+                const itemKey = `${item.orderId}-${item.itemCode}`;
+                items[targetStatus].push({
                     ...item,
                     orderId: sheet.id,
                     orderContract: sheet.id,
@@ -96,7 +99,7 @@ export default function BioPage() {
                     ...item,
                     orderId: order.id,
                     orderContract: order.contractNumber || 'N/A',
-                    orderStatus: 'Pendiente', 
+                    orderStatus: 'Pendiente',
                     solicita: order.solicita,
                 });
             }
@@ -125,6 +128,9 @@ export default function BioPage() {
     setMaterialOrders(prevOrders => {
       return prevOrders.map(order => {
         if (order.id === orderId) {
+            if (field === 'solicita') {
+                 return { ...order, solicita: value };
+            }
           const updatedItems = order.items
             .map(item => item.itemCode === itemCode ? { ...item, [field]: value } : item)
             .filter(item => item.quantity > 0);
@@ -182,7 +188,9 @@ export default function BioPage() {
   );
 
   const blockedItems = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
-  const pendingItems = allItems.filter(item => allItemsByStatus['Asignado'].some(assigned => assigned.itemCode === item.itemCode && assigned.orderId === item.orderId));
+  const pendingItems = allItems.filter(item => {
+    return allItemsByStatus['Asignado'].some(assigned => assigned.itemCode === item.itemCode && assigned.orderId === item.orderId)
+  });
 
 
   return (

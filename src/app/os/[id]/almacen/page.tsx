@@ -17,6 +17,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, Pencil } from 'lucide-react';
+
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -59,7 +67,7 @@ export default function AlmacenPage() {
   }, [osId]);
 
   const allItems = useMemo(() => {
-    return materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id})));
+    return materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
   }, [materialOrders]);
 
  const allItemsByStatus = useMemo(() => {
@@ -75,7 +83,9 @@ export default function AlmacenPage() {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
             if (item.type === 'Almacen') {
-                const itemKey = `${sheet.id}-${item.itemCode}`;
+                const materialOrderOrigin = materialOrders.find(mo => mo.id === item.orderId);
+                // The unique key should be based on the original MaterialOrder ID and item code
+                const itemKey = `${item.orderId}-${item.itemCode}`;
                 items[targetStatus].push({
                     ...item,
                     orderId: sheet.id,
@@ -125,6 +135,9 @@ export default function AlmacenPage() {
     setMaterialOrders(prevOrders => {
       return prevOrders.map(order => {
         if (order.id === orderId) {
+            if (field === 'solicita') {
+                 return { ...order, solicita: value };
+            }
           const updatedItems = order.items
             .map(item => item.itemCode === itemCode ? { ...item, [field]: value } : item)
             .filter(item => item.quantity > 0);
@@ -182,7 +195,9 @@ export default function AlmacenPage() {
   );
 
   const blockedItems = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
-  const pendingItems = allItems.filter(item => allItemsByStatus['Asignado'].some(assigned => assigned.itemCode === item.itemCode && assigned.orderId === item.orderId));
+  const pendingItems = allItems.filter(item => {
+    return allItemsByStatus['Asignado'].some(assigned => assigned.itemCode === item.itemCode && assigned.orderId === item.orderId)
+  });
 
 
   return (
