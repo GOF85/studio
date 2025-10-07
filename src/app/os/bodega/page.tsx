@@ -18,6 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
   orderId: string;
@@ -170,7 +171,10 @@ export default function BodegaPage() {
         <CardContent className="space-y-2">
             {items.length > 0 ? items.map((item, index) => (
                 <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
-                    <p className="font-semibold truncate">{item.quantity} x {item.description}</p>
+                    <div className="flex justify-between items-start">
+                        <p className="font-semibold truncate pr-2">{item.quantity} x {item.description}</p>
+                        {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
+                    </div>
                     <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                         {item.solicita ? (
                             <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
@@ -178,10 +182,7 @@ export default function BodegaPage() {
                                 {item.solicita}
                             </Badge>
                         ) : <span></span>}
-                        <div className="flex items-center gap-2">
-                            {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
-                            <Badge variant="outline">{item.orderContract}</Badge>
-                        </div>
+                        <Badge variant="outline">{item.orderContract}</Badge>
                     </div>
                 </Card>
             )) : <p className="text-sm text-muted-foreground text-center py-4">No hay artículos.</p>}

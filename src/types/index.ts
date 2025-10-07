@@ -16,6 +16,7 @@ export type CateringItem = {
 export type OrderItem = CateringItem & {
   quantity: number;
   orderId?: string;
+  tipo?: string;
 };
 
 export type OrderCompletionAssistantInput = {

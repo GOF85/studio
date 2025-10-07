@@ -98,7 +98,7 @@ export default function IncidenciasPickingPage() {
         if (!resolvingIncident) return;
         
         const { item, pickedQty, sheetId } = resolvingIncident;
-        const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+        let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
         
         // Find the original order ID from the picking sheet's item
         const originalOrderId = item.orderId;
@@ -184,8 +184,8 @@ export default function IncidenciasPickingPage() {
     };
     
     const filteredCatalog = useMemo(() => {
-        if (!resolvingIncident?.item.type) return catalog;
-        return catalog.filter(c => c.category === resolvingIncident.item.type);
+        if (!resolvingIncident?.item.category) return catalog;
+        return catalog.filter(c => c.category === resolvingIncident.item.category);
     }, [resolvingIncident, catalog]);
 
     const filteredIncidencias = useMemo(() => {
@@ -309,4 +309,3 @@ export default function IncidenciasPickingPage() {
         </div>
     );
 }
-

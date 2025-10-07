@@ -176,6 +176,7 @@ export default function PedidosPage() {
         allMaterialOrders[orderIndex] = {
           ...allMaterialOrders[orderIndex],
           ...finalOrder,
+          items: finalOrder.items.map(item => ({ ...item, orderId: allMaterialOrders[orderIndex].id })),
         };
         toast({ title: 'Pedido de material actualizado' });
       }
@@ -187,7 +188,9 @@ export default function PedidosPage() {
         type: orderType as any, // Cast because we've already validated
         status: 'Asignado',
         ...finalOrder,
+        items: [], // placeholder
       };
+      newMaterialOrder.items = finalOrder.items.map(item => ({...item, orderId: newMaterialOrder.id}));
       allMaterialOrders.push(newMaterialOrder);
       toast({ title: 'Pedido de material creado' });
     }
