@@ -175,7 +175,7 @@ export default function BodegaPage() {
                                 {item.solicita}
                             </Badge>
                         ) : <span></span>}
-                         <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
                             <Badge variant="outline">{item.orderContract}</Badge>
                         </div>
@@ -195,7 +195,7 @@ export default function BodegaPage() {
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader><DialogTitle>Resumen de Artículos de Bodega</DialogTitle></DialogHeader>
-                <div className="space-y-4">
+                 <div className="space-y-4">
                     <div>
                         <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
                         <Table>
