@@ -151,7 +151,7 @@ aparcamiento: string;
   comentariosMarketing: string;
 }
 
-export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacen', 'Bio', 'Hielo', 'Alquiler'] as const;
+export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacen', 'Bio', 'Hielo'] as const;
 export type ArticuloCateringCategoria = typeof ARTICULO_CATERING_CATEGORIAS[number];
 
 export type ArticuloCatering = {
@@ -164,12 +164,12 @@ export type ArticuloCatering = {
     precioVenta: number;
     precioAlquiler: number;
     precioReposicion: number;
+    stockSeguridad?: number;
+    tipo?: string;
     loc?: string;
     imagen?: string;
     producidoPorPartner?: boolean;
     partnerId?: string;
-    stockSeguridad?: number;
-    tipo?: string;
 }
 
 export type AlquilerDBItem = {
@@ -635,7 +635,7 @@ export type ExcedenteProduccion = {
 
 // ---- NUEVA VERTICAL DE ENTREGAS ----
 
-export const CATEGORIAS_PRODUCTO_VENTA = ['Gastronomía', 'Bodega', 'Consumibles', 'Almacen', 'Personal', 'Transporte', 'Otros'] as const;
+export const CATEGORIAS_PRODUCTO_VENTA = ['Gastronomía', 'Bodega', 'Consumibles', 'Almacen', 'Packs', 'Transporte', 'Otros'] as const;
 export type CategoriaProductoVenta = typeof CATEGORIAS_PRODUCTO_VENTA[number];
 
 export type ImagenProducto = {
@@ -643,6 +643,13 @@ export type ImagenProducto = {
   url: string;
   isPrincipal: boolean;
 }
+
+export type ProductoVentaComponente = {
+    erpId: string;
+    nombre: string;
+    cantidad: number;
+    coste?: number;
+};
 
 export type ProductoVenta = {
     id: string;
@@ -659,6 +666,7 @@ export type ProductoVenta = {
     recetaId?: string;
     erpId?: string;
     exclusivoIfema?: boolean;
+    componentes?: ProductoVentaComponente[];
 }
 
 export type PedidoEntregaItem = {

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Package, ArrowLeft, Star } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Package, ArrowLeft, Star, Menu } from 'lucide-react';
 import type { ArticuloCatering } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,7 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
-const CSV_HEADERS = ["id", "erpId", "nombre", "categoria", "subcategoria", "esHabitual", "precioVenta", "precioAlquiler", "precioReposicion", "loc", "imagen", "producidoPorPartner", "partnerId"];
+const CSV_HEADERS = ["id", "erpId", "nombre", "categoria", "subcategoria", "esHabitual", "precioVenta", "precioAlquiler", "precioReposicion", "stockSeguridad", "tipo", "loc", "imagen", "producidoPorPartner", "partnerId"];
 
 export default function ArticulosPage() {
   const [items, setItems] = useState<ArticuloCatering[]>([]);
@@ -50,6 +50,7 @@ export default function ArticulosPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
 
   const router = useRouter();
   const { toast } = useToast();
@@ -61,17 +62,22 @@ export default function ArticulosPage() {
     setIsMounted(true);
   }, []);
   
-  const categories = useMemo(() => {
+  const { categories, types } = useMemo(() => {
     const allCategories = new Set(items.map(i => i.categoria));
-    return ['all', ...Array.from(allCategories)];
+    const allTypes = new Set(items.map(i => i.tipo).filter(Boolean) as string[]);
+    return {
+        categories: ['all', ...Array.from(allCategories)],
+        types: ['all', ...Array.from(allTypes)],
+    }
   }, [items]);
 
   const filteredItems = useMemo(() => {
     return items.filter(item => 
       (item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || (item.subcategoria || '').toLowerCase().includes(searchTerm.toLowerCase()) || (item.erpId || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (categoryFilter === 'all' || item.categoria === categoryFilter)
+      (categoryFilter === 'all' || item.categoria === categoryFilter) &&
+      (typeFilter === 'all' || item.tipo === typeFilter)
     );
-  }, [items, searchTerm, categoryFilter]);
+  }, [items, searchTerm, categoryFilter, typeFilter]);
 
 
   const handleExportCSV = () => {
@@ -126,7 +132,7 @@ export default function ArticulosPage() {
             return;
         }
         
-        const importedData: ArticuloCatering[] = results.data.map(item => ({
+        const importedData: ArticuloCatering[] = results.data.map((item: any) => ({
             id: item.id || Date.now().toString() + Math.random(),
             erpId: item.erpId || '',
             nombre: item.nombre || '',
@@ -136,6 +142,8 @@ export default function ArticulosPage() {
             precioVenta: parseCurrency(item.precioVenta),
             precioAlquiler: parseCurrency(item.precioAlquiler),
             precioReposicion: parseCurrency(item.precioReposicion),
+            stockSeguridad: Number(item.stockSeguridad) || 0,
+            tipo: item.tipo || '',
             loc: item.loc || '',
             imagen: item.imagen || '',
             producidoPorPartner: parseBoolean(item.producidoPorPartner),
@@ -179,39 +187,8 @@ export default function ArticulosPage() {
                 </Button>
                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Package />Catálogo de Artículos MICE</h1>
             </div>
-          <div className="flex gap-2">
-            <Button asChild>
-              <Link href="/articulos/nuevo">
-                <PlusCircle className="mr-2" />
-                Nuevo Artículo
-              </Link>
-            </Button>
-          </div>
         </div>
         
-        <Card className="mb-6">
-          <CardHeader>
-            <h2 className="text-xl font-semibold">Importar y Exportar</h2>
-          </CardHeader>
-          <CardContent className="flex flex-col md:flex-row gap-4">
-             <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".csv"
-                onChange={handleImportCSV}
-            />
-            <Button variant="outline" className="w-full md:w-auto" onClick={handleImportClick}>
-              <FileUp className="mr-2" />
-              Importar CSV
-            </Button>
-            <Button variant="outline" className="w-full md:w-auto" onClick={handleExportCSV}>
-              <FileDown className="mr-2" />
-              Exportar CSV
-            </Button>
-          </CardContent>
-        </Card>
-
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
             placeholder="Buscar por nombre, subcategoría o ID ERP..."
@@ -231,16 +208,58 @@ export default function ArticulosPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-full md:w-[240px]">
+                    <SelectValue placeholder="Filtrar por tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                    {types.map(t => (
+                        <SelectItem key={t} value={t}>{t === 'all' ? 'Todos los tipos' : t}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <div className="flex gap-2 ml-auto">
+                <Button asChild>
+                    <Link href="/articulos/nuevo">
+                        <PlusCircle className="mr-2" />
+                        Nuevo Artículo
+                    </Link>
+                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon">
+                            <Menu />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handleImportClick}>
+                            <FileUp className="mr-2" />
+                            Importar CSV
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept=".csv"
+                                onChange={handleImportCSV}
+                            />
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleExportCSV}>
+                            <FileDown className="mr-2" />
+                            Exportar CSV
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
         </div>
 
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="p-2"></TableHead>
+                <TableHead className="p-2 w-10"></TableHead>
                 <TableHead className="p-2">Nombre</TableHead>
                 <TableHead className="p-2">Categoría</TableHead>
-                <TableHead className="p-2">ID ERP</TableHead>
+                <TableHead className="p-2">Tipo</TableHead>
                 <TableHead className="p-2">P. Venta</TableHead>
                 <TableHead className="p-2">P. Alquiler</TableHead>
                 <TableHead className="p-2">P. Reposición</TableHead>
@@ -251,12 +270,12 @@ export default function ArticulosPage() {
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
                   <TableRow key={item.id}>
-                    <TableCell className="p-2 w-10">
+                    <TableCell className="p-2">
                         {item.esHabitual && <Star className="h-5 w-5 text-amber-400 fill-amber-400" />}
                     </TableCell>
                     <TableCell className="font-medium p-2">{item.nombre}</TableCell>
                     <TableCell className="p-2"><Badge variant="outline">{item.categoria}</Badge></TableCell>
-                    <TableCell className="p-2 font-mono text-xs">{item.erpId}</TableCell>
+                    <TableCell className="p-2 font-mono text-xs">{item.tipo}</TableCell>
                     <TableCell className="p-2">{formatCurrency(item.precioVenta)}</TableCell>
                     <TableCell className="p-2">{formatCurrency(item.precioAlquiler)}</TableCell>
                     <TableCell className="p-2">{formatCurrency(item.precioReposicion)}</TableCell>

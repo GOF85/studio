@@ -22,6 +22,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
 
 
 export const articuloCateringSchema = z.object({
@@ -34,6 +35,8 @@ export const articuloCateringSchema = z.object({
   precioVenta: z.coerce.number().min(0, 'Debe ser un número positivo'),
   precioAlquiler: z.coerce.number().min(0, 'Debe ser un número positivo'),
   precioReposicion: z.coerce.number().min(0, 'Debe ser un número positivo'),
+  stockSeguridad: z.coerce.number().optional().default(0),
+  tipo: z.string().optional(),
   loc: z.string().optional(),
   imagen: z.string().url("Debe ser una URL válida.").or(z.literal("")).optional(),
   producidoPorPartner: z.boolean().default(false),
@@ -49,6 +52,7 @@ const defaultValues: Partial<ArticuloCateringFormValues> = {
     precioAlquiler: 0,
     precioReposicion: 0,
     producidoPorPartner: false,
+    stockSeguridad: 0,
 };
 
 function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProducts }: { onSelect: (id: string) => void, searchTerm: string, setSearchTerm: (term: string) => void, filteredProducts: IngredienteERP[] }) {
@@ -93,6 +97,8 @@ export default function ArticuloFormPage() {
   const [ingredientesERP, setIngredientesERP] = useState<IngredienteERP[]>([]);
   const [erpSearchTerm, setErpSearchTerm] = useState('');
   const [isErpDialogOpen, setIsErpDialogOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
+  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
 
   const form = useForm<ArticuloCateringFormValues>({
     resolver: zodResolver(articuloCateringSchema),
@@ -100,7 +106,8 @@ export default function ArticuloFormPage() {
   });
   
   const selectedErpId = form.watch('erpId');
-  const selectedErpProduct = ingredientesERP.find(p => p.id === selectedErpId);
+  const selectedCategoria = form.watch('categoria');
+  const selectedErpProduct = useMemo(() => ingredientesERP.find(p => p.id === selectedErpId), [ingredientesERP, selectedErpId]);
   
   const filteredErpProducts = useMemo(() => {
     return ingredientesERP.filter(p => 
@@ -109,6 +116,18 @@ export default function ArticuloFormPage() {
         p.referenciaProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase())
     );
   }, [ingredientesERP, erpSearchTerm]);
+  
+  useEffect(() => {
+    if (selectedErpProduct) {
+        form.setValue('tipo', selectedErpProduct.tipo);
+        if (selectedCategoria === 'Almacen') {
+            form.setValue('precioReposicion', selectedErpProduct.precio);
+        } else {
+            form.setValue('precioVenta', selectedErpProduct.precio);
+        }
+    }
+  }, [selectedErpProduct, selectedCategoria, form]);
+
 
   useEffect(() => {
     const allPartners = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
@@ -122,6 +141,7 @@ export default function ArticuloFormPage() {
       const item = items.find(p => p.id === id);
       if (item) {
         form.reset(item);
+        setImageUrl(item.imagen || '');
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el artículo.' });
         router.push('/articulos');
@@ -163,6 +183,11 @@ export default function ArticuloFormPage() {
     form.setValue('erpId', erpId, { shouldDirty: true });
     setIsErpDialogOpen(false);
   }
+  
+  const handleImageSave = () => {
+    form.setValue('imagen', imageUrl, { shouldDirty: true });
+    setIsImageDialogOpen(false);
+  }
 
   return (
     <>
@@ -185,7 +210,7 @@ export default function ArticuloFormPage() {
         </div>
 
         <Form {...form}>
-          <form id="articulo-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form id="articulo-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Detalles del Artículo</CardTitle>
@@ -197,7 +222,7 @@ export default function ArticuloFormPage() {
                     )} />
                     <FormField control={form.control} name="categoria" render={({ field }) => (
                         <FormItem><FormLabel>Categoría</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                        <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl>
                             <SelectContent>{ARTICULO_CATERING_CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                         </Select>
                         <FormMessage /></FormItem>
@@ -234,31 +259,46 @@ export default function ArticuloFormPage() {
                         </FormItem>
                      )} />
                 )}
-                 <FormField control={form.control} name="imagen" render={({ field }) => (
-                    <FormItem><FormLabel>URL de Imagen</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
+                 <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" type="button"><LinkIcon className="mr-2"/>Gestionar URL de Imagen</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader><DialogTitle>URL de la Imagen</DialogTitle></DialogHeader>
+                        <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://ejemplo.com/imagen.jpg"/>
+                        {imageUrl && <img src={imageUrl} alt="Previsualización" className="rounded-md mt-2 max-h-60 object-contain mx-auto" />}
+                        <DialogFooter><Button onClick={handleImageSave}>Guardar URL</Button></DialogFooter>
+                    </DialogContent>
+                 </Dialog>
               </CardContent>
             </Card>
+
+            <div className="grid md:grid-cols-2 gap-6 items-start">
              <Card>
-                <CardHeader>
-                    <CardTitle>Información de Precios</CardTitle>
-                </CardHeader>
-                <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                     <FormField control={form.control} name="precioVenta" render={({ field }) => (
-                        <FormItem><FormLabel>Precio Venta</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                     <FormField control={form.control} name="precioAlquiler" render={({ field }) => (
-                        <FormItem><FormLabel>Precio Alquiler</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                     <FormField control={form.control} name="precioReposicion" render={({ field }) => (
-                        <FormItem><FormLabel>Precio Reposición</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                <CardHeader><CardTitle>Información de Precios</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
+                    {selectedCategoria === 'Almacen' ? (
+                        <>
+                         <FormField control={form.control} name="precioAlquiler" render={({ field }) => (
+                            <FormItem><FormLabel>Precio Alquiler</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                         <FormField control={form.control} name="precioReposicion" render={({ field }) => (
+                            <FormItem><FormLabel>Precio Reposición</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly className="bg-muted"/></FormControl><FormMessage /></FormItem>
+                        )} />
+                        </>
+                    ) : (
+                         <FormField control={form.control} name="precioVenta" render={({ field }) => (
+                            <FormItem><FormLabel>Precio Venta</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly className="bg-muted"/></FormControl><FormMessage /></FormItem>
+                        )} />
+                    )}
+                    <FormField control={form.control} name="stockSeguridad" render={({ field }) => (
+                        <FormItem><FormLabel>Stock de Seguridad</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                 </CardContent>
              </Card>
+
               <Card>
-                <CardHeader>
-                    <CardTitle>Vínculo con Materia Prima</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle>Vínculo con Materia Prima</CardTitle></CardHeader>
                 <CardContent>
                      <FormItem>
                         <FormLabel>Producto ERP Vinculado</FormLabel>
@@ -271,7 +311,11 @@ export default function ArticuloFormPage() {
                                     </div>
                                     <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" onClick={() => form.setValue('erpId', '')}><CircleX className="mr-1 h-3 w-3"/>Desvincular</Button>
                                 </div>
-                                <p className="font-bold text-primary text-sm">{formatCurrency(selectedErpProduct.precio)} / {selectedErpProduct.unidad}</p>
+                                <div className="grid grid-cols-2 gap-2 pt-2">
+                                     <FormField control={form.control} name="tipo" render={({ field }) => (
+                                        <FormItem><FormLabel className="text-xs">Tipo</FormLabel><FormControl><Input {...field} readOnly className="h-8 bg-muted"/></FormControl></FormItem>
+                                     )} />
+                                </div>
                             </div>
                         ) : (
                             <Dialog open={isErpDialogOpen} onOpenChange={setIsErpDialogOpen}>
@@ -290,6 +334,7 @@ export default function ArticuloFormPage() {
                     </FormItem>
                 </CardContent>
               </Card>
+            </div>
           </form>
         </Form>
       </main>
