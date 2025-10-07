@@ -1,6 +1,7 @@
 
 'use client';
 
+import * as React from 'react';
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -127,8 +128,11 @@ export default function ArticuloFormPage() {
   
   useEffect(() => {
       selectedErpProductRef.current = selectedErpProduct;
+  }, [selectedErpProduct]);
+  
+  useEffect(() => {
       selectedCategoriaRef.current = selectedCategoria;
-  }, [selectedErpProduct, selectedCategoria]);
+  }, [selectedCategoria]);
 
   useEffect(() => {
     const currentErpProduct = selectedErpProductRef.current;
@@ -247,7 +251,7 @@ export default function ArticuloFormPage() {
                         <FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="loc" render={({ field }) => (
-                        <FormItem><FormLabel>Ubicación</FormLabel><FormControl><Input {...field} placeholder="Ej: P4-E2-A1" /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Ubicación</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="Ej: P4-E2-A1" /></FormControl><FormMessage /></FormItem>
                     )} />
                 </div>
                  <div className="flex items-center space-x-4">
