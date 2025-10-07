@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -141,7 +141,7 @@ export default function ArticuloFormPage() {
             setValue('precioVenta', currentErpProduct.precio, { shouldDirty: true });
         }
     }
-  }, [selectedErpId, setValue]);
+  }, [selectedErpId, setValue, selectedCategoria]);
 
 
   useEffect(() => {
