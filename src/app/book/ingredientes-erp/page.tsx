@@ -82,7 +82,8 @@ export default function IngredientesERPPage() {
           (item.nombreProductoERP || '').toLowerCase().includes(term) ||
           (item.nombreProveedor || '').toLowerCase().includes(term) ||
           (item.referenciaProveedor || '').toLowerCase().includes(term) ||
-          (item.IdERP || '').toLowerCase().includes(term)
+          (item.IdERP || '').toLowerCase().includes(term) ||
+          (item.tipo || '').toLowerCase().includes(term)
         );
     });
   }, [watchedItems, searchTerm]);
@@ -107,6 +108,7 @@ export default function IngredientesERPPage() {
       familiaCategoria: '',
       precio: 0,
       unidad: 'UNIDAD',
+      tipo: '',
     });
   };
   
@@ -165,6 +167,7 @@ export default function IngredientesERPPage() {
                         <TableHead className="p-2 w-48">Proveedor</TableHead>
                         <TableHead className="p-2 w-40">Ref. Proveedor</TableHead>
                         <TableHead className="p-2 w-40">Categoría</TableHead>
+                        <TableHead className="p-2 w-40">Tipo</TableHead>
                         <TableHead className="p-2 w-28">Precio</TableHead>
                         <TableHead className="p-2 w-32">Unidad</TableHead>
                         <TableHead className="p-2 w-16 text-right">Acciones</TableHead>
@@ -190,6 +193,9 @@ export default function IngredientesERPPage() {
                                  <FormField control={form.control} name={`items.${item.originalIndex}.familiaCategoria`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
                             </TableCell>
                             <TableCell className="p-1">
+                                 <FormField control={form.control} name={`items.${item.originalIndex}.tipo`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
+                            </TableCell>
+                            <TableCell className="p-1">
                                  <FormField control={form.control} name={`items.${item.originalIndex}.precio`} render={({ field }) => ( <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8"/> )} />
                             </TableCell>
                             <TableCell className="p-1">
@@ -211,7 +217,7 @@ export default function IngredientesERPPage() {
                         ))
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={8} className="h-24 text-center">
+                        <TableCell colSpan={9} className="h-24 text-center">
                             No se encontraron ingredientes que coincidan con la búsqueda.
                         </TableCell>
                         </TableRow>

@@ -151,7 +151,7 @@ aparcamiento: string;
   comentariosMarketing: string;
 }
 
-export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacén', 'Bio', 'Hielo', 'Alquiler'] as const;
+export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacen', 'Bio', 'Hielo', 'Alquiler'] as const;
 export type ArticuloCateringCategoria = typeof ARTICULO_CATERING_CATEGORIAS[number];
 
 export type ArticuloCatering = {
@@ -168,6 +168,8 @@ export type ArticuloCatering = {
     imagen?: string;
     producidoPorPartner?: boolean;
     partnerId?: string;
+    stockSeguridad?: number;
+    tipo?: string;
 }
 
 export type AlquilerDBItem = {
@@ -394,6 +396,7 @@ export const ingredienteErpSchema = z.object({
   familiaCategoria: z.string(),
   precio: z.coerce.number().min(0),
   unidad: z.enum(UNIDADES_MEDIDA),
+  tipo: z.string().optional(),
 });
 
 export type IngredienteERP = z.infer<typeof ingredienteErpSchema>;
