@@ -111,9 +111,9 @@ export default function ArticuloFormPage() {
   const selectedErpId = form.watch('erpId');
   const selectedCategoria = form.watch('categoria');
   
-  const selectedErpProduct = useMemo(() => ingredientesERP.find(p => p.id === selectedErpId), [ingredientesERP, selectedErpId]);
+  const selectedErpProduct = React.useMemo(() => ingredientesERP.find(p => p.id === selectedErpId), [ingredientesERP, selectedErpId]);
   
-  const filteredErpProducts = useMemo(() => {
+  const filteredErpProducts = React.useMemo(() => {
     return ingredientesERP.filter(p => 
         p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
         p.nombreProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
@@ -121,13 +121,21 @@ export default function ArticuloFormPage() {
     );
   }, [ingredientesERP, erpSearchTerm]);
   
+  const selectedErpProductRef = React.useRef(selectedErpProduct);
+  const selectedCategoriaRef = React.useRef(selectedCategoria);
+
   useEffect(() => {
-    if (selectedErpProduct && selectedCategoria) {
-      setValue('tipo', selectedErpProduct.tipo, { shouldDirty: true });
-      if (selectedCategoria === 'Almacen') {
-        setValue('precioReposicion', selectedErpProduct.precio, { shouldDirty: true });
+    selectedErpProductRef.current = selectedErpProduct;
+    selectedCategoriaRef.current = selectedCategoria;
+  }, [selectedErpProduct, selectedCategoria]);
+
+  useEffect(() => {
+    if (selectedErpProductRef.current && selectedCategoriaRef.current) {
+      setValue('tipo', selectedErpProductRef.current.tipo, { shouldDirty: true });
+      if (selectedCategoriaRef.current === 'Almacen') {
+        setValue('precioReposicion', selectedErpProductRef.current.precio, { shouldDirty: true });
       } else {
-        setValue('precioVenta', selectedErpProduct.precio, { shouldDirty: true });
+        setValue('precioVenta', selectedErpProductRef.current.precio, { shouldDirty: true });
       }
     }
   }, [selectedErpProduct, selectedCategoria, setValue]);
@@ -224,14 +232,26 @@ export default function ArticuloFormPage() {
                     <FormField control={form.control} name="nombre" render={({ field }) => (
                         <FormItem className="lg:col-span-2"><FormLabel>Nombre del Artículo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
-                    <FormField control={form.control} name="categoria" render={({ field }) => (
-                        <FormItem><FormLabel>Categoría</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl>
-                            <SelectContent>{ARTICULO_CATERING_CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                        </Select>
-                        <FormMessage /></FormItem>
-                    )} />
+                     <FormField
+                        control={form.control}
+                        name="categoria"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Categoría</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccionar..." />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {ARTICULO_CATERING_CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
                     <FormField control={form.control} name="loc" render={({ field }) => (
                         <FormItem><FormLabel>Ubicación</FormLabel><FormControl><Input {...field} placeholder="Ej: P4-E2-A1" /></FormControl><FormMessage /></FormItem>
                     )} />
