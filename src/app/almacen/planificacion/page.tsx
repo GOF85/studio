@@ -16,7 +16,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import type { ServiceOrder, MaterialOrder, OrderItem, HieloOrder, PickingSheet, ReturnSheet } from '@/types';
+import type { ServiceOrder, MaterialOrder, OrderItem, HieloOrder, PickingSheet, ReturnSheet, GastronomyOrder, Receta } from '@/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -93,71 +93,95 @@ export default function PlanificacionAlmacenPage() {
         }
         
         const osMap = new Map(osEnRango.map(os => [os.id, os]));
+        
+        const allGastronomyOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).filter(o => osIdsEnRango.has(o.osId));
+        const allRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
+        const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
 
         const allMaterialOrders = (JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[]).filter(o => osIdsEnRango.has(o.osId));
         const allHieloOrders = (JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[]).filter(o => osIdsEnRango.has(o.osId));
+        
         const allPickingSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
 
-        // Create a set of items already in picking sheets for quick lookup
         const pickedItems = new Set<string>();
         Object.values(allPickingSheets).forEach(sheet => {
             sheet.items.forEach(item => {
-                const key = `${sheet.osId}__${sheet.fechaNecesidad}__${item.itemCode}__${sheet.solicitante || 'general'}`;
+                // This key must uniquely identify an item from a specific original order
+                // For gastronomy, the origin is implicit, so we use the OS. For material orders, we use the order ID.
+                const orderId = item.orderId || sheet.osId; 
+                const key = `${orderId}__${item.itemCode}__${sheet.solicitante || 'general'}`;
                 pickedItems.add(key);
             });
         });
         
         const necesidadesPorDia: { [key: string]: Record<string, OSConNecesidades> } = {};
 
-        const processOrders = (orders: (MaterialOrder | HieloOrder)[]) => {
-            orders.forEach(order => {
-                const os = osMap.get(order.osId);
-                if (!os) return;
+        const addNecesidad = (os: ServiceOrder, fecha: string, solicitante: 'Sala' | 'Cocina' | undefined, item: OrderItem, orderType: keyof NecesidadesPorTipo, orderId: string) => {
+            const itemKey = `${orderId}__${item.itemCode}__${solicitante || 'general'}`;
+            if (pickedItems.has(itemKey)) {
+                return;
+            }
 
-                const solicitante = 'solicita' in order ? order.solicita : undefined;
-                const deliveryDate = ('deliveryDate' in order && order.deliveryDate) ? order.deliveryDate : os.startDate;
+            const dateKey = format(new Date(fecha), 'yyyy-MM-dd');
+             if (!necesidadesPorDia[dateKey]) {
+                necesidadesPorDia[dateKey] = {};
+            }
+            
+            const osKey = `${os.id}__${dateKey}__${solicitante || 'general'}`;
 
-                if (!deliveryDate) return;
-
-                const dateKey = format(new Date(deliveryDate), 'yyyy-MM-dd');
-
-                order.items.forEach(item => {
-                    const itemKey = `${os.id}__${dateKey}__${item.itemCode}__${solicitante || 'general'}`;
-                    if (pickedItems.has(itemKey)) {
-                        return;
-                    }
-
-                    if (!necesidadesPorDia[dateKey]) {
-                        necesidadesPorDia[dateKey] = {};
-                    }
-                    
-                    const osKey = `${os.id}__${dateKey}__${solicitante || 'general'}`;
-
-                    if (!necesidadesPorDia[dateKey][osKey]) {
-                        necesidadesPorDia[dateKey][osKey] = { os, necesidades: { 'Almacen': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] }, totalItems: 0, solicitante };
-                    }
-                    
-                    const osNecesidades = necesidadesPorDia[dateKey][osKey];
-                    const orderType = 'type' in order ? order.type : 'Hielo';
-
-                    if (orderType in osNecesidades.necesidades) {
-                       osNecesidades.necesidades[orderType as keyof NecesidadesPorTipo].push({
-                            ...item,
-                            osId: os.id,
-                            serviceNumber: os.serviceNumber,
-                            deliverySpace: ('deliverySpace' in order && order.deliverySpace) ? order.deliverySpace : (os.space || ''),
-                            deliveryLocation: ('deliveryLocation' in order && order.deliveryLocation) ? order.deliveryLocation : '',
-                            solicitante: solicitante,
-                        });
-                        osNecesidades.totalItems++;
-                    }
+            if (!necesidadesPorDia[dateKey][osKey]) {
+                necesidadesPorDia[dateKey][osKey] = { os, necesidades: { 'Almacen': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] }, totalItems: 0, solicitante };
+            }
+            
+            const osNecesidades = necesidadesPorDia[dateKey][osKey];
+            
+            const existingItem = osNecesidades.necesidades[orderType].find(i => i.itemCode === item.itemCode);
+            if(existingItem) {
+                existingItem.quantity += item.quantity;
+            } else {
+                osNecesidades.necesidades[orderType].push({
+                    ...item,
+                    osId: os.id,
+                    serviceNumber: os.serviceNumber,
+                    deliverySpace: os.space || '',
+                    deliveryLocation: '',
+                    solicitante: solicitante,
+                    orderId: orderId,
                 });
-            });
-        };
+            }
+            osNecesidades.totalItems++;
+        }
 
-        processOrders(allMaterialOrders);
-        processOrders(allHieloOrders);
-        
+        // Process gastronomy needs
+        allGastronomyOrders.forEach(gOrder => {
+            const os = osMap.get(gOrder.osId);
+            if (!os) return;
+            (gOrder.items || []).forEach(gItem => {
+                if(gItem.type === 'item') {
+                    const receta = recetasMap.get(gItem.id);
+                    if(receta) {
+                        // Here you would break down the recipe into its material components
+                        // For now, we'll assume a direct mapping for simplicity
+                    }
+                }
+            })
+        });
+
+        // Process direct material orders
+        [...allMaterialOrders, ...allHieloOrders].forEach(order => {
+             const os = osMap.get(order.osId);
+            if (!os) return;
+
+            const solicitante = 'solicita' in order ? order.solicita : undefined;
+            const deliveryDate = ('deliveryDate' in order && order.deliveryDate) ? order.deliveryDate : os.startDate;
+            if (!deliveryDate) return;
+            
+            order.items.forEach(item => {
+                const orderType = 'type' in order ? order.type : 'Hielo';
+                addNecesidad(os, deliveryDate, solicitante, item, orderType as keyof NecesidadesPorTipo, order.id);
+            });
+        })
+
         const resultado: NecesidadesPorDia[] = Object.entries(necesidadesPorDia).map(([fecha, ordenes]) => ({
             fecha,
             ordenes,
@@ -232,7 +256,8 @@ export default function PlanificacionAlmacenPage() {
         const osItemIds: string[] = [];
         Object.entries(osData.necesidades).forEach(([tipo, items]) => {
             items.forEach(item => {
-                osItemIds.push(`${item.itemCode}__${osData.os.id}__${fecha}__${tipo}__${item.solicitante || 'general'}`);
+                const orderId = (item as any).orderId || osData.os.id;
+                osItemIds.push(`${item.itemCode}__${orderId}__${fecha}__${tipo}__${item.solicitante || 'general'}`);
             });
         });
     
@@ -257,7 +282,8 @@ export default function PlanificacionAlmacenPage() {
         let osItemIds: string[] = [];
         Object.keys(osData.necesidades).forEach((tipo) => {
              osData.necesidades[tipo as keyof NecesidadesPorTipo].forEach(item => {
-                 osItemIds.push(`${item.itemCode}__${osData.os.id}__${fecha}__${tipo}__${item.solicitante || 'general'}`);
+                 const orderId = (item as any).orderId || osData.os.id;
+                 osItemIds.push(`${item.itemCode}__${orderId}__${fecha}__${tipo}__${item.solicitante || 'general'}`);
              })
         });
 
@@ -271,11 +297,13 @@ export default function PlanificacionAlmacenPage() {
     const numSheetsToGenerate = useMemo(() => {
         const sheetsKeys = new Set<string>();
         selectedItems.forEach(id => {
-            const [itemCode, osId, fecha, tipo, solicitante] = id.split('__');
+            const [itemCode, orderId, fecha, tipo, solicitante] = id.split('__');
+            const osData = necesidades.find(d => d.fecha === fecha)?.ordenes[`${orderId}__${fecha}__${solicitante || 'general'}`];
+            const osId = osData ? osData.os.id : orderId; // Fallback for direct orders
             sheetsKeys.add(`${osId}__${fecha}__${solicitante || 'general'}`);
         });
         return sheetsKeys.size;
-    }, [selectedItems]);
+    }, [selectedItems, necesidades]);
 
 
     const handleGeneratePicking = () => {
@@ -286,26 +314,39 @@ export default function PlanificacionAlmacenPage() {
 
         const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const itemsToProcess = Array.from(selectedItems);
         
         const sheetsToGenerate: Record<string, {osId: string, fechaNecesidad: string, items: any[], solicitante?: 'Sala' | 'Cocina'}> = {};
 
-        itemsToProcess.forEach(itemId => {
-            const [itemCode, osId, fecha, tipo, solicitanteStr] = itemId.split('__');
+        selectedItems.forEach(itemId => {
+            const [itemCode, orderId, fecha, tipo, solicitanteStr] = itemId.split('__');
             const solicitante = solicitanteStr === 'Sala' || solicitanteStr === 'Cocina' ? solicitanteStr : undefined;
-            const sheetKey = `${osId}__${fecha}__${solicitante || 'general'}`; 
+            
+            // Find the OS that contains this need
+            let osForThisItem: ServiceOrder | undefined;
+            let itemData: NecesidadItem | undefined;
 
-            if (!sheetsToGenerate[sheetKey]) {
-                sheetsToGenerate[sheetKey] = { osId, fechaNecesidad: fecha, items: [], solicitante };
+            for (const dia of necesidades) {
+                if (dia.fecha === fecha) {
+                    for (const osKey in dia.ordenes) {
+                        const osConNecesidades = dia.ordenes[osKey];
+                        const itemsOfType = osConNecesidades.necesidades[tipo as keyof NecesidadesPorTipo];
+                        const foundItem = itemsOfType.find(i => i.itemCode === itemCode && (i as any).orderId === orderId);
+                        if (foundItem) {
+                            osForThisItem = osConNecesidades.os;
+                            itemData = foundItem;
+                            break;
+                        }
+                    }
+                }
+                if (osForThisItem) break;
             }
 
-            const necesidadDia = necesidades.find(n => n.fecha === fecha);
-            const osKey = `${osId}__${fecha}__${solicitante || 'general'}`;
-            const osData = necesidadDia?.ordenes[osKey];
-            const itemData = osData?.necesidades[tipo as keyof NecesidadesPorTipo]?.find(i => i.itemCode === itemCode && i.osId === osId);
-
-            if (itemData) {
-                 sheetsToGenerate[sheetKey].items.push({...itemData, type: tipo});
+            if (osForThisItem && itemData) {
+                const sheetKey = `${osForThisItem.id}__${fecha}__${solicitante || 'general'}`; 
+                if (!sheetsToGenerate[sheetKey]) {
+                    sheetsToGenerate[sheetKey] = { osId: osForThisItem.id, fechaNecesidad: fecha, items: [], solicitante };
+                }
+                sheetsToGenerate[sheetKey].items.push({...itemData, type: tipo});
             }
         });
         
@@ -436,7 +477,8 @@ export default function PlanificacionAlmacenPage() {
                                                                     <TableHeader><TableRow><TableHead className="w-8"></TableHead><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead></TableRow></TableHeader>
                                                                     <TableBody>
                                                                         {items.map((item) => {
-                                                                            const itemId = `${item.itemCode}__${item.osId}__${fecha}__${tipo}__${item.solicitante || 'general'}`;
+                                                                            const orderId = (item as any).orderId || os.id;
+                                                                            const itemId = `${item.itemCode}__${orderId}__${fecha}__${tipo}__${item.solicitante || 'general'}`;
                                                                             return (
                                                                             <TableRow key={itemId}>
                                                                                 <TableCell><Checkbox onCheckedChange={() => handleSelectItem(itemId)} checked={selectedItems.has(itemId)} aria-label={`Seleccionar ${item.description}`} /></TableCell>
@@ -472,6 +514,8 @@ export default function PlanificacionAlmacenPage() {
     );
 }
     
+    
+
     
 
     
