@@ -33,7 +33,7 @@ export default function TechDocsPage() {
                     <Feature>Dashboard principal con acceso a todos los módulos.</Feature>
                     <Feature>Sistema de gestión de bases de datos maestras (Personal, Espacios, Proveedores, etc.).</Feature>
                     <Feature>Importación y exportación de datos mediante archivos CSV para todas las BBDD.</Feature>
-                    <Feature>Módulo de configuración del sistema.</Feature>
+                    <Feature>Módulo de configuración del sistema y borrado masivo de datos.</Feature>
                 </ul>
             </section>
             
@@ -69,8 +69,20 @@ export default function TechDocsPage() {
                     <Feature><strong>Informes:</strong> Módulos de productividad (tiempos) e incidencias.</Feature>
                 </ul>
             </section>
+            
+            <section id="c4-tech">
+                <h2 className="flex items-center gap-3"><ShieldCheck />Módulo de Almacén</h2>
+                <ul>
+                    <Feature><strong>Planificación:</strong> Agregación automática de necesidades de material (Almacén, Bodega, Bio, Alquiler).</Feature>
+                    <Feature><strong>Generación de Hojas de Picking:</strong> Creación de expediciones para preparar material.</Feature>
+                    <Feature><strong>Gestión de Picking:</strong> Flujo de trabajo para la recogida de material con estados (Pendiente, En Proceso, Listo).</Feature>
+                    <Feature><strong>Gestión de Incidencias:</strong> Registro y resolución de discrepancias (mermas).</Feature>
+                    <Feature><strong>Actualización de Pedidos:</strong> Aceptar una merma ajusta automáticamente el pedido original, manteniendo la coherencia de los datos en toda la aplicación.</Feature>
+                    <Feature><strong>Gestión de Retornos:</strong> Módulo para procesar el material devuelto después de un evento.</Feature>
+                </ul>
+            </section>
 
-             <section id="c4-tech">
+             <section id="c5-tech">
                 <h2 className="flex items-center gap-3"><Package />Vertical de Entregas MICE</h2>
                 <ul>
                     <Feature>Dashboard específico para la vertical de Entregas.</Feature>
@@ -82,7 +94,7 @@ export default function TechDocsPage() {
                 </ul>
             </section>
 
-            <section id="c5-tech">
+            <section id="c6-tech">
                 <h2 className="flex items-center gap-3"><Users />Portales Externos</h2>
                  <ul>
                     <Feature><strong>Portal de Partner de Producción:</strong> Vista simplificada para que los partners de gastronomía vean y gestionen los pedidos de producción que tienen asignados.</Feature>
@@ -92,7 +104,7 @@ export default function TechDocsPage() {
                 </ul>
             </section>
 
-            <section id="c6-tech">
+            <section id="c7-tech">
                 <h2 className="flex items-center gap-3"><GitBranch />Funcionalidades Transversales</h2>
                 <ul>
                     <Feature><strong>Módulo Comercial:</strong> Gestión de briefings de eventos con múltiples servicios (hitos).</Feature>

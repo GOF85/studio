@@ -1,6 +1,6 @@
 'use client';
 
-import { Award, Zap, ShieldCheck, Scale, Target, DollarSign, BrainCircuit, GitBranch, Share2 } from "lucide-react";
+import { Award, Zap, ShieldCheck, Scale, GitBranch, Share2, BarChart3 } from "lucide-react";
 
 export default function FeaturesPage() {
     return (
@@ -8,7 +8,7 @@ export default function FeaturesPage() {
             <div className="flex items-center gap-4 border-b pb-4 mb-8">
                 <Award className="w-10 h-10 text-primary" />
                 <div>
-                    <h1 className="!m-0">Plataforma MICE: Características y Propuesta de Valor</h1>
+                    <h1 className="!m-0">Plataforma MICE: Propuesta de Valor</h1>
                     <p className="lead !m-0">Un ecosistema operativo diseñado para la excelencia en catering.</p>
                 </div>
             </div>
@@ -47,21 +47,21 @@ export default function FeaturesPage() {
             </section>
 
             <section id="c4">
-                <h2 className="flex items-center gap-3"><GitBranch />Trazabilidad y Flujo de Trabajo Digital en Cocina</h2>
+                <h2 className="flex items-center gap-3"><GitBranch />Trazabilidad y Flujo de Trabajo Digital</h2>
                 <h3>El Problema a Resolver</h3>
-                <p>La "caja negra" de la cocina: ¿quién está haciendo qué?, ¿estará listo a tiempo?, ¿se ha seguido la receta?, ¿dónde está el lote X?</p>
-                <h3>Nuestra Solución: Gestión de OF y Picking Logístico</h3>
+                <p>La "caja negra" de la operativa: ¿quién está haciendo qué?, ¿estará listo a tiempo?, ¿dónde está el lote X?, ¿se ha recogido todo el material?</p>
+                <h3>Nuestra Solución: Gestión de Producción y Almacén</h3>
                 <ul>
-                    <li><strong>Estados Claros:</strong> Cada OF pasa por estados definidos (Pendiente &rarr; Asignada &rarr; En Proceso &rarr; Finalizado &rarr; Calidad), ofreciendo visibilidad total del taller de producción.</li>
-                    <li><strong>Información en el Puesto de Trabajo:</strong> Cada cocinero, desde su puesto, puede consultar el escandallo y las instrucciones de la OF que tiene asignada, garantizando la consistencia.</li>
-                    <li><strong>Trazabilidad Total:</strong> Cada OF (lote) está vinculada a los eventos y entregas que va a servir. Ante una incidencia, puedes trazar el camino completo del producto, desde el cliente final hasta la producción.</li>
-                    <li><strong>Picking Guiado:</strong> La hoja de picking digital le dice al equipo de logística exactamente qué elaboraciones (y de qué lote) van a cada contenedor isotérmico, eliminando errores en la preparación de los envíos.</li>
+                    <li><strong>Estados Claros:</strong> Cada Orden de Fabricación (OF) y Hoja de Picking pasa por estados definidos (Pendiente &rarr; En Proceso &rarr; Listo), ofreciendo visibilidad total del taller.</li>
+                    <li><strong>Trazabilidad Total:</strong> Cada lote de producción y cada expedición de material están vinculados a los eventos que van a servir. Ante una incidencia, puedes trazar el camino completo.</li>
+                    <li><strong>Picking Guiado:</strong> Las hojas de picking digitales le dicen al equipo de logística y almacén exactamente qué elaboraciones o materiales recoger, para qué evento, y en qué cantidad, eliminando errores.</li>
+                     <li><strong>Gestión de Incidencias:</strong> Un módulo centralizado para gestionar discrepancias en el picking (mermas, roturas). Las decisiones tomadas (aceptar merma, sustituir) actualizan la información en el pedido original, manteniendo la coherencia de datos.</li>
                 </ul>
                 <p><strong>Valor:</strong> Control y seguridad operativa. Garantiza la calidad, cumple con la normativa de trazabilidad y reduce a mínimos los errores logísticos.</p>
             </section>
             
             <section id="c5">
-                <h2 className="flex items-center gap-3"><DollarSign />Rentabilidad a Nivel de Servicio</h2>
+                <h2 className="flex items-center gap-3"><BarChart3 />Rentabilidad a Nivel de Servicio</h2>
                 <h3>El Problema a Resolver</h3>
                 <p>Terminar un evento sin saber si se ha ganado o perdido dinero. Imposibilidad de identificar qué servicios son rentables y cuáles no.</p>
                 <h3>Nuestra Solución: Cuenta de Explotación por OS</h3>

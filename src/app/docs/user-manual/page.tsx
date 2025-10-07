@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, BookOpen, Workflow, Factory, BarChart3, ShieldCheck } from "lucide-react";
+import { Users, BookOpen, Workflow, Factory, BarChart3, ShieldCheck, Warehouse } from "lucide-react";
 
 export default function UserManualPage() {
     return (
@@ -61,17 +61,34 @@ export default function UserManualPage() {
                 <h3>4.5. Paso 4: La Hoja de Pase en el Evento</h3>
                 <p>El equipo de sala, desde la OS, consultará la **"Hoja de Pase"** (Próximamente) para ver las instrucciones de emplatado, regeneración, **alérgenos** y en qué isotermo se encuentra cada kit de receta, asegurando un servicio eficiente y sin errores.</p>
             </section>
-            
+
             <section id="c5">
-                <h2 className="flex items-center gap-3"><BarChart3 />Capítulo 5: Informes y Análisis</h2>
+                <h2 className="flex items-center gap-3"><Warehouse />Capítulo 5: Gestión de Almacén</h2>
+                <p>El módulo de Almacén centraliza la logística de todo el material que no es gastronomía (bebida, menaje, consumibles, etc.).</p>
+                <h3>5.1. Planificación y Generación de Hojas de Picking</h3>
+                <p>De forma similar al CPR, el módulo de **"Planificación"** del almacén agrega todas las necesidades de material para los eventos en un rango de fechas. Desde aquí, se pueden seleccionar los artículos pendientes y generar una o varias **Hojas de Picking**.</p>
+                <h3>5.2. Proceso de Picking y Gestión de Incidencias</h3>
+                <p>En **"Gestión de Picking"**, el personal de almacén accede a las hojas generadas. Durante la recogida, si la cantidad real no coincide con la solicitada, se registra la diferencia y se puede añadir un comentario. Las hojas finalizadas con discrepancias generan automáticamente una **incidencia**.</p>
+                <h3>5.3. Resolución de Incidencias y Mermas</h3>
+                <p>En el módulo de **"Incidencias"**, un responsable puede revisar las discrepancias. Tiene dos opciones:</p>
+                <ol>
+                    <li><strong>Aceptar Merma:</strong> Esta acción **ajusta el pedido original** para reflejar la cantidad real recogida. Este cambio se propaga por toda la aplicación, asegurando que los costes y necesidades futuras sean correctos.</li>
+                    <li><strong>Sustituir:</strong> Se puede crear un nuevo pedido con un artículo alternativo para cubrir la necesidad no satisfecha.</li>
+                </ol>
+                <h3>5.4. Gestión de Retornos</h3>
+                <p>Después de un evento, desde el módulo de **"Gestión de Retornos"**, se puede procesar el material devuelto, registrando roturas o pérdidas, lo que también afectará al coste final del servicio.</p>
+            </section>
+            
+            <section id="c6">
+                <h2 className="flex items-center gap-3"><BarChart3 />Capítulo 6: Informes y Análisis</h2>
                 <p>MICE Catering no solo gestiona, sino que también proporciona inteligencia de negocio para tomar decisiones estratégicas.</p>
-                <h3>5.1. Informe de Productividad</h3>
+                <h3>6.1. Informe de Productividad</h3>
                 <p>Analiza los tiempos de producción por responsable, desde que una OF es asignada hasta que se finaliza. Permite detectar cuellos de botella y optimizar flujos de trabajo.</p>
-                <h3>5.2. Gestión de Excedentes</h3>
+                <h3>6.2. Gestión de Excedentes</h3>
                 <p>Controla el sobrante de producción, ajusta su cantidad real y define su vida útil para facilitar su reaprovechamiento y reducir mermas.</p>
-                <h3>5.3. Trazabilidad de Lotes</h3>
+                <h3>6.3. Trazabilidad de Lotes</h3>
                 <p>Consulta el historial completo de cualquier lote de producción (OF), desde su creación hasta los eventos en los que fue servido, para una trazabilidad total.</p>
-                <h3>5.4. Informe de Incidencias</h3>
+                <h3>6.4. Informe de Incidencias</h3>
                 <p>Revisa un listado centralizado de todas las OF que han sido marcadas con incidencias, facilitando su seguimiento y resolución.</p>
             </section>
         </>
