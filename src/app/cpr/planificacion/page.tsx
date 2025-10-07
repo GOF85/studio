@@ -1,669 +1,242 @@
 
-
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { DateRange } from 'react-day-picker';
-import { addDays, startOfToday, eachDayOfInterval, isSameDay, isBefore } from 'date-fns';
-import { ClipboardList, Calendar as CalendarIcon, Factory, Info, AlertTriangle, PackageCheck, ChevronRight, ChevronDown, Utensils, Component, Users, FileDigit, Soup, BookOpen, Package } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { addDays, startOfToday, isWithinInterval, startOfDay, endOfDay, format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { ClipboardList, Calendar as CalendarIcon, Factory, ChevronRight, ListChecks, Loader2, Warehouse, Users, Soup, AlertTriangle, History, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { es } from 'date-fns/locale';
-import { format } from 'date-fns';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import type { ServiceOrder, MaterialOrder, OrderItem, HieloOrder, PickingSheet, ReturnSheet, GastronomyOrder, Receta } from '@/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { useToast } from '@/hooks/use-toast';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { cn } from '@/lib/utils';
-import { formatCurrency, formatNumber, formatUnit } from '@/lib/utils';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
-
-import type { ServiceOrder, GastronomyOrder, GastronomyOrderItem, Receta, Elaboracion, UnidadMedida, OrdenFabricacion, PartidaProduccion, ElaboracionEnReceta, ComercialBriefing, ComercialBriefingItem, ExcedenteProduccion, PedidoEntrega, PedidoEntregaItem, Entrega, ProductoVenta } from '@/types';
-
-// --- DATA STRUCTURES ---
-
-type EventoAfectado = {
-    osId: string;
-    serviceNumber: string;
-    serviceType: string;
-    espacio: string;
+type NecesidadItem = OrderItem & { 
+    osId: string; 
+    serviceNumber: string; 
+    deliverySpace: string; 
+    deliveryLocation: string;
+    solicitante?: 'Sala' | 'Cocina';
+};
+type NecesidadesPorTipo = {
+    [key in 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler' | 'Hielo']: NecesidadItem[];
+}
+type OSConNecesidades = {
+    os: ServiceOrder;
+    necesidades: NecesidadesPorTipo;
+    totalItems: number;
+    solicitante?: 'Sala' | 'Cocina';
+};
+type NecesidadesPorDia = {
     fecha: string;
-    isEntrega: boolean;
-};
-
-type RecetaNecesidad = {
-    recetaId: string;
-    recetaNombre: string;
-    cantidad: number;
-    cantidadReceta: number;
+    ordenes: Record<string, OSConNecesidades>;
+    totalItems: number;
 }
-
-type Necesidad = {
-    id: string; // elaboracionId
-    nombre: string;
-    cantidad: number;
-    unidad: UnidadMedida;
-    partidaProduccion?: PartidaProduccion;
-    eventos: EventoAfectado[];
-    recetas: RecetaNecesidad[];
-    type: 'necesidad' | 'excedente';
-    loteOrigen?: string;
-    isEntrega: boolean;
-};
-
-type DesviacionElaboracion = {
-    id: string; // of.id
-    of: OrdenFabricacion;
-    necesidadActual: number;
-    diferencia: number;
-}
-
-type DesviacionReceta = {
-    recetaId: string;
-    recetaNombre: string;
-    cantidadOriginal: number;
-    cantidadActual: number;
-    diferenciaUnidades: number;
-    elaboraciones: DesviacionElaboracion[];
-};
-
-type DesviacionHito = {
-    hitoId: string;
-    hitoDescripcion: string;
-    recetas: DesviacionReceta[];
-};
-
-type DesviacionOS = {
-    osId: string;
-    serviceNumber: string;
-    fecha: string;
-    espacio: string;
-    hitos: DesviacionHito[];
+type DashboardStats = {
+    pickingPendiente: number;
+    pickingEnProceso: number;
+    incidenciasAbiertas: number;
+    retornosPendientes: number;
 };
 
 
-// For the detailed recipe view
-type RecetaAgregada = {
-    id: string;
-    nombre: string;
-    cantidadTotal: number;
-    isEntrega: boolean;
-}
-type DetalleHito = {
-    id: string;
-    descripcion: string;
-    recetas: {
-        id: string;
-        nombre: string;
-        cantidad: number;
-        isEntrega: boolean;
-        elaboraciones: {
-            id: string;
-            nombre: string;
-            cantidadPorReceta: number;
-            unidad: UnidadMedida;
-        }[];
-    }[];
-}
-type DesgloseEventoRecetas = {
-    osId: string;
-    serviceNumber: string;
-    client: string;
-    startDate: string;
-    isEntrega: boolean;
-    hitos: DetalleHito[];
-};
-
-// For Production Matrix
-type MatrizRow = {
-    id: string; // recetaId o elaboracionId
-    nombre: string;
-    partida?: PartidaProduccion; // solo para elaboraciones
-    unidad: UnidadMedida;
-    total: number;
-    type: 'receta' | 'elaboracion';
-    receta?: Receta; // para el tooltip de recetas
-    necesidad?: Necesidad; // para el tooltip de elaboraciones
-    isEntrega: boolean;
-    [day: string]: any; // day-YYYY-MM-DD: number
-}
-type MatrizHeader = {
-    day: Date;
-    totalRecetaUnits: number;
-    totalElaboracionUnits: number;
-    totalPax: number;
-    totalContratos: number;
-    totalServicios: number;
-}
-
-const partidaColorClasses: Record<PartidaProduccion, string> = {
-    FRIO: 'bg-green-100/50 hover:bg-green-100/80',
-    CALIENTE: 'bg-red-100/50 hover:bg-red-100/80',
-    PASTELERIA: 'bg-blue-100/50 hover:bg-blue-100/80',
-    EXPEDICION: 'bg-yellow-100/50 hover:bg-yellow-100/80'
-};
-
-
-export default function PlanificacionPage() {
-    const router = useRouter();
+export default function PlanificacionAlmacenPage() {
     const [isMounted, setIsMounted] = useState(false);
-    const [dateRange, setDateRange] = useState<DateRange | undefined>();
-    
-    // Unified state for both needs and surpluses
-    const [planificacionItems, setPlanificacionItems] = useState<Necesidad[]>([]);
-    const [desviaciones, setDesviaciones] = useState<DesviacionOS[]>([]);
-    const [excedentes, setExcedentes] = useState<Necesidad[]>([]);
-    
-    const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-    const [partidaFilter, setPartidaFilter] = useState('all');
-
-    // State for detailed view
-    const [recetasAgregadas, setRecetasAgregadas] = useState<RecetaAgregada[]>([]);
-    const [desgloseEventosRecetas, setDesgloseEventosRecetas] = useState<DesgloseEventoRecetas[]>([]);
-    
-    // State for Matrix view
-    const [matrizData, setMatrizData] = useState<MatrizRow[]>([]);
-    const [matrizHeaders, setMatrizHeaders] = useState<MatrizHeader[]>([]);
-    const [matrizTotals, setMatrizTotals] = useState({ totalPax: 0, totalContratos: 0, totalServicios: 0 });
-
-    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [dateRange, setDateRange] = useState<DateRange | undefined>({
+        from: startOfToday(),
+        to: addDays(startOfToday(), 7),
+    });
     const [isLoading, setIsLoading] = useState(false);
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [necesidades, setNecesidades] = useState<NecesidadesPorDia[]>([]);
+    const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+    const [dashboardStats, setDashboardStats] = useState<DashboardStats>({ pickingPendiente: 0, pickingEnProceso: 0, incidenciasAbiertas: 0, retornosPendientes: 0 });
     const { toast } = useToast();
-
-    const partidas: PartidaProduccion[] = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'];
+    const router = useRouter();
 
     const calcularNecesidades = useCallback(() => {
         setIsLoading(true);
-        // Reset all states
-        setPlanificacionItems([]);
-        setDesviaciones([]);
-        setRecetasAgregadas([]);
-        setDesgloseEventosRecetas([]);
-        setMatrizData([]);
-        setMatrizHeaders([]);
-        setSelectedRows(new Set());
-        setMatrizTotals({ totalPax: 0, totalContratos: 0, totalServicios: 0 });
-        setExcedentes([]);
+        setSelectedItems(new Set());
 
-        if (!dateRange?.from || !dateRange?.to) {
+        if (!dateRange?.from) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Por favor, selecciona un rango de fechas.' });
             setIsLoading(false);
             return;
         }
-        
-        const from = dateRange.from;
-        const to = dateRange.to;
 
-        // --- DATA LOADING ---
-        const allServiceOrders: ServiceOrder[] = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const allEntregas: Entrega[] = JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[];
-        const allCombinedOrders: (ServiceOrder | Entrega)[] = [...allServiceOrders, ...allEntregas];
+        const toDate = dateRange.to || dateRange.from;
 
-        const allGastroOrders: GastronomyOrder[] = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-        const allBriefings: ComercialBriefing[] = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-        const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-        const allElaboraciones: Elaboracion[] = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-        const allOrdenesFabricacion: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        const allExcedentesData: {[key: string]: ExcedenteProduccion} = JSON.parse(localStorage.getItem('excedentesProduccion') || '{}');
-        const allPedidosEntrega: PedidoEntrega[] = JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[];
-        const allProductosVenta: ProductoVenta[] = JSON.parse(localStorage.getItem('productosVenta') || '[]') as ProductoVenta[];
-        
-        const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
-        const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
-        const productosVentaMap = new Map(allProductosVenta.map(p => [p.id, p]));
-        const serviceOrderMap = new Map(allCombinedOrders.map(os => [os.id, os]));
-
-        // --- FILTERING DATA FOR THE DATE RANGE ---
-        const osEnRango = allCombinedOrders.filter(os => {
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const osEnRango = allServiceOrders.filter(os => {
             try {
                 const osDate = new Date(os.startDate);
-                return os.status === 'Confirmado' && osDate >= from && osDate <= to;
-            } catch(e) { return false; }
+                return os.status === 'Confirmado' && isWithinInterval(osDate, { start: startOfDay(dateRange.from!), end: endOfDay(toDate) });
+            } catch (e) { return false; }
         });
+
         const osIdsEnRango = new Set(osEnRango.map(os => os.id));
-        
         if (osIdsEnRango.size === 0) {
+            setNecesidades([]);
             setIsLoading(false);
             return;
         }
         
-        const ofsEnRango = allOrdenesFabricacion.filter(of => of.osIDs.some(osId => osIdsEnRango.has(osId)));
+        const osMap = new Map(osEnRango.map(os => [os.id, os]));
         
-        const gastroOrdersEnRango = allGastroOrders.filter(go => osIdsEnRango.has(go.osId));
-        const briefingsEnRango = allBriefings.filter(b => osIdsEnRango.has(b.osId));
-        const pedidosEntregaEnRango = allPedidosEntrega.filter(pe => osIdsEnRango.has(pe.osId));
+        const allGastronomyOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).filter(o => osIdsEnRango.has(o.osId));
+        const allRecetas = (JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
+        const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
 
-
-        // --- CALCULATIONS ---
+        const allMaterialOrders = (JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[]).filter(o => osIdsEnRango.has(o.osId));
+        const allHieloOrders = (JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[]).filter(o => osIdsEnRango.has(o.osId));
         
-        const necesidadesPorReceta = new Map<string, { necesidadBruta: number; receta: Receta; necesidadesPorDia: Map<string, number> }>();
-        const necesidadesPorElaboracion = new Map<string, { necesidadBruta: number; produccionAcumulada: number; elaboracion: Elaboracion; eventos: EventoAfectado[]; recetas: RecetaNecesidad[]; necesidadesPorDia: Map<string, number>; isEntrega: boolean }>();
-        
-        const desgloseEventosMap: Map<string, DesgloseEventoRecetas> = new Map();
-        const agregadoRecetasMap: Map<string, RecetaAgregada> = new Map();
+        const allPickingSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
 
-        // 1. Calculate Gross Needs from both Catering and Entregas
-        osEnRango.forEach(serviceOrder => {
-            const osId = serviceOrder.id;
-            const diaKey = format(new Date(serviceOrder.startDate), 'yyyy-MM-dd');
-            const isEntrega = serviceOrder.vertical === 'Entregas';
-
-            // --- Common setup for desglose ---
-            if (!desgloseEventosMap.has(osId)) {
-                desgloseEventosMap.set(osId, {
-                    osId: osId, serviceNumber: serviceOrder.serviceNumber,
-                    client: serviceOrder.client, startDate: serviceOrder.startDate, hitos: [], isEntrega: isEntrega,
-                });
-            }
-            const desgloseOS = desgloseEventosMap.get(osId)!;
-
-            // --- Catering Flow ---
-            if (!isEntrega) {
-                const briefing = briefingsEnRango.find(b => b.osId === osId);
-                if (briefing) {
-                    const hitosGastro = briefing.items.filter(i => i.conGastronomia);
-                    hitosGastro.forEach(hitoBriefing => {
-                        const gastroOrder = gastroOrdersEnRango.find(go => go.id === hitoBriefing.id);
-                        if (!gastroOrder) return;
-                        
-                        const hito: DetalleHito = { id: gastroOrder.id, descripcion: gastroOrder.descripcion, recetas: [] };
-                        desgloseOS.hitos.push(hito);
-                        
-                        (gastroOrder.items || []).forEach(item => {
-                            if (item.type === 'item') {
-                                const receta = recetasMap.get(item.id);
-                                if (receta) {
-                                    processReceta(receta, item.quantity || 0, serviceOrder, gastroOrder.descripcion, hito, diaKey, false);
-                                }
-                            }
-                        });
-                    });
-                }
-            } 
-            // --- Entregas Flow ---
-            else {
-                const pedidoEntrega = pedidosEntregaEnRango.find(pe => pe.osId === osId);
-                if (pedidoEntrega) {
-                    (pedidoEntrega.hitos || []).forEach(hitoPedido => {
-                        const hito: DetalleHito = { id: hitoPedido.id, descripcion: hitoPedido.lugarEntrega, recetas: [] };
-                        desgloseOS.hitos.push(hito);
-
-                        (hitoPedido.items || []).forEach(item => {
-                            const productoVenta = productosVentaMap.get(item.id);
-                            if (productoVenta && productoVenta.recetaId && !productoVenta.producidoPorPartner) {
-                                const receta = recetasMap.get(productoVenta.recetaId);
-                                if (receta) {
-                                    processReceta(receta, item.quantity, serviceOrder, hitoPedido.lugarEntrega, hito, diaKey, true);
-                                }
-                            }
-                        });
-                    });
-                }
-            }
+        const pickedItems = new Set<string>();
+        Object.values(allPickingSheets).forEach(sheet => {
+            sheet.items.forEach(item => {
+                const orderId = item.orderId || sheet.osId; 
+                const key = `${orderId}__${item.itemCode}`;
+                pickedItems.add(key);
+            });
         });
         
-        function processReceta(receta: Receta, cantidad: number, os: (ServiceOrder | Entrega), hitoDescripcion: string, hitoDetalle: DetalleHito | null, diaKey: string, isEntrega: boolean) {
-            const cantidadReceta = Number(cantidad || 0);
-            let recetaAgregada = agregadoRecetasMap.get(receta.id);
-            if (!recetaAgregada) {
-                recetaAgregada = { id: receta.id, nombre: receta.nombre, cantidadTotal: 0, isEntrega: false };
-                agregadoRecetasMap.set(receta.id, recetaAgregada);
-            }
-            recetaAgregada.cantidadTotal += cantidadReceta;
-            if(isEntrega) recetaAgregada.isEntrega = true;
+        const necesidadesPorDia: { [key: string]: Record<string, OSConNecesidades> } = {};
 
-            if (hitoDetalle) {
-                const detalleRecetaEnHito = {
-                    id: receta.id, nombre: receta.nombre, cantidad: cantidadReceta, isEntrega, elaboraciones: receta.elaboraciones.map(e => ({
-                        id: e.elaboracionId,
-                        nombre: e.nombre,
-                        cantidadPorReceta: e.cantidad,
-                        unidad: elaboracionesMap.get(e.elaboracionId)?.unidadProduccion || 'UNIDAD',
-                    }))
-                };
-                hitoDetalle.recetas.push(detalleRecetaEnHito);
+        const addNecesidad = (os: ServiceOrder, fecha: string, solicitante: 'Sala' | 'Cocina' | undefined, item: OrderItem, orderType: keyof NecesidadesPorTipo, orderId: string) => {
+            const itemKey = `${orderId}__${item.itemCode}`;
+            if (pickedItems.has(itemKey)) {
+                return;
             }
 
-            let registroReceta = necesidadesPorReceta.get(receta.id);
-            if (!registroReceta) {
-                registroReceta = { necesidadBruta: 0, receta, necesidadesPorDia: new Map() };
-                necesidadesPorReceta.set(receta.id, registroReceta);
+            const dateKey = format(new Date(fecha), 'yyyy-MM-dd');
+             if (!necesidadesPorDia[dateKey]) {
+                necesidadesPorDia[dateKey] = {};
             }
-            registroReceta.necesidadBruta += cantidadReceta;
-            const necesidadRecetaDia = registroReceta.necesidadesPorDia.get(diaKey) || 0;
-            registroReceta.necesidadesPorDia.set(diaKey, necesidadRecetaDia + cantidadReceta);
+            
+            const osKey = `${os.id}__${dateKey}__${solicitante || 'general'}`;
 
-            receta.elaboraciones.forEach(elabEnReceta => {
-                const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
-                if (elaboracion) {
-                    const cantidadNecesaria = cantidadReceta * Number(elabEnReceta.cantidad);
-                    if (isNaN(cantidadNecesaria) || cantidadNecesaria <= 0) return;
-
-                    let registro = necesidadesPorElaboracion.get(elaboracion.id);
-                    if (!registro) {
-                        registro = {
-                            necesidadBruta: 0, produccionAcumulada: 0, elaboracion,
-                            eventos: [], recetas: [], necesidadesPorDia: new Map(), isEntrega: false
-                        };
-                        necesidadesPorElaboracion.set(elaboracion.id, registro);
-                    }
-                    if (isEntrega) registro.isEntrega = true;
-
-                    registro.necesidadBruta += cantidadNecesaria;
-                    
-                    const necesidadDiaActual = registro.necesidadesPorDia.get(diaKey) || 0;
-                    registro.necesidadesPorDia.set(diaKey, necesidadDiaActual + cantidadNecesaria);
-                    
-                    if (!registro.eventos.find(e => e.osId === os.id && e.serviceType === hitoDescripcion)) {
-                        registro.eventos.push({ osId: os.id, serviceNumber: os.serviceNumber, serviceType: hitoDescripcion, espacio: os.space || '', fecha: os.startDate, isEntrega });
-                    }
-                    const recetaExistente = registro.recetas.find(r => r.recetaId === receta.id);
-                    if (recetaExistente) {
-                        recetaExistente.cantidad += cantidadNecesaria;
-                        recetaExistente.cantidadReceta += cantidadReceta;
-                    } else {
-                        registro.recetas.push({ recetaId: receta.id, recetaNombre: receta.nombre, cantidad: cantidadNecesaria, cantidadReceta: cantidadReceta });
-                    }
-                }
-            });
+            if (!necesidadesPorDia[dateKey][osKey]) {
+                necesidadesPorDia[dateKey][osKey] = { os, necesidades: { 'Almacen': [], 'Bodega': [], 'Bio': [], 'Alquiler': [], 'Hielo': [] }, totalItems: 0, solicitante };
+            }
+            
+            const osNecesidades = necesidadesPorDia[dateKey][osKey];
+            
+            const existingItem = osNecesidades.necesidades[orderType].find(i => i.itemCode === item.itemCode);
+            if(existingItem) {
+                existingItem.quantity += item.quantity;
+            } else {
+                osNecesidades.necesidades[orderType].push({
+                    ...item,
+                    osId: os.id,
+                    serviceNumber: os.serviceNumber,
+                    deliverySpace: os.space || '',
+                    deliveryLocation: '',
+                    solicitante: solicitante,
+                    orderId: orderId,
+                });
+            }
+            osNecesidades.totalItems++;
         }
-        
-        // 2. Calculate Surpluses
-        const surplusByElabId = new Map<string, number>();
-        Object.values(allExcedentesData).forEach(excedente => {
-            const ofOrigen = allOrdenesFabricacion.find(of => of.id === excedente.ofId);
-            if (!ofOrigen) return;
 
-            const diasCaducidad = excedente.diasCaducidad ?? 7;
-            const fechaCaducidad = addDays(new Date(excedente.fechaProduccion), diasCaducidad);
-
-            if (isBefore(startOfToday(), fechaCaducidad)) { // Only consider non-expired surpluses
-                const currentSurplus = surplusByElabId.get(ofOrigen.elaboracionId) || 0;
-                surplusByElabId.set(ofOrigen.elaboracionId, currentSurplus + excedente.cantidadAjustada);
-            }
-        });
-        
-        // 3. Sum up all existing production for the date range
-        ofsEnRango.forEach(of => {
-            const registro = necesidadesPorElaboracion.get(of.elaboracionId);
-            if (registro) {
-                const cantidadProducida = (of.estado === 'Finalizado' || of.estado === 'Validado' || of.estado === 'Incidencia') && of.cantidadReal !== null ? Number(of.cantidadReal) : Number(of.cantidadTotal);
-                if (!isNaN(cantidadProducida)) {
-                    registro.produccionAcumulada += cantidadProducida;
-                }
-            }
-        });
-
-        // 4. Calculate Net Needs and Final Items List
-        const itemsFinales: Necesidad[] = [];
-        const excedentesFinales: Necesidad[] = [];
-
-        necesidadesPorElaboracion.forEach((registro, elabId) => {
-            const excedenteDisponible = surplusByElabId.get(elabId) || 0;
-            const necesidadNeta = registro.necesidadBruta - excedenteDisponible - registro.produccionAcumulada;
-
-            if (necesidadNeta > 0.001) {
-                 itemsFinales.push({
-                    id: elabId,
-                    nombre: registro.elaboracion.nombre,
-                    cantidad: necesidadNeta,
-                    unidad: registro.elaboracion.unidadProduccion,
-                    partidaProduccion: registro.elaboracion.partidaProduccion,
-                    eventos: registro.eventos,
-                    recetas: registro.recetas,
-                    type: 'necesidad',
-                    isEntrega: registro.isEntrega,
-                });
-            }
-        });
-        
-        surplusByElabId.forEach((cantidad, elabId) => {
-            const elaboracion = elaboracionesMap.get(elabId);
-            if (elaboracion) {
-                 excedentesFinales.push({
-                    id: elabId,
-                    nombre: elaboracion.nombre,
-                    cantidad: cantidad,
-                    unidad: elaboracion.unidadProduccion,
-                    partidaProduccion: elaboracion.partidaProduccion,
-                    eventos: [],
-                    recetas: [],
-                    type: 'excedente',
-                    isEntrega: false, // Surpluses are neutral
-                 });
-            }
-        });
-        
-        // --- DEVIATIONS CALCULATION ---
-        const desviacionesAgrupadas: DesviacionOS[] = [];
-        const allOFsWithOriginalNeed = allOrdenesFabricacion.filter(of => of.necesidadTotal !== undefined && of.necesidadTotal > 0);
-        
-        osEnRango.forEach(os => {
-            const osId = os.id;
-            const osConDesviacion: DesviacionOS = { osId: os.id, serviceNumber: os.serviceNumber, fecha: os.startDate, espacio: os.space || '', hitos: [] };
-            const ofsParaEstaOS = allOFsWithOriginalNeed.filter(of => of.osIDs.includes(osId));
-        
-            const necesidadesActualesOS = new Map<string, number>(); // elabId -> cantidad
-            
-            // --- Catering ---
-            const briefing = briefingsEnRango.find(b => b.osId === osId);
-            briefing?.items.forEach(hito => {
-                if (hito.conGastronomia) {
-                    const gastroOrder = gastroOrdersEnRango.find(go => go.id === hito.id);
-                    gastroOrder?.items?.forEach(item => {
-                        const receta = recetasMap.get(item.id);
-                        receta?.elaboraciones.forEach(elabEnReceta => {
-                            const cantidad = (item.quantity || 0) * elabEnReceta.cantidad;
-                            necesidadesActualesOS.set(elabEnReceta.elaboracionId, (necesidadesActualesOS.get(elabEnReceta.elaboracionId) || 0) + cantidad);
-                        });
-                    });
-                }
-            });
-
-            // --- Entregas ---
-            const pedidoEntrega = pedidosEntregaEnRango.find(pe => pe.osId === osId);
-            pedidoEntrega?.hitos.forEach(hito => {
-                hito.items.forEach(item => {
-                    const productoVenta = productosVentaMap.get(item.id);
-                    if (productoVenta?.recetaId) {
-                        const receta = recetasMap.get(productoVenta.recetaId);
-                        receta?.elaboraciones.forEach(elabEnReceta => {
-                            const cantidad = (item.quantity || 0) * elabEnReceta.cantidad;
-                            necesidadesActualesOS.set(elabEnReceta.elaboracionId, (necesidadesActualesOS.get(elabEnReceta.elaboracionId) || 0) + cantidad);
-                        });
+        // Process gastronomy needs
+        allGastronomyOrders.forEach(gOrder => {
+            const os = osMap.get(gOrder.osId);
+            if (!os) return;
+            (gOrder.items || []).forEach(gItem => {
+                if(gItem.type === 'item') {
+                    const receta = recetasMap.get(gItem.id);
+                    if(receta) {
+                        // Here you would break down the recipe into its material components
+                        // For now, we'll assume a direct mapping for simplicity
                     }
-                });
-            });
-
-            ofsParaEstaOS.forEach(of => {
-                const necesidadActual = necesidadesActualesOS.get(of.elaboracionId) || 0;
-                const diferencia = necesidadActual - (of.necesidadTotal || 0);
-                
-                if (Math.abs(diferencia) > 0.001) {
-                    const desviacionElab: DesviacionElaboracion = { id: of.id, of, necesidadActual: necesidadActual, diferencia };
-                    
-                    const hitosOS = os.vertical === 'Entregas' ? (pedidoEntrega?.hitos || []) : (briefing?.items || []);
-                    const gastroOrdersOS = os.vertical === 'Catering' ? gastroOrdersEnRango.filter(g => g.osId === osId) : [];
-
-                    hitosOS.forEach(hito => {
-                        const itemsHito = os.vertical === 'Entregas'
-                            ? (hito as PedidoEntrega['hitos'][0]).items
-                            : gastroOrdersOS.find(g => g.id === hito.id)?.items || [];
-
-                        itemsHito.forEach(item => {
-                            const recetaId = os.vertical === 'Entregas'
-                                ? productosVentaMap.get(item.id)?.recetaId
-                                : item.id;
-                            
-                            if (recetaId) {
-                                const receta = recetasMap.get(recetaId);
-                                if (receta && receta.elaboraciones.some(e => e.elaboracionId === of.elaboracionId)) {
-                                    let hitoDesviacion = osConDesviacion.hitos.find(h => h.hitoId === hito.id);
-                                    if (!hitoDesviacion) {
-                                        const hitoDesc = os.vertical === 'Entregas'
-                                            ? (hito as PedidoEntrega['hitos'][0]).lugarEntrega
-                                            : (hito as ComercialBriefingItem).descripcion;
-                                        hitoDesviacion = { hitoId: hito.id, hitoDescripcion: hitoDesc, recetas: [] };
-                                        osConDesviacion.hitos.push(hitoDesviacion);
-                                    }
-                                    let recetaDesviacion = hitoDesviacion.recetas.find(r => r.recetaId === receta.id);
-                                    if (!recetaDesviacion) {
-                                        const elabEnReceta = receta.elaboraciones.find(e => e.elaboracionId === of.elaboracionId)!;
-                                        const diffUnidades = diferencia / elabEnReceta.cantidad;
-                                        recetaDesviacion = {
-                                            recetaId: receta.id, recetaNombre: receta.nombre,
-                                            cantidadActual: item.quantity || 0,
-                                            cantidadOriginal: (item.quantity || 0) - diffUnidades,
-                                            diferenciaUnidades: diffUnidades,
-                                            elaboraciones: []
-                                        };
-                                        hitoDesviacion.recetas.push(recetaDesviacion);
-                                    }
-                                    if (!recetaDesviacion.elaboraciones.find(e => e.id === of.id)) {
-                                       recetaDesviacion.elaboraciones.push(desviacionElab);
-                                    }
-                                }
-                            }
-                        })
-                    })
                 }
-            });
-            if (osConDesviacion.hitos.length > 0) {
-                desviacionesAgrupadas.push(osConDesviacion);
-            }
+            })
         });
 
+        // Process direct material orders
+        [...allMaterialOrders, ...allHieloOrders].forEach(order => {
+             const os = osMap.get(order.osId);
+            if (!os) return;
 
-        // --- MATRIX CALCULATION ---
-        const days = eachDayOfInterval({ start: from, end: to });
-        const matrixRows: MatrizRow[] = [];
-
-        necesidadesPorReceta.forEach((registro, recetaId) => {
-             const row: MatrizRow = {
-                id: recetaId,
-                nombre: registro.receta.nombre,
-                unidad: 'UNIDAD',
-                total: registro.necesidadBruta,
-                type: 'receta',
-                receta: registro.receta,
-                isEntrega: agregadoRecetasMap.get(recetaId)?.isEntrega || false,
-            };
-            days.forEach(day => {
-                const dayKey = format(day, 'yyyy-MM-dd');
-                row[dayKey] = registro.necesidadesPorDia.get(dayKey) || 0;
-            });
-            matrixRows.push(row);
-        });
-
-        necesidadesPorElaboracion.forEach((registro, elabId) => {
-            const necesidad = itemsFinales.find(item => item.id === elabId);
-            const row: MatrizRow = {
-                id: elabId,
-                nombre: registro.elaboracion.nombre,
-                partida: registro.elaboracion.partidaProduccion,
-                unidad: registro.elaboracion.unidadProduccion,
-                total: registro.necesidadBruta,
-                type: 'elaboracion',
-                necesidad: necesidad,
-                isEntrega: registro.isEntrega,
-            };
-            days.forEach(day => {
-                const dayKey = format(day, 'yyyy-MM-dd');
-                row[dayKey] = registro.necesidadesPorDia.get(dayKey) || 0;
-            });
-            matrixRows.push(row);
-        });
-
-        let totalPax = 0;
-        let totalServicios = 0;
-        
-        const matrixHeaders: MatrizHeader[] = days.map(day => {
-            const dayKey = format(day, 'yyyy-MM-dd');
-            let totalRecetas = 0;
-            let totalElaboraciones = 0;
-            let paxDia = 0;
-            const contratosDia = new Set<string>();
-            let serviciosDia = 0;
-
-            const osDelDia = osEnRango.filter(os => isSameDay(new Date(os.startDate), day));
-            osDelDia.forEach(os => contratosDia.add(os.id));
-
-            briefingsEnRango.forEach(briefing => {
-                briefing.items.forEach(item => {
-                    if (isSameDay(new Date(item.fecha), day)) {
-                        if (item.conGastronomia) {
-                            paxDia += item.asistentes;
-                            serviciosDia++;
-                        }
-                    }
-                })
-            });
+            const solicitante = 'solicita' in order ? order.solicita : undefined;
+            const deliveryDate = ('deliveryDate' in order && order.deliveryDate) ? order.deliveryDate : os.startDate;
+            if (!deliveryDate) return;
             
-            osEnRango.filter(os => os.vertical === 'Entregas' && isSameDay(new Date(os.startDate), day)).forEach(os => {
-                serviciosDia++; // Count each delivery as a service
-                paxDia += os.asistentes; // Sum assistants for deliveries as well
+            order.items.forEach(item => {
+                const orderType = 'type' in order ? order.type : 'Hielo';
+                addNecesidad(os, deliveryDate, solicitante, item, orderType as keyof NecesidadesPorTipo, order.id);
             });
+        })
 
-            matrixRows.forEach(row => {
-                const value = row[dayKey] || 0;
-                if (row.type === 'receta') {
-                    totalRecetas += value;
-                } else if (row.type === 'elaboracion') {
-                    totalElaboraciones += value;
-                }
-            });
-
-            totalPax += paxDia;
-            totalServicios += serviciosDia;
-
-            return { day, totalRecetaUnits: totalRecetas, totalElaboracionUnits: totalElaboraciones, totalPax: paxDia, totalContratos: contratosDia.size, totalServicios: serviciosDia };
-        });
-
-        setMatrizData(matrixRows);
-        setMatrizHeaders(matrixHeaders);
-        setMatrizTotals({ totalPax, totalContratos: osIdsEnRango.size, totalServicios });
-
-
-        setPlanificacionItems(itemsFinales);
-        setExcedentes(excedentesFinales);
-        setDesviaciones(desviacionesAgrupadas);
-        setRecetasAgregadas(Array.from(agregadoRecetasMap.values()));
-        setDesgloseEventosRecetas(Array.from(desgloseEventosMap.values()));
+        const resultado: NecesidadesPorDia[] = Object.entries(necesidadesPorDia).map(([fecha, ordenes]) => ({
+            fecha,
+            ordenes,
+            totalItems: Object.values(ordenes).reduce((sum, os) => sum + os.totalItems, 0)
+        })).sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+        
+        setNecesidades(resultado);
         setIsLoading(false);
-    }, [dateRange]);
+    }, [dateRange, toast]);
 
-    useEffect(() => {
-        setIsMounted(true);
-        setDateRange({
-            from: startOfToday(),
-            to: addDays(startOfToday(), 7),
+    const calculateDashboardStats = useCallback(() => {
+        const allSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
+        const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}')) as ReturnSheet[];
+        
+        let pickingPendiente = 0;
+        let pickingEnProceso = 0;
+        let incidenciasAbiertas = 0;
+
+        allSheets.forEach(sheet => {
+            if (sheet.status === 'Pendiente') pickingPendiente++;
+            if (sheet.status === 'En Proceso') pickingEnProceso++;
+            if (sheet.itemStates) {
+                const hasUnresolvedIncident = Object.values(sheet.itemStates).some(state => state.incidentComment && !state.resolved);
+                if (hasUnresolvedIncident) incidenciasAbiertas++;
+            }
+        });
+
+        const retornosPendientes = allReturnSheets.filter(sheet => sheet.status !== 'Completado').length;
+
+        setDashboardStats({
+            pickingPendiente,
+            pickingEnProceso,
+            incidenciasAbiertas,
+            retornosPendientes
         });
     }, []);
-
+    
     useEffect(() => {
         if(isMounted) {
             calcularNecesidades();
+            calculateDashboardStats();
         }
-    }, [isMounted, calcularNecesidades]);
+    }, [isMounted, calcularNecesidades, calculateDashboardStats]);
 
-    const handleSelectRow = (id: string) => {
-        const item = planificacionItems.find(i => i.id === id);
-        if (item?.type !== 'necesidad') return;
+    useEffect(() => {
+        if(dateRange?.from && dateRange.to){
+            calcularNecesidades();
+        }
+    }, [dateRange, calcularNecesidades]);
 
-        setSelectedRows(prev => {
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+
+    const handleSelectItem = (id: string) => {
+        setSelectedItems(prev => {
             const newSelection = new Set(prev);
             if (newSelection.has(id)) {
                 newSelection.delete(id);
@@ -672,681 +245,301 @@ export default function PlanificacionPage() {
             }
             return newSelection;
         });
+    }
+
+    const handleSelectOS = (osKey: string, fecha: string) => {
+        const osData = necesidades.find(d => d.fecha === fecha)?.ordenes[osKey];
+        if (!osData) return;
+    
+        const osItemIds: string[] = [];
+        Object.entries(osData.necesidades).forEach(([tipo, items]) => {
+            items.forEach(item => {
+                const orderId = (item as any).orderId || osData.os.id;
+                osItemIds.push(`${item.itemCode}__${orderId}__${fecha}__${tipo}__${item.solicitante || 'general'}`);
+            });
+        });
+    
+        setSelectedItems(prev => {
+            const newSelection = new Set(prev);
+            const allSelected = osItemIds.every(id => newSelection.has(id));
+            osItemIds.forEach(id => {
+                if (allSelected) {
+                    newSelection.delete(id);
+                } else {
+                    newSelection.add(id);
+                }
+            });
+            return newSelection;
+        });
     };
     
-    const handleGenerateOF = () => {
-        if (selectedRows.size === 0) {
-            toast({ variant: 'destructive', title: 'No hay selección', description: 'Selecciona al menos una elaboración para generar una Orden de Fabricación.' });
+    const getOsSelectionState = (osKey: string, fecha: string): boolean | 'indeterminate' => {
+        const osData = necesidades.find(d => d.fecha === fecha)?.ordenes[osKey];
+        if (!osData || osData.totalItems === 0) return false;
+    
+        let osItemIds: string[] = [];
+        Object.keys(osData.necesidades).forEach((tipo) => {
+             osData.necesidades[tipo as keyof NecesidadesPorTipo].forEach(item => {
+                 const orderId = (item as any).orderId || osData.os.id;
+                 osItemIds.push(`${item.itemCode}__${orderId}__${fecha}__${tipo}__${item.solicitante || 'general'}`);
+             })
+        });
+
+        const selectedCount = osItemIds.filter(id => selectedItems.has(id)).length;
+    
+        if (selectedCount === 0) return false;
+        if (selectedCount === osItemIds.length) return true;
+        return 'indeterminate';
+    };
+    
+    const numSheetsToGenerate = useMemo(() => {
+        const sheetsKeys = new Set<string>();
+        selectedItems.forEach(id => {
+            const [itemCode, orderId, fecha, tipo, solicitanteStr] = id.split('__');
+            const solicitante = solicitanteStr === 'general' ? undefined : solicitanteStr;
+            
+            // Find the OS that contains this need to build the correct key
+            let osForThisItem: ServiceOrder | undefined;
+            for (const dia of necesidades) {
+                if (dia.fecha === fecha) {
+                    for (const osKey in dia.ordenes) {
+                         const osConNecesidades = dia.ordenes[osKey];
+                         // Check if the current osConNecesidades matches the solicitante of the item
+                        if ((osConNecesidades.solicitante || 'general') === (solicitante || 'general')) {
+                           const itemsOfType = osConNecesidades.necesidades[tipo as keyof NecesidadesPorTipo];
+                            const foundItem = itemsOfType.find(i => i.itemCode === itemCode && (i as any).orderId === orderId);
+                            if (foundItem) {
+                                osForThisItem = osConNecesidades.os;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (osForThisItem) break;
+            }
+             if (osForThisItem) {
+                sheetsKeys.add(`${osForThisItem.id}__${fecha}__${solicitante || 'general'}`);
+             }
+        });
+        return sheetsKeys.size;
+    }, [selectedItems, necesidades]);
+
+
+    const handleGeneratePicking = () => {
+        if (selectedItems.size === 0) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Selecciona al menos un artículo para generar una hoja de picking.' });
             return;
         }
 
-        const allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        const lastIdNumber = allOFs.reduce((max, of) => {
-            const numPart = of.id.split('-')[2];
-            const num = numPart ? parseInt(numPart) : 0;
-            return isNaN(num) ? max : Math.max(max, num);
-        }, 0);
+        const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}') as Record<string, PickingSheet>;
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        
+        const sheetsToGenerate: Record<string, {osId: string, fechaNecesidad: string, items: any[], solicitante?: 'Sala' | 'Cocina'}> = {};
 
-        let newOFs: OrdenFabricacion[] = [];
-        let currentIdNumber = lastIdNumber;
+        selectedItems.forEach(itemId => {
+            const [itemCode, orderId, fecha, tipo, solicitanteStr] = itemId.split('__');
+            const solicitante = solicitanteStr === 'Sala' || solicitanteStr === 'Cocina' ? solicitanteStr : undefined;
+            
+            // Find the OS that contains this need
+            let osForThisItem: ServiceOrder | undefined;
+            let itemData: NecesidadItem | undefined;
 
-        selectedRows.forEach(elaboracionId => {
-            const necesidad = planificacionItems.find(item => item.id === elaboracionId);
-            if(necesidad && necesidad.partidaProduccion && necesidad.type === 'necesidad') {
-                currentIdNumber++;
-                const newOF: OrdenFabricacion = {
-                    id: `OF-${new Date().getFullYear()}-${currentIdNumber.toString().padStart(3, '0')}`,
-                    fechaCreacion: new Date().toISOString(),
-                    fechaProduccionPrevista: dateRange?.from?.toISOString() || new Date().toISOString(),
-                    elaboracionId: necesidad.id,
-                    elaboracionNombre: necesidad.nombre,
-                    cantidadTotal: necesidad.cantidad,
-                    necesidadTotal: necesidad.cantidad,
-                    unidad: necesidad.unidad,
-                    partidaAsignada: necesidad.partidaProduccion,
-                    tipoExpedicion: 'REFRIGERADO', // Default
-                    estado: 'Pendiente',
-                    osIDs: Array.from(new Set(necesidad.eventos!.map(e => e.osId))),
-                    incidencia: false,
-                    okCalidad: false,
-                };
-                newOFs.push(newOF);
+            for (const dia of necesidades) {
+                if (dia.fecha === fecha) {
+                    for (const osKey in dia.ordenes) {
+                        const osConNecesidades = dia.ordenes[osKey];
+                        const itemsOfType = osConNecesidades.necesidades[tipo as keyof NecesidadesPorTipo];
+                        const foundItem = itemsOfType.find(i => i.itemCode === itemCode && (i as any).orderId === orderId);
+                        if (foundItem) {
+                            osForThisItem = osConNecesidades.os;
+                            itemData = foundItem;
+                            break;
+                        }
+                    }
+                }
+                if (osForThisItem) break;
+            }
+
+            if (osForThisItem && itemData) {
+                const sheetKey = `${osForThisItem.id}__${fecha}__${solicitante || 'general'}`; 
+                if (!sheetsToGenerate[sheetKey]) {
+                    sheetsToGenerate[sheetKey] = { osId: osForThisItem.id, fechaNecesidad: fecha, items: [], solicitante };
+                }
+                sheetsToGenerate[sheetKey].items.push({...itemData, type: tipo});
             }
         });
         
-        const updatedOFs = [...allOFs, ...newOFs];
-        localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
+        Object.values(sheetsToGenerate).forEach(sheetData => {
+            const os = allServiceOrders.find(o => o.id === sheetData.osId);
+            if (!os) return;
 
-        toast({
-            title: 'Órdenes de Fabricación Generadas',
-            description: `Se han creado ${newOFs.length} nuevas OF.`,
-        });
-        
-        calcularNecesidades();
-    };
-
-    const handleGenerateOfAjuste = (desviacion: DesviacionElaboracion) => {
-        if (!dateRange?.from) return;
-
-        const allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        const lastIdNumber = allOFs.reduce((max, of) => {
-            const numPart = of.id.split('-')[2];
-            const num = numPart ? parseInt(numPart) : 0;
-            return isNaN(num) ? max : Math.max(max, num);
-        }, 0);
-        
-        const newOF: OrdenFabricacion = {
-            id: `OF-${new Date().getFullYear()}-${(lastIdNumber + 1).toString().padStart(3, '0')}`,
-            fechaCreacion: new Date().toISOString(),
-            fechaProduccionPrevista: dateRange.from.toISOString(),
-            elaboracionId: desviacion.of.elaboracionId,
-            elaboracionNombre: desviacion.of.elaboracionNombre,
-            cantidadTotal: desviacion.diferencia,
-            necesidadTotal: desviacion.diferencia,
-            unidad: desviacion.of.unidad,
-            partidaAsignada: desviacion.of.partidaAsignada,
-            tipoExpedicion: desviacion.of.tipoExpedicion,
-            estado: 'Pendiente',
-            osIDs: desviacion.of.osIDs,
-            incidencia: false,
-            okCalidad: false,
-        };
-
-        const updatedOFs = [...allOFs, newOF];
-        localStorage.setItem('ordenesFabricacion', JSON.stringify(updatedOFs));
-        
-        toast({ title: 'OF de Ajuste Generada', description: `Se ha creado la OF ${newOF.id} por ${formatNumber(newOF.cantidadTotal,2)} ${newOF.unidad}.`});
-        calcularNecesidades();
-    };
-
-    const handleMarkAsExcedente = (desviacion: DesviacionElaboracion) => {
-        if (Math.abs(desviacion.diferencia) <= 0) return;
-
-        let allExcedentes = JSON.parse(localStorage.getItem('excedentesProduccion') || '{}') as {[key: string]: ExcedenteProduccion};
-        let allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-
-        const newExcedente: ExcedenteProduccion = {
-            ofId: desviacion.of.id,
-            fechaProduccion: desviacion.of.fechaFinalizacion || desviacion.of.fechaCreacion,
-            cantidadAjustada: Math.abs(desviacion.diferencia),
-            motivoAjuste: 'Reducción de necesidad en evento.',
-            fechaAjuste: new Date().toISOString(),
-        };
-
-        allExcedentes[desviacion.of.id] = newExcedente;
-        localStorage.setItem('excedentesProduccion', JSON.stringify(allExcedentes));
-
-        // Actualizar la OF original para marcarla como incidencia
-        const ofIndex = allOFs.findIndex(of => of.id === desviacion.of.id);
-        if (ofIndex > -1) {
-            allOFs[ofIndex] = {
-                ...allOFs[ofIndex],
-                estado: 'Incidencia',
-                incidenciaObservaciones: `Excedente de ${formatNumber(Math.abs(desviacion.diferencia), 2)} ${desviacion.of.unidad} generado por cambio en evento.`
+            const baseId = os.serviceNumber.slice(-5);
+            const dateSuffix = Object.keys(allSheets).filter(k => k.startsWith(`${baseId}.`)).length + 1;
+            const sheetId = `${baseId}.${dateSuffix.toString().padStart(2, '0')}`;
+            
+            allSheets[sheetId] = {
+                id: sheetId,
+                osId: sheetData.osId,
+                fechaNecesidad: sheetData.fechaNecesidad,
+                items: sheetData.items,
+                status: 'Pendiente',
+                solicitante: sheetData.solicitante
             };
-            localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
-        }
+        })
 
-        toast({ title: 'Excedente Confirmado', description: `Se ha registrado un excedente de ${formatNumber(Math.abs(desviacion.diferencia),2)} ${desviacion.of.unidad}.`});
-        calcularNecesidades();
-    };
-    
-    const filteredPlanificacionItems = useMemo(() => {
-        if (partidaFilter === 'all') return planificacionItems;
-        return planificacionItems.filter(item => item.partidaProduccion === partidaFilter);
-    }, [planificacionItems, partidaFilter]);
-
-
-    if (!isMounted) {
-        return <LoadingSkeleton title="Cargando Planificación de Producción..." />;
+        localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
+        
+        toast({ title: "Hojas de Picking Generadas", description: `Se han creado o actualizado ${Object.keys(sheetsToGenerate).length} hojas de picking.` });
+        router.push('/almacen/picking');
     }
 
+    if (!isMounted) {
+        return <LoadingSkeleton title="Cargando Planificación de Almacen..." />;
+    }
+
+    const statsCards = [
+        { title: 'Hojas de Picking Pendientes', value: dashboardStats.pickingPendiente, icon: ListChecks, color: 'text-yellow-500', href: '/almacen/picking' },
+        { title: 'Hojas en Proceso', value: dashboardStats.pickingEnProceso, icon: Factory, color: 'text-blue-500', href: '/almacen/picking' },
+        { title: 'Incidencias Abiertas', value: dashboardStats.incidenciasAbiertas, icon: AlertTriangle, color: 'text-red-500', href: '/almacen/incidencias' },
+        { title: 'Retornos Pendientes', value: dashboardStats.retornosPendientes, icon: History, color: 'text-indigo-500', href: '/almacen/retornos' },
+    ];
+
+
     return (
-        <TooltipProvider>
-            <div>
-                <div className="flex items-start justify-between mb-6">
-                    <div>
-                        <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                            <ClipboardList />
-                            Planificación de Producción
-                        </h1>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-card">
-                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                        <PopoverTrigger asChild>
-                            <Button
-                                id="date"
-                                variant={"outline"}
-                                className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {dateRange?.from ? (
-                                dateRange.to ? (
-                                    <>
-                                    {format(dateRange.from, "LLL dd, y", {locale: es})} -{" "}
-                                    {format(dateRange.to, "LLL dd, y", {locale: es})}
-                                    </>
-                                ) : (
-                                    format(dateRange.from, "LLL dd, y", {locale: es})
-                                )
-                                ) : (
-                                <span>Elige un rango de fechas</span>
-                                )}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                                initialFocus
-                                mode="range"
-                                defaultMonth={dateRange?.from}
-                                selected={dateRange}
-                                onSelect={(range) => {
-                                  setDateRange(range);
-                                  if (range?.from && range.to) {
-                                    setIsDatePickerOpen(false);
-                                  }
-                                }}
-                                numberOfMonths={2}
-                                locale={es}
-                            />
-                        </PopoverContent>
-                    </Popover>
-                    <Button onClick={calcularNecesidades} disabled={isLoading}>
-                        {isLoading ? <Loader2 className="animate-spin mr-2"/> : <CalendarIcon className="mr-2" />}
-                        {isLoading ? 'Calculando...' : 'Calcular Necesidades'}
-                    </Button>
-                </div>
-
-                <Tabs defaultValue="matriz-produccion">
-                    <div className="flex justify-between items-center">
-                        <TabsList>
-                            <TabsTrigger value="matriz-produccion">Matriz de Producción</TabsTrigger>
-                            <TabsTrigger value="desviaciones" className="relative">
-                                Desviaciones
-                                {desviaciones.length > 0 && <span className="absolute -top-1 -right-1 flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-destructive"></span></span>}
-                            </TabsTrigger>
-                            <TabsTrigger value="recetas">Planificación por Recetas</TabsTrigger>
-                            <TabsTrigger value="elaboraciones">Planificación de Elaboraciones</TabsTrigger>
-                            <TabsTrigger value="excedentes">Excedentes Disponibles</TabsTrigger>
-                        </TabsList>
-                         <div className="flex-grow text-right">
-                           <Button onClick={handleGenerateOF} disabled={selectedRows.size === 0}>
-                                <Factory className="mr-2"/> Generar Órdenes de Fabricación ({selectedRows.size})
-                           </Button>
-                        </div>
-                    </div>
-                    <TabsContent value="matriz-produccion">
-                        <Card className="mt-4">
-                             <CardHeader>
-                                <CardTitle>Matriz de Producción</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {isLoading ? (
-                                    <div className="flex justify-center items-center h-48"><Loader2 className="mx-auto animate-spin" /></div>
-                                ) : matrizHeaders.length > 0 ? (
-                                   <div className="overflow-x-auto border rounded-lg">
-                                     <Table className="min-w-full">
-                                        <TableHeader>
-                                            <TableRow className="bg-muted/50">
-                                                <TableHead className="p-1 sticky left-0 bg-muted z-10 w-64">Resumen Diario</TableHead>
-                                                <TableHead className="p-1 text-center w-32 sticky left-[256px] bg-muted z-10">TOTAL</TableHead>
-                                                {matrizHeaders.map(h => (
-                                                    <TableHead key={h.day.toISOString()} className="p-1 text-center border-l">
-                                                        <div className="font-bold capitalize">{format(h.day, 'EEE', {locale: es})}</div>
-                                                        <div className="text-xs">{format(h.day, 'dd/MM')}</div>
-                                                    </TableHead>
-                                                ))}
-                                            </TableRow>
-                                            <TableRow>
-                                                <TableHead className="p-1 sticky left-0 bg-background z-10"><FileDigit className="inline-block mr-2"/>Nº de Contratos (OS)</TableHead>
-                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizTotals.totalContratos, 0)}</TableCell>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalContratos, 0)}</TableCell>)}
-                                            </TableRow>
-                                            <TableRow>
-                                                <TableHead className="p-1 sticky left-0 bg-background z-10"><Utensils className="inline-block mr-2"/>Nº de Servicios</TableHead>
-                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizTotals.totalServicios, 0)}</TableCell>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalServicios, 0)}</TableCell>)}
-                                            </TableRow>
-                                            <TableRow>
-                                                <TableHead className="p-1 sticky left-0 bg-background z-10"><Users className="inline-block mr-2"/>Nº de Asistentes (PAX)</TableHead>
-                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizTotals.totalPax, 0)}</TableCell>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalPax, 0)}</TableCell>)}
-                                            </TableRow>
-                                            <TableRow>
-                                                <TableHead className="p-1 sticky left-0 bg-background z-10"><BookOpen className="inline-block mr-2"/>Uds. de Receta</TableHead>
-                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizHeaders.reduce((acc, h) => acc + h.totalRecetaUnits, 0), 0)}</TableCell>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalRecetaUnits, 0)}</TableCell>)}
-                                            </TableRow>
-                                            <TableRow>
-                                                <TableHead className="p-1 sticky left-0 bg-background z-10"><Component className="inline-block mr-2"/>Uds. de Elaboración</TableHead>
-                                                <TableCell className="text-center font-bold border-l p-1 sticky left-[256px] bg-background z-10">{formatNumber(matrizHeaders.reduce((acc, h) => acc + h.totalElaboracionUnits, 0), 2)}</TableCell>
-                                                {matrizHeaders.map(h => <TableCell key={h.day.toISOString()} className="text-center font-bold border-l p-1">{formatNumber(h.totalElaboracionUnits, 2)}</TableCell>)}
-                                            </TableRow>
-                                            <TableRow className="bg-muted/50">
-                                                <TableHead className="p-1 font-semibold sticky left-0 bg-muted z-10">Producto</TableHead>
-                                                <TableHead className="p-1 font-semibold text-center w-32 sticky left-[256px] bg-muted z-10">Total</TableHead>
-                                                {matrizHeaders.map(h => <TableHead key={h.day.toISOString()} className="p-1 text-center border-l capitalize">{format(h.day, 'EEE dd/MM', {locale: es})}</TableHead>)}
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {matrizData.filter(r => r.type === 'receta').length > 0 && (
-                                                <TableRow className="bg-primary/10 hover:bg-primary/20"><TableCell colSpan={matrizHeaders.length + 2} className="p-1 font-bold text-primary sticky left-0 z-10">RECETAS</TableCell></TableRow>
-                                            )}
-                                            {matrizData.filter(r => r.type === 'receta').map(row => (
-                                                <TableRow key={row.id}>
-                                                    <TableCell className="p-1 font-medium sticky left-0 bg-background z-10 flex items-center gap-2">
-                                                        {row.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <span>{row.nombre}</span>
-                                                            </TooltipTrigger>
-                                                            {row.receta && (
-                                                                <TooltipContent>
-                                                                    <div className="p-1 max-w-xs">
-                                                                        <h4 className="font-bold mb-1">Elaboraciones de la receta:</h4>
-                                                                        <ul className="list-disc pl-4 text-xs">
-                                                                            {row.receta.elaboraciones.map((e: ElaboracionEnReceta) => (
-                                                                                <li key={e.id}>{formatNumber(e.cantidad, 2)} {formatUnit(e.unidad)} - {e.nombre}</li>
-                                                                            ))}
-                                                                        </ul>
-                                                                    </div>
-                                                                </TooltipContent>
-                                                            )}
-                                                        </Tooltip>
-                                                    </TableCell>
-                                                    <TableCell className="p-1 text-center font-bold font-mono sticky left-[256px] bg-background z-10">{formatNumber(row.total, 0)} {formatUnit(row.unidad)}</TableCell>
-                                                    {matrizHeaders.map(h => (
-                                                        <TableCell key={h.day.toISOString()} className={cn("p-1 text-center font-mono border-l", row[format(h.day, 'yyyy-MM-dd')] === 0 && 'bg-slate-50')}>
-                                                            {row[format(h.day, 'yyyy-MM-dd')] > 0 ? formatNumber(row[format(h.day, 'yyyy-MM-dd')], 0) : '-'}
-                                                        </TableCell>
-                                                    ))}
-                                                </TableRow>
-                                            ))}
-                                            {matrizData.filter(r => r.type === 'elaboracion').length > 0 && (
-                                                <TableRow className="bg-primary/10 hover:bg-primary/20"><TableCell colSpan={matrizHeaders.length + 2} className="p-1 font-bold text-primary sticky left-0 z-10">ELABORACIONES</TableCell></TableRow>
-                                            )}
-                                            {matrizData.filter(r => r.type === 'elaboracion').map(row => (
-                                                <TableRow key={row.id} className={cn(row.partida && partidaColorClasses[row.partida])}>
-                                                    <TableCell className="p-1 font-medium sticky left-0 z-10 flex items-center gap-2">
-                                                        {row.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
-                                                         <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <span>{row.nombre}</span>
-                                                            </TooltipTrigger>
-                                                             {row.necesidad && (
-                                                                <TooltipContent>
-                                                                    <div className="p-1 max-w-sm">
-                                                                        {row.partida && <p className="text-xs font-bold mb-1">Partida: {row.partida}</p>}
-                                                                        <h4 className="font-bold mb-1 text-center">Desglose por receta</h4>
-                                                                        <ul className="list-disc pl-4 text-xs">
-                                                                            {row.necesidad.recetas.map((r: RecetaNecesidad) => (
-                                                                                <li key={r.recetaId}>{formatNumber(r.cantidadReceta, 0)} x {r.recetaNombre} ({formatNumber(r.cantidad, 2)} {formatUnit(row.unidad)})</li>
-                                                                            ))}
-                                                                        </ul>
-                                                                        {row.necesidad.eventos.length > 0 && (
-                                                                            <>
-                                                                                <Separator className="my-2"/>
-                                                                                <h4 className="font-bold mb-1 text-center">Eventos Implicados</h4>
-                                                                                <ul className="list-disc pl-4 text-xs">
-                                                                                {row.necesidad.eventos.map((e: EventoAfectado) => (
-                                                                                    <li key={e.osId + e.serviceType} className="flex items-center gap-1.5">
-                                                                                        {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
-                                                                                        {e.serviceNumber} - {e.serviceType} - {e.espacio} ({format(new Date(e.fecha), 'dd/MM/yy')})
-                                                                                    </li>
-                                                                                ))}
-                                                                                </ul>
-                                                                            </>
-                                                                        )}
-                                                                    </div>
-                                                                </TooltipContent>
-                                                            )}
-                                                        </Tooltip>
-                                                    </TableCell>
-                                                    <TableCell className="p-1 text-center font-bold font-mono sticky left-[256px] z-10">{formatNumber(row.total, 2)} {formatUnit(row.unidad)}</TableCell>
-                                                    {matrizHeaders.map(h => (
-                                                        <TableCell key={h.day.toISOString()} className={cn("p-1 text-center font-mono border-l", row[format(h.day, 'yyyy-MM-dd')] === 0 && 'bg-slate-50/50')}>
-                                                            {row[format(h.day, 'yyyy-MM-dd')] > 0 ? formatNumber(row[format(h.day, 'yyyy-MM-dd')], 2) : '-'}
-                                                        </TableCell>
-                                                    ))}
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                   </div>
-                                ) : (
-                                    <p className="text-center text-muted-foreground py-8">No hay datos para el rango de fechas seleccionado.</p>
-                                )}
-                            </CardContent>
+        <div>
+             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+                {statsCards.map(card => (
+                    <Link href={card.href} key={card.title}>
+                        <Card className="hover:bg-accent transition-colors">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                            <card.icon className={cn("h-4 w-4", card.color)} />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{card.value}</div>
+                        </CardContent>
                         </Card>
-                    </TabsContent>
-                    <TabsContent value="desviaciones">
-                        <Card className="mt-4">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><AlertTriangle className="text-amber-500" />Panel de Desviaciones</CardTitle>
-                                <CardDescription>Aquí aparecen las Órdenes de Fabricación que no coinciden con las necesidades actuales de los eventos. Esto puede ocurrir si se modificó un evento después de generar la producción.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                               {isLoading ? <div className="flex justify-center items-center h-24"><Loader2 className="mx-auto animate-spin" /></div> 
-                               : desviaciones.length > 0 ? (
-                                <div className="space-y-4">
-                                {desviaciones.map(os => (
-                                    <Collapsible key={os.osId} className="border rounded-lg p-3">
-                                        <CollapsibleTrigger className="w-full flex justify-between items-center group">
-                                            <div className="font-semibold">{os.serviceNumber} - {format(new Date(os.fecha), 'dd/MM/yyyy')} - {os.espacio}</div>
-                                            <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180"/>
-                                        </CollapsibleTrigger>
-                                        <CollapsibleContent className="pt-3 space-y-2">
-                                            {os.hitos.map(hito => (
-                                                <div key={hito.hitoId} className="border rounded-md p-2 bg-background">
-                                                    <h4 className="font-semibold text-sm">{hito.hitoDescripcion}</h4>
-                                                     {hito.recetas.map(receta => (
-                                                        <div key={receta.recetaId} className="pl-4 mt-1">
-                                                            <div>
-                                                                <span className="text-sm text-muted-foreground">{receta.recetaNombre}</span>
-                                                                <Badge variant="secondary" className={cn("ml-2", receta.diferenciaUnidades > 0 ? 'text-orange-600' : 'text-blue-600')}>{receta.diferenciaUnidades > 0 ? '+' : ''}{formatNumber(receta.diferenciaUnidades, 2)} uds.</Badge>
-                                                            </div>
-                                                            <Table>
-                                                                <TableHeader><TableRow><TableHead className="h-8">OF</TableHead><TableHead className="h-8">Elaboración</TableHead><TableHead className="h-8">Cant. Original</TableHead><TableHead className="h-8">Cant. Nueva</TableHead><TableHead className="h-8">Desviación</TableHead><TableHead className="h-8">Estado OF</TableHead><TableHead className="h-8">Acciones</TableHead></TableRow></TableHeader>
-                                                                <TableBody>
-                                                                    {receta.elaboraciones.map(d => (
-                                                                        <TableRow key={d.id}>
-                                                                            <TableCell>{d.of.id}</TableCell>
-                                                                            <TableCell>{d.of.elaboracionNombre}</TableCell>
-                                                                            <TableCell>{formatNumber(d.of.necesidadTotal || 0, 2)}</TableCell>
-                                                                            <TableCell>{formatNumber(d.necesidadActual, 2)}</TableCell>
-                                                                            <TableCell className={cn("font-bold", d.diferencia > 0 ? 'text-orange-600' : 'text-blue-600')}>
-                                                                                {d.diferencia > 0 ? '+' : ''}{formatNumber(d.diferencia, 2)}
-                                                                            </TableCell>
-                                                                             <TableCell><Badge variant="outline">{d.of.estado}</Badge></TableCell>
-                                                                            <TableCell>
-                                                                                 {d.diferencia > 0 
-                                                                                    ? <Button size="sm" variant="outline" onClick={() => handleGenerateOfAjuste(d)}>Generar OF de Ajuste</Button> 
-                                                                                    : <Button size="sm" variant="outline" onClick={() => handleMarkAsExcedente(d)}>Marcar como Excedente</Button>}
-                                                                            </TableCell>
-                                                                        </TableRow>
-                                                                    ))}
-                                                                </TableBody>
-                                                            </Table>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ))}
-                                        </CollapsibleContent>
-                                    </Collapsible>
-                                ))}
-                                </div>
-                               ) : <p className="text-center text-muted-foreground py-8">No se han encontrado desviaciones.</p>}
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                    <TabsContent value="recetas">
-                        <div className="mt-4 space-y-4">
+                    </Link>
+                ))}
+            </div>
+
+            <div className="flex items-center justify-between mb-6">
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
+                    <ClipboardList /> Planificación de Necesidades
+                </h1>
+                <div className="flex items-center gap-4">
+                     <Button onClick={handleGeneratePicking} disabled={numSheetsToGenerate === 0}>
+                        <ListChecks className="mr-2"/> Generar Hoja de Picking ({numSheetsToGenerate})
+                     </Button>
+                </div>
+            </div>
+
+            <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-card">
+                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                    <PopoverTrigger asChild>
+                        <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango de fechas</span>)}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range.to){ setIsDatePickerOpen(false) }}} numberOfMonths={2} locale={es} />
+                    </PopoverContent>
+                </Popover>
+                 <Button onClick={calcularNecesidades} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin mr-2" /> : <RefreshCw className="mr-2" />}
+                    {isLoading ? 'Calculando...' : 'Recalcular Necesidades'}
+                </Button>
+            </div>
+
+            {isLoading ? <div className="flex justify-center items-center h-48"><Loader2 className="mx-auto animate-spin text-primary" size={48} /></div>
+            : necesidades.length > 0 ? (
+                <Accordion type="multiple" defaultValue={necesidades.map(n => n.fecha)} className="w-full space-y-4">
+                    {necesidades.map(({ fecha, ordenes, totalItems }) => (
+                         <AccordionItem value={fecha} key={fecha} className="border-none">
                             <Card>
-                                <CardHeader>
-                                    <CardTitle>Resumen Agregado de Recetas</CardTitle>
-                                    <CardDescription>Total de recetas completas a producir en el período seleccionado.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                     <Table>
-                                        <TableHeader><TableRow><TableHead>Receta</TableHead><TableHead className="text-right">Cantidad Total</TableHead></TableRow></TableHeader>
-                                        <TableBody>
-                                             {isLoading ? (
-                                                <TableRow><TableCell colSpan={2} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow>
-                                            ) : recetasAgregadas.length > 0 ? (
-                                                recetasAgregadas.map(receta => (
-                                                    <TableRow key={receta.id}>
-                                                        <TableCell className="font-medium flex items-center gap-2">
-                                                          {receta.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
-                                                          {receta.nombre}
-                                                        </TableCell>
-                                                        <TableCell className="text-right font-mono">{formatNumber(receta.cantidadTotal, 0)}</TableCell>
-                                                    </TableRow>
-                                                ))
-                                            ) : (
-                                                <TableRow><TableCell colSpan={2} className="h-24 text-center">No hay recetas planificadas para este período.</TableCell></TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                            </Card>
-
-                             <Card>
-                                <CardHeader>
-                                    <CardTitle>Desglose por Evento</CardTitle>
-                                    <CardDescription>Vista jerárquica de las necesidades por evento, hito y receta.</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {isLoading ? (
-                                        <div className="flex justify-center items-center h-24"><Loader2 className="mx-auto animate-spin" /></div>
-                                    ) : desgloseEventosRecetas.length > 0 ? (
-                                        desgloseEventosRecetas.map(os => (
-                                            <Collapsible key={os.osId} className="border rounded-lg p-4 bg-card" defaultOpen>
-                                                <CollapsibleTrigger className="w-full flex justify-between items-center group">
-                                                    <div className="text-left flex items-center gap-2">
-                                                        {os.isEntrega && <Package size={18} className="text-orange-600 flex-shrink-0" />}
-                                                        <div>
-                                                            <h4 className="font-bold text-lg">{os.serviceNumber} - {os.client}</h4>
-                                                            <p className="text-sm text-muted-foreground">{format(new Date(os.startDate), 'PPP', { locale: es })}</p>
+                                <AccordionTrigger className="p-4 hover:no-underline rounded-lg">
+                                    <div className="flex items-center gap-3 w-full">
+                                        <CalendarIcon className="h-6 w-6"/>
+                                        <div className="text-left">
+                                            <h3 className="text-xl font-bold capitalize">{format(new Date(fecha), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
+                                            <p className="text-sm text-muted-foreground">{totalItems} artículos en total para este día</p>
+                                        </div>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="border-t">
+                                    <div className="p-4 space-y-3">
+                                    {Object.entries(ordenes).sort(([, a], [, b]) => a.os.serviceNumber.localeCompare(b.os.serviceNumber)).map(([osKey, {os, necesidades: necesidadesOs, solicitante}]) => (
+                                        <Collapsible key={osKey} className="border rounded-lg">
+                                            <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-t-lg">
+                                                <Checkbox
+                                                    checked={getOsSelectionState(osKey, fecha)}
+                                                    onCheckedChange={() => handleSelectOS(osKey, fecha)}
+                                                    aria-label={`Seleccionar todos los artículos para OS ${os.serviceNumber}`}
+                                                />
+                                                <CollapsibleTrigger className="flex-grow flex items-center justify-between group">
+                                                    <div className="text-left">
+                                                        <div className="flex items-center gap-3">
+                                                            <p className="font-bold">{os.serviceNumber} - {os.client}</p>
+                                                            {solicitante && <Badge variant={solicitante === 'Sala' ? 'default' : 'outline'} className={solicitante === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>{solicitante === 'Sala' ? <Users size={12} className="mr-1.5"/> : <Soup size={12} className="mr-1.5"/>}{solicitante}</Badge>}
                                                         </div>
+                                                        <p className="text-xs text-muted-foreground">{os.space}</p>
                                                     </div>
-                                                    <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                                    <ChevronRight className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-90"/>
                                                 </CollapsibleTrigger>
-                                                <CollapsibleContent className="pt-4 space-y-3">
-                                                    {os.hitos.map(hito => (
-                                                         <Collapsible key={hito.id} className="border rounded-md p-3 bg-background">
-                                                            <CollapsibleTrigger className="w-full flex justify-between items-center text-left group">
-                                                                <div className="flex items-center gap-2">
-                                                                    <Utensils className="h-4 w-4" />
-                                                                    <span className="font-semibold">{hito.descripcion}</span>
-                                                                </div>
-                                                                <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                                                            </CollapsibleTrigger>
-                                                            <CollapsibleContent className="pt-3">
+                                            </div>
+                                            <CollapsibleContent className="p-3">
+                                                 {(Object.keys(necesidadesOs) as Array<keyof NecesidadesPorTipo>).map(tipo => {
+                                                    const items = necesidadesOs[tipo];
+                                                    if (items.length === 0) return null;
+                                                    return (
+                                                        <div key={tipo} className="mb-2 last:mb-0">
+                                                            <h4 className="font-semibold mb-1 text-sm">{tipo}</h4>
+                                                            <div className="border rounded-md">
                                                                 <Table>
-                                                                    <TableHeader><TableRow><TableHead>Receta</TableHead><TableHead>Cantidad</TableHead><TableHead>Elaboraciones</TableHead></TableRow></TableHeader>
+                                                                    <TableHeader><TableRow><TableHead className="w-8"></TableHead><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead></TableRow></TableHeader>
                                                                     <TableBody>
-                                                                        {hito.recetas.map(receta => (
-                                                                            <TableRow key={receta.id}>
-                                                                                <TableCell className="font-medium flex items-center gap-2">
-                                                                                    {receta.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
-                                                                                    {receta.nombre}
-                                                                                </TableCell>
-                                                                                <TableCell>{formatNumber(receta.cantidad, 0)}</TableCell>
-                                                                                <TableCell>
-                                                                                    <ul className="list-disc pl-5 text-xs text-muted-foreground">
-                                                                                        {receta.elaboraciones.map(elab => (
-                                                                                            <li key={elab.id}>{formatNumber(elab.cantidadPorReceta * receta.cantidad, 2)} {formatUnit(elab.unidad)} - {elab.nombre}</li>
-                                                                                        ))}
-                                                                                    </ul>
-                                                                                </TableCell>
+                                                                        {items.map((item) => {
+                                                                            const orderId = (item as any).orderId || os.id;
+                                                                            const itemId = `${item.itemCode}__${orderId}__${fecha}__${tipo}__${item.solicitante || 'general'}`;
+                                                                            return (
+                                                                            <TableRow key={itemId}>
+                                                                                <TableCell><Checkbox onCheckedChange={() => handleSelectItem(itemId)} checked={selectedItems.has(itemId)} aria-label={`Seleccionar ${item.description}`} /></TableCell>
+                                                                                <TableCell>{item.description}</TableCell>
+                                                                                <TableCell>{item.quantity}</TableCell>
                                                                             </TableRow>
-                                                                        ))}
+                                                                        )})}
                                                                     </TableBody>
                                                                 </Table>
-                                                            </CollapsibleContent>
-                                                         </Collapsible>
-                                                    ))}
-                                                </CollapsibleContent>
-                                            </Collapsible>
-                                        ))
-                                    ) : (
-                                        <p className="text-center text-muted-foreground py-8">No hay eventos con necesidades de producción en el rango de fechas seleccionado.</p>
-                                    )}
-                                </CardContent>
-                             </Card>
-                        </div>
-                    </TabsContent>
-                    <TabsContent value="elaboraciones">
-                        <Card className="mt-4">
-                            <CardHeader>
-                                <CardTitle>Planificación de Elaboraciones</CardTitle>
-                                <div className="flex justify-between items-center">
-                                    <div></div>
-                                     <Select value={partidaFilter} onValueChange={setPartidaFilter}>
-                                        <SelectTrigger className="w-[240px]">
-                                            <SelectValue placeholder="Filtrar por partida" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Todas las Partidas</SelectItem>
-                                            {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="border rounded-lg">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead className="p-2 w-12"><Checkbox 
-                                                    checked={selectedRows.size > 0 && filteredPlanificacionItems.filter(i => i.type === 'necesidad').length > 0 && selectedRows.size === filteredPlanificacionItems.filter(i => i.type === 'necesidad').length}
-                                                    onCheckedChange={(checked) => {
-                                                        const needItems = filteredPlanificacionItems.filter(i => i.type === 'necesidad').map(i => i.id);
-                                                        if(checked) {
-                                                            setSelectedRows(new Set(needItems))
-                                                        } else {
-                                                            setSelectedRows(new Set())
-                                                        }
-                                                    }}
-                                                /></TableHead>
-                                                <TableHead className="p-2">Elaboración</TableHead>
-                                                <TableHead className="p-2 text-right">Cantidad</TableHead>
-                                                <TableHead className="p-2">Unidad</TableHead>
-                                                <TableHead className="p-2 flex items-center gap-1.5">Detalles</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {isLoading ? (
-                                                <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow>
-                                            ) : filteredPlanificacionItems.length > 0 ? (
-                                                filteredPlanificacionItems.map(item => (
-                                                <TableRow
-                                                    key={item.id}
-                                                    onClick={() => { if (item.type === 'necesidad') handleSelectRow(item.id) }}
-                                                    className={cn(
-                                                        item.type === 'necesidad' && 'cursor-pointer',
-                                                        item.type === 'excedente' ? 'bg-green-100/50 hover:bg-green-100/60' : '',
-                                                        item.type === 'necesidad' && item.partidaProduccion && partidaColorClasses[item.partidaProduccion],
-                                                        selectedRows.has(item.id) && 'bg-primary/10 hover:bg-primary/20'
-                                                    )}
-                                                >
-                                                    <TableCell className="py-1 px-2">
-                                                    {item.type === 'necesidad' ? (
-                                                        <Checkbox checked={selectedRows.has(item.id)} />
-                                                    ) : (
-                                                        <Tooltip>
-                                                        <TooltipTrigger asChild><div className="flex justify-center"><PackageCheck className="text-green-600"/></div></TooltipTrigger>
-                                                        <TooltipContent><p>Excedente disponible</p></TooltipContent>
-                                                        </Tooltip>
-                                                    )}
-                                                    </TableCell>
-                                                    <TableCell className="py-1 px-2 font-medium flex items-center gap-2">
-                                                        {item.isEntrega && <Package size={14} className="text-orange-600 flex-shrink-0" />}
-                                                        {item.nombre}
-                                                        {item.recetas.length > 0 && (
-                                                            <span className="text-muted-foreground text-xs">({item.recetas[0].recetaNombre}{item.recetas.length > 1 ? ` y ${item.recetas.length - 1} más` : ''})</span>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className={cn("py-1 px-2 text-right font-mono", item.type === 'excedente' && 'text-green-600')} >
-                                                    <span>{item.type === 'excedente' && '+ '}{formatNumber(item.cantidad, 2)}</span>
-                                                    </TableCell>
-                                                    <TableCell className="py-1 px-2" >{formatUnit(item.unidad)}</TableCell>
-                                                    <TableCell className="py-1 px-2">
-                                                         <Dialog>
-                                                            <DialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-10 w-10">
-                                                                    <Info size={18} strokeWidth={2.5}/>
-                                                                </Button>
-                                                            </DialogTrigger>
-                                                            <DialogContent className="max-w-2xl">
-                                                                <DialogHeader>
-                                                                    <DialogTitle>Detalles para: {item.nombre}</DialogTitle>
-                                                                </DialogHeader>
-                                                                <div className="max-h-[60vh] overflow-y-auto p-1 -mx-4 px-4">
-                                                                <div className="p-1 space-y-4">
-                                                                    {item.partidaProduccion && <p className="text-sm font-bold mb-1">Partida: {item.partidaProduccion}</p>}
-                                                                    {item.recetas.length > 0 && (
-                                                                        <div>
-                                                                            <h4 className="font-bold mb-1 text-center">Desglose por receta</h4>
-                                                                            <ul className="list-disc pl-5 text-sm">
-                                                                                {item.recetas.map((r, index) => (
-                                                                                    <li key={index}><strong>{formatNumber(r.cantidadReceta, 0)} x</strong> {r.recetaNombre} ({formatNumber(r.cantidad, 2)} {formatUnit(item.unidad)})</li>
-                                                                                ))}
-                                                                            </ul>
-                                                                        </div>
-                                                                    )}
-                                                                    {item.recetas.length > 0 && item.eventos.length > 0 && <Separator />}
-                                                                    {item.eventos.length > 0 && (
-                                                                        <div>
-                                                                            <h4 className="font-bold mb-1 text-center">Eventos Implicados</h4>
-                                                                            <ul className="list-disc pl-5 text-sm">
-                                                                            {item.eventos.map((e, index) => (
-                                                                                <li key={index} className="flex items-center gap-1.5">
-                                                                                    {e.isEntrega && <Package size={12} className="text-orange-600 flex-shrink-0" />}
-                                                                                    {e.serviceNumber} - {e.serviceType} ({format(new Date(e.fecha), 'dd/MM/yy')}) - {e.espacio}
-                                                                                </li>
-                                                                            ))}
-                                                                            </ul>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                                </div>
-                                                            </DialogContent>
-                                                        </Dialog>
-                                                    </TableCell>
-                                                </TableRow>
-                                                ))
-                                            ) : (
-                                                <TableRow>
-                                                    <TableCell colSpan={5} className="h-24 text-center">
-                                                        No se encontraron necesidades para el rango de fechas seleccionado o ya están todas cubiertas.
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                    <TabsContent value="excedentes">
-                        <Card className="mt-4">
-                            <CardHeader>
-                                <CardTitle>Excedentes de Producción Disponibles</CardTitle>
-                                <CardDescription>Sobrantes de producciones anteriores que pueden ser utilizados para cubrir nuevas necesidades.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Elaboración</TableHead>
-                                            <TableHead className="text-right">Cantidad Disponible</TableHead>
-                                            <TableHead>Unidad</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {isLoading ? (
-                                            <TableRow><TableCell colSpan={3} className="h-24 text-center"><Loader2 className="mx-auto animate-spin" /></TableCell></TableRow>
-                                        ) : excedentes.length > 0 ? (
-                                            excedentes.map(item => (
-                                                <TableRow key={item.id}>
-                                                    <TableCell className="font-medium">{item.nombre}</TableCell>
-                                                    <TableCell className="text-right font-mono text-green-600">+{formatNumber(item.cantidad, 2)}</TableCell>
-                                                    <TableCell>{formatUnit(item.unidad)}</TableCell>
-                                                </TableRow>
-                                            ))
-                                        ) : (
-                                            <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay excedentes disponibles.</TableCell></TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                </Tabs>
-            </div>
-        </TooltipProvider>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </CollapsibleContent>
+                                        </Collapsible>
+                                    ))}
+                                    </div>
+                                </AccordionContent>
+                            </Card>
+                         </AccordionItem>
+                    ))}
+                </Accordion>
+            ) : (
+                <Card>
+                    <CardContent className="py-12 text-center">
+                        <Warehouse className="mx-auto h-12 w-12 text-muted-foreground" />
+                        <h3 className="mt-4 text-lg font-semibold">Sin Necesidades</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">No hay pedidos de material para el rango de fechas seleccionado.</p>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
     );
 }
+    
+    
+
+    
+
+    
+

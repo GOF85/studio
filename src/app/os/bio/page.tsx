@@ -23,6 +23,7 @@ type ItemWithOrderInfo = OrderItem & {
   orderId: string;
   orderStatus: PickingSheet['status'];
   solicita?: 'Sala' | 'Cocina';
+  tipo?: string;
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -58,7 +59,7 @@ export default function BioPage() {
     setIsMounted(true);
   }, [osId]);
 
- const { allItemsByStatus, processedItemKeys } = useMemo(() => {
+  const { allItemsByStatus, processedItemKeys } = useMemo(() => {
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const keys = new Set<string>();
 
@@ -350,3 +351,4 @@ export default function BioPage() {
     </>
   );
 }
+

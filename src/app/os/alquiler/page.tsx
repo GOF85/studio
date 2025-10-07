@@ -23,6 +23,7 @@ type ItemWithOrderInfo = OrderItem & {
   orderId: string;
   orderStatus: PickingSheet['status'];
   solicita?: 'Sala' | 'Cocina';
+  tipo?: string;
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -170,7 +171,10 @@ export default function AlquilerPage() {
         <CardContent className="space-y-2">
             {items.length > 0 ? items.map((item, index) => (
                 <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
-                    <p className="font-semibold truncate">{item.quantity} x {item.description}</p>
+                    <div className="flex justify-between items-start">
+                        <p className="font-semibold truncate pr-2">{item.quantity} x {item.description}</p>
+                        {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
+                    </div>
                     <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                         {item.solicita ? (
                             <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
@@ -178,10 +182,7 @@ export default function AlquilerPage() {
                                 {item.solicita}
                             </Badge>
                         ) : <span></span>}
-                        <div className="flex items-center gap-2">
-                            <Badge variant="outline">{item.category}</Badge>
-                            {title !== 'Asignado' && <Badge variant="outline">{item.orderContract}</Badge>}
-                        </div>
+                        {title !== 'Asignado' && <Badge variant="outline">{item.orderContract}</Badge>}
                     </div>
                 </Card>
             )) : <p className="text-sm text-muted-foreground text-center py-4">No hay artículos.</p>}
@@ -331,3 +332,4 @@ export default function AlquilerPage() {
     </>
   );
 }
+

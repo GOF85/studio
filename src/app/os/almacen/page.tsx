@@ -23,6 +23,7 @@ type ItemWithOrderInfo = OrderItem & {
   orderId: string;
   orderStatus: PickingSheet['status'];
   solicita?: 'Sala' | 'Cocina';
+  tipo?: string;
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -58,7 +59,7 @@ export default function AlmacenPage() {
     setIsMounted(true);
   }, [osId]);
 
- const { allItemsByStatus, processedItemKeys } = useMemo(() => {
+  const { allItemsByStatus, processedItemKeys } = useMemo(() => {
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const keys = new Set<string>();
 
@@ -170,7 +171,7 @@ export default function AlmacenPage() {
         <CardContent className="space-y-2">
             {items.length > 0 ? items.map((item, index) => (
                 <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
-                     <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start">
                         <p className="font-semibold truncate pr-2">{item.quantity} x {item.description}</p>
                         {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
                     </div>
@@ -311,7 +312,7 @@ export default function AlmacenPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                     <TableCell><Badge variant="outline">{item.contractNumber}</Badge></TableCell>
+                                     <TableCell><Badge variant="outline">{materialOrders.find(o=>o.id === item.orderId)?.contractNumber}</Badge></TableCell>
                                     <TableCell>
                                         <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'quantity', parseInt(e.target.value) || 0)} className="h-8"/>
                                     </TableCell>
@@ -350,3 +351,4 @@ export default function AlmacenPage() {
     </>
   );
 }
+

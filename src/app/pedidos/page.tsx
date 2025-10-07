@@ -97,7 +97,7 @@ export default function PedidosPage() {
           i.itemCode === item.itemCode ? { ...i, quantity: newQuantity } : i
         );
       } else {
-        return [...prevItems, { ...item, quantity }];
+        return [...prevItems, { ...item, quantity, tipo: item.tipo }];
       }
     });
   };
@@ -268,3 +268,4 @@ export default function PedidosPage() {
     </div>
   );
 }
+
