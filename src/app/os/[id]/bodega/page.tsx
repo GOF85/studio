@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, MoreHorizontal, Pencil } from 'lucide-react';
+import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2 } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +17,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -76,9 +75,6 @@ export default function BodegaPage() {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
             if (item.type === 'Bodega') {
-                const materialOrderOrigin = materialOrders.find(mo => mo.id === item.orderId);
-                // The unique key should be based on the original MaterialOrder ID and item code
-                const itemKey = `${item.orderId}-${item.itemCode}`;
                 items[targetStatus].push({
                     ...item,
                     orderId: sheet.id,
@@ -86,7 +82,7 @@ export default function BodegaPage() {
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
                 });
-                processedItemKeys.add(itemKey);
+                processedItemKeys.add(`${item.orderId}-${item.itemCode}`);
             }
         });
     });
@@ -191,7 +187,18 @@ export default function BodegaPage() {
   const pendingItems = allItems.filter(item => {
     return allItemsByStatus['Asignado'].some(assigned => assigned.itemCode === item.itemCode && assigned.orderId === item.orderId)
   });
-
+  
+  const { processedItemKeys } = useMemo(() => {
+    const keys = new Set<string>();
+    pickingSheets.forEach(sheet => {
+        sheet.items.forEach(item => {
+            if(item.type === 'Bodega') {
+                keys.add(`${item.orderId}-${item.itemCode}`);
+            }
+        })
+    })
+    return { processedItemKeys: keys };
+  }, [pickingSheets]);
 
   return (
     <>
@@ -230,7 +237,7 @@ export default function BodegaPage() {
        </div>
 
         <Card>
-            <div className="flex items-center justify-between p-4">
+             <div className="flex items-center justify-between p-4">
                 <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
                 <Button onClick={handleSaveAll} disabled={isLoading}>
                     {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
@@ -239,12 +246,14 @@ export default function BodegaPage() {
             </div>
             <CardContent>
                 <Collapsible defaultOpen={false}>
-                    <CollapsibleTrigger className="w-full">
-                        <div className="flex items-center gap-2 font-semibold text-destructive border p-2 rounded-md hover:bg-muted/50 mb-4">
-                            <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                            Bloqueado (En Preparación / Listo)
-                        </div>
-                    </CollapsibleTrigger>
+                    <div className="flex items-center gap-2 font-semibold text-destructive border p-2 rounded-md hover:bg-muted/50 mb-4">
+                        <CollapsibleTrigger asChild>
+                            <div className="flex flex-1 items-center cursor-pointer">
+                                <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                Bloqueado (En Preparación / Listo)
+                            </div>
+                        </CollapsibleTrigger>
+                    </div>
                     <CollapsibleContent>
                          <div className="border rounded-lg mb-6">
                              <Table>
