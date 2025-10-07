@@ -109,7 +109,7 @@ export default function ArticuloFormPage() {
     defaultValues,
   });
   
-  const {setValue} = form;
+  const {setValue, reset} = form;
   const selectedErpId = form.watch('erpId');
   const selectedCategoria = form.watch('categoria');
   const selectedErpProduct = useMemo(() => ingredientesERP.find(p => p.id === selectedErpId), [ingredientesERP, selectedErpId]);
@@ -122,16 +122,26 @@ export default function ArticuloFormPage() {
     );
   }, [ingredientesERP, erpSearchTerm]);
   
+  const selectedErpProductRef = React.useRef(selectedErpProduct);
+  const selectedCategoriaRef = React.useRef(selectedCategoria);
+  
   useEffect(() => {
-    if (selectedErpProduct) {
-        setValue('tipo', selectedErpProduct.tipo, { shouldDirty: true });
-        if (selectedCategoria === 'Almacen') {
-            setValue('precioReposicion', selectedErpProduct.precio, { shouldDirty: true });
+      selectedErpProductRef.current = selectedErpProduct;
+      selectedCategoriaRef.current = selectedCategoria;
+  }, [selectedErpProduct, selectedCategoria]);
+
+  useEffect(() => {
+    const currentErpProduct = selectedErpProductRef.current;
+    const currentCategoria = selectedCategoriaRef.current;
+    if (currentErpProduct) {
+        setValue('tipo', currentErpProduct.tipo, { shouldDirty: true });
+        if (currentCategoria === 'Almacen') {
+            setValue('precioReposicion', currentErpProduct.precio, { shouldDirty: true });
         } else {
-            setValue('precioVenta', selectedErpProduct.precio, { shouldDirty: true });
+            setValue('precioVenta', currentErpProduct.precio, { shouldDirty: true });
         }
     }
-  }, [selectedErpProduct, selectedCategoria, setValue]);
+  }, [selectedErpId, setValue]);
 
 
   useEffect(() => {
@@ -145,7 +155,7 @@ export default function ArticuloFormPage() {
       const items = JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[];
       const item = items.find(p => p.id === id);
       if (item) {
-        form.reset({
+        reset({
             ...defaultValues,
             ...item,
         });
@@ -155,9 +165,9 @@ export default function ArticuloFormPage() {
         router.push('/articulos');
       }
     } else {
-        form.reset({...defaultValues, id: Date.now().toString() });
+        reset({...defaultValues, id: Date.now().toString() });
     }
-  }, [id, isEditing, form, router, toast]);
+  }, [id, isEditing, reset, router, toast]);
 
   function onSubmit(data: ArticuloCateringFormValues) {
     setIsLoading(true);
@@ -230,7 +240,8 @@ export default function ArticuloFormPage() {
                     )} />
                     <FormField control={form.control} name="categoria" render={({ field }) => (
                         <FormItem><FormLabel>Categoría</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl>
                             <SelectContent>{ARTICULO_CATERING_CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                         </Select>
                         <FormMessage /></FormItem>
@@ -349,4 +360,3 @@ export default function ArticuloFormPage() {
     </>
   );
 }
-    
