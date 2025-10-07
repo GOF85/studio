@@ -122,16 +122,13 @@ export default function ArticuloFormPage() {
     );
   }, [ingredientesERP, erpSearchTerm]);
   
-  const selectedErpProductRef = useRef(selectedErpProduct);
-  const selectedCategoriaRef = useRef(selectedCategoria);
+  const selectedErpProductRef = React.useRef(selectedErpProduct);
+  const selectedCategoriaRef = React.useRef(selectedCategoria);
   
   useEffect(() => {
       selectedErpProductRef.current = selectedErpProduct;
-  }, [selectedErpProduct]);
-  
-  useEffect(() => {
       selectedCategoriaRef.current = selectedCategoria;
-  }, [selectedCategoria]);
+  }, [selectedErpProduct, selectedCategoria]);
 
   useEffect(() => {
     const currentErpProduct = selectedErpProductRef.current;
@@ -158,10 +155,7 @@ export default function ArticuloFormPage() {
       const items = JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[];
       const item = items.find(p => p.id === id);
       if (item) {
-        reset({
-            ...defaultValues,
-            ...item,
-        });
+        reset(item);
         setImageUrl(item.imagen || '');
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el artículo.' });
