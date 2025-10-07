@@ -67,8 +67,7 @@ export default function AlquilerPage() {
                 if (targetStatus === 'En Preparación') enPreparacion.push(orderInfo);
                 else if (targetStatus === 'Listo') listos.push(orderInfo);
                 
-                // Find the original MaterialOrder this picking sheet item came from
-                 const materialOrderForSheet = materialOrders.find(mo => mo.contractNumber === sheet.id && mo.solicita === sheet.solicitante);
+                const materialOrderForSheet = materialOrders.find(mo => mo.id === sheet.id);
                  if (materialOrderForSheet) {
                     pickedOrderIds.add(materialOrderForSheet.id);
                  }
@@ -85,11 +84,11 @@ export default function AlquilerPage() {
     return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
   }
 
-  const renderItemsColumn = (title: string, items: ItemWithOrderInfo[]) => (
+  const renderItemsColumn = (title: string, items: ItemWithOrderInfo[], columnType: StatusColumn) => (
     <Card className="flex-1 bg-muted/30">
         <CardHeader className="pb-4 flex-row items-center justify-between">
             <CardTitle className="text-lg">{title}</CardTitle>
-            <Dialog>
+             <Dialog>
                 <DialogTrigger asChild>
                     <Button variant="outline" size="sm" disabled={items.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen</Button>
                 </DialogTrigger>
@@ -128,25 +127,27 @@ export default function AlquilerPage() {
         </CardContent>
     </Card>
   );
-  
-  const renderOrdersTable = (title: string, orders: MaterialOrder[], isEditable: boolean) => (
+
+  const renderOrdersTable = (title: string, orders: MaterialOrder[]) => (
     <div>
       <h3 className="font-semibold text-lg mb-2">{title}</h3>
       <div className="border rounded-md">
         <Table>
           <TableHeader><TableRow><TableHead>Nº Contrato</TableHead><TableHead>Artículos</TableHead><TableHead className="text-right">Importe</TableHead></TableRow></TableHeader>
           <TableBody>
-            {orders.map(order => (
-              <TableRow key={order.id} className={isEditable ? "cursor-pointer" : ""} onClick={() => isEditable && router.push(`/pedidos?osId=${osId}&type=Alquiler&orderId=${order.id}`)}>
+            {orders.length > 0 ? orders.map(order => (
+              <TableRow key={order.id} className={order.status === 'Asignado' ? "cursor-pointer" : ""} onClick={() => order.status === 'Asignado' && router.push(`/pedidos?osId=${osId}&type=Alquiler&orderId=${order.id}`)}>
                 <TableCell>
-                  <Button variant={isEditable ? "link" : "ghost"} className="p-0 h-auto">
+                  <Button variant={order.status === 'Asignado' ? "link" : "ghost"} className="p-0 h-auto">
                     {order.contractNumber}
                   </Button>
                 </TableCell>
                 <TableCell>{order.items.length}</TableCell>
                 <TableCell className="text-right">{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
               </TableRow>
-            ))}
+            )) : (
+                <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos.</TableCell></TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
@@ -166,40 +167,17 @@ export default function AlquilerPage() {
 
        <div className="flex flex-col h-[50vh] mb-6">
             <div className="flex gap-6 flex-grow">
-                <Card className="flex-1 bg-muted/30">
-                  <CardHeader className="pb-4">
-                      <CardTitle className="text-lg flex items-center justify-between">Asignado<Badge variant='secondary' className="text-sm">{assignedOrders.length}</Badge></CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2 h-full overflow-y-auto">
-                      {assignedOrders.map(order => (
-                          <Button key={order.id} variant="secondary" className="w-full h-auto text-left" onClick={() => router.push(`/pedidos?osId=${osId}&type=Alquiler&orderId=${order.id}`)}>
-                              <div className="p-2 w-full">
-                                  <p className="font-semibold">{order.items.length} tipo(s) de artículo</p>
-                                  <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
-                                      <span>Total: {order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-                                      {order.solicita && (
-                                          <Badge variant={order.solicita === 'Sala' ? 'default' : 'outline'} className={order.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
-                                              {order.solicita === 'Sala' ? <Users size={12} className="mr-1.5"/> : <Soup size={12} className="mr-1.5"/>}
-                                              {order.solicita}
-                                          </Badge>
-                                      )}
-                                      <Badge variant="outline">{order.contractNumber || 'N/A'}</Badge>
-                                  </div>
-                              </div>
-                          </Button>
-                      ))}
-                  </CardContent>
-              </Card>
-                {renderItemsColumn('En Preparación', itemsEnPreparacion)}
-                {renderItemsColumn('Listo', itemsListos)}
+                {renderItemsColumn('Asignado', assignedOrders.flatMap(o => o.items.map(i => ({...i, orderContract: o.contractNumber || 'N/A', orderStatus: o.status, solicita: o.solicita }))), 'Asignado')}
+                {renderItemsColumn('En Preparación', itemsEnPreparacion, 'En Preparación')}
+                {renderItemsColumn('Listo', itemsListos, 'Listo')}
            </div>
        </div>
 
        <Card>
         <CardHeader><CardTitle>Gestión de Pedidos</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-6">
-          {renderOrdersTable("Solicitado por Sala", materialOrders.filter(o => o.solicita === 'Sala'), true)}
-          {renderOrdersTable("Solicitado por Cocina", materialOrders.filter(o => o.solicita === 'Cocina'), true)}
+          {renderOrdersTable("Solicitado por Sala", materialOrders.filter(o => o.solicita === 'Sala'))}
+          {renderOrdersTable("Solicitado por Cocina", materialOrders.filter(o => o.solicita === 'Cocina'))}
         </CardContent>
        </Card>
     </>

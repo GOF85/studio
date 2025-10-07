@@ -67,7 +67,8 @@ export default function AlmacenPage() {
                 if (targetStatus === 'En Preparación') enPreparacion.push(orderInfo);
                 else if (targetStatus === 'Listo') listos.push(orderInfo);
                 
-                const materialOrderForSheet = materialOrders.find(mo => mo.id === sheet.id);
+                // Find the original MaterialOrder this picking sheet item came from
+                 const materialOrderForSheet = materialOrders.find(mo => mo.id === sheet.id);
                  if (materialOrderForSheet) {
                     pickedOrderIds.add(materialOrderForSheet.id);
                  }
@@ -75,7 +76,7 @@ export default function AlmacenPage() {
         });
     });
     
-    const assigned = materialOrders.filter(order => !pickedOrderIds.has(order.id));
+    const assigned = materialOrders.filter(order => order.status === 'Asignado' && !pickedOrderIds.has(order.id));
     
     return { assignedOrders: assigned, itemsEnPreparacion: enPreparacion, itemsListos: listos };
   }, [materialOrders, pickingSheets]);
@@ -88,7 +89,7 @@ export default function AlmacenPage() {
     <Card className="flex-1 bg-muted/30">
         <CardHeader className="pb-4 flex-row items-center justify-between">
             <CardTitle className="text-lg">{title}</CardTitle>
-            <Dialog>
+             <Dialog>
                 <DialogTrigger asChild>
                     <Button variant="outline" size="sm" disabled={items.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen</Button>
                 </DialogTrigger>
@@ -127,25 +128,27 @@ export default function AlmacenPage() {
         </CardContent>
     </Card>
   );
-  
-  const renderOrdersTable = (title: string, orders: MaterialOrder[], isEditable: boolean) => (
+
+  const renderOrdersTable = (title: string, orders: MaterialOrder[]) => (
     <div>
       <h3 className="font-semibold text-lg mb-2">{title}</h3>
       <div className="border rounded-md">
         <Table>
           <TableHeader><TableRow><TableHead>Nº Contrato</TableHead><TableHead>Artículos</TableHead><TableHead className="text-right">Importe</TableHead></TableRow></TableHeader>
           <TableBody>
-            {orders.map(order => (
-              <TableRow key={order.id} className={isEditable ? "cursor-pointer" : ""} onClick={() => isEditable && router.push(`/pedidos?osId=${osId}&type=Almacen&orderId=${order.id}`)}>
+            {orders.length > 0 ? orders.map(order => (
+              <TableRow key={order.id} className={order.status === 'Asignado' ? "cursor-pointer" : ""} onClick={() => order.status === 'Asignado' && router.push(`/pedidos?osId=${osId}&type=Almacen&orderId=${order.id}`)}>
                 <TableCell>
-                  <Button variant={isEditable ? "link" : "ghost"} className="p-0 h-auto">
+                  <Button variant={order.status === 'Asignado' ? "link" : "ghost"} className="p-0 h-auto">
                     {order.contractNumber}
                   </Button>
                 </TableCell>
                 <TableCell>{order.items.length}</TableCell>
                 <TableCell className="text-right">{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
               </TableRow>
-            ))}
+            )) : (
+                <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos.</TableCell></TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
@@ -174,8 +177,8 @@ export default function AlmacenPage() {
        <Card>
         <CardHeader><CardTitle>Gestión de Pedidos</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-6">
-          {renderOrdersTable("Solicitado por Sala", materialOrders.filter(o => o.solicita === 'Sala'), true)}
-          {renderOrdersTable("Solicitado por Cocina", materialOrders.filter(o => o.solicita === 'Cocina'), true)}
+          {renderOrdersTable("Solicitado por Sala", materialOrders.filter(o => o.solicita === 'Sala'))}
+          {renderOrdersTable("Solicitado por Cocina", materialOrders.filter(o => o.solicita === 'Cocina'))}
         </CardContent>
        </Card>
     </>
