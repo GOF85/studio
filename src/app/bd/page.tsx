@@ -27,7 +27,7 @@ type DatabaseEntry = {
 const generalDatabasesList: DatabaseEntry[] = [
     { id: '1', name: 'Personal Interno', description: 'Gestión de empleados y contactos de MICE.', itemCount: 0, path: '/personal' },
     { id: '2', name: 'Espacios', description: 'Gestión de espacios para eventos.', itemCount: 0, path: '/espacios' },
-    { id: '3', name: 'Precios (Material y Consumibles)', description: 'Gestión de precios de productos de almacén, bodega y bio.', itemCount: 0, path: '/precios' },
+    { id: '3', name: 'Artículos MICE', description: 'Gestión de artículos de Almacén, Bodega y Bio.', itemCount: 0, path: '/articulos' },
     { id: '5', name: 'Alquiler Externo', description: 'Gestión de artículos de alquiler a proveedores.', itemCount: 0, path: '/alquiler-db' },
     { id: '6', name: 'Tipo Servicio (Briefing)', description: 'Gestión de los tipos de servicio para el comercial.', itemCount: 0, path: '/tipo-servicio' },
     { id: '9', name: 'Atípicos (Conceptos)', description: 'Gestión de conceptos de gastos varios.', itemCount: 0, path: '/atipicos-db' },
@@ -68,7 +68,7 @@ export default function BdPage() {
             let count = 0;
             if (db.path === '/personal') count = countItems('personal');
             if (db.path === '/espacios') count = countItems('espacios');
-            if (db.path === '/precios') count = countItems('precios');
+            if (db.path === '/articulos') count = countItems('articulos');
             if (db.path === '/alquiler-db') count = countItems('alquilerDB');
             if (db.path === '/tipo-servicio') count = countItems('tipoServicio');
             if (db.path === '/atipicos-db') count = countItems('atipicosDB');
