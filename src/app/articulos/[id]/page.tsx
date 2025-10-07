@@ -8,6 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, Package, X, Star, Link as LinkIcon, Check, CircleX } from 'lucide-react';
+import { DialogFooter } from '@/components/ui/dialog';
 import type { ArticuloCatering, Proveedor, IngredienteERP } from '@/types';
 import { ARTICULO_CATERING_CATEGORIAS } from '@/types';
 
@@ -20,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,10 +34,10 @@ export const articuloCateringSchema = z.object({
   categoria: z.enum(ARTICULO_CATERING_CATEGORIAS, { errorMap: () => ({ message: "Categoría no válida" }) }),
   subcategoria: z.string().optional(),
   esHabitual: z.boolean().default(false),
-  precioVenta: z.coerce.number().min(0, 'Debe ser un número positivo'),
-  precioAlquiler: z.coerce.number().min(0, 'Debe ser un número positivo'),
-  precioReposicion: z.coerce.number().min(0, 'Debe ser un número positivo'),
-  stockSeguridad: z.coerce.number().optional().default(0),
+  precioVenta: z.coerce.number().min(0, 'Debe ser un número positivo').default(0),
+  precioAlquiler: z.coerce.number().min(0, 'Debe ser un número positivo').default(0),
+  precioReposicion: z.coerce.number().min(0, 'Debe ser un número positivo').default(0),
+  stockSeguridad: z.coerce.number().min(0, 'Debe ser un número positivo').default(0),
   tipo: z.string().optional(),
   loc: z.string().optional(),
   imagen: z.string().url("Debe ser una URL válida.").or(z.literal("")).optional(),
@@ -127,7 +128,7 @@ export default function ArticuloFormPage() {
             form.setValue('precioVenta', selectedErpProduct.precio);
         }
     }
-  }, [selectedErpProduct, selectedCategoria, form]);
+  }, [selectedErpProduct, selectedCategoria, form.setValue]);
 
 
   useEffect(() => {
@@ -346,3 +347,4 @@ export default function ArticuloFormPage() {
   );
 }
     
+
