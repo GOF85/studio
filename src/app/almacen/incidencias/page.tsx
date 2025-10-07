@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AlertTriangle, Search } from 'lucide-react';
-import type { PickingSheet, OrderItem, MaterialOrder, Precio, AlquilerDBItem } from '@/types';
+import type { PickingSheet, OrderItem, MaterialOrder, Precio, AlquilerDBItem, ArticuloCatering } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -23,7 +23,7 @@ type Incidencia = {
     sheetId: string;
     osId: string;
     fechaNecesidad: string;
-    item: OrderItem;
+    item: OrderItem & { orderId?: string };
     comment: string;
     requiredQty: number;
     pickedQty: number;
@@ -33,6 +33,7 @@ type CatalogItem = {
     value: string; // itemCode
     label: string; // description
     category: string;
+    price: number;
 };
 
 export default function IncidenciasPickingPage() {
@@ -68,15 +69,24 @@ export default function IncidenciasPickingPage() {
             }
         });
         
-        setIncidencias(loadedIncidencias.sort((a,b) => new Date(b.fechaNecesidad).getTime() - new Date(a.fechaNecesidad).getTime()));
+        setIncidencias(loadedIncidencias.sort((a,b) => new Date(a.fechaNecesidad).getTime() - new Date(b.fechaNecesidad).getTime()));
         
         // Cargar catálogos para reemplazo
-        const allPrecios = JSON.parse(localStorage.getItem('precios') || '[]') as Precio[];
-        const allAlquiler = JSON.parse(localStorage.getItem('alquilerDB') || '[]') as AlquilerDBItem[];
+        const allArticulos = (JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[]).map(a => ({
+            value: a.id,
+            label: a.nombre,
+            category: a.categoria,
+            price: a.precioAlquiler > 0 ? a.precioAlquiler : a.precioVenta
+        }));
+        
+        const allAlquiler = (JSON.parse(localStorage.getItem('alquilerDB') || '[]') as AlquilerDBItem[]).map(a => ({
+             value: a.id,
+             label: a.concepto,
+             category: 'Alquiler',
+             price: a.precioAlquiler
+        }));
 
-        const preciosCatalog = allPrecios.map(p => ({ value: p.id, label: p.producto, category: p.categoria }));
-        const alquilerCatalog = allAlquiler.map(a => ({ value: a.id, label: a.concepto, category: 'Alquiler' }));
-        setCatalog([...preciosCatalog, ...alquilerCatalog]);
+        setCatalog([...allArticulos, ...allAlquiler]);
 
         setIsMounted(true);
     }, []);
@@ -84,8 +94,22 @@ export default function IncidenciasPickingPage() {
     const handleAcceptMerma = () => {
         if (!resolvingIncident) return;
         
-        // Esta es una simulación. En una app real, aquí se modificaría el pedido original.
-        // Por ahora, marcaremos la incidencia como resuelta en el picking sheet.
+        const { item, pickedQty } = resolvingIncident;
+        const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+        const orderIndex = allMaterialOrders.findIndex(o => o.id === item.orderId);
+
+        if (orderIndex > -1) {
+            const orderToUpdate = allMaterialOrders[orderIndex];
+            const itemIndex = orderToUpdate.items.findIndex(i => i.itemCode === item.itemCode);
+
+            if (itemIndex > -1) {
+                orderToUpdate.items[itemIndex].quantity = pickedQty;
+                // Recalculate total if needed
+                orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + (current.price * current.quantity), 0);
+            }
+             localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
+        }
+
         const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
         const sheet = allSheets[resolvingIncident.sheetId];
         if (sheet && sheet.itemStates[resolvingIncident.item.itemCode]) {
@@ -96,12 +120,14 @@ export default function IncidenciasPickingPage() {
             setIncidencias(prev => prev.filter(inc => !(inc.sheetId === resolvingIncident.sheetId && inc.item.itemCode === resolvingIncident.item.itemCode)));
             setResolvingIncident(null);
             
-            toast({ title: "Merma Aceptada", description: "La incidencia ha sido marcada como resuelta y el pedido se considera ajustado." });
+            toast({ title: "Merma Aceptada", description: "La incidencia ha sido marcada como resuelta y el pedido original se ha ajustado." });
+        } else {
+             toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la hoja de picking para resolver la incidencia.' });
         }
     };
     
     const handleCreateReplacementOrder = () => {
-        if (!resolvingIncident || !replacementItem) return;
+        if (!resolvingIncident || !replacementItem?.itemCode) return;
         
         const selectedCatalogItem = catalog.find(c => c.value === replacementItem.itemCode);
         if (!selectedCatalogItem) {
@@ -118,15 +144,16 @@ export default function IncidenciasPickingPage() {
                 itemCode: selectedCatalogItem.value,
                 description: selectedCatalogItem.label,
                 quantity: replacementItem.quantity,
-                price: 0, // El precio debería obtenerse del catálogo
+                price: selectedCatalogItem.price,
                 stock: 0,
                 imageUrl: '',
                 imageHint: '',
                 category: selectedCatalogItem.category,
             }],
-            days: 1, // O lo que corresponda
-            total: 0, // Calcular precio
+            days: 1, 
+            total: selectedCatalogItem.price * replacementItem.quantity,
             contractNumber: `SUST-${resolvingIncident.sheetId}`,
+            solicita: resolvingIncident.item.solicita
         };
 
         const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
@@ -147,6 +174,11 @@ export default function IncidenciasPickingPage() {
 
         toast({ title: "Pedido de Sustitución Creado", description: "Una nueva necesidad ha sido creada y aparecerá en Planificación de Almacén." });
     };
+    
+    const filteredCatalog = useMemo(() => {
+        if (!resolvingIncident?.item.type) return catalog;
+        return catalog.filter(c => c.category === resolvingIncident.item.type);
+    }, [resolvingIncident, catalog]);
 
     const filteredIncidencias = useMemo(() => {
         return incidencias.filter(inc => 
@@ -232,7 +264,7 @@ export default function IncidenciasPickingPage() {
                         <div className="space-y-3">
                             <h4 className="font-semibold">Opción A: Aceptar Merma</h4>
                             <p className="text-sm text-muted-foreground">
-                                Se aceptará la cantidad recogida como final. La diferencia se considerará una merma y el pedido original se ajustará para reflejar el coste real.
+                                Se aceptará la cantidad recogida como final. La diferencia se considerará una merma y el pedido original se ajustará para reflejar la cantidad real.
                             </p>
                             <Button variant="destructive" onClick={handleAcceptMerma}>Confirmar Merma y Ajustar Pedido</Button>
                         </div>
@@ -244,9 +276,9 @@ export default function IncidenciasPickingPage() {
                             <div className="space-y-2">
                                 <Label>Artículo de sustitución</Label>
                                 <Combobox 
-                                    options={catalog}
+                                    options={filteredCatalog}
                                     value={replacementItem?.itemCode || ''}
-                                    onChange={(value) => setReplacementItem(prev => ({...prev, itemCode: value, quantity: prev?.quantity || 1}))}
+                                    onChange={(value) => setReplacementItem(prev => ({...prev, itemCode: value, quantity: prev?.quantity || (resolvingIncident?.requiredQty || 1) - (resolvingIncident?.pickedQty || 0) }))}
                                     placeholder="Buscar en catálogo..."
                                     searchPlaceholder="Buscar artículo..."
                                 />
