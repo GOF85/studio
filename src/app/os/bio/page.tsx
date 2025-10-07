@@ -23,7 +23,6 @@ type ItemWithOrderInfo = OrderItem & {
   orderId: string;
   orderStatus: PickingSheet['status'];
   solicita?: 'Sala' | 'Cocina';
-  tipo?: string;
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -74,6 +73,7 @@ export default function BioPage() {
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
+                    tipo: item.tipo,
                 });
                 keys.add(uniqueKey);
             }
@@ -90,6 +90,7 @@ export default function BioPage() {
                     orderContract: order.contractNumber || 'N/A',
                     orderStatus: 'Pendiente', 
                     solicita: order.solicita,
+                    tipo: item.tipo,
                 });
             }
         });
@@ -98,12 +99,14 @@ export default function BioPage() {
   }, [materialOrders, pickingSheets]);
 
   const { allItems, blockedItems, pendingItems } = useMemo(() => {
-    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
+    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo })));
     const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    
     const pending = all.filter(item => {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
       return !processedItemKeys.has(uniqueKey);
     });
+
     return { allItems: all, blockedItems: blocked, pendingItems: pending };
   }, [materialOrders, allItemsByStatus, processedItemKeys]);
 
@@ -351,4 +354,3 @@ export default function BioPage() {
     </>
   );
 }
-

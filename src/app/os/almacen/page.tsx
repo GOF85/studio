@@ -23,7 +23,6 @@ type ItemWithOrderInfo = OrderItem & {
   orderId: string;
   orderStatus: PickingSheet['status'];
   solicita?: 'Sala' | 'Cocina';
-  tipo?: string;
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -58,7 +57,7 @@ export default function AlmacenPage() {
 
     setIsMounted(true);
   }, [osId]);
-  
+
   const { allItemsByStatus, processedItemKeys } = useMemo(() => {
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const keys = new Set<string>();
@@ -81,10 +80,7 @@ export default function AlmacenPage() {
         });
     });
 
-    const allOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const relatedOrders = allOrders.filter(order => order.osId === osId && order.type === 'Almacen');
-
-    relatedOrders.forEach(order => {
+    materialOrders.forEach(order => {
         order.items.forEach(item => {
             const uniqueKey = `${order.id}-${item.itemCode}`;
             if (!keys.has(uniqueKey)) {
@@ -100,16 +96,17 @@ export default function AlmacenPage() {
         });
     });
     return { allItemsByStatus: items, processedItemKeys: keys };
-  }, [materialOrders, pickingSheets, osId]);
-
+  }, [materialOrders, pickingSheets]);
 
   const { allItems, blockedItems, pendingItems } = useMemo(() => {
     const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo })));
     const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    
     const pending = all.filter(item => {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
       return !processedItemKeys.has(uniqueKey);
     });
+
     return { allItems: all, blockedItems: blocked, pendingItems: pending };
   }, [materialOrders, allItemsByStatus, processedItemKeys]);
 
@@ -318,7 +315,7 @@ export default function AlmacenPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                     <TableCell><Badge variant="outline">{materialOrders.find(o=>o.id === item.orderId)?.contractNumber}</Badge></TableCell>
+                                     <TableCell><Badge variant="outline">{item.contractNumber}</Badge></TableCell>
                                     <TableCell>
                                         <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'quantity', parseInt(e.target.value) || 0)} className="h-8"/>
                                     </TableCell>
