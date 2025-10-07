@@ -151,24 +151,26 @@ aparcamiento: string;
   comentariosMarketing: string;
 }
 
-export const PRECIO_CATEGORIAS = ['BODEGA', 'Menaje', 'Vajilla', 'Cristalería', 'Mantelería', 'Mobiliario', 'Decoración', 'Maquinaria', 'Transporte', 'Hielo'] as const;
-export type PrecioCategoria = typeof PRECIO_CATEGORIAS[number];
+export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacén', 'Bio'] as const;
+export type ArticuloCateringCategoria = typeof ARTICULO_CATERING_CATEGORIAS[number];
 
-export type Precio = {
+export type ArticuloCatering = {
     id: string;
-    producto: string;
-    categoria: PrecioCategoria;
+    erpId?: string;
+    nombre: string;
+    categoria: ArticuloCateringCategoria;
+    subcategoria?: string;
+    esHabitual?: boolean;
+    precioVenta: number;
+    precioAlquiler: number;
+    precioReposicion: number;
     loc: string;
-    precioUd: number;
-    precioAlquilerUd: number;
-    pvp: number;
-    iva: number;
     imagen: string;
-    isDeliveryProduct?: boolean;
 }
 
 export type AlquilerDBItem = {
   id: string;
+  proveedorId: string;
   concepto: string;
   precioAlquiler: number;
   precioReposicion: number;
@@ -806,6 +808,3 @@ export type ComercialAjuste = {
     concepto: string;
     importe: number;
 }
-
-    
-    
