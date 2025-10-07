@@ -23,8 +23,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/lib/utils';
-import { Textarea } from '@/components/ui/textarea';
-
 
 export const articuloCateringSchema = z.object({
   id: z.string(),
@@ -33,10 +31,10 @@ export const articuloCateringSchema = z.object({
   categoria: z.enum(ARTICULO_CATERING_CATEGORIAS, { errorMap: () => ({ message: "Categoría no válida" }) }),
   subcategoria: z.string().optional(),
   esHabitual: z.boolean().default(false),
-  precioVenta: z.coerce.number().min(0, 'Debe ser un número positivo').default(0),
-  precioAlquiler: z.coerce.number().min(0, 'Debe ser un número positivo').default(0),
-  precioReposicion: z.coerce.number().min(0, 'Debe ser un número positivo').default(0),
-  stockSeguridad: z.coerce.number().min(0, 'Debe ser un número positivo').default(0),
+  precioVenta: z.coerce.number().default(0),
+  precioAlquiler: z.coerce.number().default(0),
+  precioReposicion: z.coerce.number().default(0),
+  stockSeguridad: z.coerce.number().default(0),
   tipo: z.string().optional(),
   loc: z.string().optional(),
   imagen: z.string().url("Debe ser una URL válida.").or(z.literal("")).optional(),
@@ -109,9 +107,10 @@ export default function ArticuloFormPage() {
     defaultValues,
   });
   
-  const {setValue, reset} = form;
+  const { setValue, reset, getValues } = form;
   const selectedErpId = form.watch('erpId');
   const selectedCategoria = form.watch('categoria');
+  
   const selectedErpProduct = useMemo(() => ingredientesERP.find(p => p.id === selectedErpId), [ingredientesERP, selectedErpId]);
   
   const filteredErpProducts = useMemo(() => {
@@ -122,17 +121,9 @@ export default function ArticuloFormPage() {
     );
   }, [ingredientesERP, erpSearchTerm]);
   
-  const selectedErpProductRef = React.useRef(selectedErpProduct);
-  const selectedCategoriaRef = React.useRef(selectedCategoria);
-  
   useEffect(() => {
-      selectedErpProductRef.current = selectedErpProduct;
-      selectedCategoriaRef.current = selectedCategoria;
-  }, [selectedErpProduct, selectedCategoria]);
-
-  useEffect(() => {
-    const currentErpProduct = selectedErpProductRef.current;
-    const currentCategoria = selectedCategoriaRef.current;
+    const currentErpProduct = selectedErpProduct;
+    const currentCategoria = selectedCategoria;
     if (currentErpProduct) {
         setValue('tipo', currentErpProduct.tipo, { shouldDirty: true });
         if (currentCategoria === 'Almacen') {
@@ -141,7 +132,7 @@ export default function ArticuloFormPage() {
             setValue('precioVenta', currentErpProduct.precio, { shouldDirty: true });
         }
     }
-  }, [selectedErpId, setValue, selectedCategoria]);
+  }, [selectedErpProduct, selectedCategoria, setValue]);
 
 
   useEffect(() => {
@@ -237,7 +228,7 @@ export default function ArticuloFormPage() {
                     )} />
                     <FormField control={form.control} name="categoria" render={({ field }) => (
                         <FormItem><FormLabel>Categoría</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger></FormControl>
                             <SelectContent>{ARTICULO_CATERING_CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                         </Select>
@@ -357,3 +348,5 @@ export default function ArticuloFormPage() {
     </>
   );
 }
+
+    

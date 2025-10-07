@@ -1,10 +1,9 @@
 
-
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { OrderItem, CateringItem, MaterialOrder, ServiceOrder, AlquilerDBItem, Precio, PedidoPlantilla } from '@/types';
+import type { OrderItem, CateringItem, MaterialOrder, ServiceOrder, AlquilerDBItem, Precio, PedidoPlantilla, ArticuloCatering } from '@/types';
 import { ItemCatalog } from '@/components/catalog/item-catalog';
 import { OrderSummary, type ExistingOrderData } from '@/components/order/order-summary';
 import { useToast } from '@/hooks/use-toast';
@@ -12,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { FilePlus2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
-type CatalogSourceItem = CateringItem | (Omit<AlquilerDBItem, 'precioReposicion' | 'precioAlquiler' | 'imagen'> & { price: number; description: string; stock: number; itemCode: string; imageUrl: string; imageHint: string; category: string });
+type CatalogSourceItem = CateringItem;
 
 export default function PedidosPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -36,7 +35,6 @@ export default function PedidosPage() {
       setServiceOrder(currentOS || null);
     }
     
-    const allPrecios = JSON.parse(localStorage.getItem('precios') || '[]') as Precio[];
     let itemsToLoad: CateringItem[] = [];
 
     if (orderType === 'Alquiler') {
@@ -51,22 +49,17 @@ export default function PedidosPage() {
         category: 'Alquiler',
       }));
     } else if (orderType) {
-        const categoryMap = {
-            'Almacen': 'Almacen',
-            'Bodega': 'BODEGA',
-            'Bio': 'Consumibles',
-        }
-        const filterCategory = categoryMap[orderType as keyof typeof categoryMap] || 'Varios';
+        const allArticulos = JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[];
         
-        itemsToLoad = allPrecios
-            .filter(p => p.categoria === filterCategory)
+        itemsToLoad = allArticulos
+            .filter(p => p.categoria === orderType)
             .map(p => ({
                 itemCode: p.id,
-                description: p.producto,
-                price: orderType === 'Bodega' ? p.precioUd : p.precioAlquilerUd,
-                stock: 999, // Assuming infinite stock from external providers
+                description: p.nombre,
+                price: p.precioAlquiler > 0 ? p.precioAlquiler : p.precioVenta,
+                stock: 999,
                 imageUrl: p.imagen || `https://picsum.photos/seed/${p.id}/400/300`,
-                imageHint: p.producto.toLowerCase(),
+                imageHint: p.nombre.toLowerCase(),
                 category: p.categoria,
             }));
     }
@@ -86,6 +79,7 @@ export default function PedidosPage() {
             deliveryDate: orderToEdit.deliveryDate,
             deliverySpace: orderToEdit.deliverySpace,
             deliveryLocation: orderToEdit.deliveryLocation,
+            solicita: orderToEdit.solicita
         });
       }
     }
@@ -165,6 +159,7 @@ export default function PedidosPage() {
     deliveryDate?: string;
     deliverySpace?: string;
     deliveryLocation?: string;
+    solicita?: 'Sala' | 'Cocina';
   }) => {
     if (!osId || !orderType) {
         toast({ variant: 'destructive', title: 'Error', description: 'Falta información de la Orden de Servicio.' });
@@ -269,3 +264,5 @@ export default function PedidosPage() {
     </div>
   );
 }
+
+    
