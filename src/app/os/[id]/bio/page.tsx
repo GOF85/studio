@@ -58,33 +58,15 @@ export default function BioPage() {
     setIsMounted(true);
   }, [osId]);
 
-  const allItems = useMemo(() => {
-    return materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
-  }, [materialOrders]);
-
-  const { processedItemKeys } = useMemo(() => {
-    const keys = new Set<string>();
-    pickingSheets.forEach(sheet => {
-        sheet.items.forEach(item => {
-            if(item.type === 'Bio') {
-                keys.add(`${item.orderId}-${item.itemCode}`);
-            }
-        })
-    })
-    return { processedItemKeys: keys };
-  }, [pickingSheets]);
-
   const allItemsByStatus = useMemo(() => {
-    const items: Record<StatusColumn, ItemWithOrderInfo[]> = {
-      Asignado: [],
-      'En Preparación': [],
-      Listo: [],
-    };
-    
+    const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
+    const processedItemKeys = new Set<string>();
+
     pickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
             if (item.type === 'Bio') {
+                const uniqueKey = `${item.orderId}-${item.itemCode}`;
                 items[targetStatus].push({
                     ...item,
                     orderId: sheet.id,
@@ -92,26 +74,35 @@ export default function BioPage() {
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
                 });
+                processedItemKeys.add(uniqueKey);
             }
         });
     });
 
     materialOrders.forEach(order => {
         order.items.forEach(item => {
-            const itemKey = `${order.id}-${item.itemCode}`;
-            if (!processedItemKeys.has(itemKey)) {
+            const uniqueKey = `${order.id}-${item.itemCode}`;
+            if (!processedItemKeys.has(uniqueKey)) {
                 items['Asignado'].push({
                     ...item,
                     orderId: order.id,
                     orderContract: order.contractNumber || 'N/A',
-                    orderStatus: 'Pendiente',
+                    orderStatus: 'Pendiente', 
                     solicita: order.solicita,
                 });
             }
         });
     });
     return items;
-  }, [materialOrders, pickingSheets, processedItemKeys]);
+  }, [materialOrders, pickingSheets]);
+
+  const { allItems, blockedItems, pendingItems } = useMemo(() => {
+    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
+    const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    const pending = allItemsByStatus['Asignado'];
+    return { allItems: all, blockedItems: blocked, pendingItems: pending };
+  }, [materialOrders, allItemsByStatus]);
+
 
   const handleSaveAll = () => {
     setIsLoading(true);
@@ -160,11 +151,6 @@ export default function BioPage() {
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
   };
-  
-  const blockedItems = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
-  const pendingItems = allItems.filter(item => {
-    return allItemsByStatus['Asignado'].some(assigned => assigned.itemCode === item.itemCode && assigned.orderId === item.orderId)
-  });
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Bio..." />;
@@ -206,17 +192,36 @@ export default function BioPage() {
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader><DialogTitle>Resumen de Artículos de Bio</DialogTitle></DialogHeader>
-                <Table>
-                    <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad Total</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {Object.entries(allItems.reduce((acc, item) => {
-                            acc[item.description] = (acc[item.description] || 0) + item.quantity;
-                            return acc;
-                        }, {} as Record<string, number>)).map(([desc, qty]) => (
-                            <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                 <div className="space-y-4">
+                    <div>
+                        <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {Object.entries(pendingItems.reduce((acc, item) => {
+                                    acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                    return acc;
+                                }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                    <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                     <div>
+                        <h3 className="font-semibold mb-2">Artículos en Proceso / Listos</h3>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {Object.entries(blockedItems.reduce((acc, item) => {
+                                    acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                    return acc;
+                                }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                    <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </div>
             </DialogContent>
         </Dialog>
         <Button asChild>
@@ -245,10 +250,10 @@ export default function BioPage() {
                 <Collapsible defaultOpen={false}>
                     <div className="flex items-center gap-2 font-semibold text-destructive border p-2 rounded-md hover:bg-muted/50 mb-4">
                         <CollapsibleTrigger asChild>
-                            <div className="flex flex-1 items-center cursor-pointer">
-                                <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                                Bloqueado (En Preparación / Listo)
-                            </div>
+                           <div className="flex-1 flex items-center cursor-pointer">
+                             <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                             Bloqueado (En Preparación / Listo)
+                           </div>
                         </CollapsibleTrigger>
                     </div>
                     <CollapsibleContent>

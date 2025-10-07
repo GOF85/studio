@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, MoreHorizontal, Pencil } from 'lucide-react';
+import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2 } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,13 +17,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -65,23 +58,15 @@ export default function AlmacenPage() {
     setIsMounted(true);
   }, [osId]);
 
-  const allItems = useMemo(() => {
-    return materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
-  }, [materialOrders]);
-
   const allItemsByStatus = useMemo(() => {
-    const items: Record<StatusColumn, ItemWithOrderInfo[]> = {
-      Asignado: [],
-      'En Preparación': [],
-      Listo: [],
-    };
-    
+    const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
 
     pickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
             if (item.type === 'Almacen') {
+                const uniqueKey = `${item.orderId}-${item.itemCode}`;
                 items[targetStatus].push({
                     ...item,
                     orderId: sheet.id,
@@ -89,20 +74,20 @@ export default function AlmacenPage() {
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
                 });
-                processedItemKeys.add(`${item.orderId}-${item.itemCode}`);
+                processedItemKeys.add(uniqueKey);
             }
         });
     });
 
     materialOrders.forEach(order => {
         order.items.forEach(item => {
-            const itemKey = `${order.id}-${item.itemCode}`;
-            if (!processedItemKeys.has(itemKey)) {
+            const uniqueKey = `${order.id}-${item.itemCode}`;
+            if (!processedItemKeys.has(uniqueKey)) {
                 items['Asignado'].push({
                     ...item,
                     orderId: order.id,
                     orderContract: order.contractNumber || 'N/A',
-                    orderStatus: 'Pendiente',
+                    orderStatus: 'Pendiente', 
                     solicita: order.solicita,
                 });
             }
@@ -110,6 +95,14 @@ export default function AlmacenPage() {
     });
     return items;
   }, [materialOrders, pickingSheets]);
+
+  const { allItems, blockedItems, pendingItems } = useMemo(() => {
+    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
+    const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    const pending = allItemsByStatus['Asignado'];
+    return { allItems: all, blockedItems: blocked, pendingItems: pending };
+  }, [materialOrders, allItemsByStatus]);
+
 
   const handleSaveAll = () => {
     setIsLoading(true);
@@ -182,36 +175,13 @@ export default function AlmacenPage() {
                                 {item.solicita}
                             </Badge>
                         ) : <span></span>}
-                        {title !== 'Asignado' && <Badge variant="outline">{item.orderContract}</Badge>}
+                        <Badge variant="outline">{item.orderContract}</Badge>
                     </div>
                 </Card>
             )) : <p className="text-sm text-muted-foreground text-center py-4">No hay artículos.</p>}
         </CardContent>
     </Card>
   );
-
-  const blockedItems = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
-  const pendingItems = materialOrders.filter(order =>
-    order.items.some(item =>
-        !processedItemKeys.has(`${order.id}-${item.itemCode}`)
-    )
-  ).flatMap(order => 
-      order.items
-          .filter(item => !processedItemKeys.has(`${order.id}-${item.itemCode}`))
-          .map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita }))
-  );
-  const { processedItemKeys } = useMemo(() => {
-    const keys = new Set<string>();
-    pickingSheets.forEach(sheet => {
-        sheet.items.forEach(item => {
-            if(item.type === 'Almacen') {
-                keys.add(`${item.orderId}-${item.itemCode}`);
-            }
-        })
-    })
-    return { processedItemKeys: keys };
-  }, [pickingSheets]);
-
 
   return (
     <>
@@ -222,17 +192,36 @@ export default function AlmacenPage() {
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader><DialogTitle>Resumen de Artículos de Almacén</DialogTitle></DialogHeader>
-                <Table>
-                    <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad Total</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {Object.entries(allItems.reduce((acc, item) => {
-                            acc[item.description] = (acc[item.description] || 0) + item.quantity;
-                            return acc;
-                        }, {} as Record<string, number>)).map(([desc, qty]) => (
-                            <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                <div className="space-y-4">
+                    <div>
+                        <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {Object.entries(pendingItems.reduce((acc, item) => {
+                                    acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                    return acc;
+                                }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                    <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                     <div>
+                        <h3 className="font-semibold mb-2">Artículos en Proceso / Listos</h3>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {Object.entries(blockedItems.reduce((acc, item) => {
+                                    acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                    return acc;
+                                }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                    <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </div>
             </DialogContent>
         </Dialog>
         <Button asChild>
@@ -259,12 +248,12 @@ export default function AlmacenPage() {
             </div>
             <CardContent>
                 <Collapsible defaultOpen={false}>
-                     <div className="flex items-center gap-2 font-semibold text-destructive border p-2 rounded-md hover:bg-muted/50 mb-4">
+                    <div className="flex items-center gap-2 font-semibold text-destructive border p-2 rounded-md hover:bg-muted/50 mb-4">
                         <CollapsibleTrigger asChild>
-                            <div className="flex flex-1 items-center cursor-pointer">
-                                <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                                Bloqueado (En Preparación / Listo)
-                            </div>
+                           <div className="flex-1 flex items-center cursor-pointer">
+                             <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                             Bloqueado (En Preparación / Listo)
+                           </div>
                         </CollapsibleTrigger>
                     </div>
                     <CollapsibleContent>
