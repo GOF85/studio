@@ -10,6 +10,7 @@ export type CateringItem = {
   imageUrl: string;
   imageHint: string;
   category: string;
+  tipo?: string;
 };
 
 export type OrderItem = CateringItem & {

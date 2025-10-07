@@ -4,21 +4,28 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Users, Soup } from 'lucide-react';
+import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2 } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
+  orderId: string;
   orderStatus: PickingSheet['status'];
   solicita?: 'Sala' | 'Cocina';
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
-
 
 const statusMap: Record<PickingSheet['status'], StatusColumn> = {
     'Pendiente': 'En Preparación',
@@ -30,10 +37,13 @@ export default function BodegaPage() {
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [pickingSheets, setPickingSheets] = useState<PickingSheet[]>([]);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!osId) return;
@@ -49,35 +59,35 @@ export default function BodegaPage() {
   }, [osId]);
 
   const allItemsByStatus = useMemo(() => {
-    const items: Record<StatusColumn, ItemWithOrderInfo[]> = {
-      Asignado: [],
-      'En Preparación': [],
-      Listo: [],
-    };
-    
-    const pickedItemCodes = new Set<string>();
+    const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
+    const processedItemKeys = new Set<string>();
+
     pickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
-             if (item.type === 'Bodega') {
-                 items[targetStatus].push({
+            if (item.type === 'Bodega') {
+                const uniqueKey = `${item.orderId}-${item.itemCode}`;
+                items[targetStatus].push({
                     ...item,
+                    orderId: sheet.id,
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
                 });
-                pickedItemCodes.add(item.itemCode);
+                processedItemKeys.add(uniqueKey);
             }
         });
     });
 
     materialOrders.forEach(order => {
         order.items.forEach(item => {
-            if (!pickedItemCodes.has(item.itemCode)) {
+            const uniqueKey = `${order.id}-${item.itemCode}`;
+            if (!processedItemKeys.has(uniqueKey)) {
                 items['Asignado'].push({
                     ...item,
+                    orderId: order.id,
                     orderContract: order.contractNumber || 'N/A',
-                    orderStatus: 'Pendiente',
+                    orderStatus: 'Pendiente', 
                     solicita: order.solicita,
                 });
             }
@@ -86,17 +96,72 @@ export default function BodegaPage() {
     return items;
   }, [materialOrders, pickingSheets]);
 
+  const { allItems, blockedItems, pendingItems } = useMemo(() => {
+    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
+    const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    const pending = allItemsByStatus['Asignado'];
+    return { allItems: all, blockedItems: blocked, pendingItems: pending };
+  }, [materialOrders, allItemsByStatus]);
+
+
+  const handleSaveAll = () => {
+    setIsLoading(true);
+    let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    
+    materialOrders.forEach(localOrder => {
+      const index = allMaterialOrders.findIndex(o => o.id === localOrder.id);
+      if (index !== -1) {
+        allMaterialOrders[index] = localOrder;
+      }
+    });
+
+    localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
+    toast({ title: 'Guardado', description: 'Todos los cambios en los pedidos han sido guardados.' });
+    setIsLoading(false);
+  }
+
+  const handleItemChange = (orderId: string, itemCode: string, field: 'quantity' | 'solicita', value: any) => {
+    setMaterialOrders(prevOrders => {
+      return prevOrders.map(order => {
+        if (order.id === orderId) {
+            if (field === 'solicita') {
+                 return { ...order, solicita: value };
+            }
+          const updatedItems = order.items
+            .map(item => item.itemCode === itemCode ? { ...item, [field]: value } : item)
+            .filter(item => item.quantity > 0);
+          const updatedTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+          return { ...order, items: updatedItems, total: updatedTotal };
+        }
+        return order;
+      });
+    });
+  };
+
+  const handleDeleteItem = (orderId: string, itemCode: string) => {
+    handleItemChange(orderId, itemCode, 'quantity', 0);
+  }
+
+  const handleDeleteOrder = () => {
+    if (!orderToDelete) return;
+    let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
+    localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
+    setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Bodega'));
+    toast({ title: 'Pedido de material eliminado' });
+    setOrderToDelete(null);
+  };
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Bodega..." />;
   }
-  
-  const renderColumn = (title: string, items: ItemWithOrderInfo[], columnType: StatusColumn) => (
+
+  const renderColumn = (title: string, items: ItemWithOrderInfo[]) => (
     <Card className="flex-1 bg-muted/30">
         <CardHeader className="pb-4">
             <CardTitle className="text-lg flex items-center justify-between">
                 {title}
-                <Badge variant={columnType === 'Listo' ? 'default' : 'secondary'} className="text-sm">{items.length}</Badge>
+                <Badge variant={title === 'Listo' ? 'default' : 'secondary'} className="text-sm">{items.length}</Badge>
             </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -104,15 +169,15 @@ export default function BodegaPage() {
                 <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
                     <p className="font-semibold truncate">{item.quantity} x {item.description}</p>
                     <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                         {item.solicita ? (
+                        {item.solicita ? (
                             <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
                                 {item.solicita === 'Sala' ? <Users size={10} className="mr-1"/> : <Soup size={10} className="mr-1"/>}
                                 {item.solicita}
                             </Badge>
                         ) : <span></span>}
-                        <div className="flex items-center gap-2">
-                            <Badge variant="outline">{item.category}</Badge>
-                            {columnType !== 'Asignado' && <Badge variant="outline">{item.orderContract}</Badge>}
+                         <div className="flex items-center gap-2">
+                            {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
+                            <Badge variant="outline">{item.orderContract}</Badge>
                         </div>
                     </div>
                 </Card>
@@ -123,7 +188,45 @@ export default function BodegaPage() {
 
   return (
     <>
-      <div className="flex items-center justify-end mb-4">
+      <div className="flex items-center justify-between mb-4">
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Resumen de Artículos de Bodega</DialogTitle></DialogHeader>
+                <div className="space-y-4">
+                    <div>
+                        <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {Object.entries(pendingItems.reduce((acc, item) => {
+                                    acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                    return acc;
+                                }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                    <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                     <div>
+                        <h3 className="font-semibold mb-2">Artículos en Proceso / Listos</h3>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {Object.entries(blockedItems.reduce((acc, item) => {
+                                    acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                    return acc;
+                                }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                    <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
         <Button asChild>
           <Link href={`/pedidos?osId=${osId}&type=Bodega`}>
             <PlusCircle className="mr-2" />
@@ -131,12 +234,116 @@ export default function BodegaPage() {
           </Link>
         </Button>
       </div>
-
-       <div className="grid md:grid-cols-3 gap-6">
-            {renderColumn('Asignado', allItemsByStatus['Asignado'], 'Asignado')}
-            {renderColumn('En Preparación', allItemsByStatus['En Preparación'], 'En Preparación')}
-            {renderColumn('Listo', allItemsByStatus['Listo'], 'Listo')}
+      
+       <div className="grid md:grid-cols-3 gap-6 mb-8">
+            {renderColumn('Asignado', allItemsByStatus['Asignado'])}
+            {renderColumn('En Preparación', allItemsByStatus['En Preparación'])}
+            {renderColumn('Listo', allItemsByStatus['Listo'])}
        </div>
+
+        <Card>
+            <div className="flex items-center justify-between p-4">
+                <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
+                <Button onClick={handleSaveAll} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                    <span className="ml-2">Guardar Cambios</span>
+                </Button>
+            </div>
+            <CardContent>
+                <Collapsible defaultOpen={false}>
+                    <div className="flex items-center gap-2 font-semibold text-destructive border p-2 rounded-md hover:bg-muted/50 mb-4">
+                        <CollapsibleTrigger asChild>
+                           <div className="flex-1 flex items-center cursor-pointer">
+                             <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                             Bloqueado (En Preparación / Listo)
+                           </div>
+                        </CollapsibleTrigger>
+                    </div>
+                    <CollapsibleContent>
+                         <div className="border rounded-lg mb-6">
+                             <Table>
+                                <TableHeader>
+                                    <TableRow><TableHead>Contrato</TableHead><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead><TableHead>Solicita</TableHead></TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {blockedItems.map((item, index) => (
+                                        <TableRow key={index} className="bg-muted/20">
+                                            <TableCell><Badge variant="secondary">{item.orderContract}</Badge></TableCell>
+                                            <TableCell>{item.description}</TableCell>
+                                            <TableCell>{item.quantity}</TableCell>
+                                            <TableCell>{item.solicita}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {blockedItems.length === 0 && (
+                                        <TableRow><TableCell colSpan={4} className="h-20 text-center text-muted-foreground">No hay artículos bloqueados.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                             </Table>
+                         </div>
+                    </CollapsibleContent>
+                </Collapsible>
+                
+                <h3 className="font-semibold text-lg my-2 text-green-700">Pendiente (Asignado)</h3>
+                <div className="border rounded-lg">
+                    <Table>
+                         <TableHeader>
+                            <TableRow>
+                                <TableHead>Artículo</TableHead>
+                                <TableHead>Solicita</TableHead>
+                                <TableHead>Contrato</TableHead>
+                                <TableHead className="w-32">Cantidad</TableHead>
+                                <TableHead className="text-right w-12"></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
+                                <TableRow key={item.itemCode + item.orderId}>
+                                    <TableCell>{item.description}</TableCell>
+                                    <TableCell>
+                                        <Select value={item.solicita} onValueChange={(value: 'Sala' | 'Cocina') => handleItemChange(item.orderId, item.itemCode, 'solicita', value)}>
+                                            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Sala">Sala</SelectItem>
+                                                <SelectItem value="Cocina">Cocina</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </TableCell>
+                                     <TableCell><Badge variant="outline">{materialOrders.find(o=>o.id === item.orderId)?.contractNumber}</Badge></TableCell>
+                                    <TableCell>
+                                        <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'quantity', parseInt(e.target.value) || 0)} className="h-8"/>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteItem(item.orderId, item.itemCode)}><Trash2 className="h-4 w-4"/></Button>
+                                    </TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+
+       <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
+            <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                Esta acción no se puede deshacer. Se eliminará el pedido de material.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90"
+                onClick={handleDeleteOrder}
+                >
+                Eliminar
+                </AlertDialogAction>
+            </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </>
   );
 }

@@ -176,7 +176,7 @@ export default function AlmacenPage() {
                             </Badge>
                         ) : <span></span>}
                          <div className="flex items-center gap-2">
-                            <Badge variant="outline">{item.category}</Badge>
+                            {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
                             <Badge variant="outline">{item.orderContract}</Badge>
                         </div>
                     </div>

@@ -61,6 +61,7 @@ export default function PedidosPage() {
                 imageUrl: p.imagen || `https://picsum.photos/seed/${p.id}/400/300`,
                 imageHint: p.nombre.toLowerCase(),
                 category: p.categoria,
+                tipo: p.tipo,
             }));
     }
     setCatalogItems(itemsToLoad);
@@ -264,5 +265,3 @@ export default function PedidosPage() {
     </div>
   );
 }
-
-    
