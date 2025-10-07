@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Users, Soup, MoreHorizontal, Pencil, Trash2, Eye } from 'lucide-react';
+import { PlusCircle, Users, Soup, MoreHorizontal, Pencil, Trash2, Eye, ChevronDown } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,22 +13,9 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
 
 
 type ItemWithOrderInfo = OrderItem & {
@@ -111,21 +98,48 @@ export default function AlquilerPage() {
     return items;
   }, [materialOrders, pickingSheets]);
 
-  const handleDelete = () => {
-    if (!orderToDelete) return;
+  const updateOrder = (orderId: string, updatedItems: OrderItem[]) => {
+    const allOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    const orderIndex = allOrders.findIndex(o => o.id === orderId);
+    
+    if (orderIndex > -1) {
+      allOrders[orderIndex].items = updatedItems;
+      allOrders[orderIndex].total = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      localStorage.setItem('materialOrders', JSON.stringify(allOrders));
+      setMaterialOrders(prev => prev.map(o => o.id === orderId ? allOrders[orderIndex] : o));
+    }
+  }
 
+  const handleQuantityChange = (orderId: string, itemCode: string, quantity: number) => {
+    const order = materialOrders.find(o => o.id === orderId);
+    if (!order) return;
+    
+    const newItems = order.items.map(item => 
+      item.itemCode === itemCode ? { ...item, quantity: Math.max(0, quantity) } : item
+    ).filter(item => item.quantity > 0);
+
+    updateOrder(orderId, newItems);
+    toast({ title: 'Cantidad actualizada', description: 'El cambio se guardará automáticamente.' });
+  }
+
+  const handleDeleteItem = (orderId: string, itemCode: string) => {
+    const order = materialOrders.find(o => o.id === orderId);
+    if (!order) return;
+    
+    const newItems = order.items.filter(item => item.itemCode !== itemCode);
+    updateOrder(orderId, newItems);
+    toast({ title: 'Artículo eliminado', description: 'El artículo ha sido eliminado del pedido.' });
+  }
+
+  const handleDeleteOrder = () => {
+    if (!orderToDelete) return;
     let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
     localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
     setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Alquiler'));
-    
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
   };
-    
-  const handleEdit = (order: MaterialOrder) => {
-    router.push(`/pedidos?osId=${osId}&type=Alquiler&orderId=${order.id}`);
-  }
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
@@ -195,48 +209,71 @@ export default function AlquilerPage() {
             {renderColumn('Listo', allItemsByStatus['Listo'])}
        </div>
 
-        <Card>
-        <CardHeader><CardTitle>Gestión de Pedidos</CardTitle></CardHeader>
-        <CardContent>
-            <div className="border rounded-lg">
-                <Table>
-                    <TableHeader><TableRow><TableHead>Nº Contrato</TableHead><TableHead>Solicita</TableHead><TableHead>Artículos</TableHead><TableHead className="text-right">Importe</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {materialOrders.length > 0 ? materialOrders.map(order => (
-                            <TableRow key={order.id}>
-                                <TableCell className="font-medium">{order.contractNumber}</TableCell>
-                                <TableCell>{order.solicita}</TableCell>
-                                <TableCell>{order.items.length}</TableCell>
-                                <TableCell className="text-right">{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                            <span className="sr-only">Abrir menú</span>
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => handleEdit(order)}>
-                                            <Pencil className="mr-2 h-4 w-4" />
-                                            Editar
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem className="text-destructive" onClick={() => setOrderToDelete(order.id)}>
-                                            <Trash2 className="mr-2 h-4 w-4" />
-                                            Eliminar
-                                        </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        )) : (
-                            <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos de alquiler para este servicio.</TableCell></TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-        </CardContent>
-       </Card>
+        <Collapsible>
+          <Card>
+              <CollapsibleTrigger className="w-full">
+                  <CardHeader className="flex flex-row items-center justify-between hover:bg-muted/50">
+                      <CardTitle>Gestión de Pedidos</CardTitle>
+                      <ChevronDown className="h-6 w-6 transition-transform duration-200 group-data-[state=open]:rotate-180"/>
+                  </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                  <CardContent>
+                      <div className="border rounded-lg">
+                          <Table>
+                              <TableHeader><TableRow><TableHead>Nº Contrato</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Importe</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+                              <TableBody>
+                                  {materialOrders.length > 0 ? materialOrders.map(order => (
+                                  <Collapsible key={order.id} asChild>
+                                      <>
+                                      <TableRow>
+                                          <TableCell><CollapsibleTrigger className="flex items-center gap-2 font-medium w-full text-left">{order.contractNumber} <ChevronDown className="h-4 w-4"/></CollapsibleTrigger></TableCell>
+                                          <TableCell>{order.solicita}</TableCell>
+                                          <TableCell className="text-right">{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                                          <TableCell className="text-right">
+                                              <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => setOrderToDelete(order.id)}>
+                                                  <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                          </TableCell>
+                                      </TableRow>
+                                      <CollapsibleContent asChild>
+                                          <tr>
+                                              <td colSpan={4} className="p-0">
+                                                  <div className="p-4 bg-muted/30">
+                                                      <Table>
+                                                          <TableBody>
+                                                              {order.items.map(item => (
+                                                                  <TableRow key={item.itemCode}>
+                                                                      <TableCell>{item.description}</TableCell>
+                                                                      <TableCell className="w-32">
+                                                                          <Input type="number" value={item.quantity} onBlur={(e) => handleQuantityChange(order.id, item.itemCode, parseInt(e.target.value))} onChange={(e) => {
+                                                                              const newItems = order.items.map(i => i.itemCode === item.itemCode ? {...i, quantity: parseInt(e.target.value) || 0} : i);
+                                                                              setMaterialOrders(prev => prev.map(o => o.id === order.id ? {...o, items: newItems} : o));
+                                                                          }} className="h-8"/>
+                                                                      </TableCell>
+                                                                      <TableCell className="w-12">
+                                                                          <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteItem(order.id, item.itemCode)}><Trash2 className="h-4 w-4"/></Button>
+                                                                      </TableCell>
+                                                                  </TableRow>
+                                                              ))}
+                                                          </TableBody>
+                                                      </Table>
+                                                  </div>
+                                              </td>
+                                          </tr>
+                                      </CollapsibleContent>
+                                      </>
+                                  </Collapsible>
+                                  )) : (
+                                      <TableRow><TableCell colSpan={4} className="h-20 text-center text-muted-foreground">No hay pedidos de alquiler para este servicio.</TableCell></TableRow>
+                                  )}
+                              </TableBody>
+                          </Table>
+                      </div>
+                  </CardContent>
+              </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
        <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
             <AlertDialogContent>
@@ -250,7 +287,7 @@ export default function AlquilerPage() {
                 <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
                 className="bg-destructive hover:bg-destructive/90"
-                onClick={handleDelete}
+                onClick={handleDeleteOrder}
                 >
                 Eliminar
                 </AlertDialogAction>
