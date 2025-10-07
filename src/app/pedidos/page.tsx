@@ -86,7 +86,7 @@ export default function PedidosPage() {
     }
   }, [editOrderId, osId, orderType]);
 
-  const handleAddItem = (item: CatalogSourceItem, quantity: number) => {
+  const handleAddItem = (item: CateringItem, quantity: number) => {
     if (quantity <= 0) return;
 
     setOrderItems((prevItems) => {
@@ -97,7 +97,7 @@ export default function PedidosPage() {
           i.itemCode === item.itemCode ? { ...i, quantity: newQuantity } : i
         );
       } else {
-        return [...prevItems, { ...(item as CateringItem), quantity }];
+        return [...prevItems, { ...item, quantity }];
       }
     });
   };

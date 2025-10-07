@@ -175,7 +175,7 @@ export default function BioPage() {
                                 {item.solicita}
                             </Badge>
                         ) : <span></span>}
-                         <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
                             {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
                             <Badge variant="outline">{item.orderContract}</Badge>
                         </div>
