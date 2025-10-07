@@ -145,6 +145,7 @@ export default function PlanificacionAlmacenPage() {
                     deliveryLocation: '',
                     solicitante: solicitante,
                     orderId: orderId,
+                    tipo: item.tipo,
                 });
             }
             osNecesidades.totalItems++;
@@ -296,7 +297,7 @@ export default function PlanificacionAlmacenPage() {
         const sheetsKeys = new Set<string>();
         selectedItems.forEach(id => {
             const [itemCode, orderId, fecha, tipo, solicitanteStr] = id.split('__');
-            const solicitante = solicitanteStr === 'general' ? undefined : solicitanteStr;
+            const solicitante = solicitanteStr === 'general' ? undefined : solicitanteStr as 'Sala' | 'Cocina';
             
             // Find the OS that contains this need to build the correct key
             let osForThisItem: ServiceOrder | undefined;
@@ -543,3 +544,5 @@ export default function PlanificacionAlmacenPage() {
 
     
 
+
+    
