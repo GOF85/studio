@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -189,7 +190,7 @@ export default function AlquilerPage() {
   return (
     <>
       <div className="flex items-center justify-between mb-4">
-         <Dialog>
+        <Dialog>
             <DialogTrigger asChild>
                 <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
             </DialogTrigger>
@@ -215,7 +216,7 @@ export default function AlquilerPage() {
           </Link>
         </Button>
       </div>
-
+      
        <div className="grid md:grid-cols-3 gap-6 mb-8">
             {renderColumn('Asignado', allItemsByStatus['Asignado'])}
             {renderColumn('En Preparación', allItemsByStatus['En Preparación'])}
@@ -224,18 +225,16 @@ export default function AlquilerPage() {
 
         <Collapsible>
           <Card>
-              <CollapsibleTrigger className="w-full">
-                  <CardHeader className="flex flex-row items-center justify-between hover:bg-muted/50">
-                      <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
-                      <div className="flex items-center gap-4">
-                           <Button onClick={(e) => { e.stopPropagation(); handleSaveAll();}} disabled={isLoading}>
-                              {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                              <span className="ml-2">Guardar Cambios</span>
-                          </Button>
-                          <ChevronDown className="h-6 w-6 transition-transform duration-200 group-data-[state=open]:rotate-180"/>
-                      </div>
-                  </CardHeader>
-              </CollapsibleTrigger>
+              <div className="flex items-center justify-between p-4 hover:bg-muted/50 rounded-t-lg">
+                <CollapsibleTrigger className="flex flex-1 items-center">
+                    <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
+                    <ChevronDown className="h-6 w-6 transition-transform duration-200 group-data-[state=open]:rotate-180 ml-2" />
+                </CollapsibleTrigger>
+                <Button onClick={(e) => { e.stopPropagation(); handleSaveAll(); }} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                    <span className="ml-2">Guardar Cambios</span>
+                </Button>
+              </div>
               <CollapsibleContent>
                   <CardContent>
                       {/* Bloqueado */}
@@ -358,3 +357,4 @@ export default function AlquilerPage() {
     </>
   );
 }
+

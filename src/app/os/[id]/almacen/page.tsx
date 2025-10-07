@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -224,18 +225,16 @@ export default function AlmacenPage() {
 
         <Collapsible>
             <Card>
-                <CollapsibleTrigger className="w-full">
-                    <CardHeader className="flex flex-row items-center justify-between hover:bg-muted/50">
+                <div className="flex items-center justify-between p-4 hover:bg-muted/50 rounded-t-lg">
+                    <CollapsibleTrigger className="flex flex-1 items-center">
                         <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
-                        <div className="flex items-center gap-4">
-                             <Button onClick={(e) => { e.stopPropagation(); handleSaveAll();}} disabled={isLoading}>
-                                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                                <span className="ml-2">Guardar Cambios</span>
-                            </Button>
-                            <ChevronDown className="h-6 w-6 transition-transform duration-200 group-data-[state=open]:rotate-180"/>
-                        </div>
-                    </CardHeader>
-                </CollapsibleTrigger>
+                        <ChevronDown className="h-6 w-6 transition-transform duration-200 group-data-[state=open]:rotate-180 ml-2" />
+                    </CollapsibleTrigger>
+                    <Button onClick={(e) => { e.stopPropagation(); handleSaveAll(); }} disabled={isLoading}>
+                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                        <span className="ml-2">Guardar Cambios</span>
+                    </Button>
+                </div>
                 <CollapsibleContent>
                     <CardContent>
                         {/* Bloqueado */}
@@ -358,3 +357,4 @@ export default function AlmacenPage() {
     </>
   );
 }
+
