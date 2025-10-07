@@ -13,8 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck } from 'lucide-react';
+import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+
 
 type DatabaseEntry = {
   id: string;
@@ -159,6 +161,32 @@ export default function BdPage() {
             {renderTable(providerDatabases, 'Bases de Datos de Proveedores', <Users/>, 'Gestión centralizada de todos los proveedores y sus catálogos de servicios.')}
             {renderTable(entregasDatabases, 'Bases de Datos de Entregas', <Package/>, 'Configuraciones específicas para la vertical de Entregas MICE.')}
         </div>
+
+        <div className="mt-12">
+            <Accordion type="single" collapsible>
+                <AccordionItem value="danger-zone">
+                    <Card className="border-destructive bg-destructive/5">
+                        <AccordionTrigger className="p-4 text-destructive hover:no-underline">
+                           <div className="flex items-center gap-3">
+                             <AlertTriangle/>
+                             <CardTitle className="text-destructive">Administración / Zona de Peligro</CardTitle>
+                           </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                           <CardContent>
+                                <CardDescription className="text-destructive/80 mb-4">
+                                    Acciones irreversibles como la eliminación masiva de datos. Procede con extrema precaución.
+                                </CardDescription>
+                                <Button asChild variant="outline" className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive">
+                                  <Link href="/bd/borrar">Borrar Bases de Datos Maestras <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                                </Button>
+                           </CardContent>
+                        </AccordionContent>
+                    </Card>
+                </AccordionItem>
+            </Accordion>
+        </div>
+
       </main>
     </>
   );
