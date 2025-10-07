@@ -40,10 +40,11 @@ export default function PickingSheetPage() {
         let currentSheet = allSheets[sheetId];
         
         if (currentSheet) {
-             if (!currentSheet.os) {
-                const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-                currentSheet.os = allServiceOrders.find(os => os.id === currentSheet.osId);
-            }
+             // Always try to load the OS data
+            const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+            const osData = allServiceOrders.find(os => os.id === currentSheet.osId);
+            currentSheet.os = osData;
+
 
             setSheet(currentSheet);
             const initialStates = new Map<string, PickingItemState>();
@@ -105,7 +106,7 @@ export default function PickingSheetPage() {
         allSheets[sheetId] = updatedSheet;
         localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
         
-        setSheet(updatedSheet);
+        setSheet(prev => prev ? {...prev, ...updatedSheet} : updatedSheet);
         
         // Re-create map from the now-updated storage object to ensure consistency
         const reloadedStates = new Map<string, PickingItemState>();
@@ -329,4 +330,5 @@ export default function PickingSheetPage() {
 }
 
 
+    
     
