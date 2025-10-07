@@ -48,7 +48,7 @@ export default function BodegaPage() {
       blockedItems: ItemWithOrderInfo[],
       pendingItems: ItemWithOrderInfo[],
   }>({ Asignado: [], 'En Preparación': [], Listo: [], allItems: [], blockedItems: [], pendingItems: [] });
-
+  
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
@@ -56,15 +56,14 @@ export default function BodegaPage() {
 
  useEffect(() => {
     if (!osId) return;
-    setIsMounted(true);
-
+    
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bodega');
     setMaterialOrders(relatedOrders);
 
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
-
+    
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
 
@@ -102,6 +101,7 @@ export default function BodegaPage() {
       pendingItems: pending,
     });
 
+    setIsMounted(true);
   }, [osId]);
 
 
@@ -168,7 +168,7 @@ export default function BodegaPage() {
         <CardContent className="space-y-2">
             {items.length > 0 ? items.map((item, index) => (
                 <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
-                    <div className="flex justify-between items-start">
+                     <div className="flex justify-between items-start">
                         <p className="font-semibold truncate pr-2">{item.quantity} x {item.description}</p>
                         {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
                     </div>

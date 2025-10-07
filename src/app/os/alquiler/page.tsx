@@ -53,9 +53,8 @@ export default function AlquilerPage() {
   const osId = params.id as string;
   const { toast } = useToast();
 
-   useEffect(() => {
+ useEffect(() => {
     if (!osId) return;
-    setIsMounted(true);
 
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
@@ -101,6 +100,7 @@ export default function AlquilerPage() {
       pendingItems: pending,
     });
     
+    setIsMounted(true);
   }, [osId]);
 
   const handleSaveAll = () => {
@@ -166,7 +166,10 @@ export default function AlquilerPage() {
         <CardContent className="space-y-2">
             {items.length > 0 ? items.map((item, index) => (
                 <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
-                    <p className="font-semibold truncate">{item.quantity} x {item.description}</p>
+                     <div className="flex justify-between items-start">
+                        <p className="font-semibold truncate pr-2">{item.quantity} x {item.description}</p>
+                        {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
+                    </div>
                     <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                         {item.solicita ? (
                             <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>

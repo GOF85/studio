@@ -53,17 +53,16 @@ export default function AlmacenPage() {
   const osId = params.id as string;
   const { toast } = useToast();
 
-  useEffect(() => {
+ useEffect(() => {
     if (!osId) return;
-    setIsMounted(true);
 
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
     setMaterialOrders(relatedOrders);
-    
+
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
-
+    
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
 
@@ -71,7 +70,6 @@ export default function AlmacenPage() {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
             if (item.type === 'Almacen') {
-                const uniqueKey = `${item.orderId}-${item.itemCode}`;
                 items[targetStatus].push({
                     ...item,
                     orderId: sheet.id,
@@ -79,7 +77,7 @@ export default function AlmacenPage() {
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
                 });
-                processedItemKeys.add(uniqueKey);
+                processedItemKeys.add(`${item.orderId}-${item.itemCode}`);
             }
         });
     });
@@ -101,6 +99,7 @@ export default function AlmacenPage() {
       pendingItems: pending,
     });
     
+    setIsMounted(true);
   }, [osId]);
 
 

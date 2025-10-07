@@ -53,9 +53,8 @@ export default function BioPage() {
   const osId = params.id as string;
   const { toast } = useToast();
 
-   useEffect(() => {
+ useEffect(() => {
     if (!osId) return;
-    setIsMounted(true);
 
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bio');
@@ -101,7 +100,9 @@ export default function BioPage() {
       pendingItems: pending,
     });
     
+    setIsMounted(true);
   }, [osId]);
+
 
   const handleSaveAll = () => {
     setIsLoading(true);
