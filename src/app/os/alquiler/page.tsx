@@ -4,13 +4,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Users, Soup } from 'lucide-react';
+import { PlusCircle, Users, Soup, Eye } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type ItemWithOrderInfo = OrderItem & {
@@ -31,7 +31,6 @@ export default function AlquilerPage() {
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [pickingSheets, setPickingSheets] = useState<PickingSheet[]>([]);
-  const [summaryView, setSummaryView] = useState<'agregado' | 'segregado'>('agregado');
   
   const router = useRouter();
   const params = useParams();
@@ -58,8 +57,8 @@ export default function AlquilerPage() {
     pickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
-            if (item.type === 'Alquiler') {
-                const orderInfo = {
+             if (item.type === 'Alquiler') {
+                 const orderInfo = {
                     ...item,
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
@@ -68,6 +67,7 @@ export default function AlquilerPage() {
                 if (targetStatus === 'En Preparación') enPreparacion.push(orderInfo);
                 else if (targetStatus === 'Listo') listos.push(orderInfo);
                 
+                // Find the original MaterialOrder this picking sheet item came from
                  const materialOrderForSheet = materialOrders.find(mo => mo.contractNumber === sheet.id && mo.solicita === sheet.solicitante);
                  if (materialOrderForSheet) {
                     pickedOrderIds.add(materialOrderForSheet.id);
@@ -81,45 +81,33 @@ export default function AlquilerPage() {
     return { assignedOrders: assigned, itemsEnPreparacion: enPreparacion, itemsListos: listos };
   }, [materialOrders, pickingSheets]);
 
-  const summaryItems = useMemo(() => {
-    const allItems: (OrderItem & { solicita?: 'Sala' | 'Cocina' })[] = [];
-    materialOrders.forEach(order => {
-        order.items.forEach(item => {
-            allItems.push({ ...item, solicita: order.solicita });
-        });
-    });
-
-    if (summaryView === 'agregado') {
-        const aggregated: Record<string, OrderItem & { solicitantes: Set<string> }> = {};
-        allItems.forEach(item => {
-            if (aggregated[item.itemCode]) {
-                aggregated[item.itemCode].quantity += item.quantity;
-                if (item.solicita) aggregated[item.itemCode].solicitantes.add(item.solicita);
-            } else {
-                aggregated[item.itemCode] = { ...item, solicitantes: new Set(item.solicita ? [item.solicita] : []) };
-            }
-        });
-        return { agregado: Object.values(aggregated) };
-    } else {
-        return {
-            sala: allItems.filter(i => i.solicita === 'Sala'),
-            cocina: allItems.filter(i => i.solicita === 'Cocina'),
-        };
-    }
-  }, [materialOrders, summaryView]);
-
-
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
   }
 
   const renderItemsColumn = (title: string, items: ItemWithOrderInfo[]) => (
     <Card className="flex-1 bg-muted/30">
-        <CardHeader className="pb-4">
-            <CardTitle className="text-lg flex items-center justify-between">
-                {title}
-                <Badge variant={title === 'Listo' ? 'default' : 'secondary'} className="text-sm">{items.length}</Badge>
-            </CardTitle>
+        <CardHeader className="pb-4 flex-row items-center justify-between">
+            <CardTitle className="text-lg">{title}</CardTitle>
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={items.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen</Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Resumen de {title}</DialogTitle></DialogHeader>
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad Total</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {Object.entries(items.reduce((acc, item) => {
+                                acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                return acc;
+                            }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </DialogContent>
+            </Dialog>
         </CardHeader>
         <CardContent className="space-y-2 h-full overflow-y-auto">
             {items.length > 0 ? items.map((item, index) => (
@@ -140,26 +128,28 @@ export default function AlquilerPage() {
         </CardContent>
     </Card>
   );
-
-  const renderSummaryTable = (title: string, items: (OrderItem & {solicitantes?: Set<string>})[]) => (
+  
+  const renderOrdersTable = (title: string, orders: MaterialOrder[], isEditable: boolean) => (
     <div>
-        {title && <h4 className="font-semibold mb-2">{title}</h4>}
-        <div className="border rounded-lg">
-            <Table>
-                <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead>Solicitado por</TableHead></TableRow></TableHeader>
-                <TableBody>
-                    {items.map(item => (
-                        <TableRow key={item.itemCode}>
-                            <TableCell>{item.description}</TableCell>
-                            <TableCell className="text-right">{item.quantity}</TableCell>
-                            <TableCell>
-                                { 'solicitantes' in item && item.solicitantes ? Array.from(item.solicitantes).join(', ') : (item as any).solicita || ''}
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </div>
+      <h3 className="font-semibold text-lg mb-2">{title}</h3>
+      <div className="border rounded-md">
+        <Table>
+          <TableHeader><TableRow><TableHead>Nº Contrato</TableHead><TableHead>Artículos</TableHead><TableHead className="text-right">Importe</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {orders.map(order => (
+              <TableRow key={order.id} className={isEditable ? "cursor-pointer" : ""} onClick={() => isEditable && router.push(`/pedidos?osId=${osId}&type=Alquiler&orderId=${order.id}`)}>
+                <TableCell>
+                  <Button variant={isEditable ? "link" : "ghost"} className="p-0 h-auto">
+                    {order.contractNumber}
+                  </Button>
+                </TableCell>
+                <TableCell>{order.items.length}</TableCell>
+                <TableCell className="text-right">{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 
@@ -174,9 +164,9 @@ export default function AlquilerPage() {
         </Button>
       </div>
 
-       <div className="flex flex-col h-[65vh]">
+       <div className="flex flex-col h-[50vh] mb-6">
             <div className="flex gap-6 flex-grow">
-               <Card className="flex-1 bg-muted/30">
+                <Card className="flex-1 bg-muted/30">
                   <CardHeader className="pb-4">
                       <CardTitle className="text-lg flex items-center justify-between">Asignado<Badge variant='secondary' className="text-sm">{assignedOrders.length}</Badge></CardTitle>
                   </CardHeader>
@@ -204,33 +194,13 @@ export default function AlquilerPage() {
                 {renderItemsColumn('Listo', itemsListos)}
            </div>
        </div>
-       
-       <Card className="mt-6">
-            <CardHeader>
-                 <div className="flex justify-between items-center">
-                    <CardTitle>Resumen Total de Artículos</CardTitle>
-                    <div className="w-48">
-                        <Select value={summaryView} onValueChange={(value) => setSummaryView(value as any)}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="agregado">Agregado</SelectItem>
-                                <SelectItem value="segregado">Segregado (Sala/Cocina)</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                {summaryView === 'agregado' 
-                    ? renderSummaryTable('', summaryItems.agregado || [])
-                    : (
-                        <div className="grid md:grid-cols-2 gap-6">
-                            {renderSummaryTable('Sala', summaryItems.sala || [])}
-                            {renderSummaryTable('Cocina', summaryItems.cocina || [])}
-                        </div>
-                    )
-                }
-            </CardContent>
+
+       <Card>
+        <CardHeader><CardTitle>Gestión de Pedidos</CardTitle></CardHeader>
+        <CardContent className="grid md:grid-cols-2 gap-6">
+          {renderOrdersTable("Solicitado por Sala", materialOrders.filter(o => o.solicita === 'Sala'), true)}
+          {renderOrdersTable("Solicitado por Cocina", materialOrders.filter(o => o.solicita === 'Cocina'), true)}
+        </CardContent>
        </Card>
     </>
   );
