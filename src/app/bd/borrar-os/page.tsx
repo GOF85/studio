@@ -27,6 +27,7 @@ import { Trash2, ShieldAlert } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 
 type DataSet = {
   key: string;
@@ -146,7 +147,7 @@ export default function BorrarOsPage() {
         const count = Array.isArray(data) ? data.length : Object.keys(data).length;
 
         return(
-            <Card key={db.key}>
+            <Card>
                 <CardContent className="p-4 flex items-center justify-between">
                     <div>
                         <h3 className="font-semibold">{db.name}</h3>
@@ -187,7 +188,9 @@ export default function BorrarOsPage() {
 
                     <h2 className="text-2xl font-headline font-semibold mb-4 mt-8">Registros Principales</h2>
                      <div className="space-y-4">
-                        {EVENT_DATA.map(renderDataSetCard)}
+                        {EVENT_DATA.map(db => (
+                           <div key={db.key}>{renderDataSetCard(db)}</div>
+                        ))}
                     </div>
                     
                     <h2 className="text-2xl font-headline font-semibold mb-4 mt-8">Datos Vinculados a Eventos</h2>
@@ -195,7 +198,9 @@ export default function BorrarOsPage() {
                         Aquí puedes borrar datos de módulos específicos si necesitas limpiar solo una parte del sistema. Borrar los registros principales de arriba no elimina automáticamente estos datos.
                     </p>
                     <div className="space-y-4">
-                        {RELATED_DATA.map(renderDataSetCard)}
+                         {RELATED_DATA.map(db => (
+                           <div key={db.key}>{renderDataSetCard(db)}</div>
+                        ))}
                     </div>
                 </div>
             </main>
