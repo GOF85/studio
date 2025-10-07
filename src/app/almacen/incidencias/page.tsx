@@ -23,7 +23,7 @@ type Incidencia = {
     sheetId: string;
     osId: string;
     fechaNecesidad: string;
-    item: OrderItem & { orderId?: string };
+    item: OrderItem & { orderId?: string; solicita?: 'Sala' | 'Cocina'; };
     comment: string;
     requiredQty: number;
     pickedQty: number;
@@ -59,7 +59,10 @@ export default function IncidenciasPickingPage() {
                             sheetId: sheet.id,
                             osId: sheet.osId,
                             fechaNecesidad: sheet.fechaNecesidad,
-                            item,
+                            item: {
+                                ...item,
+                                solicita: sheet.solicitante,
+                            },
                             comment: state.incidentComment,
                             requiredQty: item.quantity,
                             pickedQty: state.pickedQuantity
@@ -94,30 +97,35 @@ export default function IncidenciasPickingPage() {
     const handleAcceptMerma = () => {
         if (!resolvingIncident) return;
         
-        const { item, pickedQty } = resolvingIncident;
+        const { item, pickedQty, sheetId } = resolvingIncident;
         const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-        const orderIndex = allMaterialOrders.findIndex(o => o.id === item.orderId);
+        
+        // Find the original order ID from the picking sheet's item
+        const originalOrderId = item.orderId;
+        
+        if (originalOrderId) {
+            const orderIndex = allMaterialOrders.findIndex(o => o.id === originalOrderId);
+            if (orderIndex > -1) {
+                const orderToUpdate = allMaterialOrders[orderIndex];
+                const itemIndex = orderToUpdate.items.findIndex(i => i.itemCode === item.itemCode);
 
-        if (orderIndex > -1) {
-            const orderToUpdate = allMaterialOrders[orderIndex];
-            const itemIndex = orderToUpdate.items.findIndex(i => i.itemCode === item.itemCode);
-
-            if (itemIndex > -1) {
-                orderToUpdate.items[itemIndex].quantity = pickedQty;
-                // Recalculate total if needed
-                orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + (current.price * current.quantity), 0);
+                if (itemIndex > -1) {
+                    orderToUpdate.items[itemIndex].quantity = pickedQty;
+                    // Recalculate total if needed
+                    orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + (current.price * current.quantity), 0);
+                    localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
+                }
             }
-             localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
         }
 
         const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
-        const sheet = allSheets[resolvingIncident.sheetId];
-        if (sheet && sheet.itemStates[resolvingIncident.item.itemCode]) {
-            sheet.itemStates[resolvingIncident.item.itemCode].resolved = true;
+        const sheet = allSheets[sheetId];
+        if (sheet && sheet.itemStates[item.itemCode]) {
+            sheet.itemStates[item.itemCode].resolved = true;
             localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
             
             // Actualizar UI
-            setIncidencias(prev => prev.filter(inc => !(inc.sheetId === resolvingIncident.sheetId && inc.item.itemCode === resolvingIncident.item.itemCode)));
+            setIncidencias(prev => prev.filter(inc => !(inc.sheetId === sheetId && inc.item.itemCode === item.itemCode)));
             setResolvingIncident(null);
             
             toast({ title: "Merma Aceptada", description: "La incidencia ha sido marcada como resuelta y el pedido original se ha ajustado." });
