@@ -54,6 +54,9 @@ const defaultValues: Partial<ArticuloCateringFormValues> = {
     precioReposicion: 0,
     stockSeguridad: 0,
     producidoPorPartner: false,
+    subcategoria: '',
+    loc: '',
+    imagen: '',
 };
 
 function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProducts }: { onSelect: (id: string) => void, searchTerm: string, setSearchTerm: (term: string) => void, filteredProducts: IngredienteERP[] }) {
@@ -346,6 +349,4 @@ export default function ArticuloFormPage() {
     </>
   );
 }
-    
-
     
