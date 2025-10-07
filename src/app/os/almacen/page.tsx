@@ -58,7 +58,7 @@ export default function AlmacenPage() {
 
     setIsMounted(true);
   }, [osId]);
-
+  
   const { allItemsByStatus, processedItemKeys } = useMemo(() => {
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const keys = new Set<string>();
@@ -74,13 +74,17 @@ export default function AlmacenPage() {
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
+                    tipo: item.tipo,
                 });
                 keys.add(uniqueKey);
             }
         });
     });
 
-    materialOrders.forEach(order => {
+    const allOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    const relatedOrders = allOrders.filter(order => order.osId === osId && order.type === 'Almacen');
+
+    relatedOrders.forEach(order => {
         order.items.forEach(item => {
             const uniqueKey = `${order.id}-${item.itemCode}`;
             if (!keys.has(uniqueKey)) {
@@ -90,15 +94,17 @@ export default function AlmacenPage() {
                     orderContract: order.contractNumber || 'N/A',
                     orderStatus: 'Pendiente', 
                     solicita: order.solicita,
+                    tipo: item.tipo,
                 });
             }
         });
     });
     return { allItemsByStatus: items, processedItemKeys: keys };
-  }, [materialOrders, pickingSheets]);
+  }, [materialOrders, pickingSheets, osId]);
+
 
   const { allItems, blockedItems, pendingItems } = useMemo(() => {
-    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
+    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo })));
     const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
     const pending = all.filter(item => {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
@@ -351,4 +357,3 @@ export default function AlmacenPage() {
     </>
   );
 }
-

@@ -46,9 +46,14 @@ export default function RetornoSheetPage() {
             const osOrders = allMaterialOrders.filter(o => o.osId === osId);
             
             const itemsFromOrders: ReturnSheetItem[] = [];
+            const initialItemStates: Record<string, ReturnItemState> = {};
+            
             osOrders.forEach(order => {
                 order.items.forEach(item => {
-                    itemsFromOrders.push({ ...item, sentQuantity: item.quantity, orderId: order.id });
+                    const newItem: ReturnSheetItem = { ...item, sentQuantity: item.quantity, orderId: order.id };
+                    itemsFromOrders.push(newItem);
+                    const itemKey = `${order.id}_${item.itemCode}`;
+                    initialItemStates[itemKey] = { returnedQuantity: item.quantity };
                 });
             });
             
@@ -60,15 +65,10 @@ export default function RetornoSheetPage() {
                 osId: osId,
                 status: 'Pendiente',
                 items: itemsFromOrders,
-                itemStates: {},
+                itemStates: initialItemStates,
                 os: os,
             };
             
-            itemsFromOrders.forEach(item => {
-                 const itemKey = `${item.orderId}_${item.itemCode}`;
-                 currentSheet.itemStates[itemKey] = { returnedQuantity: item.sentQuantity };
-            });
-
             allSheets[osId] = currentSheet;
             localStorage.setItem('returnSheets', JSON.stringify(allSheets));
         }
@@ -106,7 +106,7 @@ export default function RetornoSheetPage() {
 
     const handleAcceptMerma = () => {
         if (!sheet) return;
-        let allMaterialOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]');
+        let allMaterialOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
         let updated = false;
 
         Object.entries(sheet.itemStates).forEach(([itemKey, state]) => {
@@ -119,11 +119,17 @@ export default function RetornoSheetPage() {
                     const orderToUpdate = allMaterialOrders[orderIndex];
                     const itemIndex = orderToUpdate.items.findIndex(i => i.itemCode === itemCode);
                     if (itemIndex > -1) {
+                        // Update the quantity in the original order
                         orderToUpdate.items[itemIndex].quantity = state.returnedQuantity;
+                        
+                        // Recalculate total for the order
+                        orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + (current.price * current.quantity), 0);
+
                          if (state.returnedQuantity === 0) {
                             orderToUpdate.items.splice(itemIndex, 1);
                         }
-                        orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + (current.price * current.quantity), 0);
+
+                        allMaterialOrders[orderIndex] = orderToUpdate;
                         updated = true;
                     }
                 }
