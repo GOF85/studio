@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -53,8 +52,8 @@ const defaultValues: Partial<ArticuloCateringFormValues> = {
     precioVenta: 0,
     precioAlquiler: 0,
     precioReposicion: 0,
-    producidoPorPartner: false,
     stockSeguridad: 0,
+    producidoPorPartner: false,
 };
 
 function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProducts }: { onSelect: (id: string) => void, searchTerm: string, setSearchTerm: (term: string) => void, filteredProducts: IngredienteERP[] }) {
@@ -107,6 +106,7 @@ export default function ArticuloFormPage() {
     defaultValues,
   });
   
+  const {setValue} = form;
   const selectedErpId = form.watch('erpId');
   const selectedCategoria = form.watch('categoria');
   const selectedErpProduct = useMemo(() => ingredientesERP.find(p => p.id === selectedErpId), [ingredientesERP, selectedErpId]);
@@ -121,14 +121,14 @@ export default function ArticuloFormPage() {
   
   useEffect(() => {
     if (selectedErpProduct) {
-        form.setValue('tipo', selectedErpProduct.tipo);
+        setValue('tipo', selectedErpProduct.tipo, { shouldDirty: true });
         if (selectedCategoria === 'Almacen') {
-            form.setValue('precioReposicion', selectedErpProduct.precio);
+            setValue('precioReposicion', selectedErpProduct.precio, { shouldDirty: true });
         } else {
-            form.setValue('precioVenta', selectedErpProduct.precio);
+            setValue('precioVenta', selectedErpProduct.precio, { shouldDirty: true });
         }
     }
-  }, [selectedErpProduct, selectedCategoria, form.setValue]);
+  }, [selectedErpProduct, selectedCategoria, setValue]);
 
 
   useEffect(() => {
@@ -348,3 +348,4 @@ export default function ArticuloFormPage() {
 }
     
 
+    
