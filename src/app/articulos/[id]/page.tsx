@@ -2,13 +2,13 @@
 'use client';
 
 import * as React from 'react';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, Package, X, Star, Link as LinkIcon, Check, CircleX } from 'lucide-react';
-import { DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import type { ArticuloCatering, Proveedor, IngredienteERP } from '@/types';
 import { ARTICULO_CATERING_CATEGORIAS } from '@/types';
 
@@ -21,7 +21,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
@@ -123,8 +122,8 @@ export default function ArticuloFormPage() {
     );
   }, [ingredientesERP, erpSearchTerm]);
   
-  const selectedErpProductRef = React.useRef(selectedErpProduct);
-  const selectedCategoriaRef = React.useRef(selectedCategoria);
+  const selectedErpProductRef = useRef(selectedErpProduct);
+  const selectedCategoriaRef = useRef(selectedCategoria);
   
   useEffect(() => {
       selectedErpProductRef.current = selectedErpProduct;
@@ -251,7 +250,7 @@ export default function ArticuloFormPage() {
                         <FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="loc" render={({ field }) => (
-                        <FormItem><FormLabel>Ubicación</FormLabel><FormControl><Input {...field} value={field.value || ''} placeholder="Ej: P4-E2-A1" /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Ubicación</FormLabel><FormControl><Input {...field} placeholder="Ej: P4-E2-A1" /></FormControl><FormMessage /></FormItem>
                     )} />
                 </div>
                  <div className="flex items-center space-x-4">
@@ -267,6 +266,17 @@ export default function ArticuloFormPage() {
                            <FormLabel className="!mt-0 font-semibold">Producido por Partner</FormLabel>
                         </FormItem>
                      )} />
+                    <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" type="button"><LinkIcon className="mr-2"/>Gestionar URL de Imagen</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader><DialogTitle>URL de la Imagen</DialogTitle></DialogHeader>
+                            <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://ejemplo.com/imagen.jpg"/>
+                            {imageUrl && <img src={imageUrl} alt="Previsualización" className="rounded-md mt-2 max-h-60 object-contain mx-auto" />}
+                            <DialogFooter><Button onClick={handleImageSave}>Guardar URL</Button></DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                 </div>
                 {form.watch('producidoPorPartner') && (
                     <FormField control={form.control} name="partnerId" render={({ field }) => (
@@ -282,17 +292,6 @@ export default function ArticuloFormPage() {
                         </FormItem>
                      )} />
                 )}
-                 <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" type="button"><LinkIcon className="mr-2"/>Gestionar URL de Imagen</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader><DialogTitle>URL de la Imagen</DialogTitle></DialogHeader>
-                        <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://ejemplo.com/imagen.jpg"/>
-                        {imageUrl && <img src={imageUrl} alt="Previsualización" className="rounded-md mt-2 max-h-60 object-contain mx-auto" />}
-                        <DialogFooter><Button onClick={handleImageSave}>Guardar URL</Button></DialogFooter>
-                    </DialogContent>
-                 </Dialog>
               </CardContent>
             </Card>
 
@@ -336,7 +335,7 @@ export default function ArticuloFormPage() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 pt-2">
                                      <FormField control={form.control} name="tipo" render={({ field }) => (
-                                        <FormItem><FormLabel className="text-xs">Tipo</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly className="h-8 bg-muted"/></FormControl></FormItem>
+                                        <FormItem><FormLabel className="text-xs">Tipo</FormLabel><FormControl><Input {...field} readOnly className="h-8 bg-muted"/></FormControl></FormItem>
                                      )} />
                                 </div>
                             </div>
