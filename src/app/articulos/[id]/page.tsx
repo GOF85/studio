@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, FileDown, Package, X, Star, Link as LinkIcon, Check, CircleX } from 'lucide-react';
+import { Loader2, FileDown, Package, X, Star, Link as LinkIcon, Check, CircleX, DialogFooter } from 'lucide-react';
 import type { ArticuloCatering, Proveedor, IngredienteERP } from '@/types';
 import { ARTICULO_CATERING_CATEGORIAS } from '@/types';
 
@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
@@ -140,7 +140,10 @@ export default function ArticuloFormPage() {
       const items = JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[];
       const item = items.find(p => p.id === id);
       if (item) {
-        form.reset(item);
+        form.reset({
+            ...defaultValues,
+            ...item,
+        });
         setImageUrl(item.imagen || '');
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el artículo.' });
@@ -313,7 +316,7 @@ export default function ArticuloFormPage() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 pt-2">
                                      <FormField control={form.control} name="tipo" render={({ field }) => (
-                                        <FormItem><FormLabel className="text-xs">Tipo</FormLabel><FormControl><Input {...field} readOnly className="h-8 bg-muted"/></FormControl></FormItem>
+                                        <FormItem><FormLabel className="text-xs">Tipo</FormLabel><FormControl><Input {...field} value={field.value || ''} readOnly className="h-8 bg-muted"/></FormControl></FormItem>
                                      )} />
                                 </div>
                             </div>
@@ -341,4 +344,3 @@ export default function ArticuloFormPage() {
     </>
   );
 }
-
