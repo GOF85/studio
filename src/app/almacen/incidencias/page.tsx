@@ -62,6 +62,7 @@ export default function IncidenciasPickingPage() {
                             item: {
                                 ...item,
                                 solicita: sheet.solicitante,
+                                orderId: item.orderId, // Ensure the original MaterialOrder ID is preserved
                             },
                             comment: state.incidentComment,
                             requiredQty: item.quantity,
@@ -94,7 +95,7 @@ export default function IncidenciasPickingPage() {
         setIsMounted(true);
     }, []);
     
-    const handleAcceptMerma = () => {
+   const handleAcceptMerma = () => {
         if (!resolvingIncident) return;
         
         const { item, pickedQty, sheetId } = resolvingIncident;
@@ -105,36 +106,42 @@ export default function IncidenciasPickingPage() {
         if (originalOrderId) {
             const orderIndex = allMaterialOrders.findIndex(o => o.id === originalOrderId);
             if (orderIndex !== -1) {
-                const orderToUpdate = allMaterialOrders[orderIndex];
+                const orderToUpdate = { ...allMaterialOrders[orderIndex] };
                 const itemIndex = orderToUpdate.items.findIndex(i => i.itemCode === item.itemCode);
 
                 if (itemIndex !== -1) {
-                    orderToUpdate.items[itemIndex].quantity = pickedQty;
-                    // Recalculate total if needed
-                    orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + (current.price * current.quantity), 0);
-                    
-                    // If quantity is zero, remove the item
-                    if (pickedQty === 0) {
+                    if (pickedQty > 0) {
+                        // Update quantity
+                        orderToUpdate.items[itemIndex] = { ...orderToUpdate.items[itemIndex], quantity: pickedQty };
+                    } else {
+                        // Remove item if picked quantity is 0
                         orderToUpdate.items.splice(itemIndex, 1);
                     }
-
+                    
+                    // Recalculate total for the order
+                    orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + (current.price * current.quantity), 0);
+                    
                     allMaterialOrders[orderIndex] = orderToUpdate;
                     localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
+                     toast({ title: "Pedido Original Ajustado", description: `La cantidad de "${item.description}" se ha actualizado a ${pickedQty}.` });
                 }
+            } else {
+                 toast({ variant: 'destructive', title: 'Error', description: `No se pudo encontrar el pedido original con ID: ${originalOrderId}` });
             }
         }
 
+        // Mark incidence as resolved in the picking sheet
         const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
         const sheet = allSheets[sheetId];
         if (sheet && sheet.itemStates[item.itemCode]) {
             sheet.itemStates[item.itemCode].resolved = true;
             localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
             
-            // Actualizar UI
+            // Update UI immediately
             setIncidencias(prev => prev.filter(inc => !(inc.sheetId === sheetId && inc.item.itemCode === item.itemCode)));
             setResolvingIncident(null);
             
-            toast({ title: "Merma Aceptada", description: "La incidencia ha sido marcada como resuelta y el pedido original se ha ajustado." });
+            toast({ title: "Merma Aceptada", description: "La incidencia ha sido marcada como resuelta." });
         } else {
              toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la hoja de picking para resolver la incidencia.' });
         }

@@ -18,12 +18,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
   orderId: string;
   orderStatus: PickingSheet['status'];
   solicita?: 'Sala' | 'Cocina';
+  tipo?: string;
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -59,9 +59,9 @@ export default function BodegaPage() {
     setIsMounted(true);
   }, [osId]);
 
-  const allItemsByStatus = useMemo(() => {
+  const { allItemsByStatus, processedItemKeys } = useMemo(() => {
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
-    const processedItemKeys = new Set<string>();
+    const keys = new Set<string>();
 
     pickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
@@ -74,35 +74,46 @@ export default function BodegaPage() {
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
+                    tipo: item.tipo,
                 });
-                processedItemKeys.add(uniqueKey);
+                keys.add(uniqueKey);
             }
         });
     });
 
-    materialOrders.forEach(order => {
+    const allOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    const relatedOrders = allOrders.filter(order => order.osId === osId && order.type === 'Bodega');
+
+    relatedOrders.forEach(order => {
         order.items.forEach(item => {
             const uniqueKey = `${order.id}-${item.itemCode}`;
-            if (!processedItemKeys.has(uniqueKey)) {
+            if (!keys.has(uniqueKey)) {
                 items['Asignado'].push({
                     ...item,
                     orderId: order.id,
                     orderContract: order.contractNumber || 'N/A',
                     orderStatus: 'Pendiente', 
                     solicita: order.solicita,
+                    tipo: item.tipo,
                 });
             }
         });
     });
-    return items;
-  }, [materialOrders, pickingSheets]);
+    return { allItemsByStatus: items, processedItemKeys: keys };
+  }, [materialOrders, pickingSheets, osId]);
 
   const { allItems, blockedItems, pendingItems } = useMemo(() => {
-    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
+    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo })));
     const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
-    const pending = allItemsByStatus['Asignado'];
+    
+    // Filter from original orders, not the calculated 'Asignado' column
+    const pending = all.filter(item => {
+      const uniqueKey = `${item.orderId}-${item.itemCode}`;
+      return !processedItemKeys.has(uniqueKey);
+    });
+
     return { allItems: all, blockedItems: blocked, pendingItems: pending };
-  }, [materialOrders, allItemsByStatus]);
+  }, [materialOrders, allItemsByStatus, processedItemKeys]);
 
 
   const handleSaveAll = () => {
@@ -168,7 +179,10 @@ export default function BodegaPage() {
         <CardContent className="space-y-2">
             {items.length > 0 ? items.map((item, index) => (
                 <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
-                    <p className="font-semibold truncate">{item.quantity} x {item.description}</p>
+                    <div className="flex justify-between items-start">
+                        <p className="font-semibold truncate pr-2">{item.quantity} x {item.description}</p>
+                        {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
+                    </div>
                     <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                         {item.solicita ? (
                             <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
@@ -193,7 +207,7 @@ export default function BodegaPage() {
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader><DialogTitle>Resumen de Artículos de Bodega</DialogTitle></DialogHeader>
-                 <div className="space-y-4">
+                <div className="space-y-4">
                     <div>
                         <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
                         <Table>
@@ -306,7 +320,7 @@ export default function BodegaPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                     <TableCell><Badge variant="outline">{materialOrders.find(o=>o.id === item.orderId)?.contractNumber}</Badge></TableCell>
+                                     <TableCell><Badge variant="outline">{item.contractNumber}</Badge></TableCell>
                                     <TableCell>
                                         <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'quantity', parseInt(e.target.value) || 0)} className="h-8"/>
                                     </TableCell>
