@@ -58,9 +58,9 @@ export default function BioPage() {
     setIsMounted(true);
   }, [osId]);
 
-  const allItemsByStatus = useMemo(() => {
+  const { allItemsByStatus, processedItemKeys } = useMemo(() => {
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
-    const processedItemKeys = new Set<string>();
+    const keys = new Set<string>();
 
     pickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
@@ -74,7 +74,7 @@ export default function BioPage() {
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
                 });
-                processedItemKeys.add(uniqueKey);
+                keys.add(uniqueKey);
             }
         });
     });
@@ -82,7 +82,7 @@ export default function BioPage() {
     materialOrders.forEach(order => {
         order.items.forEach(item => {
             const uniqueKey = `${order.id}-${item.itemCode}`;
-            if (!processedItemKeys.has(uniqueKey)) {
+            if (!keys.has(uniqueKey)) {
                 items['Asignado'].push({
                     ...item,
                     orderId: order.id,
@@ -93,15 +93,18 @@ export default function BioPage() {
             }
         });
     });
-    return items;
+    return { allItemsByStatus: items, processedItemKeys: keys };
   }, [materialOrders, pickingSheets]);
 
   const { allItems, blockedItems, pendingItems } = useMemo(() => {
     const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
     const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
-    const pending = allItemsByStatus['Asignado'];
+    const pending = all.filter(item => {
+      const uniqueKey = `${item.orderId}-${item.itemCode}`;
+      return !processedItemKeys.has(uniqueKey);
+    });
     return { allItems: all, blockedItems: blocked, pendingItems: pending };
-  }, [materialOrders, allItemsByStatus]);
+  }, [materialOrders, allItemsByStatus, processedItemKeys]);
 
 
   const handleSaveAll = () => {
@@ -308,7 +311,7 @@ export default function BioPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                     <TableCell><Badge variant="outline">{materialOrders.find(o=>o.id === item.orderId)?.contractNumber}</Badge></TableCell>
+                                     <TableCell><Badge variant="outline">{item.contractNumber}</Badge></TableCell>
                                     <TableCell>
                                         <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'quantity', parseInt(e.target.value) || 0)} className="h-8"/>
                                     </TableCell>

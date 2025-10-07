@@ -58,23 +58,15 @@ export default function AlquilerPage() {
     setIsMounted(true);
   }, [osId]);
 
-  const allItems = useMemo(() => {
-    return materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
-  }, [materialOrders]);
-
-  const allItemsByStatus = useMemo(() => {
-    const items: Record<StatusColumn, ItemWithOrderInfo[]> = {
-      Asignado: [],
-      'En Preparación': [],
-      Listo: [],
-    };
-    
-    const processedItemKeys = new Set<string>();
+  const { allItemsByStatus, processedItemKeys } = useMemo(() => {
+    const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
+    const keys = new Set<string>();
 
     pickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
-             if (item.type === 'Alquiler') {
+            if (item.type === 'Alquiler') {
+                const uniqueKey = `${item.orderId}-${item.itemCode}`;
                 items[targetStatus].push({
                     ...item,
                     orderId: sheet.id,
@@ -82,15 +74,15 @@ export default function AlquilerPage() {
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
                 });
-                processedItemKeys.add(`${item.orderId}-${item.itemCode}`);
+                keys.add(uniqueKey);
             }
         });
     });
 
     materialOrders.forEach(order => {
         order.items.forEach(item => {
-            const itemKey = `${order.id}-${item.itemCode}`;
-            if (!processedItemKeys.has(itemKey)) {
+            const uniqueKey = `${order.id}-${item.itemCode}`;
+            if (!keys.has(uniqueKey)) {
                 items['Asignado'].push({
                     ...item,
                     orderId: order.id,
@@ -101,8 +93,19 @@ export default function AlquilerPage() {
             }
         });
     });
-    return items;
+    return { allItemsByStatus: items, processedItemKeys: keys };
   }, [materialOrders, pickingSheets]);
+
+  const { allItems, blockedItems, pendingItems } = useMemo(() => {
+    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
+    const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    const pending = all.filter(item => {
+      const uniqueKey = `${item.orderId}-${item.itemCode}`;
+      return !processedItemKeys.has(uniqueKey);
+    });
+    return { allItems: all, blockedItems: blocked, pendingItems: pending };
+  }, [materialOrders, allItemsByStatus, processedItemKeys]);
+
 
   const handleSaveAll = () => {
     setIsLoading(true);
@@ -151,14 +154,6 @@ export default function AlquilerPage() {
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
   };
-  
-  const { blockedItems, pendingItems } = useMemo(() => {
-    const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
-    const pending = allItems.filter(item => {
-        return allItemsByStatus['Asignado'].some(assigned => assigned.itemCode === item.itemCode && assigned.orderId === item.orderId)
-    });
-    return { blockedItems: blocked, pendingItems: pending };
-  }, [allItems, allItemsByStatus]);
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
@@ -297,7 +292,7 @@ export default function AlquilerPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                     <TableCell><Badge variant="outline">{materialOrders.find(o=>o.id === item.orderId)?.contractNumber}</Badge></TableCell>
+                                     <TableCell><Badge variant="outline">{item.contractNumber}</Badge></TableCell>
                                     <TableCell>
                                         <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'quantity', parseInt(e.target.value) || 0)} className="h-8"/>
                                     </TableCell>
