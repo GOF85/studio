@@ -15,6 +15,7 @@ export type CateringItem = {
 
 export type OrderItem = CateringItem & {
   quantity: number;
+  orderId?: string;
 };
 
 export type OrderCompletionAssistantInput = {
@@ -578,9 +579,9 @@ export type ReturnItemState = {
 export type ReturnSheet = {
     id: string; // osId
     osId: string;
-    items: (OrderItem & { sentQuantity: number })[];
+    items: (OrderItem & { sentQuantity: number; orderId: string; })[];
     status: 'Pendiente' | 'Procesando' | 'Completado';
-    itemStates: Record<string, ReturnItemState>;
+    itemStates: Record<string, ReturnItemState>; // Key is `${orderId}_${itemCode}`
     os?: ServiceOrder;
 }
 

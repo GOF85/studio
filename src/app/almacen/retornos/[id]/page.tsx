@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, History, AlertTriangle, MessageSquare, Check, RotateCcw } from 'lucide-react';
+import { ArrowLeft, History, AlertTriangle, MessageSquare, Check, RotateCcw, Save } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -23,11 +23,14 @@ import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
+// We need to include the original order ID to trace back and update it.
+type ReturnSheetItem = OrderItem & { sentQuantity: number; orderId: string };
 
 export default function RetornoSheetPage() {
     const [sheet, setSheet] = useState<ReturnSheet | null>(null);
     const [isMounted, setIsMounted] = useState(false);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
+    const [showMermaConfirm, setShowMermaConfirm] = useState(false);
 
     const router = useRouter();
     const params = useParams();
@@ -42,15 +45,10 @@ export default function RetornoSheetPage() {
             const allMaterialOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
             const osOrders = allMaterialOrders.filter(o => o.osId === osId);
             
-            const itemsMap = new Map<string, OrderItem & { sentQuantity: number }>();
+            const itemsFromOrders: ReturnSheetItem[] = [];
             osOrders.forEach(order => {
                 order.items.forEach(item => {
-                    const existing = itemsMap.get(item.itemCode);
-                    if (existing) {
-                        existing.sentQuantity += item.quantity;
-                    } else {
-                        itemsMap.set(item.itemCode, { ...item, sentQuantity: item.quantity });
-                    }
+                    itemsFromOrders.push({ ...item, sentQuantity: item.quantity, orderId: order.id });
                 });
             });
             
@@ -61,13 +59,14 @@ export default function RetornoSheetPage() {
                 id: osId,
                 osId: osId,
                 status: 'Pendiente',
-                items: Array.from(itemsMap.values()),
+                items: itemsFromOrders,
                 itemStates: {},
                 os: os,
             };
             
-            Array.from(itemsMap.values()).forEach(item => {
-                 currentSheet.itemStates[item.itemCode] = { returnedQuantity: item.sentQuantity };
+            itemsFromOrders.forEach(item => {
+                 const itemKey = `${item.orderId}_${item.itemCode}`;
+                 currentSheet.itemStates[itemKey] = { returnedQuantity: item.sentQuantity };
             });
 
             allSheets[osId] = currentSheet;
@@ -93,16 +92,47 @@ export default function RetornoSheetPage() {
         setSheet(updatedSheet);
     }, [sheet, osId]);
 
-    const updateItemState = (itemCode: string, updates: Partial<ReturnItemState>) => {
+    const updateItemState = (itemKey: string, updates: Partial<ReturnItemState>) => {
         if (!sheet) return;
         const newStates = { ...sheet.itemStates };
-        const currentState = newStates[itemCode] || { returnedQuantity: 0 };
-        newStates[itemCode] = { ...currentState, ...updates };
+        const currentState = newStates[itemKey] || { returnedQuantity: 0 };
+        newStates[itemKey] = { ...currentState, ...updates };
 
         const hasStarted = Object.values(newStates).some(state => state.returnedQuantity !== undefined);
         const status = sheet.status === 'Pendiente' && hasStarted ? 'Procesando' : sheet.status;
 
         saveSheet({ itemStates: newStates, status });
+    };
+
+    const handleAcceptMerma = () => {
+        if (!sheet) return;
+        const allMaterialOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]');
+        let updated = false;
+
+        Object.entries(sheet.itemStates).forEach(([itemKey, state]) => {
+            const [orderId, itemCode] = itemKey.split('_');
+            const originalItem = sheet.items.find(i => i.orderId === orderId && i.itemCode === itemCode);
+            
+            if (originalItem && originalItem.sentQuantity !== state.returnedQuantity) {
+                const orderIndex = allMaterialOrders.findIndex(o => o.id === orderId);
+                if (orderIndex > -1) {
+                    const orderToUpdate = allMaterialOrders[orderIndex];
+                    const itemIndex = orderToUpdate.items.findIndex(i => i.itemCode === itemCode);
+                    if (itemIndex > -1) {
+                        orderToUpdate.items[itemIndex].quantity = state.returnedQuantity;
+                        updated = true;
+                    }
+                }
+            }
+        });
+        
+        if (updated) {
+            localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
+            toast({ title: "Pedidos Ajustados", description: "Las cantidades de los pedidos originales se han actualizado para reflejar la merma." });
+        } else {
+            toast({ title: "Sin cambios", description: "No se encontraron discrepancias para ajustar." });
+        }
+        setShowMermaConfirm(false);
     };
 
     const handleReset = () => {
@@ -119,20 +149,28 @@ export default function RetornoSheetPage() {
          toast({ title: "Retorno Completado", description: "Se ha marcado el retorno como completado." });
     }
 
-    const { consumption, totalSent, totalReturned, totalLost } = useMemo(() => {
-        if (!sheet) return { consumption: [], totalSent: 0, totalReturned: 0, totalLost: 0 };
+    const { consumption, totalSent, totalReturned, totalLost, hasDiscrepancy } = useMemo(() => {
+        if (!sheet) return { consumption: [], totalSent: 0, totalReturned: 0, totalLost: 0, hasDiscrepancy: false };
         
         let sent = 0;
         let returned = 0;
+        let discrepancy = false;
 
         const consumptionList = sheet.items.map(item => {
-            const state = sheet.itemStates[item.itemCode];
+            const itemKey = `${item.orderId}_${item.itemCode}`;
+            const state = sheet.itemStates[itemKey];
             const returnedQty = state?.returnedQuantity ?? 0;
             const consumed = item.sentQuantity - returnedQty;
+
+            if (item.sentQuantity !== returnedQty) {
+                discrepancy = true;
+            }
+
             sent += item.sentQuantity;
             returned += returnedQty;
             return {
                 ...item,
+                itemKey,
                 returnedQuantity: returnedQty,
                 consumed: consumed > 0 ? consumed : 0,
                 surplus: consumed < 0 ? Math.abs(consumed) : 0,
@@ -144,7 +182,8 @@ export default function RetornoSheetPage() {
             consumption: consumptionList,
             totalSent: sent,
             totalReturned: returned,
-            totalLost: sent - returned
+            totalLost: sent - returned,
+            hasDiscrepancy: discrepancy,
         }
     }, [sheet]);
 
@@ -166,6 +205,7 @@ export default function RetornoSheetPage() {
                     </h1>
                 </div>
                  <div className="flex items-center gap-2">
+                    {hasDiscrepancy && <Button variant="destructive" onClick={() => setShowMermaConfirm(true)}><Save className="mr-2"/>Ajustar Pedido por Merma</Button>}
                     <Button variant="outline" onClick={() => setShowResetConfirm(true)}><RotateCcw className="mr-2"/>Reiniciar</Button>
                     <Button onClick={handleComplete} disabled={sheet.status === 'Completado'}><Check className="mr-2"/>Marcar como Completado</Button>
                  </div>
@@ -217,15 +257,15 @@ export default function RetornoSheetPage() {
                             </TableHeader>
                             <TableBody>
                                 {consumption.map(item => (
-                                <TableRow key={item.itemCode}>
+                                <TableRow key={item.itemKey}>
                                     <TableCell className="font-medium">{item.description}</TableCell>
                                     <TableCell className="text-center font-semibold">{item.sentQuantity}</TableCell>
                                     <TableCell className="text-center">
                                          <Input
-                                            id={`qty-${item.itemCode}`}
+                                            id={`qty-${item.itemKey}`}
                                             type="number"
                                             value={item.returnedQuantity}
-                                            onChange={(e) => updateItemState(item.itemCode, { returnedQuantity: parseInt(e.target.value, 10) || 0 })}
+                                            onChange={(e) => updateItemState(item.itemKey, { returnedQuantity: parseInt(e.target.value, 10) || 0 })}
                                             className="w-20 mx-auto text-center h-9"
                                         />
                                     </TableCell>
@@ -246,11 +286,11 @@ export default function RetornoSheetPage() {
                                                             <DialogDescription>Describe el problema, como roturas, pérdidas, etc.</DialogDescription>
                                                         </DialogHeader>
                                                         <Textarea 
-                                                            id={`comment-${item.itemCode}`}
-                                                            defaultValue={sheet.itemStates[item.itemCode]?.incidentComment}
+                                                            id={`comment-${item.itemKey}`}
+                                                            defaultValue={sheet.itemStates[item.itemKey]?.incidentComment}
                                                             placeholder="Ej: Se devolvieron 3 copas rotas."
                                                             rows={4}
-                                                            onBlur={(e) => updateItemState(item.itemCode, { incidentComment: e.target.value })}
+                                                            onBlur={(e) => updateItemState(item.itemKey, { incidentComment: e.target.value })}
                                                         />
                                                          <DialogFooter>
                                                             <DialogClose asChild>
@@ -261,7 +301,7 @@ export default function RetornoSheetPage() {
                                                 </Dialog>
                                             </TooltipTrigger>
                                             {item.hasIncident && (
-                                                <TooltipContent><p>{sheet.itemStates[item.itemCode]?.incidentComment}</p></TooltipContent>
+                                                <TooltipContent><p>{sheet.itemStates[item.itemKey]?.incidentComment}</p></TooltipContent>
                                             )}
                                         </Tooltip>
                                     </TableCell>
@@ -287,6 +327,22 @@ export default function RetornoSheetPage() {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+
+        <AlertDialog open={showMermaConfirm} onOpenChange={setShowMermaConfirm}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Confirmar Ajuste por Merma?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta acción ajustará las cantidades en los pedidos de material originales para que coincidan con las cantidades devueltas. Este cambio afectará a los costes y a la planificación. ¿Estás seguro?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleAcceptMerma}>Sí, Ajustar Pedidos</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
         </TooltipProvider>
     );
 }
