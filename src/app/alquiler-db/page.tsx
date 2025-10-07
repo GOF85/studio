@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Truck, ArrowLeft } from 'lucide-react';
-import type { AlquilerDBItem } from '@/types';
+import type { AlquilerDBItem, Proveedor } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -38,11 +38,14 @@ import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
-const CSV_HEADERS = ["id", "concepto", "precioAlquiler", "precioReposicion", "imagen"];
+
+const CSV_HEADERS = ["id", "proveedorId", "concepto", "precioAlquiler", "precioReposicion", "imagen"];
 
 export default function AlquilerDBPage() {
   const [items, setItems] = useState<AlquilerDBItem[]>([]);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -54,14 +57,21 @@ export default function AlquilerDBPage() {
   useEffect(() => {
     let storedData = localStorage.getItem('alquilerDB');
     setItems(storedData ? JSON.parse(storedData) : []);
+    let storedProveedores = localStorage.getItem('proveedores');
+    setProveedores(storedProveedores ? JSON.parse(storedProveedores) : []);
     setIsMounted(true);
   }, []);
   
+  const proveedorMap = useMemo(() => {
+    return new Map(proveedores.map(p => [p.id, p.nombreComercial]));
+  }, [proveedores]);
+
   const filteredItems = useMemo(() => {
     return items.filter(item => 
-      item.concepto.toLowerCase().includes(searchTerm.toLowerCase())
+      item.concepto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (proveedorMap.get(item.proveedorId) || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [items, searchTerm]);
+  }, [items, searchTerm, proveedorMap]);
 
 
   const handleExportCSV = () => {
@@ -114,6 +124,7 @@ export default function AlquilerDBPage() {
         
         const importedData: AlquilerDBItem[] = results.data.map(item => ({
             id: item.id || Date.now().toString() + Math.random(),
+            proveedorId: item.proveedorId || '',
             concepto: item.concepto || '',
             precioAlquiler: parseCurrency(item.precioAlquiler),
             precioReposicion: parseCurrency(item.precioReposicion),
@@ -204,9 +215,8 @@ export default function AlquilerDBPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="p-2">Concepto</TableHead>
-                <TableHead className="p-2">Imagen</TableHead>
+                <TableHead className="p-2">Proveedor</TableHead>
                 <TableHead className="p-2">Precio Alquiler</TableHead>
-                <TableHead className="p-2">Precio Reposición</TableHead>
                 <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -215,11 +225,8 @@ export default function AlquilerDBPage() {
                 filteredItems.map(item => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium p-2">{item.concepto}</TableCell>
-                    <TableCell className="p-2">
-                      {item.imagen && <Image src={item.imagen} alt={item.concepto} width={40} height={40} className="rounded-md object-cover"/>}
-                    </TableCell>
+                    <TableCell className="p-2"><Badge variant="outline">{proveedorMap.get(item.proveedorId) || 'N/A'}</Badge></TableCell>
                     <TableCell className="p-2">{formatCurrency(item.precioAlquiler)}</TableCell>
-                    <TableCell className="p-2">{formatCurrency(item.precioReposicion)}</TableCell>
                     <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -244,7 +251,7 @@ export default function AlquilerDBPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={4} className="h-24 text-center">
                     No se encontraron artículos que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>

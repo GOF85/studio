@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, FileDown, Truck, X } from 'lucide-react';
-import type { AlquilerDBItem } from '@/types';
+import type { AlquilerDBItem, Proveedor } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -15,9 +15,11 @@ import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
+import { Combobox } from '@/components/ui/combobox';
 
 export const alquilerFormSchema = z.object({
   id: z.string(),
+  proveedorId: z.string().min(1, "El proveedor es obligatorio"),
   concepto: z.string().min(1, 'El concepto es obligatorio'),
   precioAlquiler: z.coerce.number().min(0, 'El precio debe ser positivo'),
   precioReposicion: z.coerce.number().min(0, 'El precio de reposición debe ser positivo'),
@@ -27,6 +29,7 @@ export const alquilerFormSchema = z.object({
 type AlquilerFormValues = z.infer<typeof alquilerFormSchema>;
 
 const defaultValues: Partial<AlquilerFormValues> = {
+    proveedorId: '',
     concepto: '',
     precioAlquiler: 0,
     precioReposicion: 0,
@@ -39,6 +42,7 @@ export default function AlquilerFormPage() {
   const id = params.id as string;
   const isEditing = id !== 'nuevo';
 
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const { isLoading, setIsLoading } = useLoadingStore();
   const { toast } = useToast();
 
@@ -46,6 +50,11 @@ export default function AlquilerFormPage() {
     resolver: zodResolver(alquilerFormSchema),
     defaultValues,
   });
+  
+  useEffect(() => {
+    const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+    setProveedores(allProveedores.filter(p => p.tipos.includes('Alquiler')));
+  }, []);
 
   useEffect(() => {
     if (isEditing) {
@@ -71,17 +80,11 @@ export default function AlquilerFormPage() {
     if (isEditing) {
       const index = allItems.findIndex(p => p.id === id);
       if (index !== -1) {
-        allItems[index] = data as AlquilerDBItem;
+        allItems[index] = data;
         message = 'Artículo actualizado correctamente.';
       }
     } else {
-       const existing = allItems.find(p => p.concepto.toLowerCase() === data.concepto.toLowerCase());
-        if (existing) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un artículo con este concepto.' });
-            setIsLoading(false);
-            return;
-        }
-      allItems.push(data as AlquilerDBItem);
+      allItems.push(data);
       message = 'Artículo creado correctamente.';
     }
 
@@ -93,6 +96,13 @@ export default function AlquilerFormPage() {
       router.push('/alquiler-db');
     }, 1000);
   }
+  
+  const proveedorOptions = useMemo(() => 
+    proveedores.map(p => ({
+        value: p.id,
+        label: p.nombreComercial
+    })), [proveedores]);
+
 
   return (
     <>
@@ -121,10 +131,21 @@ export default function AlquilerFormPage() {
                 <CardTitle>Detalles del Artículo</CardTitle>
               </CardHeader>
               <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 <FormField control={form.control} name="proveedorId" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Proveedor</FormLabel>
+                        <Combobox 
+                          options={proveedorOptions}
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          placeholder="Selecciona un proveedor..."
+                        />
+                        <FormMessage />
+                    </FormItem>
+                )} />
                 <FormField control={form.control} name="concepto" render={({ field }) => (
                     <FormItem><FormLabel>Concepto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <div></div>
                 <div></div>
                  <FormField control={form.control} name="precioAlquiler" render={({ field }) => (
                     <FormItem><FormLabel>Precio Alquiler</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
