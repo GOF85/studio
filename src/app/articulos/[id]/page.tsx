@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, FileDown, Package, X, Star } from 'lucide-react';
-import type { ArticuloCatering, Proveedor } from '@/types';
+import { Loader2, FileDown, Package, X, Star, Link as LinkIcon, Check, CircleX } from 'lucide-react';
+import type { ArticuloCatering, Proveedor, IngredienteERP } from '@/types';
 import { ARTICULO_CATERING_CATEGORIAS } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { formatCurrency } from '@/lib/utils';
+
 
 export const articuloCateringSchema = z.object({
   id: z.string(),
@@ -47,6 +51,35 @@ const defaultValues: Partial<ArticuloCateringFormValues> = {
     producidoPorPartner: false,
 };
 
+function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProducts }: { onSelect: (id: string) => void, searchTerm: string, setSearchTerm: (term: string) => void, filteredProducts: IngredienteERP[] }) {
+    return (
+        <DialogContent className="max-w-3xl">
+            <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
+            <Input placeholder="Buscar por nombre, proveedor, referencia..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <div className="max-h-[60vh] overflow-y-auto border rounded-md">
+                <Table>
+                    <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Proveedor</TableHead><TableHead>Precio</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {filteredProducts.map(p => (
+                            <TableRow key={p.id}>
+                                <TableCell>{p.nombreProductoERP}</TableCell>
+                                <TableCell>{p.nombreProveedor}</TableCell>
+                                <TableCell>{formatCurrency(p.precio)}/{p.unidad}</TableCell>
+                                <TableCell>
+                                    <Button size="sm" onClick={() => onSelect(p.id)}>
+                                        <Check className="mr-2" />
+                                        Seleccionar
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+        </DialogContent>
+    );
+}
+
 export default function ArticuloFormPage() {
   const router = useRouter();
   const params = useParams();
@@ -56,15 +89,33 @@ export default function ArticuloFormPage() {
   const [partners, setPartners] = useState<Proveedor[]>([]);
   const { isLoading, setIsLoading } = useLoadingStore();
   const { toast } = useToast();
+  
+  const [ingredientesERP, setIngredientesERP] = useState<IngredienteERP[]>([]);
+  const [erpSearchTerm, setErpSearchTerm] = useState('');
+  const [isErpDialogOpen, setIsErpDialogOpen] = useState(false);
 
   const form = useForm<ArticuloCateringFormValues>({
     resolver: zodResolver(articuloCateringSchema),
     defaultValues,
   });
+  
+  const selectedErpId = form.watch('erpId');
+  const selectedErpProduct = ingredientesERP.find(p => p.id === selectedErpId);
+  
+  const filteredErpProducts = useMemo(() => {
+    return ingredientesERP.filter(p => 
+        p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
+        p.nombreProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
+        p.referenciaProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase())
+    );
+  }, [ingredientesERP, erpSearchTerm]);
 
   useEffect(() => {
     const allPartners = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
     setPartners(allPartners);
+    
+    const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
+    setIngredientesERP(storedErp);
 
     if (isEditing) {
       const items = JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[];
@@ -107,6 +158,11 @@ export default function ArticuloFormPage() {
   }
   
   const partnerOptions = partners.map(p => ({ value: p.id, label: p.nombreComercial }));
+
+  const handleErpSelect = (erpId: string) => {
+    form.setValue('erpId', erpId, { shouldDirty: true });
+    setIsErpDialogOpen(false);
+  }
 
   return (
     <>
@@ -199,6 +255,41 @@ export default function ArticuloFormPage() {
                     )} />
                 </CardContent>
              </Card>
+              <Card>
+                <CardHeader>
+                    <CardTitle>Vínculo con Materia Prima</CardTitle>
+                </CardHeader>
+                <CardContent>
+                     <FormItem>
+                        <FormLabel>Producto ERP Vinculado</FormLabel>
+                        {selectedErpProduct ? (
+                            <div className="border rounded-md p-2 space-y-1">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="font-semibold text-sm leading-tight">{selectedErpProduct.nombreProductoERP}</p>
+                                        <p className="text-xs text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
+                                    </div>
+                                    <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" onClick={() => form.setValue('erpId', '')}><CircleX className="mr-1 h-3 w-3"/>Desvincular</Button>
+                                </div>
+                                <p className="font-bold text-primary text-sm">{formatCurrency(selectedErpProduct.precio)} / {selectedErpProduct.unidad}</p>
+                            </div>
+                        ) : (
+                            <Dialog open={isErpDialogOpen} onOpenChange={setIsErpDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button variant="secondary" className="w-full h-16 border-dashed border-2"><LinkIcon className="mr-2"/>Vincular Producto ERP</Button>
+                                </DialogTrigger>
+                                <ErpSelectorDialog 
+                                    onSelect={handleErpSelect}
+                                    searchTerm={erpSearchTerm}
+                                    setSearchTerm={setErpSearchTerm}
+                                    filteredProducts={filteredErpProducts}
+                                />
+                            </Dialog>
+                        )}
+                        <FormMessage className="mt-2 text-red-500">{form.formState.errors.erpId?.message}</FormMessage>
+                    </FormItem>
+                </CardContent>
+              </Card>
           </form>
         </Form>
       </main>

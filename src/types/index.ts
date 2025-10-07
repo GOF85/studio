@@ -151,7 +151,7 @@ aparcamiento: string;
   comentariosMarketing: string;
 }
 
-export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacén', 'Bio'] as const;
+export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacén', 'Bio', 'Hielo', 'Alquiler'] as const;
 export type ArticuloCateringCategoria = typeof ARTICULO_CATERING_CATEGORIAS[number];
 
 export type ArticuloCatering = {
@@ -164,8 +164,10 @@ export type ArticuloCatering = {
     precioVenta: number;
     precioAlquiler: number;
     precioReposicion: number;
-    loc: string;
-    imagen: string;
+    loc?: string;
+    imagen?: string;
+    producidoPorPartner?: boolean;
+    partnerId?: string;
 }
 
 export type AlquilerDBItem = {
@@ -807,4 +809,15 @@ export type ComercialAjuste = {
     id: string;
     concepto: string;
     importe: number;
+}
+export type Precio = {
+    id: string;
+    categoria: string;
+    producto: string;
+    precioUd: number;
+    precioAlquilerUd: number;
+    unidad: string;
+    observaciones: string;
+    loc: string;
+    imagen: string;
 }

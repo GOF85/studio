@@ -68,7 +68,7 @@ export default function ArticulosPage() {
 
   const filteredItems = useMemo(() => {
     return items.filter(item => 
-      (item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || (item.subcategoria || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
+      (item.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || (item.subcategoria || '').toLowerCase().includes(searchTerm.toLowerCase()) || (item.erpId || '').toLowerCase().includes(searchTerm.toLowerCase())) &&
       (categoryFilter === 'all' || item.categoria === categoryFilter)
     );
   }, [items, searchTerm, categoryFilter]);
@@ -214,7 +214,7 @@ export default function ArticulosPage() {
 
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
-            placeholder="Buscar por nombre..."
+            placeholder="Buscar por nombre, subcategoría o ID ERP..."
             className="flex-grow max-w-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -240,6 +240,7 @@ export default function ArticulosPage() {
                 <TableHead className="p-2"></TableHead>
                 <TableHead className="p-2">Nombre</TableHead>
                 <TableHead className="p-2">Categoría</TableHead>
+                <TableHead className="p-2">ID ERP</TableHead>
                 <TableHead className="p-2">P. Venta</TableHead>
                 <TableHead className="p-2">P. Alquiler</TableHead>
                 <TableHead className="p-2">P. Reposición</TableHead>
@@ -255,6 +256,7 @@ export default function ArticulosPage() {
                     </TableCell>
                     <TableCell className="font-medium p-2">{item.nombre}</TableCell>
                     <TableCell className="p-2"><Badge variant="outline">{item.categoria}</Badge></TableCell>
+                    <TableCell className="p-2 font-mono text-xs">{item.erpId}</TableCell>
                     <TableCell className="p-2">{formatCurrency(item.precioVenta)}</TableCell>
                     <TableCell className="p-2">{formatCurrency(item.precioAlquiler)}</TableCell>
                     <TableCell className="p-2">{formatCurrency(item.precioReposicion)}</TableCell>
@@ -282,7 +284,7 @@ export default function ArticulosPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={8} className="h-24 text-center">
                     No se encontraron artículos que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>
