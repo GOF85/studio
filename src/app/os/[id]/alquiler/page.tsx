@@ -14,6 +14,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -96,7 +102,7 @@ export default function AlquilerPage() {
                 items['Asignado'].push({
                     ...item,
                     orderContract: order.contractNumber || 'N/A',
-                    orderStatus: 'Pendiente',
+                    orderStatus: 'Pendiente', 
                     solicita: order.solicita,
                 });
             }
