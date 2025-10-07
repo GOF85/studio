@@ -62,18 +62,6 @@ export default function AlquilerPage() {
     return materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
   }, [materialOrders]);
 
-  const { processedItemKeys } = useMemo(() => {
-    const keys = new Set<string>();
-    pickingSheets.forEach(sheet => {
-        sheet.items.forEach(item => {
-            if(item.type === 'Alquiler') {
-                keys.add(`${item.orderId}-${item.itemCode}`);
-            }
-        })
-    })
-    return { processedItemKeys: keys };
-  }, [pickingSheets]);
-
   const allItemsByStatus = useMemo(() => {
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = {
       Asignado: [],
@@ -81,6 +69,8 @@ export default function AlquilerPage() {
       Listo: [],
     };
     
+    const processedItemKeys = new Set<string>();
+
     pickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
@@ -92,6 +82,7 @@ export default function AlquilerPage() {
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
                 });
+                processedItemKeys.add(`${item.orderId}-${item.itemCode}`);
             }
         });
     });
@@ -111,7 +102,7 @@ export default function AlquilerPage() {
         });
     });
     return items;
-  }, [materialOrders, pickingSheets, processedItemKeys]);
+  }, [materialOrders, pickingSheets]);
 
   const handleSaveAll = () => {
     setIsLoading(true);
@@ -161,10 +152,13 @@ export default function AlquilerPage() {
     setOrderToDelete(null);
   };
   
-  const blockedItems = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
-  const pendingItems = allItems.filter(item => {
-    return allItemsByStatus['Asignado'].some(assigned => assigned.itemCode === item.itemCode && assigned.orderId === item.orderId)
-  });
+  const { blockedItems, pendingItems } = useMemo(() => {
+    const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    const pending = allItems.filter(item => {
+        return allItemsByStatus['Asignado'].some(assigned => assigned.itemCode === item.itemCode && assigned.orderId === item.orderId)
+    });
+    return { blockedItems: blocked, pendingItems: pending };
+  }, [allItems, allItemsByStatus]);
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
@@ -189,7 +183,10 @@ export default function AlquilerPage() {
                                 {item.solicita}
                             </Badge>
                         ) : <span></span>}
-                        <Badge variant="outline">{item.orderContract}</Badge>
+                        <div className="flex items-center gap-2">
+                            <Badge variant="outline">{item.category}</Badge>
+                            {title !== 'Asignado' && <Badge variant="outline">{item.orderContract}</Badge>}
+                        </div>
                     </div>
                 </Card>
             )) : <p className="text-sm text-muted-foreground text-center py-4">No hay artículos.</p>}
@@ -245,10 +242,10 @@ export default function AlquilerPage() {
                 <Collapsible defaultOpen={false}>
                     <div className="flex items-center gap-2 font-semibold text-destructive border p-2 rounded-md hover:bg-muted/50 mb-4">
                         <CollapsibleTrigger asChild>
-                            <div className="flex flex-1 items-center cursor-pointer">
-                                <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                                Bloqueado (En Preparación / Listo)
-                            </div>
+                           <div className="flex-1 flex items-center cursor-pointer">
+                             <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                             Bloqueado (En Preparación / Listo)
+                           </div>
                         </CollapsibleTrigger>
                     </div>
                     <CollapsibleContent>

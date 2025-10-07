@@ -101,17 +101,19 @@ export default function BodegaPage() {
         </CardHeader>
         <CardContent className="space-y-2">
             {items.length > 0 ? items.map((item, index) => (
-                <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-3">
-                    <p className="font-semibold">{item.description}</p>
-                    <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
-                        <span>Cantidad: {item.quantity}</span>
-                         {item.solicita && (
+                <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
+                    <p className="font-semibold truncate">{item.quantity} x {item.description}</p>
+                    <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
+                         {item.solicita ? (
                             <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
-                                {item.solicita === 'Sala' ? <Users size={12} className="mr-1.5"/> : <Soup size={12} className="mr-1.5"/>}
+                                {item.solicita === 'Sala' ? <Users size={10} className="mr-1"/> : <Soup size={10} className="mr-1"/>}
                                 {item.solicita}
                             </Badge>
-                        )}
-                        {columnType !== 'Asignado' && <Badge variant="outline">{item.orderContract}</Badge>}
+                        ) : <span></span>}
+                        <div className="flex items-center gap-2">
+                            <Badge variant="outline">{item.category}</Badge>
+                            {columnType !== 'Asignado' && <Badge variant="outline">{item.orderContract}</Badge>}
+                        </div>
                     </div>
                 </Card>
             )) : <p className="text-sm text-muted-foreground text-center py-4">No hay artículos.</p>}
