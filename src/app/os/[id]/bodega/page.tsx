@@ -16,6 +16,8 @@ import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -75,7 +77,7 @@ export default function BodegaPage() {
                     ...item,
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
-                    solicita: sheet.solicitante
+                    solicita: sheet.solicitante,
                 });
                 pickedItemCodes.add(item.itemCode);
             }
@@ -89,7 +91,7 @@ export default function BodegaPage() {
                     ...item,
                     orderContract: order.contractNumber || 'N/A',
                     orderStatus: 'Pendiente', 
-                    solicita: order.solicita
+                    solicita: order.solicita,
                 });
             }
         });
@@ -225,42 +227,42 @@ export default function BodegaPage() {
                                 {materialOrders.length > 0 ? materialOrders.map(order => (
                                 <Collapsible key={order.id} asChild>
                                     <>
-                                    <TableRow>
-                                        <TableCell><CollapsibleTrigger className="flex items-center gap-2 font-medium w-full text-left">{order.contractNumber} <ChevronDown className="h-4 w-4"/></CollapsibleTrigger></TableCell>
-                                        <TableCell>{order.solicita}</TableCell>
-                                        <TableCell className="text-right">{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => setOrderToDelete(order.id)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                    <CollapsibleContent asChild>
-                                        <tr>
-                                            <td colSpan={4} className="p-0">
-                                                <div className="p-4 bg-muted/30">
-                                                    <Table>
-                                                        <TableBody>
-                                                            {order.items.map(item => (
-                                                                <TableRow key={item.itemCode}>
-                                                                    <TableCell>{item.description}</TableCell>
-                                                                    <TableCell className="w-32">
-                                                                        <Input type="number" value={item.quantity} onBlur={(e) => handleQuantityChange(order.id, item.itemCode, parseInt(e.target.value))} onChange={(e) => {
-                                                                            const newItems = order.items.map(i => i.itemCode === item.itemCode ? {...i, quantity: parseInt(e.target.value) || 0} : i);
-                                                                            setMaterialOrders(prev => prev.map(o => o.id === order.id ? {...o, items: newItems} : o));
-                                                                        }} className="h-8"/>
-                                                                    </TableCell>
-                                                                    <TableCell className="w-12">
-                                                                        <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteItem(order.id, item.itemCode)}><Trash2 className="h-4 w-4"/></Button>
-                                                                    </TableCell>
-                                                                </TableRow>
-                                                            ))}
-                                                        </TableBody>
-                                                    </Table>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    </CollapsibleContent>
+                                        <TableRow>
+                                            <TableCell><CollapsibleTrigger className="flex items-center gap-2 font-medium w-full text-left">{order.contractNumber} <ChevronDown className="h-4 w-4"/></CollapsibleTrigger></TableCell>
+                                            <TableCell>{order.solicita}</TableCell>
+                                            <TableCell className="text-right">{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => setOrderToDelete(order.id)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                        <CollapsibleContent asChild>
+                                            <tr>
+                                                <td colSpan={4} className="p-0">
+                                                    <div className="p-4 bg-muted/30">
+                                                        <Table>
+                                                            <TableBody>
+                                                                {order.items.map(item => (
+                                                                    <TableRow key={item.itemCode}>
+                                                                        <TableCell>{item.description}</TableCell>
+                                                                        <TableCell className="w-32">
+                                                                            <Input type="number" value={item.quantity} onBlur={(e) => handleQuantityChange(order.id, item.itemCode, parseInt(e.target.value))} onChange={(e) => {
+                                                                                const newItems = order.items.map(i => i.itemCode === item.itemCode ? {...i, quantity: parseInt(e.target.value) || 0} : i);
+                                                                                setMaterialOrders(prev => prev.map(o => o.id === order.id ? {...o, items: newItems} : o));
+                                                                            }} className="h-8"/>
+                                                                        </TableCell>
+                                                                        <TableCell className="w-12">
+                                                                            <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteItem(order.id, item.itemCode)}><Trash2 className="h-4 w-4"/></Button>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </CollapsibleContent>
                                     </>
                                 </Collapsible>
                                 )) : (
