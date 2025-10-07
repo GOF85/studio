@@ -62,6 +62,18 @@ export default function BioPage() {
     return materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
   }, [materialOrders]);
 
+  const { processedItemKeys } = useMemo(() => {
+    const keys = new Set<string>();
+    pickingSheets.forEach(sheet => {
+        sheet.items.forEach(item => {
+            if(item.type === 'Bio') {
+                keys.add(`${item.orderId}-${item.itemCode}`);
+            }
+        })
+    })
+    return { processedItemKeys: keys };
+  }, [pickingSheets]);
+
   const allItemsByStatus = useMemo(() => {
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = {
       Asignado: [],
@@ -69,8 +81,6 @@ export default function BioPage() {
       Listo: [],
     };
     
-    const processedItemKeys = new Set<string>();
-
     pickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
@@ -82,7 +92,6 @@ export default function BioPage() {
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
                 });
-                processedItemKeys.add(`${item.orderId}-${item.itemCode}`);
             }
         });
     });
@@ -102,7 +111,7 @@ export default function BioPage() {
         });
     });
     return items;
-  }, [materialOrders, pickingSheets]);
+  }, [materialOrders, pickingSheets, processedItemKeys]);
 
   const handleSaveAll = () => {
     setIsLoading(true);
@@ -151,6 +160,11 @@ export default function BioPage() {
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
   };
+  
+  const blockedItems = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+  const pendingItems = allItems.filter(item => {
+    return allItemsByStatus['Asignado'].some(assigned => assigned.itemCode === item.itemCode && assigned.orderId === item.orderId)
+  });
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Bio..." />;
@@ -175,30 +189,13 @@ export default function BioPage() {
                                 {item.solicita}
                             </Badge>
                         ) : <span></span>}
-                        {title !== 'Asignado' && <Badge variant="outline">{item.orderContract}</Badge>}
+                        <Badge variant="outline">{item.orderContract}</Badge>
                     </div>
                 </Card>
             )) : <p className="text-sm text-muted-foreground text-center py-4">No hay artículos.</p>}
         </CardContent>
     </Card>
   );
-
-  const blockedItems = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
-  const pendingItems = allItems.filter(item => {
-    return allItemsByStatus['Asignado'].some(assigned => assigned.itemCode === item.itemCode && assigned.orderId === item.orderId)
-  });
-  
-  const { processedItemKeys } = useMemo(() => {
-    const keys = new Set<string>();
-    pickingSheets.forEach(sheet => {
-        sheet.items.forEach(item => {
-            if(item.type === 'Bio') {
-                keys.add(`${item.orderId}-${item.itemCode}`);
-            }
-        })
-    })
-    return { processedItemKeys: keys };
-  }, [pickingSheets]);
 
   return (
     <>
