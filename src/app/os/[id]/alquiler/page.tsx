@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Users, Soup, MoreHorizontal, Pencil, Trash2, Eye, ChevronDown, Save, Loader2 } from 'lucide-react';
+import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2 } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -59,7 +59,7 @@ export default function AlquilerPage() {
   }, [osId]);
 
   const allItems = useMemo(() => {
-    return materialOrders.flatMap(order => order.items);
+    return materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id})));
   }, [materialOrders]);
 
   const allItemsByStatus = useMemo(() => {
@@ -69,11 +69,13 @@ export default function AlquilerPage() {
       Listo: [],
     };
     
-    const pickedItemCodes = new Set<string>();
+    const processedItemKeys = new Set<string>();
+
     pickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
              if (item.type === 'Alquiler') {
+                 const itemKey = `${sheet.id}-${item.itemCode}`;
                  items[targetStatus].push({
                     ...item,
                     orderId: sheet.id,
@@ -81,14 +83,15 @@ export default function AlquilerPage() {
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
                 });
-                pickedItemCodes.add(item.itemCode);
+                processedItemKeys.add(itemKey);
             }
         });
     });
 
     materialOrders.forEach(order => {
         order.items.forEach(item => {
-            if (!pickedItemCodes.has(item.itemCode)) {
+            const itemKey = `${order.id}-${item.itemCode}`;
+            if (!processedItemKeys.has(itemKey)) {
                 items['Asignado'].push({
                     ...item,
                     orderId: order.id,
@@ -118,12 +121,12 @@ export default function AlquilerPage() {
     setIsLoading(false);
   }
 
-  const handleQuantityChange = (orderId: string, itemCode: string, newQuantity: number) => {
+  const handleItemChange = (orderId: string, itemCode: string, field: 'quantity' | 'solicita', value: any) => {
     setMaterialOrders(prevOrders => {
       return prevOrders.map(order => {
         if (order.id === orderId) {
           const updatedItems = order.items
-            .map(item => item.itemCode === itemCode ? { ...item, quantity: newQuantity } : item)
+            .map(item => item.itemCode === itemCode ? { ...item, [field]: value } : item)
             .filter(item => item.quantity > 0);
           const updatedTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
           return { ...order, items: updatedItems, total: updatedTotal };
@@ -132,17 +135,9 @@ export default function AlquilerPage() {
       });
     });
   };
-  
-  const handleSolicitaChange = (orderId: string, newSolicita: 'Sala' | 'Cocina') => {
-    setMaterialOrders(prevOrders => 
-      prevOrders.map(order => 
-        order.id === orderId ? { ...order, solicita: newSolicita } : order
-      )
-    );
-  }
 
   const handleDeleteItem = (orderId: string, itemCode: string) => {
-    handleQuantityChange(orderId, itemCode, 0);
+    handleItemChange(orderId, itemCode, 'quantity', 0);
   }
 
   const handleDeleteOrder = () => {
@@ -169,16 +164,15 @@ export default function AlquilerPage() {
         </CardHeader>
         <CardContent className="space-y-2">
             {items.length > 0 ? items.map((item, index) => (
-                <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-3">
-                    <p className="font-semibold">{item.description}</p>
-                    <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
-                        <span>Cantidad: {item.quantity}</span>
-                         {item.solicita && (
+                <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
+                    <p className="font-semibold truncate">{item.quantity} x {item.description}</p>
+                    <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
+                        {item.solicita ? (
                             <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
-                                {item.solicita === 'Sala' ? <Users size={12} className="mr-1.5"/> : <Soup size={12} className="mr-1.5"/>}
+                                {item.solicita === 'Sala' ? <Users size={10} className="mr-1"/> : <Soup size={10} className="mr-1"/>}
                                 {item.solicita}
                             </Badge>
-                        )}
+                        ) : <span></span>}
                         {title !== 'Asignado' && <Badge variant="outline">{item.orderContract}</Badge>}
                     </div>
                 </Card>
@@ -186,6 +180,10 @@ export default function AlquilerPage() {
         </CardContent>
     </Card>
   );
+
+  const blockedItems = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+  const pendingItems = allItems.filter(item => allItemsByStatus['Asignado'].some(assigned => assigned.itemCode === item.itemCode && assigned.orderId === item.orderId));
+
 
   return (
     <>
@@ -223,119 +221,87 @@ export default function AlquilerPage() {
             {renderColumn('Listo', allItemsByStatus['Listo'])}
        </div>
 
-        <Collapsible>
-          <Card>
-              <div className="flex items-center justify-between p-4 hover:bg-muted/50 rounded-t-lg">
-                <CollapsibleTrigger asChild>
-                    <div className="flex flex-1 items-center cursor-pointer">
-                        <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
-                        <ChevronDown className="h-6 w-6 transition-transform duration-200 group-data-[state=open]:rotate-180 ml-2" />
-                    </div>
-                </CollapsibleTrigger>
-                <Button onClick={(e) => { e.stopPropagation(); handleSaveAll();}} disabled={isLoading}>
+        <Card>
+            <div className="flex items-center justify-between p-4">
+                <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
+                <Button onClick={handleSaveAll} disabled={isLoading}>
                     {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                     <span className="ml-2">Guardar Cambios</span>
                 </Button>
-              </div>
-              <CollapsibleContent>
-                  <CardContent>
-                      <h3 className="font-semibold text-lg my-2 text-destructive">Bloqueado (En Preparación / Listo)</h3>
-                       <div className="border rounded-lg mb-6">
-                           <Table>
-                              <TableHeader>
-                                  <TableRow>
-                                      <TableHead>Contrato</TableHead>
-                                      <TableHead>Artículo</TableHead>
-                                      <TableHead>Cantidad</TableHead>
-                                      <TableHead>Solicita</TableHead>
-                                      <TableHead className="text-right">Importe</TableHead>
-                                  </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                  {[...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map((item, index) => (
-                                      <TableRow key={index} className="bg-muted/20">
-                                          <TableCell><Badge variant="secondary">{item.orderContract}</Badge></TableCell>
-                                          <TableCell>{item.description}</TableCell>
-                                          <TableCell>{item.quantity}</TableCell>
-                                          <TableCell>{item.solicita}</TableCell>
-                                          <TableCell className="text-right">{(item.price * item.quantity).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                                      </TableRow>
-                                  ))}
-                                  {[...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].length === 0 && (
-                                      <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay artículos bloqueados.</TableCell></TableRow>
-                                  )}
-                              </TableBody>
-                           </Table>
-                       </div>
-                       
-                      <h3 className="font-semibold text-lg my-2 text-green-700">Pendiente (Asignado)</h3>
-                      <div className="border rounded-lg">
-                          <Table>
-                              <TableBody>
-                                  {materialOrders.filter(o => !pickingSheets.some(ps => ps.id === o.id)).sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(order => (
-                                      <Collapsible key={order.id} asChild>
-                                          <>
-                                              <TableRow>
-                                                  <TableCell className="p-0">
-                                                    <CollapsibleTrigger asChild>
-                                                        <div className="flex items-center gap-2 font-medium w-full text-left p-4 cursor-pointer">
-                                                            <ChevronDown className="h-4 w-4"/>
-                                                            <span className="flex-1">{order.contractNumber}</span>
-                                                            <span className="text-right font-normal">{order.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
-                                                        </div>
-                                                    </CollapsibleTrigger>
-                                                  </TableCell>
-                                                  <TableCell className="w-48">
-                                                      <Select value={order.solicita} onValueChange={(value: 'Sala' | 'Cocina') => handleSolicitaChange(order.id, value)}>
-                                                          <SelectTrigger><SelectValue/></SelectTrigger>
-                                                          <SelectContent>
-                                                              <SelectItem value="Sala">Sala</SelectItem>
-                                                              <SelectItem value="Cocina">Cocina</SelectItem>
-                                                          </SelectContent>
-                                                      </Select>
-                                                  </TableCell>
-                                                  <TableCell className="text-right w-12">
-                                                      <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => setOrderToDelete(order.id)}>
-                                                          <Trash2 className="h-4 w-4" />
-                                                      </Button>
-                                                  </TableCell>
-                                              </TableRow>
-                                              <CollapsibleContent asChild>
-                                                  <tr>
-                                                      <td colSpan={3} className="p-0">
-                                                          <div className="p-2 bg-muted/30">
-                                                              <Table>
-                                                                  <TableBody>
-                                                                      {order.items.map(item => (
-                                                                          <TableRow key={item.itemCode}>
-                                                                              <TableCell>{item.description}</TableCell>
-                                                                              <TableCell className="w-32">
-                                                                                  <Input type="number" value={item.quantity} onChange={(e) => handleQuantityChange(order.id, item.itemCode, parseInt(e.target.value) || 0)} className="h-8"/>
-                                                                              </TableCell>
-                                                                              <TableCell className="w-12">
-                                                                                  <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteItem(order.id, item.itemCode)}><Trash2 className="h-4 w-4"/></Button>
-                                                                              </TableCell>
-                                                                          </TableRow>
-                                                                      ))}
-                                                                  </TableBody>
-                                                              </Table>
-                                                          </div>
-                                                      </td>
-                                                  </tr>
-                                              </CollapsibleContent>
-                                          </>
-                                      </Collapsible>
-                                  ))}
-                                  {materialOrders.filter(o => !pickingSheets.some(ps => ps.id === o.id)).length === 0 && (
-                                       <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes de procesar.</TableCell></TableRow>
-                                  )}
-                              </TableBody>
-                          </Table>
-                      </div>
-                  </CardContent>
-              </CollapsibleContent>
-          </Card>
-        </Collapsible>
+            </div>
+            <CardContent>
+                <Collapsible defaultOpen={false}>
+                    <CollapsibleTrigger className="w-full">
+                        <div className="flex items-center gap-2 font-semibold text-destructive border p-2 rounded-md hover:bg-muted/50 mb-4">
+                            <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                            Bloqueado (En Preparación / Listo)
+                        </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                         <div className="border rounded-lg mb-6">
+                             <Table>
+                                <TableHeader>
+                                    <TableRow><TableHead>Contrato</TableHead><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead><TableHead>Solicita</TableHead></TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {blockedItems.map((item, index) => (
+                                        <TableRow key={index} className="bg-muted/20">
+                                            <TableCell><Badge variant="secondary">{item.orderContract}</Badge></TableCell>
+                                            <TableCell>{item.description}</TableCell>
+                                            <TableCell>{item.quantity}</TableCell>
+                                            <TableCell>{item.solicita}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {blockedItems.length === 0 && (
+                                        <TableRow><TableCell colSpan={4} className="h-20 text-center text-muted-foreground">No hay artículos bloqueados.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                             </Table>
+                         </div>
+                    </CollapsibleContent>
+                </Collapsible>
+                
+                <h3 className="font-semibold text-lg my-2 text-green-700">Pendiente (Asignado)</h3>
+                <div className="border rounded-lg">
+                    <Table>
+                         <TableHeader>
+                            <TableRow>
+                                <TableHead>Artículo</TableHead>
+                                <TableHead>Solicita</TableHead>
+                                <TableHead>Contrato</TableHead>
+                                <TableHead className="w-32">Cantidad</TableHead>
+                                <TableHead className="text-right w-12"></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
+                                <TableRow key={item.itemCode + item.orderId}>
+                                    <TableCell>{item.description}</TableCell>
+                                    <TableCell>
+                                        <Select value={item.solicita} onValueChange={(value: 'Sala' | 'Cocina') => handleItemChange(item.orderId, item.itemCode, 'solicita', value)}>
+                                            <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Sala">Sala</SelectItem>
+                                                <SelectItem value="Cocina">Cocina</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </TableCell>
+                                     <TableCell><Badge variant="outline">{materialOrders.find(o=>o.id === item.orderId)?.contractNumber}</Badge></TableCell>
+                                    <TableCell>
+                                        <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'quantity', parseInt(e.target.value) || 0)} className="h-8"/>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteItem(item.orderId, item.itemCode)}><Trash2 className="h-4 w-4"/></Button>
+                                    </TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
 
        <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
             <AlertDialogContent>
