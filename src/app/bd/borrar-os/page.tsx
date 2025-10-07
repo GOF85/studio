@@ -13,6 +13,7 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
+    AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, ShieldAlert, FileText, Package } from 'lucide-react';
@@ -69,6 +70,40 @@ export default function BorrarOsPage() {
         setDataSetToDelete(null);
     };
 
+    const renderDeleteButton = (db: DataSet) => (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="destructive">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Borrar Todos
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta acción no se puede deshacer. Vas a eliminar permanentemente todos los registros de <strong>{db.name}</strong>.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                        className="bg-destructive hover:bg-destructive/90"
+                        onClick={() => {
+                            localStorage.removeItem(db.key);
+                            toast({
+                                title: 'Datos Eliminados',
+                                description: `Se han borrado todos los registros de: ${db.name}.`,
+                            });
+                        }}
+                    >
+                        Sí, entiendo. Borrar todo.
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+
     return (
         <>
             <main className="container mx-auto px-4 py-8">
@@ -99,10 +134,7 @@ export default function BorrarOsPage() {
                                         <h3 className="font-semibold">{db.name}</h3>
                                         <p className="text-sm text-muted-foreground">{db.description}</p>
                                     </div>
-                                    <Button variant="destructive" onClick={() => setDataSetToDelete(db)}>
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Borrar Todos
-                                    </Button>
+                                    {renderDeleteButton(db)}
                                 </CardContent>
                             </Card>
                         ))}
@@ -120,36 +152,43 @@ export default function BorrarOsPage() {
                                         <h3 className="font-semibold">{db.name}</h3>
                                         <p className="text-sm text-muted-foreground">{db.description}</p>
                                     </div>
-                                    <Button variant="destructive" onClick={() => setDataSetToDelete(db)}>
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Vaciar
-                                    </Button>
+                                     <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="destructive" size="sm">
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Vaciar
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Esta acción no se puede deshacer. Vas a eliminar permanentemente todos los registros de <strong>{db.name}</strong>.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                    className="bg-destructive hover:bg-destructive/90"
+                                                    onClick={() => {
+                                                        localStorage.removeItem(db.key);
+                                                        toast({
+                                                            title: 'Datos Eliminados',
+                                                            description: `Se han borrado todos los registros de: ${db.name}.`,
+                                                        });
+                                                    }}
+                                                >
+                                                    Sí, entiendo. Borrar todo.
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                 </CardContent>
                             </Card>
                         ))}
                     </div>
                 </div>
             </main>
-
-             <AlertDialog open={!!dataSetToDelete} onOpenChange={(open) => !open && setDataSetToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Vas a eliminar permanentemente todos los registros de <strong>{dataSetToDelete?.name}</strong>.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setDataSetToDelete(null)}>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                            className="bg-destructive hover:bg-destructive/90"
-                            onClick={handleDelete}
-                        >
-                            Sí, entiendo. Borrar todo.
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </>
     );
 }
