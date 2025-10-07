@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -13,11 +13,19 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, ShieldAlert, FileText, Package } from 'lucide-react';
-import Link from 'next/link';
+import { Trash2, ShieldAlert } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type DataSet = {
   key: string;
@@ -52,58 +60,109 @@ const RELATED_DATA: DataSet[] = [
     { key: 'activityLogs', name: 'Registro de Actividad de Portales', description: 'Log de acciones de usuarios externos.' },
 ];
 
+type ItemToDelete = {
+    id: string;
+    label: string;
+    checked: boolean;
+};
 
 export default function BorrarOsPage() {
-    const [dataSetToDelete, setDataSetToDelete] = useState<DataSet | null>(null);
     const { toast } = useToast();
+    const [isMounted, setIsMounted] = useState(false);
+    const [dataSetToView, setDataSetToView] = useState<DataSet | null>(null);
+    const [itemsToDelete, setItemsToDelete] = useState<ItemToDelete[]>([]);
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-    const handleDelete = () => {
-        if (!dataSetToDelete) return;
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    const handleOpenDialog = (db: DataSet) => {
+        const dataString = localStorage.getItem(db.key);
+        const data = dataString ? JSON.parse(dataString) : [];
         
-        localStorage.removeItem(dataSetToDelete.key);
+        const items = (Array.isArray(data) ? data : Object.values(data)).map((item: any) => ({
+            id: item.id || item.osId, // Use osId as fallback for some data structures
+            label: item.serviceNumber || item.name || item.concepto || item.ofId || item.id || item.osId,
+            checked: true
+        }));
+        
+        setItemsToDelete(items);
+        setDataSetToView(db);
+    };
+
+    const handleToggleAll = (checked: boolean | "indeterminate") => {
+        if (checked === 'indeterminate') return;
+        setItemsToDelete(items => items.map(item => ({ ...item, checked })));
+    }
+
+    const handleToggleItem = (id: string) => {
+        setItemsToDelete(items => items.map(item => item.id === id ? { ...item, checked: !item.checked } : item));
+    }
+
+    const handleDeleteSelected = () => {
+        if (!dataSetToView) return;
+
+        const idsToDelete = new Set(itemsToDelete.filter(item => item.checked).map(item => item.id));
+        
+        const dataString = localStorage.getItem(dataSetToView.key);
+        const data = dataString ? JSON.parse(dataString) : [];
+
+        const isArray = Array.isArray(data);
+        let newData;
+
+        if (isArray) {
+            newData = data.filter((item: any) => !idsToDelete.has(item.id || item.osId));
+        } else { // Handle object-based storage like pickingStates
+            newData = Object.entries(data).reduce((acc, [key, value]) => {
+                const item = value as any;
+                if (!idsToDelete.has(item.id || item.osId || key)) {
+                    acc[key] = value;
+                }
+                return acc;
+            }, {} as Record<string, any>);
+        }
+
+        localStorage.setItem(dataSetToView.key, JSON.stringify(newData));
         
         toast({
             title: 'Datos Eliminados',
-            description: `Se han borrado todos los registros de: ${dataSetToDelete.name}.`,
+            description: `Se han borrado ${idsToDelete.size} registros de: ${dataSetToView.name}.`,
         });
-        
-        setDataSetToDelete(null);
+
+        setDataSetToView(null);
+        setItemsToDelete([]);
+        setIsConfirmOpen(false);
     };
 
-    const renderDeleteButton = (db: DataSet) => (
-        <AlertDialog>
-            <AlertDialogTrigger asChild>
-                <Button variant="destructive">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Borrar Todos
-                </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Esta acción no se puede deshacer. Vas a eliminar permanentemente todos los registros de <strong>{db.name}</strong>.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction
-                        className="bg-destructive hover:bg-destructive/90"
-                        onClick={() => {
-                            localStorage.removeItem(db.key);
-                            toast({
-                                title: 'Datos Eliminados',
-                                description: `Se han borrado todos los registros de: ${db.name}.`,
-                            });
-                        }}
-                    >
-                        Sí, entiendo. Borrar todo.
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-    );
+    const numSelected = itemsToDelete.filter(i => i.checked).length;
 
+    const renderDataSetCard = (db: DataSet) => {
+        if(!isMounted) return <div className="p-4 border rounded-lg h-24 animate-pulse bg-muted"/>;
+
+        const dataString = localStorage.getItem(db.key);
+        const data = dataString ? JSON.parse(dataString) : [];
+        const count = Array.isArray(data) ? data.length : Object.keys(data).length;
+
+        return(
+            <Card key={db.key}>
+                <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                        <h3 className="font-semibold">{db.name}</h3>
+                        <p className="text-sm text-muted-foreground">{db.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{count} registros</Badge>
+                        <Button variant="destructive" onClick={() => handleOpenDialog(db)} disabled={count === 0}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Borrar
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+    
     return (
         <>
             <main className="container mx-auto px-4 py-8">
@@ -119,7 +178,7 @@ export default function BorrarOsPage() {
                             <div>
                                 <CardTitle className="text-destructive">Zona de Peligro</CardTitle>
                                 <CardDescription className="text-destructive/80">
-                                    Estas acciones son masivas e irreversibles. Úsalas para limpiar completamente los datos de prueba y empezar de cero.
+                                    Estas acciones son masivas. Usa los diálogos para revisar y confirmar qué registros se eliminarán.
                                 </CardDescription>
                             </div>
                         </CardHeader>
@@ -127,68 +186,79 @@ export default function BorrarOsPage() {
 
                     <h2 className="text-2xl font-headline font-semibold mb-4 mt-8">Registros Principales</h2>
                      <div className="space-y-4">
-                        {EVENT_DATA.map((db) => (
-                            <Card key={db.key}>
-                                <CardContent className="p-4 flex items-center justify-between">
-                                    <div>
-                                        <h3 className="font-semibold">{db.name}</h3>
-                                        <p className="text-sm text-muted-foreground">{db.description}</p>
-                                    </div>
-                                    {renderDeleteButton(db)}
-                                </CardContent>
-                            </Card>
-                        ))}
+                        {EVENT_DATA.map(renderDataSetCard)}
                     </div>
                     
                     <h2 className="text-2xl font-headline font-semibold mb-4 mt-8">Datos Vinculados a Eventos</h2>
                     <p className="text-sm text-muted-foreground mb-4">
-                        Aquí puedes borrar datos de módulos específicos si necesitas limpiar solo una parte del sistema. Ten en cuenta que borrar los registros principales de arriba no elimina automáticamente estos datos.
+                        Aquí puedes borrar datos de módulos específicos si necesitas limpiar solo una parte del sistema. Borrar los registros principales de arriba no elimina automáticamente estos datos.
                     </p>
                     <div className="space-y-4">
-                        {RELATED_DATA.map((db) => (
-                            <Card key={db.key}>
-                                <CardContent className="p-4 flex items-center justify-between">
-                                    <div>
-                                        <h3 className="font-semibold">{db.name}</h3>
-                                        <p className="text-sm text-muted-foreground">{db.description}</p>
-                                    </div>
-                                     <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button variant="destructive" size="sm">
-                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                Vaciar
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    Esta acción no se puede deshacer. Vas a eliminar permanentemente todos los registros de <strong>{db.name}</strong>.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                <AlertDialogAction
-                                                    className="bg-destructive hover:bg-destructive/90"
-                                                    onClick={() => {
-                                                        localStorage.removeItem(db.key);
-                                                        toast({
-                                                            title: 'Datos Eliminados',
-                                                            description: `Se han borrado todos los registros de: ${db.name}.`,
-                                                        });
-                                                    }}
-                                                >
-                                                    Sí, entiendo. Borrar todo.
-                                                </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </CardContent>
-                            </Card>
-                        ))}
+                        {RELATED_DATA.map(renderDataSetCard)}
                     </div>
                 </div>
             </main>
+
+            <Dialog open={!!dataSetToView} onOpenChange={(open) => !open && setDataSetToView(null)}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Borrar registros de: {dataSetToView?.name}</DialogTitle>
+                        <DialogDescription>
+                            Revisa los registros que se van a eliminar. Desmarca los que quieras conservar.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="border rounded-lg">
+                        <ScrollArea className="h-72">
+                            <Table>
+                                <TableHeader className="sticky top-0 bg-secondary">
+                                    <TableRow>
+                                        <TableHead className="w-12">
+                                            <Checkbox 
+                                                checked={numSelected > 0 && numSelected === itemsToDelete.length ? true : (numSelected > 0 ? "indeterminate" : false)}
+                                                onCheckedChange={handleToggleAll}
+                                            />
+                                        </TableHead>
+                                        <TableHead>ID / Nombre</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {itemsToDelete.length > 0 ? itemsToDelete.map(item => (
+                                        <TableRow key={item.id}>
+                                            <TableCell>
+                                                <Checkbox checked={item.checked} onCheckedChange={() => handleToggleItem(item.id)}/>
+                                            </TableCell>
+                                            <TableCell className="font-mono text-xs">{item.label}</TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow><TableCell colSpan={2} className="h-24 text-center">No hay registros para mostrar.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </ScrollArea>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="secondary" onClick={() => setDataSetToView(null)}>Cancelar</Button>
+                        <Button variant="destructive" onClick={() => setIsConfirmOpen(true)} disabled={numSelected === 0}>
+                            Eliminar ({numSelected}) Seleccionados
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Vas a eliminar permanentemente <strong>{numSelected}</strong> registros de <strong>{dataSetToView?.name}</strong>. Esta acción no se puede deshacer.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteSelected}>Sí, entiendo. Borrar seleccionados.</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }
