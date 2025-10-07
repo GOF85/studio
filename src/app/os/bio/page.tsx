@@ -59,6 +59,7 @@ export default function BioPage() {
   }, [osId]);
 
   const { allItemsByStatus, processedItemKeys } = useMemo(() => {
+    if (!isMounted) return { allItemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, processedItemKeys: new Set() };
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const keys = new Set<string>();
 
@@ -73,7 +74,6 @@ export default function BioPage() {
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
-                    tipo: item.tipo,
                 });
                 keys.add(uniqueKey);
             }
@@ -96,9 +96,10 @@ export default function BioPage() {
         });
     });
     return { allItemsByStatus: items, processedItemKeys: keys };
-  }, [materialOrders, pickingSheets]);
+  }, [materialOrders, pickingSheets, isMounted]);
 
   const { allItems, blockedItems, pendingItems } = useMemo(() => {
+    if (!isMounted) return { allItems: [], blockedItems: [], pendingItems: [] };
     const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo })));
     const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
     
@@ -108,7 +109,7 @@ export default function BioPage() {
     });
 
     return { allItems: all, blockedItems: blocked, pendingItems: pending };
-  }, [materialOrders, allItemsByStatus, processedItemKeys]);
+  }, [materialOrders, allItemsByStatus, processedItemKeys, isMounted]);
 
 
   const handleSaveAll = () => {

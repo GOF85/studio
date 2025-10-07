@@ -59,6 +59,8 @@ export default function AlquilerPage() {
   }, [osId]);
 
   const { allItemsByStatus, processedItemKeys } = useMemo(() => {
+    if (!isMounted) return { allItemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, processedItemKeys: new Set() };
+    
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = {
       Asignado: [],
       'En Preparación': [],
@@ -94,15 +96,18 @@ export default function AlquilerPage() {
                     orderContract: order.contractNumber || 'N/A',
                     orderStatus: 'Pendiente', 
                     solicita: order.solicita,
+                    tipo: item.tipo,
                 });
             }
         });
     });
     return { allItemsByStatus: items, processedItemKeys: keys };
-  }, [materialOrders, pickingSheets]);
-  
+  }, [materialOrders, pickingSheets, isMounted]);
+
   const { allItems, blockedItems, pendingItems } = useMemo(() => {
-    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
+    if (!isMounted) return { allItems: [], blockedItems: [], pendingItems: [] };
+
+    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo })));
     const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
     
     const pending = all.filter(item => {
@@ -111,7 +116,7 @@ export default function AlquilerPage() {
     });
 
     return { allItems: all, blockedItems: blocked, pendingItems: pending };
-  }, [materialOrders, allItemsByStatus, processedItemKeys]);
+  }, [materialOrders, allItemsByStatus, processedItemKeys, isMounted]);
 
 
   const handleSaveAll = () => {
@@ -177,7 +182,10 @@ export default function AlquilerPage() {
         <CardContent className="space-y-2">
             {items.length > 0 ? items.map((item, index) => (
                 <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
-                    <p className="font-semibold truncate">{item.quantity} x {item.description}</p>
+                     <div className="flex justify-between items-start">
+                        <p className="font-semibold truncate pr-2">{item.quantity} x {item.description}</p>
+                        {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
+                    </div>
                     <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                         {item.solicita ? (
                             <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
@@ -241,10 +249,10 @@ export default function AlquilerPage() {
                 <Collapsible defaultOpen={false}>
                     <div className="flex items-center gap-2 font-semibold text-destructive border p-2 rounded-md hover:bg-muted/50 mb-4">
                         <CollapsibleTrigger asChild>
-                            <div className="flex flex-1 items-center cursor-pointer">
-                                <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                                Bloqueado (En Preparación / Listo)
-                            </div>
+                           <div className="flex-1 flex items-center cursor-pointer">
+                             <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                             Bloqueado (En Preparación / Listo)
+                           </div>
                         </CollapsibleTrigger>
                     </div>
                     <CollapsibleContent>
