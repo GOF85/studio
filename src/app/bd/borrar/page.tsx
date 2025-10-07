@@ -15,7 +15,8 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ShieldAlert } from 'lucide-react';
+import Link from 'next/link';
 
 type DatabaseKey = 'personal' | 'espacios' | 'precios' | 'alquilerDB' | 'tipoServicio' | 'proveedoresTransporte' | 'proveedorHielo' | 'atipicosDB' | 'personalMiceOrders' | 'proveedoresPersonal' | 'decoracionDB' | 'tiposCocina' | 'pedidoPlantillas' | 'formatosExpedicionDB' | 'datosFiscales';
 
@@ -66,17 +67,27 @@ export default function BorrarBdPage() {
                         <h1 className="text-3xl font-headline font-bold">Borrar Bases de Datos</h1>
                     </div>
                     
-                    <Card className="border-destructive bg-destructive/5">
-                        <CardHeader>
-                            <CardTitle className="text-destructive">Zona de Peligro</CardTitle>
-                            <CardDescription className="text-destructive/80">
-                                Las acciones en esta página son irreversibles. Una vez que eliminas una base de datos, 
-                                toda su información se pierde para siempre. Procede con extrema precaución.
-                            </CardDescription>
+                    <Card className="border-destructive bg-destructive/5 mb-8">
+                        <CardHeader className="flex-row items-center gap-4">
+                            <ShieldAlert className="w-10 h-10 text-destructive flex-shrink-0" />
+                            <div>
+                                <CardTitle className="text-destructive">Zona de Peligro</CardTitle>
+                                <CardDescription className="text-destructive/80">
+                                    Las acciones en esta página son irreversibles. Una vez que eliminas los datos, se pierden para siempre. Procede con extrema precaución.
+                                </CardDescription>
+                            </div>
                         </CardHeader>
+                         <CardContent>
+                            <Link href="/bd/borrar-os">
+                                <Button variant="destructive">
+                                    Limpieza de Datos de Eventos <Trash2 className="ml-2 h-4 w-4" />
+                                </Button>
+                            </Link>
+                        </CardContent>
                     </Card>
 
-                    <div className="mt-8 space-y-4">
+                    <h2 className="text-2xl font-headline font-semibold mb-4">Bases de Datos Maestras</h2>
+                    <div className="space-y-4">
                         {DATABASES.map((db) => (
                             <Card key={db.key}>
                                 <CardContent className="p-4 flex items-center justify-between">

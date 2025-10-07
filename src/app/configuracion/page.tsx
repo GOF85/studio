@@ -44,13 +44,18 @@ export default function ConfiguracionPage() {
                 <CardHeader>
                     <CardTitle className="text-destructive flex items-center gap-3"><Trash2 />Zona de Peligro</CardTitle>
                     <CardDescription className="text-destructive/80">
-                        Acciones irreversibles como la eliminación de bases de datos. Procede con extrema precaución.
+                        Acciones irreversibles como la eliminación de bases de datos o datos de eventos. Procede con extrema precaución.
                     </CardDescription>
                 </CardHeader>
-                 <CardContent>
+                 <CardContent className="flex gap-4">
                     <Link href="/bd/borrar">
-                        <Button variant="destructive">
-                            Borrar Bases de Datos <ArrowRight className="ml-2 h-4 w-4" />
+                        <Button variant="destructive" >
+                            Borrar Bases de Datos Maestras
+                        </Button>
+                    </Link>
+                     <Link href="/bd/borrar-os">
+                        <Button variant="destructive" >
+                            Limpieza de Datos de Eventos
                         </Button>
                     </Link>
                 </CardContent>

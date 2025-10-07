@@ -583,6 +583,10 @@ export default function EntregaFormPage() {
     let allTransporte = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
     allTransporte = allTransporte.filter(t => t.osId !== id);
     localStorage.setItem('transporteOrders', JSON.stringify(allTransporte));
+    
+    let allPersonal = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as {osId: string}[];
+    allPersonal = allPersonal.filter(p => p.osId !== id);
+    localStorage.setItem('personalEntrega', JSON.stringify(allPersonal));
 
     toast({ title: 'Pedido eliminado' });
     router.push('/entregas/pes');
@@ -953,7 +957,7 @@ export default function EntregaFormPage() {
                 <AlertDialogHeader>
                     <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Esta acción es irreversible. Se eliminará permanentemente el pedido de entrega.
+                        Esta acción es irreversible. Se eliminará permanentemente el pedido de entrega y todos sus datos asociados (confección, transportes, etc.).
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -965,3 +969,4 @@ export default function EntregaFormPage() {
     </main>
   );
 }
+
