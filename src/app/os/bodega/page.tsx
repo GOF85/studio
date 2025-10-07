@@ -171,7 +171,7 @@ export default function BodegaPage() {
         <CardContent className="space-y-2">
             {items.length > 0 ? items.map((item, index) => (
                 <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
-                    <div className="flex justify-between items-start">
+                     <div className="flex justify-between items-start">
                         <p className="font-semibold truncate pr-2">{item.quantity} x {item.description}</p>
                         {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
                     </div>
@@ -199,7 +199,7 @@ export default function BodegaPage() {
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader><DialogTitle>Resumen de Artículos de Bodega</DialogTitle></DialogHeader>
-                <div className="space-y-4">
+                 <div className="space-y-4">
                     <div>
                         <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
                         <Table>

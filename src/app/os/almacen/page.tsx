@@ -58,7 +58,7 @@ export default function AlmacenPage() {
     setIsMounted(true);
   }, [osId]);
 
-  const { allItemsByStatus, processedItemKeys } = useMemo(() => {
+ const { allItemsByStatus, processedItemKeys } = useMemo(() => {
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const keys = new Set<string>();
 
@@ -170,7 +170,7 @@ export default function AlmacenPage() {
         <CardContent className="space-y-2">
             {items.length > 0 ? items.map((item, index) => (
                 <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
-                    <div className="flex justify-between items-start">
+                     <div className="flex justify-between items-start">
                         <p className="font-semibold truncate pr-2">{item.quantity} x {item.description}</p>
                         {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
                     </div>

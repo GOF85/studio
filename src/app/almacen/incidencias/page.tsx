@@ -23,7 +23,7 @@ type Incidencia = {
     sheetId: string;
     osId: string;
     fechaNecesidad: string;
-    item: OrderItem & { orderId?: string; solicita?: 'Sala' | 'Cocina'; };
+    item: OrderItem & { orderId: string; solicita?: 'Sala' | 'Cocina'; };
     comment: string;
     requiredQty: number;
     pickedQty: number;
@@ -54,7 +54,7 @@ export default function IncidenciasPickingPage() {
             if (sheet.itemStates) {
                 Object.entries(sheet.itemStates).forEach(([itemCode, state]) => {
                     const item = sheet.items.find(i => i.itemCode === itemCode);
-                    if (item && state.incidentComment && !state.resolved) {
+                    if (item && item.orderId && state.incidentComment && !state.resolved) {
                         loadedIncidencias.push({
                             sheetId: sheet.id,
                             osId: sheet.osId,
@@ -98,21 +98,27 @@ export default function IncidenciasPickingPage() {
         if (!resolvingIncident) return;
         
         const { item, pickedQty, sheetId } = resolvingIncident;
-        let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-        
-        // Find the original order ID from the picking sheet's item
         const originalOrderId = item.orderId;
+        
+        let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
         
         if (originalOrderId) {
             const orderIndex = allMaterialOrders.findIndex(o => o.id === originalOrderId);
-            if (orderIndex > -1) {
+            if (orderIndex !== -1) {
                 const orderToUpdate = allMaterialOrders[orderIndex];
                 const itemIndex = orderToUpdate.items.findIndex(i => i.itemCode === item.itemCode);
 
-                if (itemIndex > -1) {
+                if (itemIndex !== -1) {
                     orderToUpdate.items[itemIndex].quantity = pickedQty;
                     // Recalculate total if needed
                     orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + (current.price * current.quantity), 0);
+                    
+                    // If quantity is zero, remove the item
+                    if (pickedQty === 0) {
+                        orderToUpdate.items.splice(itemIndex, 1);
+                    }
+
+                    allMaterialOrders[orderIndex] = orderToUpdate;
                     localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
                 }
             }

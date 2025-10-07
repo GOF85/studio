@@ -106,7 +106,7 @@ export default function RetornoSheetPage() {
 
     const handleAcceptMerma = () => {
         if (!sheet) return;
-        const allMaterialOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]');
+        let allMaterialOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]');
         let updated = false;
 
         Object.entries(sheet.itemStates).forEach(([itemKey, state]) => {
@@ -120,6 +120,10 @@ export default function RetornoSheetPage() {
                     const itemIndex = orderToUpdate.items.findIndex(i => i.itemCode === itemCode);
                     if (itemIndex > -1) {
                         orderToUpdate.items[itemIndex].quantity = state.returnedQuantity;
+                         if (state.returnedQuantity === 0) {
+                            orderToUpdate.items.splice(itemIndex, 1);
+                        }
+                        orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + (current.price * current.quantity), 0);
                         updated = true;
                     }
                 }
