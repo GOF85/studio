@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2 } from 'lucide-react';
@@ -23,6 +23,7 @@ type ItemWithOrderInfo = OrderItem & {
   orderId: string;
   orderStatus: PickingSheet['status'];
   solicita?: 'Sala' | 'Cocina';
+  tipo?: string;
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -36,34 +37,37 @@ const statusMap: Record<PickingSheet['status'], StatusColumn> = {
 export default function BioPage() {
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
-  const [pickingSheets, setPickingSheets] = useState<PickingSheet[]>([]);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [kanbanData, setKanbanData] = useState<{
+      Asignado: ItemWithOrderInfo[],
+      'En Preparación': ItemWithOrderInfo[],
+      Listo: ItemWithOrderInfo[],
+      allItems: ItemWithOrderInfo[],
+      blockedItems: ItemWithOrderInfo[],
+      pendingItems: ItemWithOrderInfo[],
+  }>({ Asignado: [], 'En Preparación': [], Listo: [], allItems: [], blockedItems: [], pendingItems: [] });
   
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
 
-  useEffect(() => {
+   useEffect(() => {
     if (!osId) return;
-    
+    setIsMounted(true);
+
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bio');
     setMaterialOrders(relatedOrders);
 
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
-    setPickingSheets(allPickingSheets.filter(sheet => sheet.osId === osId));
-
-    setIsMounted(true);
-  }, [osId]);
-
-  const { allItemsByStatus, processedItemKeys } = useMemo(() => {
-    if (!isMounted) return { allItemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, processedItemKeys: new Set() };
+    const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
+    
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
-    const keys = new Set<string>();
+    const processedItemKeys = new Set<string>();
 
-    pickingSheets.forEach(sheet => {
+    relatedPickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
             if (item.type === 'Bio') {
@@ -75,42 +79,29 @@ export default function BioPage() {
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
                 });
-                keys.add(uniqueKey);
+                processedItemKeys.add(uniqueKey);
             }
         });
     });
-
-    materialOrders.forEach(order => {
-        order.items.forEach(item => {
-            const uniqueKey = `${order.id}-${item.itemCode}`;
-            if (!keys.has(uniqueKey)) {
-                items['Asignado'].push({
-                    ...item,
-                    orderId: order.id,
-                    orderContract: order.contractNumber || 'N/A',
-                    orderStatus: 'Pendiente', 
-                    solicita: order.solicita,
-                    tipo: item.tipo,
-                });
-            }
-        });
-    });
-    return { allItemsByStatus: items, processedItemKeys: keys };
-  }, [materialOrders, pickingSheets, isMounted]);
-
-  const { allItems, blockedItems, pendingItems } = useMemo(() => {
-    if (!isMounted) return { allItems: [], blockedItems: [], pendingItems: [] };
-    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo })));
-    const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    
+    const all = relatedOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo } as ItemWithOrderInfo)));
+    const blocked = [...items['En Preparación'], ...items['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
     
     const pending = all.filter(item => {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
       return !processedItemKeys.has(uniqueKey);
     });
 
-    return { allItems: all, blockedItems: blocked, pendingItems: pending };
-  }, [materialOrders, allItemsByStatus, processedItemKeys, isMounted]);
+    items['Asignado'] = pending;
 
+    setKanbanData({
+      ...items,
+      allItems: all,
+      blockedItems: blocked,
+      pendingItems: pending,
+    });
+    
+  }, [osId]);
 
   const handleSaveAll = () => {
     setIsLoading(true);
@@ -199,7 +190,7 @@ export default function BioPage() {
       <div className="flex items-center justify-between mb-4">
         <Dialog>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
+                <Button variant="outline" size="sm" disabled={kanbanData.allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader><DialogTitle>Resumen de Artículos de Bio</DialogTitle></DialogHeader>
@@ -209,7 +200,7 @@ export default function BioPage() {
                         <Table>
                             <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {Object.entries(pendingItems.reduce((acc, item) => {
+                                {Object.entries(kanbanData.pendingItems.reduce((acc, item) => {
                                     acc[item.description] = (acc[item.description] || 0) + item.quantity;
                                     return acc;
                                 }, {} as Record<string, number>)).map(([desc, qty]) => (
@@ -223,7 +214,7 @@ export default function BioPage() {
                         <Table>
                             <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {Object.entries(blockedItems.reduce((acc, item) => {
+                                {Object.entries(kanbanData.blockedItems.reduce((acc, item) => {
                                     acc[item.description] = (acc[item.description] || 0) + item.quantity;
                                     return acc;
                                 }, {} as Record<string, number>)).map(([desc, qty]) => (
@@ -244,9 +235,9 @@ export default function BioPage() {
       </div>
       
        <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {renderColumn('Asignado', allItemsByStatus['Asignado'])}
-            {renderColumn('En Preparación', allItemsByStatus['En Preparación'])}
-            {renderColumn('Listo', allItemsByStatus['Listo'])}
+            {renderColumn('Asignado', kanbanData.Asignado)}
+            {renderColumn('En Preparación', kanbanData['En Preparación'])}
+            {renderColumn('Listo', kanbanData.Listo)}
        </div>
 
         <Card>
@@ -274,7 +265,7 @@ export default function BioPage() {
                                     <TableRow><TableHead>Contrato</TableHead><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead><TableHead>Solicita</TableHead></TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {blockedItems.map((item, index) => (
+                                    {kanbanData.blockedItems.map((item, index) => (
                                         <TableRow key={index} className="bg-muted/20">
                                             <TableCell><Badge variant="secondary">{item.orderContract}</Badge></TableCell>
                                             <TableCell>{item.description}</TableCell>
@@ -282,7 +273,7 @@ export default function BioPage() {
                                             <TableCell>{item.solicita}</TableCell>
                                         </TableRow>
                                     ))}
-                                    {blockedItems.length === 0 && (
+                                    {kanbanData.blockedItems.length === 0 && (
                                         <TableRow><TableCell colSpan={4} className="h-20 text-center text-muted-foreground">No hay artículos bloqueados.</TableCell></TableRow>
                                     )}
                                 </TableBody>
@@ -304,7 +295,7 @@ export default function BioPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
+                            {kanbanData.pendingItems.length > 0 ? kanbanData.pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
                                 <TableRow key={item.itemCode + item.orderId}>
                                     <TableCell>{item.description}</TableCell>
                                     <TableCell>
@@ -316,7 +307,7 @@ export default function BioPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                     <TableCell><Badge variant="outline">{item.contractNumber}</Badge></TableCell>
+                                     <TableCell><Badge variant="outline">{materialOrders.find(o=>o.id === item.orderId)?.contractNumber}</Badge></TableCell>
                                     <TableCell>
                                         <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'quantity', parseInt(e.target.value) || 0)} className="h-8"/>
                                     </TableCell>
