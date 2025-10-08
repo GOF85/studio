@@ -19,6 +19,8 @@ import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Combobox } from '@/components/ui/combobox';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { Input } from '@/components/ui/input';
+
 
 export const proveedorSchema = z.object({
   id: z.string(),
@@ -175,7 +177,7 @@ export default function ProveedorFormPage() {
                             selected={field.value}
                             onChange={field.onChange}
                             placeholder="Seleccionar tipo(s)..."
-                          />
+                            />
                           <FormMessage />
                       </FormItem>
                   )} />

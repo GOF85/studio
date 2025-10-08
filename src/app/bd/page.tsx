@@ -29,8 +29,7 @@ type DatabaseEntry = {
 const generalDatabasesList: DatabaseEntry[] = [
     { id: '1', name: 'Personal Interno', description: 'Gestión de empleados y contactos de MICE.', itemCount: 0, path: '/personal' },
     { id: '2', name: 'Espacios', description: 'Gestión de espacios para eventos.', itemCount: 0, path: '/espacios' },
-    { id: '3', name: 'Artículos MICE', description: 'Gestión de artículos de Almacén, Bodega y Bio.', itemCount: 0, path: '/articulos' },
-    { id: '5', name: 'Alquiler Externo', description: 'Gestión de artículos de alquiler a proveedores.', itemCount: 0, path: '/alquiler-db' },
+    { id: '3', name: 'Artículos MICE', description: 'Gestión de artículos de Almacén, Bodega, Bio y Alquiler.', itemCount: 0, path: '/articulos' },
     { id: '6', name: 'Tipo Servicio (Briefing)', description: 'Gestión de los tipos de servicio para el comercial.', itemCount: 0, path: '/tipo-servicio' },
     { id: '9', name: 'Atípicos (Conceptos)', description: 'Gestión de conceptos de gastos varios.', itemCount: 0, path: '/atipicos-db' },
     { id: '12', name: 'Decoración (Conceptos)', description: 'Gestión de conceptos de decoración.', itemCount: 0, path: '/decoracion-db' },

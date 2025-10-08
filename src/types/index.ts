@@ -154,7 +154,7 @@ aparcamiento: string;
   comentariosMarketing: string;
 }
 
-export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacen', 'Bio', 'Hielo'] as const;
+export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacen', 'Bio', 'Hielo', 'Alquiler'] as const;
 export type ArticuloCateringCategoria = typeof ARTICULO_CATERING_CATEGORIAS[number];
 
 export type ArticuloCatering = {
@@ -749,7 +749,7 @@ export type DatosFiscales = {
     tipo: TipoEntidadFiscal;
 }
 
-export const TIPO_PROVEEDOR_OPCIONES = ['Transporte', 'Hielo', 'Gastronomia', 'Personal', 'Atipicos', 'Decoracion', 'Servicios', 'Otros'] as const;
+export const TIPO_PROVEEDOR_OPCIONES = ['Transporte', 'Hielo', 'Gastronomia', 'Personal', 'Atipicos', 'Decoracion', 'Servicios', 'Otros', 'Alquiler'] as const;
 export type TipoProveedor = typeof TIPO_PROVEEDOR_OPCIONES[number];
 
 export type Proveedor = {

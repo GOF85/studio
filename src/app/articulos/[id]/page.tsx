@@ -132,7 +132,7 @@ export default function ArticuloFormPage() {
   useEffect(() => {
     if (selectedErpProductRef.current && selectedCategoriaRef.current) {
       setValue('tipo', selectedErpProductRef.current.tipo, { shouldDirty: true });
-      if (selectedCategoriaRef.current === 'Almacen') {
+      if (selectedCategoriaRef.current === 'Almacen' || selectedCategoriaRef.current === 'Alquiler') {
         setValue('precioReposicion', selectedErpProductRef.current.precio, { shouldDirty: true });
       } else {
         setValue('precioVenta', selectedErpProductRef.current.precio, { shouldDirty: true });
@@ -266,7 +266,7 @@ export default function ArticuloFormPage() {
                     <FormField control={form.control} name="producidoPorPartner" render={({ field }) => (
                         <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3">
                            <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                           <FormLabel className="!mt-0 font-semibold">Producido por Partner</FormLabel>
+                           <FormLabel className="!mt-0 font-semibold">De Alquiler Externo / Partner</FormLabel>
                         </FormItem>
                      )} />
                     <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
@@ -302,18 +302,18 @@ export default function ArticuloFormPage() {
              <Card>
                 <CardHeader><CardTitle>Información de Precios</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
-                    {selectedCategoria === 'Almacen' ? (
+                    {(selectedCategoria === 'Almacen' || selectedCategoria === 'Alquiler') ? (
                         <>
                          <FormField control={form.control} name="precioAlquiler" render={({ field }) => (
                             <FormItem><FormLabel>Precio Alquiler</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                          <FormField control={form.control} name="precioReposicion" render={({ field }) => (
-                            <FormItem><FormLabel>Precio Reposición</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly className="bg-muted"/></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Precio Reposición</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={!form.watch('producidoPorPartner')} className={!form.watch('producidoPorPartner') ? "bg-muted" : ""}/></FormControl><FormMessage /></FormItem>
                         )} />
                         </>
                     ) : (
                          <FormField control={form.control} name="precioVenta" render={({ field }) => (
-                            <FormItem><FormLabel>Precio Venta</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly className="bg-muted"/></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Precio Venta</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={!form.watch('producidoPorPartner')} className={!form.watch('producidoPorPartner') ? "bg-muted" : ""}/></FormControl><FormMessage /></FormItem>
                         )} />
                     )}
                     <FormField control={form.control} name="stockSeguridad" render={({ field }) => (
@@ -366,3 +366,4 @@ export default function ArticuloFormPage() {
     </>
   );
 }
+

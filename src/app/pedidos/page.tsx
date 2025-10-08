@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { OrderItem, CateringItem, MaterialOrder, ServiceOrder, AlquilerDBItem, Precio, PedidoPlantilla, ArticuloCatering } from '@/types';
+import type { OrderItem, CateringItem, MaterialOrder, ServiceOrder, AlquilerDBItem, PedidoPlantilla, ArticuloCatering } from '@/types';
 import { ItemCatalog } from '@/components/catalog/item-catalog';
 import { OrderSummary, type ExistingOrderData } from '@/components/order/order-summary';
 import { useToast } from '@/hooks/use-toast';
@@ -36,21 +36,21 @@ export default function PedidosPage() {
     }
     
     let itemsToLoad: CateringItem[] = [];
+    const allArticulos = JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[];
 
     if (orderType === 'Alquiler') {
-      const storedAlquilerItems = JSON.parse(localStorage.getItem('alquilerDB') || '[]') as AlquilerDBItem[];
-      itemsToLoad = storedAlquilerItems.map(item => ({
-        itemCode: item.id,
-        description: item.concepto,
-        price: item.precioAlquiler,
-        stock: 999, // Assume infinite stock for rentals
-        imageUrl: item.imagen || `https://picsum.photos/seed/${item.id}/400/300`, // Use stored image or placeholder
-        imageHint: 'rental item',
-        category: 'Alquiler',
-      }));
+        itemsToLoad = allArticulos
+            .filter(p => p.producidoPorPartner)
+            .map(p => ({
+                itemCode: p.id,
+                description: p.nombre,
+                price: p.precioAlquiler,
+                stock: 999, // Assume infinite stock
+                imageUrl: p.imagen || `https://picsum.photos/seed/${p.id}/400/300`,
+                imageHint: p.nombre.toLowerCase(),
+                category: 'Alquiler',
+            }));
     } else if (orderType) {
-        const allArticulos = JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[];
-        
         itemsToLoad = allArticulos
             .filter(p => p.categoria === orderType)
             .map(p => ({
@@ -268,4 +268,3 @@ export default function PedidosPage() {
     </div>
   );
 }
-
