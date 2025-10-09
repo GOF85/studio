@@ -109,7 +109,6 @@ export default function DatosFiscalesPage() {
     Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
-      delimiter: ";", // Specify the delimiter
       complete: (results) => {
         const headers = results.meta.fields || [];
         const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
