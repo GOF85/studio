@@ -51,7 +51,6 @@ export default function DatosFiscalesPage() {
 
   const router = useRouter();
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let storedData = localStorage.getItem('datosFiscales');
@@ -98,13 +97,11 @@ export default function DatosFiscalesPage() {
     toast({ title: 'Exportación completada' });
   };
 
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+        return;
+    }
 
     Papa.parse<any>(file, {
       header: true,
@@ -182,16 +179,18 @@ export default function DatosFiscalesPage() {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleImportClick}>
-                        <FileUp className="mr-2" />
-                        Importar CSV
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
-                            accept=".csv"
-                            onChange={handleImportCSV}
-                        />
+                    <DropdownMenuItem asChild>
+                         <label htmlFor="csv-import" className="flex items-center cursor-pointer">
+                            <FileUp className="mr-2" />
+                            Importar CSV
+                            <input
+                                type="file"
+                                id="csv-import"
+                                className="hidden"
+                                accept=".csv"
+                                onChange={handleImportCSV}
+                            />
+                        </label>
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleExportCSV}>
                         <FileDown className="mr-2" />
