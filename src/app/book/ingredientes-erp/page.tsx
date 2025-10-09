@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusCircle, Save, Trash2, ArrowLeft, Loader2 } from 'lucide-react';
+import { PlusCircle, Save, Trash2, ArrowLeft, Loader2, Menu, FileUp, FileDown } from 'lucide-react';
 import type { IngredienteERP, UnidadMedida } from '@/types';
 import { UNIDADES_MEDIDA, ingredienteErpSchema } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -37,12 +37,15 @@ import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { formatCurrency, formatUnit } from '@/lib/utils';
 import { z } from 'zod';
 import { Checkbox } from '@/components/ui/checkbox';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import Papa from 'papaparse';
 
 const formSchema = z.object({
     items: z.array(ingredienteErpSchema)
 });
 
 type IngredientesERPFormValues = z.infer<typeof formSchema>;
+const CSV_HEADERS = ["id", "IdERP", "nombreProductoERP", "referenciaProveedor", "nombreProveedor", "familiaCategoria", "precio", "precioAlquilerUd", "unidad", "tipo", "alquiler"];
 
 export default function IngredientesERPPage() {
   const [isMounted, setIsMounted] = useState(false);
@@ -52,6 +55,7 @@ export default function IngredientesERPPage() {
 
   const router = useRouter();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const form = useForm<IngredientesERPFormValues>({
     resolver: zodResolver(formSchema),
@@ -108,6 +112,7 @@ export default function IngredientesERPPage() {
       nombreProveedor: '',
       familiaCategoria: '',
       precio: 0,
+      precioAlquilerUd: 0,
       unidad: 'UNIDAD',
       tipo: '',
       alquiler: false,
@@ -121,6 +126,81 @@ export default function IngredientesERPPage() {
       toast({title: 'Fila eliminada', description: 'La fila se eliminará permanentemente al guardar los cambios.'})
     }
   }
+
+  const handleExportCSV = () => {
+    if (fields.length === 0) {
+      toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay artículos para exportar.' });
+      return;
+    }
+    const csv = Papa.unparse(getValues('items'));
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'materia_prima_erp.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: 'Exportación completada' });
+  };
+  
+  const parseCurrency = (value: string | number) => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+        const cleaned = value.replace(/[€\s]/g, '').replace(',', '.');
+        const number = parseFloat(cleaned);
+        return isNaN(number) ? 0 : number;
+    }
+    return 0;
+  };
+  
+  const parseBoolean = (value: any) => {
+    const s = String(value).toLowerCase().trim();
+    return s === 'true' || s === '1';
+  }
+
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse<any>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const headers = results.meta.fields || [];
+        const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
+
+        if (!hasAllHeaders) {
+            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
+            return;
+        }
+        
+        const importedData: IngredienteERP[] = results.data.map(item => ({
+            id: item.id || Date.now().toString() + Math.random(),
+            IdERP: item.IdERP || '',
+            nombreProductoERP: item.nombreProductoERP || '',
+            referenciaProveedor: item.referenciaProveedor || '',
+            nombreProveedor: item.nombreProveedor || '',
+            familiaCategoria: item.familiaCategoria || '',
+            precio: parseCurrency(item.precio),
+            precioAlquilerUd: parseCurrency(item.precioAlquilerUd),
+            unidad: UNIDADES_MEDIDA.includes(item.unidad) ? item.unidad : 'UNIDAD',
+            tipo: item.tipo || '',
+            alquiler: parseBoolean(item.alquiler),
+        }));
+        
+        form.reset({items: importedData})
+        toast({ title: 'Importación preparada', description: `Se han cargado ${importedData.length} registros. Haz clic en "Guardar Cambios" para confirmar.` });
+      },
+      error: (error) => {
+        toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+      }
+    });
+    if(event.target) {
+        event.target.value = '';
+    }
+  };
   
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Materia Prima..." />;
@@ -144,10 +224,32 @@ export default function IngredientesERPPage() {
                         <PlusCircle className="mr-2" />
                         Añadir Fila
                     </Button>
-                    <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
+                     <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
                         {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                         <span className="ml-2">Guardar Cambios</span>
                     </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="icon">
+                              <Menu />
+                          </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                               <FileUp size={16} className="mr-2"/>Importar CSV
+                               <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept=".csv"
+                                onChange={handleImportCSV}
+                              />
+                          </DropdownMenuItem>
+                           <DropdownMenuItem onClick={handleExportCSV}>
+                               <FileDown size={16} className="mr-2"/>Exportar CSV
+                          </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
                 </div>
 
@@ -170,7 +272,8 @@ export default function IngredientesERPPage() {
                         <TableHead className="p-2 w-40">Ref. Proveedor</TableHead>
                         <TableHead className="p-2 w-40">Categoría</TableHead>
                         <TableHead className="p-2 w-40">Tipo</TableHead>
-                        <TableHead className="p-2 w-28">Precio</TableHead>
+                        <TableHead className="p-2 w-28">P. Venta/Ud</TableHead>
+                        <TableHead className="p-2 w-28">P. Alquiler/Ud</TableHead>
                         <TableHead className="p-2 w-32">Unidad</TableHead>
                         <TableHead className="p-2 w-28 text-center">Apto Alquiler</TableHead>
                         <TableHead className="p-2 w-16 text-right">Acciones</TableHead>
@@ -202,6 +305,9 @@ export default function IngredientesERPPage() {
                                  <FormField control={form.control} name={`items.${item.originalIndex}.precio`} render={({ field }) => ( <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8"/> )} />
                             </TableCell>
                             <TableCell className="p-1">
+                                 <FormField control={form.control} name={`items.${item.originalIndex}.precioAlquilerUd`} render={({ field }) => ( <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8"/> )} />
+                            </TableCell>
+                            <TableCell className="p-1">
                                 <FormField control={form.control} name={`items.${item.originalIndex}.unidad`} render={({ field }) => ( 
                                     <Select onValueChange={field.onChange} value={field.value}>
                                         <FormControl><SelectTrigger className="h-8"><SelectValue/></SelectTrigger></FormControl>
@@ -225,7 +331,7 @@ export default function IngredientesERPPage() {
                         ))
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={10} className="h-24 text-center">
+                        <TableCell colSpan={11} className="h-24 text-center">
                             No se encontraron ingredientes que coincidan con la búsqueda.
                         </TableCell>
                         </TableRow>

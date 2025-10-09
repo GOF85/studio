@@ -154,7 +154,7 @@ aparcamiento: string;
   comentariosMarketing: string;
 }
 
-export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacen', 'Bio', 'Hielo', 'Alquiler'] as const;
+export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacen', 'Bio', 'Hielo', 'Alquiler', 'Menaje', 'Decoracion', 'Servicios', 'Otros'] as const;
 export type ArticuloCateringCategoria = typeof ARTICULO_CATERING_CATEGORIAS[number];
 
 export type ArticuloCatering = {
@@ -162,7 +162,6 @@ export type ArticuloCatering = {
     erpId?: string;
     nombre: string;
     categoria: ArticuloCateringCategoria;
-    subcategoria?: string;
     esHabitual?: boolean;
     precioVenta: number;
     precioAlquiler: number;
@@ -391,6 +390,7 @@ export const ingredienteErpSchema = z.object({
   nombreProveedor: z.string(),
   familiaCategoria: z.string(),
   precio: z.coerce.number().min(0),
+  precioAlquilerUd: z.coerce.number().min(0).optional(),
   unidad: z.enum(UNIDADES_MEDIDA),
   tipo: z.string().optional(),
   alquiler: z.boolean().default(false),
@@ -691,6 +691,7 @@ export type PedidoPartner = {
     id: string; // hitoId-productoId
     osId: string;
     serviceNumber: string;
+    expedicionNumero: string;
     cliente: string;
     fechaEntrega: string; // En CPR MICE
     horaEntrega: string;  // En CPR MICE
