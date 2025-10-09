@@ -143,6 +143,8 @@ export default function DatosFiscalesPage() {
         toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
       }
     });
+
+    // Reset file input to allow re-uploading the same file
     if(event.target) {
         event.target.value = '';
     }
