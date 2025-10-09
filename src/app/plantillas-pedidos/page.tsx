@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, FilePlus2, MoreHorizontal, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import type { PedidoPlantilla } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -64,7 +63,6 @@ export default function PlantillasPedidosPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
             <div>

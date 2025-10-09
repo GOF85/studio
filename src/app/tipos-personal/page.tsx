@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -7,7 +6,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, UserPlus } from 'lucide-react';
 import type { CategoriaPersonal, Proveedor } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -88,7 +86,6 @@ export default function TiposPersonalPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
             <div>
