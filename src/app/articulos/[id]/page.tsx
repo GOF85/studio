@@ -132,9 +132,9 @@ export default function ArticuloFormPage() {
   useEffect(() => {
     if (selectedErpProduct) {
         setValue('tipo', selectedErpProduct.tipo, { shouldDirty: true });
-        if (esProducidoPorPartner) { // Alquiler Externo
+        if (esProducidoPorPartner) {
              setValue('precioReposicion', selectedErpProduct.precio, { shouldDirty: true });
-        } else { // Artículo propio
+        } else {
             setValue('precioVenta', selectedErpProduct.precio, { shouldDirty: true });
         }
     }
@@ -334,7 +334,7 @@ export default function ArticuloFormPage() {
             <CardHeader><CardTitle>Información de Precios y Stock</CardTitle></CardHeader>
             <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <FormField control={form.control} name="precioVenta" render={({ field }) => (
-                    <FormItem><FormLabel>Precio Venta</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={!!selectedErpProduct && !esProducidoPorPartner} className={!!selectedErpProduct && !esProducidoPorPartner ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Precio Venta</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={(!!selectedErpProduct && !esProducidoPorPartner) || esProducidoPorPartner} className={(!!selectedErpProduct && !esProducidoPorPartner) || esProducidoPorPartner ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="precioAlquiler" render={({ field }) => (
                     <FormItem><FormLabel>Precio Alquiler</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
