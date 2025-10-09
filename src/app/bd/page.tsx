@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -70,7 +69,6 @@ export default function BdPage() {
             if (db.path === '/personal') count = countItems('personal');
             if (db.path === '/espacios') count = countItems('espacios');
             if (db.path === '/articulos') count = countItems('articulos');
-            if (db.path === '/alquiler-db') count = countItems('alquilerDB');
             if (db.path === '/tipo-servicio') count = countItems('tipoServicio');
             if (db.path === '/atipicos-db') count = countItems('atipicosDB');
             if (db.path === '/decoracion-db') count = countItems('decoracionDB');

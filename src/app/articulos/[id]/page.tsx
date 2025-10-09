@@ -55,6 +55,7 @@ const defaultValues: Partial<ArticuloCateringFormValues> = {
     subcategoria: '',
     loc: '',
     imagen: '',
+    tipo: '',
 };
 
 function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProducts }: { onSelect: (id: string) => void, searchTerm: string, setSearchTerm: (term: string) => void, filteredProducts: IngredienteERP[] }) {
@@ -252,6 +253,9 @@ export default function ArticuloFormPage() {
                             </FormItem>
                         )}
                         />
+                     <FormField control={form.control} name="tipo" render={({ field }) => (
+                        <FormItem><FormLabel>Tipo</FormLabel><FormControl><Input {...field} placeholder="Ej: Vino Tinto, Refresco..." /></FormControl><FormMessage /></FormItem>
+                    )} />
                     <FormField control={form.control} name="loc" render={({ field }) => (
                         <FormItem><FormLabel>Ubicación</FormLabel><FormControl><Input {...field} placeholder="Ej: P4-E2-A1" /></FormControl><FormMessage /></FormItem>
                     )} />
@@ -366,4 +370,3 @@ export default function ArticuloFormPage() {
     </>
   );
 }
-
