@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { OrderItem, CateringItem, MaterialOrder, ServiceOrder, AlquilerDBItem, PedidoPlantilla, ArticuloCatering } from '@/types';
+import type { OrderItem, MaterialOrder, ServiceOrder, PedidoPlantilla, ArticuloCatering } from '@/types';
 import { ItemCatalog } from '@/components/catalog/item-catalog';
 import { OrderSummary, type ExistingOrderData } from '@/components/order/order-summary';
 import { useToast } from '@/hooks/use-toast';
@@ -11,12 +11,10 @@ import { Button } from '@/components/ui/button';
 import { FilePlus2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
-type CatalogSourceItem = CateringItem;
-
 export default function PedidosPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [catalogItems, setCatalogItems] = useState<CateringItem[]>([]);
+  const [catalogItems, setCatalogItems] = useState<ArticuloCatering[]>([]);
   const [plantillas, setPlantillas] = useState<PedidoPlantilla[]>([]);
   const [existingOrderData, setExistingOrderData] = useState<ExistingOrderData | null>(null);
   const { toast } = useToast();
@@ -35,36 +33,13 @@ export default function PedidosPage() {
       setServiceOrder(currentOS || null);
     }
     
-    let itemsToLoad: CateringItem[] = [];
     const allArticulos = JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[];
 
     if (orderType === 'Alquiler') {
-        itemsToLoad = allArticulos
-            .filter(p => p.producidoPorPartner)
-            .map(p => ({
-                itemCode: p.id,
-                description: p.nombre,
-                price: p.precioAlquiler,
-                stock: 999, // Assume infinite stock
-                imageUrl: p.imagen || `https://picsum.photos/seed/${p.id}/400/300`,
-                imageHint: p.nombre.toLowerCase(),
-                category: 'Alquiler',
-            }));
+        setCatalogItems(allArticulos.filter(p => p.producidoPorPartner));
     } else if (orderType) {
-        itemsToLoad = allArticulos
-            .filter(p => p.categoria === orderType)
-            .map(p => ({
-                itemCode: p.id,
-                description: p.nombre,
-                price: p.precioAlquiler > 0 ? p.precioAlquiler : p.precioVenta,
-                stock: 999,
-                imageUrl: p.imagen || `https://picsum.photos/seed/${p.id}/400/300`,
-                imageHint: p.nombre.toLowerCase(),
-                category: p.categoria,
-                tipo: p.tipo,
-            }));
+        setCatalogItems(allArticulos.filter(p => p.categoria === orderType));
     }
-    setCatalogItems(itemsToLoad);
 
     const allPlantillas = JSON.parse(localStorage.getItem('pedidoPlantillas') || '[]') as PedidoPlantilla[];
     setPlantillas(allPlantillas.filter(p => p.tipo === orderType));
@@ -86,25 +61,37 @@ export default function PedidosPage() {
     }
   }, [editOrderId, osId, orderType]);
 
-  const handleAddItem = (item: CateringItem, quantity: number) => {
+  const handleAddItem = (item: ArticuloCatering, quantity: number) => {
     if (quantity <= 0) return;
 
+    const orderItem: OrderItem = {
+        itemCode: item.id,
+        description: item.nombre,
+        price: item.precioAlquiler > 0 ? item.precioAlquiler : item.precioVenta,
+        stock: 999, // Assuming infinite stock for simplicity
+        imageUrl: item.imagen || `https://picsum.photos/seed/${item.id}/400/300`,
+        imageHint: item.nombre.toLowerCase(),
+        category: item.categoria,
+        tipo: item.tipo,
+        quantity: 0,
+    };
+
     setOrderItems((prevItems) => {
-      const existingItem = prevItems.find((i) => i.itemCode === item.itemCode);
+      const existingItem = prevItems.find((i) => i.itemCode === orderItem.itemCode);
       if (existingItem) {
         const newQuantity = existingItem.quantity + quantity;
         return prevItems.map((i) =>
-          i.itemCode === item.itemCode ? { ...i, quantity: newQuantity } : i
+          i.itemCode === orderItem.itemCode ? { ...i, quantity: newQuantity } : i
         );
       } else {
-        return [...prevItems, { ...item, quantity, tipo: item.tipo }];
+        return [...prevItems, { ...orderItem, quantity }];
       }
     });
   };
 
   const handleApplyTemplate = (plantilla: PedidoPlantilla) => {
     plantilla.items.forEach(plantillaItem => {
-        const catalogItem = catalogItems.find(item => item.itemCode === plantillaItem.itemCode);
+        const catalogItem = catalogItems.find(item => item.id === plantillaItem.itemCode);
         if(catalogItem) {
             handleAddItem(catalogItem, plantillaItem.quantity);
         }
@@ -116,7 +103,7 @@ export default function PedidosPage() {
   };
 
   const handleUpdateQuantity = (itemCode: string, quantity: number) => {
-    const itemData = catalogItems.find((i) => i.itemCode === itemCode);
+    const itemData = catalogItems.find((i) => i.id === itemCode);
     if (!itemData) return;
 
     if (quantity <= 0) {

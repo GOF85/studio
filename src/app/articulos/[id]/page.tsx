@@ -1,15 +1,14 @@
 
 'use client';
 
-import * as React from 'react';
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, Package, X, Star, Link as LinkIcon, Check, CircleX } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import type { ArticuloCatering, Proveedor, IngredienteERP } from '@/types';
+import type { ArticuloCatering, Proveedor, IngredienteERP, Receta } from '@/types';
 import { ARTICULO_CATERING_CATEGORIAS } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -23,23 +22,24 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency } from '@/lib/utils';
+import Image from 'next/image';
 
 export const articuloCateringSchema = z.object({
   id: z.string(),
   erpId: z.string().optional(),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
   categoria: z.enum(ARTICULO_CATERING_CATEGORIAS, { errorMap: () => ({ message: "Categoría no válida" }) }),
-  subcategoria: z.string().optional(),
+  tipo: z.string().optional(),
   esHabitual: z.boolean().default(false),
   precioVenta: z.coerce.number().default(0),
   precioAlquiler: z.coerce.number().default(0),
   precioReposicion: z.coerce.number().default(0),
   stockSeguridad: z.coerce.number().default(0),
-  tipo: z.string().optional(),
   loc: z.string().optional(),
   imagen: z.string().url("Debe ser una URL válida.").or(z.literal("")).optional(),
   producidoPorPartner: z.boolean().default(false),
   partnerId: z.string().optional(),
+  recetaId: z.string().optional(), // Para vincular a recetas
 });
 
 type ArticuloCateringFormValues = z.infer<typeof articuloCateringSchema>;
@@ -52,13 +52,12 @@ const defaultValues: Partial<ArticuloCateringFormValues> = {
     precioReposicion: 0,
     stockSeguridad: 0,
     producidoPorPartner: false,
-    subcategoria: '',
     loc: '',
     imagen: '',
     tipo: '',
 };
 
-function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProducts }: { onSelect: (id: string) => void, searchTerm: string, setSearchTerm: (term: string) => void, filteredProducts: IngredienteERP[] }) {
+function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProducts }: { onSelect: (erpProduct: IngredienteERP) => void, searchTerm: string, setSearchTerm: (term: string) => void, filteredProducts: IngredienteERP[] }) {
     return (
         <DialogContent className="max-w-3xl">
             <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
@@ -73,7 +72,7 @@ function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProduc
                                 <TableCell>{p.nombreProveedor}</TableCell>
                                 <TableCell>{formatCurrency(p.precio)}/{p.unidad}</TableCell>
                                 <TableCell>
-                                    <Button size="sm" onClick={() => onSelect(p.id)}>
+                                    <Button size="sm" onClick={() => onSelect(p)}>
                                         <Check className="mr-2" />
                                         Seleccionar
                                     </Button>
@@ -98,6 +97,7 @@ export default function ArticuloFormPage() {
   const { toast } = useToast();
   
   const [ingredientesERP, setIngredientesERP] = useState<IngredienteERP[]>([]);
+  const [recetas, setRecetas] = useState<Receta[]>([]);
   const [erpSearchTerm, setErpSearchTerm] = useState('');
   const [isErpDialogOpen, setIsErpDialogOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
@@ -108,13 +108,15 @@ export default function ArticuloFormPage() {
     defaultValues,
   });
   
-  const { setValue, reset, getValues } = form;
-  const selectedErpId = form.watch('erpId');
-  const selectedCategoria = form.watch('categoria');
+  const { setValue, reset, watch } = form;
+  const erpId = watch('erpId');
+  const recetaId = watch('recetaId');
+  const esProducidoPorPartner = watch('producidoPorPartner');
   
-  const selectedErpProduct = React.useMemo(() => ingredientesERP.find(p => p.id === selectedErpId), [ingredientesERP, selectedErpId]);
+  const selectedErpProduct = useMemo(() => ingredientesERP.find(p => p.id === erpId), [ingredientesERP, erpId]);
+  const selectedReceta = useMemo(() => recetas.find(r => r.id === recetaId), [recetas, recetaId]);
   
-  const filteredErpProducts = React.useMemo(() => {
+  const filteredErpProducts = useMemo(() => {
     return ingredientesERP.filter(p => 
         p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
         p.nombreProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
@@ -122,25 +124,22 @@ export default function ArticuloFormPage() {
     );
   }, [ingredientesERP, erpSearchTerm]);
   
-  const selectedErpProductRef = React.useRef(selectedErpProduct);
-  const selectedCategoriaRef = React.useRef(selectedCategoria);
-
   useEffect(() => {
-    selectedErpProductRef.current = selectedErpProduct;
-    selectedCategoriaRef.current = selectedCategoria;
-  }, [selectedErpProduct, selectedCategoria]);
-
-  useEffect(() => {
-    if (selectedErpProductRef.current && selectedCategoriaRef.current) {
-      setValue('tipo', selectedErpProductRef.current.tipo, { shouldDirty: true });
-      if (selectedCategoriaRef.current === 'Almacen' || selectedCategoriaRef.current === 'Alquiler') {
-        setValue('precioReposicion', selectedErpProductRef.current.precio, { shouldDirty: true });
+      if (esProducidoPorPartner) {
+          setValue('recetaId', undefined);
+          if (selectedErpProduct) {
+              setValue('precioReposicion', selectedErpProduct.precio, { shouldDirty: true });
+              setValue('tipo', selectedErpProduct.tipo, { shouldDirty: true });
+          }
       } else {
-        setValue('precioVenta', selectedErpProductRef.current.precio, { shouldDirty: true });
+          setValue('partnerId', undefined);
+          setValue('erpId', undefined);
+          if (selectedReceta) {
+              setValue('precioVenta', selectedReceta.precioVenta || 0, { shouldDirty: true });
+              setValue('tipo', selectedReceta.categoria, { shouldDirty: true });
+          }
       }
-    }
-  }, [selectedErpProduct, selectedCategoria, setValue]);
-
+  }, [esProducidoPorPartner, selectedErpProduct, selectedReceta, setValue]);
 
   useEffect(() => {
     const allPartners = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
@@ -148,6 +147,9 @@ export default function ArticuloFormPage() {
     
     const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
     setIngredientesERP(storedErp);
+
+    const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+    setRecetas(storedRecetas);
 
     if (isEditing) {
       const items = JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[];
@@ -190,15 +192,17 @@ export default function ArticuloFormPage() {
     }, 1000);
   }
   
-  const partnerOptions = partners.map(p => ({ value: p.id, label: p.nombreComercial }));
+  const partnerOptions = partners.filter(p=>p.tipos.includes('Alquiler')).map(p => ({ value: p.id, label: p.nombreComercial }));
 
-  const handleErpSelect = (erpId: string) => {
-    form.setValue('erpId', erpId, { shouldDirty: true });
+  const handleErpSelect = (erpProduct: IngredienteERP) => {
+    setValue('erpId', erpProduct.id, { shouldDirty: true });
+    setValue('precioReposicion', erpProduct.precio, { shouldDirty: true });
+    setValue('tipo', erpProduct.tipo, { shouldDirty: true });
     setIsErpDialogOpen(false);
   }
   
   const handleImageSave = () => {
-    form.setValue('imagen', imageUrl, { shouldDirty: true });
+    setValue('imagen', imageUrl, { shouldDirty: true });
     setIsImageDialogOpen(false);
   }
 
@@ -254,7 +258,7 @@ export default function ArticuloFormPage() {
                         )}
                         />
                      <FormField control={form.control} name="tipo" render={({ field }) => (
-                        <FormItem><FormLabel>Tipo</FormLabel><FormControl><Input {...field} placeholder="Ej: Vino Tinto, Refresco..." /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Tipo</FormLabel><FormControl><Input {...field} placeholder="Ej: Vino Tinto, Refresco..." readOnly={!!selectedErpProduct} className={!!selectedErpProduct ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="loc" render={({ field }) => (
                         <FormItem><FormLabel>Ubicación</FormLabel><FormControl><Input {...field} placeholder="Ej: P4-E2-A1" /></FormControl><FormMessage /></FormItem>
@@ -285,85 +289,69 @@ export default function ArticuloFormPage() {
                         </DialogContent>
                     </Dialog>
                 </div>
-                {form.watch('producidoPorPartner') && (
-                    <FormField control={form.control} name="partnerId" render={({ field }) => (
+                {watch('producidoPorPartner') && (
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <FormField control={form.control} name="partnerId" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Partner Productor</FormLabel>
+                                <Combobox
+                                    options={partnerOptions}
+                                    value={field.value || ''}
+                                    onChange={field.onChange}
+                                    placeholder="Selecciona un partner..."
+                                />
+                                <FormMessage />
+                            </FormItem>
+                        )} />
                         <FormItem>
-                            <FormLabel>Partner Productor</FormLabel>
-                             <Combobox
-                                options={partnerOptions}
-                                value={field.value || ''}
-                                onChange={field.onChange}
-                                placeholder="Selecciona un partner..."
-                            />
-                            <FormMessage />
+                            <FormLabel>Producto ERP Vinculado</FormLabel>
+                            {selectedErpProduct ? (
+                                <div className="border rounded-md p-2 space-y-1">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="font-semibold text-sm leading-tight">{selectedErpProduct.nombreProductoERP}</p>
+                                            <p className="text-xs text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
+                                        </div>
+                                        <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" onClick={() => setValue('erpId', undefined)}><CircleX className="mr-1 h-3 w-3"/>Desvincular</Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <Dialog open={isErpDialogOpen} onOpenChange={setIsErpDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="secondary" className="w-full h-10 border-dashed border-2"><LinkIcon className="mr-2"/>Vincular Producto ERP</Button>
+                                    </DialogTrigger>
+                                    <ErpSelectorDialog 
+                                        onSelect={handleErpSelect}
+                                        searchTerm={erpSearchTerm}
+                                        setSearchTerm={setErpSearchTerm}
+                                        filteredProducts={filteredErpProducts}
+                                    />
+                                </Dialog>
+                            )}
+                            <FormMessage className="mt-2 text-red-500">{form.formState.errors.erpId?.message}</FormMessage>
                         </FormItem>
-                     )} />
+                    </div>
                 )}
               </CardContent>
             </Card>
 
-            <div className="grid md:grid-cols-2 gap-6 items-start">
-             <Card>
-                <CardHeader><CardTitle>Información de Precios</CardTitle></CardHeader>
-                <CardContent className="space-y-6">
-                    {(selectedCategoria === 'Almacen' || selectedCategoria === 'Alquiler') ? (
-                        <>
-                         <FormField control={form.control} name="precioAlquiler" render={({ field }) => (
-                            <FormItem><FormLabel>Precio Alquiler</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                         <FormField control={form.control} name="precioReposicion" render={({ field }) => (
-                            <FormItem><FormLabel>Precio Reposición</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={!form.watch('producidoPorPartner')} className={!form.watch('producidoPorPartner') ? "bg-muted" : ""}/></FormControl><FormMessage /></FormItem>
-                        )} />
-                        </>
-                    ) : (
-                         <FormField control={form.control} name="precioVenta" render={({ field }) => (
-                            <FormItem><FormLabel>Precio Venta</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={!form.watch('producidoPorPartner')} className={!form.watch('producidoPorPartner') ? "bg-muted" : ""}/></FormControl><FormMessage /></FormItem>
-                        )} />
-                    )}
-                    <FormField control={form.control} name="stockSeguridad" render={({ field }) => (
-                        <FormItem><FormLabel>Stock de Seguridad</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                </CardContent>
-             </Card>
-
-              <Card>
-                <CardHeader><CardTitle>Vínculo con Materia Prima</CardTitle></CardHeader>
-                <CardContent>
-                     <FormItem>
-                        <FormLabel>Producto ERP Vinculado</FormLabel>
-                        {selectedErpProduct ? (
-                            <div className="border rounded-md p-2 space-y-1">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="font-semibold text-sm leading-tight">{selectedErpProduct.nombreProductoERP}</p>
-                                        <p className="text-xs text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
-                                    </div>
-                                    <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" onClick={() => form.setValue('erpId', '')}><CircleX className="mr-1 h-3 w-3"/>Desvincular</Button>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 pt-2">
-                                     <FormField control={form.control} name="tipo" render={({ field }) => (
-                                        <FormItem><FormLabel className="text-xs">Tipo</FormLabel><FormControl><Input {...field} readOnly className="h-8 bg-muted"/></FormControl></FormItem>
-                                     )} />
-                                </div>
-                            </div>
-                        ) : (
-                            <Dialog open={isErpDialogOpen} onOpenChange={setIsErpDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button variant="secondary" className="w-full h-16 border-dashed border-2"><LinkIcon className="mr-2"/>Vincular Producto ERP</Button>
-                                </DialogTrigger>
-                                <ErpSelectorDialog 
-                                    onSelect={handleErpSelect}
-                                    searchTerm={erpSearchTerm}
-                                    setSearchTerm={setErpSearchTerm}
-                                    filteredProducts={filteredErpProducts}
-                                />
-                            </Dialog>
-                        )}
-                        <FormMessage className="mt-2 text-red-500">{form.formState.errors.erpId?.message}</FormMessage>
-                    </FormItem>
-                </CardContent>
-              </Card>
-            </div>
+            <Card>
+            <CardHeader><CardTitle>Información de Precios y Stock</CardTitle></CardHeader>
+            <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <FormField control={form.control} name="precioVenta" render={({ field }) => (
+                    <FormItem><FormLabel>Precio Venta</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={!esProducidoPorPartner && !!selectedReceta} className={!esProducidoPorPartner && !!selectedReceta ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="precioAlquiler" render={({ field }) => (
+                    <FormItem><FormLabel>Precio Alquiler</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="precioReposicion" render={({ field }) => (
+                    <FormItem><FormLabel>Precio Reposición</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={esProducidoPorPartner && !!selectedErpProduct} className={esProducidoPorPartner && !!selectedErpProduct ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="stockSeguridad" render={({ field }) => (
+                    <FormItem><FormLabel>Stock de Seguridad</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+            </CardContent>
+            </Card>
           </form>
         </Form>
       </main>

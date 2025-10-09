@@ -42,7 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
-const CSV_HEADERS = ["id", "erpId", "nombre", "categoria", "subcategoria", "esHabitual", "precioVenta", "precioAlquiler", "precioReposicion", "stockSeguridad", "tipo", "loc", "imagen", "producidoPorPartner", "partnerId"];
+const CSV_HEADERS = ["id", "erpId", "nombre", "categoria", "subcategoria", "esHabitual", "precioVenta", "precioAlquiler", "precioReposicion", "stockSeguridad", "tipo", "loc", "imagen", "producidoPorPartner", "partnerId", "recetaId"];
 
 export default function ArticulosPage() {
   const [items, setItems] = useState<ArticuloCatering[]>([]);
@@ -134,20 +134,21 @@ export default function ArticulosPage() {
         
         const importedData: ArticuloCatering[] = results.data.map((item: any) => ({
             id: item.id || Date.now().toString() + Math.random(),
-            erpId: item.erpId || '',
+            erpId: item.erpId || undefined,
             nombre: item.nombre || '',
             categoria: item.categoria || 'Varios',
-            subcategoria: item.subcategoria || '',
+            subcategoria: item.subcategoria || undefined,
             esHabitual: parseBoolean(item.esHabitual),
             precioVenta: parseCurrency(item.precioVenta),
             precioAlquiler: parseCurrency(item.precioAlquiler),
             precioReposicion: parseCurrency(item.precioReposicion),
             stockSeguridad: Number(item.stockSeguridad) || 0,
-            tipo: item.tipo || '',
-            loc: item.loc || '',
-            imagen: item.imagen || '',
+            tipo: item.tipo || undefined,
+            loc: item.loc || undefined,
+            imagen: item.imagen || undefined,
             producidoPorPartner: parseBoolean(item.producidoPorPartner),
-            partnerId: item.partnerId || '',
+            partnerId: item.partnerId || undefined,
+            recetaId: item.recetaId || undefined,
         }));
         
         localStorage.setItem('articulos', JSON.stringify(importedData));
@@ -269,7 +270,7 @@ export default function ArticulosPage() {
             <TableBody>
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/articulos/${item.id}`)}>
                     <TableCell className="p-2">
                         {item.esHabitual && <Star className="h-5 w-5 text-amber-400 fill-amber-400" />}
                     </TableCell>
@@ -282,7 +283,7 @@ export default function ArticulosPage() {
                     <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={e => e.stopPropagation()}>
                             <span className="sr-only">Abrir menú</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
@@ -292,7 +293,7 @@ export default function ArticulosPage() {
                             <Pencil className="mr-2 h-4 w-4" />
                             Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => setItemToDelete(item.id)}>
+                          <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id); }}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Eliminar
                           </DropdownMenuItem>

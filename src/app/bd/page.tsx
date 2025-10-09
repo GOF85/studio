@@ -33,9 +33,6 @@ const generalDatabasesList: DatabaseEntry[] = [
     { id: '9', name: 'Atípicos (Conceptos)', description: 'Gestión de conceptos de gastos varios.', itemCount: 0, path: '/atipicos-db' },
     { id: '12', name: 'Decoración (Conceptos)', description: 'Gestión de conceptos de decoración.', itemCount: 0, path: '/decoracion-db' },
     { id: '13', name: 'Book: Materia Prima (ERP)', description: 'Gestión de precios y productos de proveedores.', itemCount: 0, path: '/book/ingredientes-erp' },
-    { id: '14', name: 'Book: Menaje', description: 'Gestión del menaje para los emplatados.', itemCount: 0, path: '/menaje-db' },
-    { id: '15', name: 'Book: Categorías de Recetas', description: 'Gestión de las categorías para las recetas del book.', itemCount: 0, path: '/categorias-recetas' },
-    { id: '16', name: 'Book: Tipos de Cocina', description: 'Gestión de los tipos de cocina/origen para las recetas.', itemCount: 0, path: '/tipos-cocina' },
     { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', itemCount: 0, path: '/plantillas-pedidos' },
     { id: '19', name: 'Formatos de Expedición', description: 'Define los formatos de empaquetado para producción.', itemCount: 0, path: '/formatos-expedicion' },
 ];
@@ -48,14 +45,9 @@ const providerDatabasesList: DatabaseEntry[] = [
 ];
 
 
-const entregasDatabasesList: DatabaseEntry[] = [
-    { id: '20', name: 'Productos de Venta', description: 'Define los productos compuestos para la vertical de Entregas.', itemCount: 0, path: '/entregas/productos-venta' },
-];
-
 export default function BdPage() {
   const [generalDatabases, setGeneralDatabases] = useState<DatabaseEntry[]>(generalDatabasesList);
   const [providerDatabases, setProviderDatabases] = useState<DatabaseEntry[]>(providerDatabasesList);
-  const [entregasDatabases, setEntregasDatabases] = useState<DatabaseEntry[]>(entregasDatabasesList);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -73,12 +65,8 @@ export default function BdPage() {
             if (db.path === '/atipicos-db') count = countItems('atipicosDB');
             if (db.path === '/decoracion-db') count = countItems('decoracionDB');
             if (db.path === '/book/ingredientes-erp') count = countItems('ingredientesERP');
-            if (db.path === '/menaje-db') count = countItems('menajeDB');
-            if (db.path === '/categorias-recetas') count = countItems('categoriasRecetas');
-            if (db.path === '/tipos-cocina') count = countItems('tiposCocina');
             if (db.path === '/plantillas-pedidos') count = countItems('pedidoPlantillas');
             if (db.path === '/formatos-expedicion') count = countItems('formatosExpedicionDB');
-            if (db.path === '/entregas/productos-venta') count = countItems('productosVenta');
             if (db.path === '/datos-fiscales') count = countItems('datosFiscales');
             if (db.path === '/proveedores') count = countItems('proveedores');
             if (db.path === '/tipos-personal') count = countItems('tiposPersonal');
@@ -89,7 +77,6 @@ export default function BdPage() {
 
     setGeneralDatabases(updateCounts(generalDatabasesList));
     setProviderDatabases(updateCounts(providerDatabasesList));
-    setEntregasDatabases(updateCounts(entregasDatabasesList));
   }, []);
 
   if (!isMounted) return null;
@@ -156,7 +143,6 @@ export default function BdPage() {
         <div className="space-y-8">
             {renderTable(generalDatabases, 'Bases de Datos Generales y de Catering', <Database/>)}
             {renderTable(providerDatabases, 'Bases de Datos de Proveedores', <Users/>, 'Gestión centralizada de todos los proveedores y sus catálogos de servicios.')}
-            {renderTable(entregasDatabases, 'Bases de Datos de Entregas', <Package/>, 'Configuraciones específicas para la vertical de Entregas MICE.')}
         </div>
 
         <div className="mt-12">
