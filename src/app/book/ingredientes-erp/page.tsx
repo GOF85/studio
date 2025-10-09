@@ -39,6 +39,7 @@ import { z } from 'zod';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import Papa from 'papaparse';
+import { Label } from '@/components/ui/label';
 
 const formSchema = z.object({
     items: z.array(ingredienteErpSchema)
@@ -52,6 +53,10 @@ export default function IngredientesERPPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [providerFilter, setProviderFilter] = useState('all');
+  const [forRentFilter, setForRentFilter] = useState(false);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -64,7 +69,7 @@ export default function IngredientesERPPage() {
     }
   });
 
-  const { fields, append, remove, control } = useFieldArray({
+  const { fields, append, remove, control, getValues } = useFieldArray({
     control: form.control,
     name: "items"
   });
@@ -78,20 +83,43 @@ export default function IngredientesERPPage() {
   
   const watchedItems = form.watch('items');
 
+  const { categories, types, providers } = useMemo(() => {
+    if (!watchedItems) return { categories: [], types: [], providers: [] };
+    const catSet = new Set<string>();
+    const typeSet = new Set<string>();
+    const provSet = new Set<string>();
+    watchedItems.forEach(item => {
+      if (item.familiaCategoria) catSet.add(item.familiaCategoria);
+      if (item.tipo) typeSet.add(item.tipo);
+      if (item.nombreProveedor) provSet.add(item.nombreProveedor);
+    });
+    return {
+      categories: ['all', ...Array.from(catSet).sort()],
+      types: ['all', ...Array.from(typeSet).sort()],
+      providers: ['all', ...Array.from(provSet).sort()],
+    };
+  }, [watchedItems]);
+
   const filteredItems = useMemo(() => {
     if (!watchedItems) return [];
     return watchedItems.map((item, index) => ({...item, originalIndex: index}))
       .filter(item => {
         const term = searchTerm.toLowerCase();
-        return (
+        const searchMatch =
           (item.nombreProductoERP || '').toLowerCase().includes(term) ||
           (item.nombreProveedor || '').toLowerCase().includes(term) ||
           (item.referenciaProveedor || '').toLowerCase().includes(term) ||
           (item.IdERP || '').toLowerCase().includes(term) ||
-          (item.tipo || '').toLowerCase().includes(term)
-        );
+          (item.tipo || '').toLowerCase().includes(term);
+
+        const categoryMatch = categoryFilter === 'all' || item.familiaCategoria === categoryFilter;
+        const typeMatch = typeFilter === 'all' || item.tipo === typeFilter;
+        const providerMatch = providerFilter === 'all' || item.nombreProveedor === providerFilter;
+        const forRentMatch = !forRentFilter || item.alquiler;
+
+        return searchMatch && categoryMatch && typeMatch && providerMatch && forRentMatch;
     });
-  }, [watchedItems, searchTerm]);
+  }, [watchedItems, searchTerm, categoryFilter, typeFilter, providerFilter, forRentFilter]);
 
   function onSubmit(data: IngredientesERPFormValues) {
     setIsLoading(true);
@@ -253,13 +281,29 @@ export default function IngredientesERPPage() {
                 </div>
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-4 mb-6">
-                <Input 
-                    placeholder="Buscar por nombre, Id. ERP, proveedor o referencia..."
-                    className="flex-grow max-w-lg"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                <div className="flex flex-wrap items-center gap-4 mb-6">
+                    <Input 
+                        placeholder="Buscar..."
+                        className="flex-grow max-w-xs"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                        <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'Todas las Categorías' : c}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={typeFilter} onValueChange={setTypeFilter}>
+                        <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>{types.map(t => <SelectItem key={t} value={t}>{t === 'all' ? 'Todos los Tipos' : t}</SelectItem>)}</SelectContent>
+                    </Select>
+                     <Select value={providerFilter} onValueChange={setProviderFilter}>
+                        <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>{providers.map(p => <SelectItem key={p} value={p}>{p === 'all' ? 'Todos los Proveedores' : p}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="for-rent-filter" checked={forRentFilter} onCheckedChange={(checked) => setForRentFilter(Boolean(checked))} />
+                        <Label htmlFor="for-rent-filter">Apto Alquiler</Label>
+                    </div>
                 </div>
 
                 <div className="border rounded-lg">
@@ -365,3 +409,4 @@ export default function IngredientesERPPage() {
     </>
   );
 }
+
