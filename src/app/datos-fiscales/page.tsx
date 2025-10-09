@@ -63,7 +63,7 @@ export default function DatosFiscalesPage() {
     return items.filter(item => {
       const searchMatch = 
         item.nombreEmpresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.nombreComercial?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.nombreComercial || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.cif.toLowerCase().includes(searchTerm.toLowerCase());
       const typeMatch = tipoFilter === 'all' || item.tipo === tipoFilter;
       return searchMatch && typeMatch;
@@ -109,12 +109,14 @@ export default function DatosFiscalesPage() {
     Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
+      delimiter: ";", // Specify the delimiter
       complete: (results) => {
         const headers = results.meta.fields || [];
         const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
 
         if (!hasAllHeaders) {
             toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
+            if(event.target) event.target.value = '';
             return;
         }
         
