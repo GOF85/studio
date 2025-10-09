@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, Landmark, ArrowLeft, FileUp, FileDown, Menu } from 'lucide-react';
@@ -110,6 +110,8 @@ export default function DatosFiscalesPage() {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
+        console.log('Resultados de PapaParse:', results);
+
         const headers = results.meta.fields || [];
         const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
 
@@ -119,7 +121,7 @@ export default function DatosFiscalesPage() {
             return;
         }
         
-        const importedData: DatosFiscales[] = results.data.map(item => ({
+        const importedData: DatosFiscales[] = results.data.map((item: any) => ({
           id: item.id || Date.now().toString(),
           cif: item.cif || '',
           nombreEmpresa: item.nombreEmpresa || '',
@@ -135,20 +137,20 @@ export default function DatosFiscalesPage() {
           formaDePagoHabitual: item.formaDePagoHabitual || '',
           tipo: TIPO_ENTIDAD_FISCAL.includes(item.tipo) ? item.tipo : 'Cliente',
         }));
+
+        console.log('Datos importados y mapeados:', importedData);
         
         localStorage.setItem('datosFiscales', JSON.stringify(importedData));
         setItems(importedData);
         toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+        if(event.target) event.target.value = '';
       },
-      error: (error) => {
+      error: (error: any) => {
+        console.error("Error en PapaParse:", error);
         toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+        if(event.target) event.target.value = '';
       }
     });
-
-    // Reset file input to allow re-uploading the same file
-    if(event.target) {
-        event.target.value = '';
-    }
   };
   
   if (!isMounted) {
