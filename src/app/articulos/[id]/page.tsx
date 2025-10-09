@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -97,7 +98,6 @@ export default function ArticuloFormPage() {
   const { toast } = useToast();
   
   const [ingredientesERP, setIngredientesERP] = useState<IngredienteERP[]>([]);
-  const [recetas, setRecetas] = useState<Receta[]>([]);
   const [erpSearchTerm, setErpSearchTerm] = useState('');
   const [isErpDialogOpen, setIsErpDialogOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
@@ -110,36 +110,36 @@ export default function ArticuloFormPage() {
   
   const { setValue, reset, watch } = form;
   const erpId = watch('erpId');
-  const recetaId = watch('recetaId');
   const esProducidoPorPartner = watch('producidoPorPartner');
+  const categoria = watch('categoria');
   
   const selectedErpProduct = useMemo(() => ingredientesERP.find(p => p.id === erpId), [ingredientesERP, erpId]);
-  const selectedReceta = useMemo(() => recetas.find(r => r.id === recetaId), [recetas, recetaId]);
   
   const filteredErpProducts = useMemo(() => {
-    return ingredientesERP.filter(p => 
-        p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
-        p.nombreProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
-        p.referenciaProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase())
-    );
-  }, [ingredientesERP, erpSearchTerm]);
+    return ingredientesERP.filter(p => {
+        const matchesSearch = 
+            p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
+            p.nombreProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
+            p.referenciaProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase());
+        
+        if (categoria === 'Alquiler') {
+            return matchesSearch && p.alquiler;
+        }
+        return matchesSearch;
+    });
+  }, [ingredientesERP, erpSearchTerm, categoria]);
   
   useEffect(() => {
-      if (esProducidoPorPartner) {
-          setValue('recetaId', undefined);
-          if (selectedErpProduct) {
-              setValue('precioReposicion', selectedErpProduct.precio, { shouldDirty: true });
-              setValue('tipo', selectedErpProduct.tipo, { shouldDirty: true });
-          }
-      } else {
-          setValue('partnerId', undefined);
-          setValue('erpId', undefined);
-          if (selectedReceta) {
-              setValue('precioVenta', selectedReceta.precioVenta || 0, { shouldDirty: true });
-              setValue('tipo', selectedReceta.categoria, { shouldDirty: true });
-          }
-      }
-  }, [esProducidoPorPartner, selectedErpProduct, selectedReceta, setValue]);
+    if (selectedErpProduct) {
+        setValue('tipo', selectedErpProduct.tipo, { shouldDirty: true });
+        if (esProducidoPorPartner) { // Alquiler Externo
+             setValue('precioReposicion', selectedErpProduct.precio, { shouldDirty: true });
+        } else { // Artículo propio
+            setValue('precioVenta', selectedErpProduct.precio, { shouldDirty: true });
+        }
+    }
+  }, [selectedErpProduct, esProducidoPorPartner, setValue]);
+
 
   useEffect(() => {
     const allPartners = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
@@ -147,9 +147,6 @@ export default function ArticuloFormPage() {
     
     const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
     setIngredientesERP(storedErp);
-
-    const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-    setRecetas(storedRecetas);
 
     if (isEditing) {
       const items = JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[];
@@ -196,8 +193,6 @@ export default function ArticuloFormPage() {
 
   const handleErpSelect = (erpProduct: IngredienteERP) => {
     setValue('erpId', erpProduct.id, { shouldDirty: true });
-    setValue('precioReposicion', erpProduct.precio, { shouldDirty: true });
-    setValue('tipo', erpProduct.tipo, { shouldDirty: true });
     setIsErpDialogOpen(false);
   }
   
@@ -284,13 +279,13 @@ export default function ArticuloFormPage() {
                         <DialogContent>
                             <DialogHeader><DialogTitle>URL de la Imagen</DialogTitle></DialogHeader>
                             <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://ejemplo.com/imagen.jpg"/>
-                            {imageUrl && <img src={imageUrl} alt="Previsualización" className="rounded-md mt-2 max-h-60 object-contain mx-auto" />}
+                            {imageUrl && <Image src={imageUrl} alt="Previsualización" className="rounded-md mt-2 max-h-60 object-contain mx-auto" width={200} height={150} />}
                             <DialogFooter><Button onClick={handleImageSave}>Guardar URL</Button></DialogFooter>
                         </DialogContent>
                     </Dialog>
                 </div>
-                {watch('producidoPorPartner') && (
-                    <div className="grid md:grid-cols-2 gap-6">
+                {esProducidoPorPartner && (
+                    <div className="grid md:grid-cols-2 gap-6 p-4 border-l-4 border-blue-300 bg-blue-50/50 rounded">
                         <FormField control={form.control} name="partnerId" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Partner Productor</FormLabel>
@@ -303,35 +298,35 @@ export default function ArticuloFormPage() {
                                 <FormMessage />
                             </FormItem>
                         )} />
-                        <FormItem>
-                            <FormLabel>Producto ERP Vinculado</FormLabel>
-                            {selectedErpProduct ? (
-                                <div className="border rounded-md p-2 space-y-1">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <p className="font-semibold text-sm leading-tight">{selectedErpProduct.nombreProductoERP}</p>
-                                            <p className="text-xs text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
-                                        </div>
-                                        <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" onClick={() => setValue('erpId', undefined)}><CircleX className="mr-1 h-3 w-3"/>Desvincular</Button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <Dialog open={isErpDialogOpen} onOpenChange={setIsErpDialogOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="secondary" className="w-full h-10 border-dashed border-2"><LinkIcon className="mr-2"/>Vincular Producto ERP</Button>
-                                    </DialogTrigger>
-                                    <ErpSelectorDialog 
-                                        onSelect={handleErpSelect}
-                                        searchTerm={erpSearchTerm}
-                                        setSearchTerm={setErpSearchTerm}
-                                        filteredProducts={filteredErpProducts}
-                                    />
-                                </Dialog>
-                            )}
-                            <FormMessage className="mt-2 text-red-500">{form.formState.errors.erpId?.message}</FormMessage>
-                        </FormItem>
                     </div>
                 )}
+                 <FormItem>
+                    <FormLabel>Producto ERP Vinculado</FormLabel>
+                    {selectedErpProduct ? (
+                        <div className="border rounded-md p-2 space-y-1 bg-muted">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="font-semibold text-sm leading-tight">{selectedErpProduct.nombreProductoERP}</p>
+                                    <p className="text-xs text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
+                                </div>
+                                <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" onClick={() => setValue('erpId', undefined)}><CircleX className="mr-1 h-3 w-3"/>Desvincular</Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <Dialog open={isErpDialogOpen} onOpenChange={setIsErpDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="secondary" className="w-full h-10 border-dashed border-2"><LinkIcon className="mr-2"/>Vincular Producto ERP</Button>
+                            </DialogTrigger>
+                            <ErpSelectorDialog 
+                                onSelect={handleErpSelect}
+                                searchTerm={erpSearchTerm}
+                                setSearchTerm={setErpSearchTerm}
+                                filteredProducts={filteredErpProducts}
+                            />
+                        </Dialog>
+                    )}
+                    <FormMessage className="mt-2 text-red-500">{form.formState.errors.erpId?.message}</FormMessage>
+                </FormItem>
               </CardContent>
             </Card>
 
@@ -339,13 +334,13 @@ export default function ArticuloFormPage() {
             <CardHeader><CardTitle>Información de Precios y Stock</CardTitle></CardHeader>
             <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <FormField control={form.control} name="precioVenta" render={({ field }) => (
-                    <FormItem><FormLabel>Precio Venta</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={!esProducidoPorPartner && !!selectedReceta} className={!esProducidoPorPartner && !!selectedReceta ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Precio Venta</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={!!selectedErpProduct && !esProducidoPorPartner} className={!!selectedErpProduct && !esProducidoPorPartner ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="precioAlquiler" render={({ field }) => (
                     <FormItem><FormLabel>Precio Alquiler</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="precioReposicion" render={({ field }) => (
-                    <FormItem><FormLabel>Precio Reposición</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={esProducidoPorPartner && !!selectedErpProduct} className={esProducidoPorPartner && !!selectedErpProduct ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Precio Reposición</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={!!selectedErpProduct && esProducidoPorPartner} className={!!selectedErpProduct && esProducidoPorPartner ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="stockSeguridad" render={({ field }) => (
                     <FormItem><FormLabel>Stock de Seguridad</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>

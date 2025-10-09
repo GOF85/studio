@@ -173,16 +173,9 @@ export type ArticuloCatering = {
     imagen?: string;
     producidoPorPartner?: boolean;
     partnerId?: string;
+    recetaId?: string; 
 }
 
-export type AlquilerDBItem = {
-  id: string;
-  proveedorId: string;
-  concepto: string;
-  precioAlquiler: number;
-  precioReposicion: number;
-  imagen: string;
-};
 
 export type TipoServicio = {
     id: string;
@@ -400,6 +393,7 @@ export const ingredienteErpSchema = z.object({
   precio: z.coerce.number().min(0),
   unidad: z.enum(UNIDADES_MEDIDA),
   tipo: z.string().optional(),
+  alquiler: z.boolean().default(false),
 });
 
 export type IngredienteERP = z.infer<typeof ingredienteErpSchema>;
@@ -454,19 +448,6 @@ export type ElaboracionEnReceta = {
   merma: number;
 }
 
-export type MenajeDB = {
-    id: string;
-    descripcion: string;
-    fotoURL?: string;
-}
-
-export type MenajeEnReceta = {
-    id: string;
-    menajeId: string;
-    descripcion: string;
-    ratio: number;
-}
-
 export const SABORES_PRINCIPALES = ['DULCE', 'SALADO', 'ÁCIDO', 'AMARGO', 'UMAMI'] as const;
 export type SaborPrincipal = typeof SABORES_PRINCIPALES[number];
 
@@ -489,7 +470,7 @@ export type Receta = {
     tipoDieta: 'VEGETARIANO' | 'VEGANO' | 'AMBOS' | 'NINGUNO';
     porcentajeCosteProduccion: number;
     elaboraciones: ElaboracionEnReceta[];
-    menajeAsociado: MenajeEnReceta[];
+    menajeAsociado: { id: string; menajeId: string; descripcion: string; ratio: number }[];
     instruccionesMiseEnPlace: string;
     fotosMiseEnPlaceURLs?: string[];
     instruccionesRegeneracion: string;
@@ -514,15 +495,6 @@ export type Receta = {
     precioVenta?: number;
     alergenos?: Alergeno[];
     requiereRevision?: boolean;
-}
-
-export type CategoriaReceta = {
-    id: string;
-    nombre: string;
-}
-export type TipoCocina = {
-    id: string;
-    nombre: string;
 }
 
 export type OrdenFabricacion = {

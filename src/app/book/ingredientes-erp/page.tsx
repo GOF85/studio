@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -35,6 +36,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { formatCurrency, formatUnit } from '@/lib/utils';
 import { z } from 'zod';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const formSchema = z.object({
     items: z.array(ingredienteErpSchema)
@@ -58,7 +60,7 @@ export default function IngredientesERPPage() {
     }
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, control } = useFieldArray({
     control: form.control,
     name: "items"
   });
@@ -108,6 +110,7 @@ export default function IngredientesERPPage() {
       precio: 0,
       unidad: 'UNIDAD',
       tipo: '',
+      alquiler: false,
     });
   };
   
@@ -169,6 +172,7 @@ export default function IngredientesERPPage() {
                         <TableHead className="p-2 w-40">Tipo</TableHead>
                         <TableHead className="p-2 w-28">Precio</TableHead>
                         <TableHead className="p-2 w-32">Unidad</TableHead>
+                        <TableHead className="p-2 w-28 text-center">Apto Alquiler</TableHead>
                         <TableHead className="p-2 w-16 text-right">Acciones</TableHead>
                     </TableRow>
                     </TableHeader>
@@ -207,6 +211,11 @@ export default function IngredientesERPPage() {
                                     </Select>
                                 )} />
                             </TableCell>
+                            <TableCell className="p-1 text-center">
+                                 <FormField control={form.control} name={`items.${item.originalIndex}.alquiler`} render={({ field }) => (
+                                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                 )} />
+                            </TableCell>
                             <TableCell className="text-right p-1">
                                 <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" type="button" onClick={() => setItemToDelete(item.originalIndex)}>
                                     <Trash2 className="h-4 w-4" />
@@ -216,7 +225,7 @@ export default function IngredientesERPPage() {
                         ))
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={9} className="h-24 text-center">
+                        <TableCell colSpan={10} className="h-24 text-center">
                             No se encontraron ingredientes que coincidan con la búsqueda.
                         </TableCell>
                         </TableRow>
