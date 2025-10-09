@@ -1,126 +1,141 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
-import type { OrdenFabricacion, ExcedenteProduccion } from '@/types';
+import type { OrdenFabricacion, StockElaboracion, StockLote, Elaboracion } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { ArrowLeft, Save, Trash2, AlertTriangle, CheckCircle, CalendarIcon, Watch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { format, differenceInDays, addDays } from 'date-fns';
+import { format, differenceInDays, addDays, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { formatUnit } from '@/lib/utils';
+import { formatUnit, formatNumber } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type FormData = {
-    cantidadAjustada: number;
+    lotes: (StockLote & { initialCantidad: number })[];
     motivoAjuste: string;
-    diasCaducidad?: number;
 };
 
 export default function ExcedenteDetailPage() {
-    const [orden, setOrden] = useState<OrdenFabricacion | null>(null);
-    const [excedente, setExcedente] = useState<ExcedenteProduccion | null>(null);
+    const [elaboracion, setElaboracion] = useState<Elaboracion | null>(null);
+    const [stockItem, setStockItem] = useState<StockElaboracion | null>(null);
     const [isMounted, setIsMounted] = useState(false);
+    const [showMermaConfirm, setShowMermaConfirm] = useState(false);
+    const [mermaAllMotivo, setMermaAllMotivo] = useState('');
+    
     const router = useRouter();
     const params = useParams();
     const { toast } = useToast();
-    const id = params.id as string; // OF ID
+    const elabId = params.id as string;
     
     const form = useForm<FormData>();
-    const { register, handleSubmit, setValue, watch } = form;
+    const { register, handleSubmit, setValue, getValues, control } = form;
     
-    const diasCaducidadWatch = watch('diasCaducidad');
+    const { fields, update, remove } = useFieldArray({
+        control,
+        name: "lotes",
+    });
+
+    const watchedLotes = form.watch('lotes');
+    const totalCantidad = watchedLotes?.reduce((sum, lote) => sum + lote.cantidad, 0) || 0;
 
     const loadData = useCallback(() => {
-        const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        const currentOF = allOFs.find(of => of.id === id);
-        setOrden(currentOF || null);
+        const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+        const currentElab = allElaboraciones.find(e => e.id === elabId);
+        setElaboracion(currentElab || null);
+        
+        const allStock = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}') as Record<string, StockElaboracion>;
+        const currentStock = allStock[elabId] || null;
+        setStockItem(currentStock);
 
-        const allExcedentes = JSON.parse(localStorage.getItem('excedentesProduccion') || '{}') as {[key: string]: ExcedenteProduccion};
-        const currentExcedente = allExcedentes[id] || null;
-        setExcedente(currentExcedente);
-
-        if (currentExcedente) {
-            setValue('cantidadAjustada', currentExcedente.cantidadAjustada);
-            setValue('motivoAjuste', currentExcedente.motivoAjuste || '');
-            setValue('diasCaducidad', currentExcedente.diasCaducidad);
-        } else if (currentOF) {
-             const diferencia = (currentOF.cantidadReal || currentOF.cantidadTotal) - (currentOF.necesidadTotal || 0);
-            setValue('cantidadAjustada', diferencia > 0 ? diferencia : 0);
-            setValue('diasCaducidad', 7); // Default caducidad
+        if (currentStock) {
+            const lotesWithInitial = currentStock.lotes.map(lote => ({ ...lote, initialCantidad: lote.cantidad }));
+            form.reset({ lotes: lotesWithInitial, motivoAjuste: '' });
         }
-
         setIsMounted(true);
-    }, [id, setValue]);
+    }, [elabId, form]);
 
     useEffect(() => {
         loadData();
     }, [loadData]);
     
     const onSubmit = (data: FormData) => {
-        if (!orden) return;
+        if (!stockItem) return;
         
-        let allExcedentes = JSON.parse(localStorage.getItem('excedentesProduccion') || '{}') as {[key: string]: ExcedenteProduccion};
+        let allStock = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}') as Record<string, StockElaboracion>;
         
-        const newExcedenteData: ExcedenteProduccion = {
-            ofId: id,
-            fechaProduccion: orden.fechaFinalizacion || orden.fechaCreacion,
-            diasCaducidad: data.diasCaducidad,
-            cantidadAjustada: data.cantidadAjustada,
-            motivoAjuste: data.motivoAjuste,
-            fechaAjuste: new Date().toISOString(),
+        const updatedLotes = data.lotes.map(l => ({ ofId: l.ofId, cantidad: l.cantidad, fechaCaducidad: l.fechaCaducidad }));
+        const newTotal = updatedLotes.reduce((sum, lote) => sum + lote.cantidad, 0);
+
+        allStock[elabId] = {
+            ...stockItem,
+            cantidadTotal: newTotal,
+            lotes: updatedLotes
         };
 
-        allExcedentes[id] = newExcedenteData;
+        // TODO: Registrar el motivo del ajuste en algún log de movimientos de stock
         
-        localStorage.setItem('excedentesProduccion', JSON.stringify(allExcedentes));
-        setExcedente(newExcedenteData);
-        toast({ title: 'Ajuste Guardado', description: 'La información del excedente ha sido actualizada.' });
-        form.reset(data); // mark as not dirty
+        localStorage.setItem('stockElaboraciones', JSON.stringify(allStock));
+        toast({ title: 'Ajuste Guardado', description: 'El stock de la elaboración ha sido actualizado.' });
+        loadData(); // Recargar datos para reflejar el estado guardado
+        form.reset(data);
     };
 
-    const handleDeclareMerma = (motivo: string) => {
-        if (!orden || !motivo) {
-            toast({ variant: 'destructive', title: 'Error', description: 'El motivo es obligatorio para declarar una merma.'});
+    const handleDeclareMermaTotal = () => {
+        if (!stockItem || !mermaAllMotivo) {
+            toast({ variant: 'destructive', title: 'Error', description: 'El motivo es obligatorio para declarar una merma total.'});
             return;
         }
 
-        const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        const index = allOFs.findIndex(of => of.id === id);
-        if (index > -1) {
-            allOFs[index] = {
-                ...allOFs[index],
-                estado: 'Incidencia',
-                incidenciaObservaciones: `MERMA DE EXCEDENTE: ${motivo}`,
-            };
-            localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
-            
-            // Remove from excedentes
-            let allExcedentes = JSON.parse(localStorage.getItem('excedentesProduccion') || '{}') as {[key: string]: ExcedenteProduccion};
-            delete allExcedentes[id];
-            localStorage.setItem('excedentesProduccion', JSON.stringify(allExcedentes));
+        // Marcar todas las OFs como incidencia
+        let allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+        stockItem.lotes.forEach(lote => {
+            const index = allOFs.findIndex(of => of.id === lote.ofId);
+            if (index > -1) {
+                allOFs[index].estado = 'Incidencia';
+                allOFs[index].incidencia = true;
+                allOFs[index].incidenciaObservaciones = `MERMA DE EXCEDENTE: ${mermaAllMotivo}`;
+            }
+        });
+        localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
+        
+        // Eliminar del stock
+        let allStock = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
+        delete allStock[elabId];
+        localStorage.setItem('stockElaboraciones', JSON.stringify(allStock));
 
-            toast({ title: 'Merma Declarada', description: 'El lote ha sido movido a incidencias.' });
-            router.push('/cpr/excedentes');
-        }
+        toast({ title: 'Merma Total Declarada', description: `Todos los lotes de ${elaboracion?.nombre} han sido movidos a incidencias.` });
+        router.push('/cpr/excedentes');
     };
-
-    const fechaProduccion = orden?.fechaFinalizacion || orden?.fechaCreacion;
-    const fechaCaducidad = fechaProduccion && diasCaducidadWatch ? addDays(new Date(fechaProduccion), diasCaducidadWatch) : null;
-    const isCaducado = fechaCaducidad ? new Date() > fechaCaducidad : false;
     
-    if (!isMounted || !orden) {
-        return <LoadingSkeleton title="Cargando Excedente..." />;
+    if (!isMounted || !elaboracion) {
+        return <LoadingSkeleton title="Cargando Stock..." />;
+    }
+    
+    if (!stockItem || stockItem.lotes.length === 0) {
+        return (
+            <main className="container mx-auto px-4 py-8">
+                 <Button variant="ghost" size="sm" onClick={() => router.push('/cpr/excedentes')} className="mb-4">
+                    <ArrowLeft className="mr-2" /> Volver al listado
+                </Button>
+                <Card>
+                    <CardHeader><CardTitle>Sin Stock</CardTitle></CardHeader>
+                    <CardContent><p>No hay stock registrado para la elaboración: {elaboracion.nombre}.</p></CardContent>
+                </Card>
+            </main>
+        )
     }
 
     return (
@@ -131,9 +146,8 @@ export default function ExcedenteDetailPage() {
                         <ArrowLeft className="mr-2" /> Volver al listado
                     </Button>
                     <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                        Gestión de Excedente: {orden.elaboracionNombre}
+                        Gestión de Stock: {elaboracion.nombre}
                     </h1>
-                    <p className="text-muted-foreground">Del Lote de Origen: {orden.id}</p>
                 </div>
             </div>
 
@@ -141,100 +155,97 @@ export default function ExcedenteDetailPage() {
                 <form onSubmit={handleSubmit(onSubmit)} className="lg:col-span-2 space-y-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Ajuste y Caducidad</CardTitle>
+                            <CardTitle>Ajuste de Lotes</CardTitle>
                             <CardDescription>
-                                Ajusta la cantidad real y define la vida útil del excedente.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid sm:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="cantidadAjustada">Cantidad Real Actual ({formatUnit(orden.unidad)})</Label>
-                                    <Input id="cantidadAjustada" type="number" step="0.01" {...register('cantidadAjustada', { valueAsNumber: true })} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="diasCaducidad">Días de Caducidad</Label>
-                                    <Input id="diasCaducidad" type="number" {...register('diasCaducidad', { valueAsNumber: true })} placeholder="Ej: 7" />
-                                </div>
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="motivoAjuste">Motivo del Ajuste (Opcional)</Label>
-                                <Textarea id="motivoAjuste" {...register('motivoAjuste')} placeholder="Ej: Merma por descongelación, se usaron 0.5kg para prueba interna..."/>
-                            </div>
-                        </CardContent>
-                        <CardFooter>
-                            <Button type="submit" disabled={!form.formState.isDirty}><Save className="mr-2"/>Guardar Cambios</Button>
-                        </CardFooter>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-destructive">Zona de Peligro</CardTitle>
-                            <CardDescription>
-                                Si el excedente ya no es utilizable, puedes declararlo como merma. Esta acción es irreversible.
+                                Modifica las cantidades de cada lote si es necesario (ej. por uso interno, merma parcial).
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="destructive"><Trash2 className="mr-2"/>Declarar como Merma</Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>¿Declarar todo el excedente como merma?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                        Esta acción marcará la Orden de Fabricación original como "Incidencia" y la eliminará de la lista de excedentes. Es irreversible. Por favor, indica el motivo.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <Textarea id="merma-motivo" placeholder="Motivo de la merma (ej: caducado, mal estado, contaminación...)" />
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => {
-                                            const motivo = (document.getElementById('merma-motivo') as HTMLTextAreaElement).value;
-                                            handleDeclareMerma(motivo);
-                                        }}>Confirmar Merma</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
+                            <div className="border rounded-lg">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Lote (OF)</TableHead>
+                                            <TableHead>Cant. Actual</TableHead>
+                                            <TableHead>Fecha Caducidad</TableHead>
+                                            <TableHead>Estado</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {fields.map((field, index) => {
+                                            const isCaducado = isBefore(new Date(field.fechaCaducidad), new Date());
+                                            return (
+                                            <TableRow key={field.id} className={cn(isCaducado && 'bg-destructive/10')}>
+                                                <TableCell><Badge variant="secondary">{field.ofId}</Badge></TableCell>
+                                                <TableCell>
+                                                    <FormField
+                                                        control={control}
+                                                        name={`lotes.${index}.cantidad`}
+                                                        render={({ field }) => (
+                                                            <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-24 h-8" />
+                                                        )}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>{format(new Date(field.fechaCaducidad), 'dd/MM/yyyy')}</TableCell>
+                                                <TableCell>
+                                                     {isCaducado ? <Badge variant="destructive">Caducado</Badge> : <Badge className="bg-green-600">Apto</Badge>}
+                                                </TableCell>
+                                            </TableRow>
+                                        )})}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader><CardTitle>Justificación</CardTitle></CardHeader>
+                         <CardContent>
+                             <div className="space-y-2">
+                                <Label htmlFor="motivoAjuste">Motivo del Ajuste Global</Label>
+                                <Textarea id="motivoAjuste" {...register('motivoAjuste')} placeholder="Ej: Se usaron 0.5kg para prueba interna del equipo de I+D..."/>
+                            </div>
+                        </CardContent>
+                        <CardFooter>
+                            <Button type="submit" disabled={!form.formState.isDirty}><Save className="mr-2"/>Guardar Cambios en Stock</Button>
+                        </CardFooter>
                     </Card>
                 </form>
                 
                 <div className="space-y-4">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Información del Lote</CardTitle>
+                            <CardTitle>Stock Total</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground flex items-center gap-2"><CalendarIcon size={14}/> Fecha Producción:</span>
-                                <span className="font-semibold">{fechaProduccion ? format(new Date(fechaProduccion), 'dd/MM/yyyy') : 'N/A'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground flex items-center gap-2"><Watch size={14}/> Días de Vida Útil:</span>
-                                <span className="font-semibold">{diasCaducidadWatch ?? 'No definido'} días</span>
-                            </div>
-                             <Separator />
-                             <div className="flex justify-between">
-                                <span className="text-muted-foreground flex items-center gap-2"><CalendarIcon size={14}/> Fecha Caducidad:</span>
-                                <span className="font-semibold">{fechaCaducidad ? format(fechaCaducidad, 'dd/MM/yyyy') : 'N/A'}</span>
-                            </div>
+                        <CardContent>
+                            <p className="text-3xl font-bold">{formatNumber(totalCantidad, 2)} <span className="text-lg font-normal text-muted-foreground">{formatUnit(elaboracion.unidadProduccion)}</span></p>
                         </CardContent>
                     </Card>
-                    <Card className={cn(
-                        isCaducado ? "border-amber-500 bg-amber-50 text-amber-900" : "border-emerald-500 bg-emerald-50 text-emerald-900"
-                    )}>
+                    <Card>
                         <CardHeader>
-                             <CardTitle className="flex items-center gap-2">
-                                {isCaducado ? <AlertTriangle/> : <CheckCircle />}
-                                Estado: {isCaducado ? 'Revisar' : 'Apto'}
-                            </CardTitle>
+                            <CardTitle className="text-destructive">Zona de Peligro</CardTitle>
+                            <CardDescription>
+                                Si todo el excedente ya no es utilizable, puedes declararlo como merma. Esta acción es irreversible.
+                            </CardDescription>
                         </CardHeader>
-                         <CardContent>
-                            <p className="text-sm">
-                                {isCaducado 
-                                ? 'La fecha de caducidad teórica ha pasado. Se recomienda revisar el estado del producto antes de usarlo.' 
-                                : 'El producto se encuentra dentro de su vida útil teórica.'}
-                            </p>
+                        <CardContent>
+                            <AlertDialog open={showMermaConfirm} onOpenChange={setShowMermaConfirm}>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive"><Trash2 className="mr-2"/>Declarar Todo como Merma</Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Declarar todo el stock como merma?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                        Esta acción marcará las Órdenes de Fabricación originales como "Incidencia" y eliminará este producto del stock de elaboraciones. Es irreversible. Por favor, indica el motivo.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <Textarea id="merma-motivo" placeholder="Motivo de la merma (ej: caducado, mal estado, contaminación...)" value={mermaAllMotivo} onChange={e => setMermaAllMotivo(e.target.value)} />
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleDeclareMermaTotal}>Confirmar Merma Total</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </CardContent>
                     </Card>
                 </div>

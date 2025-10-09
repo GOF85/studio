@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle, Search, AlertTriangle, Calendar as CalendarIcon } from 'lucide-react';
-import type { OrdenFabricacion, Personal } from '@/types';
+import type { OrdenFabricacion, Personal, StockElaboracion, UnidadMedida } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { format, parseISO, startOfToday, subDays, isWithinInterval, endOfDay, startOfDay } from 'date-fns';
+import { format, parseISO, startOfToday, subDays, isWithinInterval, endOfDay, startOfDay, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -84,15 +84,41 @@ export default function CalidadPage() {
     const index = allOFs.findIndex(of => of.id === ofId);
     
     if (index > -1) {
-        allOFs[index] = {
+        const validatedOF = {
             ...allOFs[index],
             okCalidad: true,
+            estado: 'Validado' as const,
             responsableCalidad: responsableCalidad,
             fechaValidacionCalidad: new Date().toISOString(),
         };
+        allOFs[index] = validatedOF;
         localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
         setOrdenes(allOFs);
-        toast({ title: 'Lote Validado', description: `La OF ${ofId} ha sido marcada como validada.` });
+        
+        // --- Add to Stock ---
+        let stock: Record<string, StockElaboracion> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
+        const { elaboracionId, cantidadReal, unidad } = validatedOF;
+        
+        if (!stock[elaboracionId]) {
+            stock[elaboracionId] = {
+                elaboracionId: elaboracionId,
+                cantidadTotal: 0,
+                unidad: unidad,
+                lotes: []
+            };
+        }
+        
+        stock[elaboracionId].cantidadTotal += cantidadReal || 0;
+        stock[elaboracionId].lotes.push({
+            ofId: validatedOF.id,
+            cantidad: cantidadReal || 0,
+            fechaCaducidad: addDays(new Date(), 7).toISOString(), // Default 7 days
+        });
+
+        localStorage.setItem('stockElaboraciones', JSON.stringify(stock));
+        // --- End Add to Stock ---
+
+        toast({ title: 'Lote Validado y Añadido al Stock', description: `La OF ${ofId} ha sido marcada como validada.` });
     }
   };
 
@@ -253,7 +279,7 @@ export default function CalidadPage() {
                           <AlertDialogHeader>
                               <AlertDialogTitle>Confirmar Validación de Calidad</AlertDialogTitle>
                               <AlertDialogDescription>
-                                  Selecciona tu nombre como responsable para confirmar que el lote <strong>{of.id} ({of.elaboracionNombre})</strong> cumple con los estándares de calidad.
+                                  Selecciona tu nombre como responsable para confirmar que el lote <strong>{of.id} ({of.elaboracionNombre})</strong> cumple con los estándares de calidad. Esta acción añadirá la producción al stock de elaboraciones.
                               </AlertDialogDescription>
                           </AlertDialogHeader>
                           <Select onValueChange={setResponsableCalidad}>

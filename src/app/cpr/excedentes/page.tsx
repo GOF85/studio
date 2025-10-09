@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { differenceInDays, format, startOfToday, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PackagePlus, Search, AlertTriangle } from 'lucide-react';
-import type { OrdenFabricacion, Elaboracion, ServiceOrder, Receta, GastronomyOrder, ExcedenteProduccion } from '@/types';
+import type { OrdenFabricacion, Elaboracion, ServiceOrder, Receta, GastronomyOrder, ExcedenteProduccion, StockElaboracion } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -25,16 +25,13 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatNumber, formatUnit } from '@/lib/utils';
 
-type Excedente = {
-  ofId: string;
+type StockDisplayItem = {
   elaboracionId: string;
   elaboracionNombre: string;
-  cantidadExcedente: number;
+  cantidadTotal: number;
   unidad: string;
-  fechaProduccion: string;
-  eventosOrigen: string[];
+  caducidadProxima: string;
   estado: 'Apto' | 'Revisar';
-  fechaExpiracion: string | null;
 };
 
 export default function ExcedentesPage() {
@@ -42,144 +39,53 @@ export default function ExcedentesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const router = useRouter();
 
-  const [allServiceOrders, setAllServiceOrders] = useState<ServiceOrder[]>([]);
-  const [allGastroOrders, setAllGastroOrders] = useState<GastronomyOrder[]>([]);
-  const [allRecetas, setAllRecetas] = useState<Receta[]>([]);
-  const [allElaboraciones, setAllElaboraciones] = useState<Elaboracion[]>([]);
-  const [allOrdenesFabricacion, setAllOrdenesFabricacion] = useState<OrdenFabricacion[]>([]);
-  const [allExcedentesData, setAllExcedentesData] = useState<{[key: string]: ExcedenteProduccion}>({});
+  const [stock, setStock] = useState<StockDisplayItem[]>([]);
+  const [elaboracionesMap, setElaboracionesMap] = useState<Map<string, Elaboracion>>(new Map());
 
   useEffect(() => {
-    // --- DATA LOADING ---
-    setAllServiceOrders((JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado'));
-    setAllGastroOrders(JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
-    setAllRecetas(JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[]);
-    setAllElaboraciones(JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[]);
-    setAllOrdenesFabricacion(JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
-    setAllExcedentesData(JSON.parse(localStorage.getItem('excedentesProduccion') || '{}') as {[key: string]: ExcedenteProduccion});
+    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    setElaboracionesMap(new Map(allElaboraciones.map(e => [e.id, e])));
+    
+    const allStock = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}') as Record<string, StockElaboracion>;
+    
+    const stockItems: StockDisplayItem[] = Object.values(allStock).map(item => {
+        const elab = allElaboraciones.find(e => e.id === item.elaboracionId);
+        const lotes = item.lotes || [];
+        
+        let caducidadProxima = 'N/A';
+        let estado: 'Apto' | 'Revisar' = 'Apto';
+        
+        if (lotes.length > 0) {
+            const sortedLotes = [...lotes].sort((a, b) => new Date(a.fechaCaducidad).getTime() - new Date(b.fechaCaducidad).getTime());
+            const proximaFecha = new Date(sortedLotes[0].fechaCaducidad);
+            caducidadProxima = format(proximaFecha, 'dd/MM/yyyy');
+            if (isBefore(proximaFecha, new Date())) {
+                estado = 'Revisar';
+            }
+        }
+        
+        return {
+            elaboracionId: item.elaboracionId,
+            elaboracionNombre: elab?.nombre || 'Desconocido',
+            cantidadTotal: item.cantidadTotal,
+            unidad: item.unidad,
+            caducidadProxima,
+            estado
+        };
+    }).filter(item => item.cantidadTotal > 0.01); // Only show items with significant stock
+
+    setStock(stockItems);
     setIsMounted(true);
   }, []);
 
-  const excedentes = useMemo(() => {
-    const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
-    const elaboracionesMap = new Map(allElaboraciones.map(e => [e.id, e]));
-    const serviceOrderMap = new Map(allServiceOrders.map(os => [os.id, os]));
-    
-    // --- CALCULATIONS ---
-    const necesidadesPorElaboracion = new Map<string, {
-        necesidadBruta: number;
-        produccionAcumulada: number;
-        elaboracion: Elaboracion;
-        eventos: Set<string>;
-    }>();
-
-    // 1. Calcular necesidad bruta total de todas las OS confirmadas
-    allGastroOrders.forEach(gastroOrder => {
-      const serviceOrder = serviceOrderMap.get(gastroOrder.osId);
-      if (!serviceOrder) return;
-
-      (gastroOrder.items || []).forEach(item => {
-        if (item.type === 'item') {
-          const receta = recetasMap.get(item.id);
-          if (receta) {
-            receta.elaboraciones.forEach(elabEnReceta => {
-              const elaboracion = elaboracionesMap.get(elabEnReceta.elaboracionId);
-              if (elaboracion) {
-                const cantidadNecesaria = Number(item.quantity || 0) * Number(elabEnReceta.cantidad);
-                if (isNaN(cantidadNecesaria) || cantidadNecesaria <= 0) return;
-
-                let registro = necesidadesPorElaboracion.get(elaboracion.id);
-                if (!registro) {
-                  registro = { necesidadBruta: 0, produccionAcumulada: 0, elaboracion, eventos: new Set() };
-                  necesidadesPorElaboracion.set(elaboracion.id, registro);
-                }
-                registro.necesidadBruta += cantidadNecesaria;
-                registro.eventos.add(serviceOrder.serviceNumber);
-              }
-            });
-          }
-        }
-      });
-    });
-
-    // 2. Sumar toda la producción de todas las OFs
-    allOrdenesFabricacion.forEach(of => {
-      let registro = necesidadesPorElaboracion.get(of.elaboracionId);
-      const cantidadProducida = (of.estado === 'Finalizado' || of.estado === 'Validado' || (of.incidencia && of.cantidadReal !== null && of.cantidadReal > 0)) 
-        ? Number(of.cantidadReal) 
-        : Number(of.cantidadTotal);
-      
-      if (!registro) {
-         const elaboracion = elaboracionesMap.get(of.elaboracionId);
-         if (elaboracion) {
-            registro = { necesidadBruta: 0, produccionAcumulada: 0, elaboracion, eventos: new Set() };
-            necesidadesPorElaboracion.set(elaboracion.id, registro);
-         }
-      }
-
-      if (registro && !isNaN(cantidadProducida)) {
-          registro.produccionAcumulada += cantidadProducida;
-          of.osIDs.forEach(osId => {
-              const os = serviceOrderMap.get(osId);
-              if (os) registro.eventos.add(os.serviceNumber);
-          })
-      }
-    });
-
-    // 3. Calcular excedentes
-    const excedentesCalculados: Excedente[] = [];
-    necesidadesPorElaboracion.forEach((registro, elabId) => {
-      const diferencia = registro.produccionAcumulada - registro.necesidadBruta;
-      
-      if (diferencia > 0.001) { // Si hay excedente significativo
-        const ofsParaElab = allOrdenesFabricacion
-            .filter(of => of.elaboracionId === elabId)
-            .sort((a,b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
-
-        const ofReferencia = ofsParaElab.length > 0 ? ofsParaElab[0] : null;
-        
-        const excedenteData = allExcedentesData[ofReferencia?.id || ''];
-        const diasCaducidad = excedenteData?.diasCaducidad;
-        const fechaProduccion = ofReferencia?.fechaFinalizacion || ofReferencia?.fechaCreacion || new Date().toISOString();
-        let estado: 'Apto' | 'Revisar' = 'Apto';
-        let fechaExpiracion = null;
-
-        const diasCaducidadDef = diasCaducidad !== undefined ? diasCaducidad : 7;
-        const fechaCad = addDays(new Date(fechaProduccion), diasCaducidadDef);
-        
-        if (new Date() > fechaCad) {
-            estado = 'Revisar';
-        }
-        
-        fechaExpiracion = format(fechaCad, 'dd/MM/yyyy');
-        
-
-        excedentesCalculados.push({
-          ofId: ofReferencia?.id || `EXCEDENTE-${elabId}`,
-          elaboracionId: elabId,
-          elaboracionNombre: registro.elaboracion.nombre,
-          cantidadExcedente: diferencia,
-          unidad: registro.elaboracion.unidadProduccion,
-          fechaProduccion: fechaProduccion,
-          eventosOrigen: Array.from(registro.eventos),
-          estado,
-          fechaExpiracion,
-        });
-      }
-    });
-
-    return excedentesCalculados;
-  }, [allRecetas, allElaboraciones, allServiceOrders, allGastroOrders, allOrdenesFabricacion, allExcedentesData]);
-
   const filteredItems = useMemo(() => {
-    return excedentes.filter(item => 
-      item.elaboracionNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.ofId.toLowerCase().includes(searchTerm.toLowerCase())
+    return stock.filter(item => 
+      item.elaboracionNombre.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [excedentes, searchTerm]);
+  }, [stock, searchTerm]);
 
   if (!isMounted) {
-    return <LoadingSkeleton title="Calculando Excedentes..." />;
+    return <LoadingSkeleton title="Calculando Stock de Elaboraciones..." />;
   }
 
   return (
@@ -189,15 +95,15 @@ export default function ExcedentesPage() {
           <div>
             <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
               <PackagePlus />
-              Gestión de Excedentes
+              Stock de Elaboraciones
             </h1>
-            <p className="text-muted-foreground mt-1">Revisa y gestiona los sobrantes de producción.</p>
+            <p className="text-muted-foreground mt-1">Inventario en tiempo real de las elaboraciones producidas y validadas.</p>
           </div>
         </div>
 
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
-            placeholder="Buscar por elaboración o lote de origen..."
+            placeholder="Buscar por elaboración..."
             className="flex-grow max-w-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -209,42 +115,36 @@ export default function ExcedentesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Elaboración</TableHead>
-                <TableHead>Lote Origen (OF)</TableHead>
-                <TableHead>Cantidad Excedente</TableHead>
-                <TableHead>Fecha Producción</TableHead>
-                <TableHead>Fecha caducidad</TableHead>
+                <TableHead className="text-right">Cantidad en Stock</TableHead>
+                <TableHead>Caducidad Próxima</TableHead>
                 <TableHead>Estado</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => {
-                  const diasDesdeProduccion = differenceInDays(new Date(), new Date(item.fechaProduccion));
-                  const necesitaAtencion = item.estado === 'Revisar' || (diasDesdeProduccion > 3 && item.fechaExpiracion === null);
-
+                  const elab = elaboracionesMap.get(item.elaboracionId);
                   return (
                     <TableRow 
-                        key={item.ofId}
-                        className={cn("cursor-pointer", necesitaAtencion && 'bg-amber-100/50 hover:bg-amber-100/80')}
-                        onClick={() => router.push(`/cpr/excedentes/${item.ofId}`)}
+                        key={item.elaboracionId}
+                        className={cn("cursor-pointer", item.estado === 'Revisar' && 'bg-amber-100/50 hover:bg-amber-100/80')}
+                        onClick={() => router.push(`/cpr/excedentes/${item.elaboracionId}`)}
                     >
                         <TableCell className="font-medium flex items-center gap-2">
-                             {necesitaAtencion && item.estado === 'Apto' && (
+                             {item.estado === 'Revisar' && (
                                 <Tooltip>
                                     <TooltipTrigger>
                                         <AlertTriangle className="h-4 w-4 text-amber-500"/>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p>Revisar por fecha de caducidad próxima.</p>
+                                        <p>Este lote tiene partidas caducadas o próximas a caducar. Revisar urgentemente.</p>
                                     </TooltipContent>
                                 </Tooltip>
                              )}
                             {item.elaboracionNombre}
                         </TableCell>
-                        <TableCell><Badge variant="secondary">{item.ofId}</Badge></TableCell>
-                        <TableCell>{formatNumber(item.cantidadExcedente, 2)} {formatUnit(item.unidad)}</TableCell>
-                        <TableCell>{format(new Date(item.fechaProduccion), 'dd/MM/yyyy')}</TableCell>
-                        <TableCell className={cn(item.estado === 'Revisar' && 'font-bold text-destructive')}>{item.fechaExpiracion || 'No definida'}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(item.cantidadTotal, 2)} {formatUnit(item.unidad)}</TableCell>
+                        <TableCell className={cn(item.estado === 'Revisar' && 'font-bold text-destructive')}>{item.caducidadProxima}</TableCell>
                         <TableCell>
                            <Badge variant={item.estado === 'Revisar' ? 'destructive' : 'default'} className={cn(item.estado === 'Apto' && 'bg-green-600')}>
                                 {item.estado}
@@ -255,8 +155,8 @@ export default function ExcedentesPage() {
                 })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
-                    No se encontraron excedentes.
+                  <TableCell colSpan={4} className="h-24 text-center">
+                    No hay stock de elaboraciones.
                   </TableCell>
                 </TableRow>
               )}

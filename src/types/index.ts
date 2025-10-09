@@ -627,6 +627,19 @@ export type FormatoExpedicion = {
   nombre: string;
 };
 
+export type StockLote = {
+    ofId: string;
+    cantidad: number;
+    fechaCaducidad: string;
+};
+
+export type StockElaboracion = {
+    elaboracionId: string;
+    cantidadTotal: number;
+    unidad: UnidadMedida;
+    lotes: StockLote[];
+}
+
 export type ExcedenteProduccion = {
     ofId: string;
     fechaProduccion: string;
