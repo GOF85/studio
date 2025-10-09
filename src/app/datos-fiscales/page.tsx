@@ -1,13 +1,12 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Landmark, ArrowLeft } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Landmark, ArrowLeft, FileUp, FileDown, Menu } from 'lucide-react';
 import type { DatosFiscales, TipoEntidadFiscal } from '@/types';
 import { TIPO_ENTIDAD_FISCAL } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -38,6 +37,10 @@ import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import Papa from 'papaparse';
+
+const CSV_HEADERS = ["id", "cif", "nombreEmpresa", "nombreComercial", "direccionFacturacion", "codigoPostal", "ciudad", "provincia", "pais", "emailContacto", "telefonoContacto", "iban", "formaDePagoHabitual", "tipo"];
+
 
 export default function DatosFiscalesPage() {
   const [items, setItems] = useState<DatosFiscales[]>([]);
@@ -48,6 +51,7 @@ export default function DatosFiscalesPage() {
 
   const router = useRouter();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let storedData = localStorage.getItem('datosFiscales');
@@ -76,13 +80,80 @@ export default function DatosFiscalesPage() {
     setItemToDelete(null);
   };
   
+    const handleExportCSV = () => {
+    if (items.length === 0) {
+      toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay datos para exportar.' });
+      return;
+    }
+    const csv = Papa.unparse(items, { header: true });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'datos_fiscales.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: 'Exportación completada' });
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse<any>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const headers = results.meta.fields || [];
+        const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
+
+        if (!hasAllHeaders) {
+            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
+            return;
+        }
+        
+        const importedData: DatosFiscales[] = results.data.map(item => ({
+          id: item.id || Date.now().toString(),
+          cif: item.cif || '',
+          nombreEmpresa: item.nombreEmpresa || '',
+          nombreComercial: item.nombreComercial || '',
+          direccionFacturacion: item.direccionFacturacion || '',
+          codigoPostal: item.codigoPostal || '',
+          ciudad: item.ciudad || '',
+          provincia: item.provincia || '',
+          pais: item.pais || 'España',
+          emailContacto: item.emailContacto || '',
+          telefonoContacto: item.telefonoContacto || '',
+          iban: item.iban || '',
+          formaDePagoHabitual: item.formaDePagoHabitual || '',
+          tipo: TIPO_ENTIDAD_FISCAL.includes(item.tipo) ? item.tipo : 'Cliente',
+        }));
+        
+        localStorage.setItem('datosFiscales', JSON.stringify(importedData));
+        setItems(importedData);
+        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+      },
+      error: (error) => {
+        toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+      }
+    });
+    if(event.target) {
+        event.target.value = '';
+    }
+  };
+  
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Datos Fiscales..." />;
   }
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
             <div>
@@ -99,6 +170,30 @@ export default function DatosFiscalesPage() {
                 Nueva Entidad
               </Link>
             </Button>
+             <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon">
+                        <Menu />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleImportClick}>
+                        <FileUp className="mr-2" />
+                        Importar CSV
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept=".csv"
+                            onChange={handleImportCSV}
+                        />
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportCSV}>
+                        <FileDown className="mr-2" />
+                        Exportar CSV
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         
