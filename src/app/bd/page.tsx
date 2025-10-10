@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, AlertTriangle } from 'lucide-react';
+import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, AlertTriangle, Target } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
@@ -24,30 +24,32 @@ type DatabaseEntry = {
   description: string;
   itemCount: number;
   path: string;
+  icon: React.ElementType;
 };
 
-const generalDatabasesList: DatabaseEntry[] = [
-    { id: '1', name: 'Personal Interno', description: 'Gestión de empleados y contactos de MICE.', itemCount: 0, path: '/personal' },
-    { id: '2', name: 'Espacios', description: 'Gestión de espacios para eventos.', itemCount: 0, path: '/espacios' },
-    { id: '3', name: 'Artículos MICE', description: 'Gestión de artículos de Almacén, Bodega, Bio y Alquiler.', itemCount: 0, path: '/articulos' },
-    { id: '6', name: 'Tipo Servicio (Briefing)', description: 'Gestión de los tipos de servicio para el comercial.', itemCount: 0, path: '/tipo-servicio' },
-    { id: '9', name: 'Atípicos (Conceptos)', description: 'Gestión de conceptos de gastos varios.', itemCount: 0, path: '/atipicos-db' },
-    { id: '12', name: 'Decoración (Conceptos)', description: 'Gestión de conceptos de decoración.', itemCount: 0, path: '/decoracion-db' },
-    { id: '13', name: 'Book: Materia Prima (ERP)', description: 'Gestión de precios y productos de proveedores.', itemCount: 0, path: '/book/ingredientes-erp' },
-    { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', itemCount: 0, path: '/plantillas-pedidos' },
-    { id: '19', name: 'Formatos de Expedición', description: 'Define los formatos de empaquetado para producción.', itemCount: 0, path: '/formatos-expedicion' },
+const generalDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
+    { id: '1', name: 'Personal Interno', description: 'Gestión de empleados y contactos de MICE.', path: '/personal', icon: Users },
+    { id: '2', name: 'Espacios', description: 'Gestión de espacios para eventos.', path: '/espacios', icon: ShoppingBag },
+    { id: '3', name: 'Artículos MICE', description: 'Gestión de artículos de Almacén, Bodega, Bio y Alquiler.', path: '/articulos', icon: Package },
+    { id: '6', name: 'Tipo Servicio (Briefing)', description: 'Gestión de los tipos de servicio para el comercial.', path: '/tipo-servicio', icon: Soup },
+    { id: '9', name: 'Atípicos (Conceptos)', description: 'Gestión de conceptos de gastos varios.', path: '/atipicos-db', icon: Percent },
+    { id: '10', name: 'Objetivos de Gasto', description: 'Plantillas para el análisis de rentabilidad.', path: '/objetivos-gasto', icon: Target },
+    { id: '12', name: 'Decoración (Conceptos)', description: 'Gestión de conceptos de decoración.', path: '/decoracion-db', icon: Percent },
+    { id: '13', name: 'Book: Materia Prima (ERP)', description: 'Gestión de precios y productos de proveedores.', path: '/book/ingredientes-erp', icon: Package },
+    { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', path: '/plantillas-pedidos', icon: FilePlus2 },
+    { id: '19', name: 'Formatos de Expedición', description: 'Define los formatos de empaquetado para producción.', path: '/formatos-expedicion', icon: Package },
 ];
 
-const providerDatabasesList: DatabaseEntry[] = [
-    { id: '25', name: 'Proveedores', description: 'Base de datos central de proveedores.', itemCount: 0, path: '/proveedores' },
-    { id: '26', name: 'Catálogo de Personal Externo', description: 'Categorías y precios del personal de ETTs.', itemCount: 0, path: '/tipos-personal' },
-    { id: '27', name: 'Catálogo de Transporte', description: 'Vehículos y precios de las empresas de transporte.', itemCount: 0, path: '/tipos-transporte' },
+const providerDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
+    { id: '25', name: 'Proveedores', description: 'Base de datos central de proveedores.', path: '/proveedores', icon: Users },
+    { id: '26', name: 'Catálogo de Personal Externo', description: 'Categorías y precios del personal de ETTs.', path: '/tipos-personal', icon: Users },
+    { id: '27', name: 'Catálogo de Transporte', description: 'Vehículos y precios de las empresas de transporte.', path: '/tipos-transporte', icon: Truck },
 ];
 
 
 export default function BdPage() {
-  const [generalDatabases, setGeneralDatabases] = useState<DatabaseEntry[]>(generalDatabasesList);
-  const [providerDatabases, setProviderDatabases] = useState<DatabaseEntry[]>(providerDatabasesList);
+  const [generalDatabases, setGeneralDatabases] = useState<DatabaseEntry[]>([]);
+  const [providerDatabases, setProviderDatabases] = useState<DatabaseEntry[]>([]);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -55,7 +57,7 @@ export default function BdPage() {
     
     const countItems = (key: string) => JSON.parse(localStorage.getItem(key) || '[]').length;
     
-    const updateCounts = (dbs: DatabaseEntry[]) => {
+    const updateCounts = (dbs: Omit<DatabaseEntry, 'itemCount'>[]) => {
         return dbs.map(db => {
             let count = 0;
             if (db.path === '/personal') count = countItems('personal');
@@ -70,6 +72,7 @@ export default function BdPage() {
             if (db.path === '/proveedores') count = countItems('proveedores');
             if (db.path === '/tipos-personal') count = countItems('tiposPersonal');
             if (db.path === '/tipos-transporte') count = countItems('tiposTransporte');
+            if (db.path === '/objetivos-gasto') count = countItems('objetivosGastoPlantillas');
             return { ...db, itemCount: count };
         });
     }
@@ -100,7 +103,7 @@ export default function BdPage() {
                         {dbs.length > 0 ? (
                         dbs.map(db => (
                             <TableRow key={db.id}>
-                            <TableCell className="font-medium p-2">{db.name}</TableCell>
+                            <TableCell className="font-medium p-2 flex items-center gap-2"><db.icon size={16} />{db.name}</TableCell>
                             <TableCell className="p-2">{db.itemCount}</TableCell>
                             <TableCell className="text-right p-2">
                                 <Button asChild variant="ghost" size="sm">
