@@ -91,18 +91,18 @@ export default function BdPage() {
                 <Table>
                     <TableHeader>
                     <TableRow>
-                        <TableHead>Nombre</TableHead>
-                        <TableHead>Nº de Registros</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
+                        <TableHead className="p-2">Nombre</TableHead>
+                        <TableHead className="p-2">Nº Registros</TableHead>
+                        <TableHead className="text-right p-2">Acciones</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
                         {dbs.length > 0 ? (
                         dbs.map(db => (
                             <TableRow key={db.id}>
-                            <TableCell className="font-medium">{db.name}</TableCell>
-                            <TableCell>{db.itemCount}</TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="font-medium p-2">{db.name}</TableCell>
+                            <TableCell className="p-2">{db.itemCount}</TableCell>
+                            <TableCell className="text-right p-2">
                                 <Button asChild variant="ghost" size="sm">
                                 <Link href={db.path}>
                                     Gestionar <ArrowRight className="ml-2" />
@@ -139,7 +139,7 @@ export default function BdPage() {
           </Button>
         </div>
 
-        <div className="space-y-8">
+        <div className="grid md:grid-cols-2 gap-8">
             {renderTable(generalDatabases, 'Bases de Datos Generales y de Catering', <Database/>)}
             {renderTable(providerDatabases, 'Bases de Datos de Proveedores', <Users/>, 'Gestión centralizada de todos los proveedores y sus catálogos de servicios.')}
         </div>
