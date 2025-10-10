@@ -20,6 +20,7 @@ type ModuleName = keyof typeof GASTO_LABELS;
 interface ObjectiveDisplayProps {
   osId: string;
   moduleName: ModuleName;
+  key?: number; // To force re-render
 }
 
 const calculateHours = (start?: string, end?: string): number => {
@@ -35,12 +36,13 @@ const calculateHours = (start?: string, end?: string): number => {
     }
 }
 
-export function ObjectiveDisplay({ osId, moduleName }: ObjectiveDisplayProps) {
+export function ObjectiveDisplay({ osId, moduleName, key }: ObjectiveDisplayProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [data, setData] = useState<{
     objective: number;
     objectivePct: number;
     budget: number;
+    facturacionNeta: number;
   } | null>(null);
 
   useEffect(() => {
@@ -140,16 +142,17 @@ export function ObjectiveDisplay({ osId, moduleName }: ObjectiveDisplayProps) {
         objective: objectiveValue,
         objectivePct,
         budget: budgetValue,
+        facturacionNeta,
       });
     }
-  }, [osId, moduleName, isMounted]);
+  }, [osId, moduleName, isMounted, key]);
 
   if (!isMounted || !data) {
     return null; // Or a loading skeleton
   }
 
   const isExceeded = data.budget > data.objective;
-  const budgetPct = data.objective > 0 ? data.budget / data.objective : (data.budget > 0 ? 1 : 0);
+  const budgetPct = data.facturacionNeta > 0 ? data.budget / data.facturacionNeta : 0;
 
   return (
     <TooltipProvider>
@@ -161,7 +164,7 @@ export function ObjectiveDisplay({ osId, moduleName }: ObjectiveDisplayProps) {
               <span>{formatCurrency(data.objective)} ({formatPercentage(data.objectivePct)})</span>
               <span className="text-muted-foreground mx-1">/</span>
                <div className={cn(isExceeded ? "text-destructive" : "text-green-600")}>
-                <span>Actual: {formatCurrency(data.budget)}</span>
+                <span>Actual: {formatCurrency(data.budget)} ({formatPercentage(budgetPct)})</span>
               </div>
           </div>
         </TooltipTrigger>
