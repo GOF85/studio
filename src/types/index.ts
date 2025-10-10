@@ -118,6 +118,8 @@ export const TIPO_ESPACIO = ['Hotel', 'Espacio Singular', 'Finca', 'Restaurante'
 export const ESTILOS_ESPACIO = ['Clásico', 'Industrial', 'Moderno', 'Rústico', 'Lujoso', 'Minimalista', 'Tecnológico', 'Exterior/Jardín'] as const;
 export const TAGS_ESPACIO = ['Con Vistas', 'Terraza', 'Jardín', 'Piscina', 'Discoteca', 'Exclusividad Total', 'Pet-Friendly', 'Parking Propio', 'Luz Natural'] as const;
 export const IDEAL_PARA = ['Bodas', 'Eventos Corporativos', 'Presentaciones de producto', 'Rodajes', 'Fiestas Privadas', 'Congresos', 'Ferias'] as const;
+export type RelacionComercial = 'Exclusividad' | 'Homologado Preferente' | 'Homologado' | 'Puntual' | 'Sin Relación';
+
 
 export type Sala = {
   id: string;
@@ -180,8 +182,6 @@ export type FlowInvitado = {
     seguridadPropia: boolean;
 };
 
-export type RelacionComercial = 'Exclusividad' | 'Homologado Preferente' | 'Homologado' | 'Puntual' | 'Sin Relación';
-
 export type Espacio = {
   id: string;
   
@@ -194,7 +194,7 @@ export type Espacio = {
     provincia: string;
     calle: string;
     codigoPostal: string;
-    zona?: string; // Barrio o área específica
+    zona?: string; 
     estilos: (typeof ESTILOS_ESPACIO[number])[];
     tags: (typeof TAGS_ESPACIO[number])[];
     idealPara: (typeof IDEAL_PARA[number])[];
@@ -265,7 +265,6 @@ export type Espacio = {
   contactos: ContactoEspacio[];
   multimedia?: MultimediaEspacio;
   
-  // --- Deprecated fields from old structure (to be removed after migration) ---
   espacio: string; 
   escaparateMICE?: string;
   carpetaDRIVE?: string;
@@ -293,6 +292,7 @@ export type Espacio = {
   homologacion?: string;
   comentariosMarketing?: string;
 };
+
 
 export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacen', 'Bio', 'Hielo', 'Alquiler', 'Menaje', 'Decoracion', 'Servicios', 'Otros'] as const;
 export type ArticuloCateringCategoria = typeof ARTICULO_CATERING_CATEGORIAS[number];

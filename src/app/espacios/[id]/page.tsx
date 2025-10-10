@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, FileDown, Building, X, PlusCircle, Trash2, Info, ImagePlus, Star, Link as LinkIcon } from 'lucide-react';
 import type { Espacio, RelacionComercial, ImagenEspacio } from '@/types';
-import { TIPO_ESPACIO, ESTILOS_ESPACIO, TAGS_ESPACIO, IDEAL_PARA, RELACION_COMERCIAL_OPCIONES } from '@/types';
+import { TIPO_ESPACIO, ESTILOS_ESPACIO, TAGS_ESPACIO, IDEAL_PARA } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -114,7 +114,7 @@ export const espacioFormSchema = z.object({
   }),
   evaluacionMICE: z.object({
     proveedorId: z.string().optional().default(''),
-    relacionComercial: z.enum(RELACION_COMERCIAL_OPCIONES).default('Sin Relación'),
+    relacionComercial: z.enum(['Exclusividad', 'Homologado Preferente', 'Homologado', 'Puntual', 'Sin Relación']).default('Sin Relación'),
     valoracionComercial: z.coerce.number().min(1).max(5).optional().default(3),
     puntosFuertes: z.array(z.string()).optional().default([]),
     puntosDebiles: z.array(z.string()).optional().default([]),
@@ -192,6 +192,7 @@ const InfoTooltip = ({ text }: { text: string }) => (
     </Tooltip>
 );
 
+const RELACION_COMERCIAL_OPCIONES: RelacionComercial[] = ['Exclusividad', 'Homologado Preferente', 'Homologado', 'Puntual', 'Sin Relación'];
 
 export default function EspacioFormPage() {
   const router = useRouter();
@@ -454,7 +455,7 @@ export default function EspacioFormPage() {
                                         <FormControl>
                                             <div className="flex items-center gap-4 pt-2">
                                                 <span>Fácil</span>
-                                                <Slider defaultValue={[field.value || 3]} value={[field.value || 3]} onValueChange={(value) => field.onChange(value[0])} max={5} min={1} step={1} />
+                                                <Slider defaultValue={[3]} value={[field.value || 3]} onValueChange={(value) => field.onChange(value[0])} max={5} min={1} step={1} />
                                                 <span>Difícil</span>
                                             </div>
                                         </FormControl>
@@ -547,7 +548,7 @@ export default function EspacioFormPage() {
                         <AccordionTrigger className="p-4"><CardTitle>Experiencia del Invitado</CardTitle></AccordionTrigger>
                         <AccordionContent>
                              <CardContent className="space-y-4 pt-2">
-                                <FormField control={form.control} name="experienciaInvitado.flow.accesoPrincipal" render={({ field }) => (<FormItem><FormLabel className="flex items-center">Acceso Principal<InfoTooltip text="Cómo acceden los invitados. Ej: 'Recepción del hotel', 'Entrada directa desde la calle'."/></FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                <FormField control={form.control} name="experienciaInvitado.flow.accesoPrincipal" render={({ field }) => (<FormItem><FormLabel className="flex items-center">Acceso Principal<InfoTooltip text="Cómo acceden los invitados. Ej: 'Recepción principal del hotel', 'Entrada directa desde la calle'."/></FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
                                 <FormField control={form.control} name="experienciaInvitado.flow.recorridoInvitado" render={({ field }) => (<FormItem><FormLabel>Recorrido Invitado</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
                                 <FormField control={form.control} name="experienciaInvitado.flow.aparcamiento" render={({ field }) => (<FormItem><FormLabel>Aparcamiento</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
                                 <FormField control={form.control} name="experienciaInvitado.flow.transportePublico" render={({ field }) => (<FormItem><FormLabel>Transporte Público</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
