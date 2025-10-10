@@ -372,34 +372,36 @@ export default function CtaExplotacionPage() {
       <div className="space-y-6">
           <Card>
               <CardHeader>
-                  <div className="flex justify-between items-center">
-                      <CardTitle className="flex items-center gap-2"><Euro/>Análisis de Costes</CardTitle>
-                      <div className="flex items-center gap-2">
-                            <Button onClick={loadData} variant="outline" size="sm">
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                                Actualizar Totales
-                            </Button>
-                           <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="icon"><Settings/></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Plantilla de Objetivos</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuGroup>
-                                    {objetivosPlantillas.map(p => (
-                                        <DropdownMenuItem key={p.id} onSelect={() => handleObjetivoChange(p.id)}>
-                                            {p.name}
-                                        </DropdownMenuItem>
-                                    ))}
-                                </DropdownMenuGroup>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                      </div>
-                  </div>
-                  <CardDescription>
-                      Plantilla de objetivos aplicada: <strong>{objetivos.name}</strong>.
-                  </CardDescription>
+                <div className="flex justify-between items-center">
+                    <div className="flex items-baseline gap-4">
+                        <CardTitle className="flex items-center gap-2"><Euro/>Análisis de Costes</CardTitle>
+                        <CardDescription>
+                            Plantilla de objetivos aplicada: <strong>{objetivos.name}</strong>.
+                        </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button onClick={loadData} variant="outline" size="sm">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Actualizar Totales
+                        </Button>
+                        <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="icon"><Settings/></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Plantilla de Objetivos</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuGroup>
+                                {objetivosPlantillas.map(p => (
+                                    <DropdownMenuItem key={p.id} onSelect={() => handleObjetivoChange(p.id)}>
+                                        {p.name}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuGroup>
+                        </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="border-t bg-primary/10 p-2 text-right">
