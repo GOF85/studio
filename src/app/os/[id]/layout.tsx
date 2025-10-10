@@ -103,8 +103,8 @@ function OSSubHeader() {
   if (!serviceOrder || !currentModule) return null;
 
   return (
-    <div className="mb-6 border rounded-lg bg-card">
-        <div className="p-4 flex items-center justify-between">
+    <div className="mb-4 rounded-lg bg-card">
+        <div className="p-3 flex items-center justify-between">
             <div className="flex items-center gap-4">
                 <div>
                     <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
@@ -129,7 +129,7 @@ function OSSubHeader() {
                     <h1 className="text-2xl font-headline font-bold">{currentModule.title}</h1>
                 </div>
             </div>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground px-4 pb-3">
+            <div className="flex items-center gap-4 text-sm text-muted-foreground px-4 pb-2">
                     {currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
                     <div className="flex items-center gap-2 font-semibold">
                     <FileText className="h-4 w-4" />
@@ -153,8 +153,10 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
     return (
       <div className="container mx-auto">
           <div className="grid lg:grid-cols-1 gap-2">
-              <main className="py-4">
-                  <OSSubHeader />
+              <div className="sticky top-16 z-30 bg-background pt-4">
+                <OSSubHeader />
+              </div>
+              <main>
                   {children}
               </main>
           </div>
