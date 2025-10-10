@@ -13,28 +13,30 @@ import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/co
 import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
+import { ObjectiveDisplay } from '@/components/os/objective-display';
 
 type NavLink = {
     path: string;
     title: string;
     icon: LucideIcon;
+    moduleName?: Parameters<typeof ObjectiveDisplay>[0]['moduleName'];
 }
 
 const navLinks: NavLink[] = [
     { path: 'info', title: 'Información OS', icon: FileText },
     { path: 'comercial', title: 'Comercial', icon: Briefcase },
-    { path: 'gastronomia', title: 'Gastronomía', icon: Utensils },
-    { path: 'bodega', title: 'Bebida', icon: Wine },
-    { path: 'hielo', title: 'Hielo', icon: Snowflake },
-    { path: 'bio', title: 'Bio (Consumibles)', icon: Leaf },
-    { path: 'almacen', title: 'Almacen', icon: Warehouse },
-    { path: 'alquiler', title: 'Alquiler', icon: Archive },
-    { path: 'decoracion', title: 'Decoración', icon: Flower2 },
-    { path: 'atipicos', title: 'Atípicos', icon: FilePlus },
-    { path: 'personal-mice', title: 'Personal MICE', icon: Users },
-    { path: 'personal-externo', title: 'Personal Externo', icon: UserPlus },
-    { path: 'transporte', title: 'Transporte', icon: Truck },
-    { path: 'prueba-menu', title: 'Prueba de Menu', icon: ClipboardCheck },
+    { path: 'gastronomia', title: 'Gastronomía', icon: Utensils, moduleName: 'gastronomia' },
+    { path: 'bodega', title: 'Bebida', icon: Wine, moduleName: 'bodega' },
+    { path: 'hielo', title: 'Hielo', icon: Snowflake, moduleName: 'hielo' },
+    { path: 'bio', title: 'Bio (Consumibles)', icon: Leaf, moduleName: 'consumibles' },
+    { path: 'almacen', title: 'Almacen', icon: Warehouse, moduleName: 'almacen' },
+    { path: 'alquiler', title: 'Alquiler', icon: Archive, moduleName: 'alquiler' },
+    { path: 'decoracion', title: 'Decoración', icon: Flower2, moduleName: 'decoracion' },
+    { path: 'atipicos', title: 'Atípicos', icon: FilePlus, moduleName: 'atipicos' },
+    { path: 'personal-mice', title: 'Personal MICE', icon: Users, moduleName: 'personalMice' },
+    { path: 'personal-externo', title: 'Personal Externo', icon: UserPlus, moduleName: 'personalExterno' },
+    { path: 'transporte', title: 'Transporte', icon: Truck, moduleName: 'transporte' },
+    { path: 'prueba-menu', title: 'Prueba de Menu', icon: ClipboardCheck, moduleName: 'costePruebaMenu' },
     { path: 'cta-explotacion', title: 'Cta. Explotación', icon: Euro },
 ];
 
@@ -118,8 +120,9 @@ function OSSubHeader() {
                         <h1 className="text-2xl font-headline font-bold">{currentModule.title}</h1>
                     </div>
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2 font-semibold">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground px-4 pb-2">
+                    {currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} />}
+                    <div className="flex items-center gap-2 font-semibold ml-4">
                         {serviceOrder.isVip && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
                         <FileText className="h-4 w-4" />
                         <span>{serviceOrder.serviceNumber}</span>
