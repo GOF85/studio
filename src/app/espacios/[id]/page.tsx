@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -9,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, FileDown, Building, X, PlusCircle, Trash2, Info, ImagePlus, Star, Link as LinkIcon } from 'lucide-react';
 import type { Espacio, RelacionComercial, ImagenEspacio } from '@/types';
-import { TIPO_ESPACIO, ESTILOS_ESPACIO, TAGS_ESPACIO, IDEAL_PARA } from '@/types';
+import { TIPO_ESPACIO, ESTILOS_ESPACIO, TAGS_ESPACIO, IDEAL_PARA, RELACION_COMERCIAL_OPCIONES } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -26,6 +25,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 const salaSchema = z.object({
   id: z.string(),
@@ -114,7 +114,7 @@ export const espacioFormSchema = z.object({
   }),
   evaluacionMICE: z.object({
     proveedorId: z.string().optional().default(''),
-    relacionComercial: z.enum(['Exclusividad', 'Homologado Preferente', 'Homologado', 'Puntual', 'Sin Relación']).default('Sin Relación'),
+    relacionComercial: z.enum(RELACION_COMERCIAL_OPCIONES).default('Sin Relación'),
     valoracionComercial: z.coerce.number().min(1).max(5).optional().default(3),
     puntosFuertes: z.array(z.string()).optional().default([]),
     puntosDebiles: z.array(z.string()).optional().default([]),
@@ -156,7 +156,29 @@ export const espacioFormSchema = z.object({
 
 type EspacioFormValues = z.infer<typeof espacioFormSchema>;
 
-const RELACION_COMERCIAL_OPCIONES: RelacionComercial[] = ['Exclusividad', 'Homologado Preferente', 'Homologado', 'Puntual', 'Sin Relación'];
+const defaultValues: Partial<EspacioFormValues> = {
+  id: '',
+  identificacion: {
+    nombreEspacio: '', tipoDeEspacio: [], ciudad: '', provincia: 'Madrid', calle: '', codigoPostal: '',
+    descripcionCorta: '', descripcionLarga: '', zona: '', estilos: [], tags: [], idealPara: []
+  },
+  capacidades: { salas: [], aforoMaximoBanquete: 0, aforoMaximoCocktail: 0 },
+  logistica: {
+    tipoCocina: 'Sin cocina', montacargas: false, accesoServicioIndependiente: false, tomasAguaCocina: false, desaguesCocina: false, extraccionHumos: false, limitadorSonido: false, permiteMusicaExterior: false, puntosAnclaje: false,
+    accesoVehiculos: '', horarioMontajeDesmontaje: '', dimensionesMontacargas: '', potenciaTotal: '', cuadrosElectricos: [], tomasAgua: [], desagues: [], equipamientoCocina: [], potenciaElectricaCocina: '', descripcionOffice: '', zonaAlmacenaje: '', politicaDecoracion: '',
+    metricasOperativas: { dificultadMontaje: 3, penalizacionPersonalMontaje: 0, notasDificultadMontaje: '' }
+  },
+  evaluacionMICE: {
+    relacionComercial: 'Sin Relación', valoracionComercial: 3, valoracionOperaciones: 3, exclusividadMusica: false, exclusividadAudiovisuales: false,
+    proveedorId: '', puntosFuertes: [], puntosDebiles: [], perfilClienteIdeal: '', argumentarioVentaRapido: [], otrosProveedoresExclusivos: '', notasComerciales: '', resumenEjecutivoIA: '', factoresCriticosExito: [], riesgosPotenciales: []
+  },
+  experienciaInvitado: {
+    flow: { accesoPrincipal: '', recorridoInvitado: '', aparcamiento: '', transportePublico: '', accesibilidadAsistentes: '', guardarropa: false, seguridadPropia: false },
+    equipamientoAudiovisuales: '', pantalla: '', sistemaSonido: '', escenario: '', conexionWifi: ''
+  },
+  multimedia: { imagenes: [], carpetaDRIVE: '', visitaVirtual: '' },
+  contactos: [],
+};
 
 
 const InfoTooltip = ({ text }: { text: string }) => (
@@ -182,29 +204,7 @@ export default function EspacioFormPage() {
 
   const form = useForm<EspacioFormValues>({
     resolver: zodResolver(espacioFormSchema),
-    defaultValues: {
-      id: '',
-      identificacion: {
-        nombreEspacio: '', tipoDeEspacio: [], ciudad: '', provincia: 'Madrid', calle: '', codigoPostal: '',
-        descripcionCorta: '', descripcionLarga: '', zona: '', estilos: [], tags: [], idealPara: []
-      },
-      capacidades: { salas: [], aforoMaximoBanquete: 0, aforoMaximoCocktail: 0 },
-      logistica: {
-        tipoCocina: 'Sin cocina', montacargas: false, accesoServicioIndependiente: false, tomasAguaCocina: false, desaguesCocina: false, extraccionHumos: false, limitadorSonido: false, permiteMusicaExterior: false, puntosAnclaje: false,
-        accesoVehiculos: '', horarioMontajeDesmontaje: '', dimensionesMontacargas: '', potenciaTotal: '', cuadrosElectricos: [], tomasAgua: [], desagues: [], equipamientoCocina: [], potenciaElectricaCocina: '', descripcionOffice: '', zonaAlmacenaje: '', politicaDecoracion: '',
-        metricasOperativas: { dificultadMontaje: 3, penalizacionPersonalMontaje: 0, notasDificultadMontaje: '' }
-      },
-      evaluacionMICE: {
-        relacionComercial: 'Sin Relación', valoracionComercial: 3, valoracionOperaciones: 3, exclusividadMusica: false, exclusividadAudiovisuales: false,
-        proveedorId: '', puntosFuertes: [], puntosDebiles: [], perfilClienteIdeal: '', argumentarioVentaRapido: [], otrosProveedoresExclusivos: '', notasComerciales: '', resumenEjecutivoIA: '', factoresCriticosExito: [], riesgosPotenciales: []
-      },
-      experienciaInvitado: {
-        flow: { accesoPrincipal: '', recorridoInvitado: '', aparcamiento: '', transportePublico: '', accesibilidadAsistentes: '', guardarropa: false, seguridadPropia: false },
-        equipamientoAudiovisuales: '', pantalla: '', sistemaSonido: '', escenario: '', conexionWifi: ''
-      },
-      multimedia: { imagenes: [], carpetaDRIVE: '', visitaVirtual: '' },
-      contactos: [],
-    },
+    defaultValues: defaultValues as any,
   });
 
   const { fields: salasFields, append: appendSala, remove: removeSala } = useFieldArray({ control: form.control, name: "capacidades.salas" });
@@ -226,14 +226,8 @@ export default function EspacioFormPage() {
       }
     } else {
         form.reset({
+            ...(defaultValues as any),
             id: Date.now().toString(),
-            identificacion: { nombreEspacio: '', tipoDeEspacio: [], ciudad: '', provincia: 'Madrid', calle: '', codigoPostal: '' },
-            capacidades: { salas: [], aforoMaximoBanquete: 0, aforoMaximoCocktail: 0 },
-            logistica: { tipoCocina: 'Sin cocina', metricasOperativas: { dificultadMontaje: 3, penalizacionPersonalMontaje: 0 } },
-            evaluacionMICE: { relacionComercial: 'Sin Relación', valoracionComercial: 3, valoracionOperaciones: 3 },
-            experienciaInvitado: { flow: {}},
-            multimedia: { imagenes: [], carpetaDRIVE: '', visitaVirtual: '' },
-            contactos: [],
         });
     }
   }, [id, isEditing, form, router, toast]);
@@ -472,6 +466,43 @@ export default function EspacioFormPage() {
                                  <FormField control={form.control} name="logistica.metricasOperativas.notasDificultadMontaje" render={({ field }) => (
                                     <FormItem><FormLabel className="flex items-center">Notas sobre Dificultad Montaje<InfoTooltip text="Explica por qué el montaje es difícil. Ej: 'Muchas escaleras, sin montacargas, suelo delicado...'"/></FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
                                 )} />
+                                <div className="space-y-2">
+                                    <h4 className="font-semibold text-sm flex items-center">Cuadros Eléctricos <InfoTooltip text="Detalla la potencia y ubicación de cada cuadro eléctrico disponible."/></h4>
+                                    <div className="border rounded-md">
+                                        <Table>
+                                            <TableHeader><TableRow><TableHead>Ubicación</TableHead><TableHead>Potencia</TableHead><TableHead className="text-right"></TableHead></TableRow></TableHeader>
+                                            <TableBody>
+                                                {cuadrosFields.map((field, index) => (
+                                                    <TableRow key={field.id}>
+                                                        <TableCell className="p-1"><FormField control={form.control} name={`logistica.cuadrosElectricos.${index}.ubicacion`} render={({field}) => <Input {...field} className="h-8"/>} /></TableCell>
+                                                        <TableCell className="p-1"><FormField control={form.control} name={`logistica.cuadrosElectricos.${index}.potencia`} render={({field}) => <Input {...field} className="h-8"/>} /></TableCell>
+                                                        <TableCell className="p-1 text-right"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeCuadro(index)}><Trash2/></Button></TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => appendCuadro({id: Date.now().toString(), ubicacion: '', potencia: ''})}><PlusCircle className="mr-2"/>Añadir Cuadro Eléctrico</Button>
+                                 </div>
+                                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                     <FormField control={form.control} name="logistica.accesoVehiculos" render={({ field }) => (<FormItem><FormLabel>Acceso Vehículos</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                     <FormField control={form.control} name="logistica.horarioMontajeDesmontaje" render={({ field }) => (<FormItem><FormLabel>Horario Montaje/Desmontaje</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                      <FormField control={form.control} name="logistica.dimensionesMontacargas" render={({ field }) => (<FormItem><FormLabel>Dimensiones Montacargas</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                      <FormField control={form.control} name="logistica.potenciaTotal" render={({ field }) => (<FormItem><FormLabel>Potencia Total</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                      <FormField control={form.control} name="logistica.descripcionOffice" render={({ field }) => (<FormItem><FormLabel>Descripción Office</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                      <FormField control={form.control} name="logistica.zonaAlmacenaje" render={({ field }) => (<FormItem><FormLabel>Zona Almacenaje</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                 </div>
+                                 <FormField control={form.control} name="logistica.politicaDecoracion" render={({ field }) => (<FormItem><FormLabel>Política de Decoración</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem> )} />
+                                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                      <FormField control={form.control} name="logistica.montacargas" render={({ field }) => (<FormItem className="flex flex-row items-center gap-2 pt-6"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="!mt-0">¿Tiene Montacargas?</FormLabel></FormItem>)} />
+                                      <FormField control={form.control} name="logistica.accesoServicioIndependiente" render={({ field }) => (<FormItem className="flex flex-row items-center gap-2 pt-6"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="!mt-0">¿Acceso de Servicio Independiente?</FormLabel></FormItem>)} />
+                                      <FormField control={form.control} name="logistica.tomasAguaCocina" render={({ field }) => (<FormItem className="flex flex-row items-center gap-2 pt-6"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="!mt-0">¿Tomas de Agua en Cocina?</FormLabel></FormItem>)} />
+                                      <FormField control={form.control} name="logistica.desaguesCocina" render={({ field }) => (<FormItem className="flex flex-row items-center gap-2 pt-6"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="!mt-0">¿Desagües en Cocina?</FormLabel></FormItem>)} />
+                                      <FormField control={form.control} name="logistica.extraccionHumos" render={({ field }) => (<FormItem className="flex flex-row items-center gap-2 pt-6"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="!mt-0">¿Extracción de Humos?</FormLabel></FormItem>)} />
+                                      <FormField control={form.control} name="logistica.limitadorSonido" render={({ field }) => (<FormItem className="flex flex-row items-center gap-2 pt-6"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="!mt-0">¿Limitador de Sonido?</FormLabel></FormItem>)} />
+                                      <FormField control={form.control} name="logistica.permiteMusicaExterior" render={({ field }) => (<FormItem className="flex flex-row items-center gap-2 pt-6"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="!mt-0">¿Permite Música en Exterior?</FormLabel></FormItem>)} />
+                                      <FormField control={form.control} name="logistica.puntosAnclaje" render={({ field }) => (<FormItem className="flex flex-row items-center gap-2 pt-6"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="!mt-0">¿Puntos de Anclaje (Rigging)?</FormLabel></FormItem>)} />
+                                  </div>
                             </CardContent>
                         </AccordionContent>
                     </Card>
@@ -482,8 +513,7 @@ export default function EspacioFormPage() {
                         <AccordionContent>
                              <CardContent className="space-y-4 pt-2">
                                 <FormField control={form.control} name="evaluacionMICE.relacionComercial" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className="flex items-center">Relación Comercial<InfoTooltip text="Define nuestra relación contractual con el venue. Clave para la priorización comercial."/></FormLabel>
+                                    <FormItem><FormLabel className="flex items-center">Relación Comercial<InfoTooltip text="Define nuestra relación contractual con el venue. Clave para la priorización comercial."/></FormLabel>
                                         <Select onValueChange={field.onChange} value={field.value}>
                                             <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                             <SelectContent>
@@ -492,6 +522,22 @@ export default function EspacioFormPage() {
                                         </Select>
                                     </FormItem>
                                 )} />
+                                <div className="grid md:grid-cols-2 gap-4">
+                                     <FormField control={form.control} name="evaluacionMICE.valoracionComercial" render={({ field }) => (<FormItem><FormLabel>Valoración Comercial (1-5)</FormLabel><FormControl><Slider defaultValue={[3]} value={[field.value || 3]} onValueChange={(value) => field.onChange(value[0])} max={5} min={1} step={1} /></FormControl></FormItem>)} />
+                                     <FormField control={form.control} name="evaluacionMICE.valoracionOperaciones" render={({ field }) => (<FormItem><FormLabel>Valoración Operaciones (1-5)</FormLabel><FormControl><Slider defaultValue={[3]} value={[field.value || 3]} onValueChange={(value) => field.onChange(value[0])} max={5} min={1} step={1} /></FormControl></FormItem>)} />
+                                </div>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="evaluacionMICE.puntosFuertes" render={({ field }) => (<FormItem><FormLabel>Puntos Fuertes</FormLabel><MultiSelect options={[]} selected={field.value || []} onChange={field.onChange} placeholder="Añadir..." onCreated={(val) => field.onChange([...(field.value || []), val])}/></FormItem>)} />
+                                    <FormField control={form.control} name="evaluacionMICE.puntosDebiles" render={({ field }) => (<FormItem><FormLabel>Puntos Débiles</FormLabel><MultiSelect options={[]} selected={field.value || []} onChange={field.onChange} placeholder="Añadir..." onCreated={(val) => field.onChange([...(field.value || []), val])}/></FormItem>)} />
+                                </div>
+                                 <FormField control={form.control} name="evaluacionMICE.perfilClienteIdeal" render={({ field }) => (<FormItem><FormLabel>Perfil de Cliente Ideal</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                <FormField control={form.control} name="evaluacionMICE.argumentarioVentaRapido" render={({ field }) => (<FormItem><FormLabel>Argumentario de Venta Rápido</FormLabel><MultiSelect options={[]} selected={field.value || []} onChange={field.onChange} placeholder="Añadir argumento..." onCreated={(val) => field.onChange([...(field.value || []), val])}/></FormItem>)} />
+                                <FormField control={form.control} name="evaluacionMICE.factoresCriticosExito" render={({ field }) => (<FormItem><FormLabel>Factores Críticos de Éxito</FormLabel><MultiSelect options={[]} selected={field.value || []} onChange={field.onChange} placeholder="Añadir factor..." onCreated={(val) => field.onChange([...(field.value || []), val])}/></FormItem>)} />
+                                <FormField control={form.control} name="evaluacionMICE.riesgosPotenciales" render={({ field }) => (<FormItem><FormLabel>Riesgos Potenciales</FormLabel><MultiSelect options={[]} selected={field.value || []} onChange={field.onChange} placeholder="Añadir riesgo..." onCreated={(val) => field.onChange([...(field.value || []), val])}/></FormItem>)} />
+                                <FormField control={form.control} name="evaluacionMICE.otrosProveedoresExclusivos" render={({ field }) => (<FormItem><FormLabel>Otros Proveedores Exclusivos</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)} />
+                                <FormField control={form.control} name="evaluacionMICE.notasComerciales" render={({ field }) => (<FormItem><FormLabel>Notas Comerciales</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>)} />
+                                <FormField control={form.control} name="evaluacionMICE.resumenEjecutivoIA" render={({ field }) => (<FormItem><FormLabel>Resumen Ejecutivo (IA)</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>)} />
+
                              </CardContent>
                         </AccordionContent>
                     </Card>
@@ -501,9 +547,22 @@ export default function EspacioFormPage() {
                         <AccordionTrigger className="p-4"><CardTitle>Experiencia del Invitado</CardTitle></AccordionTrigger>
                         <AccordionContent>
                              <CardContent className="space-y-4 pt-2">
-                                <FormField control={form.control} name="experienciaInvitado.flow.accesoPrincipal" render={({ field }) => (
-                                    <FormItem><FormLabel className="flex items-center">Acceso Principal<InfoTooltip text="Cómo acceden los invitados. Ej: 'Recepción del hotel', 'Entrada directa desde la calle'."/></FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
+                                <FormField control={form.control} name="experienciaInvitado.flow.accesoPrincipal" render={({ field }) => (<FormItem><FormLabel className="flex items-center">Acceso Principal<InfoTooltip text="Cómo acceden los invitados. Ej: 'Recepción del hotel', 'Entrada directa desde la calle'."/></FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                <FormField control={form.control} name="experienciaInvitado.flow.recorridoInvitado" render={({ field }) => (<FormItem><FormLabel>Recorrido Invitado</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                <FormField control={form.control} name="experienciaInvitado.flow.aparcamiento" render={({ field }) => (<FormItem><FormLabel>Aparcamiento</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                <FormField control={form.control} name="experienciaInvitado.flow.transportePublico" render={({ field }) => (<FormItem><FormLabel>Transporte Público</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                <FormField control={form.control} name="experienciaInvitado.flow.accesibilidadAsistentes" render={({ field }) => (<FormItem><FormLabel>Accesibilidad Asistentes</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                <FormField control={form.control} name="experienciaInvitado.equipamientoAudiovisuales" render={({ field }) => (<FormItem><FormLabel>Equipamiento Audiovisual</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                <div className="grid md:grid-cols-3 gap-4">
+                                     <FormField control={form.control} name="experienciaInvitado.pantalla" render={({ field }) => (<FormItem><FormLabel>Pantalla</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                     <FormField control={form.control} name="experienciaInvitado.sistemaSonido" render={({ field }) => (<FormItem><FormLabel>Sistema de Sonido</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                     <FormField control={form.control} name="experienciaInvitado.escenario" render={({ field }) => (<FormItem><FormLabel>Escenario</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                </div>
+                                <FormField control={form.control} name="experienciaInvitado.conexionWifi" render={({ field }) => (<FormItem><FormLabel>Conexión Wifi</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="experienciaInvitado.flow.guardarropa" render={({ field }) => (<FormItem className="flex flex-row items-center gap-2 pt-6"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="!mt-0">¿Tiene Guardarropa?</FormLabel></FormItem>)} />
+                                    <FormField control={form.control} name="experienciaInvitado.flow.seguridadPropia" render={({ field }) => (<FormItem className="flex flex-row items-center gap-2 pt-6"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="!mt-0">¿Tiene Seguridad Propia?</FormLabel></FormItem>)} />
+                                </div>
                              </CardContent>
                         </AccordionContent>
                     </Card>
@@ -519,3 +578,4 @@ export default function EspacioFormPage() {
 }
     
 
+    
