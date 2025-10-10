@@ -68,7 +68,7 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
         return false;
       }
       
-      const rentalProviderMatch = orderType !== 'Alquiler' || !selectedProviderId || (item as any).partnerId === selectedProviderId;
+      const rentalProviderMatch = orderType !== 'Alquiler' || (selectedProviderId ? (item as any).partnerId === selectedProviderId : false);
 
       const matchesType = selectedType === 'all' || item.tipo === selectedType;
       const matchesSearch = item.description.toLowerCase().includes(searchTerm.toLowerCase()) || item.itemCode.toLowerCase().includes(searchTerm.toLowerCase());
