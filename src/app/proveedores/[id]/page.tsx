@@ -7,8 +7,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, FileDown, Users, X, Building2, Mail, Phone, Hash } from 'lucide-react';
-import type { Proveedor, DatosFiscales, TipoProveedor } from '@/types';
+import { Loader2, FileDown, Users, X } from 'lucide-react';
+import type { Proveedor, TipoProveedor } from '@/types';
 import { TIPO_PROVEEDOR_OPCIONES } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -16,25 +16,42 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
-import { Combobox } from '@/components/ui/combobox';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Input } from '@/components/ui/input';
 
-
 export const proveedorSchema = z.object({
   id: z.string(),
-  datosFiscalesId: z.string().min(1, "Debes seleccionar un proveedor fiscal."),
-  nombreComercial: z.string(), // This will be handled by the selection
+  cif: z.string().min(1, 'El CIF/NIF es obligatorio'),
+  nombreEmpresa: z.string().min(1, 'El nombre de la empresa es obligatorio'),
+  nombreComercial: z.string().optional(),
+  direccionFacturacion: z.string().min(1, 'La dirección es obligatoria'),
+  codigoPostal: z.string().min(1, 'El código postal es obligatorio'),
+  ciudad: z.string().min(1, 'La ciudad es obligatoria'),
+  provincia: z.string().min(1, 'La provincia es obligatoria'),
+  pais: z.string().min(1, 'El país es obligatorio'),
+  emailContacto: z.string().email('Debe ser un email válido').or(z.literal('')),
+  telefonoContacto: z.string().optional(),
+  iban: z.string().optional(),
+  formaDePagoHabitual: z.string().optional(),
   tipos: z.array(z.string()).min(1, "Debe seleccionar al menos un tipo de proveedor."),
 });
 
 type ProveedorFormValues = z.infer<typeof proveedorSchema>;
 
 const defaultValues: Partial<ProveedorFormValues> = {
-    datosFiscalesId: '',
-    nombreComercial: '',
-    tipos: [],
+  cif: '',
+  nombreEmpresa: '',
+  nombreComercial: '',
+  direccionFacturacion: '',
+  codigoPostal: '',
+  ciudad: '',
+  provincia: '',
+  pais: 'España',
+  emailContacto: '',
+  telefonoContacto: '',
+  iban: '',
+  formaDePagoHabitual: '',
+  tipos: [],
 };
 
 export default function ProveedorFormPage() {
@@ -45,23 +62,13 @@ export default function ProveedorFormPage() {
 
   const { isLoading, setIsLoading } = useLoadingStore();
   const { toast } = useToast();
-  
-  const [datosFiscales, setDatosFiscales] = useState<DatosFiscales[]>([]);
 
   const form = useForm<ProveedorFormValues>({
     resolver: zodResolver(proveedorSchema),
     defaultValues,
   });
 
-  const selectedFiscalId = form.watch('datosFiscalesId');
-  const selectedFiscalData = useMemo(() => {
-    return datosFiscales.find(df => df.id === selectedFiscalId);
-  }, [selectedFiscalId, datosFiscales]);
-
   useEffect(() => {
-    const fiscalData = JSON.parse(localStorage.getItem('datosFiscales') || '[]') as DatosFiscales[];
-    setDatosFiscales(fiscalData.filter(df => df.tipo === 'Proveedor'));
-    
     if (isEditing) {
       const items = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
       const item = items.find(p => p.id === id);
@@ -78,22 +85,12 @@ export default function ProveedorFormPage() {
 
   function onSubmit(data: ProveedorFormValues) {
     setIsLoading(true);
-    
-    const fiscalData = datosFiscales.find(df => df.id === data.datosFiscalesId);
-    if (!fiscalData) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Debes seleccionar un proveedor válido de la lista.' });
-        setIsLoading(false);
-        return;
-    }
 
     let allItems = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
     let message = '';
-
-    const finalData = {
-        ...data,
-        nombreComercial: fiscalData.nombreComercial || fiscalData.nombreEmpresa,
-    };
     
+    const finalData = { ...data, nombreComercial: data.nombreComercial || data.nombreEmpresa };
+
     if (isEditing) {
       const index = allItems.findIndex(p => p.id === id);
       if (index !== -1) {
@@ -101,9 +98,9 @@ export default function ProveedorFormPage() {
         message = 'Proveedor actualizado correctamente.';
       }
     } else {
-       const existing = allItems.find(p => p.datosFiscalesId === data.datosFiscalesId);
+       const existing = allItems.find(p => p.cif.toLowerCase() === data.cif.toLowerCase());
         if (existing) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Este proveedor (por CIF) ya existe.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un proveedor con este CIF/NIF.' });
             setIsLoading(false);
             return;
         }
@@ -119,12 +116,6 @@ export default function ProveedorFormPage() {
       router.push('/proveedores');
     }, 1000);
   }
-
-  const fiscalOptions = useMemo(() => 
-    datosFiscales.map(df => ({
-        value: df.id,
-        label: `${df.nombreComercial || df.nombreEmpresa} (${df.cif})`
-    })), [datosFiscales]);
     
   const tipoOptions = TIPO_PROVEEDOR_OPCIONES.map(t => ({ label: t, value: t }));
 
@@ -153,23 +144,10 @@ export default function ProveedorFormPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Datos del Proveedor</CardTitle>
-                <CardDescription>Selecciona un proveedor de la base de datos fiscal y asígnale uno o más tipos.</CardDescription>
+                <CardDescription>Introduce la información de contacto, fiscal y el tipo de servicios que ofrece.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <FormField control={form.control} name="datosFiscalesId" render={({ field }) => (
-                      <FormItem className="lg:col-span-2">
-                          <FormLabel>Proveedor (desde Datos Fiscales)</FormLabel>
-                          <Combobox 
-                            options={fiscalOptions}
-                            value={field.value || ''}
-                            onChange={field.onChange}
-                            placeholder="Selecciona un proveedor fiscal..."
-                          />
-                          <FormMessage />
-                      </FormItem>
-                  )} />
-                   <FormField control={form.control} name="tipos" render={({ field }) => (
+                 <FormField control={form.control} name="tipos" render={({ field }) => (
                       <FormItem>
                           <FormLabel>Tipo(s) de Proveedor</FormLabel>
                           <MultiSelect 
@@ -181,23 +159,51 @@ export default function ProveedorFormPage() {
                           <FormMessage />
                       </FormItem>
                   )} />
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <FormField control={form.control} name="nombreComercial" render={({ field }) => (
+                    <FormItem className="lg:col-span-2"><FormLabel>Nombre Comercial</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="cif" render={({ field }) => (
+                    <FormItem><FormLabel>CIF / NIF</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="nombreEmpresa" render={({ field }) => (
+                    <FormItem className="lg:col-span-3"><FormLabel>Nombre o Razón Social</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="direccionFacturacion" render={({ field }) => (
+                    <FormItem className="lg:col-span-3"><FormLabel>Dirección de Facturación</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="codigoPostal" render={({ field }) => (
+                    <FormItem><FormLabel>Código Postal</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="ciudad" render={({ field }) => (
+                    <FormItem><FormLabel>Ciudad</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="provincia" render={({ field }) => (
+                    <FormItem><FormLabel>Provincia</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="pais" render={({ field }) => (
+                    <FormItem><FormLabel>País</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="emailContacto" render={({ field }) => (
+                    <FormItem><FormLabel>Email de Contacto</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="telefonoContacto" render={({ field }) => (
+                    <FormItem><FormLabel>Teléfono de Contacto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
                 </div>
-                 {selectedFiscalData && (
-                    <Accordion type="single" collapsible>
-                        <AccordionItem value="fiscal-data">
-                            <AccordionTrigger>Ver Información Fiscal del Proveedor Seleccionado</AccordionTrigger>
-                            <AccordionContent>
-                                <div className="p-4 border rounded-md bg-muted/50 text-sm space-y-2">
-                                    <p className="flex items-center gap-2"><Hash /> <strong>CIF/NIF:</strong> {selectedFiscalData.cif}</p>
-                                    <p className="flex items-center gap-2"><Building2 /> <strong>Dirección:</strong> {selectedFiscalData.direccionFacturacion}, {selectedFiscalData.codigoPostal} {selectedFiscalData.ciudad}</p>
-                                    <p className="flex items-center gap-2"><Mail /> <strong>Email:</strong> {selectedFiscalData.emailContacto}</p>
-                                    <p className="flex items-center gap-2"><Phone /> <strong>Teléfono:</strong> {selectedFiscalData.telefonoContacto}</p>
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
-                )}
               </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader><CardTitle>Información Bancaria y de Pago</CardTitle></CardHeader>
+                <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <FormField control={form.control} name="iban" render={({ field }) => (
+                        <FormItem className="lg:col-span-2"><FormLabel>IBAN</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="formaDePagoHabitual" render={({ field }) => (
+                        <FormItem><FormLabel>Forma de Pago Habitual</FormLabel><FormControl><Input {...field} placeholder="Ej: Transferencia 30 días" /></FormControl><FormMessage /></FormItem>
+                    )} />
+                </CardContent>
             </Card>
           </form>
         </Form>

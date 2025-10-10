@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, ArrowLeft, Users } from 'lucide-react';
-import type { Proveedor, DatosFiscales } from '@/types';
+import type { Proveedor } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -54,6 +55,7 @@ export default function ProveedoresPage() {
   const filteredItems = useMemo(() => {
     return items.filter(item => 
       item.nombreComercial.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.cif.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.tipos.some(t => t.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [items, searchTerm]);
@@ -95,7 +97,7 @@ export default function ProveedoresPage() {
         
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
-            placeholder="Buscar por nombre o tipo..."
+            placeholder="Buscar por nombre, CIF o tipo..."
             className="flex-grow max-w-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -107,6 +109,7 @@ export default function ProveedoresPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="p-2">Nombre Comercial</TableHead>
+                <TableHead className="p-2">CIF</TableHead>
                 <TableHead className="p-2">Tipos de Proveedor</TableHead>
                 <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
@@ -116,6 +119,7 @@ export default function ProveedoresPage() {
                 filteredItems.map(item => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium p-2">{item.nombreComercial}</TableCell>
+                    <TableCell className="p-2">{item.cif}</TableCell>
                     <TableCell className="p-2">
                       <div className="flex flex-wrap gap-1">
                         {item.tipos.map(t => <Badge key={t} variant="secondary">{t}</Badge>)}
@@ -145,7 +149,7 @@ export default function ProveedoresPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={3} className="h-24 text-center">
+                  <TableCell colSpan={4} className="h-24 text-center">
                     No se encontraron proveedores que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>

@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Trash2, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 
-type DatabaseKey = 'personal' | 'espacios' | 'precios' | 'alquilerDB' | 'tipoServicio' | 'proveedoresTransporte' | 'proveedorHielo' | 'atipicosDB' | 'personalMiceOrders' | 'proveedoresPersonal' | 'decoracionDB' | 'tiposCocina' | 'pedidoPlantillas' | 'formatosExpedicionDB' | 'datosFiscales';
+type DatabaseKey = 'personal' | 'espacios' | 'precios' | 'alquilerDB' | 'tipoServicio' | 'proveedoresTransporte' | 'proveedorHielo' | 'atipicosDB' | 'personalMiceOrders' | 'proveedoresPersonal' | 'decoracionDB' | 'tiposCocina' | 'pedidoPlantillas' | 'formatosExpedicionDB' | 'proveedores';
 
 const DATABASES: { key: DatabaseKey; name: string; description: string }[] = [
     { key: 'personal', name: 'Personal', description: 'Contiene todos los empleados y contactos.' },
@@ -36,7 +36,7 @@ const DATABASES: { key: DatabaseKey; name: string; description: string }[] = [
     { key: 'tiposCocina', name: 'Tipos de Cocina', description: 'Contiene los tipos de cocina para las recetas del book.' },
     { key: 'pedidoPlantillas', name: 'Plantillas de Pedidos', description: 'Contiene las plantillas para agilizar la creación de pedidos.' },
     { key: 'formatosExpedicionDB', name: 'Formatos de Expedición', description: 'Contiene los formatos de empaquetado para producción.' },
-    { key: 'datosFiscales', name: 'Datos Fiscales', description: 'Contiene la información fiscal de clientes y proveedores.' },
+    { key: 'proveedores', name: 'Proveedores', description: 'Contiene la información fiscal y de contacto de proveedores.' },
 ];
 
 export default function BorrarBdPage() {

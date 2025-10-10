@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -39,7 +40,6 @@ const generalDatabasesList: DatabaseEntry[] = [
 
 const providerDatabasesList: DatabaseEntry[] = [
     { id: '25', name: 'Proveedores', description: 'Base de datos central de proveedores.', itemCount: 0, path: '/proveedores' },
-    { id: '21', name: 'Datos Fiscales (Clientes/Proveedores)', description: 'Base de datos central de información fiscal.', itemCount: 0, path: '/datos-fiscales' },
     { id: '26', name: 'Catálogo de Personal Externo', description: 'Categorías y precios del personal de ETTs.', itemCount: 0, path: '/tipos-personal' },
     { id: '27', name: 'Catálogo de Transporte', description: 'Vehículos y precios de las empresas de transporte.', itemCount: 0, path: '/tipos-transporte' },
 ];
@@ -67,7 +67,6 @@ export default function BdPage() {
             if (db.path === '/book/ingredientes-erp') count = countItems('ingredientesERP');
             if (db.path === '/plantillas-pedidos') count = countItems('pedidoPlantillas');
             if (db.path === '/formatos-expedicion') count = countItems('formatosExpedicionDB');
-            if (db.path === '/datos-fiscales') count = countItems('datosFiscales');
             if (db.path === '/proveedores') count = countItems('proveedores');
             if (db.path === '/tipos-personal') count = countItems('tiposPersonal');
             if (db.path === '/tipos-transporte') count = countItems('tiposTransporte');

@@ -84,6 +84,7 @@ export type ServiceOrder = {
     vertical?: 'Catering' | 'Entregas';
     direccionPrincipal?: string;
     isVip?: boolean;
+    email?: string;
 };
 
 export type MaterialOrder = {
@@ -173,6 +174,7 @@ export type ArticuloCatering = {
     producidoPorPartner?: boolean;
     partnerId?: string;
     recetaId?: string; 
+    subcategoria?: string;
 }
 
 
@@ -715,31 +717,25 @@ export type PickingEntregaState = {
   ordenItems?: string[];
 };
 
-export type DatosFiscales = {
-    id: string;
-    cif: string;
-    nombreEmpresa: string;
-    nombreComercial?: string;
-    direccionFacturacion: string;
-    codigoPostal: string;
-    ciudad: string;
-    provincia: string;
-    pais: string;
-    emailContacto: string;
-    telefonoContacto: string;
-    iban?: string;
-    formaDePagoHabitual?: string;
-}
-
 export const TIPO_PROVEEDOR_OPCIONES = ['Transporte', 'Hielo', 'Gastronomia', 'Personal', 'Atipicos', 'Decoracion', 'Servicios', 'Otros', 'Alquiler'] as const;
 export type TipoProveedor = typeof TIPO_PROVEEDOR_OPCIONES[number];
 
 export type Proveedor = {
   id: string;
-  datosFiscalesId: string;
+  cif: string;
+  nombreEmpresa: string;
   nombreComercial: string;
+  direccionFacturacion: string;
+  codigoPostal: string;
+  ciudad: string;
+  provincia: string;
+  pais: string;
+  emailContacto: string;
+  telefonoContacto: string;
+  iban?: string;
+  formaDePagoHabitual?: string;
   tipos: TipoProveedor[];
-}
+};
 
 export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado'] as const;
 export type EstadoPersonalEntrega = typeof ESTADO_PERSONAL_ENTREGA[number];
