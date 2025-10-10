@@ -123,7 +123,7 @@ export type Sala = {
   id: string;
   nombreSala: string;
   m2?: number;
-  dimensiones?: string; // e.g., "20m x 30m"
+  dimensiones?: string;
   alturaMax?: number;
   alturaMin?: number;
   aforoTeatro?: number;
@@ -145,12 +145,12 @@ export type ContactoEspacio = {
 export type CuadroElectrico = {
     id: string;
     ubicacion: string;
-    potencia: string; // e.g., "32A Trifásico"
+    potencia: string;
 };
 
 export type MultimediaEspacio = {
     fotosPrincipales?: string[];
-    fotosRecursos?: string[]; // Fotos técnicas, accesos, etc.
+    fotosRecursos?: string[];
     videos?: string[];
     planos?: string[];
     dossierComercial?: string;
@@ -162,7 +162,7 @@ export type Espacio = {
   // --- Info General y Localización ---
   espacio: string;
   tipoDeEspacio: (typeof TIPO_ESPACIO[number])[];
-  descripcionCorta?: string; // Tagline.
+  descripcionCorta?: string;
   descripcionLarga?: string;
   ciudad: string;
   provincia: string;
@@ -194,7 +194,10 @@ export type Espacio = {
   limitadorSonido: boolean;
   permiteMusicaExterior: boolean;
   politicaDecoracion?: string;
-  puntosAnclaje: boolean; // Rigging points
+  puntosAnclaje: boolean;
+  dificultadMontaje?: 1 | 2 | 3 | 4 | 5; // New
+  penalizacionPersonalMontaje?: number; // New - Percentage
+  notasDificultadMontaje?: string; // New
 
   // --- Cocina y Office ---
   tipoCocina: 'Cocina completa' | 'Office de regeneración' | 'Sin cocina';
@@ -206,7 +209,7 @@ export type Espacio = {
   descripcionOffice?: string;
   
   // --- Info Comercial y Financiera ---
-  proveedorId?: string; // Link to Proveedor DB
+  proveedorId?: string;
   proveedorHomologadoMICE: boolean;
   canonEspacioPorcentaje: number;
   canonEspacioFijo: number;
@@ -226,6 +229,11 @@ export type Espacio = {
   valoracionOperaciones?: 1 | 2 | 3 | 4 | 5;
   puntosFuertes?: string[];
   puntosDebiles?: string[];
+  resumenEjecutivoIA?: string; // New
+  perfilClienteIdeal?: string; // New
+  argumentarioVentaRapido?: string[]; // New
+  factoresCriticosExito?: string[]; // New
+  riesgosPotenciales?: string[]; // New
   notasInternasOperaciones?: string;
 
   // --- Deprecated fields from old structure (to be removed after migration) ---
@@ -583,7 +591,7 @@ export type Receta = {
     perfilSaborSecundario?: string[];
     perfilTextura?: string[];
     tipoCocina?: string;
-    temperaturaServicio?: 'CALIENTE' | 'TIBIO' | 'AMBIENTE' | 'FRIO' | 'HELADO';
+    temperaturaServicio?: 'CALIENTE' | 'TIBIO' | 'AMBIENTE', 'FRIO', 'HELADO';
     tecnicaCoccionPrincipal?: string;
     potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL', 'AL_MOMENTO';
     formatoServicioIdeal?: string[];
