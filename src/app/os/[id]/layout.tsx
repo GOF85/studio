@@ -98,7 +98,7 @@ function OSSubHeader() {
         window.removeEventListener('storage', handleStorageChange);
     };
 
-  }, [osId, updateKey]);
+  }, [osId]);
 
   if (!serviceOrder || !currentModule) return null;
 
@@ -152,14 +152,12 @@ function OSSubHeader() {
 export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="container mx-auto">
-          <div className="grid lg:grid-cols-1 gap-2">
-              <div className="sticky top-16 z-30 bg-background pt-4">
-                <OSSubHeader />
-              </div>
-              <main>
-                  {children}
-              </main>
+          <div className="sticky top-[65px] z-30 bg-background pt-2">
+            <OSSubHeader />
           </div>
+          <main>
+              {children}
+          </main>
       </div>
     );
 }
