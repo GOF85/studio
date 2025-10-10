@@ -44,7 +44,6 @@ export function ItemCard({ item, onAddItem }: ItemCardProps) {
         <div className="flex items-center justify-between mt-2">
           <p className="text-lg font-semibold text-primary">
             {item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-            <span className="text-sm font-normal text-muted-foreground">/día</span>
           </p>
         </div>
          <Badge variant="outline" className="mt-2">{item.category}</Badge>

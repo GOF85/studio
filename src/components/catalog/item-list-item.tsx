@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState } from 'react';
@@ -52,13 +51,11 @@ export function ItemListItem({ item, onAddItem, orderType }: ItemListItemProps) 
       </div>
       <div className="flex-grow">
         <h3 className="font-semibold text-base">{item.description}</h3>
-        <p className="text-xs text-muted-foreground">Código: {item.itemCode}</p>
         <Badge variant="outline" className="mt-1 text-xs">{item.category}</Badge>
       </div>
       <div className="flex flex-col items-end gap-1">
         <p className="text-base font-semibold text-primary">
           {item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-          {(orderType !== 'Bebida' && orderType !== 'Bio') && <span className="text-xs font-normal text-muted-foreground">/día</span>}
         </p>
       </div>
       <div className="flex items-center gap-2 w-40">
