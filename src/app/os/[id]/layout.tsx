@@ -131,7 +131,7 @@ function OSSubHeader() {
                     </div>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground px-4 pb-2">
-                     {currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} key={updateKey} />}
+                     {currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
                      <div className="flex items-center gap-2 font-semibold">
                         <FileText className="h-4 w-4" />
                         <span>{serviceOrder.serviceNumber}</span>

@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { ServiceOrder, ObjetivosGasto } from '@/types';
 import { Target, Info } from 'lucide-react';
 import { GASTO_LABELS } from '@/lib/constants';
-import { formatCurrency, formatPercentage, formatNumber } from '@/lib/utils';
+import { formatCurrency, formatPercentage } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -20,7 +20,7 @@ type ModuleName = keyof typeof GASTO_LABELS;
 interface ObjectiveDisplayProps {
   osId: string;
   moduleName: ModuleName;
-  key?: number; // To force re-render
+  updateKey?: number; // To force re-render
 }
 
 const calculateHours = (start?: string, end?: string): number => {
@@ -36,7 +36,7 @@ const calculateHours = (start?: string, end?: string): number => {
     }
 }
 
-export function ObjectiveDisplay({ osId, moduleName, key }: ObjectiveDisplayProps) {
+export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDisplayProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [data, setData] = useState<{
     objective: number;
@@ -145,7 +145,7 @@ export function ObjectiveDisplay({ osId, moduleName, key }: ObjectiveDisplayProp
         facturacionNeta,
       });
     }
-  }, [osId, moduleName, isMounted, key]);
+  }, [osId, moduleName, isMounted, updateKey]);
 
   if (!isMounted || !data) {
     return null; // Or a loading skeleton
