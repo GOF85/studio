@@ -26,7 +26,15 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -94,124 +102,15 @@ function FinancialCalculator ({ totalFacturacion, onNetChange }: { totalFacturac
     );
 }
 
-function HitoForm({ item, onSave, serviceOrder, onAddLocation }: { item: Partial<ComercialBriefingItem> | null, onSave: (data: BriefingItemFormValues) => boolean, serviceOrder: ServiceOrder | null, onAddLocation: (location: string) => void }) {
-    const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
-    
-    const form = useForm<BriefingItemFormValues>({
-        resolver: zodResolver(briefingItemSchema),
-        defaultValues: {},
-    });
-    
-    useEffect(() => {
-        const storedTipos = localStorage.getItem('tipoServicio');
-        if (storedTipos) {
-            setTiposServicio(JSON.parse(storedTipos));
-        }
-
-        form.reset({
-            id: item?.id || '',
-            fecha: item?.fecha || (serviceOrder?.startDate ? format(new Date(serviceOrder.startDate), 'yyyy-MM-dd') : ''),
-            horaInicio: item?.horaInicio || '09:00',
-            horaFin: item?.horaFin || '10:00',
-            conGastronomia: item?.conGastronomia || false,
-            descripcion: item?.descripcion || '',
-            comentarios: item?.comentarios || '',
-            sala: item?.sala || '',
-            asistentes: item?.asistentes || serviceOrder?.asistentes || 0,
-            precioUnitario: item?.precioUnitario || 0,
-            importeFijo: item?.importeFijo || 0,
-        })
-    }, [item, serviceOrder, form]);
-
-    const asistentes = form.watch('asistentes');
-    const precioUnitario = form.watch('precioUnitario');
-    const importeFijo = form.watch('importeFijo');
-    const total = useMemo(() => (asistentes * precioUnitario) + (importeFijo || 0), [asistentes, precioUnitario, importeFijo]);
-    
-    const locationOptions = useMemo(() => {
-      return serviceOrder?.deliveryLocations?.map(loc => ({ label: loc, value: loc })) || [];
-    }, [serviceOrder]);
-
-    const handleLocationChange = (value: string) => {
-      const isNew = !locationOptions.some(opt => opt.value === value);
-      if (isNew && value) {
-        onAddLocation(value);
-      }
-      form.setValue('sala', value, { shouldDirty: true });
-    }
-
-    const onSubmit = (data: BriefingItemFormValues) => {
-      if (onSave(data)) {
-        form.reset();
-      }
-    };
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>{item ? 'Editar Hito' : 'Nuevo Hito'}</CardTitle>
-                <CardDescription>Detalla un servicio o momento del evento.</CardDescription>
-            </CardHeader>
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)}>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                            <FormField control={form.control} name="fecha" render={({field}) => <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem> } />
-                            <FormField control={form.control} name="horaInicio" render={({field}) => <FormItem><FormLabel>Hora Inicio</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem> } />
-                            <FormField control={form.control} name="horaFin" render={({field}) => <FormItem><FormLabel>Hora Fin</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem> } />
-                            <FormField control={form.control} name="sala" render={({field}) => (
-                                <FormItem className="flex flex-col"><FormLabel>Sala</FormLabel>
-                                <Combobox options={locationOptions} value={field.value || ''} onChange={handleLocationChange} placeholder="Busca o crea una sala..." searchPlaceholder="Buscar sala..." />
-                                <FormMessage />
-                                </FormItem>
-                            )} />
-                        </div>
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                            <FormField control={form.control} name="asistentes" render={({field}) => <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input placeholder="Nº Asistentes" type="number" {...field} /></FormControl></FormItem> } />
-                            <FormField control={form.control} name="precioUnitario" render={({field}) => <FormItem><FormLabel>Precio Unitario</FormLabel><FormControl><Input placeholder="Precio Unitario" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
-                            <FormField control={form.control} name="importeFijo" render={({field}) => <FormItem><FormLabel>Importe Fijo</FormLabel><FormControl><Input placeholder="Importe Fijo" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
-                            <FormItem><FormLabel>Total</FormLabel><FormControl><Input readOnly value={total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} /></FormControl></FormItem>
-                        </div>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                            <FormField control={form.control} name="descripcion" render={({field}) => (
-                                <FormItem><FormLabel>Descripción</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un tipo de servicio" /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            {tiposServicio.map(tipo => <SelectItem key={tipo.id} value={tipo.servicio}>{tipo.servicio}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </FormItem> 
-                            )} />
-                            <FormField control={form.control} name="conGastronomia" render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-start gap-3 rounded-lg border p-3">
-                                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                    <FormLabel className="!m-0 flex items-center gap-2">
-                                        <Utensils className="h-4 w-4"/>
-                                        Con gastronomía
-                                    </FormLabel>
-                                </FormItem>
-                            )} />
-                        </div>
-                        <FormField control={form.control} name="comentarios" render={({field}) => <FormItem><FormLabel>Comentarios</FormLabel><FormControl><Textarea placeholder="Comentarios del servicio..." {...field} /></FormControl></FormItem> } />
-                    </CardContent>
-                    <CardFooter>
-                        <Button type="submit"><Save className="mr-2" /> Guardar Hito</Button>
-                    </CardFooter>
-                </form>
-            </Form>
-        </Card>
-    );
-}
-
-
 export default function ComercialPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
     const [ajustes, setAjustes] = useState<ComercialAjuste[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const [editingItem, setEditingItem] = useState<ComercialBriefingItem | null>(null);
-    
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [tiposServicio, setTiposServicio] = useState<TipoServicio[]>([]);
+
     const nuevoAjusteConceptoRef = useRef<HTMLInputElement>(null);
     const nuevoAjusteImporteRef = useRef<HTMLInputElement>(null);
 
@@ -232,7 +131,12 @@ export default function ComercialPage() {
 
     const financialForm = useForm<FinancialFormValues>({
         resolver: zodResolver(financialSchema),
-        defaultValues: { agencyPercentage: 0, spacePercentage: 0, agencyCommissionValue: 0, spaceCommissionValue: 0 }
+        defaultValues: {
+            agencyPercentage: 0,
+            spacePercentage: 0,
+            agencyCommissionValue: 0,
+            spaceCommissionValue: 0,
+        }
     });
 
     const watchedAgencyPercentage = financialForm.watch('agencyPercentage');
@@ -249,32 +153,58 @@ export default function ComercialPage() {
 
    const saveFinancials = useCallback(() => {
     if (!serviceOrder) return;
+
     const data = financialForm.getValues();
     const agencyCommission = (facturacionFinal * (data.agencyPercentage || 0) / 100) + (data.agencyCommissionValue || 0);
     const spaceCommission = (facturacionFinal * (data.spacePercentage || 0) / 100) + (data.spaceCommissionValue || 0);
+
     const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const index = allServiceOrders.findIndex(os => os.id === osId);
     if (index !== -1) {
-        allServiceOrders[index] = { ...allServiceOrders[index], facturacion: facturacionFinal, agencyPercentage: data.agencyPercentage, spacePercentage: data.spacePercentage, agencyCommissionValue: data.agencyCommissionValue, spaceCommissionValue: data.spaceCommissionValue, comisionesAgencia: agencyCommission, comisionesCanon: spaceCommission, };
+        allServiceOrders[index] = { 
+            ...allServiceOrders[index], 
+            facturacion: facturacionFinal,
+            agencyPercentage: data.agencyPercentage,
+            spacePercentage: data.spacePercentage,
+            agencyCommissionValue: data.agencyCommissionValue,
+            spaceCommissionValue: data.spaceCommissionValue,
+            comisionesAgencia: agencyCommission,
+            comisionesCanon: spaceCommission,
+        };
         localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
         setServiceOrder(allServiceOrders[index]);
     }
   }, [serviceOrder, osId, facturacionFinal, financialForm]);
 
   useEffect(() => {
+    const storedTipos = localStorage.getItem('tipoServicio');
+    if (storedTipos) {
+      setTiposServicio(JSON.parse(storedTipos));
+    }
+    
     const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}') as {[key: string]: ComercialAjuste[]};
+
     if (osId) {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allServiceOrders.find(os => os.id === osId);
       if(currentOS){
         setServiceOrder(currentOS);
-        financialForm.reset({ agencyPercentage: currentOS.agencyPercentage || 0, spacePercentage: currentOS.spacePercentage || 0, agencyCommissionValue: currentOS.agencyCommissionValue || 0, spaceCommissionValue: currentOS.spaceCommissionValue || 0, });
-      } else { router.push('/pes'); }
+        financialForm.reset({
+            agencyPercentage: currentOS.agencyPercentage || 0,
+            spacePercentage: currentOS.spacePercentage || 0,
+            agencyCommissionValue: currentOS.agencyCommissionValue || 0,
+            spaceCommissionValue: currentOS.spaceCommissionValue || 0,
+        });
+      } else {
+        router.push('/pes');
+      }
+
       const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
       const currentBriefing = allBriefings.find(b => b.osId === osId);
       setBriefing(currentBriefing || { osId, items: [] });
+      
       setAjustes(allAjustes[osId] || []);
-    } else { router.push('/pes'); }
+    }
     setIsMounted(true);
   }, [osId, router, financialForm]);
 
@@ -286,14 +216,21 @@ export default function ComercialPage() {
 
   const sortedBriefingItems = useMemo(() => {
     if (!briefing?.items) return [];
-    return [...briefing.items].sort((a, b) => a.fecha.localeCompare(b.fecha) || a.horaInicio.localeCompare(b.horaInicio));
+    return [...briefing.items].sort((a, b) => {
+      const dateComparison = a.fecha.localeCompare(b.fecha);
+      if (dateComparison !== 0) return dateComparison;
+      return a.horaInicio.localeCompare(b.horaInicio);
+    });
   }, [briefing]);
 
   const saveBriefing = (newBriefing: ComercialBriefing) => {
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const index = allBriefings.findIndex(b => b.osId === osId);
-    if (index !== -1) allBriefings[index] = newBriefing;
-    else allBriefings.push(newBriefing);
+    if (index !== -1) {
+      allBriefings[index] = newBriefing;
+    } else {
+      allBriefings.push(newBriefing);
+    }
     localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
     setBriefing(newBriefing);
   };
@@ -305,10 +242,12 @@ export default function ComercialPage() {
 
   const handleRowClick = (item: ComercialBriefingItem) => {
     setEditingItem(item);
+    setIsDialogOpen(true);
   };
 
   const handleNewClick = () => {
     setEditingItem(null);
+    setIsDialogOpen(true);
   };
 
   const handleSaveItem = (data: BriefingItemFormValues) => {
@@ -323,17 +262,30 @@ export default function ComercialPage() {
     }
     saveBriefing({ ...briefing, items: newItems });
     setEditingItem(null);
-    return true;
+    return true; // Indicate success to close dialog
   };
 
   const handleDeleteItem = (itemId: string) => {
     if (!briefing) return;
     const newItems = briefing.items.filter(item => item.id !== itemId);
     saveBriefing({ ...briefing, items: newItems });
-    if(editingItem?.id === itemId) setEditingItem(null);
     toast({ title: 'Hito eliminado' });
   };
   
+  const calculateDuration = (start: string, end: string) => {
+    try {
+      const startTime = parse(start, 'HH:mm', new Date());
+      const endTime = parse(end, 'HH:mm', new Date());
+      const diff = differenceInMinutes(endTime, startTime);
+      if (diff < 0) return 'N/A';
+      const hours = Math.floor(diff / 60);
+      const minutes = diff % 60;
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    } catch (e) {
+      return 'N/A';
+    }
+  };
+
   const saveAjustes = (newAjustes: ComercialAjuste[]) => {
       if(!osId) return;
       const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}');
@@ -345,12 +297,14 @@ export default function ComercialPage() {
   const handleAddAjuste = () => {
     const concepto = nuevoAjusteConceptoRef.current?.value;
     const importe = nuevoAjusteImporteRef.current?.value;
+
     if (!concepto || !importe) {
         toast({ variant: 'destructive', title: 'Error', description: 'El concepto y el importe son obligatorios.' });
         return;
     }
     const newAjustes = [...ajustes, { id: Date.now().toString(), concepto, importe: parseFloat(importe) }];
     saveAjustes(newAjustes);
+
     if(nuevoAjusteConceptoRef.current) nuevoAjusteConceptoRef.current.value = '';
     if(nuevoAjusteImporteRef.current) nuevoAjusteImporteRef.current.value = '';
   };
@@ -362,15 +316,145 @@ export default function ComercialPage() {
   
   const handleAddLocation = (newLocation: string) => {
     if (!serviceOrder) return;
-    const updatedOS = { ...serviceOrder, deliveryLocations: [...(serviceOrder.deliveryLocations || []), newLocation] };
+    
+    const updatedOS = {
+        ...serviceOrder,
+        deliveryLocations: [...(serviceOrder.deliveryLocations || []), newLocation]
+    };
+    
     const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const osIndex = allServiceOrders.findIndex(os => os.id === serviceOrder.id);
+    
     if (osIndex !== -1) {
         allServiceOrders[osIndex] = updatedOS;
         localStorage.setItem('serviceOrders', JSON.stringify(allServiceOrders));
         setServiceOrder(updatedOS);
         toast({ title: 'Localización añadida', description: `Se ha guardado "${newLocation}" en la Orden de Servicio.`})
     }
+  }
+
+  const BriefingItemDialog = ({ open, onOpenChange, item, onSave, serviceOrder, onAddLocation }: { open: boolean, onOpenChange: (open: boolean) => void, item: Partial<ComercialBriefingItem> | null, onSave: (data: BriefingItemFormValues) => boolean, serviceOrder: ServiceOrder | null, onAddLocation: (location: string) => void }) => {
+    const form = useForm<BriefingItemFormValues>({
+      resolver: zodResolver(briefingItemSchema),
+    });
+    
+    useEffect(() => {
+        form.reset({
+            id: item?.id || '',
+            fecha: item?.fecha || (serviceOrder?.startDate ? format(new Date(serviceOrder.startDate), 'yyyy-MM-dd') : ''),
+            horaInicio: item?.horaInicio || '09:00',
+            horaFin: item?.horaFin || '10:00',
+            conGastronomia: item?.conGastronomia || false,
+            descripcion: item?.descripcion || '',
+            comentarios: item?.comentarios || '',
+            sala: item?.sala || '',
+            asistentes: item?.asistentes || serviceOrder?.asistentes || 0,
+            precioUnitario: item?.precioUnitario || 0,
+            importeFijo: item?.importeFijo || 0,
+        })
+    }, [item, serviceOrder, form])
+
+
+    const asistentes = form.watch('asistentes');
+    const precioUnitario = form.watch('precioUnitario');
+    const importeFijo = form.watch('importeFijo');
+    const total = useMemo(() => (asistentes * precioUnitario) + (importeFijo || 0), [asistentes, precioUnitario, importeFijo]);
+    
+    const locationOptions = useMemo(() => {
+      return serviceOrder?.deliveryLocations?.map(loc => ({ label: loc, value: loc })) || [];
+    }, [serviceOrder]);
+
+    const handleLocationChange = (value: string) => {
+      const isNew = !locationOptions.some(opt => opt.value === value);
+      if (isNew && value) {
+        onAddLocation(value);
+      }
+      form.setValue('sala', value, { shouldDirty: true });
+    }
+
+    const onSubmit = (data: BriefingItemFormValues) => {
+      if (onSave(data)) {
+        onOpenChange(false);
+        form.reset();
+      }
+    };
+
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>{item ? 'Editar' : 'Nuevo'} Hito del Briefing</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <FormField control={form.control} name="fecha" render={({field}) => <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="horaInicio" render={({field}) => <FormItem><FormLabel>Hora Inicio</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="horaFin" render={({field}) => <FormItem><FormLabel>Hora Fin</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="sala" render={({field}) => (
+                    <FormItem className="flex flex-col"><FormLabel>Sala</FormLabel>
+                       <Combobox
+                          options={locationOptions}
+                          value={field.value || ''}
+                          onChange={handleLocationChange}
+                          placeholder="Busca o crea una sala..."
+                          searchPlaceholder="Buscar sala..."
+                      />
+                      <FormMessage />
+                    </FormItem>
+                 )} />
+                <FormField control={form.control} name="asistentes" render={({field}) => <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input placeholder="Nº Asistentes" type="number" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="precioUnitario" render={({field}) => <FormItem><FormLabel>Precio Unitario</FormLabel><FormControl><Input placeholder="Precio Unitario" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
+                 <FormField control={form.control} name="importeFijo" render={({field}) => <FormItem><FormLabel>Importe Fijo</FormLabel><FormControl><Input placeholder="Importe Fijo" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
+                <FormItem>
+                  <FormLabel>Total</FormLabel>
+                  <FormControl>
+                    <Input readOnly value={total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} />
+                  </FormControl>
+                </FormItem>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                <FormField control={form.control} name="descripcion" render={({field}) => (
+                    <FormItem><FormLabel>Descripción</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un tipo de servicio" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                {tiposServicio.map(tipo => <SelectItem key={tipo.id} value={tipo.servicio}>{tipo.servicio}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </FormItem> 
+                )} />
+                <FormField
+                    control={form.control}
+                    name="conGastronomia"
+                    render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-start gap-3 rounded-lg border p-3">
+                        <FormControl>
+                        <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                        />
+                        </FormControl>
+                        <FormLabel className="!m-0">
+                            Con gastronomía
+                        </FormLabel>
+                    </FormItem>
+                    )}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="comentarios" render={({field}) => <FormItem><FormLabel>Comentarios</FormLabel><FormControl><Textarea placeholder="Comentarios" {...field} /></FormControl></FormItem> } />
+              </div>
+              
+              <DialogFooter>
+                 <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
+                 <Button type="submit"><Save className="mr-2" /> Guardar</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    )
   }
 
   if (!isMounted || !serviceOrder) {
@@ -397,8 +481,14 @@ export default function ComercialPage() {
                               <form onChange={() => financialForm.handleSubmit(handleSaveFinancials)()} className="flex flex-col space-y-2">
                                   <h3 className="text-base font-semibold border-b pb-1">Información Financiera</h3>
                                   <div className="grid grid-cols-2 gap-4 items-end">
-                                      <FormItem><FormLabel className="text-xs">Fact. Briefing</FormLabel><FormControl><Input readOnly value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8 text-sm" /></FormControl></FormItem>
-                                      <FormItem><FormLabel className="text-xs">Facturación Final</FormLabel><FormControl><Input readOnly value={facturacionFinal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8 text-sm"/></FormControl></FormItem>
+                                      <FormItem>
+                                          <FormLabel className="text-xs">Fact. Briefing</FormLabel>
+                                          <FormControl><Input readOnly value={totalBriefing.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8 text-sm" /></FormControl>
+                                      </FormItem>
+                                      <FormItem>
+                                          <FormLabel className="text-xs">Facturación Final</FormLabel>
+                                          <FormControl><Input readOnly value={facturacionFinal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8 text-sm"/></FormControl>
+                                      </FormItem>
                                       <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (<FormItem><FormLabel className="text-xs">% Agencia</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl></FormItem>)} />
                                       <FormField control={financialForm.control} name="agencyCommissionValue" render={({ field }) => (<FormItem><FormLabel className="text-xs">Comisión Agencia (€)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl></FormItem>)} />
                                        <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (<FormItem><FormLabel className="text-xs">% Espacio</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl></FormItem>)} />
@@ -410,13 +500,29 @@ export default function ComercialPage() {
                                   <div className="border rounded-lg">
                                       <Table>
                                           <TableBody>
-                                              {ajustes.map(ajuste => (<TableRow key={ajuste.id}><TableCell className="font-medium p-1 text-sm">{ajuste.concepto}</TableCell><TableCell className="text-right p-1 text-sm">{ajuste.importe.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}</TableCell><TableCell className="w-12 text-right p-0 pr-1"><Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteAjuste(ajuste.id)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>))}
+                                              {ajustes.map(ajuste => (
+                                              <TableRow key={ajuste.id}>
+                                                  <TableCell className="font-medium p-1 text-sm">{ajuste.concepto}</TableCell>
+                                                  <TableCell className="text-right p-1 text-sm">{ajuste.importe.toLocaleString('es-ES', {style: 'currency', currency: 'EUR'})}</TableCell>
+                                                  <TableCell className="w-12 text-right p-0 pr-1">
+                                                      <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteAjuste(ajuste.id)}>
+                                                          <Trash2 className="h-4 w-4" />
+                                                      </Button>
+                                                  </TableCell>
+                                              </TableRow>
+                                              ))}
                                           </TableBody>
                                           <TableFooter>
                                           <TableRow>
-                                              <TableCell className="p-1"><Input ref={nuevoAjusteConceptoRef} placeholder="Nuevo concepto" className="h-8 text-xs"/></TableCell>
-                                              <TableCell className="text-right p-1"><Input ref={nuevoAjusteImporteRef} type="number" step="0.01" placeholder="Importe" className="text-right h-8 w-24 text-xs"/></TableCell>
-                                              <TableCell className="text-right p-1"><Button type="button" onClick={handleAddAjuste} size="sm" className="h-8 text-xs">Añadir</Button></TableCell>
+                                              <TableCell className="p-1">
+                                                  <Input ref={nuevoAjusteConceptoRef} placeholder="Nuevo concepto" className="h-8 text-xs"/>
+                                              </TableCell>
+                                              <TableCell className="text-right p-1">
+                                                  <Input ref={nuevoAjusteImporteRef} type="number" step="0.01" placeholder="Importe" className="text-right h-8 w-24 text-xs"/>
+                                              </TableCell>
+                                              <TableCell className="text-right p-1">
+                                                  <Button type="button" onClick={handleAddAjuste} size="sm" className="h-8 text-xs">Añadir</Button>
+                                              </TableCell>
                                           </TableRow>
                                       </TableFooter>
                                       </Table>
@@ -429,36 +535,67 @@ export default function ComercialPage() {
           </Accordion>
       </FormProvider>
 
-      <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] gap-6">
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex justify-between items-center">
-                    <span>Hitos del Briefing</span>
-                    <Button size="sm" onClick={handleNewClick}><PlusCircle className="mr-2"/> Nuevo</Button>
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-                <ScrollArea className="h-[calc(100vh-25rem)]">
-                <div className="space-y-1 p-2">
-                    {sortedBriefingItems.map(item => (
-                        <div key={item.id} className={cn("p-2 rounded-md cursor-pointer border border-transparent", editingItem?.id === item.id ? "bg-accent border-primary" : "hover:bg-accent/50")} onClick={() => handleRowClick(item)}>
-                            <div className="flex justify-between items-start">
-                                <p className="font-semibold">{item.descripcion}</p>
-                                {item.conGastronomia && <Utensils className="h-4 w-4 text-primary"/>}
-                            </div>
-                            <p className="text-sm text-muted-foreground">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}-{item.horaFin}</p>
-                        </div>
-                    ))}
-                    {sortedBriefingItems.length === 0 && <p className="p-4 text-center text-muted-foreground text-sm">No hay hitos en este briefing.</p>}
-                </div>
-                </ScrollArea>
-            </CardContent>
-        </Card>
-        
-        <div>
-            <HitoForm item={editingItem} onSave={handleSaveItem} serviceOrder={serviceOrder} onAddLocation={handleAddLocation} />
-        </div>
-      </div>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Briefing del Contrato</CardTitle>
+          <Button onClick={handleNewClick}><PlusCircle className="mr-2" /> Nuevo Hito</Button>
+        </CardHeader>
+        <CardContent>
+          <div className="border rounded-lg overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Inicio</TableHead>
+                  <TableHead>Fin</TableHead>
+                  <TableHead>Duración</TableHead>
+                  <TableHead>Gastro</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Comentarios</TableHead>
+                  <TableHead>Sala</TableHead>
+                  <TableHead>Asistentes</TableHead>
+                  <TableHead>P.Unitario</TableHead>
+                  <TableHead>Imp. Fijo</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedBriefingItems.length > 0 ? (
+                  sortedBriefingItems.map(item => (
+                    <TableRow key={item.id} onClick={() => handleRowClick(item)} className="cursor-pointer">
+                      <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell>{item.horaInicio}</TableCell>
+                      <TableCell>{item.horaFin}</TableCell>
+                      <TableCell>{calculateDuration(item.horaInicio, item.horaFin)}</TableCell>
+                      <TableCell>{item.conGastronomia ? <Check className="h-4 w-4" /> : null}</TableCell>
+                      <TableCell className="min-w-[200px]">{item.descripcion}</TableCell>
+                      <TableCell className="min-w-[200px]">{item.comentarios}</TableCell>
+                      <TableCell>{item.sala}</TableCell>
+                      <TableCell>{item.asistentes}</TableCell>
+                      <TableCell>{item.precioUnitario.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                      <TableCell>{(item.importeFijo || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                      <TableCell>{((item.asistentes * item.precioUnitario) + (item.importeFijo || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteItem(item.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={13} className="h-24 text-center">
+                      No hay hitos en el briefing. Añade uno para empezar.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+      <BriefingItemDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} item={editingItem} onSave={handleSaveItem} serviceOrder={serviceOrder} onAddLocation={handleAddLocation} />
     </>
   );
 }
