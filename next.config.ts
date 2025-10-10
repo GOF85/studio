@@ -1,3 +1,4 @@
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /* config options here */
@@ -30,6 +31,12 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'img.micecatering.eu',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'micecatering.com',
         port: '',
         pathname: '/**',
       }
