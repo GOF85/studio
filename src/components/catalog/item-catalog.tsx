@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -56,6 +57,10 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
   
   const filteredItems = useMemo(() => {
     return items.filter(item => {
+      // Robust check to prevent runtime errors
+      if (!item || !item.description || !item.itemCode) {
+        return false;
+      }
       const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
       const matchesSearch = item.description.toLowerCase().includes(searchTerm.toLowerCase()) || item.itemCode.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCategory && matchesSearch;
@@ -109,4 +114,3 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
     </section>
   );
 }
-

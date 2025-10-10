@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -33,7 +34,7 @@ export default function PedidosPage() {
       setServiceOrder(currentOS || null);
     }
     
-    const allArticulos = JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[];
+    const allArticulos = (JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[]).filter(item => item && item.itemCode && item.description);
 
     if (orderType === 'Alquiler') {
         setCatalogItems(allArticulos.filter(p => p.producidoPorPartner));
