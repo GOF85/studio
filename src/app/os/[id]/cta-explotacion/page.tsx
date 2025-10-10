@@ -18,7 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { GASTO_LABELS } from '@/lib/constants';
-import { formatNumber, formatCurrency } from '@/lib/utils';
+import { formatNumber, formatCurrency, formatPercentage } from '@/lib/utils';
 
 type CostRow = {
   label: string;
@@ -29,8 +29,6 @@ type CostRow = {
   objetivo_pct: number;
   comentario?: string;
 };
-
-const formatPercentage = (value: number) => `${(value * 100).toFixed(2)}%`;
 
 const calculateHours = (start?: string, end?: string): number => {
     if (!start || !end) return 0;
@@ -411,7 +409,7 @@ export default function CtaExplotacionPage() {
                     <Table>
                         <TableHeader>
                             <TableRow className="bg-muted/50">
-                                <TableHead className="p-2 sticky left-0 bg-muted/50 z-10"></TableHead>
+                                <TableHead className="p-2 sticky left-0 bg-muted/50 z-10 w-48">Partida</TableHead>
                                 <TableHead colSpan={2} className="p-2 text-center border-l border-r">Presupuesto</TableHead>
                                 <TableHead colSpan={2} className="p-2 text-center border-l border-r">
                                     Cierre
@@ -423,19 +421,6 @@ export default function CtaExplotacionPage() {
                                 </TableHead>
                                 <TableHead colSpan={2} className="p-2 text-center border-l border-r">Objetivo</TableHead>
                                 <TableHead colSpan={2} className="p-2 text-center border-l">Desviación (Real vs. Obj.)</TableHead>
-                            </TableRow>
-                            <TableRow>
-                                <TableHead className="p-2 sticky left-0 bg-background z-10">Partida</TableHead>
-                                <TableHead className="p-2 text-right border-l">€</TableHead>
-                                <TableHead className="p-2 text-right border-r">%</TableHead>
-                                <TableHead className="p-2 text-right border-l">€</TableHead>
-                                <TableHead className="p-2 text-right border-r">%</TableHead>
-                                <TableHead className="p-2 text-right border-l">€</TableHead>
-                                <TableHead className="p-2 text-right border-r">%</TableHead>
-                                <TableHead className="p-2 text-right border-l">€</TableHead>
-                                <TableHead className="p-2 text-right border-r">%</TableHead>
-                                <TableHead className="p-2 text-right border-l">€</TableHead>
-                                <TableHead className="p-2 text-right border-r">%</TableHead>
                             </TableRow>
                         </TableHeader>
                          <TableBody>
