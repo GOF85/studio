@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -148,6 +149,7 @@ type EspacioFormValues = z.infer<typeof espacioFormSchema>;
 
 const RELACION_COMERCIAL_OPCIONES: RelacionComercial[] = ['Exclusividad', 'Homologado Preferente', 'Homologado', 'Puntual', 'Sin Relación'];
 
+
 export default function EspacioFormPage() {
   const router = useRouter();
   const params = useParams();
@@ -159,6 +161,53 @@ export default function EspacioFormPage() {
 
   const form = useForm<EspacioFormValues>({
     resolver: zodResolver(espacioFormSchema),
+    defaultValues: {
+      id: '',
+      identificacion: {
+        nombreEspacio: '', tipoDeEspacio: [], ciudad: '', provincia: 'Madrid', calle: '', codigoPostal: '',
+        descripcionCorta: '', descripcionLarga: '', zona: '', estilos: [], tags: [], idealPara: []
+      },
+      capacidades: { salas: [], aforoMaximoBanquete: 0, aforoMaximoCocktail: 0 },
+      logistica: {
+        tipoCocina: 'Sin cocina',
+        montacargas: false,
+        accesoServicioIndependiente: false,
+        tomasAguaCocina: false,
+        desaguesCocina: false,
+        extraccionHumos: false,
+        limitadorSonido: false,
+        permiteMusicaExterior: false,
+        puntosAnclaje: false,
+        accesoVehiculos: '',
+        horarioMontajeDesmontaje: '',
+        dimensionesMontacargas: '',
+        potenciaTotal: '',
+        cuadrosElectricos: [],
+        tomasAgua: [],
+        desagues: [],
+        equipamientoCocina: [],
+        potenciaElectricaCocina: '',
+        descripcionOffice: '',
+        zonaAlmacenaje: '',
+        politicaDecoracion: '',
+        metricasOperativas: { dificultadMontaje: 3, penalizacionPersonalMontaje: 0, notasDificultadMontaje: '' }
+      },
+      evaluacionMICE: {
+        relacionComercial: 'Sin Relación', valoracionComercial: 3, valoracionOperaciones: 3,
+        exclusividadMusica: false, exclusividadAudiovisuales: false,
+        proveedorId: '', puntosFuertes: [], puntosDebiles: [], perfilClienteIdeal: '', argumentarioVentaRapido: [],
+        otrosProveedoresExclusivos: '', notasComerciales: '', resumenEjecutivoIA: '', factoresCriticosExito: [], riesgosPotenciales: []
+      },
+      experienciaInvitado: {
+        flow: {
+            accesoPrincipal: '', recorridoInvitado: '', aparcamiento: '', transportePublico: '',
+            accesibilidadAsistentes: '', guardarropa: false, seguridadPropia: false,
+        },
+        equipamientoAudiovisuales: '', pantalla: '', sistemaSonido: '', escenario: '', conexionWifi: ''
+      },
+      multimedia: { carpetaDRIVE: '', visitaVirtual: '' },
+      contactos: [],
+    },
   });
 
   const { fields: salasFields, append: appendSala, remove: removeSala } = useFieldArray({ control: form.control, name: "capacidades.salas" });
@@ -366,6 +415,30 @@ export default function EspacioFormPage() {
                         </AccordionContent>
                     </Card>
                 </AccordionItem>
+                <AccordionItem value="item-5">
+                    <Card>
+                        <AccordionTrigger className="p-4"><CardTitle>Experiencia del Invitado</CardTitle></AccordionTrigger>
+                        <AccordionContent>
+                             <CardContent className="space-y-4 pt-2">
+                                <FormField control={form.control} name="experienciaInvitado.flow.accesoPrincipal" render={({ field }) => (
+                                    <FormItem><FormLabel>Acceso Principal</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                                )} />
+                             </CardContent>
+                        </AccordionContent>
+                    </Card>
+                </AccordionItem>
+                <AccordionItem value="item-6">
+                    <Card>
+                        <AccordionTrigger className="p-4"><CardTitle>Contactos y Multimedia</CardTitle></AccordionTrigger>
+                        <AccordionContent>
+                             <CardContent className="space-y-4 pt-2">
+                                <FormField control={form.control} name="multimedia.carpetaDRIVE" render={({ field }) => (
+                                    <FormItem><FormLabel>Carpeta de Drive</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                                )} />
+                             </CardContent>
+                        </AccordionContent>
+                    </Card>
+                </AccordionItem>
              </Accordion>
           </form>
         </Form>
@@ -373,5 +446,3 @@ export default function EspacioFormPage() {
     </>
   );
 }
-
-    
