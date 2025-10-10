@@ -27,13 +27,12 @@ export default function PedidosPage() {
   const editOrderId = searchParams.get('orderId');
 
   useEffect(() => {
-    // This effect runs only on the client
     if (osId) {
-      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allServiceOrders.find(os => os.id === osId);
-      setServiceOrder(currentOS || null);
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const currentOS = allServiceOrders.find(os => os.id === osId);
+        setServiceOrder(currentOS || null);
     }
-    
+
     const allArticulos = (JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[]).filter(item => item && item.id && item.nombre);
     const allPrecios = (JSON.parse(localStorage.getItem('precios') || '[]') as Precio[]);
     
@@ -42,11 +41,14 @@ export default function PedidosPage() {
     if (orderType === 'Alquiler') {
         itemsToLoad = allArticulos
             .filter(p => p.producidoPorPartner)
-            .map(p => ({ ...p, itemCode: p.id, description: p.nombre, price: p.precioAlquiler, stock: 999, imageUrl: p.imagen || '', imageHint: p.nombre }));
+            .map(p => ({ ...p, itemCode: p.id, description: p.nombre, price: p.precioAlquiler, stock: 999, imageUrl: p.imagen || '', imageHint: p.nombre, category: p.categoria }));
     } else if (orderType) {
         const categoryMap = { 'Almacen': 'ALMACEN', 'Bodega': 'BODEGA', 'Bio': 'BIO' };
+        const typeMap = { 'Almacen': 'Almacen', 'Bodega': 'Bodega', 'Bio': 'Bio' };
         const filterCategory = categoryMap[orderType];
-        itemsToLoad = allPrecios
+        const filterType = typeMap[orderType];
+
+        const fromPrecios: CateringItem[] = allPrecios
             .filter(p => p.categoria === filterCategory)
             .map(p => ({
                 itemCode: p.id,
@@ -57,8 +59,22 @@ export default function PedidosPage() {
                 imageHint: p.producto.toLowerCase(),
                 category: p.categoria,
             }));
+        
+        const fromArticulos: CateringItem[] = allArticulos
+            .filter(p => p.categoria === filterType)
+            .map(p => ({
+                ...p,
+                itemCode: p.id,
+                description: p.nombre,
+                price: p.precioVenta,
+                stock: 999,
+                imageUrl: p.imagen || '',
+                imageHint: p.nombre
+            }));
+
+        itemsToLoad = [...fromPrecios, ...fromArticulos];
     }
-    setCatalogItems(itemsToLoad);
+    setCatalogItems(itemsToLoad.filter(item => item && item.description && item.itemCode));
 
 
     const allPlantillas = JSON.parse(localStorage.getItem('pedidoPlantillas') || '[]') as PedidoPlantilla[];
@@ -275,3 +291,4 @@ export default function PedidosPage() {
     </div>
   );
 }
+
