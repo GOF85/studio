@@ -22,6 +22,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
   const isEntregasModule = pathname.startsWith('/entregas');
   const isPortalModule = pathname.startsWith('/portal');
   const isOsModule = pathname.startsWith('/os/');
+  const isHomePage = pathname === '/';
   
   if (isPortalModule) {
       return (
@@ -76,7 +77,15 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
           </h1>
         </Link>
         <nav className="flex flex-1 items-center justify-end space-x-2">
-            {isOsModule ? (
+            {isHomePage && (
+              <Button asChild variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700">
+                <Link href="/entregas">
+                  <Package className="mr-2 h-5 w-5"/>
+                  Entregas MICE
+                </Link>
+              </Button>
+            )}
+            {isOsModule && (
                 <>
                     <Button asChild variant="ghost" className="text-base gap-2">
                         <Link href="/pes"><ClipboardList className="h-5 w-5 text-primary"/>PES</Link>
@@ -85,13 +94,6 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
                         <Link href="/calendario"><Calendar className="h-5 w-5 text-primary"/>Calendario PES</Link>
                     </Button>
                 </>
-            ) : (
-                <Button asChild variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700">
-                  <Link href="/entregas">
-                    <Package className="mr-2 h-5 w-5"/>
-                    Entregas MICE
-                  </Link>
-                </Button>
             )}
             <UserSwitcher />
         </nav>
