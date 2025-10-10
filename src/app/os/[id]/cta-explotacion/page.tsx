@@ -330,6 +330,10 @@ export default function CtaExplotacionPage() {
               </CardHeader>
               <CardContent>
                 <div className="border rounded-lg overflow-x-auto">
+                    <div className="p-3 border-b bg-muted/50 flex justify-between items-center rounded-t-lg">
+                        <h3 className="text-lg font-bold">Facturación Neta</h3>
+                        <span className="text-2xl font-bold text-primary">{formatCurrency(facturacionNeta)}</span>
+                    </div>
                     <Table>
                         <TableHeader>
                         <TableRow>
@@ -357,11 +361,6 @@ export default function CtaExplotacionPage() {
                         </TableRow>
                         </TableHeader>
                         <TableBody>
-                        <TableRow className="font-bold bg-muted/50 hover:bg-muted/50">
-                            <TableCell className="py-2 px-2 sticky left-0 bg-muted/50 z-10">Facturación Neta</TableCell>
-                            <TableCell colSpan={10} className="py-2 px-2 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
-                            <TableCell className="py-2 px-2"></TableCell>
-                        </TableRow>
                         {processedCostes.map(row => {
                             const pctSFactPresupuesto = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
                             const pctSFactCierre = facturacionNeta > 0 ? row.cierre / facturacionNeta : 0;
@@ -393,11 +392,11 @@ export default function CtaExplotacionPage() {
                                     <TableCell className={cn("py-1 px-2 text-right font-mono border-r", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>
                                         {formatPercentage(desviacionPct)}
                                     </TableCell>
-                                    <TableCell className="py-1 px-2 text-center">
+                                    <TableCell className={cn("py-1 px-2 text-center", row.comentario && "bg-amber-100")}>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingComment({ label: row.label, text: row.comentario || '' })}>
-                                                    <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-primary")} />
+                                                    <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-primary font-bold")} />
                                                 </Button>
                                             </TooltipTrigger>
                                             {row.comentario && <TooltipContent><p>{row.comentario}</p></TooltipContent>}
