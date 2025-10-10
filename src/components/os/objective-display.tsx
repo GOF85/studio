@@ -13,6 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { Separator } from '@/components/ui/separator';
 
 type ModuleName = keyof typeof GASTO_LABELS;
 
@@ -43,7 +44,13 @@ export function ObjectiveDisplay({ osId, moduleName }: ObjectiveDisplayProps) {
   } | null>(null);
 
   useEffect(() => {
-    if (osId && moduleName) {
+    if (typeof window !== 'undefined') {
+        setIsMounted(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isMounted && osId && moduleName) {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       const currentOS = allServiceOrders.find(os => os.id === osId);
 
@@ -134,9 +141,8 @@ export function ObjectiveDisplay({ osId, moduleName }: ObjectiveDisplayProps) {
         objectivePct,
         budget: budgetValue,
       });
-      setIsMounted(true);
     }
-  }, [osId, moduleName]);
+  }, [osId, moduleName, isMounted]);
 
   if (!isMounted || !data) {
     return null; // Or a loading skeleton
