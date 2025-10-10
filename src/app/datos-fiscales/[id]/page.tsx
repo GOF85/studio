@@ -8,12 +8,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, FileDown, Landmark, X } from 'lucide-react';
 import type { DatosFiscales } from '@/types';
-import { TIPO_ENTIDAD_FISCAL } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
@@ -32,9 +30,6 @@ export const datosFiscalesSchema = z.object({
   telefonoContacto: z.string().optional(),
   iban: z.string().optional(),
   formaDePagoHabitual: z.string().optional(),
-  tipo: z.enum(TIPO_ENTIDAD_FISCAL, {
-    errorMap: () => ({ message: "Debes seleccionar un tipo" }),
-  }),
 });
 
 type DatosFiscalesFormValues = z.infer<typeof datosFiscalesSchema>;
@@ -52,7 +47,6 @@ const defaultValues: Partial<DatosFiscalesFormValues> = {
   telefonoContacto: '',
   iban: '',
   formaDePagoHabitual: '',
-  tipo: 'Cliente',
 };
 
 export default function DatosFiscalesFormPage() {
@@ -151,19 +145,7 @@ export default function DatosFiscalesFormPage() {
                     <FormItem><FormLabel>CIF / NIF</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                  <FormField control={form.control} name="nombreComercial" render={({ field }) => (
-                    <FormItem className="lg:col-span-2"><FormLabel>Nombre Comercial</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                 <FormField control={form.control} name="tipo" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Tipo de Entidad</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                {TIPO_ENTIDAD_FISCAL.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
+                    <FormItem className="lg:col-span-3"><FormLabel>Nombre Comercial</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                  <FormField control={form.control} name="direccionFacturacion" render={({ field }) => (
                     <FormItem className="lg:col-span-3"><FormLabel>Dirección de Facturación</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>

@@ -5,8 +5,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, Landmark, ArrowLeft, FileUp, FileDown, Menu } from 'lucide-react';
-import type { DatosFiscales, TipoEntidadFiscal } from '@/types';
-import { TIPO_ENTIDAD_FISCAL } from '@/types';
+import type { DatosFiscales } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -36,21 +35,20 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Papa from 'papaparse';
 
-const CSV_HEADERS = ["id", "cif", "nombreEmpresa", "nombreComercial", "direccionFacturacion", "codigoPostal", "ciudad", "provincia", "pais", "emailContacto", "telefonoContacto", "iban", "formaDePagoHabitual", "tipo"];
+const CSV_HEADERS = ["id", "cif", "nombreEmpresa", "nombreComercial", "direccionFacturacion", "codigoPostal", "ciudad", "provincia", "pais", "emailContacto", "telefonoContacto", "iban", "formaDePagoHabitual"];
 
 
 export default function DatosFiscalesPage() {
   const [items, setItems] = useState<DatosFiscales[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [tipoFilter, setTipoFilter] = useState('all');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   const router = useRouter();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let storedData = localStorage.getItem('datosFiscales');
@@ -64,10 +62,9 @@ export default function DatosFiscalesPage() {
         item.nombreEmpresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.nombreComercial || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.cif.toLowerCase().includes(searchTerm.toLowerCase());
-      const typeMatch = tipoFilter === 'all' || item.tipo === tipoFilter;
-      return searchMatch && typeMatch;
+      return searchMatch;
     });
-  }, [items, searchTerm, tipoFilter]);
+  }, [items, searchTerm]);
 
 
   const handleDelete = () => {
@@ -79,7 +76,7 @@ export default function DatosFiscalesPage() {
     setItemToDelete(null);
   };
   
-    const handleExportCSV = () => {
+  const handleExportCSV = () => {
     if (items.length === 0) {
       toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay datos para exportar.' });
       return;
@@ -132,7 +129,6 @@ export default function DatosFiscalesPage() {
           telefonoContacto: item.telefonoContacto || '',
           iban: item.iban || '',
           formaDePagoHabitual: item.formaDePagoHabitual || '',
-          tipo: TIPO_ENTIDAD_FISCAL.includes(item.tipo) ? item.tipo : 'Cliente',
         }));
 
         console.log('Datos importados y mapeados:', importedData);
@@ -208,17 +204,6 @@ export default function DatosFiscalesPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-           <Select value={tipoFilter} onValueChange={setTipoFilter}>
-                <SelectTrigger className="w-full md:w-[220px]">
-                <SelectValue placeholder="Filtrar por tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Todos los Tipos</SelectItem>
-                    {TIPO_ENTIDAD_FISCAL.map(t => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
         </div>
 
         <div className="border rounded-lg">
@@ -227,7 +212,6 @@ export default function DatosFiscalesPage() {
               <TableRow>
                 <TableHead className="p-2">Razón Social</TableHead>
                 <TableHead className="p-2">CIF/NIF</TableHead>
-                <TableHead className="p-2">Tipo</TableHead>
                 <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -237,7 +221,6 @@ export default function DatosFiscalesPage() {
                   <TableRow key={item.id}>
                     <TableCell className="font-medium p-2">{item.nombreEmpresa}</TableCell>
                     <TableCell className="p-2">{item.cif}</TableCell>
-                    <TableCell className="p-2"><Badge variant="outline">{item.tipo}</Badge></TableCell>
                     <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -262,7 +245,7 @@ export default function DatosFiscalesPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={3} className="h-24 text-center">
                     No se encontraron entidades fiscales que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>
