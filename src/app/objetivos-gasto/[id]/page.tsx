@@ -35,7 +35,7 @@ export const objetivosGastoSchema = z.object({
 type ObjetivosGastoFormValues = z.infer<typeof objetivosGastoSchema>;
 
 const defaultValues: Partial<ObjetivosGastoFormValues> = {
-  name: '',
+  name: 'Micecatering',
   gastronomia: 0,
   bodega: 0,
   consumibles: 0,

@@ -4,9 +4,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Target, ArrowLeft } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Target, ArrowLeft, Star } from 'lucide-react';
 import type { ObjetivosGasto } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -35,12 +34,14 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { cn } from '@/lib/utils';
 
 export default function ObjetivosGastoPage() {
   const [plantillas, setPlantillas] = useState<ObjetivosGasto[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [plantillaToDelete, setPlantillaToDelete] = useState<string | null>(null);
+  const [defaultTemplateId, setDefaultTemplateId] = useState<string | null>(null);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -48,6 +49,10 @@ export default function ObjetivosGastoPage() {
   useEffect(() => {
     let storedData = localStorage.getItem('objetivosGastoPlantillas');
     setPlantillas(storedData ? JSON.parse(storedData) : []);
+    
+    let storedDefault = localStorage.getItem('defaultObjetivoGastoId');
+    setDefaultTemplateId(storedDefault);
+
     setIsMounted(true);
   }, []);
   
@@ -62,8 +67,20 @@ export default function ObjetivosGastoPage() {
     const updatedData = plantillas.filter(e => e.id !== plantillaToDelete);
     localStorage.setItem('objetivosGastoPlantillas', JSON.stringify(updatedData));
     setPlantillas(updatedData);
+
+    if (plantillaToDelete === defaultTemplateId) {
+      localStorage.removeItem('defaultObjetivoGastoId');
+      setDefaultTemplateId(null);
+    }
+    
     toast({ title: 'Plantilla eliminada', description: 'La plantilla se ha eliminado correctamente.' });
     setPlantillaToDelete(null);
+  };
+  
+  const handleSetDefault = (id: string) => {
+    localStorage.setItem('defaultObjetivoGastoId', id);
+    setDefaultTemplateId(id);
+    toast({ title: 'Plantilla por defecto establecida' });
   };
   
   if (!isMounted) {
@@ -72,7 +89,6 @@ export default function ObjetivosGastoPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
             <div>
@@ -105,6 +121,7 @@ export default function ObjetivosGastoPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="p-2 w-20">Principal</TableHead>
                 <TableHead className="p-2">Nombre de la Plantilla</TableHead>
                 <TableHead className="text-right p-2">Acciones</TableHead>
               </TableRow>
@@ -112,8 +129,18 @@ export default function ObjetivosGastoPage() {
             <TableBody>
               {filteredItems.length > 0 ? (
                 filteredItems.map(item => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium p-2">{item.name}</TableCell>
+                  <TableRow key={item.id} className={cn(item.id === defaultTemplateId && 'bg-amber-100/50')}>
+                    <TableCell className="p-2 text-center">
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={(e) => { e.stopPropagation(); handleSetDefault(item.id);}}
+                            className={cn(item.id === defaultTemplateId && "text-amber-500")}
+                        >
+                            <Star className={cn(item.id === defaultTemplateId && "fill-amber-400")} />
+                        </Button>
+                    </TableCell>
+                    <TableCell className="font-medium p-2 cursor-pointer" onClick={() => router.push(`/objetivos-gasto/${item.id}`)}>{item.name}</TableCell>
                     <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -138,7 +165,7 @@ export default function ObjetivosGastoPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={2} className="h-24 text-center">
+                  <TableCell colSpan={3} className="h-24 text-center">
                     No se encontraron plantillas que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>
