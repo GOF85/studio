@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Building, ArrowLeft } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Building, ArrowLeft, Menu } from 'lucide-react';
 import type { Espacio } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,8 +37,52 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
-const CSV_HEADERS = [ "id", "espacio", "escaparateMICE", "carpetaDRIVE", "calle", "nombreContacto1", "telefonoContacto1", "emailContacto1", "canonEspacioPorcentaje", "canonEspacioFijo", "canonMcPorcentaje", "canonMcFijo", "comisionAlquilerMcPorcentaje", "precioOrientativoAlquiler", "horaLimiteCierre", "aforoCocktail", "aforoBanquete", "auditorio", "aforoAuditorio", "zonaExterior", "capacidadesPorSala", "numeroDeSalas", "tipoDeEspacio", "tipoDeEventos", "ciudad", "directorio", "descripcion", "comentariosVarios", "equipoAudiovisuales", "cocina", "accesibilidadAsistentes", "pantalla", "plato", "accesoVehiculos", "aparcamiento", "conexionWifi", "homologacion", "comentariosMarketing"];
+
+// Aplanar el objeto Espacio para la exportación a CSV
+const flattenObject = (obj: any, parentKey = '', res: { [key: string]: any } = {}): { [key: string]: any } => {
+  for (let key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      const propName = parentKey ? parentKey + '.' + key : key;
+      if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+        flattenObject(obj[key], propName, res);
+      } else if (Array.isArray(obj[key])) {
+        res[propName] = JSON.stringify(obj[key]);
+      } else {
+        res[propName] = obj[key];
+      }
+    }
+  }
+  return res;
+};
+
+// Reconstruir el objeto Espacio desde un objeto aplanado del CSV
+const unflattenObject = (data: { [key: string]: any }): Espacio => {
+  const result: any = {};
+  for (const key in data) {
+    if (data.hasOwnProperty(key)) {
+      const keys = key.split('.');
+      keys.reduce((acc, part, index) => {
+        if (index === keys.length - 1) {
+            try {
+                // Intentar parsear si es un array JSON
+                acc[part] = JSON.parse(data[key]);
+            } catch (e) {
+                // Si no es JSON, asignar el valor directamente
+                acc[part] = data[key];
+            }
+        } else {
+          if (!acc[part]) {
+            acc[part] = {};
+          }
+        }
+        return acc[part];
+      }, result);
+    }
+  }
+  return result as Espacio;
+};
 
 export default function EspaciosPage() {
   const [espacios, setEspacios] = useState<Espacio[]>([]);
@@ -46,7 +90,6 @@ export default function EspaciosPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('all');
   const [espacioToDelete, setEspacioToDelete] = useState<string | null>(null);
-
 
   const router = useRouter();
   const { toast } = useToast();
@@ -60,28 +103,28 @@ export default function EspaciosPage() {
   
   const cities = useMemo(() => {
     if (!espacios) return ['all'];
-    const allCities = espacios.map(e => e.ciudad).filter(Boolean); // Filter out empty strings
+    const allCities = espacios.map(e => e.identificacion.ciudad).filter(Boolean);
     return ['all', ...Array.from(new Set(allCities))];
   }, [espacios]);
 
   const filteredEspacios = useMemo(() => {
     return espacios.filter(e => {
-      const matchesCity = selectedCity === 'all' || e.ciudad === selectedCity;
+      const matchesCity = selectedCity === 'all' || e.identificacion.ciudad === selectedCity;
       const matchesSearch = searchTerm.trim() === '' ||
-        e.espacio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        e.tipoDeEspacio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (e.emailContacto1 || '').toLowerCase().includes(searchTerm.toLowerCase());
+        e.identificacion.nombreEspacio.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        e.identificacion.tipoDeEspacio.some(tipo => tipo.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        e.contactos.some(c => c.email.toLowerCase().includes(searchTerm.toLowerCase()));
       return matchesCity && matchesSearch;
     });
   }, [espacios, searchTerm, selectedCity]);
-
 
   const handleExportCSV = () => {
     if (espacios.length === 0) {
       toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay espacios para exportar.' });
       return;
     }
-    const csv = Papa.unparse(espacios);
+    const flattenedData = espacios.map(espacio => flattenObject(espacio));
+    const csv = Papa.unparse(flattenedData);
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -98,16 +141,6 @@ export default function EspaciosPage() {
     fileInputRef.current?.click();
   };
 
-  const parseCurrency = (value: string | number) => {
-    if (typeof value === 'number') return value;
-    if (typeof value === 'string') {
-        const cleaned = value.replace(/[€\s]/g, '').replace(',', '.');
-        const number = parseFloat(cleaned);
-        return isNaN(number) ? 0 : number;
-    }
-    return 0;
-  };
-
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -116,58 +149,15 @@ export default function EspaciosPage() {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const headers = results.meta.fields || [];
-        const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
-
-        if (!hasAllHeaders) {
-            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
-            return;
+        try {
+            const importedData: Espacio[] = results.data.map(unflattenObject);
+            localStorage.setItem('espacios', JSON.stringify(importedData));
+            setEspacios(importedData);
+            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error de importación', description: 'El formato del archivo CSV no es válido. Verifica que las columnas y los datos JSON sean correctos.' });
+            console.error("Error al parsear CSV:", error);
         }
-        
-        const importedData: Espacio[] = results.data.map(item => ({
-            id: item.id || Date.now().toString() + Math.random(),
-            espacio: item.espacio || '',
-            escaparateMICE: item.escaparateMICE || '',
-            carpetaDRIVE: item.carpetaDRIVE || '',
-            calle: item.calle || '',
-            nombreContacto1: item.nombreContacto1 || '',
-            telefonoContacto1: item.telefonoContacto1 || '',
-            emailContacto1: item.emailContacto1 || '',
-            canonEspacioPorcentaje: parseCurrency(item.canonEspacioPorcentaje),
-            canonEspacioFijo: parseCurrency(item.canonEspacioFijo),
-            canonMcPorcentaje: parseCurrency(item.canonMcPorcentaje),
-            canonMcFijo: parseCurrency(item.canonMcFijo),
-            comisionAlquilerMcPorcentaje: parseCurrency(item.comisionAlquilerMcPorcentaje),
-            precioOrientativoAlquiler: item.precioOrientativoAlquiler || '',
-            horaLimiteCierre: item.horaLimiteCierre || '',
-            aforoCocktail: Number(item.aforoCocktail) || 0,
-            aforoBanquete: Number(item.aforoBanquete) || 0,
-            auditorio: item.auditorio || '',
-            aforoAuditorio: Number(item.aforoAuditorio) || 0,
-            zonaExterior: item.zonaExterior || '',
-            capacidadesPorSala: item.capacidadesPorSala || '',
-            numeroDeSalas: Number(item.numeroDeSalas) || 0,
-            tipoDeEspacio: item.tipoDeEspacio || '',
-            tipoDeEventos: item.tipoDeEventos || '',
-            ciudad: item.ciudad || '',
-            directorio: item.directorio || '',
-            descripcion: item.descripcion || '',
-            comentariosVarios: item.comentariosVarios || '',
-            equipoAudiovisuales: item.equipoAudiovisuales || '',
-            cocina: item.cocina || '',
-            accesibilidadAsistentes: item.accesibilidadAsistentes || '',
-            pantalla: item.pantalla || '',
-            plato: item.plato || '',
-            accesoVehiculos: item.accesoVehiculos || '',
-            aparcamiento: item.aparcamiento || '',
-            conexionWifi: item.conexionWifi || '',
-            homologacion: item.homologacion || '',
-            comentariosMarketing: item.comentariosMarketing || '',
-        }));
-        
-        localStorage.setItem('espacios', JSON.stringify(importedData));
-        setEspacios(importedData);
-        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
       },
       error: (error) => {
         toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
@@ -209,31 +199,32 @@ export default function EspaciosPage() {
                 Nuevo Espacio
               </Link>
             </Button>
+             <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon">
+                        <Menu />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleImportClick}>
+                        <FileUp className="mr-2" />
+                        Importar CSV
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept=".csv"
+                            onChange={handleImportCSV}
+                        />
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportCSV}>
+                        <FileDown className="mr-2" />
+                        Exportar CSV
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
-
-        <Card className="mb-6">
-           <CardHeader>
-            <h2 className="text-xl font-semibold">Importar y Exportar</h2>
-          </CardHeader>
-          <CardContent className="flex flex-col md:flex-row gap-4">
-             <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".csv"
-                onChange={handleImportCSV}
-            />
-            <Button variant="outline" className="w-full md:w-auto" onClick={handleImportClick}>
-              <FileUp className="mr-2" />
-              Importar CSV
-            </Button>
-            <Button variant="outline" className="w-full md:w-auto" onClick={handleExportCSV}>
-              <FileDown className="mr-2" />
-              Exportar CSV
-            </Button>
-          </CardContent>
-        </Card>
 
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
@@ -273,11 +264,15 @@ export default function EspaciosPage() {
               {filteredEspacios.length > 0 ? (
                 filteredEspacios.map(e => (
                   <TableRow key={e.id}>
-                    <TableCell className="font-medium p-2">{e.espacio}</TableCell>
-                    <TableCell className="p-2">{e.ciudad}</TableCell>
-                    <TableCell className="p-2">{e.tipoDeEspacio}</TableCell>
-                    <TableCell className="p-2">{e.nombreContacto1}</TableCell>
-                    <TableCell className="p-2">{e.emailContacto1}</TableCell>
+                    <TableCell className="font-medium p-2">{e.identificacion.nombreEspacio}</TableCell>
+                    <TableCell className="p-2">{e.identificacion.ciudad}</TableCell>
+                    <TableCell className="p-2">
+                      <div className="flex flex-wrap gap-1">
+                        {e.identificacion.tipoDeEspacio.map(t => <Badge key={t} variant="secondary">{t}</Badge>)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="p-2">{e.contactos[0]?.nombre || 'N/A'}</TableCell>
+                    <TableCell className="p-2">{e.contactos[0]?.email || 'N/A'}</TableCell>
                     <TableCell className="text-right p-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
