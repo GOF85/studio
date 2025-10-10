@@ -122,6 +122,10 @@ export const IDEAL_PARA = ['Bodas', 'Eventos Corporativos', 'Presentaciones de p
 export type Sala = {
   id: string;
   nombreSala: string;
+  m2?: number;
+  dimensiones?: string; // e.g., "20m x 30m"
+  alturaMax?: number;
+  alturaMin?: number;
   aforoTeatro?: number;
   aforoEscuela?: number;
   aforoCabaret?: number;
@@ -138,55 +142,117 @@ export type ContactoEspacio = {
     email: string;
 };
 
+export type CuadroElectrico = {
+    id: string;
+    ubicacion: string;
+    potencia: string; // e.g., "32A Trifásico"
+};
+
+export type MultimediaEspacio = {
+    fotosPrincipales?: string[];
+    fotosRecursos?: string[]; // Fotos técnicas, accesos, etc.
+    videos?: string[];
+    planos?: string[];
+    dossierComercial?: string;
+    visitaVirtual?: string;
+}
+
 export type Espacio = {
   id: string;
-  // Info General
+  // --- Info General y Localización ---
   espacio: string;
   tipoDeEspacio: (typeof TIPO_ESPACIO[number])[];
-  descripcionCorta?: string;
+  descripcionCorta?: string; // Tagline.
   descripcionLarga?: string;
-  
-  // Localización
   ciudad: string;
   provincia: string;
   calle: string;
   codigoPostal: string;
-  zona?: string; // Barrio, distrito, área. Ej: "Barrio de Salamanca"
-  
-  // Capacidades
+  zona?: string;
+
+  // --- Capacidades y Distribución ---
   aforoMaximoCocktail: number;
   aforoMaximoBanquete: number;
   salas: Sala[];
-  
-  // Características & Estilo (para IA)
+
+  // --- Características & Estilo (IA & Comercial) ---
   estilos: (typeof ESTILOS_ESPACIO[number])[];
   tags: (typeof TAGS_ESPACIO[number])[];
   idealPara: (typeof IDEAL_PARA[number])[];
+
+  // --- Logística y Producción ---
+  accesoVehiculos?: string;
+  horarioMontajeDesmontaje?: string;
+  montacargas: boolean;
+  dimensionesMontacargas?: string;
+  accesoServicioIndependiente: boolean;
+  potenciaTotal?: string;
+  cuadrosElectricos?: CuadroElectrico[];
+  tomasAgua?: string[];
+  desagues?: string[];
+  zonaAlmacenaje?: string;
+  limitadorSonido: boolean;
+  permiteMusicaExterior: boolean;
+  politicaDecoracion?: string;
+  puntosAnclaje: boolean; // Rigging points
+
+  // --- Cocina y Office ---
+  tipoCocina: 'Cocina completa' | 'Office de regeneración' | 'Sin cocina';
+  equipamientoCocina?: string[];
+  potenciaElectricaCocina?: string;
+  tomasAguaCocina: boolean;
+  desaguesCocina: boolean;
+  extraccionHumos: boolean;
+  descripcionOffice?: string;
   
-  // Logística y Servicios
-  cocinaInSitu: boolean;
-  officeParaCatering: boolean;
-  potenciaElectrica?: string; // Ej: "60 kW trifásica"
-  accesoMontaje?: string; // Ej: "Montacargas 3x2m, acceso a nivel de calle"
-  horarioMontaje?: string;
-  horarioMaximoEvento?: string; // Ej: "Hasta las 02:00"
-  aparcamiento?: string;
-  accesibilidad: boolean; // Adaptado para movilidad reducida
-  
-  // Info Comercial y Financiera
+  // --- Info Comercial y Financiera ---
+  proveedorId?: string; // Link to Proveedor DB
   proveedorHomologadoMICE: boolean;
   canonEspacioPorcentaje: number;
   canonEspacioFijo: number;
   comisionAgenciaPorcentaje: number;
-  precioOrientativoAlquiler?: string; // Ej: "Desde 5.000€ media jornada"
+  precioOrientativoAlquiler?: string;
   exclusividadMusica: boolean;
   exclusividadAudiovisuales: boolean;
-  notasComerciales?: string; // Comentarios internos
+  otrosProveedoresExclusivos?: string;
+  notasComerciales?: string;
   
-  // Contactos y Enlaces
+  // --- Contactos y Multimedia ---
   contactos: ContactoEspacio[];
+  multimedia?: MultimediaEspacio;
+
+  // --- Evaluación Interna MICE (IA) ---
+  valoracionComercial?: 1 | 2 | 3 | 4 | 5;
+  valoracionOperaciones?: 1 | 2 | 3 | 4 | 5;
+  puntosFuertes?: string[];
+  puntosDebiles?: string[];
+  notasInternasOperaciones?: string;
+
+  // --- Deprecated fields from old structure (to be removed after migration) ---
   escaparateMICE?: string;
   carpetaDRIVE?: string;
+  nombreContacto1?: string;
+  telefonoContacto1?: string;
+  emailContacto1?: string;
+  canonMcPorcentaje?: number;
+  canonMcFijo?: number;
+  horaLimiteCierre?: string;
+  auditorio?: string;
+  aforoAuditorio?: number;
+  zonaExterior?: string;
+  capacidadesPorSala?: string;
+  numeroDeSalas?: number;
+  directorio?: string;
+  comentariosVarios?: string;
+  equipoAudiovisuales?: string;
+  cocina?: string;
+  accesibilidadAsistentes?: string;
+  pantalla?: string;
+  plato?: string;
+  aparcamiento?: string;
+  conexionWifi?: string;
+  homologacion?: string;
+  comentariosMarketing?: string;
 };
 
 export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacen', 'Bio', 'Hielo', 'Alquiler', 'Menaje', 'Decoracion', 'Servicios', 'Otros'] as const;
@@ -865,3 +931,6 @@ export type CategoriaReceta = {
     nombre: string;
 }
 
+
+
+    
