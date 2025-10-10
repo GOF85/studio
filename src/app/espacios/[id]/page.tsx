@@ -7,8 +7,8 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, FileDown, Building, X, PlusCircle, Trash2 } from 'lucide-react';
-import type { Espacio } from '@/types';
-import { TIPO_ESPACIO, ESTILOS_ESPACIO, TAGS_ESPACIO, IDEAL_PARA, RELACION_COMERCIAL } from '@/types';
+import type { Espacio, RelacionComercial } from '@/types';
+import { TIPO_ESPACIO, ESTILOS_ESPACIO, TAGS_ESPACIO, IDEAL_PARA } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -21,6 +21,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
 
 const salaSchema = z.object({
   id: z.string(),
@@ -54,7 +56,6 @@ const cuadroElectricoSchema = z.object({
 
 export const espacioFormSchema = z.object({
   id: z.string(),
-  // --- IDENTIFICACIÓN ---
   identificacion: z.object({
     nombreEspacio: z.string().min(1, 'El nombre es obligatorio'),
     tipoDeEspacio: z.array(z.string()).min(1, "Selecciona al menos un tipo"),
@@ -69,13 +70,11 @@ export const espacioFormSchema = z.object({
     tags: z.array(z.string()).optional(),
     idealPara: z.array(z.string()).optional(),
   }),
-  // --- CAPACIDADES ---
   capacidades: z.object({
     aforoMaximoCocktail: z.coerce.number().optional(),
     aforoMaximoBanquete: z.coerce.number().optional(),
     salas: z.array(salaSchema).optional(),
   }),
-  // --- LOGÍSTICA ---
   logistica: z.object({
     accesoVehiculos: z.string().optional(),
     horarioMontajeDesmontaje: z.string().optional(),
@@ -102,16 +101,11 @@ export const espacioFormSchema = z.object({
         dificultadMontaje: z.coerce.number().min(1).max(5).optional(),
         penalizacionPersonalMontaje: z.coerce.number().optional(),
         notasDificultadMontaje: z.string().optional(),
-        valoracionOperaciones: z.coerce.number().min(1).max(5).optional(),
-        factoresCriticosExito: z.array(z.string()).optional(),
-        riesgosPotenciales: z.array(z.string()).optional(),
-        notasInternasOperaciones: z.string().optional(),
     }).optional(),
   }),
-  // --- EVALUACIÓN MICE ---
   evaluacionMICE: z.object({
     proveedorId: z.string().optional(),
-    relacionComercial: z.enum(RELACION_COMERCIAL),
+    relacionComercial: z.enum(['Exclusividad', 'Homologado Preferente', 'Homologado', 'Puntual', 'Sin Relación']),
     valoracionComercial: z.coerce.number().min(1).max(5).optional(),
     puntosFuertes: z.array(z.string()).optional(),
     puntosDebiles: z.array(z.string()).optional(),
@@ -122,8 +116,10 @@ export const espacioFormSchema = z.object({
     otrosProveedoresExclusivos: z.string().optional(),
     notasComerciales: z.string().optional(),
     resumenEjecutivoIA: z.string().optional(),
+    valoracionOperaciones: z.coerce.number().min(1).max(5).optional(),
+    factoresCriticosExito: z.array(z.string()).optional(),
+    riesgosPotenciales: z.array(z.string()).optional(),
   }),
-  // --- EXPERIENCIA INVITADO ---
   experienciaInvitado: z.object({
     flow: z.object({
         accesoPrincipal: z.string().optional(),
@@ -140,16 +136,17 @@ export const espacioFormSchema = z.object({
     escenario: z.string().optional(),
     conexionWifi: z.string().optional(),
   }),
-  // --- MULTIMEDIA ---
   multimedia: z.object({
     carpetaDRIVE: z.string().url("URL inválida.").or(z.literal("")).optional(),
     visitaVirtual: z.string().url("URL inválida.").or(z.literal("")).optional(),
   }).optional(),
-  // --- CONTACTOS ---
   contactos: z.array(contactoSchema).optional(),
 });
 
+
 type EspacioFormValues = z.infer<typeof espacioFormSchema>;
+
+const RELACION_COMERCIAL_OPCIONES: RelacionComercial[] = ['Exclusividad', 'Homologado Preferente', 'Homologado', 'Puntual', 'Sin Relación'];
 
 export default function EspacioFormPage() {
   const router = useRouter();
@@ -182,9 +179,9 @@ export default function EspacioFormPage() {
         form.reset({
             id: Date.now().toString(),
             identificacion: { nombreEspacio: '', tipoDeEspacio: [], ciudad: '', provincia: 'Madrid', calle: '', codigoPostal: '' },
-            capacidades: { aforoMaximoBanquete: 0, aforoMaximoCocktail: 0, salas: [] },
-            logistica: { tipoCocina: 'Sin cocina' },
-            evaluacionMICE: { relacionComercial: 'Sin Relación' },
+            capacidades: { salas: [] },
+            logistica: { tipoCocina: 'Sin cocina', metricasOperativas: { dificultadMontaje: 3 } },
+            evaluacionMICE: { relacionComercial: 'Sin Relación', valoracionComercial: 3, valoracionOperaciones: 3 },
             experienciaInvitado: { flow: {}},
             multimedia: {},
             contactos: [],
@@ -246,7 +243,7 @@ export default function EspacioFormPage() {
 
         <Form {...form}>
           <form id="espacio-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-             <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full space-y-4">
+             <Accordion type="multiple" defaultValue={['item-1', 'item-2', 'item-3', 'item-4', 'item-5', 'item-6']} className="w-full space-y-4">
                 <AccordionItem value="item-1">
                     <Card>
                         <AccordionTrigger className="p-4"><CardTitle>Identificación y Clasificación</CardTitle></AccordionTrigger>
@@ -281,7 +278,7 @@ export default function EspacioFormPage() {
                         </AccordionContent>
                     </Card>
                 </AccordionItem>
-                 <AccordionItem value="item-2">
+                <AccordionItem value="item-2">
                     <Card>
                         <AccordionTrigger className="p-4"><CardTitle>Capacidades y Distribución</CardTitle></AccordionTrigger>
                         <AccordionContent>
@@ -311,6 +308,61 @@ export default function EspacioFormPage() {
                                 <Button type="button" variant="outline" size="sm" onClick={() => appendSala({id: Date.now().toString(), nombreSala: '', esDiafana: true, tieneLuzNatural: true})}><PlusCircle className="mr-2"/>Añadir Sala</Button>
                              </div>
                         </CardContent>
+                        </AccordionContent>
+                    </Card>
+                </AccordionItem>
+                <AccordionItem value="item-3">
+                    <Card>
+                        <AccordionTrigger className="p-4"><CardTitle>Logística y Producción</CardTitle></AccordionTrigger>
+                        <AccordionContent>
+                            <CardContent className="space-y-4 pt-2">
+                                <FormField control={form.control} name="logistica.tipoCocina" render={({ field }) => (
+                                    <FormItem><FormLabel>Cocina</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="Cocina completa">Cocina completa</SelectItem>
+                                            <SelectItem value="Office de regeneración">Office de regeneración</SelectItem>
+                                            <SelectItem value="Sin cocina">Sin cocina</SelectItem>
+                                        </SelectContent>
+                                        </Select>
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="logistica.metricasOperativas.dificultadMontaje" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Nivel de Dificultad Montaje (1-5)</FormLabel>
+                                        <FormControl>
+                                            <Slider defaultValue={[field.value || 3]} value={[field.value || 3]} onValueChange={(value) => field.onChange(value[0])} max={5} min={1} step={1} />
+                                        </FormControl>
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="logistica.metricasOperativas.penalizacionPersonalMontaje" render={({ field }) => (
+                                    <FormItem><FormLabel>% Penalización Personal Montaje</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
+                                )} />
+                                 <FormField control={form.control} name="logistica.metricasOperativas.notasDificultadMontaje" render={({ field }) => (
+                                    <FormItem><FormLabel>Notas sobre Dificultad Montaje</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
+                                )} />
+                            </CardContent>
+                        </AccordionContent>
+                    </Card>
+                </AccordionItem>
+                 <AccordionItem value="item-4">
+                    <Card>
+                        <AccordionTrigger className="p-4"><CardTitle>Evaluación MICE</CardTitle></AccordionTrigger>
+                        <AccordionContent>
+                             <CardContent className="space-y-4 pt-2">
+                                <FormField control={form.control} name="evaluacionMICE.relacionComercial" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Relación Comercial</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                {RELACION_COMERCIAL_OPCIONES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </FormItem>
+                                )} />
+                             </CardContent>
                         </AccordionContent>
                     </Card>
                 </AccordionItem>
