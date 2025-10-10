@@ -133,7 +133,6 @@ export default function ArticuloFormPage() {
     if (selectedErpProduct) {
         setValue('tipo', selectedErpProduct.tipo, { shouldDirty: true });
         
-        // Always update rental price if available
         if (selectedErpProduct.precioAlquilerUd) {
             setValue('precioAlquiler', selectedErpProduct.precioAlquilerUd, { shouldDirty: true });
         }
@@ -195,7 +194,11 @@ export default function ArticuloFormPage() {
     }, 1000);
   }
   
-  const partnerOptions = partners.filter(p=>p.tipos.includes('Alquiler')).map(p => ({ value: p.id, label: p.nombreComercial }));
+  const partnerOptions = useMemo(() => {
+    return partners
+        .filter(p => p.tipos.includes(categoria as any))
+        .map(p => ({ value: p.id, label: p.nombreComercial }));
+  }, [partners, categoria]);
 
   const handleErpSelect = (erpProduct: IngredienteERP) => {
     setValue('erpId', erpProduct.id, { shouldDirty: true });
