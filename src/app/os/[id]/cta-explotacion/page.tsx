@@ -305,7 +305,14 @@ export default function CtaExplotacionPage() {
 
     const rowContent = (
       <TableRow className="hover:bg-muted/50">
-        <TableCell className={cn("py-1 px-2 font-medium sticky left-0 bg-background z-10", row.comentario && 'bg-amber-100 font-bold')}>{row.label}</TableCell>
+        <TableCell className="py-1 px-2 font-medium sticky left-0 bg-background z-10">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingComment({ label: row.label, text: row.comentario || '' })}>
+                <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-primary font-bold fill-amber-100")} />
+            </Button>
+            {row.label}
+          </div>
+        </TableCell>
         <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.presupuesto)}</TableCell>
         <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSFactPresupuesto)}</TableCell>
         <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.cierre)}</TableCell>
@@ -321,11 +328,6 @@ export default function CtaExplotacionPage() {
         </TableCell>
         <TableCell className={cn("py-1 px-2 text-right font-mono border-r", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>
           {formatPercentage(desviacionPct)}
-        </TableCell>
-        <TableCell className={cn("py-1 px-2 text-center", row.comentario && "bg-amber-100")}>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingComment({ label: row.label, text: row.comentario || '' })}>
-                <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-primary font-bold")} />
-            </Button>
         </TableCell>
       </TableRow>
     );
@@ -395,7 +397,6 @@ export default function CtaExplotacionPage() {
                             <TableHead colSpan={2} className="p-2 text-center border-l border-r bg-green-50/50">Real <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>Coste final editable para ajustes.</p></TooltipContent></Tooltip></TableHead>
                             <TableHead colSpan={2} className="p-2 text-center border-l border-r">Objetivo</TableHead>
                             <TableHead colSpan={2} className="p-2 text-center border-l">Desviación (Real vs. Obj.)</TableHead>
-                            <TableHead className="p-2 w-10"></TableHead>
                         </TableRow>
                         <TableRow>
                             <TableHead className="p-2 sticky left-0 bg-background z-10"></TableHead>
@@ -409,7 +410,6 @@ export default function CtaExplotacionPage() {
                             <TableHead className="p-2 text-right border-r">%</TableHead>
                             <TableHead className="p-2 text-right border-l">€</TableHead>
                             <TableHead className="p-2 text-right border-r">%</TableHead>
-                            <TableHead className="p-2"></TableHead>
                         </TableRow>
                         </TableHeader>
                          <TableBody>
@@ -497,7 +497,3 @@ export default function CtaExplotacionPage() {
     </TooltipProvider>
   );
 }
-
-
-
-
