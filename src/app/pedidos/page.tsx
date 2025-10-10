@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { OrderItem, MaterialOrder, ServiceOrder, PedidoPlantilla, ArticuloCatering, AlquilerDBItem, Precio, CateringItem } from '@/types';
+import type { OrderItem, MaterialOrder, ServiceOrder, PedidoPlantilla, ArticuloCatering, AlquilerDBItem, Precio, CateringItem, Proveedor } from '@/types';
 import { ItemCatalog } from '@/components/catalog/item-catalog';
 import { OrderSummary, type ExistingOrderData } from '@/components/order/order-summary';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +17,8 @@ export default function PedidosPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [catalogItems, setCatalogItems] = useState<CateringItem[]>([]);
   const [plantillas, setPlantillas] = useState<PedidoPlantilla[]>([]);
+  const [rentalProviders, setRentalProviders] = useState<Proveedor[]>([]);
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [existingOrderData, setExistingOrderData] = useState<ExistingOrderData | null>(null);
   const { toast } = useToast();
   const router = useRouter();
@@ -34,7 +36,7 @@ export default function PedidosPage() {
     }
 
     const allArticulos = (JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[]).filter(item => item && item.id && item.nombre);
-    const allPrecios = (JSON.parse(localStorage.getItem('precios') || '[]') as Precio[]);
+    const allPrecios = (JSON.parse(localStorage.getItem('precios') || '[]') as Precio[]).filter(item => item && item.id && item.producto);
     
     let itemsToLoad: CateringItem[] = [];
 
@@ -42,6 +44,9 @@ export default function PedidosPage() {
         itemsToLoad = allArticulos
             .filter(p => p.producidoPorPartner)
             .map(p => ({ ...p, itemCode: p.id, description: p.nombre, price: p.precioAlquiler, stock: 999, imageUrl: p.imagen || '', imageHint: p.nombre, category: p.categoria }));
+        
+        const allProveedores = (JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[]);
+        setRentalProviders(allProveedores.filter(p => p.tipos.includes('Alquiler')));
     } else if (orderType) {
         const categoryMap = { 'Almacen': 'ALMACEN', 'Bodega': 'BODEGA', 'Bio': 'BIO' };
         const typeMap = { 'Almacen': 'Almacen', 'Bodega': 'Bodega', 'Bio': 'Bio' };
@@ -266,6 +271,9 @@ export default function PedidosPage() {
             orderType={orderType}
             plantillas={plantillas}
             onApplyTemplate={handleApplyTemplate}
+            rentalProviders={rentalProviders}
+            selectedProviderId={selectedProviderId}
+            onSelectProvider={setSelectedProviderId}
           />
           <div className="mt-8 lg:mt-0">
             <OrderSummary
@@ -291,4 +299,3 @@ export default function PedidosPage() {
     </div>
   );
 }
-

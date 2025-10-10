@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import { useState, useMemo } from 'react';
-import type { CateringItem, OrderItem, PedidoPlantilla } from '@/types';
+import type { CateringItem, OrderItem, PedidoPlantilla, Proveedor } from '@/types';
 import { ItemListItem } from './item-list-item';
 import { AssistantDialog } from '../order/assistant-dialog';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,9 @@ interface ItemCatalogProps {
   orderType: string | null;
   plantillas: PedidoPlantilla[];
   onApplyTemplate: (plantilla: PedidoPlantilla) => void;
+  rentalProviders?: Proveedor[];
+  selectedProviderId?: string | null;
+  onSelectProvider?: (id: string | null) => void;
 }
 
 function TemplateSelectorDialog({ plantillas, onSelect }: { plantillas: PedidoPlantilla[], onSelect: (plantilla: PedidoPlantilla) => void }) {
@@ -48,7 +52,7 @@ function TemplateSelectorDialog({ plantillas, onSelect }: { plantillas: PedidoPl
     )
 }
 
-export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantillas, onApplyTemplate }: ItemCatalogProps) {
+export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantillas, onApplyTemplate, rentalProviders, selectedProviderId, onSelectProvider }: ItemCatalogProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('all');
 
@@ -63,9 +67,12 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
       if (!item || typeof item.description !== 'string' || typeof item.itemCode !== 'string') {
         return false;
       }
+      
+      const rentalProviderMatch = orderType !== 'Alquiler' || !selectedProviderId || (item as any).partnerId === selectedProviderId;
+
       const matchesType = selectedType === 'all' || item.tipo === selectedType;
       const matchesSearch = item.description.toLowerCase().includes(searchTerm.toLowerCase()) || item.itemCode.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesType && matchesSearch;
+      return matchesType && matchesSearch && rentalProviderMatch;
     });
 
     const grouped: { [key: string]: CateringItem[] } = {};
@@ -83,7 +90,7 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
     }
     
     return Object.entries(grouped).sort(([groupA], [groupB]) => groupA.localeCompare(groupB));
-  }, [items, searchTerm, selectedType]);
+  }, [items, searchTerm, selectedType, orderType, selectedProviderId]);
 
 
   return (
@@ -95,6 +102,22 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
             {orderType !== 'Alquiler' && <AssistantDialog onAddSuggestedItem={onAddItem} />}
         </div>
       </div>
+       {orderType === 'Alquiler' && rentalProviders && onSelectProvider && (
+            <div className="mb-6">
+                <Label htmlFor="provider-selector">Proveedor de Alquiler</Label>
+                <Select onValueChange={(value) => onSelectProvider(value === 'none' ? null : value)} value={selectedProviderId || 'none'}>
+                    <SelectTrigger id="provider-selector">
+                        <SelectValue placeholder="Selecciona un proveedor para ver su catálogo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="none">-- Ninguno --</SelectItem>
+                        {rentalProviders.map(p => (
+                            <SelectItem key={p.id} value={p.id}>{p.nombreComercial}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+        )}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <Input 
           placeholder="Buscar por nombre o código..."
@@ -132,7 +155,11 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
             ))}
           </div>
         ) : (
-          <p className="text-center text-muted-foreground p-8">No se encontraron artículos que coincidan con tu búsqueda.</p>
+          <p className="text-center text-muted-foreground p-8">
+            {orderType === 'Alquiler' && !selectedProviderId 
+                ? 'Por favor, selecciona un proveedor para ver su catálogo de alquiler.' 
+                : 'No se encontraron artículos que coincidan con tu búsqueda.'}
+          </p>
         )}
       </div>
     </section>
