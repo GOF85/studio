@@ -32,8 +32,10 @@ const INTERNAL_USERS: Partial<PortalUser>[] = [
 export function UserSwitcher() {
     const { impersonatedUser, setImpersonatedUser } = useImpersonatedUser();
     const [portalUsers, setPortalUsers] = useState<PortalUser[]>([]);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
+        setIsMounted(true);
         const storedUsers = localStorage.getItem('portalUsers');
         if (storedUsers) {
             setPortalUsers(JSON.parse(storedUsers));
@@ -43,6 +45,10 @@ export function UserSwitcher() {
     const allUsers = [...INTERNAL_USERS, ...portalUsers];
     const currentUser = allUsers.find(u => u.id === impersonatedUser?.id);
 
+    if (!isMounted) {
+        return <Button variant="ghost" className="text-white hover:text-white hover:bg-gray-800">Cargando...</Button>;
+    }
+    
     if (process.env.NODE_ENV !== 'development') {
         return null;
     }
