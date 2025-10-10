@@ -212,8 +212,8 @@ export default function InfoPage() {
   const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'COMERCIAL' && p.nombre), [personal]);
   const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA' && p.nombre), [personal]);
   const personalRRHH = useMemo(() => personal.filter(p => p.departamento === 'RRHH' && p.nombre), [personal]);
-  const validEspacios = useMemo(() => espacios.filter(e => e.espacio), [espacios]);
-  const espacioOptions = useMemo(() => validEspacios.map(e => ({label: e.espacio, value: e.espacio})), [validEspacios]);
+  const validEspacios = useMemo(() => espacios.filter(e => e.identificacion.nombreEspacio), [espacios]);
+  const espacioOptions = useMemo(() => validEspacios.map(e => ({label: e.identificacion.nombreEspacio, value: e.identificacion.nombreEspacio})), [validEspacios]);
 
 
   const form = useForm<OsFormValues>({
@@ -230,11 +230,11 @@ export default function InfoPage() {
   }
 
   const handleEspacioChange = (name: string) => {
-    const espacio = espacios.find(e => e.espacio === name);
-    setValue('spaceAddress', espacio?.calle || '', { shouldDirty: true });
-    setValue('spaceContact', espacio?.nombreContacto1 || '', { shouldDirty: true });
-    setValue('spacePhone', espacio?.telefonoContacto1 || '', { shouldDirty: true });
-    setValue('spaceMail', espacio?.emailContacto1 || '', { shouldDirty: true });
+    const espacio = espacios.find(e => e.identificacion.nombreEspacio === name);
+    setValue('spaceAddress', espacio?.identificacion.calle || '', { shouldDirty: true });
+    setValue('spaceContact', espacio?.contactos[0]?.nombre || '', { shouldDirty: true });
+    setValue('spacePhone', espacio?.contactos[0]?.telefono || '', { shouldDirty: true });
+    setValue('spaceMail', espacio?.contactos[0]?.email || '', { shouldDirty: true });
   }
 
   useEffect(() => {
@@ -265,7 +265,7 @@ export default function InfoPage() {
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
     setPersonal(allPersonal.filter(p => p.nombre));
-    setEspacios(allEspacios.filter(e => e.espacio));
+    setEspacios(allEspacios.filter(e => e.identificacion.nombreEspacio));
     
     if (isEditing) {
       setAccordionDefaultValue([]); // Collapse for existing
@@ -787,3 +787,6 @@ export default function InfoPage() {
     </>
   );
 }
+
+
+    
