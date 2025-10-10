@@ -20,7 +20,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { GASTO_LABELS } from '@/lib/constants';
 import { formatNumber, formatCurrency } from '@/lib/utils';
 
-
 type CostRow = {
   label: string;
   presupuesto: number;
@@ -153,7 +152,7 @@ export default function CtaExplotacionPage() {
     const getCierreCost = (label: string, presupuesto: number) => {
         const categoria = Object.keys(GASTO_LABELS).find(key => GASTO_LABELS[key as keyof typeof GASTO_LABELS] === label);
         const perdida = categoria ? (devolucionesPorCategoria[categoria as string] || 0) : 0;
-        return presupuesto - perdida;
+        return presupuesto + perdida;
     };
     
     const personalExternoRealCost = (allPersonalExternoOrders.filter(o => o.osId === osId)).reduce((acc, order) => {
@@ -303,34 +302,52 @@ export default function CtaExplotacionPage() {
     const desviacion = row.objetivo - row.real;
     const desviacionPct = row.objetivo > 0 ? desviacion / row.objetivo : 0;
 
+    const cellContent = (
+      <div className="flex items-center gap-2 h-full w-full px-2 py-1">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingComment({ label: row.label, text: row.comentario || '' })}>
+            <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-primary font-bold")} />
+        </Button>
+        {row.label}
+      </div>
+    );
+
     return (
-        <TableRow className="hover:bg-muted/50">
-            <TableCell className={cn("py-1 px-2 font-medium sticky left-0 bg-background z-10", row.comentario && 'bg-amber-100')}>
-                <div className="flex items-center gap-2">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingComment({ label: row.label, text: row.comentario || '' })}>
-                                <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-primary font-bold")} />
-                            </Button>
-                        </TooltipTrigger>
-                        {row.comentario && <TooltipContent><p>{row.comentario}</p></TooltipContent>}
-                    </Tooltip>
-                    {row.label}
-                </div>
-            </TableCell>
-            <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.presupuesto)}</TableCell>
-            <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSFactPresupuesto)}</TableCell>
-            <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.cierre)}</TableCell>
-            <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-amber-50/50">{formatPercentage(pctSFactCierre)}</TableCell>
-            <TableCell className="py-1 px-2 text-right border-l bg-green-50/50">
-                <Input type="number" step="0.01" value={formatNumber(realCostInputs[row.label] ?? 0, 2)} onChange={(e) => handleRealCostInputChange(row.label, e.target.value)} className="h-7 text-right w-28 ml-auto" />
-            </TableCell>
-            <TableCell className={cn("py-1 px-2 text-right font-mono border-r bg-green-50/50", pctSFactReal > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFactReal)}</TableCell>
-            <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-l">{formatCurrency(row.objetivo)}</TableCell>
-            <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r">{formatPercentage(row.objetivo_pct)}</TableCell>
-            <TableCell className={cn("py-1 px-2 text-right font-mono border-l", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatCurrency(desviacion)}</TableCell>
-            <TableCell className={cn("py-1 px-2 text-right font-mono border-r", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatPercentage(desviacionPct)}</TableCell>
-        </TableRow>
+      <TableRow className="hover:bg-muted/50" key={row.label}>
+          <TableCell className={cn("p-0 font-medium sticky left-0 bg-background z-10", row.comentario && 'bg-amber-100/50')}>
+             {row.comentario ? (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                       {cellContent}
+                    </TooltipTrigger>
+                    <TooltipContent><p>{row.comentario}</p></TooltipContent>
+                </Tooltip>
+             ) : (
+                cellContent
+             )}
+          </TableCell>
+          <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.presupuesto)}</TableCell>
+          <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSFactPresupuesto)}</TableCell>
+          
+          <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.cierre)}</TableCell>
+          <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-amber-50/50">{formatPercentage(pctSFactCierre)}</TableCell>
+
+          <TableCell className="py-1 px-2 text-right border-l bg-green-50/50">
+              <Input
+                  type="number"
+                  step="0.01"
+                  value={realCostInputs[row.label] ?? 0}
+                  onChange={(e) => handleRealCostInputChange(row.label, e.target.value)}
+                  className="h-7 text-right w-28 ml-auto"
+              />
+          </TableCell>
+          <TableCell className={cn("py-1 px-2 text-right font-mono border-r bg-green-50/50", pctSFactReal > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFactReal)}</TableCell>
+          
+          <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-l">{formatCurrency(row.objetivo)}</TableCell>
+          <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r">{formatPercentage(row.objetivo_pct)}</TableCell>
+          
+          <TableCell className={cn("py-1 px-2 text-right font-mono border-l", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatCurrency(desviacion)}</TableCell>
+          <TableCell className={cn("py-1 px-2 text-right font-mono border-r", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatPercentage(desviacionPct)}</TableCell>
+      </TableRow>
     );
 };
 
@@ -373,16 +390,21 @@ export default function CtaExplotacionPage() {
                 <div className="border rounded-lg overflow-x-auto">
                     <Table>
                         <TableHeader>
+                            <TableRow className="bg-muted/20">
+                                <TableHead colSpan={11} className="p-2 text-lg font-semibold text-right">
+                                    Facturación Neta: <span className="text-primary">{formatCurrency(facturacionNeta)}</span>
+                                </TableHead>
+                            </TableRow>
                             <TableRow className="bg-muted/50">
                                 <TableHead className="p-2 sticky left-0 bg-muted/50 z-10"></TableHead>
                                 <TableHead colSpan={2} className="p-2 text-center border-l border-r">Presupuesto</TableHead>
                                 <TableHead colSpan={2} className="p-2 text-center border-l border-r">
                                     Cierre
-                                    <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>Presupuesto menos devoluciones y mermas.</p></TooltipContent></Tooltip>
+                                    <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>Presupuesto más mermas/pérdidas de material.</p></TooltipContent></Tooltip>
                                 </TableHead>
                                 <TableHead colSpan={2} className="p-2 text-center border-l border-r">
                                     Real
-                                    <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>Coste final editable para ajustes.</p></TooltipContent></Tooltip>
+                                     <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>Coste final editable para ajustes.</p></TooltipContent></Tooltip>
                                 </TableHead>
                                 <TableHead colSpan={2} className="p-2 text-center border-l border-r">Objetivo</TableHead>
                                 <TableHead colSpan={2} className="p-2 text-center border-l">Desviación (Real vs. Obj.)</TableHead>
@@ -402,11 +424,7 @@ export default function CtaExplotacionPage() {
                             </TableRow>
                         </TableHeader>
                          <TableBody>
-                            {processedCostes.map(row => (
-                                <React.Fragment key={row.label}>
-                                    {renderCostRow(row)}
-                                </React.Fragment>
-                            ))}
+                             {processedCostes.map(row => renderCostRow(row))}
                         </TableBody>
                     </Table>
                 </div>
@@ -486,3 +504,5 @@ export default function CtaExplotacionPage() {
     </TooltipProvider>
   );
 }
+
+    
