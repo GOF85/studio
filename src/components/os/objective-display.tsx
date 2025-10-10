@@ -153,6 +153,7 @@ export function ObjectiveDisplay({ osId, moduleName }: ObjectiveDisplayProps) {
               isExceeded ? "text-destructive border-destructive/50 bg-destructive/10" : "text-green-600 border-green-500/50 bg-green-500/10"
           )}>
               <Target className="h-5 w-5"/>
+              <span className="font-normal text-muted-foreground">Objetivos de gasto:</span>
               <span>{formatCurrency(data.objective)} ({formatPercentage(data.objectivePct)})</span>
           </div>
         </TooltipTrigger>
