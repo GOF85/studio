@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -58,7 +57,7 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       // Robust check to prevent runtime errors
-      if (!item || !item.description || !item.itemCode) {
+      if (!item || typeof item.description !== 'string' || typeof item.itemCode !== 'string') {
         return false;
       }
       const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
@@ -88,8 +87,8 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
             <SelectValue placeholder="Filtrar por categoría" />
           </SelectTrigger>
           <SelectContent>
-            {categories.map(category => (
-              <SelectItem key={category} value={category}>
+            {categories.map((category, index) => (
+              <SelectItem key={`${category}-${index}`} value={category}>
                 {category === 'all' ? 'Todas las categorías' : category}
               </SelectItem>
             ))}
