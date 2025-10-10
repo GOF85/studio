@@ -138,7 +138,8 @@ export default function CtaExplotacionPage() {
     let devolucionesPorCategoria: Record<string, number> = {};
     allReturnSheets.forEach(sheet => {
         sheet.items.forEach(item => {
-            const state = sheet.itemStates[`${item.orderId}_${item.itemCode}`];
+            const itemKey = `${item.orderId}_${item.itemCode}`;
+            const state = sheet.itemStates[itemKey];
             if (state && item.sentQuantity > state.returnedQuantity) {
                 const perdida = (item.sentQuantity - state.returnedQuantity) * item.price;
                 const categoria = item.category;
@@ -389,21 +390,21 @@ export default function CtaExplotacionPage() {
                         <TableHeader>
                         <TableRow>
                             <TableHead className="p-2 w-[180px] sticky left-0 bg-background z-10">Partida</TableHead>
-                            <TableHead colSpan={2} className="p-2 text-center border-l border-r bg-blue-50">Presupuesto</TableHead>
-                            <TableHead colSpan={2} className="p-2 text-center border-l border-r bg-amber-50">Cierre <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>Calculado restando las mermas de devoluciones al presupuesto.</p></TooltipContent></Tooltip></TableHead>
-                            <TableHead colSpan={2} className="p-2 text-center border-l border-r bg-green-50">Real <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>El valor Real es editable para realizar ajustes manuales.</p></TooltipContent></Tooltip></TableHead>
+                            <TableHead colSpan={2} className="p-2 text-center border-l border-r bg-blue-50/50">Presupuesto</TableHead>
+                            <TableHead colSpan={2} className="p-2 text-center border-l border-r bg-amber-50/50">Cierre <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>Presupuesto menos devoluciones.</p></TooltipContent></Tooltip></TableHead>
+                            <TableHead colSpan={2} className="p-2 text-center border-l border-r bg-green-50/50">Real <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>Coste final editable para ajustes.</p></TooltipContent></Tooltip></TableHead>
                             <TableHead colSpan={2} className="p-2 text-center border-l border-r">Objetivo</TableHead>
                             <TableHead colSpan={2} className="p-2 text-center border-l">Desviación (Real vs. Obj.)</TableHead>
                             <TableHead className="p-2 w-10"></TableHead>
                         </TableRow>
                         <TableRow>
                             <TableHead className="p-2 sticky left-0 bg-background z-10"></TableHead>
-                            <TableHead className="p-2 text-right border-l bg-blue-50">€</TableHead>
-                            <TableHead className="p-2 text-right border-r bg-blue-50">%</TableHead>
-                            <TableHead className="p-2 text-right border-l bg-amber-50">€</TableHead>
-                            <TableHead className="p-2 text-right border-r bg-amber-50">%</TableHead>
-                            <TableHead className="p-2 text-right border-l bg-green-50">€</TableHead>
-                            <TableHead className="p-2 text-right border-r bg-green-50">%</TableHead>
+                            <TableHead className="p-2 text-right border-l bg-blue-50/50">€</TableHead>
+                            <TableHead className="p-2 text-right border-r bg-blue-50/50">%</TableHead>
+                            <TableHead className="p-2 text-right border-l bg-amber-50/50">€</TableHead>
+                            <TableHead className="p-2 text-right border-r bg-amber-50/50">%</TableHead>
+                            <TableHead className="p-2 text-right border-l bg-green-50/50">€</TableHead>
+                            <TableHead className="p-2 text-right border-r bg-green-50/50">%</TableHead>
                             <TableHead className="p-2 text-right border-l">€</TableHead>
                             <TableHead className="p-2 text-right border-r">%</TableHead>
                             <TableHead className="p-2 text-right border-l">€</TableHead>
@@ -411,8 +412,12 @@ export default function CtaExplotacionPage() {
                             <TableHead className="p-2"></TableHead>
                         </TableRow>
                         </TableHeader>
-                        <TableBody>
-                        {processedCostes.map(row => renderCostRow(row))}
+                         <TableBody>
+                            {processedCostes.map(row => (
+                                <React.Fragment key={row.label}>
+                                    {renderCostRow(row)}
+                                </React.Fragment>
+                            ))}
                         </TableBody>
                     </Table>
                 </div>
@@ -492,5 +497,6 @@ export default function CtaExplotacionPage() {
     </TooltipProvider>
   );
 }
+
 
 
