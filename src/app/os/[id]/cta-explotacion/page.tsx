@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Euro, Target, Settings, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { Euro, Target, Settings, TrendingUp, TrendingDown, RefreshCw, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,6 +14,8 @@ import { ServiceOrder, ComercialBriefing, GastronomyOrder, MaterialOrder, Transp
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
 import { GASTO_LABELS } from '@/lib/constants';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type CostRow = {
   label: string;
@@ -253,57 +254,77 @@ export default function CtaExplotacionPage() {
 
   return (
     <>
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+    <TooltipProvider>
+      <div className="space-y-6">
           <Card>
               <CardHeader>
                   <div className="flex justify-between items-center">
                       <CardTitle>Análisis de Costes</CardTitle>
-                      <Button onClick={handleRecalculate}><RefreshCw className="mr-2 h-4 w-4"/>Actualizar Totales</Button>
+                      <div className="flex items-center gap-2">
+                          <Button onClick={handleRecalculate}><RefreshCw className="mr-2 h-4 w-4"/>Actualizar Totales</Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon"><Settings/></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Plantilla de Objetivos</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuGroup>
+                                    {objetivosPlantillas.map(p => (
+                                        <DropdownMenuItem key={p.id} onSelect={() => handleObjetivoChange(p.id)}>
+                                            {p.name}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                      </div>
                   </div>
               </CardHeader>
               <CardContent>
               <Table>
                   <TableHeader>
                   <TableRow>
-                      <TableHead className="p-2">Partida</TableHead>
+                      <TableHead className="p-2 w-[180px]">Partida</TableHead>
                       <TableHead className="p-2 text-right">Presupuesto</TableHead>
-                      <TableHead className="p-2 text-right">% s/ Fact.</TableHead>
-                      <TableHead className="p-2 text-right">Cierre</TableHead>
+                      <TableHead className="p-2 text-right">% s/Fact.</TableHead>
+                      <TableHead className="p-2 text-right">Cierre
+                        <Tooltip>
+                            <TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger>
+                            <TooltipContent><p>Estos campos son editables para ajustes manuales.</p></TooltipContent>
+                        </Tooltip>
+                      </TableHead>
+                      <TableHead className="p-2 text-right">% s/Fact.</TableHead>
                       <TableHead className="p-2 text-right">Objetivo MC</TableHead>
-                      <TableHead className="p-2 text-right">Desv. €</TableHead>
-                      <TableHead className="p-2 text-right">Desv. %</TableHead>
+                      <TableHead className="p-2 text-right">% Obj.</TableHead>
+                      <TableHead className="p-2 text-right">Desv. vs Obj. (€)</TableHead>
                   </TableRow>
                   </TableHeader>
                   <TableBody>
                   <TableRow className="font-bold bg-muted/50">
-                      <TableCell className="py-1 px-2">Facturación Neta</TableCell>
-                      <TableCell className="py-1 px-2 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
-                      <TableCell className="py-1 px-2 text-right text-primary">{formatPercentage(1)}</TableCell>
-                      <TableCell className="py-1 px-2 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
-                      <TableCell className="py-1 px-2 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
-                      <TableCell className="py-1 px-2"></TableCell>
-                      <TableCell className="py-1 px-2"></TableCell>
+                      <TableCell className="py-2 px-2">Facturación Neta</TableCell>
+                      <TableCell colSpan={6} className="py-2 px-2 text-right text-primary">{formatCurrency(facturacionNeta)}</TableCell>
+                      <TableCell className="py-2 px-2"></TableCell>
                   </TableRow>
                   {processedCostes.map(row => {
                       const cierreActual = cierreInputs[row.label] ?? row.cierre;
-                      const pctSFact = facturacionNeta > 0 ? cierreActual / facturacionNeta : 0;
+                      const pctSFactPresupuesto = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
+                      const pctSFactCierre = facturacionNeta > 0 ? cierreActual / facturacionNeta : 0;
                       const desviacion = row.objetivo - cierreActual;
-                      const desviacionPct = row.objetivo > 0 ? desviacion / row.objetivo : 0;
+                      
                       return (
                           <TableRow key={row.label}>
                               <TableCell className="py-1 px-2">{row.label}</TableCell>
-                              <TableCell className="py-1 px-2 text-right">{formatCurrency(row.presupuesto)}</TableCell>
-                              <TableCell className={cn("py-1 px-2 text-right", pctSFact > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFact)}</TableCell>
+                              <TableCell className="py-1 px-2 text-right font-mono">{formatCurrency(row.presupuesto)}</TableCell>
+                              <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground">{formatPercentage(pctSFactPresupuesto)}</TableCell>
                               <TableCell className="py-1 px-2 text-right">
                                   <Input type="number" step="0.01" value={cierreInputs[row.label] ?? 0} onChange={(e) => handleCierreInputChange(row.label, e.target.value)} className="h-7 text-right bg-secondary/30 w-24" />
                               </TableCell>
-                              <TableCell className="py-1 px-2 text-right">{formatCurrency(row.objetivo)}</TableCell>
-                              <TableCell className={cn("py-1 px-2 text-right", desviacion < 0 && "text-destructive", desviacion > 0 && "text-green-600")}>
+                              <TableCell className={cn("py-1 px-2 text-right font-mono", pctSFactCierre > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFactCierre)}</TableCell>
+                              <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground">{formatCurrency(row.objetivo)}</TableCell>
+                              <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground">{formatPercentage(row.objetivo_pct)}</TableCell>
+                              <TableCell className={cn("py-1 px-2 text-right font-mono", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>
                                   {formatCurrency(desviacion)}
-                              </TableCell>
-                              <TableCell className={cn("py-1 px-2 text-right", desviacionPct < 0 && "text-destructive", desviacionPct > 0 && "text-green-600")}>
-                                  {formatPercentage(desviacionPct)}
                               </TableCell>
                           </TableRow>
                       );
@@ -312,9 +333,6 @@ export default function CtaExplotacionPage() {
               </Table>
               </CardContent>
           </Card>
-        </div>
-
-        <div className="space-y-6">
           <Card>
               <CardHeader>
                   <CardTitle className="flex items-center gap-2"><TrendingUp/>Análisis de Rentabilidad</CardTitle>
@@ -341,8 +359,8 @@ export default function CtaExplotacionPage() {
                           </TableRow>
                            <TableRow className="font-bold bg-muted/50">
                               <TableCell>Rentabilidad</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadPresupuesto > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPresupuesto)}</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadCierre > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadCierre)}</TableCell>
+                              <TableCell className={cn("text-right", rentabilidadPresupuesto >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPresupuesto)}</TableCell>
+                              <TableCell className={cn("text-right", rentabilidadCierre >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadCierre)}</TableCell>
                           </TableRow>
                            <TableRow>
                               <TableCell className="font-medium">Repercusión HQ (25%)</TableCell>
@@ -351,8 +369,8 @@ export default function CtaExplotacionPage() {
                           </TableRow>
                            <TableRow className="font-bold bg-muted/50">
                               <TableCell>Rentabilidad Post-HQ</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadPostHQPresupuesto > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQPresupuesto)}</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadPostHQCierre > 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQCierre)}</TableCell>
+                              <TableCell className={cn("text-right", rentabilidadPostHQPresupuesto >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQPresupuesto)}</TableCell>
+                              <TableCell className={cn("text-right", rentabilidadPostHQCierre >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQCierre)}</TableCell>
                           </TableRow>
                           <TableRow>
                               <TableCell className="font-medium">Ingresos / Asistente</TableCell>
@@ -363,36 +381,8 @@ export default function CtaExplotacionPage() {
                   </Table>
               </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Target /> Objetivos de Gasto</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-               <Select onValueChange={handleObjetivoChange} value={serviceOrder.objetivoGastoId}>
-                  <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar plantilla..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                      {objetivosPlantillas.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-              </Select>
-               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground p-3 border rounded-md">
-                  {Object.keys(GASTO_LABELS).map((key) => {
-                      const objKey = key as keyof typeof GASTO_LABELS;
-                      const value = (objetivos as any)[objKey];
-                      if (value === undefined || value === null) return null;
-                      return (
-                          <div key={key} className="flex justify-between">
-                              <span className="font-medium">{GASTO_LABELS[objKey]}:</span>
-                              <span>{(value || 0).toFixed(2)}%</span>
-                          </div>
-                      )
-                  })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
+      </TooltipProvider>
     </>
   );
 }
