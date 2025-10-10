@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2 } from 'lucide-react';
@@ -46,9 +46,9 @@ export default function BodegaPage() {
   const osId = params.id as string;
   const { toast } = useToast();
 
-  useEffect(() => {
+   useEffect(() => {
     if (!osId) return;
-    
+
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bodega');
     setMaterialOrders(relatedOrders);
@@ -103,7 +103,7 @@ export default function BodegaPage() {
   }, [materialOrders, pickingSheets, osId]);
 
   const { allItems, blockedItems, pendingItems } = useMemo(() => {
-    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo })));
+    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo } as ItemWithOrderInfo)));
     const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
     
     // Filter from original orders, not the calculated 'Asignado' column
@@ -163,11 +163,7 @@ export default function BodegaPage() {
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
   };
-
-  if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Módulo de Bodega..." />;
-  }
-
+  
   const renderColumn = (title: string, items: ItemWithOrderInfo[]) => (
     <Card className="flex-1 bg-muted/30">
         <CardHeader className="pb-4">
@@ -197,6 +193,10 @@ export default function BodegaPage() {
         </CardContent>
     </Card>
   );
+
+  if (!isMounted) {
+    return <LoadingSkeleton title="Cargando Módulo de Bodega..." />;
+  }
 
   return (
     <>
