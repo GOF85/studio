@@ -3,74 +3,153 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, FileDown, Building, X } from 'lucide-react';
+import { Loader2, FileDown, Building, X, PlusCircle, Trash2 } from 'lucide-react';
 import type { Espacio } from '@/types';
+import { TIPO_ESPACIO, ESTILOS_ESPACIO, TAGS_ESPACIO, IDEAL_PARA, RELACION_COMERCIAL } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { MultiSelect } from '@/components/ui/multi-select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+const salaSchema = z.object({
+  id: z.string(),
+  nombreSala: z.string().min(1, "Nombre es obligatorio"),
+  m2: z.coerce.number().optional(),
+  dimensiones: z.string().optional(),
+  alturaMax: z.coerce.number().optional(),
+  alturaMin: z.coerce.number().optional(),
+  aforoTeatro: z.coerce.number().optional(),
+  aforoEscuela: z.coerce.number().optional(),
+  aforoCabaret: z.coerce.number().optional(),
+  aforoCocktailSala: z.coerce.number().optional(),
+  esDiafana: z.boolean().default(false),
+  tieneLuzNatural: z.boolean().default(false),
+});
+
+const contactoSchema = z.object({
+    id: z.string(),
+    nombre: z.string().min(1, "Nombre es obligatorio"),
+    cargo: z.string().optional(),
+    telefono: z.string().optional(),
+    email: z.string().email("Email inválido").or(z.literal('')),
+});
+
+const cuadroElectricoSchema = z.object({
+    id: z.string(),
+    ubicacion: z.string().min(1, "Ubicación requerida"),
+    potencia: z.string(),
+});
+
 
 export const espacioFormSchema = z.object({
   id: z.string(),
-  espacio: z.string().min(1, 'El nombre del espacio es obligatorio'),
-  escaparateMICE: z.string().default(''),
-  carpetaDRIVE: z.string().url().or(z.literal('')).optional(),
-  calle: z.string().default(''),
-  nombreContacto1: z.string().default(''),
-  telefonoContacto1: z.string().default(''),
-  emailContacto1: z.string().email().or(z.literal('')).optional(),
-  canonEspacioPorcentaje: z.coerce.number().default(0),
-  canonEspacioFijo: z.coerce.number().default(0),
-  canonMcPorcentaje: z.coerce.number().default(0),
-  canonMcFijo: z.coerce.number().default(0),
-  comisionAlquilerMcPorcentaje: z.coerce.number().default(0),
-  precioOrientativoAlquiler: z.string().default(''),
-  horaLimiteCierre: z.string().default(''),
-  aforoCocktail: z.coerce.number().default(0),
-  aforoBanquete: z.coerce.number().default(0),
-  auditorio: z.string().default(''),
-  aforoAuditorio: z.coerce.number().default(0),
-  zonaExterior: z.string().default(''),
-  capacidadesPorSala: z.string().default(''),
-  numeroDeSalas: z.coerce.number().default(0),
-  tipoDeEspacio: z.string().default(''),
-  tipoDeEventos: z.string().default(''),
-  ciudad: z.string().default(''),
-  directorio: z.string().default(''),
-  descripcion: z.string().default(''),
-  comentariosVarios: z.string().default(''),
-  equipoAudiovisuales: z.string().default(''),
-  cocina: z.string().default(''),
-  accesibilidadAsistentes: z.string().default(''),
-  pantalla: z.string().default(''),
-  plato: z.string().default(''),
-aparcamiento: z.string().default(''),
-  accesoVehiculos: z.string().default(''),
-  conexionWifi: z.string().default(''),
-  homologacion: z.string().default(''),
-  comentariosMarketing: z.string().default(''),
+  // --- IDENTIFICACIÓN ---
+  identificacion: z.object({
+    nombreEspacio: z.string().min(1, 'El nombre es obligatorio'),
+    tipoDeEspacio: z.array(z.string()).min(1, "Selecciona al menos un tipo"),
+    descripcionCorta: z.string().optional(),
+    descripcionLarga: z.string().optional(),
+    ciudad: z.string().min(1, "La ciudad es obligatoria"),
+    provincia: z.string().min(1, "La provincia es obligatoria"),
+    calle: z.string().min(1, "La calle es obligatoria"),
+    codigoPostal: z.string().min(1, "El C.P. es obligatorio"),
+    zona: z.string().optional(),
+    estilos: z.array(z.string()).optional(),
+    tags: z.array(z.string()).optional(),
+    idealPara: z.array(z.string()).optional(),
+  }),
+  // --- CAPACIDADES ---
+  capacidades: z.object({
+    aforoMaximoCocktail: z.coerce.number().optional(),
+    aforoMaximoBanquete: z.coerce.number().optional(),
+    salas: z.array(salaSchema).optional(),
+  }),
+  // --- LOGÍSTICA ---
+  logistica: z.object({
+    accesoVehiculos: z.string().optional(),
+    horarioMontajeDesmontaje: z.string().optional(),
+    montacargas: z.boolean().default(false),
+    dimensionesMontacargas: z.string().optional(),
+    accesoServicioIndependiente: z.boolean().default(false),
+    potenciaTotal: z.string().optional(),
+    cuadrosElectricos: z.array(cuadroElectricoSchema).optional(),
+    tomasAgua: z.array(z.string()).optional(),
+    desagues: z.array(z.string()).optional(),
+    tipoCocina: z.enum(['Cocina completa', 'Office de regeneración', 'Sin cocina']),
+    equipamientoCocina: z.array(z.string()).optional(),
+    potenciaElectricaCocina: z.string().optional(),
+    tomasAguaCocina: z.boolean().default(false),
+    desaguesCocina: z.boolean().default(false),
+    extraccionHumos: z.boolean().default(false),
+    descripcionOffice: z.string().optional(),
+    zonaAlmacenaje: z.string().optional(),
+    limitadorSonido: z.boolean().default(false),
+    permiteMusicaExterior: z.boolean().default(false),
+    politicaDecoracion: z.string().optional(),
+    puntosAnclaje: z.boolean().default(false),
+    metricasOperativas: z.object({
+        dificultadMontaje: z.coerce.number().min(1).max(5).optional(),
+        penalizacionPersonalMontaje: z.coerce.number().optional(),
+        notasDificultadMontaje: z.string().optional(),
+        valoracionOperaciones: z.coerce.number().min(1).max(5).optional(),
+        factoresCriticosExito: z.array(z.string()).optional(),
+        riesgosPotenciales: z.array(z.string()).optional(),
+        notasInternasOperaciones: z.string().optional(),
+    }).optional(),
+  }),
+  // --- EVALUACIÓN MICE ---
+  evaluacionMICE: z.object({
+    proveedorId: z.string().optional(),
+    relacionComercial: z.enum(RELACION_COMERCIAL),
+    valoracionComercial: z.coerce.number().min(1).max(5).optional(),
+    puntosFuertes: z.array(z.string()).optional(),
+    puntosDebiles: z.array(z.string()).optional(),
+    perfilClienteIdeal: z.string().optional(),
+    argumentarioVentaRapido: z.array(z.string()).optional(),
+    exclusividadMusica: z.boolean().default(false),
+    exclusividadAudiovisuales: z.boolean().default(false),
+    otrosProveedoresExclusivos: z.string().optional(),
+    notasComerciales: z.string().optional(),
+    resumenEjecutivoIA: z.string().optional(),
+  }),
+  // --- EXPERIENCIA INVITADO ---
+  experienciaInvitado: z.object({
+    flow: z.object({
+        accesoPrincipal: z.string().optional(),
+        recorridoInvitado: z.string().optional(),
+        aparcamiento: z.string().optional(),
+        transportePublico: z.string().optional(),
+        accesibilidadAsistentes: z.string().optional(),
+        guardarropa: z.boolean().default(false),
+        seguridadPropia: z.boolean().default(false),
+    }),
+    equipamientoAudiovisuales: z.string().optional(),
+    pantalla: z.string().optional(),
+    sistemaSonido: z.string().optional(),
+    escenario: z.string().optional(),
+    conexionWifi: z.string().optional(),
+  }),
+  // --- MULTIMEDIA ---
+  multimedia: z.object({
+    carpetaDRIVE: z.string().url("URL inválida.").or(z.literal("")).optional(),
+    visitaVirtual: z.string().url("URL inválida.").or(z.literal("")).optional(),
+  }).optional(),
+  // --- CONTACTOS ---
+  contactos: z.array(contactoSchema).optional(),
 });
 
 type EspacioFormValues = z.infer<typeof espacioFormSchema>;
-
-const defaultValues: Partial<EspacioFormValues> = {
-    espacio: '', escaparateMICE: '', carpetaDRIVE: '', calle: '', nombreContacto1: '',
-    telefonoContacto1: '', emailContacto1: '', canonEspacioPorcentaje: 0, canonEspacioFijo: 0,
-    canonMcPorcentaje: 0, canonMcFijo: 0, comisionAlquilerMcPorcentaje: 0, precioOrientativoAlquiler: '',
-    horaLimiteCierre: '', aforoCocktail: 0, aforoBanquete: 0, auditorio: '', aforoAuditorio: 0,
-    zonaExterior: '', capacidadesPorSala: '', numeroDeSalas: 0, tipoDeEspacio: '', tipoDeEventos: '',
-    ciudad: '', directorio: '', descripcion: '', comentariosVarios: '', equipoAudiovisuales: '', cocina: '',
-    accesibilidadAsistentes: '', pantalla: '', plato: '', accesoVehiculos: '', aparcamiento: '',
-    conexionWifi: '', homologacion: '', comentariosMarketing: '',
-};
 
 export default function EspacioFormPage() {
   const router = useRouter();
@@ -83,8 +162,11 @@ export default function EspacioFormPage() {
 
   const form = useForm<EspacioFormValues>({
     resolver: zodResolver(espacioFormSchema),
-    defaultValues,
   });
+
+  const { fields: salasFields, append: appendSala, remove: removeSala } = useFieldArray({ control: form.control, name: "capacidades.salas" });
+  const { fields: contactosFields, append: appendContacto, remove: removeContacto } = useFieldArray({ control: form.control, name: "contactos" });
+  const { fields: cuadrosFields, append: appendCuadro, remove: removeCuadro } = useFieldArray({ control: form.control, name: "logistica.cuadrosElectricos" });
 
   useEffect(() => {
     if (isEditing) {
@@ -97,7 +179,16 @@ export default function EspacioFormPage() {
         router.push('/espacios');
       }
     } else {
-        form.reset({...defaultValues, id: Date.now().toString() });
+        form.reset({
+            id: Date.now().toString(),
+            identificacion: { nombreEspacio: '', tipoDeEspacio: [], ciudad: '', provincia: 'Madrid', calle: '', codigoPostal: '' },
+            capacidades: { aforoMaximoBanquete: 0, aforoMaximoCocktail: 0, salas: [] },
+            logistica: { tipoCocina: 'Sin cocina' },
+            evaluacionMICE: { relacionComercial: 'Sin Relación' },
+            experienciaInvitado: { flow: {}},
+            multimedia: {},
+            contactos: [],
+        });
     }
   }, [id, isEditing, form, router, toast]);
 
@@ -110,17 +201,17 @@ export default function EspacioFormPage() {
     if (isEditing) {
       const index = allEspacios.findIndex(e => e.id === id);
       if (index !== -1) {
-        allEspacios[index] = data;
+        allEspacios[index] = data as Espacio;
         message = 'Espacio actualizado correctamente.';
       }
     } else {
-       const existing = allEspacios.find(e => e.espacio.toLowerCase() === data.espacio.toLowerCase());
+       const existing = allEspacios.find(e => e.identificacion.nombreEspacio.toLowerCase() === data.identificacion.nombreEspacio.toLowerCase());
         if (existing) {
             toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un espacio con este nombre.' });
             setIsLoading(false);
             return;
         }
-      allEspacios.push(data);
+      allEspacios.push(data as Espacio);
       message = 'Espacio creado correctamente.';
     }
 
@@ -154,191 +245,81 @@ export default function EspacioFormPage() {
         </div>
 
         <Form {...form}>
-          <form id="espacio-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Información General</CardTitle>
-              </CardHeader>
-              <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <FormField control={form.control} name="espacio" render={({ field }) => (
-                    <FormItem><FormLabel>Espacio</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="ciudad" render={({ field }) => (
-                    <FormItem><FormLabel>Ciudad</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                )} />
-                <FormField control={form.control} name="calle" render={({ field }) => (
-                    <FormItem><FormLabel>Calle</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                )} />
-                <FormField control={form.control} name="tipoDeEspacio" render={({ field }) => (
-                    <FormItem><FormLabel>Tipo de espacio</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                )} />
-                <FormField control={form.control} name="tipoDeEventos" render={({ field }) => (
-                    <FormItem><FormLabel>Tipo de eventos</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                )} />
-                <FormField control={form.control} name="directorio" render={({ field }) => (
-                    <FormItem><FormLabel>Directorio</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                )} />
-                 <FormField control={form.control} name="descripcion" render={({ field }) => (
-                    <FormItem className="md:col-span-2 lg:col-span-3"><FormLabel>Descripción</FormLabel><FormControl><Textarea rows={3} {...field} /></FormControl></FormItem>
-                )} />
-                 <FormField control={form.control} name="comentariosMarketing" render={({ field }) => (
-                    <FormItem className="md:col-span-2 lg:col-span-3"><FormLabel>Comentarios Marketing</FormLabel><FormControl><Textarea rows={3} {...field} /></FormControl></FormItem>
-                )} />
-              </CardContent>
-            </Card>
-
-            <Accordion type="multiple" defaultValue={['contacto', 'capacidades', 'canones', 'detalles', 'equipamiento']} className="w-full space-y-4">
-                 <AccordionItem value="contacto">
+          <form id="espacio-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+             <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full space-y-4">
+                <AccordionItem value="item-1">
                     <Card>
-                        <AccordionTrigger className="p-6">
-                            <h3 className="text-lg font-semibold">Contacto y Enlaces</h3>
-                        </AccordionTrigger>
+                        <AccordionTrigger className="p-4"><CardTitle>Identificación y Clasificación</CardTitle></AccordionTrigger>
                         <AccordionContent>
-                            <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-0">
-                                <FormField control={form.control} name="nombreContacto1" render={({ field }) => (
-                                    <FormItem><FormLabel>Nombre contacto</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                        <CardContent className="space-y-4 pt-2">
+                             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <FormField control={form.control} name="identificacion.nombreEspacio" render={({ field }) => (
+                                    <FormItem className="col-span-2"><FormLabel>Nombre del Espacio</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
-                                <FormField control={form.control} name="telefonoContacto1" render={({ field }) => (
-                                    <FormItem><FormLabel>Teléfono contacto</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                                <FormField control={form.control} name="identificacion.tipoDeEspacio" render={({ field }) => (
+                                    <FormItem><FormLabel>Tipo de Espacio</FormLabel><MultiSelect options={TIPO_ESPACIO.map(t => ({label: t, value: t}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/><FormMessage /></FormItem>
                                 )} />
-                                <FormField control={form.control} name="emailContacto1" render={({ field }) => (
-                                    <FormItem><FormLabel>Email contacto</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name="escaparateMICE" render={({ field }) => (
-                                    <FormItem><FormLabel>Escaparate MICE</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="carpetaDRIVE" render={({ field }) => (
-                                    <FormItem className="lg:col-span-2"><FormLabel>Carpeta DRIVE</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                            </CardContent>
+                             </div>
+                             <FormField control={form.control} name="identificacion.descripcionCorta" render={({ field }) => (
+                                <FormItem><FormLabel>Descripción Corta / Tagline</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                            )} />
+                             <FormField control={form.control} name="identificacion.descripcionLarga" render={({ field }) => (
+                                <FormItem><FormLabel>Descripción Larga (Marketing)</FormLabel><FormControl><Textarea rows={3} {...field} /></FormControl></FormItem>
+                            )} />
+                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                 <FormField control={form.control} name="identificacion.calle" render={({ field }) => (<FormItem><FormLabel>Calle</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                 <FormField control={form.control} name="identificacion.ciudad" render={({ field }) => (<FormItem><FormLabel>Ciudad</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                 <FormField control={form.control} name="identificacion.provincia" render={({ field }) => (<FormItem><FormLabel>Provincia</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                 <FormField control={form.control} name="identificacion.codigoPostal" render={({ field }) => (<FormItem><FormLabel>C. Postal</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            </div>
+                            <div className="grid md:grid-cols-3 gap-4">
+                                 <FormField control={form.control} name="identificacion.estilos" render={({ field }) => (<FormItem><FormLabel>Estilos</FormLabel><MultiSelect options={ESTILOS_ESPACIO.map(t => ({label: t, value: t}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem> )} />
+                                 <FormField control={form.control} name="identificacion.tags" render={({ field }) => (<FormItem><FormLabel>Tags</FormLabel><MultiSelect options={TAGS_ESPACIO.map(t => ({label: t, value: t}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem> )} />
+                                 <FormField control={form.control} name="identificacion.idealPara" render={({ field }) => (<FormItem><FormLabel>Ideal Para</FormLabel><MultiSelect options={IDEAL_PARA.map(t => ({label: t, value: t}))} selected={field.value || []} onChange={field.onChange} placeholder="Seleccionar..."/></FormItem> )} />
+                            </div>
+                        </CardContent>
                         </AccordionContent>
                     </Card>
                 </AccordionItem>
-
-                <AccordionItem value="capacidades">
+                 <AccordionItem value="item-2">
                     <Card>
-                        <AccordionTrigger className="p-6">
-                            <h3 className="text-lg font-semibold">Capacidades y Aforos</h3>
-                        </AccordionTrigger>
+                        <AccordionTrigger className="p-4"><CardTitle>Capacidades y Distribución</CardTitle></AccordionTrigger>
                         <AccordionContent>
-                             <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 pt-0">
-                                <FormField control={form.control} name="aforoCocktail" render={({ field }) => (
-                                    <FormItem><FormLabel>Aforo Cocktail</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="aforoBanquete" render={({ field }) => (
-                                    <FormItem><FormLabel>Aforo Banquete</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="numeroDeSalas" render={({ field }) => (
-                                    <FormItem><FormLabel>Nº de Salas</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="auditorio" render={({ field }) => (
-                                    <FormItem><FormLabel>Auditorio</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                                 <FormField control={form.control} name="aforoAuditorio" render={({ field }) => (
-                                    <FormItem><FormLabel>Aforo Auditorio</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="zonaExterior" render={({ field }) => (
-                                    <FormItem><FormLabel>Zona Exterior</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="capacidadesPorSala" render={({ field }) => (
-                                    <FormItem className="md:col-span-2"><FormLabel>Capacidades por Sala</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                            </CardContent>
+                        <CardContent className="space-y-4 pt-2">
+                             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <FormField control={form.control} name="capacidades.aforoMaximoCocktail" render={({ field }) => ( <FormItem><FormLabel>Aforo Máx. Cocktail</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem> )} />
+                                <FormField control={form.control} name="capacidades.aforoMaximoBanquete" render={({ field }) => ( <FormItem><FormLabel>Aforo Máx. Banquete</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem> )} />
+                             </div>
+                             <div className="space-y-2">
+                                <h4 className="font-semibold text-sm">Salas Individuales</h4>
+                                <div className="border rounded-md">
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>m²</TableHead><TableHead>Aforo Teatro</TableHead><TableHead>Aforo Escuela</TableHead><TableHead className="text-right"></TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {salasFields.map((field, index) => (
+                                                <TableRow key={field.id}>
+                                                    <TableCell className="p-1"><FormField control={form.control} name={`capacidades.salas.${index}.nombreSala`} render={({field}) => <Input {...field} className="h-8"/>} /></TableCell>
+                                                    <TableCell className="p-1"><FormField control={form.control} name={`capacidades.salas.${index}.m2`} render={({field}) => <Input type="number" {...field} className="h-8 w-20"/>} /></TableCell>
+                                                    <TableCell className="p-1"><FormField control={form.control} name={`capacidades.salas.${index}.aforoTeatro`} render={({field}) => <Input type="number" {...field} className="h-8 w-20"/>} /></TableCell>
+                                                    <TableCell className="p-1"><FormField control={form.control} name={`capacidades.salas.${index}.aforoEscuela`} render={({field}) => <Input type="number" {...field} className="h-8 w-20"/>} /></TableCell>
+                                                    <TableCell className="p-1 text-right"><Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeSala(index)}><Trash2/></Button></TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                                <Button type="button" variant="outline" size="sm" onClick={() => appendSala({id: Date.now().toString(), nombreSala: '', esDiafana: true, tieneLuzNatural: true})}><PlusCircle className="mr-2"/>Añadir Sala</Button>
+                             </div>
+                        </CardContent>
                         </AccordionContent>
                     </Card>
                 </AccordionItem>
-
-                 <AccordionItem value="canones">
-                    <Card>
-                        <AccordionTrigger className="p-6">
-                            <h3 className="text-lg font-semibold">Información Financiera</h3>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                             <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-0">
-                                <FormField control={form.control} name="canonEspacioPorcentaje" render={({ field }) => (
-                                    <FormItem><FormLabel>Canon espacio (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="canonEspacioFijo" render={({ field }) => (
-                                    <FormItem><FormLabel>Canon fijo espacio (€)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
-                                )} />
-                                 <FormField control={form.control} name="precioOrientativoAlquiler" render={({ field }) => (
-                                    <FormItem><FormLabel>Precio orientativo alquiler</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="canonMcPorcentaje" render={({ field }) => (
-                                    <FormItem><FormLabel>Canon MC (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="canonMcFijo" render={({ field }) => (
-                                    <FormItem><FormLabel>Canon fijo MC (€)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="comisionAlquilerMcPorcentaje" render={({ field }) => (
-                                    <FormItem><FormLabel>Comisión alquiler MC (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>
-                                )} />
-                            </CardContent>
-                        </AccordionContent>
-                    </Card>
-                </AccordionItem>
-
-                <AccordionItem value="equipamiento">
-                    <Card>
-                        <AccordionTrigger className="p-6">
-                            <h3 className="text-lg font-semibold">Equipamiento y Servicios</h3>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 pt-0">
-                                <FormField control={form.control} name="equipoAudiovisuales" render={({ field }) => (
-                                    <FormItem><FormLabel>Equipo Audiovisuales</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="pantalla" render={({ field }) => (
-                                    <FormItem><FormLabel>Pantalla</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                                 <FormField control={form.control} name="plato" render={({ field }) => (
-                                    <FormItem><FormLabel>Plató</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                                 <FormField control={form.control} name="conexionWifi" render={({ field }) => (
-                                    <FormItem><FormLabel>Conexión Wifi</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="cocina" render={({ field }) => (
-                                    <FormItem><FormLabel>Cocina</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="aparcamiento" render={({ field }) => (
-                                    <FormItem><FormLabel>Aparcamiento</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="accesoVehiculos" render={({ field }) => (
-                                    <FormItem><FormLabel>Acceso vehículos</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="accesibilidadAsistentes" render={({ field }) => (
-                                    <FormItem><FormLabel>Accesibilidad asistentes</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                            </CardContent>
-                        </AccordionContent>
-                    </Card>
-                </AccordionItem>
-                
-                 <AccordionItem value="detalles">
-                    <Card>
-                        <AccordionTrigger className="p-6">
-                            <h3 className="text-lg font-semibold">Detalles Adicionales</h3>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                             <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 pt-0">
-                                <FormField control={form.control} name="horaLimiteCierre" render={({ field }) => (
-                                    <FormItem><FormLabel>Hora límite de cierre</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                                <FormField control={form.control} name="homologacion" render={({ field }) => (
-                                    <FormItem><FormLabel>Homologación</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-                                )} />
-                                <div></div>
-                                 <FormField control={form.control} name="comentariosVarios" render={({ field }) => (
-                                    <FormItem className="md:col-span-2 lg:col-span-3"><FormLabel>Comentarios Varios</FormLabel><FormControl><Textarea rows={3} {...field} /></FormControl></FormItem>
-                                )} />
-                            </CardContent>
-                        </AccordionContent>
-                    </Card>
-                </AccordionItem>
-            </Accordion>
+             </Accordion>
           </form>
         </Form>
       </main>
     </>
   );
 }
+
+    
