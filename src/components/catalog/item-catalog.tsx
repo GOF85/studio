@@ -50,21 +50,41 @@ function TemplateSelectorDialog({ plantillas, onSelect }: { plantillas: PedidoPl
 
 export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantillas, onApplyTemplate }: ItemCatalogProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedType, setSelectedType] = useState('all');
 
-  const categories = useMemo(() => ['all', ...new Set(items.map(item => item.category))], [items]);
+  const types = useMemo(() => {
+    const allTypes = new Set(items.map(item => item.tipo).filter(Boolean) as string[]);
+    return ['all', ...Array.from(allTypes)];
+  }, [items]);
   
-  const filteredItems = useMemo(() => {
-    return items.filter(item => {
+  const groupedAndSortedItems = useMemo(() => {
+    const filteredItems = items.filter(item => {
       // Robust check to prevent runtime errors
       if (!item || typeof item.description !== 'string' || typeof item.itemCode !== 'string') {
         return false;
       }
-      const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+      const matchesType = selectedType === 'all' || item.tipo === selectedType;
       const matchesSearch = item.description.toLowerCase().includes(searchTerm.toLowerCase()) || item.itemCode.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesCategory && matchesSearch;
+      return matchesType && matchesSearch;
     });
-  }, [items, searchTerm, selectedCategory]);
+
+    const grouped: { [key: string]: CateringItem[] } = {};
+    
+    filteredItems.forEach(item => {
+      const groupKey = item.tipo || 'Varios';
+      if (!grouped[groupKey]) {
+        grouped[groupKey] = [];
+      }
+      grouped[groupKey].push(item);
+    });
+
+    for (const groupKey in grouped) {
+        grouped[groupKey].sort((a, b) => a.description.localeCompare(b.description));
+    }
+    
+    return Object.entries(grouped).sort(([groupA], [groupB]) => groupA.localeCompare(groupB));
+  }, [items, searchTerm, selectedType]);
+
 
   return (
     <section>
@@ -82,29 +102,34 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+        <Select value={selectedType} onValueChange={setSelectedType}>
           <SelectTrigger className="w-full md:w-[240px]">
-            <SelectValue placeholder="Filtrar por categoría" />
+            <SelectValue placeholder="Filtrar por tipo..." />
           </SelectTrigger>
           <SelectContent>
-            {categories.map((category, index) => (
-              <SelectItem key={`${category}-${index}`} value={category}>
-                {category === 'all' ? 'Todas las categorías' : category}
+            {types.map((type, index) => (
+              <SelectItem key={`${type}-${index}`} value={type}>
+                {type === 'all' ? 'Todos los tipos' : type}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
-      <div className="border rounded-lg overflow-hidden">
-        {filteredItems.length > 0 ? (
+      <div className="border rounded-lg overflow-y-auto max-h-[calc(100vh-20rem)]">
+        {groupedAndSortedItems.length > 0 ? (
           <div className="divide-y">
-            {filteredItems.map((item, index) => {
-              const orderedItem = orderItems.find(oi => oi.itemCode === item.itemCode);
-              const availableStock = item.stock - (orderedItem?.quantity || 0);
-              return (
-                <ItemListItem key={`${item.itemCode}-${index}`} item={{...item, stock: availableStock}} onAddItem={(quantity) => onAddItem(item, quantity)} orderType={orderType} />
-              )
-            })}
+            {groupedAndSortedItems.map(([type, items]) => (
+                <div key={type}>
+                    <h3 className="font-bold bg-muted/50 p-2 sticky top-0">{type}</h3>
+                    {items.map((item, index) => {
+                       const orderedItem = orderItems.find(oi => oi.itemCode === item.itemCode);
+                       const availableStock = item.stock - (orderedItem?.quantity || 0);
+                       return (
+                         <ItemListItem key={`${item.itemCode}-${index}`} item={{...item, stock: availableStock}} onAddItem={(quantity) => onAddItem(item, quantity)} orderType={orderType} />
+                       )
+                    })}
+                </div>
+            ))}
           </div>
         ) : (
           <p className="text-center text-muted-foreground p-8">No se encontraron artículos que coincidan con tu búsqueda.</p>
