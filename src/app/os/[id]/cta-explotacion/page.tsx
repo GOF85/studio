@@ -195,7 +195,7 @@ export default function CtaExplotacionPage() {
         costes: newCostes,
         facturacionNeta: netRevenue,
     });
-  }, [osId, router, toast]);
+  }, [osId]);
 
   useEffect(() => {
     if (osId) {
@@ -295,7 +295,7 @@ export default function CtaExplotacionPage() {
   if (!serviceOrder) {
     return <LoadingSkeleton title="Cargando Cuenta de Explotación..." />;
   }
-
+  
   const renderCostRow = (row: CostRow) => {
     const pctSFactPresupuesto = facturacionNeta > 0 ? row.presupuesto / facturacionNeta : 0;
     const pctSFactCierre = facturacionNeta > 0 ? row.cierre / facturacionNeta : 0;
@@ -303,49 +303,36 @@ export default function CtaExplotacionPage() {
     const desviacion = row.objetivo - row.real;
     const desviacionPct = row.objetivo > 0 ? desviacion / row.objetivo : 0;
 
-    const rowContent = (
-      <TableRow className="hover:bg-muted/50">
-        <TableCell className="py-1 px-2 font-medium sticky left-0 bg-background z-10">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingComment({ label: row.label, text: row.comentario || '' })}>
-                <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-primary font-bold fill-amber-100")} />
-            </Button>
-            {row.label}
-          </div>
-        </TableCell>
-        <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.presupuesto)}</TableCell>
-        <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSFactPresupuesto)}</TableCell>
-        <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.cierre)}</TableCell>
-        <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-amber-50/50">{formatPercentage(pctSFactCierre)}</TableCell>
-        <TableCell className="py-1 px-2 text-right border-l bg-green-50/50">
-          <Input type="number" step="0.01" value={formatNumber(realCostInputs[row.label] ?? 0, 2)} onChange={(e) => handleRealCostInputChange(row.label, e.target.value)} className="h-7 text-right w-28 ml-auto" />
-        </TableCell>
-        <TableCell className={cn("py-1 px-2 text-right font-mono border-r bg-green-50/50", pctSFactReal > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFactReal)}</TableCell>
-        <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-l">{formatCurrency(row.objetivo)}</TableCell>
-        <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r">{formatPercentage(row.objetivo_pct)}</TableCell>
-        <TableCell className={cn("py-1 px-2 text-right font-mono border-l", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>
-          {formatCurrency(desviacion)}
-        </TableCell>
-        <TableCell className={cn("py-1 px-2 text-right font-mono border-r", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>
-          {formatPercentage(desviacionPct)}
-        </TableCell>
-      </TableRow>
+    return (
+        <TableRow className="hover:bg-muted/50">
+            <TableCell className={cn("py-1 px-2 font-medium sticky left-0 bg-background z-10", row.comentario && 'bg-amber-100')}>
+                <div className="flex items-center gap-2">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingComment({ label: row.label, text: row.comentario || '' })}>
+                                <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-primary font-bold")} />
+                            </Button>
+                        </TooltipTrigger>
+                        {row.comentario && <TooltipContent><p>{row.comentario}</p></TooltipContent>}
+                    </Tooltip>
+                    {row.label}
+                </div>
+            </TableCell>
+            <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.presupuesto)}</TableCell>
+            <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSFactPresupuesto)}</TableCell>
+            <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.cierre)}</TableCell>
+            <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-amber-50/50">{formatPercentage(pctSFactCierre)}</TableCell>
+            <TableCell className="py-1 px-2 text-right border-l bg-green-50/50">
+                <Input type="number" step="0.01" value={formatNumber(realCostInputs[row.label] ?? 0, 2)} onChange={(e) => handleRealCostInputChange(row.label, e.target.value)} className="h-7 text-right w-28 ml-auto" />
+            </TableCell>
+            <TableCell className={cn("py-1 px-2 text-right font-mono border-r bg-green-50/50", pctSFactReal > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFactReal)}</TableCell>
+            <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-l">{formatCurrency(row.objetivo)}</TableCell>
+            <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r">{formatPercentage(row.objetivo_pct)}</TableCell>
+            <TableCell className={cn("py-1 px-2 text-right font-mono border-l", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatCurrency(desviacion)}</TableCell>
+            <TableCell className={cn("py-1 px-2 text-right font-mono border-r", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatPercentage(desviacionPct)}</TableCell>
+        </TableRow>
     );
-      
-    if (row.comentario) {
-        return (
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    {rowContent}
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>{row.comentario}</p>
-                </TooltipContent>
-            </Tooltip>
-        );
-    }
-    return rowContent;
-  };
+};
 
 
   return (
@@ -384,33 +371,35 @@ export default function CtaExplotacionPage() {
               </CardHeader>
               <CardContent>
                 <div className="border rounded-lg overflow-x-auto">
-                     <div className="p-3 border-b bg-muted/50 flex justify-between items-center rounded-t-lg">
-                        <h3 className="text-lg font-bold">Facturación Neta</h3>
-                        <span className="text-2xl font-bold text-primary">{formatCurrency(facturacionNeta)}</span>
-                    </div>
                     <Table>
                         <TableHeader>
-                        <TableRow>
-                            <TableHead className="p-2 w-[180px] sticky left-0 bg-background z-10">Partida</TableHead>
-                            <TableHead colSpan={2} className="p-2 text-center border-l border-r bg-blue-50/50">Presupuesto</TableHead>
-                            <TableHead colSpan={2} className="p-2 text-center border-l border-r bg-amber-50/50">Cierre <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>Presupuesto menos devoluciones.</p></TooltipContent></Tooltip></TableHead>
-                            <TableHead colSpan={2} className="p-2 text-center border-l border-r bg-green-50/50">Real <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>Coste final editable para ajustes.</p></TooltipContent></Tooltip></TableHead>
-                            <TableHead colSpan={2} className="p-2 text-center border-l border-r">Objetivo</TableHead>
-                            <TableHead colSpan={2} className="p-2 text-center border-l">Desviación (Real vs. Obj.)</TableHead>
-                        </TableRow>
-                        <TableRow>
-                            <TableHead className="p-2 sticky left-0 bg-background z-10"></TableHead>
-                            <TableHead className="p-2 text-right border-l bg-blue-50/50">€</TableHead>
-                            <TableHead className="p-2 text-right border-r bg-blue-50/50">%</TableHead>
-                            <TableHead className="p-2 text-right border-l bg-amber-50/50">€</TableHead>
-                            <TableHead className="p-2 text-right border-r bg-amber-50/50">%</TableHead>
-                            <TableHead className="p-2 text-right border-l bg-green-50/50">€</TableHead>
-                            <TableHead className="p-2 text-right border-r bg-green-50/50">%</TableHead>
-                            <TableHead className="p-2 text-right border-l">€</TableHead>
-                            <TableHead className="p-2 text-right border-r">%</TableHead>
-                            <TableHead className="p-2 text-right border-l">€</TableHead>
-                            <TableHead className="p-2 text-right border-r">%</TableHead>
-                        </TableRow>
+                            <TableRow className="bg-muted/50">
+                                <TableHead className="p-2 sticky left-0 bg-muted/50 z-10"></TableHead>
+                                <TableHead colSpan={2} className="p-2 text-center border-l border-r">Presupuesto</TableHead>
+                                <TableHead colSpan={2} className="p-2 text-center border-l border-r">
+                                    Cierre
+                                    <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>Presupuesto menos devoluciones y mermas.</p></TooltipContent></Tooltip>
+                                </TableHead>
+                                <TableHead colSpan={2} className="p-2 text-center border-l border-r">
+                                    Real
+                                    <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>Coste final editable para ajustes.</p></TooltipContent></Tooltip>
+                                </TableHead>
+                                <TableHead colSpan={2} className="p-2 text-center border-l border-r">Objetivo</TableHead>
+                                <TableHead colSpan={2} className="p-2 text-center border-l">Desviación (Real vs. Obj.)</TableHead>
+                            </TableRow>
+                            <TableRow>
+                                <TableHead className="p-2 sticky left-0 bg-background z-10">Partida</TableHead>
+                                <TableHead className="p-2 text-right border-l">€</TableHead>
+                                <TableHead className="p-2 text-right border-r">%</TableHead>
+                                <TableHead className="p-2 text-right border-l">€</TableHead>
+                                <TableHead className="p-2 text-right border-r">%</TableHead>
+                                <TableHead className="p-2 text-right border-l">€</TableHead>
+                                <TableHead className="p-2 text-right border-r">%</TableHead>
+                                <TableHead className="p-2 text-right border-l">€</TableHead>
+                                <TableHead className="p-2 text-right border-r">%</TableHead>
+                                <TableHead className="p-2 text-right border-l">€</TableHead>
+                                <TableHead className="p-2 text-right border-r">%</TableHead>
+                            </TableRow>
                         </TableHeader>
                          <TableBody>
                             {processedCostes.map(row => (
