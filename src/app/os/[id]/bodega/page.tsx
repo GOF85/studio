@@ -81,10 +81,7 @@ export default function BodegaPage() {
         });
     });
 
-    const allOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const relatedOrders = allOrders.filter(order => order.osId === osId && order.type === 'Bodega');
-
-    relatedOrders.forEach(order => {
+    materialOrders.forEach(order => {
         order.items.forEach(item => {
             const uniqueKey = `${order.id}-${item.itemCode}`;
             if (!keys.has(uniqueKey)) {
