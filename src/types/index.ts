@@ -157,100 +157,123 @@ export type MultimediaEspacio = {
     visitaVirtual?: string;
 }
 
+export type MetricasOperativas = {
+    dificultadMontaje: 1 | 2 | 3 | 4 | 5; // De Fácil a Muy Complejo
+    penalizacionPersonalMontaje: number; // Porcentaje extra de personal estimado
+    notasDificultadMontaje?: string;
+    valoracionOperaciones: 1 | 2 | 3 | 4 | 5; // Calificación interna del equipo de operaciones
+    factoresCriticosExito: string[]; // Qué debe salir bien sí o sí
+    riesgosPotenciales: string[]; // Qué suele fallar o qué riesgos hay
+    notasInternasOperaciones?: string;
+};
+
+export type FlowInvitado = {
+    accesoPrincipal: string; // Ej: "Recepción principal del hotel", "Entrada directa desde la calle"
+    recorridoInvitado: string; // Ej: "Subida en ascensor panorámico a planta 33"
+    aparcamiento: string; // Ej: "Valet parking", "Parking público de pago a 200m", "Zona de fácil aparcamiento"
+    transportePublico: string; // Paradas de metro/bus/tren cercanas
+    accesibilidadAsistentes: string; // Ej: "Acceso y baños adaptados para sillas de ruedas"
+    guardarropa: boolean;
+    seguridadPropia: boolean;
+};
+
 export type Espacio = {
   id: string;
-  // --- Info General y Localización ---
-  espacio: string;
-  tipoDeEspacio: (typeof TIPO_ESPACIO[number])[];
-  descripcionCorta?: string;
-  descripcionLarga?: string;
-  ciudad: string;
-  provincia: string;
-  calle: string;
-  codigoPostal: string;
-  zona?: string;
-
-  // --- Capacidades y Distribución ---
-  aforoMaximoCocktail: number;
-  aforoMaximoBanquete: number;
-  salas: Sala[];
-
-  // --- Características & Estilo (IA & Comercial) ---
-  estilos: (typeof ESTILOS_ESPACIO[number])[];
-  tags: (typeof TAGS_ESPACIO[number])[];
-  idealPara: (typeof IDEAL_PARA[number])[];
-
-  // --- Logística y Producción ---
-  accesoVehiculos?: string;
-  horarioMontajeDesmontaje?: string;
-  montacargas: boolean;
-  dimensionesMontacargas?: string;
-  accesoServicioIndependiente: boolean;
-  potenciaTotal?: string;
-  cuadrosElectricos?: CuadroElectrico[];
-  tomasAgua?: string[];
-  desagues?: string[];
-  zonaAlmacenaje?: string;
-  limitadorSonido: boolean;
-  permiteMusicaExterior: boolean;
-  politicaDecoracion?: string;
-  puntosAnclaje: boolean;
-  dificultadMontaje?: 1 | 2 | 3 | 4 | 5; // New
-  penalizacionPersonalMontaje?: number; // New - Percentage
-  notasDificultadMontaje?: string; // New
-
-  // --- Cocina y Office ---
-  tipoCocina: 'Cocina completa' | 'Office de regeneración' | 'Sin cocina';
-  equipamientoCocina?: string[];
-  potenciaElectricaCocina?: string;
-  tomasAguaCocina: boolean;
-  desaguesCocina: boolean;
-  extraccionHumos: boolean;
-  descripcionOffice?: string;
+  // --- IDENTIFICACIÓN Y CATEGORIZACIÓN ---
+  identificacion: {
+    nombreEspacio: string;
+    tipoDeEspacio: (typeof TIPO_ESPACIO[number])[];
+    descripcionCorta?: string;
+    descripcionLarga?: string;
+    ciudad: string;
+    provincia: string;
+    calle: string;
+    codigoPostal: string;
+    zona?: string; // Barrio o área específica
+    estilos: (typeof ESTILOS_ESPACIO[number])[];
+    tags: (typeof TAGS_ESPACIO[number])[];
+    idealPara: (typeof IDEAL_PARA[number])[];
+  };
   
-  // --- Info Comercial y Financiera ---
-  proveedorId?: string;
-  proveedorHomologadoMICE: boolean;
-  canonEspacioPorcentaje: number;
-  canonEspacioFijo: number;
-  comisionAgenciaPorcentaje: number;
-  precioOrientativoAlquiler?: string;
-  exclusividadMusica: boolean;
-  exclusividadAudiovisuales: boolean;
-  otrosProveedoresExclusivos?: string;
-  notasComerciales?: string;
-  
-  // --- Contactos y Multimedia ---
+  // --- CAPACIDADES Y DISTRIBUCIÓN ---
+  capacidades: {
+    aforoMaximoCocktail: number;
+    aforoMaximoBanquete: number;
+    salas: Sala[];
+  };
+
+  // --- LOGÍSTICA Y PRODUCCIÓN ---
+  logistica: {
+    // Accesos
+    accesoVehiculos?: string;
+    horarioMontajeDesmontaje?: string;
+    montacargas: boolean;
+    dimensionesMontacargas?: string;
+    accesoServicioIndependiente: boolean;
+    // Electricidad y Agua
+    potenciaTotal?: string;
+    cuadrosElectricos?: CuadroElectrico[];
+    tomasAgua?: string[];
+    desagues?: string[];
+    // Cocina
+    tipoCocina: 'Cocina completa' | 'Office de regeneración' | 'Sin cocina';
+    equipamientoCocina?: string[];
+    potenciaElectricaCocina?: string;
+    tomasAguaCocina: boolean;
+    desaguesCocina: boolean;
+    extraccionHumos: boolean;
+    descripcionOffice?: string;
+    // Normativas y Almacenamiento
+    zonaAlmacenaje?: string;
+    limitadorSonido: boolean;
+    permiteMusicaExterior: boolean;
+    politicaDecoracion?: string;
+    puntosAnclaje: boolean;
+    // Métricas operativas
+    metricasOperativas: MetricasOperativas;
+  };
+
+  // --- EVALUACIÓN COMERCIAL Y MICE ---
+  evaluacionMICE: {
+    proveedorId?: string; // Vinculación con nuestra DB de proveedores
+    proveedorHomologadoMICE: boolean;
+    // Comercial
+    valoracionComercial: 1 | 2 | 3 | 4 | 5; // Qué tan "vendible" es
+    puntosFuertes: string[];
+    puntosDebiles: string[];
+    perfilClienteIdeal?: string;
+    argumentarioVentaRapido?: string[];
+    // Financiero
+    canonEspacioPorcentaje: number;
+    canonEspacioFijo: number;
+    comisionAgenciaPorcentaje: number;
+    precioOrientativoAlquiler?: string;
+    // Exclusividades
+    exclusividadMusica: boolean;
+    exclusividadAudiovisuales: boolean;
+    otrosProveedoresExclusivos?: string;
+    // Notas
+    notasComerciales?: string;
+    resumenEjecutivoIA?: string;
+  };
+
+  // --- EXPERIENCIA DEL INVITADO ---
+  experienciaInvitado: {
+    flow: FlowInvitado;
+    // Capacidades A/V
+    equipamientoAudiovisuales?: string;
+    pantalla?: string;
+    sistemaSonido?: string;
+    escenario?: string;
+    conexionWifi?: string;
+  };
+
+  // --- CONTACTOS Y MULTIMEDIA ---
   contactos: ContactoEspacio[];
   multimedia?: MultimediaEspacio;
-
-  // --- Evaluación Interna MICE (IA) ---
-  valoracionComercial?: 1 | 2 | 3 | 4 | 5;
-  valoracionOperaciones?: 1 | 2 | 3 | 4 | 5;
-  puntosFuertes?: string[];
-  puntosDebiles?: string[];
-  resumenEjecutivoIA?: string;
-  perfilClienteIdeal?: string;
-  argumentarioVentaRapido?: string[];
-  factoresCriticosExito?: string[];
-  riesgosPotenciales?: string[];
-  notasInternasOperaciones?: string;
   
-  // --- Accesibilidad y Comodidades ---
-  accesibilidadAsistentes?: string;
-  aparcamiento?: string;
-  transportePublico?: string;
-  guardarropa?: boolean;
-  seguridadPropia?: boolean;
-
-  // --- Capacidades Audiovisuales (Cliente) ---
-  equipoAudiovisuales?: string;
-  pantalla?: string;
-  sistemaSonido?: string;
-  escenario?: string;
-  conexionWifi?: string;
-
   // --- Deprecated fields from old structure (to be removed after migration) ---
+  espacio: string; // USE identificacion.nombreEspacio
   escaparateMICE?: string;
   carpetaDRIVE?: string;
   nombreContacto1?: string;
