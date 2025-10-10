@@ -18,6 +18,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { GASTO_LABELS } from '@/lib/constants';
+import { formatNumber, formatCurrency } from '@/lib/utils';
+
 
 type CostRow = {
   label: string;
@@ -29,7 +31,6 @@ type CostRow = {
   comentario?: string;
 };
 
-const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 const formatPercentage = (value: number) => `${(value * 100).toFixed(2)}%`;
 
 const calculateHours = (start?: string, end?: string): number => {
@@ -330,7 +331,7 @@ export default function CtaExplotacionPage() {
               </CardHeader>
               <CardContent>
                 <div className="border rounded-lg overflow-x-auto">
-                    <div className="p-3 border-b bg-muted/50 flex justify-between items-center rounded-t-lg">
+                     <div className="p-3 border-b bg-muted/50 flex justify-between items-center rounded-t-lg">
                         <h3 className="text-lg font-bold">Facturación Neta</h3>
                         <span className="text-2xl font-bold text-primary">{formatCurrency(facturacionNeta)}</span>
                     </div>
@@ -348,11 +349,11 @@ export default function CtaExplotacionPage() {
                         <TableRow>
                             <TableHead className="p-2 sticky left-0 bg-background z-10"></TableHead>
                             <TableHead className="p-2 text-right border-l bg-blue-50">€</TableHead>
-                            <TableHead className="p-2 text-right border-r bg-blue-50">% s/Fact.</TableHead>
+                            <TableHead className="p-2 text-right border-r bg-blue-50">%</TableHead>
                             <TableHead className="p-2 text-right border-l bg-amber-50">€ <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>Calculado restando las mermas de devoluciones al presupuesto.</p></TooltipContent></Tooltip></TableHead>
-                            <TableHead className="p-2 text-right border-r bg-amber-50">% s/Fact.</TableHead>
+                            <TableHead className="p-2 text-right border-r bg-amber-50">%</TableHead>
                             <TableHead className="p-2 text-right border-l bg-green-50">€ <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>El valor Real es editable para realizar ajustes manuales.</p></TooltipContent></Tooltip></TableHead>
-                            <TableHead className="p-2 text-right border-r bg-green-50">% s/Fact.</TableHead>
+                            <TableHead className="p-2 text-right border-r bg-green-50">%</TableHead>
                             <TableHead className="p-2 text-right border-l">€</TableHead>
                             <TableHead className="p-2 text-right border-r">%</TableHead>
                             <TableHead className="p-2 text-right border-l">€</TableHead>
@@ -369,7 +370,7 @@ export default function CtaExplotacionPage() {
                             const desviacionPct = row.objetivo > 0 ? desviacion / row.objetivo : 0;
                             
                             return (
-                                <TableRow key={row.label} className="hover:bg-accent/50">
+                                <TableRow key={row.label} className="hover:bg-muted/50">
                                     <TableCell className="py-1 px-2 font-medium sticky left-0 bg-background z-10">{row.label}</TableCell>
                                     {/* Presupuesto */}
                                     <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.presupuesto)}</TableCell>
@@ -379,7 +380,7 @@ export default function CtaExplotacionPage() {
                                     <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-amber-50/50">{formatPercentage(pctSFactCierre)}</TableCell>
                                     {/* Real */}
                                     <TableCell className="py-1 px-2 text-right border-l bg-green-50/50">
-                                        <Input type="number" step="0.01" value={realCostInputs[row.label] ?? 0} onChange={(e) => handleRealCostInputChange(row.label, e.target.value)} className="h-7 text-right w-28 ml-auto" />
+                                        <Input type="number" step="0.01" value={formatNumber(realCostInputs[row.label] ?? 0, 2)} onBlur={(e) => handleRealCostInputChange(row.label, e.target.value)} onChange={(e) => handleRealCostInputChange(row.label, e.target.value)} className="h-7 text-right w-28 ml-auto" />
                                     </TableCell>
                                     <TableCell className={cn("py-1 px-2 text-right font-mono border-r bg-green-50/50", pctSFactReal > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFactReal)}</TableCell>
                                     {/* Objetivo */}
@@ -427,9 +428,9 @@ export default function CtaExplotacionPage() {
                       <TableBody>
                            <TableRow>
                               <TableCell className="font-medium">Facturación Neta</TableCell>
-                              <TableCell className="text-right">{formatCurrency(facturacionNeta)}</TableCell>
-                              <TableCell className="text-right">{formatCurrency(facturacionNeta)}</TableCell>
-                              <TableCell className="text-right">{formatCurrency(facturacionNeta)}</TableCell>
+                              <TableCell className="text-right font-semibold">{formatCurrency(facturacionNeta)}</TableCell>
+                              <TableCell className="text-right font-semibold">{formatCurrency(facturacionNeta)}</TableCell>
+                              <TableCell className="text-right font-semibold">{formatCurrency(facturacionNeta)}</TableCell>
                           </TableRow>
                           <TableRow>
                               <TableCell className="font-medium">Total Costes</TableCell>
@@ -439,9 +440,9 @@ export default function CtaExplotacionPage() {
                           </TableRow>
                            <TableRow className="font-bold bg-muted/50">
                               <TableCell>Rentabilidad</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadPresupuesto >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPresupuesto)}</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadCierre >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadCierre)}</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadReal >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadReal)}</TableCell>
+                              <TableCell className={cn("text-right", rentabilidadPresupuesto >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPresupuesto)} <span className="text-xs font-normal text-muted-foreground">({formatPercentage(facturacionNeta > 0 ? rentabilidadPresupuesto / facturacionNeta : 0)})</span></TableCell>
+                              <TableCell className={cn("text-right", rentabilidadCierre >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadCierre)} <span className="text-xs font-normal text-muted-foreground">({formatPercentage(facturacionNeta > 0 ? rentabilidadCierre / facturacionNeta : 0)})</span></TableCell>
+                              <TableCell className={cn("text-right", rentabilidadReal >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadReal)} <span className="text-xs font-normal text-muted-foreground">({formatPercentage(facturacionNeta > 0 ? rentabilidadReal / facturacionNeta : 0)})</span></TableCell>
                           </TableRow>
                            <TableRow>
                               <TableCell className="font-medium">Repercusión HQ (25%)</TableCell>
@@ -451,9 +452,9 @@ export default function CtaExplotacionPage() {
                           </TableRow>
                            <TableRow className="font-bold bg-muted/50">
                               <TableCell>Rentabilidad Post-HQ</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadPostHQPresupuesto >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQPresupuesto)}</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadPostHQCierre >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQCierre)}</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadPostHQReal >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQReal)}</TableCell>
+                              <TableCell className={cn("text-right", rentabilidadPostHQPresupuesto >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQPresupuesto)} <span className="text-xs font-normal text-muted-foreground">({formatPercentage(facturacionNeta > 0 ? rentabilidadPostHQPresupuesto / facturacionNeta : 0)})</span></TableCell>
+                              <TableCell className={cn("text-right", rentabilidadPostHQCierre >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQCierre)} <span className="text-xs font-normal text-muted-foreground">({formatPercentage(facturacionNeta > 0 ? rentabilidadPostHQCierre / facturacionNeta : 0)})</span></TableCell>
+                              <TableCell className={cn("text-right", rentabilidadPostHQReal >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQReal)} <span className="text-xs font-normal text-muted-foreground">({formatPercentage(facturacionNeta > 0 ? rentabilidadPostHQReal / facturacionNeta : 0)})</span></TableCell>
                           </TableRow>
                           <TableRow>
                               <TableCell className="font-medium">Ingresos / Asistente</TableCell>
@@ -484,3 +485,4 @@ export default function CtaExplotacionPage() {
     </TooltipProvider>
   );
 }
+
