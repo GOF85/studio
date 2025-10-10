@@ -1,7 +1,7 @@
 
-
 'use client';
 
+import * as React from "react"
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Euro, Target, Settings, TrendingUp, TrendingDown, RefreshCw, Info, MessageSquare, Save } from 'lucide-react';
@@ -305,13 +305,13 @@ export default function CtaExplotacionPage() {
 
     const rowContent = (
       <TableRow className="hover:bg-muted/50">
-        <TableCell className="py-1 px-2 font-medium sticky left-0 bg-background z-10">{row.label}</TableCell>
+        <TableCell className={cn("py-1 px-2 font-medium sticky left-0 bg-background z-10", row.comentario && 'bg-amber-100 font-bold')}>{row.label}</TableCell>
         <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.presupuesto)}</TableCell>
         <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSFactPresupuesto)}</TableCell>
         <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.cierre)}</TableCell>
         <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-amber-50/50">{formatPercentage(pctSFactCierre)}</TableCell>
         <TableCell className="py-1 px-2 text-right border-l bg-green-50/50">
-          <Input type="number" step="0.01" value={formatNumber(realCostInputs[row.label] ?? 0, 2)} onBlur={(e) => handleRealCostInputChange(row.label, e.target.value)} onChange={(e) => handleRealCostInputChange(row.label, e.target.value)} className="h-7 text-right w-28 ml-auto" />
+          <Input type="number" step="0.01" value={formatNumber(realCostInputs[row.label] ?? 0, 2)} onChange={(e) => handleRealCostInputChange(row.label, e.target.value)} className="h-7 text-right w-28 ml-auto" />
         </TableCell>
         <TableCell className={cn("py-1 px-2 text-right font-mono border-r bg-green-50/50", pctSFactReal > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFactReal)}</TableCell>
         <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-l">{formatCurrency(row.objetivo)}</TableCell>
@@ -322,14 +322,14 @@ export default function CtaExplotacionPage() {
         <TableCell className={cn("py-1 px-2 text-right font-mono border-r", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>
           {formatPercentage(desviacionPct)}
         </TableCell>
-        <TableCell className={cn("py-1 px-2 text-center", row.comentario && "bg-amber-100 font-bold")}>
+        <TableCell className={cn("py-1 px-2 text-center", row.comentario && "bg-amber-100")}>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingComment({ label: row.label, text: row.comentario || '' })}>
-                <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-primary")} />
+                <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-primary font-bold")} />
             </Button>
         </TableCell>
       </TableRow>
     );
-
+      
     if (row.comentario) {
         return (
             <Tooltip>
@@ -497,6 +497,7 @@ export default function CtaExplotacionPage() {
     </TooltipProvider>
   );
 }
+
 
 
 
