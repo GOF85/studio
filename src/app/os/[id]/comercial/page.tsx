@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -7,7 +8,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, Save, Pencil, DollarSign, Check, Utensils, Euro } from 'lucide-react';
+import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, Euro } from 'lucide-react';
 import { format, differenceInMinutes, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -43,9 +44,6 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Combobox } from '@/components/ui/combobox';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
-
 
 const briefingItemSchema = z.object({
   id: z.string(),
@@ -100,7 +98,7 @@ function FinancialCalculator ({ totalFacturacion, onNetChange }: { totalFacturac
         </FormControl>
       </FormItem>
     );
-}
+  }
 
 export default function ComercialPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
@@ -336,6 +334,19 @@ export default function ComercialPage() {
   const BriefingItemDialog = ({ open, onOpenChange, item, onSave, serviceOrder, onAddLocation }: { open: boolean, onOpenChange: (open: boolean) => void, item: Partial<ComercialBriefingItem> | null, onSave: (data: BriefingItemFormValues) => boolean, serviceOrder: ServiceOrder | null, onAddLocation: (location: string) => void }) => {
     const form = useForm<BriefingItemFormValues>({
       resolver: zodResolver(briefingItemSchema),
+      defaultValues: {
+        id: item?.id || '',
+        fecha: item?.fecha || (serviceOrder?.startDate ? format(new Date(serviceOrder.startDate), 'yyyy-MM-dd') : ''),
+        horaInicio: item?.horaInicio || '09:00',
+        horaFin: item?.horaFin || '10:00',
+        conGastronomia: item?.conGastronomia || false,
+        descripcion: item?.descripcion || '',
+        comentarios: item?.comentarios || '',
+        sala: item?.sala || '',
+        asistentes: item?.asistentes || serviceOrder?.asistentes || 0,
+        precioUnitario: item?.precioUnitario || 0,
+        importeFijo: item?.importeFijo || 0,
+      }
     });
     
     useEffect(() => {
@@ -469,7 +480,7 @@ export default function ComercialPage() {
                   <Card>
                       <AccordionTrigger className="p-2">
                           <div className="flex items-center justify-between w-full">
-                              <CardTitle className="text-base flex items-center gap-2 px-2"><DollarSign/>Información Financiera y Ajustes</CardTitle>
+                              <CardTitle className="text-base flex items-center gap-2 px-2"><Euro/>Información Financiera y Ajustes</CardTitle>
                                <div className="text-sm font-bold pr-4">
                                   <span className="text-black dark:text-white">Facturación Neta: </span>
                                   <span className="text-green-600">{facturacionNeta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
@@ -489,10 +500,30 @@ export default function ComercialPage() {
                                           <FormLabel className="text-xs">Facturación Final</FormLabel>
                                           <FormControl><Input readOnly value={facturacionFinal.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} className="h-8 text-sm"/></FormControl>
                                       </FormItem>
-                                      <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (<FormItem><FormLabel className="text-xs">% Agencia</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl></FormItem>)} />
-                                      <FormField control={financialForm.control} name="agencyCommissionValue" render={({ field }) => (<FormItem><FormLabel className="text-xs">Comisión Agencia (€)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl></FormItem>)} />
-                                       <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (<FormItem><FormLabel className="text-xs">% Espacio</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl></FormItem>)} />
-                                        <FormField control={financialForm.control} name="spaceCommissionValue" render={({ field }) => (<FormItem><FormLabel className="text-xs">Canon Espacio (€)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl></FormItem>)} />
+                                      <FormField control={financialForm.control} name="agencyPercentage" render={({ field }) => (
+                                          <FormItem>
+                                          <FormLabel className="text-xs">% Agencia</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
+                                          </FormItem>
+                                      )} />
+                                      <FormField control={financialForm.control} name="agencyCommissionValue" render={({ field }) => (
+                                          <FormItem>
+                                          <FormLabel className="text-xs">Comisión Agencia (€)</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
+                                          </FormItem>
+                                      )} />
+                                       <FormField control={financialForm.control} name="spacePercentage" render={({ field }) => (
+                                          <FormItem>
+                                          <FormLabel className="text-xs">% Espacio</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
+                                          </FormItem>
+                                      )} />
+                                        <FormField control={financialForm.control} name="spaceCommissionValue" render={({ field }) => (
+                                          <FormItem>
+                                          <FormLabel className="text-xs">Canon Espacio (€)</FormLabel>
+                                          <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} className="h-8 text-sm" /></FormControl>
+                                          </FormItem>
+                                      )} />
                                   </div>
                               </form>
                               <div className="space-y-2">
