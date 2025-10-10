@@ -229,12 +229,26 @@ export type Espacio = {
   valoracionOperaciones?: 1 | 2 | 3 | 4 | 5;
   puntosFuertes?: string[];
   puntosDebiles?: string[];
-  resumenEjecutivoIA?: string; // New
-  perfilClienteIdeal?: string; // New
-  argumentarioVentaRapido?: string[]; // New
-  factoresCriticosExito?: string[]; // New
-  riesgosPotenciales?: string[]; // New
+  resumenEjecutivoIA?: string;
+  perfilClienteIdeal?: string;
+  argumentarioVentaRapido?: string[];
+  factoresCriticosExito?: string[];
+  riesgosPotenciales?: string[];
   notasInternasOperaciones?: string;
+  
+  // --- Accesibilidad y Comodidades ---
+  accesibilidadAsistentes?: string;
+  aparcamiento?: string;
+  transportePublico?: string;
+  guardarropa?: boolean;
+  seguridadPropia?: boolean;
+
+  // --- Capacidades Audiovisuales (Cliente) ---
+  equipoAudiovisuales?: string;
+  pantalla?: string;
+  sistemaSonido?: string;
+  escenario?: string;
+  conexionWifi?: string;
 
   // --- Deprecated fields from old structure (to be removed after migration) ---
   escaparateMICE?: string;
@@ -252,13 +266,8 @@ export type Espacio = {
   numeroDeSalas?: number;
   directorio?: string;
   comentariosVarios?: string;
-  equipoAudiovisuales?: string;
   cocina?: string;
-  accesibilidadAsistentes?: string;
-  pantalla?: string;
-  plato?: string;
-  aparcamiento?: string;
-  conexionWifi?: string;
+  plato?: string; // Renamed to escenario
   homologacion?: string;
   comentariosMarketing?: string;
 };
