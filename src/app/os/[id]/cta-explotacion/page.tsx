@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Textarea } from '@/components/ui/textarea';
 import { GASTO_LABELS } from '@/lib/constants';
 import { formatNumber, formatCurrency, formatPercentage } from '@/lib/utils';
+import { Separator } from "@/components/ui/separator";
 
 type CostRow = {
   label: string;
@@ -371,37 +372,35 @@ export default function CtaExplotacionPage() {
     <TooltipProvider>
       <div className="space-y-6">
           <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                    <div className="flex items-baseline gap-4">
-                        <CardTitle className="flex items-center gap-2"><Euro/>Análisis de Costes</CardTitle>
-                        <CardDescription>
+              <CardHeader className="flex-row items-center justify-between">
+                  <div className="flex items-baseline gap-4">
+                      <CardTitle className="flex items-center gap-2"><Euro/>Análisis de Costes</CardTitle>
+                       <CardDescription>
                             Plantilla de objetivos aplicada: <strong>{objetivos.name}</strong>.
                         </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button onClick={loadData} variant="outline" size="sm">
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Actualizar Totales
-                        </Button>
-                        <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="icon"><Settings/></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Plantilla de Objetivos</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuGroup>
-                                {objetivosPlantillas.map(p => (
-                                    <DropdownMenuItem key={p.id} onSelect={() => handleObjetivoChange(p.id)}>
-                                        {p.name}
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                      <Button onClick={loadData} variant="outline" size="sm">
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Actualizar Totales
+                      </Button>
+                      <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="icon"><Settings/></Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Plantilla de Objetivos</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuGroup>
+                              {objetivosPlantillas.map(p => (
+                                  <DropdownMenuItem key={p.id} onSelect={() => handleObjetivoChange(p.id)}>
+                                      {p.name}
+                                  </DropdownMenuItem>
+                              ))}
+                          </DropdownMenuGroup>
+                      </DropdownMenuContent>
+                      </DropdownMenu>
+                  </div>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="border-t bg-primary/10 p-2 text-right">
@@ -419,7 +418,6 @@ export default function CtaExplotacionPage() {
                                 </TableHead>
                                 <TableHead colSpan={2} className="p-2 text-center border-l border-r">
                                     Real
-                                     <Tooltip><TooltipTrigger asChild><span className="ml-1.5 cursor-help"><Info className="h-3 w-3 inline text-muted-foreground"/></span></TooltipTrigger><TooltipContent><p>Coste final editable para ajustes.</p></TooltipContent></Tooltip>
                                 </TableHead>
                                 <TableHead colSpan={2} className="p-2 text-center border-l border-r">Objetivo</TableHead>
                                 <TableHead colSpan={2} className="p-2 text-center border-l">Desviación (Real vs. Obj.)</TableHead>
