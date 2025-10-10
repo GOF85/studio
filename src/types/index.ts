@@ -114,46 +114,80 @@ export type Personal = {
     precioHora: number;
 }
 
-export type Espacio = {
+export const TIPO_ESPACIO = ['Hotel', 'Espacio Singular', 'Finca', 'Restaurante', 'Auditorio', 'Corporativo', 'Centro de Congresos', 'Exterior'] as const;
+export const ESTILOS_ESPACIO = ['Clásico', 'Industrial', 'Moderno', 'Rústico', 'Lujoso', 'Minimalista', 'Tecnológico', 'Exterior/Jardín'] as const;
+export const TAGS_ESPACIO = ['Con Vistas', 'Terraza', 'Jardín', 'Piscina', 'Discoteca', 'Exclusividad Total', 'Pet-Friendly', 'Parking Propio', 'Luz Natural'] as const;
+export const IDEAL_PARA = ['Bodas', 'Eventos Corporativos', 'Presentaciones de producto', 'Rodajes', 'Fiestas Privadas', 'Congresos', 'Ferias'] as const;
+
+export type Sala = {
+  id: string;
+  nombreSala: string;
+  aforoTeatro?: number;
+  aforoEscuela?: number;
+  aforoCabaret?: number;
+  aforoCocktailSala?: number;
+  esDiafana: boolean;
+  tieneLuzNatural: boolean;
+};
+
+export type ContactoEspacio = {
     id: string;
-    espacio: string;
-    escaparateMICE: string;
-    carpetaDRIVE: string;
-    calle: string;
-    nombreContacto1: string;
-    telefonoContacto1: string;
-    emailContacto1: string;
-    canonEspacioPorcentaje: number;
-    canonEspacioFijo: number;
-    canonMcPorcentaje: number;
-    canonMcFijo: number;
-    comisionAlquilerMcPorcentaje: number;
-    precioOrientativoAlquiler: string;
-    horaLimiteCierre: string;
-    aforoCocktail: number;
-    aforoBanquete: number;
-    auditorio: string;
-    aforoAuditorio: number;
-    zonaExterior: string;
-    capacidadesPorSala: string;
-    numeroDeSalas: number;
-    tipoDeEspacio: string;
-    tipoDeEventos: string;
-    ciudad: string;
-    directorio: string;
-    descripcion: string;
-    comentariosVarios: string;
-    equipoAudiovisuales: string;
-    cocina: string;
-    accesibilidadAsistentes: string;
-    pantalla: string;
-    plato: string;
-aparcamiento: string;
-  accesoVehiculos: string;
-  conexionWifi: string;
-  homologacion: string;
-  comentariosMarketing: string;
-}
+    nombre: string;
+    cargo: string;
+    telefono: string;
+    email: string;
+};
+
+export type Espacio = {
+  id: string;
+  // Info General
+  espacio: string;
+  tipoDeEspacio: (typeof TIPO_ESPACIO[number])[];
+  descripcionCorta?: string;
+  descripcionLarga?: string;
+  
+  // Localización
+  ciudad: string;
+  provincia: string;
+  calle: string;
+  codigoPostal: string;
+  zona?: string; // Barrio, distrito, área. Ej: "Barrio de Salamanca"
+  
+  // Capacidades
+  aforoMaximoCocktail: number;
+  aforoMaximoBanquete: number;
+  salas: Sala[];
+  
+  // Características & Estilo (para IA)
+  estilos: (typeof ESTILOS_ESPACIO[number])[];
+  tags: (typeof TAGS_ESPACIO[number])[];
+  idealPara: (typeof IDEAL_PARA[number])[];
+  
+  // Logística y Servicios
+  cocinaInSitu: boolean;
+  officeParaCatering: boolean;
+  potenciaElectrica?: string; // Ej: "60 kW trifásica"
+  accesoMontaje?: string; // Ej: "Montacargas 3x2m, acceso a nivel de calle"
+  horarioMontaje?: string;
+  horarioMaximoEvento?: string; // Ej: "Hasta las 02:00"
+  aparcamiento?: string;
+  accesibilidad: boolean; // Adaptado para movilidad reducida
+  
+  // Info Comercial y Financiera
+  proveedorHomologadoMICE: boolean;
+  canonEspacioPorcentaje: number;
+  canonEspacioFijo: number;
+  comisionAgenciaPorcentaje: number;
+  precioOrientativoAlquiler?: string; // Ej: "Desde 5.000€ media jornada"
+  exclusividadMusica: boolean;
+  exclusividadAudiovisuales: boolean;
+  notasComerciales?: string; // Comentarios internos
+  
+  // Contactos y Enlaces
+  contactos: ContactoEspacio[];
+  escaparateMICE?: string;
+  carpetaDRIVE?: string;
+};
 
 export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacen', 'Bio', 'Hielo', 'Alquiler', 'Menaje', 'Decoracion', 'Servicios', 'Otros'] as const;
 export type ArticuloCateringCategoria = typeof ARTICULO_CATERING_CATEGORIAS[number];
@@ -485,7 +519,7 @@ export type Receta = {
     tipoCocina?: string;
     temperaturaServicio?: 'CALIENTE' | 'TIBIO' | 'AMBIENTE' | 'FRIO' | 'HELADO';
     tecnicaCoccionPrincipal?: string;
-    potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL' | 'AL_MOMENTO';
+    potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL', 'AL_MOMENTO';
     formatoServicioIdeal?: string[];
     equipamientoCritico?: string[];
     dificultadProduccion?: number; // 1-5
@@ -813,3 +847,21 @@ export type Precio = {
     loc: string;
     imagen: string;
 }
+
+export type MenajeDB = {
+    id: string;
+    descripcion: string;
+    categoria: string;
+    imagen: string;
+}
+
+export type TipoCocina = {
+    id: string;
+    nombre: string;
+}
+
+export type CategoriaReceta = {
+    id: string;
+    nombre: string;
+}
+
