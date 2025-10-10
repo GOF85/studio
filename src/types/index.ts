@@ -149,11 +149,7 @@ export type CuadroElectrico = {
 };
 
 export type MultimediaEspacio = {
-    fotosPrincipales?: string[];
-    fotosRecursos?: string[];
-    videos?: string[];
-    planos?: string[];
-    dossierComercial?: string;
+    carpetaDRIVE?: string;
     visitaVirtual?: string;
 }
 
@@ -177,8 +173,11 @@ export type FlowInvitado = {
     seguridadPropia: boolean;
 };
 
+export type RelacionComercial = 'Exclusividad' | 'Homologado Preferente' | 'Homologado' | 'Puntual' | 'Sin Relación';
+
 export type Espacio = {
   id: string;
+  
   // --- IDENTIFICACIÓN Y CATEGORIZACIÓN ---
   identificacion: {
     nombreEspacio: string;
@@ -236,7 +235,7 @@ export type Espacio = {
   // --- EVALUACIÓN COMERCIAL Y MICE ---
   evaluacionMICE: {
     proveedorId?: string; // Vinculación con nuestra DB de proveedores
-    proveedorHomologadoMICE: boolean;
+    relacionComercial: RelacionComercial;
     // Comercial
     valoracionComercial: 1 | 2 | 3 | 4 | 5; // Qué tan "vendible" es
     puntosFuertes: string[];
@@ -246,8 +245,7 @@ export type Espacio = {
     // Financiero
     canonEspacioPorcentaje: number;
     canonEspacioFijo: number;
-    comisionAgenciaPorcentaje: number;
-    precioOrientativoAlquiler?: string;
+    agencyPercentage: number;
     // Exclusividades
     exclusividadMusica: boolean;
     exclusividadAudiovisuales: boolean;
