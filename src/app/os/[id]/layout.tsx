@@ -75,6 +75,8 @@ function OSSubHeader() {
   const osId = params.id as string;
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [updateKey, setUpdateKey] = useState(Date.now());
+
 
   const currentModule = useMemo(() => {
     const pathSegment = pathname.split('/').pop();
@@ -87,7 +89,16 @@ function OSSubHeader() {
       const currentOS = allServiceOrders.find(os => os.id === osId);
       setServiceOrder(currentOS || null);
     }
-  }, [osId]);
+     // Listener for storage events to force re-render
+    const handleStorageChange = () => {
+        setUpdateKey(Date.now());
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+        window.removeEventListener('storage', handleStorageChange);
+    };
+
+  }, [osId, updateKey]);
 
   if (!serviceOrder || !currentModule) return null;
 
@@ -120,12 +131,12 @@ function OSSubHeader() {
                     </div>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground px-4 pb-2">
+                     {currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} key={updateKey} />}
                      <div className="flex items-center gap-2 font-semibold">
                         <FileText className="h-4 w-4" />
                         <span>{serviceOrder.serviceNumber}</span>
                     </div>
                     {serviceOrder.isVip && <Badge variant="default" className="bg-amber-400 text-black hover:bg-amber-500"><Star className="h-4 w-4 mr-1"/> VIP</Badge>}
-                    {currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} />}
                     {serviceOrder.space && (
                         <div className="hidden sm:flex items-center gap-2">
                         <Building className="h-4 w-4" />

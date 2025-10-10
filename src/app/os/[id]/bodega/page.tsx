@@ -18,6 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
   orderId: string;
@@ -48,7 +49,7 @@ export default function BodegaPage() {
 
    useEffect(() => {
     if (!osId) return;
-
+    
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bodega');
     setMaterialOrders(relatedOrders);
@@ -59,9 +60,9 @@ export default function BodegaPage() {
     setIsMounted(true);
   }, [osId]);
 
-  const { allItemsByStatus, processedItemKeys } = useMemo(() => {
+  const allItemsByStatus = useMemo(() => {
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
-    const keys = new Set<string>();
+    const processedItemKeys = new Set<string>();
 
     pickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
@@ -74,9 +75,8 @@ export default function BodegaPage() {
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
-                    tipo: item.tipo,
                 });
-                keys.add(uniqueKey);
+                processedItemKeys.add(uniqueKey);
             }
         });
     });
@@ -84,7 +84,7 @@ export default function BodegaPage() {
     materialOrders.forEach(order => {
         order.items.forEach(item => {
             const uniqueKey = `${order.id}-${item.itemCode}`;
-            if (!keys.has(uniqueKey)) {
+            if (!processedItemKeys.has(uniqueKey)) {
                 items['Asignado'].push({
                     ...item,
                     orderId: order.id,
@@ -96,21 +96,30 @@ export default function BodegaPage() {
             }
         });
     });
-    return { allItemsByStatus: items, processedItemKeys: keys };
-  }, [materialOrders, pickingSheets, osId]);
+    return items;
+  }, [materialOrders, pickingSheets]);
 
   const { allItems, blockedItems, pendingItems } = useMemo(() => {
     const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo } as ItemWithOrderInfo)));
     const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
     
     // Filter from original orders, not the calculated 'Asignado' column
+    const processedItemKeys = new Set<string>();
+     pickingSheets.forEach(sheet => {
+        sheet.items.forEach(item => {
+            if (item.type === 'Bodega') {
+               processedItemKeys.add(`${item.orderId}-${item.itemCode}`);
+            }
+        });
+    });
+
     const pending = all.filter(item => {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
       return !processedItemKeys.has(uniqueKey);
     });
 
     return { allItems: all, blockedItems: blocked, pendingItems: pending };
-  }, [materialOrders, allItemsByStatus, processedItemKeys]);
+  }, [materialOrders, pickingSheets, allItemsByStatus]);
 
 
   const handleSaveAll = () => {
@@ -125,6 +134,9 @@ export default function BodegaPage() {
     });
 
     localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
+    // Disparar un evento de almacenamiento para que otros componentes (como el layout) puedan reaccionar
+    window.dispatchEvent(new Event('storage'));
+    
     toast({ title: 'Guardado', description: 'Todos los cambios en los pedidos han sido guardados.' });
     setIsLoading(false);
   }
@@ -157,6 +169,7 @@ export default function BodegaPage() {
     const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
     localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
     setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Bodega'));
+    window.dispatchEvent(new Event('storage'));
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
   };
@@ -262,10 +275,10 @@ export default function BodegaPage() {
                 <Collapsible defaultOpen={false}>
                     <div className="flex items-center gap-2 font-semibold text-destructive border p-2 rounded-md hover:bg-muted/50 mb-4">
                         <CollapsibleTrigger asChild>
-                           <div className="flex-1 flex items-center cursor-pointer">
-                             <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                             Bloqueado (En Preparación / Listo)
-                           </div>
+                            <div className="flex flex-1 items-center cursor-pointer">
+                                <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                                Bloqueado (En Preparación / Listo)
+                            </div>
                         </CollapsibleTrigger>
                     </div>
                     <CollapsibleContent>
