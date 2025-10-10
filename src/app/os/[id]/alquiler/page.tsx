@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2 } from 'lucide-react';
@@ -23,6 +23,7 @@ type ItemWithOrderInfo = OrderItem & {
   orderId: string;
   orderStatus: PickingSheet['status'];
   solicita?: 'Sala' | 'Cocina';
+  tipo?: string;
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -58,18 +59,14 @@ export default function AlquilerPage() {
     setIsMounted(true);
   }, [osId]);
 
-  const allItems = useMemo(() => {
-    return materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
-  }, [materialOrders]);
-
-  const allItemsByStatus = useMemo(() => {
+  const { allItemsByStatus, processedItemKeys } = useMemo(() => {
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = {
       Asignado: [],
       'En Preparación': [],
       Listo: [],
     };
     
-    const processedItemKeys = new Set<string>();
+    const keys = new Set<string>();
 
     pickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
@@ -82,7 +79,7 @@ export default function AlquilerPage() {
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
                 });
-                processedItemKeys.add(`${item.orderId}-${item.itemCode}`);
+                keys.add(`${item.orderId}-${item.itemCode}`);
             }
         });
     });
@@ -90,19 +87,31 @@ export default function AlquilerPage() {
     materialOrders.forEach(order => {
         order.items.forEach(item => {
             const itemKey = `${order.id}-${item.itemCode}`;
-            if (!processedItemKeys.has(itemKey)) {
+            if (!keys.has(itemKey)) {
                 items['Asignado'].push({
                     ...item,
                     orderId: order.id,
                     orderContract: order.contractNumber || 'N/A',
                     orderStatus: 'Pendiente', 
                     solicita: order.solicita,
+                    tipo: item.tipo,
                 });
             }
         });
     });
-    return items;
+    return { allItemsByStatus: items, processedItemKeys: keys };
   }, [materialOrders, pickingSheets]);
+
+  const { allItems, blockedItems, pendingItems } = useMemo(() => {
+    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo } as ItemWithOrderInfo)));
+    const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    const pending = all.filter(item => {
+      const uniqueKey = `${item.orderId}-${item.itemCode}`;
+      return !processedItemKeys.has(uniqueKey);
+    });
+    return { allItems: all, blockedItems: blocked, pendingItems: pending };
+  }, [materialOrders, allItemsByStatus, processedItemKeys]);
+
 
   const handleSaveAll = () => {
     setIsLoading(true);
@@ -152,10 +161,6 @@ export default function AlquilerPage() {
     setOrderToDelete(null);
   };
 
-  if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
-  }
-
   const renderColumn = (title: string, items: ItemWithOrderInfo[]) => (
     <Card className="flex-1 bg-muted/30">
         <CardHeader className="pb-4">
@@ -183,22 +188,9 @@ export default function AlquilerPage() {
     </Card>
   );
 
-  const blockedItems = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
-  const pendingItems = allItems.filter(item => {
-    return allItemsByStatus['Asignado'].some(assigned => assigned.itemCode === item.itemCode && assigned.orderId === item.orderId)
-  });
-
-  const { processedItemKeys } = useMemo(() => {
-    const keys = new Set<string>();
-    pickingSheets.forEach(sheet => {
-        sheet.items.forEach(item => {
-            if(item.type === 'Alquiler') {
-                keys.add(`${item.orderId}-${item.itemCode}`);
-            }
-        })
-    })
-    return { processedItemKeys: keys };
-  }, [pickingSheets]);
+  if (!isMounted) {
+    return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
+  }
 
   return (
     <>
@@ -209,17 +201,36 @@ export default function AlquilerPage() {
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
-                <Table>
-                    <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad Total</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {Object.entries(allItems.reduce((acc, item) => {
-                            acc[item.description] = (acc[item.description] || 0) + item.quantity;
-                            return acc;
-                        }, {} as Record<string, number>)).map(([desc, qty]) => (
-                            <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                <div className="space-y-4">
+                    <div>
+                        <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {Object.entries(pendingItems.reduce((acc, item) => {
+                                    acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                    return acc;
+                                }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                    <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                     <div>
+                        <h3 className="font-semibold mb-2">Artículos en Proceso / Listos</h3>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {Object.entries(blockedItems.reduce((acc, item) => {
+                                    acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                    return acc;
+                                }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                    <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </div>
             </DialogContent>
         </Dialog>
         <Button asChild>
@@ -303,7 +314,7 @@ export default function AlquilerPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                     <TableCell><Badge variant="outline">{materialOrders.find(o=>o.id === item.orderId)?.contractNumber}</Badge></TableCell>
+                                     <TableCell><Badge variant="outline">{item.contractNumber}</Badge></TableCell>
                                     <TableCell>
                                         <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'quantity', parseInt(e.target.value) || 0)} className="h-8"/>
                                     </TableCell>
@@ -342,3 +353,5 @@ export default function AlquilerPage() {
     </>
   );
 }
+
+    
