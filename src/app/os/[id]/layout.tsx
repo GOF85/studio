@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -121,12 +120,12 @@ function OSSubHeader() {
                     </div>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground px-4 pb-2">
-                    {currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} />}
-                    <div className="flex items-center gap-2 font-semibold ml-4">
-                        {serviceOrder.isVip && <Star className="h-4 w-4 text-amber-500 fill-amber-500" />}
+                     <div className="flex items-center gap-2 font-semibold">
                         <FileText className="h-4 w-4" />
                         <span>{serviceOrder.serviceNumber}</span>
                     </div>
+                    {serviceOrder.isVip && <Badge variant="default" className="bg-amber-400 text-black hover:bg-amber-500"><Star className="h-4 w-4 mr-1"/> VIP</Badge>}
+                    {currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} />}
                     {serviceOrder.space && (
                         <div className="hidden sm:flex items-center gap-2">
                         <Building className="h-4 w-4" />

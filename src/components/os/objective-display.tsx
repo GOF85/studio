@@ -50,7 +50,7 @@ export function ObjectiveDisplay({ osId, moduleName }: ObjectiveDisplayProps) {
       if (!currentOS) return;
       
       const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as any[];
-      const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}')[osId] || [];
+      const allAjustes = (JSON.parse(localStorage.getItem('comercialAjustes') || '{}')[osId] || []) as { importe: number }[];
       const currentBriefing = allBriefings.find(b => b.osId === osId);
       const totalBriefing = currentBriefing?.items.reduce((acc:number, item:any) => acc + (item.asistentes * item.precioUnitario) + (item.importeFijo || 0), 0) || 0;
       const totalAjustes = allAjustes.reduce((sum: number, ajuste: {importe: number}) => sum + ajuste.importe, 0);
@@ -114,12 +114,12 @@ export function ObjectiveDisplay({ osId, moduleName }: ObjectiveDisplayProps) {
             break;
         case 'personalExterno':
             const allPersonalExternoOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as any[];
-            const allPersonalExternoAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}')[osId] || [];
+            const allPersonalExternoAjustes = (JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}')[osId] || []) as {ajuste: number}[];
             const costeTurnos = allPersonalExternoOrders.filter(o => o.osId === osId).reduce((sum, order) => {
                 const hours = calculateHours(order.horaEntrada, order.horaSalida);
                 return sum + (hours * (order.precioHora || 0) * (order.cantidad || 1));
             }, 0);
-            const costeAjustes = allPersonalExternoAjustes.reduce((sum: number, ajuste: {ajuste: number}) => sum + ajuste.ajuste, 0);
+            const costeAjustes = allPersonalExternoAjustes.reduce((sum: number, ajuste) => sum + ajuste.ajuste, 0);
             budgetValue = costeTurnos + costeAjustes;
             break;
         case 'costePruebaMenu':
@@ -143,27 +143,28 @@ export function ObjectiveDisplay({ osId, moduleName }: ObjectiveDisplayProps) {
   }
 
   const isExceeded = data.budget > data.objective;
+  const budgetPct = data.objective > 0 ? data.budget / data.objective : (data.budget > 0 ? 1 : 0);
 
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className={cn(
-              "flex items-center gap-2 text-sm font-semibold p-2 rounded-md border",
-              isExceeded ? "text-destructive border-destructive/50 bg-destructive/10" : "text-green-600 border-green-500/50 bg-green-500/10"
-          )}>
-              <Target className="h-5 w-5"/>
+          <div className="flex items-center gap-2 text-sm font-semibold p-2 rounded-md border bg-card">
+              <Target className="h-5 w-5 text-primary"/>
               <span className="font-normal text-muted-foreground">Objetivos de gasto:</span>
               <span>{formatCurrency(data.objective)} ({formatPercentage(data.objectivePct)})</span>
+              <span className="text-muted-foreground mx-1">/</span>
+               <div className={cn(isExceeded ? "text-destructive" : "text-green-600")}>
+                <span>Actual: {formatCurrency(data.budget)}</span>
+              </div>
           </div>
         </TooltipTrigger>
         <TooltipContent>
             <div className="space-y-1 text-xs p-1">
-                <div className="flex justify-between gap-4">
-                    <span className="text-muted-foreground">Presupuesto Actual:</span>
-                    <span className="font-bold">{formatCurrency(data.budget)}</span>
-                </div>
-                <div className="flex justify-between gap-4">
+                <p>El presupuesto actual de este módulo es <strong>{formatCurrency(data.budget)}</strong></p>
+                <p>El objetivo es <strong>{formatCurrency(data.objective)}</strong></p>
+                <Separator className="my-2"/>
+                 <div className="flex justify-between gap-4">
                     <span className="text-muted-foreground">Desviación:</span>
                     <span className={cn("font-bold", isExceeded ? "text-destructive" : "text-green-600")}>
                         {formatCurrency(data.budget - data.objective)}
