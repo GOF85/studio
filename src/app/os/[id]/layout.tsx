@@ -9,10 +9,10 @@ import { useEffect, useState, useMemo } from 'react';
 import type { ServiceOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card } from '@/components/ui/card';
 import { ObjectiveDisplay } from '@/components/os/objective-display';
+import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar } from 'lucide-react';
+
 
 type NavLink = {
     path: string;
@@ -103,49 +103,47 @@ function OSSubHeader() {
   if (!serviceOrder || !currentModule) return null;
 
   return (
-    <div className="mb-4">
-        <Card>
-             <div className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div>
-                        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                            <SheetTrigger asChild>
-                                <Button variant="outline">
-                                    <Menu className="h-5 w-5 mr-2" />
-                                    Módulos
-                                </Button>
-                            </SheetTrigger>
-                            <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
-                                <SheetHeader className="p-4 border-b">
-                                  <SheetTitle>Módulos</SheetTitle>
-                                </SheetHeader>
-                                <ScrollArea className="h-full p-4">
-                                    <OSSidebarNav onLinkClick={() => setIsSheetOpen(false)} />
-                                </ScrollArea>
-                            </SheetContent>
-                        </Sheet>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <currentModule.icon className="h-7 w-7 text-primary" />
-                        <h1 className="text-2xl font-headline font-bold">{currentModule.title}</h1>
-                    </div>
+    <div className="mb-6 border rounded-lg bg-card">
+        <div className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+                <div>
+                    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                        <SheetTrigger asChild>
+                            <Button variant="outline">
+                                <Menu className="h-5 w-5 mr-2" />
+                                Módulos
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
+                            <SheetHeader className="p-4 border-b">
+                                <SheetTitle>Módulos</SheetTitle>
+                            </SheetHeader>
+                            <ScrollArea className="h-full p-4">
+                                <OSSidebarNav onLinkClick={() => setIsSheetOpen(false)} />
+                            </ScrollArea>
+                        </SheetContent>
+                    </Sheet>
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground px-4 pb-2">
-                     {currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
-                     <div className="flex items-center gap-2 font-semibold">
-                        <FileText className="h-4 w-4" />
-                        <span>{serviceOrder.serviceNumber}</span>
-                    </div>
-                    {serviceOrder.isVip && <Badge variant="default" className="bg-amber-400 text-black hover:bg-amber-500"><Star className="h-4 w-4 mr-1"/> VIP</Badge>}
-                    {serviceOrder.space && (
-                        <div className="hidden sm:flex items-center gap-2">
-                        <Building className="h-4 w-4" />
-                        <span className="font-semibold">{serviceOrder.space}</span>
-                        </div>
-                    )}
+                <div className="flex items-center gap-3">
+                    <currentModule.icon className="h-7 w-7 text-primary" />
+                    <h1 className="text-2xl font-headline font-bold">{currentModule.title}</h1>
                 </div>
             </div>
-        </Card>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground px-4 pb-3">
+                    {currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
+                    <div className="flex items-center gap-2 font-semibold">
+                    <FileText className="h-4 w-4" />
+                    <span>{serviceOrder.serviceNumber}</span>
+                </div>
+                {serviceOrder.isVip && <Badge variant="default" className="bg-amber-400 text-black hover:bg-amber-500"><Star className="h-4 w-4 mr-1"/> VIP</Badge>}
+                {serviceOrder.space && (
+                    <div className="hidden sm:flex items-center gap-2">
+                    <Building className="h-4 w-4" />
+                    <span className="font-semibold">{serviceOrder.space}</span>
+                    </div>
+                )}
+            </div>
+        </div>
     </div>
   );
 }
