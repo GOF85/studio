@@ -7,8 +7,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, FileDown, Building, X, PlusCircle, Trash2, Info } from 'lucide-react';
-import type { Espacio, RelacionComercial } from '@/types';
+import { Loader2, FileDown, Building, X, PlusCircle, Trash2, Info, ImagePlus, Star, Link as LinkIcon } from 'lucide-react';
+import type { Espacio, RelacionComercial, ImagenEspacio } from '@/types';
 import { TIPO_ESPACIO, ESTILOS_ESPACIO, TAGS_ESPACIO, IDEAL_PARA } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -25,18 +25,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import Image from 'next/image';
 
 const salaSchema = z.object({
   id: z.string(),
   nombreSala: z.string().min(1, "Nombre es obligatorio"),
-  m2: z.coerce.number().optional(),
-  dimensiones: z.string().optional(),
-  alturaMax: z.coerce.number().optional(),
-  alturaMin: z.coerce.number().optional(),
-  aforoTeatro: z.coerce.number().optional(),
-  aforoEscuela: z.coerce.number().optional(),
-  aforoCabaret: z.coerce.number().optional(),
-  aforoCocktailSala: z.coerce.number().optional(),
+  m2: z.coerce.number().optional().default(0),
+  dimensiones: z.string().optional().default(''),
+  alturaMax: z.coerce.number().optional().default(0),
+  alturaMin: z.coerce.number().optional().default(0),
+  aforoTeatro: z.coerce.number().optional().default(0),
+  aforoEscuela: z.coerce.number().optional().default(0),
+  aforoCabaret: z.coerce.number().optional().default(0),
+  aforoCocktailSala: z.coerce.number().optional().default(0),
   esDiafana: z.boolean().default(false),
   tieneLuzNatural: z.boolean().default(false),
 });
@@ -44,8 +45,8 @@ const salaSchema = z.object({
 const contactoSchema = z.object({
     id: z.string(),
     nombre: z.string().min(1, "Nombre es obligatorio"),
-    cargo: z.string().optional(),
-    telefono: z.string().optional(),
+    cargo: z.string().optional().default(''),
+    telefono: z.string().optional().default(''),
     email: z.string().email("Email inválido").or(z.literal('')),
 });
 
@@ -55,27 +56,33 @@ const cuadroElectricoSchema = z.object({
     potencia: z.string(),
 });
 
+const imagenEspacioSchema = z.object({
+    id: z.string(),
+    url: z.string().url("URL inválida"),
+    isPrincipal: z.boolean().default(false),
+});
+
 
 export const espacioFormSchema = z.object({
   id: z.string(),
   identificacion: z.object({
     nombreEspacio: z.string().min(1, 'El nombre es obligatorio'),
     tipoDeEspacio: z.array(z.string()).min(1, "Selecciona al menos un tipo"),
-    descripcionCorta: z.string().optional(),
-    descripcionLarga: z.string().optional(),
+    descripcionCorta: z.string().optional().default(''),
+    descripcionLarga: z.string().optional().default(''),
     ciudad: z.string().min(1, "La ciudad es obligatoria"),
     provincia: z.string().min(1, "La provincia es obligatoria"),
     calle: z.string().min(1, "La calle es obligatoria"),
     codigoPostal: z.string().min(1, "El C.P. es obligatorio"),
-    zona: z.string().optional(),
-    estilos: z.array(z.string()).optional(),
-    tags: z.array(z.string()).optional(),
-    idealPara: z.array(z.string()).optional(),
+    zona: z.string().optional().default(''),
+    estilos: z.array(z.string()).optional().default([]),
+    tags: z.array(z.string()).optional().default([]),
+    idealPara: z.array(z.string()).optional().default([]),
   }),
   capacidades: z.object({
     aforoMaximoCocktail: z.coerce.number().optional().default(0),
     aforoMaximoBanquete: z.coerce.number().optional().default(0),
-    salas: z.array(salaSchema).optional(),
+    salas: z.array(salaSchema).optional().default([]),
   }),
   logistica: z.object({
     accesoVehiculos: z.string().optional().default(''),
@@ -139,6 +146,7 @@ export const espacioFormSchema = z.object({
     conexionWifi: z.string().optional().default(''),
   }),
   multimedia: z.object({
+    imagenes: z.array(imagenEspacioSchema).optional().default([]),
     carpetaDRIVE: z.string().url("URL inválida.").or(z.literal("")).optional().default(''),
     visitaVirtual: z.string().url("URL inválida.").or(z.literal("")).optional().default(''),
   }).optional(),
@@ -194,7 +202,7 @@ export default function EspacioFormPage() {
         flow: { accesoPrincipal: '', recorridoInvitado: '', aparcamiento: '', transportePublico: '', accesibilidadAsistentes: '', guardarropa: false, seguridadPropia: false },
         equipamientoAudiovisuales: '', pantalla: '', sistemaSonido: '', escenario: '', conexionWifi: ''
       },
-      multimedia: { carpetaDRIVE: '', visitaVirtual: '' },
+      multimedia: { imagenes: [], carpetaDRIVE: '', visitaVirtual: '' },
       contactos: [],
     },
   });
@@ -202,6 +210,9 @@ export default function EspacioFormPage() {
   const { fields: salasFields, append: appendSala, remove: removeSala } = useFieldArray({ control: form.control, name: "capacidades.salas" });
   const { fields: contactosFields, append: appendContacto, remove: removeContacto } = useFieldArray({ control: form.control, name: "contactos" });
   const { fields: cuadrosFields, append: appendCuadro, remove: removeCuadro } = useFieldArray({ control: form.control, name: "logistica.cuadrosElectricos" });
+  const { fields: imagenesFields, append: appendImagen, remove: removeImagen, update: updateImagen } = useFieldArray({ control: form.control, name: "multimedia.imagenes" });
+  
+  const [newImageUrl, setNewImageUrl] = useState('');
 
   useEffect(() => {
     if (isEditing) {
@@ -221,7 +232,7 @@ export default function EspacioFormPage() {
             logistica: { tipoCocina: 'Sin cocina', metricasOperativas: { dificultadMontaje: 3, penalizacionPersonalMontaje: 0 } },
             evaluacionMICE: { relacionComercial: 'Sin Relación', valoracionComercial: 3, valoracionOperaciones: 3 },
             experienciaInvitado: { flow: {}},
-            multimedia: { carpetaDRIVE: '', visitaVirtual: '' },
+            multimedia: { imagenes: [], carpetaDRIVE: '', visitaVirtual: '' },
             contactos: [],
         });
     }
@@ -257,6 +268,22 @@ export default function EspacioFormPage() {
       setIsLoading(false);
       router.push('/espacios');
     }, 1000);
+  }
+  
+  const handleAddImageUrl = () => {
+    try {
+        const url = new URL(newImageUrl);
+        appendImagen({ id: Date.now().toString(), url: url.href, isPrincipal: imagenesFields.length === 0 });
+        setNewImageUrl('');
+    } catch(e) {
+        toast({ variant: 'destructive', title: 'URL inválida', description: 'Por favor, introduce una URL de imagen válida.'});
+    }
+  }
+
+  const setPrincipalImage = (indexToSet: number) => {
+    imagenesFields.forEach((field, index) => {
+        updateImagen(index, { ...field, isPrincipal: index === indexToSet });
+    });
   }
 
   return (
@@ -321,7 +348,7 @@ export default function EspacioFormPage() {
                 </AccordionItem>
                  <AccordionItem value="item-6">
                     <Card>
-                        <AccordionTrigger className="p-4"><CardTitle>Contactos y Multimedia</CardTitle></AccordionTrigger>
+                        <AccordionTrigger className="p-4"><CardTitle>Contacto y Multimedia</CardTitle></AccordionTrigger>
                         <AccordionContent>
                              <CardContent className="space-y-4 pt-2">
                                 <div className="space-y-2">
@@ -344,6 +371,27 @@ export default function EspacioFormPage() {
                                     </div>
                                     <Button type="button" variant="outline" size="sm" onClick={() => appendContacto({id: Date.now().toString(), nombre: '', cargo: '', telefono: '', email: ''})}><PlusCircle className="mr-2"/>Añadir Contacto</Button>
                                  </div>
+                                 
+                                <div className="space-y-2">
+                                    <h4 className="font-semibold text-sm flex items-center">Imágenes del Espacio</h4>
+                                    <div className="flex gap-2">
+                                        <Input value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="Pega una URL de imagen..."/>
+                                        <Button type="button" variant="outline" onClick={handleAddImageUrl}><LinkIcon className="mr-2"/>Añadir URL</Button>
+                                    </div>
+                                    {form.formState.errors.multimedia?.imagenes && <p className="text-sm font-medium text-destructive">{(form.formState.errors.multimedia?.imagenes as any).message}</p>}
+                                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 pt-2">
+                                        {imagenesFields.map((field, index) => (
+                                            <div key={field.id} className="relative aspect-video rounded-md overflow-hidden group border-2 border-transparent data-[principal=true]:border-primary" data-principal={field.isPrincipal}>
+                                                <Image src={field.url} alt={`Foto de producción ${index+1}`} fill className="object-cover" />
+                                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                                    <Tooltip><TooltipTrigger asChild><Button type="button" variant="secondary" size="icon" onClick={() => setPrincipalImage(index)}><Star className={cn("h-5 w-5", field.isPrincipal && "fill-amber-400 text-amber-400")}/></Button></TooltipTrigger><TooltipContent><p>Marcar como principal</p></TooltipContent></Tooltip>
+                                                    <Tooltip><TooltipTrigger asChild><Button type="button" variant="destructive" size="icon" onClick={() => removeImagen(index)}><Trash2/></Button></TooltipTrigger><TooltipContent><p>Eliminar</p></TooltipContent></Tooltip>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                 
                                  <div className="grid md:grid-cols-2 gap-4">
                                      <FormField control={form.control} name="multimedia.carpetaDRIVE" render={({ field }) => (
                                         <FormItem><FormLabel className="flex items-center">Carpeta de Drive <InfoTooltip text="URL a la carpeta compartida con todos los recursos: fotos, planos, etc."/></FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
@@ -383,7 +431,7 @@ export default function EspacioFormPage() {
                                         </TableBody>
                                     </Table>
                                 </div>
-                                <Button type="button" variant="outline" size="sm" onClick={() => appendSala({id: Date.now().toString(), nombreSala: '', esDiafana: true, tieneLuzNatural: true})}><PlusCircle className="mr-2"/>Añadir Sala</Button>
+                                <Button type="button" variant="outline" size="sm" onClick={() => appendSala({id: Date.now().toString(), nombreSala: '', esDiafana: true, tieneLuzNatural: true, m2: 0, aforoTeatro: 0, aforoEscuela: 0, dimensiones: '', alturaMax: 0, alturaMin: 0, aforoCabaret: 0, aforoCocktailSala: 0})}><PlusCircle className="mr-2"/>Añadir Sala</Button>
                              </div>
                         </CardContent>
                         </AccordionContent>
@@ -469,5 +517,5 @@ export default function EspacioFormPage() {
     </>
   );
 }
-
     
+

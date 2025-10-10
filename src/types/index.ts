@@ -148,7 +148,14 @@ export type CuadroElectrico = {
     potencia: string;
 };
 
+export type ImagenEspacio = {
+    id: string;
+    url: string;
+    isPrincipal: boolean;
+}
+
 export type MultimediaEspacio = {
+    imagenes?: ImagenEspacio[];
     carpetaDRIVE?: string;
     visitaVirtual?: string;
 }
@@ -178,7 +185,6 @@ export type RelacionComercial = 'Exclusividad' | 'Homologado Preferente' | 'Homo
 export type Espacio = {
   id: string;
   
-  // --- IDENTIFICACIÓN Y CATEGORIZACIÓN ---
   identificacion: {
     nombreEspacio: string;
     tipoDeEspacio: (typeof TIPO_ESPACIO[number])[];
@@ -194,27 +200,22 @@ export type Espacio = {
     idealPara: (typeof IDEAL_PARA[number])[];
   };
   
-  // --- CAPACIDADES Y DISTRIBUCIÓN ---
   capacidades: {
     aforoMaximoCocktail: number;
     aforoMaximoBanquete: number;
     salas: Sala[];
   };
 
-  // --- LOGÍSTICA Y PRODUCCIÓN ---
   logistica: {
-    // Accesos
     accesoVehiculos?: string;
     horarioMontajeDesmontaje?: string;
     montacargas: boolean;
     dimensionesMontacargas?: string;
     accesoServicioIndependiente: boolean;
-    // Electricidad y Agua
     potenciaTotal?: string;
     cuadrosElectricos?: CuadroElectrico[];
     tomasAgua?: string[];
     desagues?: string[];
-    // Cocina
     tipoCocina: 'Cocina completa' | 'Office de regeneración' | 'Sin cocina';
     equipamientoCocina?: string[];
     potenciaElectricaCocina?: string;
@@ -222,43 +223,38 @@ export type Espacio = {
     desaguesCocina: boolean;
     extraccionHumos: boolean;
     descripcionOffice?: string;
-    // Normativas y Almacenamiento
     zonaAlmacenaje?: string;
     limitadorSonido: boolean;
     permiteMusicaExterior: boolean;
     politicaDecoracion?: string;
     puntosAnclaje: boolean;
-    // Métricas operativas
-    metricasOperativas: MetricasOperativas;
+    metricasOperativas?: {
+        dificultadMontaje: number;
+        penalizacionPersonalMontaje: number;
+        notasDificultadMontaje?: string;
+    };
   };
 
-  // --- EVALUACIÓN COMERCIAL Y MICE ---
   evaluacionMICE: {
-    proveedorId?: string; // Vinculación con nuestra DB de proveedores
+    proveedorId?: string;
     relacionComercial: RelacionComercial;
-    // Comercial
-    valoracionComercial: 1 | 2 | 3 | 4 | 5; // Qué tan "vendible" es
+    valoracionComercial: number; 
     puntosFuertes: string[];
     puntosDebiles: string[];
     perfilClienteIdeal?: string;
     argumentarioVentaRapido?: string[];
-    // Financiero
-    canonEspacioPorcentaje: number;
-    canonEspacioFijo: number;
-    agencyPercentage: number;
-    // Exclusividades
     exclusividadMusica: boolean;
     exclusividadAudiovisuales: boolean;
     otrosProveedoresExclusivos?: string;
-    // Notas
     notasComerciales?: string;
     resumenEjecutivoIA?: string;
+    valoracionOperaciones: number; 
+    factoresCriticosExito: string[];
+    riesgosPotenciales: string[];
   };
 
-  // --- EXPERIENCIA DEL INVITADO ---
   experienciaInvitado: {
     flow: FlowInvitado;
-    // Capacidades A/V
     equipamientoAudiovisuales?: string;
     pantalla?: string;
     sistemaSonido?: string;
@@ -266,20 +262,25 @@ export type Espacio = {
     conexionWifi?: string;
   };
 
-  // --- CONTACTOS Y MULTIMEDIA ---
   contactos: ContactoEspacio[];
   multimedia?: MultimediaEspacio;
   
   // --- Deprecated fields from old structure (to be removed after migration) ---
-  espacio: string; // USE identificacion.nombreEspacio
+  espacio: string; 
   escaparateMICE?: string;
   carpetaDRIVE?: string;
   nombreContacto1?: string;
   telefonoContacto1?: string;
   emailContacto1?: string;
+  canonEspacioPorcentaje?: number;
+  canonEspacioFijo?: number;
   canonMcPorcentaje?: number;
   canonMcFijo?: number;
+  comisionAlquilerMcPorcentaje?: number;
+  precioOrientativoAlquiler?: string;
   horaLimiteCierre?: string;
+  aforoCocktail?: number;
+  aforoBanquete?: number;
   auditorio?: string;
   aforoAuditorio?: number;
   zonaExterior?: string;
@@ -288,7 +289,7 @@ export type Espacio = {
   directorio?: string;
   comentariosVarios?: string;
   cocina?: string;
-  plato?: string; // Renamed to escenario
+  plato?: string; 
   homologacion?: string;
   comentariosMarketing?: string;
 };
