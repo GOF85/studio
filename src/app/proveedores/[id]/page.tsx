@@ -140,13 +140,13 @@ export default function ProveedorFormPage() {
         </div>
 
         <Form {...form}>
-          <form id="proveedor-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form id="proveedor-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Datos del Proveedor</CardTitle>
                 <CardDescription>Introduce la información de contacto, fiscal y el tipo de servicios que ofrece.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4">
                  <FormField control={form.control} name="tipos" render={({ field }) => (
                       <FormItem>
                           <FormLabel>Tipo(s) de Proveedor</FormLabel>
@@ -159,7 +159,7 @@ export default function ProveedorFormPage() {
                           <FormMessage />
                       </FormItem>
                   )} />
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <FormField control={form.control} name="nombreComercial" render={({ field }) => (
                     <FormItem className="lg:col-span-2"><FormLabel>Nombre Comercial</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -196,7 +196,7 @@ export default function ProveedorFormPage() {
 
             <Card>
                 <CardHeader><CardTitle>Información Bancaria y de Pago</CardTitle></CardHeader>
-                <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <FormField control={form.control} name="iban" render={({ field }) => (
                         <FormItem className="lg:col-span-2"><FormLabel>IBAN</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
