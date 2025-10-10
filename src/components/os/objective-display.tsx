@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { ServiceOrder, ObjetivosGasto } from '@/types';
-import { Target } from 'lucide-react';
+import { Target, Info } from 'lucide-react';
 import { GASTO_LABELS } from '@/lib/constants';
-import { formatCurrency, formatPercentage } from '@/lib/utils';
+import { formatCurrency, formatPercentage, formatNumber } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,

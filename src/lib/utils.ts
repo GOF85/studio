@@ -21,3 +21,7 @@ export function formatUnit(unit: string) {
     }
     return unitMap[unit] || unit;
 }
+
+export function formatPercentage(value: number) {
+  return `${(value * 100).toFixed(2)}%`;
+}
