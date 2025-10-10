@@ -68,7 +68,7 @@ export default function CtaExplotacionPage() {
     facturacionNeta: number;
   } | null>(null);
 
-  const [realCostInputs, setRealCostInputs] = useState<Record<string, number>>({});
+  const [realCostInputs, setRealCostInputs] = useState<Record<string, number | undefined>>({});
   const [comentarios, setComentarios] = useState<Record<string, string>>({});
   const [editingComment, setEditingComment] = useState<{label: string, text: string} | null>(null);
 
@@ -81,6 +81,10 @@ export default function CtaExplotacionPage() {
     const storedPlantillas = JSON.parse(localStorage.getItem('objetivosGastoPlantillas') || '[]') as ObjetivosGasto[];
     const storedComentarios = JSON.parse(localStorage.getItem('ctaComentarios') || '{}')[osId] || {};
     setComentarios(storedComentarios);
+    
+    // Load real costs from localStorage for persistence
+    const storedRealCosts = JSON.parse(localStorage.getItem('ctaRealCosts') || '{}')[osId] || {};
+    setRealCostInputs(storedRealCosts);
     
     let appliedObjetivos: ObjetivosGasto;
     const plantillaGuardadaId = currentOS?.objetivoGastoId;
@@ -184,9 +188,6 @@ export default function CtaExplotacionPage() {
       { label: GASTO_LABELS.costePruebaMenu, presupuesto: costePruebaTotal, cierre: costePruebaTotal },
     ];
     
-    const initialRealCosts = Object.fromEntries(newCostes.map(c => [c.label, c.cierre]));
-    setRealCostInputs(initialRealCosts);
-
     setCtaData({
         serviceOrder: currentOS,
         objetivosPlantillas: storedPlantillas,
@@ -223,9 +224,20 @@ export default function CtaExplotacionPage() {
   };
   
   const handleRealCostInputChange = (label: string, value: string) => {
-     const numericValue = parseFloat(value) || 0;
-     setRealCostInputs(prev => ({...prev, [label]: numericValue}));
+    const numericValue = value === '' ? undefined : parseFloat(value) || 0;
+    setRealCostInputs(prev => ({...prev, [label]: numericValue}));
   }
+
+  const handleSaveRealCost = (label: string, value: string) => {
+    const numericValue = value === '' ? undefined : parseFloat(value) || 0;
+    const allCosts = JSON.parse(localStorage.getItem('ctaRealCosts') || '{}');
+    if (!allCosts[osId]) {
+      allCosts[osId] = {};
+    }
+    allCosts[osId][label] = numericValue;
+    localStorage.setItem('ctaRealCosts', JSON.stringify(allCosts));
+    toast({ title: "Coste Real Guardado", description: "El valor se ha guardado localmente."});
+  };
 
   const handleSaveComentario = () => {
     if (!editingComment) return;
@@ -266,7 +278,7 @@ export default function CtaExplotacionPage() {
     if (!processedCostes) return { totalPresupuesto: 0, totalCierre: 0, totalReal: 0, totalObjetivo: 0 };
     const totalPresupuesto = processedCostes.reduce((sum, row) => sum + row.presupuesto, 0);
     const totalCierre = processedCostes.reduce((sum, row) => sum + row.cierre, 0);
-    const totalReal = processedCostes.reduce((sum, row) => sum + row.real, 0);
+    const totalReal = processedCostes.reduce((sum, row) => sum + (row.real ?? row.cierre), 0);
     const totalObjetivo = processedCostes.reduce((sum, row) => sum + row.objetivo, 0);
     return { totalPresupuesto, totalCierre, totalReal, totalObjetivo };
   }, [processedCostes]);
@@ -280,16 +292,22 @@ export default function CtaExplotacionPage() {
   const ingresosAsistente = serviceOrder?.asistentes ? facturacionNeta / serviceOrder.asistentes : 0;
   
   const rentabilidadPresupuesto = facturacionNeta - totals.totalPresupuesto;
+  const rentabilidadPctPresupuesto = facturacionNeta > 0 ? rentabilidadPresupuesto / facturacionNeta : 0;
   const repercusionHQPresupuesto = rentabilidadPresupuesto * 0.25;
   const rentabilidadPostHQPresupuesto = rentabilidadPresupuesto - repercusionHQPresupuesto;
-  
+  const rentabilidadPostHQPctPresupuesto = facturacionNeta > 0 ? rentabilidadPostHQPresupuesto / facturacionNeta : 0;
+
   const rentabilidadCierre = facturacionNeta - totals.totalCierre;
+  const rentabilidadPctCierre = facturacionNeta > 0 ? rentabilidadCierre / facturacionNeta : 0;
   const repercusionHQCierre = rentabilidadCierre * 0.25;
   const rentabilidadPostHQCierre = rentabilidadCierre - repercusionHQCierre;
+  const rentabilidadPostHQPctCierre = facturacionNeta > 0 ? rentabilidadPostHQCierre / facturacionNeta : 0;
 
   const rentabilidadReal = facturacionNeta - totals.totalReal;
+  const rentabilidadPctReal = facturacionNeta > 0 ? rentabilidadReal / facturacionNeta : 0;
   const repercusionHQReal = rentabilidadReal * 0.25;
   const rentabilidadPostHQReal = rentabilidadReal - repercusionHQReal;
+  const rentabilidadPostHQPctReal = facturacionNeta > 0 ? rentabilidadPostHQReal / facturacionNeta : 0;
 
   if (!serviceOrder) {
     return <LoadingSkeleton title="Cargando Cuenta de Explotación..." />;
@@ -301,55 +319,49 @@ export default function CtaExplotacionPage() {
     const pctSFactReal = facturacionNeta > 0 ? row.real / facturacionNeta : 0;
     const desviacion = row.objetivo - row.real;
     const desviacionPct = row.objetivo > 0 ? desviacion / row.objetivo : 0;
-
-    const cellContent = (
-      <div className="flex items-center gap-2 h-full w-full px-2 py-1">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingComment({ label: row.label, text: row.comentario || '' })}>
-            <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-primary font-bold")} />
-        </Button>
-        {row.label}
-      </div>
-    );
-
+    
     return (
-      <TableRow className="hover:bg-muted/50" key={row.label}>
-          <TableCell className={cn("p-0 font-medium sticky left-0 bg-background z-10", row.comentario && 'bg-amber-100/50')}>
-             {row.comentario ? (
+        <TableRow key={row.label} className="hover:bg-muted/50">
+            <TableCell className={cn("p-0 font-medium sticky left-0 bg-background z-10", row.comentario && 'bg-amber-100/50')}>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                       {cellContent}
+                        <div className="flex items-center gap-2 h-full w-full px-2 py-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingComment({ label: row.label, text: row.comentario || '' })}>
+                                <MessageSquare className={cn("h-4 w-4 text-muted-foreground", row.comentario && "text-amber-600 font-bold")} />
+                            </Button>
+                            {row.label}
+                        </div>
                     </TooltipTrigger>
-                    <TooltipContent><p>{row.comentario}</p></TooltipContent>
+                    {row.comentario && <TooltipContent><p>{row.comentario}</p></TooltipContent>}
                 </Tooltip>
-             ) : (
-                cellContent
-             )}
-          </TableCell>
-          <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.presupuesto)}</TableCell>
-          <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSFactPresupuesto)}</TableCell>
-          
-          <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.cierre)}</TableCell>
-          <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-amber-50/50">{formatPercentage(pctSFactCierre)}</TableCell>
+            </TableCell>
+            <TableCell className="py-1 px-2 text-right font-mono border-l bg-blue-50/50">{formatCurrency(row.presupuesto)}</TableCell>
+            <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-blue-50/50">{formatPercentage(pctSFactPresupuesto)}</TableCell>
+            
+            <TableCell className="py-1 px-2 text-right font-mono border-l bg-amber-50/50">{formatCurrency(row.cierre)}</TableCell>
+            <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r bg-amber-50/50">{formatPercentage(pctSFactCierre)}</TableCell>
 
-          <TableCell className="py-1 px-2 text-right border-l bg-green-50/50">
-              <Input
-                  type="number"
-                  step="0.01"
-                  value={realCostInputs[row.label] ?? 0}
-                  onChange={(e) => handleRealCostInputChange(row.label, e.target.value)}
-                  className="h-7 text-right w-28 ml-auto"
-              />
-          </TableCell>
-          <TableCell className={cn("py-1 px-2 text-right font-mono border-r bg-green-50/50", pctSFactReal > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFactReal)}</TableCell>
-          
-          <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-l">{formatCurrency(row.objetivo)}</TableCell>
-          <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r">{formatPercentage(row.objetivo_pct)}</TableCell>
-          
-          <TableCell className={cn("py-1 px-2 text-right font-mono border-l", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatCurrency(desviacion)}</TableCell>
-          <TableCell className={cn("py-1 px-2 text-right font-mono border-r", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatPercentage(desviacionPct)}</TableCell>
-      </TableRow>
+            <TableCell className="py-1 px-2 text-right border-l bg-green-50/50">
+                <Input
+                    type="number"
+                    step="0.01"
+                    placeholder={formatNumber(row.cierre)}
+                    value={realCostInputs[row.label] === undefined ? '' : realCostInputs[row.label]}
+                    onChange={(e) => handleRealCostInputChange(row.label, e.target.value)}
+                    onBlur={(e) => handleSaveRealCost(row.label, e.target.value)}
+                    className="h-7 text-right w-28 ml-auto"
+                />
+            </TableCell>
+            <TableCell className={cn("py-1 px-2 text-right font-mono border-r bg-green-50/50", pctSFactReal > row.objetivo_pct && row.objetivo_pct > 0 && "text-destructive font-bold")}>{formatPercentage(pctSFactReal)}</TableCell>
+            
+            <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-l">{formatCurrency(row.objetivo)}</TableCell>
+            <TableCell className="py-1 px-2 text-right font-mono text-muted-foreground border-r">{formatPercentage(row.objetivo_pct)}</TableCell>
+            
+            <TableCell className={cn("py-1 px-2 text-right font-mono border-l", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatCurrency(desviacion)}</TableCell>
+            <TableCell className={cn("py-1 px-2 text-right font-mono border-r", desviacion < 0 && "text-destructive font-bold", desviacion > 0 && "text-green-600 font-bold")}>{formatPercentage(desviacionPct)}</TableCell>
+        </TableRow>
     );
-};
+  };
 
 
   return (
@@ -386,15 +398,13 @@ export default function CtaExplotacionPage() {
                       Plantilla de objetivos aplicada: <strong>{objetivos.name}</strong>.
                   </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="border rounded-lg overflow-x-auto">
+              <CardContent className="p-0">
+                <div className="border-t bg-primary/10 p-2 text-right">
+                    <span className="text-lg font-bold">Facturación Neta: <span className="text-primary">{formatCurrency(facturacionNeta)}</span></span>
+                </div>
+                <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
-                            <TableRow className="bg-muted/20">
-                                <TableHead colSpan={11} className="p-2 text-lg font-semibold text-right">
-                                    Facturación Neta: <span className="text-primary">{formatCurrency(facturacionNeta)}</span>
-                                </TableHead>
-                            </TableRow>
                             <TableRow className="bg-muted/50">
                                 <TableHead className="p-2 sticky left-0 bg-muted/50 z-10"></TableHead>
                                 <TableHead colSpan={2} className="p-2 text-center border-l border-r">Presupuesto</TableHead>
@@ -424,7 +434,7 @@ export default function CtaExplotacionPage() {
                             </TableRow>
                         </TableHeader>
                          <TableBody>
-                             {processedCostes.map(row => renderCostRow(row))}
+                             {processedCostes.map(renderCostRow)}
                         </TableBody>
                     </Table>
                 </div>
@@ -457,11 +467,17 @@ export default function CtaExplotacionPage() {
                               <TableCell className="text-right">{formatCurrency(totals.totalCierre)}</TableCell>
                               <TableCell className="text-right">{formatCurrency(totals.totalReal)}</TableCell>
                           </TableRow>
-                           <TableRow className="font-bold bg-muted/50">
-                              <TableCell>Rentabilidad</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadPresupuesto >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPresupuesto)}</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadCierre >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadCierre)}</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadReal >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadReal)}</TableCell>
+                           <TableRow className="bg-muted/50">
+                              <TableCell className="font-bold">Rentabilidad</TableCell>
+                              <TableCell className={cn("text-right font-bold", rentabilidadPresupuesto >= 0 ? 'text-primary' : 'text-destructive')}>
+                                {formatCurrency(rentabilidadPresupuesto)} <span className="text-xs font-normal text-muted-foreground">({formatPercentage(rentabilidadPctPresupuesto)})</span>
+                              </TableCell>
+                              <TableCell className={cn("text-right font-bold", rentabilidadCierre >= 0 ? 'text-primary' : 'text-destructive')}>
+                                {formatCurrency(rentabilidadCierre)} <span className="text-xs font-normal text-muted-foreground">({formatPercentage(rentabilidadPctCierre)})</span>
+                              </TableCell>
+                              <TableCell className={cn("text-right font-bold", rentabilidadReal >= 0 ? 'text-primary' : 'text-destructive')}>
+                                {formatCurrency(rentabilidadReal)} <span className="text-xs font-normal text-muted-foreground">({formatPercentage(rentabilidadPctReal)})</span>
+                              </TableCell>
                           </TableRow>
                            <TableRow>
                               <TableCell className="font-medium">Repercusión HQ (25%)</TableCell>
@@ -469,11 +485,17 @@ export default function CtaExplotacionPage() {
                               <TableCell className="text-right">{formatCurrency(repercusionHQCierre)}</TableCell>
                               <TableCell className="text-right">{formatCurrency(repercusionHQReal)}</TableCell>
                           </TableRow>
-                           <TableRow className="font-bold bg-muted/50">
-                              <TableCell>Rentabilidad Post-HQ</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadPostHQPresupuesto >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQPresupuesto)}</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadPostHQCierre >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQCierre)}</TableCell>
-                              <TableCell className={cn("text-right", rentabilidadPostHQReal >= 0 ? 'text-primary' : 'text-destructive')}>{formatCurrency(rentabilidadPostHQReal)}</TableCell>
+                           <TableRow className="bg-muted/50">
+                              <TableCell className="font-bold">Rentabilidad Post-HQ</TableCell>
+                              <TableCell className={cn("text-right font-bold", rentabilidadPostHQPresupuesto >= 0 ? 'text-primary' : 'text-destructive')}>
+                                {formatCurrency(rentabilidadPostHQPresupuesto)} <span className="text-xs font-normal text-muted-foreground">({formatPercentage(rentabilidadPostHQPctPresupuesto)})</span>
+                              </TableCell>
+                              <TableCell className={cn("text-right font-bold", rentabilidadPostHQCierre >= 0 ? 'text-primary' : 'text-destructive')}>
+                                {formatCurrency(rentabilidadPostHQCierre)} <span className="text-xs font-normal text-muted-foreground">({formatPercentage(rentabilidadPostHQPctCierre)})</span>
+                              </TableCell>
+                              <TableCell className={cn("text-right font-bold", rentabilidadPostHQReal >= 0 ? 'text-primary' : 'text-destructive')}>
+                                {formatCurrency(rentabilidadPostHQReal)} <span className="text-xs font-normal text-muted-foreground">({formatPercentage(rentabilidadPostHQPctReal)})</span>
+                              </TableCell>
                           </TableRow>
                           <TableRow>
                               <TableCell className="font-medium">Ingresos / Asistente</TableCell>
@@ -504,5 +526,3 @@ export default function CtaExplotacionPage() {
     </TooltipProvider>
   );
 }
-
-    
