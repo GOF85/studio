@@ -9,7 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { formatCurrency, formatNumber } from '@/lib/utils';
-import { Briefcase, Utensils, Warehouse, Euro, ArrowRight, Star, Building, FileText, LayoutDashboard, CheckCircle, Clock, XCircle, FileQuestion } from 'lucide-react';
+import { Briefcase, Utensils, Warehouse, Euro, ArrowRight, Star, Building, FileText, LayoutDashboard, CheckCircle, Clock, XCircle, FileQuestion, Factory, ShieldCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -45,13 +45,13 @@ const StatusCard = ({ title, status, description }: { title: string, status: 'Co
     const config = statusConfig[status];
 
     return (
-        <Card className={cn("flex flex-col", config.bgColor)}>
-            <CardHeader className="flex-row items-center gap-4 space-y-0 pb-2">
+        <Card className={cn(config.bgColor)}>
+            <CardHeader className="flex-row items-center gap-4 space-y-0 p-3">
                 <config.icon className={cn("w-6 h-6", config.color)} />
-                <CardTitle className="text-lg">{title}</CardTitle>
+                <CardTitle className="text-base">{title}</CardTitle>
             </CardHeader>
-            <CardContent className="flex-grow">
-                <p className="text-sm text-muted-foreground">{description}</p>
+            <CardContent className="p-3 pt-0">
+                <p className="text-xs text-muted-foreground">{description}</p>
             </CardContent>
         </Card>
     )
@@ -118,15 +118,15 @@ export default function OsDashboardPage() {
             });
         }
         
-        // Event Status Logic
+        const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as any[];
+        const relatedOFs = allOFs.filter(of => of.osIDs.includes(osId));
+
         const status = {
             comercial: currentBriefing && currentBriefing.items.length > 0 ? 'Completo' : 'Pendiente',
             gastronomia: allGastroOrders.filter(o => o.osId === osId).length > 0 ? 'Completo' : 'Pendiente',
-            cpr: 'Pendiente',
-            almacen: 'Pendiente'
+            cpr: relatedOFs.length > 0 ? (relatedOFs.every(of => of.estado === 'Validado') ? 'Completo' : 'En Progreso') : 'Pendiente',
+            almacen: allMaterialOrders.filter(o => o.osId === osId).length > 0 ? 'En Progreso' : 'Pendiente'
         };
-        const numPedidosMaterial = allMaterialOrders.filter(o => o.osId === osId).length;
-        if(numPedidosMaterial > 0) status.almacen = 'En Progreso'; // Simplified logic
 
         return {
             facturacionNeta,
@@ -168,7 +168,7 @@ export default function OsDashboardPage() {
                     {briefingItemsCount === 0 && pruebasMenuCount === 0 && <span>0</span>}
                 </div>
             ), 
-            description: 'Hitos con gastronomía' 
+            description: 'Servicios con gastronomía' 
         },
     ];
 
