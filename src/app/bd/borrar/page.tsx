@@ -16,10 +16,23 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, ShieldAlert } from 'lucide-react';
+import { Trash2, ShieldAlert, Download, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 type DatabaseKey = 'personal' | 'espacios' | 'precios' | 'alquilerDB' | 'tipoServicio' | 'proveedoresTransporte' | 'proveedorHielo' | 'atipicosDB' | 'personalMiceOrders' | 'proveedoresPersonal' | 'decoracionDB' | 'tiposCocina' | 'pedidoPlantillas' | 'formatosExpedicionDB' | 'proveedores';
+
+const ALL_DATABASE_KEYS = [
+    'personal', 'espacios', 'precios', 'alquilerDB', 'tipoServicio', 'proveedoresTransporte', 
+    'proveedorHielo', 'atipicosDB', 'personalMiceOrders', 'proveedoresPersonal', 'decoracionDB', 
+    'tiposCocina', 'pedidoPlantillas', 'formatosExpedicionDB', 'proveedores', 'serviceOrders', 
+    'entregas', 'comercialBriefings', 'gastronomyOrders', 'materialOrders', 'transporteOrders', 
+    'hieloOrders', 'decoracionOrders', 'atipicoOrders', 'personalExternoOrders', 'pruebasMenu', 
+    'pickingSheets', 'returnSheets', 'ordenesFabricacion', 'pickingStates', 'excedentesProduccion', 
+    'pedidosEntrega', 'personalEntrega', 'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 
+    'ctaComentarios', 'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'ingredientesERP', 
+    'ingredientesInternos', 'elaboraciones', 'recetas', 'menajeDB', 'categoriasRecetas'
+];
+
 
 const DATABASES: { key: DatabaseKey; name: string; description: string }[] = [
     { key: 'personal', name: 'Personal', description: 'Contiene todos los empleados y contactos.' },
@@ -41,7 +54,53 @@ const DATABASES: { key: DatabaseKey; name: string; description: string }[] = [
 
 export default function BorrarBdPage() {
     const [dbToDelete, setDbToDelete] = useState<DatabaseKey | null>(null);
+    const [isDownloading, setIsDownloading] = useState(false);
     const { toast } = useToast();
+
+    const handleBackup = () => {
+        setIsDownloading(true);
+        try {
+            const backupData: Record<string, any> = {};
+            ALL_DATABASE_KEYS.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    try {
+                        backupData[key] = JSON.parse(data);
+                    } catch (e) {
+                        // If it's not JSON, store it as a string
+                        backupData[key] = data;
+                    }
+                }
+            });
+
+            const jsonString = JSON.stringify(backupData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const date = new Date().toISOString().split('T')[0];
+            link.download = `mice_backup_${date}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            toast({
+                title: 'Copia de Seguridad Creada',
+                description: 'El archivo de respaldo se ha descargado correctamente.',
+            });
+
+        } catch (error) {
+             toast({
+                variant: 'destructive',
+                title: 'Error al crear la copia',
+                description: 'No se pudo generar el archivo de respaldo.',
+            });
+            console.error("Backup failed:", error);
+        } finally {
+            setIsDownloading(false);
+        }
+    };
 
     const handleDelete = () => {
         if (!dbToDelete) return;
@@ -68,6 +127,27 @@ export default function BorrarBdPage() {
                         <h1 className="text-3xl font-headline font-bold">Borrar Bases de Datos</h1>
                     </div>
                     
+                    <Card className="mb-8">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-primary">
+                                <Download /> Copia de Seguridad General
+                            </CardTitle>
+                            <CardDescription>
+                                Antes de realizar cualquier acción de borrado, es muy recomendable que descargues una copia de seguridad completa de todos los datos de la aplicación.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Button onClick={handleBackup} disabled={isDownloading}>
+                                {isDownloading ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Download className="mr-2 h-4 w-4" />
+                                )}
+                                {isDownloading ? 'Generando...' : 'Descargar Copia de Seguridad'}
+                            </Button>
+                        </CardContent>
+                    </Card>
+
                     <Card className="border-destructive bg-destructive/5 mb-8">
                         <CardHeader className="flex-row items-center gap-4">
                             <ShieldAlert className="w-10 h-10 text-destructive flex-shrink-0" />
