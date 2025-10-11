@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import Link from 'next/link';
@@ -12,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ObjectiveDisplay } from '@/components/os/objective-display';
-import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar } from 'lucide-react';
+import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar, LayoutDashboard } from 'lucide-react';
 
 
 type NavLink = {
@@ -29,7 +27,7 @@ const navLinks: NavLink[] = [
     { path: 'bodega', title: 'Bebida', icon: Wine, moduleName: 'bodega' },
     { path: 'hielo', title: 'Hielo', icon: Snowflake, moduleName: 'hielo' },
     { path: 'bio', title: 'Bio (Consumibles)', icon: Leaf, moduleName: 'consumibles' },
-    { path: 'almacen', title: 'Almacen', icon: Warehouse, moduleName: 'almacen' },
+    { path: 'almacen', title: 'Almacén', icon: Warehouse, moduleName: 'almacen' },
     { path: 'alquiler', title: 'Alquiler', icon: Archive, moduleName: 'alquiler' },
     { path: 'decoracion', title: 'Decoración', icon: Flower2, moduleName: 'decoracion' },
     { path: 'atipicos', title: 'Atípicos', icon: FilePlus, moduleName: 'atipicos' },
@@ -47,6 +45,17 @@ function OSSidebarNav({ className, onLinkClick }: { className?: string; onLinkCl
 
     return (
         <nav className={cn("grid items-start gap-1 pb-4", className)}>
+            <Link href={`/os/${osId}`} onClick={onLinkClick}>
+                 <span
+                    className={cn(
+                        "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                        pathname === `/os/${osId}` ? "bg-accent" : "transparent"
+                    )}
+                >
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    <span>Panel de Control</span>
+                </span>
+            </Link>
           {navLinks.map((item, index) => {
               const href = `/os/${osId}/${item.path}`;
               return (
@@ -81,8 +90,11 @@ function OSSubHeader() {
 
   const currentModule = useMemo(() => {
     const pathSegment = pathname.split('/').pop();
+    if (pathname === `/os/${osId}`) {
+        return { title: 'Panel de Control', icon: LayoutDashboard };
+    }
     return navLinks.find(link => link.path === pathSegment);
-  }, [pathname]);
+  }, [pathname, osId]);
 
   useEffect(() => {
     if (osId) {
@@ -116,7 +128,7 @@ function OSSubHeader() {
                         </SheetTrigger>
                         <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
                             <SheetHeader className="p-4 border-b">
-                                <SheetTitle>Módulos</SheetTitle>
+                                <SheetTitle>Módulos de la OS</SheetTitle>
                             </SheetHeader>
                             <ScrollArea className="h-full p-4">
                                 <OSSidebarNav onLinkClick={() => setIsSheetOpen(false)} />
@@ -130,7 +142,7 @@ function OSSubHeader() {
                 </div>
             </div>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                {currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
+                {('moduleName' in currentModule) && currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
                 <div className="flex items-center gap-2 font-semibold">
                     <FileText className="h-4 w-4" />
                     <span>{serviceOrder.serviceNumber}</span>

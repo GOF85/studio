@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, FileText, Briefcase } from 'lucide-react';
+import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, FileText } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,8 +19,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
-import { ObjectiveDisplay } from '@/components/os/objective-display';
-
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -89,7 +87,7 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
     )
 }
 
-export default function AlmacenPage() {
+export default function AlmacenOsPage() {
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
@@ -139,6 +137,7 @@ export default function AlmacenPage() {
                     orderContract: order.contractNumber || 'N/A',
                     orderStatus: 'Pendiente', 
                     solicita: order.solicita,
+                    tipo: item.tipo,
                 });
             }
         });
@@ -230,54 +229,54 @@ export default function AlmacenPage() {
 
   return (
     <>
-        <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader><DialogTitle>Resumen de Artículos de Almacén</DialogTitle></DialogHeader>
-                        <div className="space-y-4">
-                            <div>
-                                <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
-                                <Table>
-                                    <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {Object.entries(pendingItems.reduce((acc, item) => {
-                                            acc[item.description] = (acc[item.description] || 0) + item.quantity;
-                                            return acc;
-                                        }, {} as Record<string, number>)).map(([desc, qty]) => (
-                                            <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                            <div>
-                                <h3 className="font-semibold mb-2">Artículos en Proceso / Listos</h3>
-                                <Table>
-                                    <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {Object.entries(blockedItems.reduce((acc, item) => {
-                                            acc[item.description] = (acc[item.description] || 0) + item.quantity;
-                                            return acc;
-                                        }, {} as Record<string, number>)).map(([desc, qty]) => (
-                                            <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
+      <div className="flex items-center justify-between mb-4">
+         <div className="flex items-center gap-2">
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Resumen de Artículos de Almacén</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                        <div>
+                            <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {Object.entries(pendingItems.reduce((acc, item) => {
+                                        acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                        return acc;
+                                    }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                        <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
                         </div>
-                    </DialogContent>
-                </Dialog>
-                <BriefingSummaryDialog osId={osId} />
-            </div>
-            <Button asChild>
-            <Link href={`/pedidos?osId=${osId}&type=Almacen`}>
-                <PlusCircle className="mr-2" />
-                Nuevo Pedido de Almacén
-            </Link>
-            </Button>
+                        <div>
+                            <h3 className="font-semibold mb-2">Artículos en Proceso / Listos</h3>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {Object.entries(blockedItems.reduce((acc, item) => {
+                                        acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                        return acc;
+                                    }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                        <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+            <BriefingSummaryDialog osId={osId} />
+        </div>
+        <Button asChild>
+          <Link href={`/pedidos?osId=${osId}&type=Almacen`}>
+            <PlusCircle className="mr-2" />
+            Nuevo Pedido de Almacén
+          </Link>
+        </Button>
       </div>
       
        <div className="grid md:grid-cols-3 gap-6 mb-8">

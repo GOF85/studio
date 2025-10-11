@@ -1,7 +1,13 @@
 
-'use client';
 
-export default function AlmacenLayout({
+'use client';
+import { useRouter, useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import type { ServiceOrder } from '@/types';
+import { Warehouse, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+export default function OsAlmacenLayout({
     children,
   }: {
     children: React.ReactNode
@@ -12,4 +18,3 @@ export default function AlmacenLayout({
         </div>
     )
 }
-
