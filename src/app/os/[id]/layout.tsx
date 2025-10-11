@@ -152,7 +152,7 @@ function OSSubHeader() {
 export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="container mx-auto">
-          <div className="sticky top-[65px] z-30 bg-background py-2 border-b mb-4">
+          <div className="sticky top-[56px] z-30 bg-background py-2 border-b mb-4">
             <OSSubHeader />
           </div>
           <main>

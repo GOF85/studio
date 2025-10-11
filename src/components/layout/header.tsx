@@ -34,7 +34,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
   if (isPortalModule) {
       return (
         <header className="sticky top-0 z-40 w-full border-b bg-gray-900 text-white">
-          <div className="container flex h-16 items-center">
+          <div className="container flex h-14 items-center">
             <Link href="/portal" className="flex items-center gap-3">
               <Leaf className="h-7 w-7 text-green-500" />
               <h1 className="text-2xl font-headline font-bold tracking-tight">
@@ -51,7 +51,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
   
   const getEntregasHeader = () => (
     <header className="sticky top-0 z-40 w-full border-b bg-orange-500 text-white">
-      <div className="container flex h-16 items-center">
+      <div className="container flex h-14 items-center">
         <Link href="/entregas" className="flex items-center gap-3">
           <Package className="h-7 w-7" />
           <h1 className="text-2xl font-headline font-bold tracking-tight">
@@ -76,7 +76,7 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
         "sticky top-0 z-40 w-full border-b",
         "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
       )}>
-      <div className="container flex h-16 items-center">
+      <div className="container flex h-14 items-center">
         <Link href="/" className="flex items-center gap-3">
           <UtensilsCrossed className="h-7 w-7 text-primary" />
           <h1 className="text-2xl font-headline font-bold text-primary tracking-tight">
