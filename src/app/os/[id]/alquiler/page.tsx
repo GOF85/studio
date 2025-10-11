@@ -126,16 +126,15 @@ export default function AlquilerPage() {
  const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
-    
-    // Set materialOrders for local state editing, it will be used by handleItemChange
     setMaterialOrders(relatedOrders);
 
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
     
-    const returnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
+    // --- Lógica de Mermas/Ajustes de Retorno ---
+    const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
     const mermas: Record<string, number> = {};
-    returnSheets.forEach(sheet => {
+    allReturnSheets.forEach(sheet => {
         sheet.items.forEach(item => {
             if (item.type !== 'Alquiler') return;
             const itemKey = `${item.orderId}_${item.itemCode}`;
@@ -205,7 +204,7 @@ export default function AlquilerPage() {
         itemsByStatus: statusItems,
         totalValoracionPendiente
     };
-  }, [osId]);
+  }, [osId, isMounted]); // Re-calcula cuando osId cambia o el componente se monta
 
   useEffect(() => {
     setIsMounted(true);
@@ -282,7 +281,7 @@ export default function AlquilerPage() {
   
     const renderSummaryModal = () => {
     const all = [...pendingItems, ...itemsByStatus['En Preparación'], ...itemsByStatus['Listo']];
-    const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+     const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     return (
       <DialogContent className="max-w-4xl">
         <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
@@ -361,7 +360,7 @@ export default function AlquilerPage() {
             )})}
         </div>
       
-        <Card>
+        <Card className="mb-6">
             <div className="flex items-center justify-between p-4">
                 <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
                 <div className="flex items-center gap-4">
@@ -401,7 +400,7 @@ export default function AlquilerPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                     <TableCell>
+                                    <TableCell>
                                         <Input 
                                             type="date" 
                                             value={item.deliveryDate ? format(new Date(item.deliveryDate), 'yyyy-MM-dd') : ''}
@@ -426,7 +425,7 @@ export default function AlquilerPage() {
             </CardContent>
         </Card>
         
-        <Card className="mt-6">
+        <Card>
             <CardHeader>
                 <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
             </CardHeader>
@@ -459,7 +458,6 @@ export default function AlquilerPage() {
                 </div>
             </CardContent>
         </Card>
-
 
        {activeModal && renderStatusModal(activeModal)}
 
