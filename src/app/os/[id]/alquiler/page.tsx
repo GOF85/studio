@@ -126,24 +126,21 @@ export default function AlquilerPage() {
  const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
-    setMaterialOrders(relatedOrders);
-
+    
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
-    
-    // --- Lógica de Mermas/Ajustes de Retorno ---
+
     const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
+    
     const mermas: Record<string, number> = {};
     allReturnSheets.forEach(sheet => {
-        sheet.items.forEach(item => {
-            if (item.type !== 'Alquiler') return;
-            const itemKey = `${item.orderId}_${item.itemCode}`;
-            const state = sheet.itemStates[itemKey];
-            if (state && item.sentQuantity > state.returnedQuantity) {
-                const perdida = item.sentQuantity - state.returnedQuantity;
-                mermas[item.itemCode] = (mermas[item.itemCode] || 0) + perdida;
-            }
-        });
+      Object.entries(sheet.itemStates).forEach(([key, state]) => {
+        const itemInfo = sheet.items.find(i => `${i.orderId}_${i.itemCode}` === key);
+        if (itemInfo && itemInfo.type === 'Alquiler' && itemInfo.sentQuantity > state.returnedQuantity) {
+            const perdida = itemInfo.sentQuantity - state.returnedQuantity;
+            mermas[itemInfo.itemCode] = (mermas[itemInfo.itemCode] || 0) + perdida;
+        }
+      });
     });
 
     const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
@@ -159,22 +156,22 @@ export default function AlquilerPage() {
             
             const uniqueKey = `${item.orderId}-${item.itemCode}`;
             
-            let itemWithInfo: ItemWithOrderInfo = {
-                ...item, orderId: sheet.id, orderContract: sheet.id, orderStatus: sheet.status, solicita: sheet.solicitante,
-            };
-            
-            if (mermas[item.itemCode]) {
-                const merma = mermas[item.itemCode];
-                if (itemWithInfo.quantity > merma) {
-                    itemWithInfo.quantity -= merma;
-                    mermas[item.itemCode] = 0; // Merma ya aplicada
-                } else {
-                    mermas[item.itemCode] -= itemWithInfo.quantity;
-                    itemWithInfo.quantity = 0;
-                }
+            let cantidadReal = item.quantity;
+            if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
+                const mermaAplicable = Math.min(cantidadReal, mermas[item.itemCode]);
+                cantidadReal -= mermaAplicable;
+                mermas[item.itemCode] -= mermaAplicable;
             }
 
-            if (itemWithInfo.quantity > 0) {
+            if (cantidadReal > 0) {
+              const itemWithInfo: ItemWithOrderInfo = {
+                  ...item, 
+                  quantity: cantidadReal,
+                  orderId: sheet.id, 
+                  orderContract: sheet.id, 
+                  orderStatus: sheet.status, 
+                  solicita: sheet.solicitante,
+              };
               statusItems[targetStatus].push(itemWithInfo);
               sheetInfo.items.push(itemWithInfo);
             }
@@ -188,7 +185,17 @@ export default function AlquilerPage() {
 
     const all = relatedOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo, deliveryDate: order.deliveryDate } as ItemWithOrderInfo)));
     
-    const pending = all.filter(item => {
+    const pendingWithMermas = all.map(item => {
+      let cantidadReal = item.quantity;
+      if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
+          const mermaAplicable = Math.min(cantidadReal, mermas[item.itemCode]);
+          cantidadReal -= mermaAplicable;
+          mermas[item.itemCode] -= mermaAplicable;
+      }
+      return { ...item, quantity: cantidadReal };
+    }).filter(item => item.quantity > 0);
+
+    const pending = pendingWithMermas.filter(item => {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
       return !processedItemKeys.has(uniqueKey);
     });
@@ -204,11 +211,14 @@ export default function AlquilerPage() {
         itemsByStatus: statusItems,
         totalValoracionPendiente
     };
-  }, [osId, isMounted]); // Re-calcula cuando osId cambia o el componente se monta
+  }, [osId, materialOrders]);
 
   useEffect(() => {
+    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
+    setMaterialOrders(relatedOrders);
     setIsMounted(true);
-  }, []);
+  }, [osId]);
 
   const handleSaveAll = () => {
     setIsLoading(true);
@@ -280,7 +290,7 @@ export default function AlquilerPage() {
   }
   
     const renderSummaryModal = () => {
-    const all = [...pendingItems, ...itemsByStatus['En Preparación'], ...itemsByStatus['Listo']];
+    const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
      const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     return (
       <DialogContent className="max-w-4xl">
@@ -298,7 +308,7 @@ export default function AlquilerPage() {
             </TableHeader>
             <TableBody>
               {all.map((item, index) => {
-                const isBlocked = !pendingItems.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
+                const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
                 const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
                 return (
                   <TableRow key={`${item.itemCode}-${index}`}>
@@ -400,7 +410,7 @@ export default function AlquilerPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                    <TableCell>
+                                     <TableCell>
                                         <Input 
                                             type="date" 
                                             value={item.deliveryDate ? format(new Date(item.deliveryDate), 'yyyy-MM-dd') : ''}
