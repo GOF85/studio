@@ -53,6 +53,7 @@ const defaultValues: Partial<ArticuloCateringFormValues> = {
     precioAlquiler: 0,
     precioReposicion: 0,
     stockSeguridad: 0,
+    unidadVenta: undefined,
     producidoPorPartner: false,
     loc: '',
     imagen: '',
@@ -353,7 +354,19 @@ export default function ArticuloFormPage() {
                     <FormItem><FormLabel>Precio Reposición</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={!!selectedErpProduct && esProducidoPorPartner} className={!!selectedErpProduct && esProducidoPorPartner ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="unidadVenta" render={({ field }) => (
-                    <FormItem><FormLabel>Unidad de Venta (Múltiplo)</FormLabel><FormControl><Input type="number" {...field} placeholder="Ej: 24 (para cajas)" /></FormControl><FormMessage /></FormItem>
+                    <FormItem>
+                        <FormLabel>Unidad de Venta (Múltiplo)</FormLabel>
+                        <FormControl>
+                            <Input 
+                                type="number" 
+                                {...field}
+                                value={field.value ?? ''}
+                                onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                                placeholder="Ej: 24 (para cajas)" 
+                            />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
                 )} />
                 <FormField control={form.control} name="stockSeguridad" render={({ field }) => (
                     <FormItem><FormLabel>Stock de Seguridad</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
