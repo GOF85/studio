@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -39,13 +40,14 @@ export default function AlmacenPage() {
   const [pickingSheets, setPickingSheets] = useState<PickingSheet[]>([]);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [modalContent, setModalContent] = useState<{ title: string; items: ItemWithOrderInfo[] } | null>(null);
   
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     if (!osId) return;
     
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
@@ -57,6 +59,11 @@ export default function AlmacenPage() {
 
     setIsMounted(true);
   }, [osId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
 
   const allItemsByStatus = useMemo(() => {
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
@@ -116,6 +123,7 @@ export default function AlmacenPage() {
     });
 
     localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
+    window.dispatchEvent(new Event('storage'));
     toast({ title: 'Guardado', description: 'Todos los cambios en los pedidos han sido guardados.' });
     setIsLoading(false);
   }
@@ -148,40 +156,34 @@ export default function AlmacenPage() {
     const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
     localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
     setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Almacen'));
+    window.dispatchEvent(new Event('storage'));
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
   };
-  
-  const renderColumn = (title: string, items: ItemWithOrderInfo[]) => (
-    <Card className="flex-1 bg-muted/30">
-        <CardHeader className="pb-4">
-            <CardTitle className="text-lg flex items-center justify-between">
-                {title}
-                <Badge variant={title === 'Listo' ? 'default' : 'secondary'} className="text-sm">{items.length}</Badge>
-            </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-            {items.length > 0 ? items.map((item, index) => (
-                <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
-                    <p className="font-semibold truncate">{item.quantity} x {item.description}</p>
-                    <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                        {item.solicita ? (
-                            <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
-                                {item.solicita === 'Sala' ? <Users size={10} className="mr-1"/> : <Soup size={10} className="mr-1"/>}
-                                {item.solicita}
-                            </Badge>
-                        ) : <span></span>}
-                        <Badge variant="outline">{item.orderContract}</Badge>
-                    </div>
-                </Card>
-            )) : <p className="text-sm text-muted-foreground text-center py-4">No hay artículos.</p>}
-        </CardContent>
-    </Card>
-  );
-  
+
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
   }
+  
+  const renderColumn = (title: string, items: ItemWithOrderInfo[]) => {
+    const totalItems = items.length;
+    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+
+    return (
+        <Card className="flex-1 bg-muted/30 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setModalContent({ title, items })}>
+            <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center justify-between">
+                    {title}
+                    <Badge variant={title === 'Listo' ? 'default' : 'secondary'} className="text-sm">{totalItems}</Badge>
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-2xl font-bold">{totalQuantity}</p>
+                <p className="text-xs text-muted-foreground">unidades totales</p>
+            </CardContent>
+        </Card>
+    );
+};
 
   return (
     <>
@@ -321,6 +323,35 @@ export default function AlmacenPage() {
                 </div>
             </CardContent>
         </Card>
+        
+        <Dialog open={!!modalContent} onOpenChange={() => setModalContent(null)}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader><DialogTitle>Detalle de: {modalContent?.title}</DialogTitle></DialogHeader>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Artículo</TableHead>
+                            <TableHead>Solicita</TableHead>
+                            <TableHead className="text-right">Cantidad</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {modalContent?.items.map((item, index) => (
+                             <TableRow key={`${item.itemCode}-${index}`}>
+                                <TableCell>{item.description}</TableCell>
+                                <TableCell>
+                                     {item.solicita && <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
+                                        {item.solicita === 'Sala' ? <Users size={10} className="mr-1"/> : <Soup size={10} className="mr-1"/>}
+                                        {item.solicita}
+                                    </Badge>}
+                                </TableCell>
+                                <TableCell className="text-right">{item.quantity}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </DialogContent>
+        </Dialog>
 
        <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
             <AlertDialogContent>
@@ -344,5 +375,3 @@ export default function AlmacenPage() {
     </>
   );
 }
-
-    

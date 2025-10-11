@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -89,7 +90,6 @@ function OSSubHeader() {
       const currentOS = allServiceOrders.find(os => os.id === osId);
       setServiceOrder(currentOS || null);
     }
-     // Listener for storage events to force re-render
     const handleStorageChange = () => {
         setUpdateKey(Date.now());
     };
@@ -103,8 +103,8 @@ function OSSubHeader() {
   if (!serviceOrder || !currentModule) return null;
 
   return (
-    <div className="mb-4 rounded-lg bg-card">
-        <div className="p-3 flex items-center justify-between">
+    <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
                 <div>
                     <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
@@ -129,9 +129,9 @@ function OSSubHeader() {
                     <h1 className="text-2xl font-headline font-bold">{currentModule.title}</h1>
                 </div>
             </div>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground px-4 pb-2">
-                    {currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
-                    <div className="flex items-center gap-2 font-semibold">
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                {currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
+                <div className="flex items-center gap-2 font-semibold">
                     <FileText className="h-4 w-4" />
                     <span>{serviceOrder.serviceNumber}</span>
                 </div>
@@ -152,7 +152,7 @@ function OSSubHeader() {
 export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="container mx-auto">
-          <div className="sticky top-[65px] z-30 bg-background pt-2">
+          <div className="sticky top-[65px] z-30 bg-background py-2 border-b mb-4">
             <OSSubHeader />
           </div>
           <main>

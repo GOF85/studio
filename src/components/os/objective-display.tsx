@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { ServiceOrder, ObjetivosGasto } from '@/types';
-import { Target, Info } from 'lucide-react';
+import { Target, Info, RefreshCw } from 'lucide-react';
 import { GASTO_LABELS } from '@/lib/constants';
-import { formatCurrency, formatPercentage } from '@/lib/utils';
+import { formatCurrency, formatPercentage, formatNumber } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -158,7 +159,10 @@ export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDispl
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center gap-2 text-sm font-semibold p-2 rounded-md border bg-card">
+          <div className={cn(
+              "flex items-center gap-2 text-sm font-semibold p-2 rounded-md border",
+              isExceeded ? "bg-amber-100 border-amber-300" : "bg-card"
+            )}>
               <Target className="h-5 w-5 text-primary"/>
               <span className="font-normal text-muted-foreground">Objetivos de gasto:</span>
               <span>{formatCurrency(data.objective)} ({formatPercentage(data.objectivePct)})</span>
