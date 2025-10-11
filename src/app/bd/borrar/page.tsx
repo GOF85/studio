@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -14,9 +14,10 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
+    AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, ShieldAlert, Download, Loader2 } from 'lucide-react';
+import { Trash2, ShieldAlert, Download, Loader2, Upload } from 'lucide-react';
 import Link from 'next/link';
 
 type DatabaseKey = 'personal' | 'espacios' | 'precios' | 'alquilerDB' | 'tipoServicio' | 'proveedoresTransporte' | 'proveedorHielo' | 'atipicosDB' | 'personalMiceOrders' | 'proveedoresPersonal' | 'decoracionDB' | 'tiposCocina' | 'pedidoPlantillas' | 'formatosExpedicionDB' | 'proveedores';
@@ -30,7 +31,8 @@ const ALL_DATABASE_KEYS = [
     'pickingSheets', 'returnSheets', 'ordenesFabricacion', 'pickingStates', 'excedentesProduccion', 
     'pedidosEntrega', 'personalEntrega', 'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 
     'ctaComentarios', 'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'ingredientesERP', 
-    'ingredientesInternos', 'elaboraciones', 'recetas', 'menajeDB', 'categoriasRecetas'
+    'ingredientesInternos', 'elaboraciones', 'recetas', 'menajeDB', 'categoriasRecetas', 'portalUsers',
+    'comercialAjustes', 'personalExternoAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones'
 ];
 
 
@@ -55,6 +57,8 @@ const DATABASES: { key: DatabaseKey; name: string; description: string }[] = [
 export default function BorrarBdPage() {
     const [dbToDelete, setDbToDelete] = useState<DatabaseKey | null>(null);
     const [isDownloading, setIsDownloading] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
 
     const handleBackup = () => {
@@ -67,7 +71,6 @@ export default function BorrarBdPage() {
                     try {
                         backupData[key] = JSON.parse(data);
                     } catch (e) {
-                        // If it's not JSON, store it as a string
                         backupData[key] = data;
                     }
                 }
@@ -101,6 +104,58 @@ export default function BorrarBdPage() {
             setIsDownloading(false);
         }
     };
+    
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const text = e.target?.result;
+                if (typeof text !== 'string') {
+                    throw new Error("El archivo no se pudo leer.");
+                }
+                const data = JSON.parse(text);
+                
+                // Clear existing data
+                localStorage.clear();
+                
+                // Restore data from backup
+                for (const key in data) {
+                    if (Object.prototype.hasOwnProperty.call(data, key)) {
+                        localStorage.setItem(key, JSON.stringify(data[key]));
+                    }
+                }
+                
+                toast({
+                    title: 'Restauración completada',
+                    description: 'Los datos se han importado correctamente. La página se recargará.',
+                });
+                
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+
+            } catch (error) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Error de importación',
+                    description: 'El archivo JSON no es válido o está corrupto.',
+                });
+                console.error("Import failed:", error);
+            } finally {
+                 setIsUploading(false);
+                 if(fileInputRef.current) fileInputRef.current.value = '';
+            }
+        };
+        reader.readAsText(file);
+    };
 
     const handleDelete = () => {
         if (!dbToDelete) return;
@@ -130,21 +185,48 @@ export default function BorrarBdPage() {
                     <Card className="mb-8">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-primary">
-                                <Download /> Copia de Seguridad General
+                                Copia de Seguridad y Restauración
                             </CardTitle>
                             <CardDescription>
-                                Antes de realizar cualquier acción de borrado, es muy recomendable que descargues una copia de seguridad completa de todos los datos de la aplicación.
+                                Descarga una copia de seguridad de todos los datos o restaura la aplicación a un estado anterior desde un archivo.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <Button onClick={handleBackup} disabled={isDownloading}>
+                        <CardContent className="flex gap-4">
+                             <input 
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept=".json"
+                                onChange={handleFileChange}
+                            />
+                            <Button onClick={handleBackup} disabled={isDownloading} variant="outline">
                                 {isDownloading ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 ) : (
                                     <Download className="mr-2 h-4 w-4" />
                                 )}
-                                {isDownloading ? 'Generando...' : 'Descargar Copia de Seguridad'}
+                                {isDownloading ? 'Generando...' : 'Descargar Copia'}
                             </Button>
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" disabled={isUploading}>
+                                        {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                                        Restaurar Copia
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta acción es irreversible y **borrará todos los datos actuales** de la aplicación. Serán reemplazados por los datos del archivo de copia de seguridad que selecciones.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleImportClick}>Entiendo, continuar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </CardContent>
                     </Card>
 
@@ -209,3 +291,4 @@ export default function BorrarBdPage() {
         </>
     );
 }
+
