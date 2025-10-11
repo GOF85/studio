@@ -203,6 +203,7 @@ export default function InfoPage() {
   const [isAnulacionDialogOpen, setIsAnulacionDialogOpen] = useState(false);
   const [anulacionMotivo, setAnulacionMotivo] = useState("");
   const [pendingStatus, setPendingStatus] = useState<OsFormValues['status'] | null>(null);
+  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
 
   
   const hasPruebaDeMenu = useMemo(() => {
@@ -268,33 +269,40 @@ export default function InfoPage() {
     const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
     setPersonal(allPersonal.filter(p => p.nombre));
     setEspacios(allEspacios.filter(e => e.identificacion.nombreEspacio));
+
+    let currentOS: ServiceOrder | null = null;
     
     if (isEditing) {
       setAccordionDefaultValue([]); // Collapse for existing
       const allOS = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allOS.find(os => os.id === osId) || null;
+      currentOS = allOS.find(os => os.id === osId) || null;
       if (currentOS) {
-        const values = {
-            ...defaultValues, // Ensure all keys are present
-            ...currentOS,
-            startDate: new Date(currentOS.startDate),
-            endDate: new Date(currentOS.endDate),
-        }
-        form.reset(values);
-
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
         const currentBriefing = allBriefings.find(b => b.osId === osId);
         setBriefingItems(currentBriefing?.items || []);
-        
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró la Orden de Servicio.' });
         router.push('/pes');
       }
     } else { // Creating new OS
-      const initialValues = {...defaultValues, id: Date.now().toString(), startDate: new Date(), endDate: new Date()};
-      form.reset(initialValues);
+      currentOS = {
+        ...defaultValues,
+        id: Date.now().toString(),
+        startDate: new Date().toISOString(),
+        endDate: new Date().toISOString(),
+      } as ServiceOrder;
       setAccordionDefaultValue(['cliente', 'espacio', 'responsables']); // Expand for new
     }
+
+    if (currentOS) {
+        setServiceOrder(currentOS);
+        form.reset({
+            ...currentOS,
+            startDate: new Date(currentOS.startDate),
+            endDate: new Date(currentOS.endDate),
+        });
+    }
+
     setIsMounted(true);
   }, [osId, isEditing, form, router, toast]);
 
@@ -335,20 +343,19 @@ export default function InfoPage() {
 
     localStorage.setItem('serviceOrders', JSON.stringify(allOS));
     
-    setTimeout(() => {
-      toast({
-        description: message,
-      });
-      setIsLoading(false);
-      form.reset(form.getValues()); // Mark form as not dirty
-      if (isSubmittingFromDialog) {
-        router.push('/pes');
-      } else if (currentOsId && !isEditing) { 
+    toast({ description: message });
+    setIsLoading(false);
+
+    if (!isEditing) {
         router.push(`/os/${currentOsId}`);
-      } else {
-        router.replace(`/os/${currentOsId}/info?t=${Date.now()}`);
-      }
-    }, 1000)
+    } else {
+        form.reset(data); // Mark form as not dirty
+        if (isSubmittingFromDialog) {
+          router.push('/pes');
+        } else {
+          router.replace(`/os/${currentOsId}/info?t=${Date.now()}`);
+        }
+    }
   }
   
   const handleSaveFromDialog = async () => {
@@ -789,7 +796,3 @@ export default function InfoPage() {
   );
 }
 
-
-    
-
-    
