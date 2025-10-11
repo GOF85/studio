@@ -249,7 +249,7 @@ export default function ArticuloFormPage() {
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>Categoría</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Seleccionar..." />
@@ -379,4 +379,5 @@ export default function ArticuloFormPage() {
     </>
   );
 }
+
 
