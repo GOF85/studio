@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, FileText } from 'lucide-react';
-import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem, ReturnSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -283,7 +283,7 @@ export default function AlquilerPage() {
   
     const renderSummaryModal = () => {
     const all = [...pendingItems, ...itemsByStatus['En Preparación'], ...itemsByStatus['Listo']];
-     const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     return (
       <DialogContent className="max-w-4xl">
         <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
@@ -327,7 +327,7 @@ export default function AlquilerPage() {
   }
 
   return (
-    <Dialog onOpenChange={(open) => !open && setActiveModal(null)}>
+    <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
       <div className="flex items-center justify-between mb-4">
          <div className="flex items-center gap-2">
             <Dialog>
