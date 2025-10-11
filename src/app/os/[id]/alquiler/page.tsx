@@ -124,6 +124,10 @@ export default function AlquilerPage() {
   const { toast } = useToast();
 
  const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
+    if (typeof window === 'undefined') {
+        return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
+    }
+    
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
     
@@ -434,12 +438,12 @@ export default function AlquilerPage() {
                 </div>
             </CardContent>
         </Card>
-        
+
         <Card>
             <CardHeader>
                 <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
             </CardHeader>
-            <CardContent>
+             <CardContent>
                  <div className="border rounded-lg">
                     <Table>
                          <TableHeader>
@@ -493,3 +497,5 @@ export default function AlquilerPage() {
     </Dialog>
   );
 }
+
+    
