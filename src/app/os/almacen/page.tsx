@@ -87,19 +87,18 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
     )
 }
 
-export default function AlmacenOsPage() {
+export default function AlmacenPage() {
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [modalContent, setModalContent] = useState<{ title: string; items: ItemWithOrderInfo[] } | null>(null);
   
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
 
-   const { allItemsByStatus, allItems, blockedItems, pendingItems } = useMemo(() => {
+   const { allItems, blockedItems, pendingItems } = useMemo(() => {
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
     setMaterialOrders(relatedOrders);
@@ -107,46 +106,39 @@ export default function AlmacenOsPage() {
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
 
-    const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
+
+    const enPreparacionItems: ItemWithOrderInfo[] = [];
+    const listoItems: ItemWithOrderInfo[] = [];
 
     relatedPickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
             if (item.type === 'Almacen') {
                 const uniqueKey = `${item.orderId}-${item.itemCode}`;
-                items[targetStatus].push({
+                const itemWithInfo = {
                     ...item,
                     orderId: sheet.id,
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
-                });
+                };
+                if(targetStatus === 'En Preparación') enPreparacionItems.push(itemWithInfo)
+                else if (targetStatus === 'Listo') listoItems.push(itemWithInfo);
                 processedItemKeys.add(uniqueKey);
             }
         });
     });
 
-    relatedOrders.forEach(order => {
-        order.items.forEach(item => {
-            const uniqueKey = `${order.id}-${item.itemCode}`;
-            if (!processedItemKeys.has(uniqueKey)) {
-                items['Asignado'].push({
-                    ...item,
-                    orderId: order.id,
-                    orderContract: order.contractNumber || 'N/A',
-                    orderStatus: 'Pendiente', 
-                    solicita: order.solicita,
-                    tipo: item.tipo,
-                });
-            }
-        });
+    const all = relatedOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
+    const blocked = [...enPreparacionItems, ...listoItems].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    
+    const pending = all.filter(item => {
+      const uniqueKey = `${item.orderId}-${item.itemCode}`;
+      return !processedItemKeys.has(uniqueKey);
     });
     
-    const all = relatedOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
-    const blocked = [...items['En Preparación'], ...items['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
-    
-    return { allItemsByStatus: items, allItems: all, blockedItems: blocked, pendingItems: items.Asignado };
+    return { allItems: all, blockedItems: blocked, pendingItems: pending };
   }, [osId]);
 
   useEffect(() => {
@@ -207,26 +199,6 @@ export default function AlmacenOsPage() {
     return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
   }
 
-  const renderColumn = (title: string, items: ItemWithOrderInfo[]) => {
-    const totalItems = items.length;
-    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-
-    return (
-        <Card className="flex-1 bg-muted/30 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setModalContent({ title, items })}>
-            <CardHeader className="pb-4">
-                <CardTitle className="text-lg flex items-center justify-between">
-                    {title}
-                    <Badge variant={title === 'Listo' ? 'default' : 'secondary'} className="text-sm">{totalItems}</Badge>
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-2xl font-bold">{totalQuantity}</p>
-                <p className="text-xs text-muted-foreground">unidades totales</p>
-            </CardContent>
-        </Card>
-    );
-};
-
   return (
     <>
       <div className="flex items-center justify-between mb-4">
@@ -279,12 +251,6 @@ export default function AlmacenOsPage() {
         </Button>
       </div>
       
-       <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {renderColumn('Asignado', allItemsByStatus['Asignado'])}
-            {renderColumn('En Preparación', allItemsByStatus['En Preparación'])}
-            {renderColumn('Listo', allItemsByStatus['Listo'])}
-       </div>
-
         <Card>
             <div className="flex items-center justify-between p-4">
                 <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
@@ -369,35 +335,6 @@ export default function AlmacenOsPage() {
             </CardContent>
         </Card>
 
-        <Dialog open={!!modalContent} onOpenChange={() => setModalContent(null)}>
-            <DialogContent className="max-w-2xl">
-                <DialogHeader><DialogTitle>Detalle de: {modalContent?.title}</DialogTitle></DialogHeader>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Artículo</TableHead>
-                            <TableHead>Solicita</TableHead>
-                            <TableHead className="text-right">Cantidad</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {modalContent?.items.map((item, index) => (
-                             <TableRow key={`${item.itemCode}-${index}`}>
-                                <TableCell>{item.description}</TableCell>
-                                <TableCell>
-                                     {item.solicita && <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
-                                        {item.solicita === 'Sala' ? <Users size={10} className="mr-1"/> : <Soup size={10} className="mr-1"/>}
-                                        {item.solicita}
-                                    </Badge>}
-                                </TableCell>
-                                <TableCell className="text-right">{item.quantity}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </DialogContent>
-        </Dialog>
-
        <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
             <AlertDialogContent>
             <AlertDialogHeader>
@@ -420,3 +357,4 @@ export default function AlmacenOsPage() {
     </>
   );
 }
+

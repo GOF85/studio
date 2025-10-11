@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -18,7 +19,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
-
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -93,15 +93,13 @@ export default function AlquilerPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [modalContent, setModalContent] = useState<{ title: string; items: ItemWithOrderInfo[] } | null>(null);
-
   
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
 
- const { allItemsByStatus, allItems, blockedItems, pendingItems } = useMemo(() => {
+ const { allItems, blockedItems, pendingItems } = useMemo(() => {
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
     setMaterialOrders(relatedOrders);
@@ -109,7 +107,8 @@ export default function AlquilerPage() {
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
     
-    const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
+    const enPreparacionItems: ItemWithOrderInfo[] = [];
+    const listoItems: ItemWithOrderInfo[] = [];
     const processedItemKeys = new Set<string>();
 
     relatedPickingSheets.forEach(sheet => {
@@ -117,38 +116,29 @@ export default function AlquilerPage() {
         sheet.items.forEach(item => {
              if (item.type === 'Alquiler') {
                 const uniqueKey = `${item.orderId}-${item.itemCode}`;
-                items[targetStatus].push({
+                const itemWithInfo = {
                     ...item,
                     orderId: sheet.id,
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
-                });
+                };
+                if(targetStatus === 'En Preparación') enPreparacionItems.push(itemWithInfo);
+                else if (targetStatus === 'Listo') listoItems.push(itemWithInfo);
                 processedItemKeys.add(uniqueKey);
             }
         });
     });
 
-    relatedOrders.forEach(order => {
-        order.items.forEach(item => {
-            const uniqueKey = `${order.id}-${item.itemCode}`;
-            if (!processedItemKeys.has(uniqueKey)) {
-                items['Asignado'].push({
-                    ...item,
-                    orderId: order.id,
-                    orderContract: order.contractNumber || 'N/A',
-                    orderStatus: 'Pendiente', 
-                    solicita: order.solicita,
-                    tipo: item.tipo,
-                });
-            }
-        });
-    });
-    
     const all = relatedOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo } as ItemWithOrderInfo)));
-    const blocked = [...items['En Preparación'], ...items['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    const blocked = [...enPreparacionItems, ...listoItems].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    
+    const pending = all.filter(item => {
+      const uniqueKey = `${item.orderId}-${item.itemCode}`;
+      return !processedItemKeys.has(uniqueKey);
+    });
 
-    return { allItemsByStatus: items, allItems: all, blockedItems: blocked, pendingItems: items.Asignado };
+    return { allItems: all, blockedItems: blocked, pendingItems: pending };
   }, [osId]);
 
   useEffect(() => {
@@ -200,32 +190,11 @@ export default function AlquilerPage() {
     const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
     localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
     setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Alquiler'));
-     window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('storage'));
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
   };
   
-  const renderColumn = (title: string, items: ItemWithOrderInfo[]) => {
-    const totalItems = items.length;
-    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-
-    return (
-        <Card className="flex-1 bg-muted/30 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setModalContent({ title, items })}>
-            <CardHeader className="pb-4">
-                <CardTitle className="text-lg flex items-center justify-between">
-                    {title}
-                    <Badge variant={title === 'Listo' ? 'default' : 'secondary'} className="text-sm">{totalItems}</Badge>
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-2xl font-bold">{totalQuantity}</p>
-                <p className="text-xs text-muted-foreground">unidades totales</p>
-            </CardContent>
-        </Card>
-    );
-};
-
-
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
   }
@@ -233,28 +202,44 @@ export default function AlquilerPage() {
   return (
     <>
       <div className="flex items-center justify-between mb-4">
-         <div className="flex items-center gap-2">
-            <Dialog>
-                <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad Total</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {Object.entries(allItems.reduce((acc, item) => {
-                                acc[item.description] = (acc[item.description] || 0) + item.quantity;
-                                return acc;
-                            }, {} as Record<string, number>)).map(([desc, qty]) => (
-                                <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </DialogContent>
-            </Dialog>
-            <BriefingSummaryDialog osId={osId} />
-        </div>
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
+                <div className="space-y-4">
+                    <div>
+                        <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {Object.entries(pendingItems.reduce((acc, item) => {
+                                    acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                    return acc;
+                                }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                    <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                     <div>
+                        <h3 className="font-semibold mb-2">Artículos en Proceso / Listos</h3>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {Object.entries(blockedItems.reduce((acc, item) => {
+                                    acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                    return acc;
+                                }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                    <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
         <Button asChild>
           <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
             <PlusCircle className="mr-2" />
@@ -263,12 +248,6 @@ export default function AlquilerPage() {
         </Button>
       </div>
       
-       <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {renderColumn('Asignado', allItemsByStatus['Asignado'])}
-            {renderColumn('En Preparación', allItemsByStatus['En Preparación'])}
-            {renderColumn('Listo', allItemsByStatus['Listo'])}
-       </div>
-
         <Card>
             <div className="flex items-center justify-between p-4">
                 <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
@@ -281,10 +260,10 @@ export default function AlquilerPage() {
                 <Collapsible defaultOpen={false}>
                     <div className="flex items-center gap-2 font-semibold text-destructive border p-2 rounded-md hover:bg-muted/50 mb-4">
                         <CollapsibleTrigger asChild>
-                            <div className="flex flex-1 items-center cursor-pointer">
-                                <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                                Bloqueado (En Preparación / Listo)
-                            </div>
+                           <div className="flex-1 flex items-center cursor-pointer">
+                             <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                             Bloqueado (En Preparación / Listo)
+                           </div>
                         </CollapsibleTrigger>
                     </div>
                     <CollapsibleContent>
@@ -352,36 +331,6 @@ export default function AlquilerPage() {
                 </div>
             </CardContent>
         </Card>
-        
-        <Dialog open={!!modalContent} onOpenChange={() => setModalContent(null)}>
-            <DialogContent className="max-w-2xl">
-                <DialogHeader><DialogTitle>Detalle de: {modalContent?.title}</DialogTitle></DialogHeader>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Artículo</TableHead>
-                            <TableHead>Solicita</TableHead>
-                            <TableHead className="text-right">Cantidad</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {modalContent?.items.map((item, index) => (
-                             <TableRow key={`${item.itemCode}-${index}`}>
-                                <TableCell>{item.description}</TableCell>
-                                <TableCell>
-                                     {item.solicita && <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
-                                        {item.solicita === 'Sala' ? <Users size={10} className="mr-1"/> : <Soup size={10} className="mr-1"/>}
-                                        {item.solicita}
-                                    </Badge>}
-                                </TableCell>
-                                <TableCell className="text-right">{item.quantity}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </DialogContent>
-        </Dialog>
-
 
        <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
             <AlertDialogContent>
@@ -405,3 +354,4 @@ export default function AlquilerPage() {
     </>
   );
 }
+
