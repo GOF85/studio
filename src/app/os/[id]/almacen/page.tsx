@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2 } from 'lucide-react';
-import type { MaterialOrder, OrderItem, PickingSheet } from '@/types';
+import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, FileText } from 'lucide-react';
+import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format } from 'date-fns';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -33,36 +34,82 @@ const statusMap: Record<PickingSheet['status'], StatusColumn> = {
     'Listo': 'Listo',
 }
 
+function BriefingSummaryDialog({ osId }: { osId: string }) {
+    const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
+
+    useEffect(() => {
+        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+        const currentBriefing = allBriefings.find(b => b.osId === osId);
+        if (currentBriefing) {
+            const sortedItems = [...currentBriefing.items].sort((a, b) => {
+                const dateComparison = a.fecha.localeCompare(b.fecha);
+                if (dateComparison !== 0) return dateComparison;
+                return a.horaInicio.localeCompare(b.horaInicio);
+            });
+            setBriefingItems(sortedItems);
+        }
+    }, [osId]);
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" />Resumen de Briefing</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader><DialogTitle>Resumen de Servicios del Briefing</DialogTitle></DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead>Hora</TableHead>
+                                <TableHead>Descripción</TableHead>
+                                <TableHead className="text-right">Asistentes</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {briefingItems.length > 0 ? briefingItems.map(item => (
+                                <TableRow key={item.id}>
+                                    <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
+                                    <TableCell>{item.horaInicio}</TableCell>
+                                    <TableCell>{item.descripcion}</TableCell>
+                                    <TableCell className="text-right">{item.asistentes}</TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export default function AlmacenPage() {
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
-  const [pickingSheets, setPickingSheets] = useState<PickingSheet[]>([]);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [modalContent, setModalContent] = useState<{ title: string; items: ItemWithOrderInfo[] } | null>(null);
   
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (!osId) return;
-    
+   const { allItemsByStatus, allItems, blockedItems, pendingItems } = useMemo(() => {
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
     setMaterialOrders(relatedOrders);
 
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
-    setPickingSheets(allPickingSheets.filter(sheet => sheet.osId === osId));
+    const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
 
-    setIsMounted(true);
-  }, [osId]);
-
-  const allItemsByStatus = useMemo(() => {
     const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
 
-    pickingSheets.forEach(sheet => {
+    relatedPickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
             if (item.type === 'Almacen') {
@@ -79,7 +126,7 @@ export default function AlmacenPage() {
         });
     });
 
-    materialOrders.forEach(order => {
+    relatedOrders.forEach(order => {
         order.items.forEach(item => {
             const uniqueKey = `${order.id}-${item.itemCode}`;
             if (!processedItemKeys.has(uniqueKey)) {
@@ -93,16 +140,16 @@ export default function AlmacenPage() {
             }
         });
     });
-    return items;
-  }, [materialOrders, pickingSheets]);
+    
+    const all = relatedOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
+    const blocked = [...items['En Preparación'], ...items['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    
+    return { allItemsByStatus: items, allItems: all, blockedItems: blocked, pendingItems: items.Asignado };
+  }, [osId]);
 
-  const { allItems, blockedItems, pendingItems } = useMemo(() => {
-    const all = materialOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
-    const blocked = [...allItemsByStatus['En Preparación'], ...allItemsByStatus['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
-    const pending = allItemsByStatus['Asignado'];
-    return { allItems: all, blockedItems: blocked, pendingItems: pending };
-  }, [materialOrders, allItemsByStatus]);
-
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleSaveAll = () => {
     setIsLoading(true);
@@ -116,6 +163,7 @@ export default function AlmacenPage() {
     });
 
     localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
+    window.dispatchEvent(new Event('storage'));
     toast({ title: 'Guardado', description: 'Todos los cambios en los pedidos han sido guardados.' });
     setIsLoading(false);
   }
@@ -148,6 +196,7 @@ export default function AlmacenPage() {
     const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
     localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
     setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Almacen'));
+    window.dispatchEvent(new Event('storage'));
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
   };
@@ -156,74 +205,70 @@ export default function AlmacenPage() {
     return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
   }
 
-  const renderColumn = (title: string, items: ItemWithOrderInfo[]) => (
-    <Card className="flex-1 bg-muted/30">
-        <CardHeader className="pb-4">
-            <CardTitle className="text-lg flex items-center justify-between">
-                {title}
-                <Badge variant={title === 'Listo' ? 'default' : 'secondary'} className="text-sm">{items.length}</Badge>
-            </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-            {items.length > 0 ? items.map((item, index) => (
-                <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
-                    <p className="font-semibold truncate">{item.quantity} x {item.description}</p>
-                    <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                        {item.solicita ? (
-                            <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
-                                {item.solicita === 'Sala' ? <Users size={10} className="mr-1"/> : <Soup size={10} className="mr-1"/>}
-                                {item.solicita}
-                            </Badge>
-                        ) : <span></span>}
-                        <Badge variant="outline">{item.orderContract}</Badge>
-                    </div>
-                </Card>
-            )) : <p className="text-sm text-muted-foreground text-center py-4">No hay artículos.</p>}
-        </CardContent>
-    </Card>
-  );
+  const renderColumn = (title: string, items: ItemWithOrderInfo[]) => {
+    const totalItems = items.length;
+    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+
+    return (
+        <Card className="flex-1 bg-muted/30 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setModalContent({ title, items })}>
+            <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center justify-between">
+                    {title}
+                    <Badge variant={title === 'Listo' ? 'default' : 'secondary'} className="text-sm">{totalItems}</Badge>
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-2xl font-bold">{totalQuantity}</p>
+                <p className="text-xs text-muted-foreground">unidades totales</p>
+            </CardContent>
+        </Card>
+    );
+};
 
   return (
     <>
       <div className="flex items-center justify-between mb-4">
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader><DialogTitle>Resumen de Artículos de Almacén</DialogTitle></DialogHeader>
-                <div className="space-y-4">
-                    <div>
-                        <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {Object.entries(pendingItems.reduce((acc, item) => {
-                                    acc[item.description] = (acc[item.description] || 0) + item.quantity;
-                                    return acc;
-                                }, {} as Record<string, number>)).map(([desc, qty]) => (
-                                    <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+         <div className="flex items-center gap-2">
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Resumen de Artículos de Almacén</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                        <div>
+                            <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {Object.entries(pendingItems.reduce((acc, item) => {
+                                        acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                        return acc;
+                                    }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                        <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                        <div>
+                            <h3 className="font-semibold mb-2">Artículos en Proceso / Listos</h3>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {Object.entries(blockedItems.reduce((acc, item) => {
+                                        acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                        return acc;
+                                    }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                        <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
-                     <div>
-                        <h3 className="font-semibold mb-2">Artículos en Proceso / Listos</h3>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {Object.entries(blockedItems.reduce((acc, item) => {
-                                    acc[item.description] = (acc[item.description] || 0) + item.quantity;
-                                    return acc;
-                                }, {} as Record<string, number>)).map(([desc, qty]) => (
-                                    <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
+                </DialogContent>
+            </Dialog>
+            <BriefingSummaryDialog osId={osId} />
+        </div>
         <Button asChild>
           <Link href={`/pedidos?osId=${osId}&type=Almacen`}>
             <PlusCircle className="mr-2" />
@@ -321,6 +366,35 @@ export default function AlmacenPage() {
                 </div>
             </CardContent>
         </Card>
+
+        <Dialog open={!!modalContent} onOpenChange={() => setModalContent(null)}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader><DialogTitle>Detalle de: {modalContent?.title}</DialogTitle></DialogHeader>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Artículo</TableHead>
+                            <TableHead>Solicita</TableHead>
+                            <TableHead className="text-right">Cantidad</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {modalContent?.items.map((item, index) => (
+                             <TableRow key={`${item.itemCode}-${index}`}>
+                                <TableCell>{item.description}</TableCell>
+                                <TableCell>
+                                     {item.solicita && <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
+                                        {item.solicita === 'Sala' ? <Users size={10} className="mr-1"/> : <Soup size={10} className="mr-1"/>}
+                                        {item.solicita}
+                                    </Badge>}
+                                </TableCell>
+                                <TableCell className="text-right">{item.quantity}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </DialogContent>
+        </Dialog>
 
        <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
             <AlertDialogContent>
