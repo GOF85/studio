@@ -15,15 +15,6 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
-const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: string; horaSalida: string; cantidad?: number}[]) => {
-    return orders.reduce((sum, order) => {
-        const hours = calculateHours(order.horaEntrada, order.horaSalida);
-        const quantity = order.cantidad || 1;
-        const price = order.precioHora || 0;
-        return sum + (hours * price * quantity);
-    }, 0);
-};
-
 const calculateHours = (start?: string, end?: string): number => {
     if (!start || !end) return 0;
     try {
@@ -37,6 +28,15 @@ const calculateHours = (start?: string, end?: string): number => {
     }
 }
 
+const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: string; horaSalida: string; cantidad?: number}[]) => {
+    return orders.reduce((sum, order) => {
+        const hours = calculateHours(order.horaEntrada, order.horaSalida);
+        const quantity = order.cantidad || 1;
+        const price = order.precioHora || 0;
+        return sum + (hours * price * quantity);
+    }, 0);
+};
+
 export default function OsDashboardPage() {
     const router = useRouter();
     const params = useParams();
@@ -45,9 +45,9 @@ export default function OsDashboardPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [isMounted, setIsMounted] = useState(false);
     
-    const { facturacionNeta, costeTotal, briefingItemsCount, rentabilidadEstimada, rentabilidadPct } = useMemo(() => {
+    const { facturacionNeta, costeTotal, briefingItemsCount, pruebasMenuCount, rentabilidadEstimada, rentabilidadPct } = useMemo(() => {
         if (!isMounted || !serviceOrder) {
-            return { facturacionNeta: 0, costeTotal: 0, briefingItemsCount: 0, rentabilidadEstimada: 0, rentabilidadPct: 0 };
+            return { facturacionNeta: 0, costeTotal: 0, briefingItemsCount: 0, pruebasMenuCount: 0, rentabilidadEstimada: 0, rentabilidadPct: 0 };
         }
 
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
@@ -91,12 +91,23 @@ export default function OsDashboardPage() {
         const rentabilidad = facturacionNeta - costeTotal;
         const rentabilidadPorcentaje = facturacionNeta > 0 ? (rentabilidad / facturacionNeta) * 100 : 0;
         
-        const briefingItemsWithGastro = currentBriefing?.items.filter(item => item.conGastronomia).length || 0;
+        let gastronomicServices = 0;
+        let tastingMenus = 0;
+        if (currentBriefing) {
+            currentBriefing.items.forEach(item => {
+                if (item.descripcion.toLowerCase() === 'prueba de menu') {
+                    tastingMenus++;
+                } else if (item.conGastronomia) {
+                    gastronomicServices++;
+                }
+            });
+        }
 
         return {
             facturacionNeta,
             costeTotal,
-            briefingItemsCount: briefingItemsWithGastro,
+            briefingItemsCount: gastronomicServices,
+            pruebasMenuCount: tastingMenus,
             rentabilidadEstimada: rentabilidad,
             rentabilidadPct: rentabilidadPorcentaje
         };
@@ -121,7 +132,18 @@ export default function OsDashboardPage() {
         { title: 'Facturación Neta', value: formatCurrency(facturacionNeta), description: 'Ingresos post-comisiones' },
         { title: 'Coste Total Presup.', value: formatCurrency(costeTotal), description: 'Suma de todos los módulos' },
         { title: 'Rentabilidad Estimada', value: formatCurrency(rentabilidadEstimada), description: `${rentabilidadPct.toFixed(2)}% Margen Bruto`, color: rentabilidadEstimada >= 0 ? 'text-green-600' : 'text-destructive' },
-        { title: 'Nº de Servicios', value: briefingItemsCount.toString(), description: 'Hitos con gastronomía' },
+        { 
+            title: 'Nº de Servicios', 
+            value: (
+                <div className="flex items-baseline gap-2">
+                    {briefingItemsCount > 0 && <span>{briefingItemsCount} <span className="text-sm font-normal">Servicios</span></span>}
+                    {briefingItemsCount > 0 && pruebasMenuCount > 0 && <span className="text-xl">/</span>}
+                    {pruebasMenuCount > 0 && <span>{pruebasMenuCount} <span className="text-sm font-normal">P. Menú</span></span>}
+                    {briefingItemsCount === 0 && pruebasMenuCount === 0 && <span>0</span>}
+                </div>
+            ), 
+            description: 'Servicios con gastronomía' 
+        },
     ];
 
     const mainModuleLinks = [
