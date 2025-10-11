@@ -11,6 +11,7 @@ export type CateringItem = {
   imageHint: string;
   category: string;
   tipo?: string;
+  unidadVenta?: number;
 };
 
 export type OrderItem = CateringItem & {
@@ -306,6 +307,7 @@ export type ArticuloCatering = {
     precioVenta: number;
     precioAlquiler: number;
     precioReposicion: number;
+    unidadVenta?: number;
     stockSeguridad?: number;
     tipo?: string;
     loc?: string;
@@ -622,7 +624,7 @@ export type Receta = {
     perfilSaborSecundario?: string[];
     perfilTextura?: string[];
     tipoCocina?: string;
-    temperaturaServicio?: 'CALIENTE' | 'TIBIO' | 'AMBIENTE', 'FRIO', 'HELADO';
+    temperaturaServicio?: 'CALIENTE' | 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO';
     tecnicaCoccionPrincipal?: string;
     potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL', 'AL_MOMENTO';
     formatoServicioIdeal?: string[];
@@ -951,6 +953,7 @@ export type Precio = {
     observaciones: string;
     loc: string;
     imagen: string;
+    unidadVenta?: number;
 }
 
 export type MenajeDB = {

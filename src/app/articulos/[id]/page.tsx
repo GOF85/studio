@@ -35,6 +35,7 @@ export const articuloCateringSchema = z.object({
   precioVenta: z.coerce.number().default(0),
   precioAlquiler: z.coerce.number().default(0),
   precioReposicion: z.coerce.number().default(0),
+  unidadVenta: z.coerce.number().optional(),
   stockSeguridad: z.coerce.number().default(0),
   loc: z.string().optional(),
   imagen: z.string().url("Debe ser una URL válida.").or(z.literal("")).optional(),
@@ -341,7 +342,7 @@ export default function ArticuloFormPage() {
 
             <Card>
             <CardHeader><CardTitle>Información de Precios y Stock</CardTitle></CardHeader>
-            <CardContent className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <CardContent className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
                 <FormField control={form.control} name="precioVenta" render={({ field }) => (
                     <FormItem><FormLabel>Precio Venta</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={(!!selectedErpProduct && !esProducidoPorPartner)} className={(!!selectedErpProduct && !esProducidoPorPartner) ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -350,6 +351,9 @@ export default function ArticuloFormPage() {
                 )} />
                 <FormField control={form.control} name="precioReposicion" render={({ field }) => (
                     <FormItem><FormLabel>Precio Reposición</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={!!selectedErpProduct && esProducidoPorPartner} className={!!selectedErpProduct && esProducidoPorPartner ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="unidadVenta" render={({ field }) => (
+                    <FormItem><FormLabel>Unidad de Venta (Múltiplo)</FormLabel><FormControl><Input type="number" {...field} placeholder="Ej: 24 (para cajas)" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="stockSeguridad" render={({ field }) => (
                     <FormItem><FormLabel>Stock de Seguridad</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
