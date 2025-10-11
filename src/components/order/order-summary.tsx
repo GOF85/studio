@@ -162,6 +162,10 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
               <ul className="space-y-4">
                 {items.map((item) => {
                   const imageUrl = isValidHttpUrl(item.imageUrl) ? item.imageUrl : `https://picsum.photos/seed/${item.itemCode}/400/300`;
+                  const handleStepClick = (step: number) => {
+                      const newQuantity = item.quantity + (step * (item.unidadVenta || 1));
+                      onUpdateQuantity(item.itemCode, Math.max(0, newQuantity));
+                  }
                   return (
                   <li key={item.itemCode} className="flex items-center gap-4">
                     <div className="relative w-16 h-16 rounded-md overflow-hidden flex-shrink-0">
@@ -171,13 +175,13 @@ export function OrderSummary({ items, onUpdateQuantity, onRemoveItem, onSubmitOr
                       <p className="font-medium leading-tight">{item.description}</p>
                       <p className="text-sm text-muted-foreground">
                         {item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                        {(orderType !== 'Bebida' && orderType !== 'Bio' && orderType !== 'Almacen') && '/día'}
+                        { item.unidadVenta && ` / ${item.unidadVenta} uds.`}
                         </p>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.itemCode, item.quantity - 1)}><Minus className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleStepClick(-1)}><Minus className="h-4 w-4" /></Button>
                       <Input type="number" value={item.quantity} onChange={(e) => onUpdateQuantity(item.itemCode, parseInt(e.target.value) || 0)} className="h-7 w-12 text-center px-1" />
-                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.itemCode, item.quantity + 1)}><Plus className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleStepClick(1)}><Plus className="h-4 w-4" /></Button>
                     </div>
                   </li>
                 )})}

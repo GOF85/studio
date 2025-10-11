@@ -9,8 +9,9 @@ import { ItemCatalog } from '@/components/catalog/item-catalog';
 import { OrderSummary, type ExistingOrderData } from '@/components/order/order-summary';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { FilePlus2 } from 'lucide-react';
+import { Briefcase, FilePlus2, FileText } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ObjectiveDisplay } from '@/components/os/objective-display';
 
 export default function PedidosPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -63,6 +64,7 @@ export default function PedidosPage() {
                 imageUrl: p.imagen || '',
                 imageHint: p.producto.toLowerCase(),
                 category: p.categoria,
+                unidadVenta: p.unidadVenta,
             }));
         
         const fromArticulos: CateringItem[] = allArticulos
@@ -109,12 +111,13 @@ export default function PedidosPage() {
         itemCode: item.itemCode,
         description: item.description,
         price: item.price,
-        stock: 999, // Assuming infinite stock for simplicity
+        stock: 999,
         imageUrl: item.imageUrl || `https://picsum.photos/seed/${item.itemCode}/400/300`,
         imageHint: item.description.toLowerCase(),
         category: item.category,
         tipo: item.tipo,
         quantity: 0,
+        unidadVenta: item.unidadVenta,
     };
 
     setOrderItems((prevItems) => {
@@ -198,7 +201,6 @@ export default function PedidosPage() {
     let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     
     if (editOrderId) {
-      // Update existing material order
       const orderIndex = allMaterialOrders.findIndex(o => o.id === editOrderId);
       if (orderIndex !== -1) {
         allMaterialOrders[orderIndex] = {
@@ -209,14 +211,13 @@ export default function PedidosPage() {
         toast({ title: 'Pedido de material actualizado' });
       }
     } else {
-      // Create new material order
       const newMaterialOrder: MaterialOrder = {
         id: Date.now().toString(),
         osId,
-        type: orderType as any, // Cast because we've already validated
+        type: orderType as any,
         status: 'Asignado',
         ...finalOrder,
-        items: [], // placeholder
+        items: [],
       };
       newMaterialOrder.items = finalOrder.items.map(item => ({...item, orderId: newMaterialOrder.id, type: orderType as any}));
       allMaterialOrders.push(newMaterialOrder);
@@ -276,26 +277,26 @@ export default function PedidosPage() {
             onSelectProvider={setSelectedProviderId}
           />
           <div className="mt-8 lg:mt-0">
-            <OrderSummary
-              items={orderItems}
-              onUpdateQuantity={handleUpdateQuantity}
-              onRemoveItem={handleRemoveItem}
-              onSubmitOrder={handleSubmitOrder}
-              onClearOrder={handleClearOrder}
-              isEditing={!!editOrderId}
-              serviceOrder={serviceOrder}
-              onAddLocation={handleAddLocation}
-              existingOrderData={existingOrderData}
-              orderType={orderType}
-            />
+            <div className="sticky top-4 space-y-4">
+                <div className="flex items-center gap-2">
+                    <ObjectiveDisplay osId={osId} moduleName={orderType.toLowerCase() as any} />
+                </div>
+                <OrderSummary
+                items={orderItems}
+                onUpdateQuantity={handleUpdateQuantity}
+                onRemoveItem={handleRemoveItem}
+                onSubmitOrder={handleSubmitOrder}
+                onClearOrder={handleClearOrder}
+                isEditing={!!editOrderId}
+                serviceOrder={serviceOrder}
+                onAddLocation={handleAddLocation}
+                existingOrderData={existingOrderData}
+                orderType={orderType}
+                />
+            </div>
           </div>
         </div>
       </main>
-      <footer className="py-4 border-t">
-        <div className="container mx-auto text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} MICE Catering. Todos los derechos reservados.
-        </div>
-      </footer>
     </div>
   );
 }

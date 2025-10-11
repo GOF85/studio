@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Plus } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
 
 import type { CateringItem } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -27,13 +27,23 @@ function isValidHttpUrl(string: string) {
 }
 
 export function ItemListItem({ item, onAddItem, orderType }: ItemListItemProps) {
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(item.unidadVenta || 1);
 
   const handleAddClick = () => {
     if (quantity > 0) {
       onAddItem(quantity);
     }
   };
+  
+  const handleQuantityChange = (newQuantity: number) => {
+    setQuantity(Math.max(1, newQuantity));
+  }
+  
+  const handleStepClick = (step: number) => {
+    const newQuantity = quantity + (step * (item.unidadVenta || 1));
+    handleQuantityChange(newQuantity);
+  }
+
 
   const imageUrl = isValidHttpUrl(item.imageUrl) ? item.imageUrl : `https://picsum.photos/seed/${item.itemCode}/400/300`;
 
@@ -58,22 +68,26 @@ export function ItemListItem({ item, onAddItem, orderType }: ItemListItemProps) 
           {item.price.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
         </p>
       </div>
-      <div className="flex items-center gap-2 w-40">
-        <Input
-          type="number"
-          aria-label="Cantidad"
-          value={quantity}
-          onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
-          min="1"
-          className="h-9 w-16 text-center"
-        />
+      <div className="flex items-center gap-2 w-48">
+        <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => handleStepClick(-1)} disabled={quantity <= (item.unidadVenta || 1)}><Minus className="h-4 w-4" /></Button>
+            <Input
+            type="number"
+            aria-label="Cantidad"
+            value={quantity}
+            onChange={(e) => handleQuantityChange(parseInt(e.target.value, 10) || 1)}
+            min="1"
+            className="h-9 w-16 text-center"
+            />
+            <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => handleStepClick(1)}><Plus className="h-4 w-4" /></Button>
+        </div>
         <Button
           size="sm"
-          className="flex-grow"
+          className="flex-grow h-9"
           onClick={handleAddClick}
           aria-label={`Añadir ${item.description} al pedido`}
         >
-          <Plus className="mr-1 h-4 w-4" /> Añadir
+          Añadir
         </Button>
       </div>
     </div>
