@@ -1,10 +1,9 @@
 
-
 'use client';
 
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
-import type { ServiceOrder, ComercialBriefing, MaterialOrder, GastronomyOrder, TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExternoOrder, PruebaMenuData, PersonalExternoAjuste } from '@/types';
+import type { ServiceOrder, ComercialBriefing, MaterialOrder, GastronomyOrder, TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExternoOrder, PruebaMenuData, PersonalExternoAjuste, ComercialBriefingItem } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -55,7 +54,7 @@ export default function OsDashboardPage() {
         const totalBriefing = currentBriefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario) + (item.importeFijo || 0), 0) || 0;
 
         const allAjustes = (JSON.parse(localStorage.getItem('comercialAjustes') || '{}')[osId] || []) as { importe: number }[];
-        const totalAjustes = allAjustes.reduce((sum, ajuste) => sum + ajuste.importe, 0);
+        const totalAjustes = allAjustes.reduce((sum: number, ajuste: {importe: number}) => sum + ajuste.importe, 0);
         const facturacionBruta = totalBriefing + totalAjustes;
 
         const agencyCommission = (facturacionBruta * (serviceOrder.agencyPercentage || 0) / 100) + (serviceOrder.agencyCommissionValue || 0);
@@ -95,10 +94,12 @@ export default function OsDashboardPage() {
         let tastingMenus = 0;
         if (currentBriefing) {
             currentBriefing.items.forEach(item => {
-                if (item.descripcion.toLowerCase() === 'prueba de menu') {
-                    tastingMenus++;
-                } else if (item.conGastronomia) {
-                    gastronomicServices++;
+                if (item.conGastronomia) {
+                    if (item.descripcion.toLowerCase() === 'prueba de menu') {
+                        tastingMenus++;
+                    } else {
+                        gastronomicServices++;
+                    }
                 }
             });
         }
