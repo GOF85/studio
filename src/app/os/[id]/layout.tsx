@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -60,9 +59,14 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
 
     useEffect(() => {
         if (osId) {
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const currentOS = allServiceOrders.find(os => os.id === osId);
-        setServiceOrder(currentOS || null);
+            if (osId === 'nuevo') {
+                // Handle the case for a new service order
+                setServiceOrder({ id: 'nuevo', serviceNumber: 'Nueva OS' } as ServiceOrder);
+            } else {
+                const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+                const currentOS = allServiceOrders.find(os => os.id === osId);
+                setServiceOrder(currentOS || null);
+            }
         }
         const handleStorageChange = () => {
             setUpdateKey(Date.now());
