@@ -27,9 +27,7 @@ type ItemWithOrderInfo = OrderItem & {
   tipo?: string;
 };
 
-type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
-
-const statusMap: Record<PickingSheet['status'], StatusColumn> = {
+const statusMap: Record<PickingSheet['status'], 'En Preparación' | 'Listo'> = {
     'Pendiente': 'En Preparación',
     'En Proceso': 'En Preparación',
     'Listo': 'Listo',
@@ -201,44 +199,47 @@ export default function AlquilerPage() {
   return (
     <>
       <div className="flex items-center justify-between mb-4">
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
-                <div className="space-y-4">
-                    <div>
-                        <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {Object.entries(pendingItems.reduce((acc, item) => {
-                                    acc[item.description] = (acc[item.description] || 0) + item.quantity;
-                                    return acc;
-                                }, {} as Record<string, number>)).map(([desc, qty]) => (
-                                    <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+         <div className="flex items-center gap-2">
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                        <div>
+                            <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {Object.entries(pendingItems.reduce((acc, item) => {
+                                        acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                        return acc;
+                                    }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                        <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                         <div>
+                            <h3 className="font-semibold mb-2">Artículos en Proceso / Listos</h3>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {Object.entries(blockedItems.reduce((acc, item) => {
+                                        acc[item.description] = (acc[item.description] || 0) + item.quantity;
+                                        return acc;
+                                    }, {} as Record<string, number>)).map(([desc, qty]) => (
+                                        <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
-                     <div>
-                        <h3 className="font-semibold mb-2">Artículos en Proceso / Listos</h3>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {Object.entries(blockedItems.reduce((acc, item) => {
-                                    acc[item.description] = (acc[item.description] || 0) + item.quantity;
-                                    return acc;
-                                }, {} as Record<string, number>)).map(([desc, qty]) => (
-                                    <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
+                </DialogContent>
+            </Dialog>
+            <BriefingSummaryDialog osId={osId} />
+        </div>
         <Button asChild>
           <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
             <PlusCircle className="mr-2" />
@@ -354,4 +355,3 @@ export default function AlquilerPage() {
   );
 }
 
-    

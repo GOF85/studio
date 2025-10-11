@@ -26,9 +26,7 @@ type ItemWithOrderInfo = OrderItem & {
   solicita?: 'Sala' | 'Cocina';
 };
 
-type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
-
-const statusMap: Record<PickingSheet['status'], StatusColumn> = {
+const statusMap: Record<PickingSheet['status'], 'En Preparación' | 'Listo'> = {
     'Pendiente': 'En Preparación',
     'En Proceso': 'En Preparación',
     'Listo': 'Listo',
@@ -354,5 +352,4 @@ export default function AlmacenPage() {
     </>
   );
 }
-
     
