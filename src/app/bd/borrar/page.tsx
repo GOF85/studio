@@ -17,7 +17,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, ShieldAlert, Download, Loader2, Upload } from 'lucide-react';
+import { Trash2, ShieldAlert, Download, Loader2, Upload, Search } from 'lucide-react';
 import Link from 'next/link';
 
 type DatabaseKey = 'personal' | 'espacios' | 'precios' | 'alquilerDB' | 'tipoServicio' | 'proveedoresTransporte' | 'proveedorHielo' | 'atipicosDB' | 'personalMiceOrders' | 'proveedoresPersonal' | 'decoracionDB' | 'tiposCocina' | 'pedidoPlantillas' | 'formatosExpedicionDB' | 'proveedores';
@@ -240,10 +240,15 @@ export default function BorrarBdPage() {
                                 </CardDescription>
                             </div>
                         </CardHeader>
-                         <CardContent>
+                         <CardContent className="flex gap-4">
                             <Link href="/bd/borrar-os">
                                 <Button variant="destructive">
                                     Limpieza de Datos de Eventos <Trash2 className="ml-2 h-4 w-4" />
+                                </Button>
+                            </Link>
+                             <Link href="/bd/inspector">
+                                <Button variant="secondary">
+                                    Inspeccionar Datos <Search className="ml-2 h-4 w-4" />
                                 </Button>
                             </Link>
                         </CardContent>
