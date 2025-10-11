@@ -90,11 +90,13 @@ export default function OsDashboardPage() {
 
         const rentabilidad = facturacionNeta - costeTotal;
         const rentabilidadPorcentaje = facturacionNeta > 0 ? (rentabilidad / facturacionNeta) * 100 : 0;
+        
+        const briefingItemsWithGastro = currentBriefing?.items.filter(item => item.conGastronomia).length || 0;
 
         return {
             facturacionNeta,
             costeTotal,
-            briefingItemsCount: currentBriefing?.items.length || 0,
+            briefingItemsCount: briefingItemsWithGastro,
             rentabilidadEstimada: rentabilidad,
             rentabilidadPct: rentabilidadPorcentaje
         };
@@ -102,18 +104,13 @@ export default function OsDashboardPage() {
     }, [osId, isMounted, serviceOrder]);
 
     useEffect(() => {
-        if (osId === 'nuevo') {
-            router.replace(`/os/nuevo/info`);
-            return;
-        }
-
         if (osId) {
             const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
             const currentOS = allServiceOrders.find(os => os.id === osId);
             setServiceOrder(currentOS || null);
         }
         setIsMounted(true);
-    }, [osId, router]);
+    }, [osId]);
 
 
     if (!isMounted || !serviceOrder) {
@@ -124,7 +121,7 @@ export default function OsDashboardPage() {
         { title: 'Facturación Neta', value: formatCurrency(facturacionNeta), description: 'Ingresos post-comisiones' },
         { title: 'Coste Total Presup.', value: formatCurrency(costeTotal), description: 'Suma de todos los módulos' },
         { title: 'Rentabilidad Estimada', value: formatCurrency(rentabilidadEstimada), description: `${rentabilidadPct.toFixed(2)}% Margen Bruto`, color: rentabilidadEstimada >= 0 ? 'text-green-600' : 'text-destructive' },
-        { title: 'Nº de Servicios', value: briefingItemsCount.toString(), description: 'Hitos en el briefing' },
+        { title: 'Nº de Servicios', value: briefingItemsCount.toString(), description: 'Hitos con gastronomía' },
     ];
 
     const mainModuleLinks = [
