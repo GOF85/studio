@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -66,19 +67,21 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
                                 <TableHead>Fecha</TableHead>
                                 <TableHead>Hora</TableHead>
                                 <TableHead>Descripción</TableHead>
+                                <TableHead>Observaciones</TableHead>
                                 <TableHead className="text-right">Asistentes</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {briefingItems.length > 0 ? briefingItems.map(item => (
-                                <TableRow key={item.id}>
+                                <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
                                     <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
-                                    <TableCell>{item.horaInicio}</TableCell>
+                                    <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
                                     <TableCell>{item.descripcion}</TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">{item.comentarios}</TableCell>
                                     <TableCell className="text-right">{item.asistentes}</TableCell>
                                 </TableRow>
                             )) : (
-                                <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
@@ -96,7 +99,7 @@ function StatusCard({ title, items, totalQuantity, onClick }: { title: string, i
             </CardHeader>
             <CardContent>
                 <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
-                <p className="text-xs text-muted-foreground">{totalQuantity} artículos en total</p>
+                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos en total</p>
             </CardContent>
         </Card>
     )
@@ -235,6 +238,47 @@ export default function AlmacenPage() {
         </DialogContent>
     )
   }
+  
+    const renderSummaryModal = () => {
+    const all = [...pendingItems, ...blockedItems];
+     const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    return (
+      <DialogContent className="max-w-4xl">
+        <DialogHeader><DialogTitle>Resumen de Artículos de Almacén</DialogTitle></DialogHeader>
+        <div className="max-h-[70vh] overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Artículo</TableHead>
+                <TableHead>Cantidad</TableHead>
+                <TableHead>Cant. Cajas</TableHead>
+                <TableHead>Valoración</TableHead>
+                <TableHead>Estado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {all.map((item, index) => {
+                const isBlocked = blockedItems.some(bi => bi.itemCode === item.itemCode && bi.orderId === item.orderId);
+                const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
+                return (
+                  <TableRow key={`${item.itemCode}-${index}`}>
+                    <TableCell>{item.description}</TableCell>
+                    <TableCell>{item.quantity}</TableCell>
+                    <TableCell>{cajas}</TableCell>
+                    <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                    <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="flex justify-end font-bold text-lg p-4">
+            Valoración Total: {formatCurrency(totalValue)}
+        </div>
+      </DialogContent>
+    )
+  }
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
@@ -248,37 +292,7 @@ export default function AlmacenPage() {
                 <DialogTrigger asChild>
                     <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl">
-                    <DialogHeader><DialogTitle>Resumen de Artículos de Almacén</DialogTitle></DialogHeader>
-                    <div className="max-h-[70vh] overflow-y-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Artículo</TableHead>
-                                    <TableHead>Cantidad</TableHead>
-                                    <TableHead>Cant. Cajas</TableHead>
-                                    <TableHead>Valoración</TableHead>
-                                    <TableHead>Estado</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                               {[...pendingItems, ...blockedItems].map((item, index) => {
-                                 const isBlocked = blockedItems.some(bi => bi.itemCode === item.itemCode && bi.orderId === item.orderId);
-                                 const cajas = item.unidadVenta ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
-                                 return(
-                                    <TableRow key={`${item.itemCode}-${index}`}>
-                                        <TableCell>{item.description}</TableCell>
-                                        <TableCell>{item.quantity}</TableCell>
-                                        <TableCell>{cajas}</TableCell>
-                                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
-                                        <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
-                                    </TableRow>
-                                 )
-                               })}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </DialogContent>
+                {renderSummaryModal()}
             </Dialog>
             <BriefingSummaryDialog osId={osId} />
         </div>
@@ -392,4 +406,3 @@ export default function AlmacenPage() {
   );
 }
 
-    
