@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, DollarSign, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, Star, Save, AlertTriangle, Phone, Mail } from 'lucide-react';
+import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, Star, Save, AlertTriangle, Phone, Mail } from 'lucide-react';
 
 import type { ServiceOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { cn } from '@/lib/utils';
@@ -58,6 +58,7 @@ import { Separator } from '@/components/ui/separator';
 import { Combobox } from '@/components/ui/combobox';
 
 export const osFormSchema = z.object({
+  id: z.string().min(1),
   serviceNumber: z.string().min(1, 'El Nº de Servicio es obligatorio'),
   startDate: z.date({ required_error: 'La fecha de inicio es obligatoria.' }),
   client: z.string().min(1, 'El cliente es obligatorio.'),
@@ -107,6 +108,7 @@ export const osFormSchema = z.object({
   objetivoGastoId: z.string().optional(),
   direccionPrincipal: z.string().optional().default(''),
   isVip: z.boolean().optional().default(false),
+  email: z.string().email().optional().or(z.literal('')),
 });
 
 export type OsFormValues = z.infer<typeof osFormSchema>;
@@ -289,7 +291,7 @@ export default function InfoPage() {
         router.push('/pes');
       }
     } else { // Creating new OS
-      const initialValues = {...defaultValues, startDate: new Date(), endDate: new Date()};
+      const initialValues = {...defaultValues, id: Date.now().toString(), startDate: new Date(), endDate: new Date()};
       form.reset(initialValues);
       setAccordionDefaultValue(['cliente', 'espacio', 'responsables']); // Expand for new
     }
@@ -320,9 +322,8 @@ export default function InfoPage() {
         setIsLoading(false);
         return;
       }
-      currentOsId = Date.now().toString();
+      currentOsId = data.id;
       const newOS: ServiceOrder = {
-        id: currentOsId,
         ...data,
         facturacion: data.facturacion || 0, // Ensure facturacion is a number
         startDate: data.startDate.toISOString(),
@@ -788,5 +789,7 @@ export default function InfoPage() {
   );
 }
 
+
+    
 
     
