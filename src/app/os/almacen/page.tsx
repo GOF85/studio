@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -118,18 +119,35 @@ export default function AlmacenPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
   const [updateTrigger, setUpdateTrigger] = useState(0);
-
+  
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
 
    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
+    if (typeof window === 'undefined') {
+        return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
+    }
+
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
 
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
+    
+    const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
+    
+    const mermas: Record<string, number> = {};
+    allReturnSheets.forEach(sheet => {
+      Object.entries(sheet.itemStates).forEach(([key, state]) => {
+        const itemInfo = sheet.items.find(i => `${i.orderId}_${i.itemCode}` === key);
+        if (itemInfo && itemInfo.type === 'Almacen' && itemInfo.sentQuantity > state.returnedQuantity) {
+            const perdida = itemInfo.sentQuantity - state.returnedQuantity;
+            mermas[itemInfo.itemCode] = (mermas[itemInfo.itemCode] || 0) + perdida;
+        }
+      });
+    });
     
     const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
@@ -139,22 +157,29 @@ export default function AlmacenPage() {
         const targetStatus = statusMap[sheet.status];
         const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
 
-        sheet.items.forEach(item => {
-            if (item.type !== 'Almacen') return;
+        sheet.items.forEach(itemInSheet => {
+            if (itemInSheet.type !== 'Almacen') return;
             
-            const uniqueKey = `${item.orderId}-${item.itemCode}`;
-            const orderRef = relatedOrders.find(o => o.id === item.orderId);
+            const uniqueKey = `${itemInSheet.orderId}-${itemInSheet.itemCode}`;
+            const orderRef = relatedOrders.find(o => o.id === itemInSheet.orderId);
+            const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
+
+            if (!originalItem) return;
+
+            let cantidadReal = originalItem.quantity;
             
             const itemWithInfo: ItemWithOrderInfo = {
-                ...item, 
-                quantity: item.quantity,
+                ...originalItem, 
+                quantity: cantidadReal,
                 orderId: sheet.id, 
                 orderContract: orderRef?.contractNumber || 'N/A', 
                 orderStatus: sheet.status, 
                 solicita: orderRef?.solicita,
             };
+
             statusItems[targetStatus].push(itemWithInfo);
             sheetInfo.items.push(itemWithInfo);
+
             processedItemKeys.add(uniqueKey);
         });
 
@@ -164,20 +189,34 @@ export default function AlmacenPage() {
     });
 
     const all = relatedOrders.flatMap(order => 
-        order.items.map(item => ({
-            ...item, 
-            orderId: order.id, 
-            contractNumber: order.contractNumber, 
-            solicita: order.solicita, 
-            tipo: item.tipo, 
-            deliveryDate: order.deliveryDate,
-            ajustes: item.ajustes
-        } as ItemWithOrderInfo))
+        order.items.map(item => {
+            return {
+                ...item, 
+                quantity: item.quantity,
+                orderId: order.id, 
+                contractNumber: order.contractNumber, 
+                solicita: order.solicita, 
+                tipo: item.tipo, 
+                deliveryDate: order.deliveryDate,
+                ajustes: item.ajustes
+            } as ItemWithOrderInfo
+        })
     );
     
     const pending = all.filter(item => {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
-      return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
+      let cantidadAjustada = item.quantity;
+      if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
+          cantidadAjustada = Math.max(0, cantidadAjustada - mermas[item.itemCode]);
+          mermas[item.itemCode] = 0; // Consume la merma
+      }
+      return !processedItemKeys.has(uniqueKey) && cantidadAjustada > 0;
+    }).map(item => {
+        let cantidadAjustada = item.quantity;
+        if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
+            cantidadAjustada = Math.max(0, cantidadAjustada - mermas[item.itemCode]);
+        }
+        return {...item, quantity: cantidadAjustada};
     });
     
     statusItems['Asignado'] = pending;
@@ -199,6 +238,74 @@ export default function AlmacenPage() {
         window.addEventListener('storage', forceUpdate);
         return () => window.removeEventListener('storage', forceUpdate);
     }, []);
+
+  const handleDeleteOrder = (orderId: string) => {
+    let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderId);
+    localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
+    setUpdateTrigger(prev => prev + 1); // Forzar re-cálculo
+    toast({ title: 'Pedido de material eliminado' });
+  };
+  
+  const renderStatusModal = (status: StatusColumn) => {
+    const items = itemsByStatus[status];
+    return (
+        <DialogContent className="max-w-4xl">
+            <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto">
+                <Table>
+                    <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {items.length > 0 ? items.map((item, index) => (
+                            <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
+                        )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
+                    </TableBody>
+                </Table>
+            </div>
+        </DialogContent>
+    )
+  }
+  
+    const renderSummaryModal = () => {
+    const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
+     const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    return (
+      <DialogContent className="max-w-4xl">
+        <DialogHeader><DialogTitle>Resumen de Artículos de Almacén</DialogTitle></DialogHeader>
+        <div className="max-h-[70vh] overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Artículo</TableHead>
+                <TableHead>Cantidad</TableHead>
+                <TableHead>Cant. Cajas</TableHead>
+                <TableHead>Valoración</TableHead>
+                <TableHead>Estado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {all.map((item, index) => {
+                const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
+                const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
+                return (
+                  <TableRow key={`${item.itemCode}-${index}`}>
+                    <TableCell>{item.description}</TableCell>
+                    <TableCell>{item.quantity}</TableCell>
+                    <TableCell>{cajas}</TableCell>
+                    <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                    <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
+         <div className="flex justify-end font-bold text-lg p-4">
+            Valoración Total: {formatCurrency(totalValue)}
+        </div>
+      </DialogContent>
+    )
+  }
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
@@ -240,6 +347,40 @@ export default function AlmacenPage() {
             )})}
         </div>
       
+        <Card className="mb-6">
+            <div className="flex items-center justify-between p-4">
+                <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
+            </div>
+            <CardContent>
+                <div className="border rounded-lg">
+                    <Table>
+                         <TableHeader>
+                            <TableRow>
+                                <TableHead>Artículo</TableHead>
+                                <TableHead>Solicita</TableHead>
+                                <TableHead>Fecha Entrega</TableHead>
+                                <TableHead className="w-32">Cantidad</TableHead>
+                                <TableHead>Valoración</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
+                                <TableRow key={item.itemCode + item.orderId}>
+                                    <TableCell>{item.description}</TableCell>
+                                    <TableCell>{item.solicita}</TableCell>
+                                    <TableCell>{item.deliveryDate ? format(new Date(item.deliveryDate), 'dd/MM/yyyy') : ''}</TableCell>
+                                    <TableCell>{item.quantity}</TableCell>
+                                    <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+
         <Card>
             <CardHeader>
                 <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
@@ -275,7 +416,7 @@ export default function AlmacenPage() {
         </Card>
 
        {activeModal && renderStatusModal(activeModal)}
-
     </Dialog>
   );
 }
+
