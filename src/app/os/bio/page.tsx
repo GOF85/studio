@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Eye, Save, Loader2, Trash2, FileText } from 'lucide-react';
+import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, FileText } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem, ReturnSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -117,13 +117,13 @@ export default function BioPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
   const [updateTrigger, setUpdateTrigger] = useState(0);
-
+  
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
 
-   const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
+ const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
     if (typeof window === 'undefined') {
         return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
     }
@@ -229,7 +229,7 @@ export default function BioPage() {
         totalValoracionPendiente
     };
   }, [osId, updateTrigger]);
-
+  
     useEffect(() => {
         setIsMounted(true);
         const forceUpdate = () => setUpdateTrigger(prev => prev + 1);
@@ -409,4 +409,5 @@ export default function BioPage() {
     </Dialog>
   );
 }
+
 
