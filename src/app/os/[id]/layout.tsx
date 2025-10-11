@@ -121,47 +121,47 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
       <div className="container mx-auto">
           <div className="sticky top-[56px] z-30 bg-background py-2 border-b mb-4">
             <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div>
-                            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                                <SheetTrigger asChild>
-                                    <Button variant="outline">
-                                        <Menu className="h-5 w-5 mr-2" />
-                                        Módulos
-                                    </Button>
-                                </SheetTrigger>
-                                <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
-                                    <SheetHeader className="p-4 border-b">
-                                        <SheetTitle>Módulos de la OS</SheetTitle>
-                                    </SheetHeader>
-                                    <ScrollArea className="h-full p-4">
-                                        <OSSidebarNav onLinkClick={() => setIsSheetOpen(false)} />
-                                    </ScrollArea>
-                                </SheetContent>
-                            </Sheet>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <currentModule.icon className="h-7 w-7 text-primary" />
-                            <h1 className="text-2xl font-headline font-bold">{currentModule.title}</h1>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        {('moduleName' in currentModule) && currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
-                        <div className="flex items-center gap-2 font-semibold">
-                            <FileText className="h-4 w-4" />
-                            <span>{serviceOrder.serviceNumber}</span>
-                        </div>
-                        {serviceOrder.isVip && <Badge variant="default" className="bg-amber-400 text-black hover:bg-amber-500"><Star className="h-4 w-4 mr-1"/> VIP</Badge>}
-                        {serviceOrder.space && (
-                            <div className="hidden sm:flex items-center gap-2">
-                            <Building className="h-4 w-4" />
-                            <span className="font-semibold">{serviceOrder.space}</span>
-                            </div>
-                        )}
-                    </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div>
+                    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                      <SheetTrigger asChild>
+                        <Button variant="outline">
+                          <Menu className="h-5 w-5 mr-2" />
+                          Módulos
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
+                        <SheetHeader className="p-4 border-b">
+                          <SheetTitle>Módulos de la OS</SheetTitle>
+                        </SheetHeader>
+                        <ScrollArea className="h-full p-4">
+                          <OSSidebarNav onLinkClick={() => setIsSheetOpen(false)} />
+                        </ScrollArea>
+                      </SheetContent>
+                    </Sheet>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <currentModule.icon className="h-7 w-7 text-primary" />
+                    <h1 className="text-2xl font-headline font-bold">{currentModule.title}</h1>
+                  </div>
                 </div>
-            </div>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  {('moduleName' in currentModule) && currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
+                  <div className="flex items-center gap-2 font-semibold">
+                    <FileText className="h-4 w-4" />
+                    <span>{serviceOrder.serviceNumber}</span>
+                  </div>
+                  {serviceOrder.isVip && <Badge variant="default" className="bg-amber-400 text-black hover:bg-amber-500"><Star className="h-4 w-4 mr-1"/> VIP</Badge>}
+                  {serviceOrder.space && (
+                    <div className="hidden sm:flex items-center gap-2">
+                      <Building className="h-4 w-4" />
+                      <span className="font-semibold">{serviceOrder.space}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+          </div>
           </div>
           <main>
               {children}
