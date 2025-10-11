@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
@@ -28,6 +27,12 @@ type ItemWithOrderInfo = OrderItem & {
   solicita?: 'Sala' | 'Cocina';
   tipo?: string;
   deliveryDate?: string;
+};
+
+type BlockedOrderInfo = {
+    sheetId: string;
+    status: PickingSheet['status'];
+    items: OrderItem[];
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -126,45 +131,61 @@ export default function AlquilerPage() {
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
     
+    const returnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
+    const mermas: Record<string, number> = {};
+    returnSheets.forEach(sheet => {
+        sheet.items.forEach(item => {
+            const itemKey = `${item.orderId}_${item.itemCode}`;
+            const state = sheet.itemStates[itemKey];
+            if (state && item.sentQuantity > state.returnedQuantity) {
+                const perdida = item.sentQuantity - state.returnedQuantity;
+                if(item.type === 'Alquiler') {
+                    mermas[item.itemCode] = (mermas[item.itemCode] || 0) + perdida;
+                }
+            }
+        });
+    });
+
     const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
-    const processedOrderIds = new Set<string>();
+    const blocked: BlockedOrderInfo[] = [];
 
     relatedPickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
-        sheet.items.forEach(item => {
-             if (item.type === 'Alquiler') {
-                const originalOrder = relatedOrders.find(o => o.id === item.orderId);
-                if (!originalOrder) return;
-                
-                processedOrderIds.add(originalOrder.id);
-                
-                const originalItem = originalOrder.items.find(i => i.itemCode === item.itemCode);
-                if (!originalItem) return;
+        const sheetInfo: BlockedOrderInfo = {
+            sheetId: sheet.id,
+            status: sheet.status,
+            items: []
+        };
 
-                const uniqueKey = `${originalOrder.id}-${item.itemCode}`;
-                
+        sheet.items.forEach(item => {
+            if (item.type === 'Alquiler') {
+                const uniqueKey = `${item.orderId}-${item.itemCode}`;
                 const itemWithInfo: ItemWithOrderInfo = {
-                    ...originalItem,
-                    quantity: item.quantity, // Use quantity from picking sheet
+                    ...item,
                     orderId: sheet.id,
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
-                    tipo: item.type,
-                    deliveryDate: originalOrder.deliveryDate
                 };
+                
+                const itemConMerma = {...itemWithInfo};
+                if(mermas[item.itemCode]){
+                    itemConMerma.quantity -= mermas[item.itemCode];
+                }
 
-                const existingInStatus = statusItems[targetStatus].find(i => i.itemCode === item.itemCode && i.orderId === item.orderId);
-                if (existingInStatus) {
-                    existingInStatus.quantity += item.quantity;
-                } else {
-                    statusItems[targetStatus].push(itemWithInfo);
+                if(itemConMerma.quantity > 0) {
+                  statusItems[targetStatus].push(itemConMerma);
+                  sheetInfo.items.push(itemConMerma);
                 }
                 
                 processedItemKeys.add(uniqueKey);
             }
         });
+        
+        if (sheetInfo.items.length > 0) {
+            blocked.push(sheetInfo);
+        }
     });
 
     const all = relatedOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo, deliveryDate: order.deliveryDate } as ItemWithOrderInfo)));
@@ -176,8 +197,6 @@ export default function AlquilerPage() {
     
     statusItems['Asignado'] = pending;
 
-    const blocked = relatedOrders.filter(order => processedOrderIds.has(order.id));
-    
     const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
     return { 
@@ -264,7 +283,7 @@ export default function AlquilerPage() {
   
     const renderSummaryModal = () => {
     const all = [...pendingItems, ...itemsByStatus['En Preparación'], ...itemsByStatus['Listo']];
-    const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+     const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     return (
       <DialogContent className="max-w-4xl">
         <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
@@ -310,7 +329,7 @@ export default function AlquilerPage() {
   return (
     <Dialog onOpenChange={(open) => !open && setActiveModal(null)}>
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
+         <div className="flex items-center gap-2">
             <Dialog>
                 <DialogTrigger asChild>
                     <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
@@ -343,10 +362,10 @@ export default function AlquilerPage() {
             )})}
         </div>
       
-        <Card className="mb-6">
+        <Card>
             <div className="flex items-center justify-between p-4">
                 <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
-                 <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4">
                     <div className="text-right">
                         <p className="font-bold text-lg">{formatCurrency(totalValoracionPendiente)}</p>
                         <p className="text-xs text-muted-foreground">Valoración total pendiente</p>
@@ -407,8 +426,7 @@ export default function AlquilerPage() {
                 </div>
             </CardContent>
         </Card>
-        
-        <Card>
+        <Card className="mt-6">
             <CardHeader>
                 <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
             </CardHeader>
@@ -424,10 +442,10 @@ export default function AlquilerPage() {
                         </TableHeader>
                         <TableBody>
                             {blockedOrders.length > 0 ? blockedOrders.map(order => (
-                                <TableRow key={order.id}>
+                                <TableRow key={order.sheetId}>
                                     <TableCell>
-                                        <Link href={`/almacen/picking/${order.id}`} className="text-primary hover:underline">
-                                            <Badge variant="secondary">{order.id}</Badge>
+                                        <Link href={`/almacen/picking/${order.sheetId}`} className="text-primary hover:underline">
+                                            <Badge variant="secondary">{order.sheetId}</Badge>
                                         </Link>
                                     </TableCell>
                                     <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
