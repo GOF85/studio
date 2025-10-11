@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, FileText } from 'lucide-react';
+import { PlusCircle, Eye, Save, Loader2, Trash2, FileText } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
-
+import { cn } from '@/lib/utils';
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -27,6 +27,13 @@ type ItemWithOrderInfo = OrderItem & {
   solicita?: 'Sala' | 'Cocina';
   tipo?: string;
   deliveryDate?: string;
+  ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
+};
+
+type BlockedOrderInfo = {
+    sheetId: string;
+    status: PickingSheet['status'];
+    items: OrderItem[];
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -67,19 +74,21 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
                                 <TableHead>Fecha</TableHead>
                                 <TableHead>Hora</TableHead>
                                 <TableHead>Descripción</TableHead>
+                                <TableHead>Observaciones</TableHead>
                                 <TableHead className="text-right">Asistentes</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {briefingItems.length > 0 ? briefingItems.map(item => (
-                                <TableRow key={item.id}>
+                                <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
                                     <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
-                                    <TableCell>{item.horaInicio}</TableCell>
+                                    <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
                                     <TableCell>{item.descripcion}</TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">{item.comentarios}</TableCell>
                                     <TableCell className="text-right">{item.asistentes}</TableCell>
                                 </TableRow>
                             )) : (
-                                <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
@@ -89,7 +98,7 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
     )
 }
 
-function StatusCard({ title, items, totalQuantity, onClick }: { title: string, items: number, totalQuantity: number, onClick: () => void }) {
+function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { title: string, items: number, totalQuantity: number, totalValue: number, onClick: () => void }) {
     return (
         <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={onClick}>
             <CardHeader className="pb-2">
@@ -97,7 +106,7 @@ function StatusCard({ title, items, totalQuantity, onClick }: { title: string, i
             </CardHeader>
             <CardContent>
                 <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
-                <p className="text-xs text-muted-foreground">{totalQuantity} artículos en total</p>
+                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos | {formatCurrency(totalValue)}</p>
             </CardContent>
         </Card>
     )
@@ -115,40 +124,69 @@ export default function BioPage() {
   const osId = params.id as string;
   const { toast } = useToast();
 
-   const { allItems, blockedItems, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
+   const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
+    if (typeof window === 'undefined') {
+        return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
+    }
+    
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bio');
     setMaterialOrders(relatedOrders);
 
-    const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '[]')) as PickingSheet[];
+    const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
     
     const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
+    const blocked: BlockedOrderInfo[] = [];
 
     relatedPickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
+        const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
+        
         sheet.items.forEach(item => {
-            if (item.type === 'Bio') {
-                const uniqueKey = `${item.orderId}-${item.itemCode}`;
-                const itemWithInfo: ItemWithOrderInfo = {
-                    ...item,
-                    orderId: sheet.id,
-                    orderContract: sheet.id,
-                    orderStatus: sheet.status,
-                    solicita: sheet.solicitante,
-                };
-                statusItems[targetStatus].push(itemWithInfo);
-                processedItemKeys.add(uniqueKey);
-            }
+            if (item.type !== 'Bio') return;
+
+            const uniqueKey = `${item.orderId}-${item.itemCode}`;
+            const orderRef = relatedOrders.find(o => o.id === item.orderId);
+            
+            const itemWithInfo: ItemWithOrderInfo = {
+                ...item, 
+                quantity: item.quantity,
+                orderId: sheet.id, 
+                orderContract: orderRef?.contractNumber || 'N/A', 
+                orderStatus: sheet.status, 
+                solicita: orderRef?.solicita,
+            };
+            statusItems[targetStatus].push(itemWithInfo);
+            sheetInfo.items.push(itemWithInfo);
+            processedItemKeys.add(uniqueKey);
         });
+
+        if (sheetInfo.items.length > 0) {
+            blocked.push(sheetInfo);
+        }
     });
 
-    const all = relatedOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo, deliveryDate: order.deliveryDate } as ItemWithOrderInfo)));
+    const all = relatedOrders.flatMap(order => 
+        order.items.map(item => {
+            const adjustedQuantity = (item.ajustes || []).reduce((qty, adj) => qty + adj.cantidad, item.quantity);
+            return {
+                ...item, 
+                quantity: adjustedQuantity,
+                orderId: order.id, 
+                contractNumber: order.contractNumber, 
+                solicita: order.solicita, 
+                tipo: item.tipo, 
+                deliveryDate: order.deliveryDate,
+                ajustes: item.ajustes
+            } as ItemWithOrderInfo
+        })
+    );
     
     const pending = all.filter(item => {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
-      return !processedItemKeys.has(uniqueKey);
+      return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
     });
     
     statusItems['Asignado'] = pending;
@@ -157,7 +195,7 @@ export default function BioPage() {
 
     return { 
         allItems: all, 
-        blockedItems: [...statusItems['En Preparación'], ...statusItems['Listo']],
+        blockedOrders: blocked,
         pendingItems: pending,
         itemsByStatus: statusItems,
         totalValoracionPendiente
@@ -236,50 +274,61 @@ export default function BioPage() {
         </DialogContent>
     )
   }
+  
+    const renderSummaryModal = () => {
+    const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
+     const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    return (
+      <DialogContent className="max-w-4xl">
+        <DialogHeader><DialogTitle>Resumen de Artículos de Bio</DialogTitle></DialogHeader>
+        <div className="max-h-[70vh] overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Artículo</TableHead>
+                <TableHead>Cantidad</TableHead>
+                <TableHead>Cant. Cajas</TableHead>
+                <TableHead>Valoración</TableHead>
+                <TableHead>Estado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {all.map((item, index) => {
+                const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
+                const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
+                return (
+                  <TableRow key={`${item.itemCode}-${index}`}>
+                    <TableCell>{item.description}</TableCell>
+                    <TableCell>{item.quantity}</TableCell>
+                    <TableCell>{cajas}</TableCell>
+                    <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                    <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </div>
+         <div className="flex justify-end font-bold text-lg p-4">
+            Valoración Total: {formatCurrency(totalValue)}
+        </div>
+      </DialogContent>
+    )
+  }
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Bio..." />;
   }
 
   return (
-    <Dialog onOpenChange={(open) => !open && setActiveModal(null)}>
+    <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
       <div className="flex items-center justify-between mb-4">
          <div className="flex items-center gap-2">
             <Dialog>
                 <DialogTrigger asChild>
                     <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl">
-                    <DialogHeader><DialogTitle>Resumen de Artículos de Bio</DialogTitle></DialogHeader>
-                    <div className="max-h-[70vh] overflow-y-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Artículo</TableHead>
-                                    <TableHead>Cantidad</TableHead>
-                                    <TableHead>Cant. Cajas</TableHead>
-                                    <TableHead>Valoración</TableHead>
-                                    <TableHead>Estado</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                               {[...pendingItems, ...blockedItems].map((item, index) => {
-                                 const isBlocked = blockedItems.some(bi => bi.itemCode === item.itemCode && bi.orderId === item.orderId);
-                                 const cajas = item.unidadVenta ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
-                                 return(
-                                    <TableRow key={`${item.itemCode}-${index}`}>
-                                        <TableCell>{item.description}</TableCell>
-                                        <TableCell>{item.quantity}</TableCell>
-                                        <TableCell>{cajas}</TableCell>
-                                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
-                                        <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
-                                    </TableRow>
-                                 )
-                               })}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </DialogContent>
+                {renderSummaryModal()}
             </Dialog>
             <BriefingSummaryDialog osId={osId} />
         </div>
@@ -291,22 +340,26 @@ export default function BioPage() {
         </Button>
       </div>
       
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => (
+       <div className="grid md:grid-cols-3 gap-6 mb-8">
+            {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
+                const items = itemsByStatus[status];
+                const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                return (
                 <StatusCard 
                     key={status}
                     title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
-                    items={itemsByStatus[status].length}
-                    totalQuantity={itemsByStatus[status].reduce((sum, item) => sum + item.quantity, 0)}
+                    items={items.length}
+                    totalQuantity={items.reduce((sum, item) => sum + item.quantity, 0)}
+                    totalValue={totalValue}
                     onClick={() => setActiveModal(status)}
                 />
-            ))}
+            )})}
         </div>
       
-        <Card>
+        <Card className="mb-6">
             <div className="flex items-center justify-between p-4">
                 <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
-                 <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4">
                     <div className="text-right">
                         <p className="font-bold text-lg">{formatCurrency(totalValoracionPendiente)}</p>
                         <p className="text-xs text-muted-foreground">Valoración total pendiente</p>
@@ -343,7 +396,7 @@ export default function BioPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                     <TableCell>
+                                    <TableCell>
                                         <Input 
                                             type="date" 
                                             value={item.deliveryDate ? format(new Date(item.deliveryDate), 'yyyy-MM-dd') : ''}
@@ -361,6 +414,40 @@ export default function BioPage() {
                                 </TableRow>
                             )) : (
                                 <TableRow><TableCell colSpan={6} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
+            </CardHeader>
+             <CardContent>
+                 <div className="border rounded-lg">
+                    <Table>
+                         <TableHeader>
+                            <TableRow>
+                                <TableHead>Hoja Picking</TableHead>
+                                <TableHead>Estado</TableHead>
+                                <TableHead>Contenido</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {blockedOrders.length > 0 ? blockedOrders.map(order => (
+                                <TableRow key={order.sheetId}>
+                                    <TableCell>
+                                        <Link href={`/almacen/picking/${order.sheetId}`} className="text-primary hover:underline">
+                                            <Badge variant="secondary">{order.sheetId}</Badge>
+                                        </Link>
+                                    </TableCell>
+                                    <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
+                                    <TableCell>{order.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}</TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos en preparación o listos.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
@@ -392,5 +479,3 @@ export default function BioPage() {
     </Dialog>
   );
 }
-
-    

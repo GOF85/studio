@@ -18,6 +18,12 @@ export type OrderItem = CateringItem & {
   quantity: number;
   orderId?: string;
   tipo?: string;
+  ajustes?: {
+      tipo: 'merma' | 'exceso' | 'ajuste manual';
+      cantidad: number;
+      fecha: string;
+      comentario: string;
+  }[];
 };
 
 export type OrderCompletionAssistantInput = {
@@ -695,7 +701,7 @@ export type ReturnItemState = {
 export type ReturnSheet = {
     id: string; // osId
     osId: string;
-    items: (OrderItem & { sentQuantity: number; orderId: string; })[];
+    items: (OrderItem & { sentQuantity: number; orderId: string; type: MaterialOrderType; })[];
     status: 'Pendiente' | 'Procesando' | 'Completado';
     itemStates: Record<string, ReturnItemState>; // Key is `${orderId}_${itemCode}`
     os?: ServiceOrder;
