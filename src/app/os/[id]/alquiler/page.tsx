@@ -126,6 +126,8 @@ export default function AlquilerPage() {
  const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
+    
+    // Set materialOrders for local state editing, it will be used by handleItemChange
     setMaterialOrders(relatedOrders);
 
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
@@ -135,13 +137,12 @@ export default function AlquilerPage() {
     const mermas: Record<string, number> = {};
     returnSheets.forEach(sheet => {
         sheet.items.forEach(item => {
+            if (item.type !== 'Alquiler') return;
             const itemKey = `${item.orderId}_${item.itemCode}`;
             const state = sheet.itemStates[itemKey];
             if (state && item.sentQuantity > state.returnedQuantity) {
                 const perdida = item.sentQuantity - state.returnedQuantity;
-                if(item.type === 'Alquiler') {
-                    mermas[item.itemCode] = (mermas[item.itemCode] || 0) + perdida;
-                }
+                mermas[item.itemCode] = (mermas[item.itemCode] || 0) + perdida;
             }
         });
     });
@@ -152,37 +153,35 @@ export default function AlquilerPage() {
 
     relatedPickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
-        const sheetInfo: BlockedOrderInfo = {
-            sheetId: sheet.id,
-            status: sheet.status,
-            items: []
-        };
+        const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
 
         sheet.items.forEach(item => {
-            if (item.type === 'Alquiler') {
-                const uniqueKey = `${item.orderId}-${item.itemCode}`;
-                const itemWithInfo: ItemWithOrderInfo = {
-                    ...item,
-                    orderId: sheet.id,
-                    orderContract: sheet.id,
-                    orderStatus: sheet.status,
-                    solicita: sheet.solicitante,
-                };
-                
-                const itemConMerma = {...itemWithInfo};
-                if(mermas[item.itemCode]){
-                    itemConMerma.quantity -= mermas[item.itemCode];
+            if (item.type !== 'Alquiler') return;
+            
+            const uniqueKey = `${item.orderId}-${item.itemCode}`;
+            
+            let itemWithInfo: ItemWithOrderInfo = {
+                ...item, orderId: sheet.id, orderContract: sheet.id, orderStatus: sheet.status, solicita: sheet.solicitante,
+            };
+            
+            if (mermas[item.itemCode]) {
+                const merma = mermas[item.itemCode];
+                if (itemWithInfo.quantity > merma) {
+                    itemWithInfo.quantity -= merma;
+                    mermas[item.itemCode] = 0; // Merma ya aplicada
+                } else {
+                    mermas[item.itemCode] -= itemWithInfo.quantity;
+                    itemWithInfo.quantity = 0;
                 }
-
-                if(itemConMerma.quantity > 0) {
-                  statusItems[targetStatus].push(itemConMerma);
-                  sheetInfo.items.push(itemConMerma);
-                }
-                
-                processedItemKeys.add(uniqueKey);
             }
+
+            if (itemWithInfo.quantity > 0) {
+              statusItems[targetStatus].push(itemWithInfo);
+              sheetInfo.items.push(itemWithInfo);
+            }
+            processedItemKeys.add(uniqueKey);
         });
-        
+
         if (sheetInfo.items.length > 0) {
             blocked.push(sheetInfo);
         }
@@ -426,6 +425,7 @@ export default function AlquilerPage() {
                 </div>
             </CardContent>
         </Card>
+        
         <Card className="mt-6">
             <CardHeader>
                 <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
@@ -459,6 +459,7 @@ export default function AlquilerPage() {
                 </div>
             </CardContent>
         </Card>
+
 
        {activeModal && renderStatusModal(activeModal)}
 
