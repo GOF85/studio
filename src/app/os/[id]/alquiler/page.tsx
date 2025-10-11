@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, FileText } from 'lucide-react';
+import { PlusCircle, Eye, Save, Loader2, Trash2, FileText } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem, ReturnSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +28,7 @@ type ItemWithOrderInfo = OrderItem & {
   solicita?: 'Sala' | 'Cocina';
   tipo?: string;
   deliveryDate?: string;
+  ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
 };
 
 type BlockedOrderInfo = {
@@ -159,6 +161,7 @@ export default function AlquilerPage() {
             if (item.type !== 'Alquiler') return;
             
             const uniqueKey = `${item.orderId}-${item.itemCode}`;
+            const orderRef = relatedOrders.find(o => o.id === item.orderId);
             
             let cantidadReal = item.quantity;
             if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
@@ -172,9 +175,9 @@ export default function AlquilerPage() {
                   ...item, 
                   quantity: cantidadReal,
                   orderId: sheet.id, 
-                  orderContract: sheet.id, 
+                  orderContract: orderRef?.contractNumber || 'N/A', 
                   orderStatus: sheet.status, 
-                  solicita: sheet.solicitante,
+                  solicita: orderRef?.solicita,
               };
               statusItems[targetStatus].push(itemWithInfo);
               sheetInfo.items.push(itemWithInfo);
@@ -187,21 +190,28 @@ export default function AlquilerPage() {
         }
     });
 
-    const all = relatedOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo, deliveryDate: order.deliveryDate } as ItemWithOrderInfo)));
+    const all = relatedOrders.flatMap(order => 
+        order.items.map(item => {
+            let cantidadAjustada = item.quantity;
+            (item.ajustes || []).forEach(ajuste => {
+              cantidadAjustada += ajuste.cantidad;
+            });
+            return {
+                ...item, 
+                quantity: cantidadAjustada,
+                orderId: order.id, 
+                contractNumber: order.contractNumber, 
+                solicita: order.solicita, 
+                tipo: item.tipo, 
+                deliveryDate: order.deliveryDate,
+                ajustes: item.ajustes 
+            } as ItemWithOrderInfo
+        })
+    );
     
-    const pendingWithMermas = all.map(item => {
-      let cantidadReal = item.quantity;
-      if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
-          const mermaAplicable = Math.min(cantidadReal, mermas[item.itemCode]);
-          cantidadReal -= mermaAplicable;
-          mermas[item.itemCode] -= mermaAplicable;
-      }
-      return { ...item, quantity: cantidadReal };
-    }).filter(item => item.quantity > 0);
-
-    const pending = pendingWithMermas.filter(item => {
+    const pending = all.filter(item => {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
-      return !processedItemKeys.has(uniqueKey);
+      return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
     });
     
     statusItems['Asignado'] = pending;
@@ -497,5 +507,4 @@ export default function AlquilerPage() {
     </Dialog>
   );
 }
-
     

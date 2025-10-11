@@ -19,7 +19,7 @@ export type OrderItem = CateringItem & {
   orderId?: string;
   tipo?: string;
   ajustes?: {
-      tipo: 'merma' | 'exceso' | 'ajuste manual';
+      tipo: 'merma' | 'exceso' | 'ajuste manual' | 'devolucion';
       cantidad: number;
       fecha: string;
       comentario: string;
@@ -978,3 +978,4 @@ export type CategoriaReceta = {
     id: string;
     nombre: string;
 }
+
