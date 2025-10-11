@@ -36,7 +36,6 @@ export default function PedidosPage() {
     }
 
     const allArticulos = (JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[]).filter(item => item && item.id && item.nombre);
-    const allPrecios = (JSON.parse(localStorage.getItem('precios') || '[]') as Precio[]).filter(item => item && item.id && item.producto);
     
     let itemsToLoad: CateringItem[] = [];
 
@@ -48,24 +47,9 @@ export default function PedidosPage() {
         const allProveedores = (JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[]);
         setRentalProviders(allProveedores.filter(p => p.tipos.includes('Alquiler')));
     } else if (orderType) {
-        const categoryMap = { 'Almacen': 'ALMACEN', 'Bodega': 'BODEGA', 'Bio': 'BIO' };
         const typeMap = { 'Almacen': 'Almacen', 'Bodega': 'Bodega', 'Bio': 'Bio' };
-        const filterCategory = categoryMap[orderType];
         const filterType = typeMap[orderType];
 
-        const fromPrecios: CateringItem[] = allPrecios
-            .filter(p => p.categoria === filterCategory)
-            .map(p => ({
-                itemCode: p.id,
-                description: p.producto,
-                price: orderType === 'Bodega' ? p.precioUd : p.precioAlquilerUd,
-                stock: 999,
-                imageUrl: p.imagen || '',
-                imageHint: p.producto.toLowerCase(),
-                category: p.categoria,
-                unidadVenta: p.unidadVenta,
-            }));
-        
         const fromArticulos: CateringItem[] = allArticulos
             .filter(p => p.categoria === filterType)
             .map(p => ({
@@ -75,10 +59,12 @@ export default function PedidosPage() {
                 price: p.precioVenta,
                 stock: 999,
                 imageUrl: p.imagen || '',
-                imageHint: p.nombre
+                imageHint: p.nombre,
+                tipo: p.tipo,
+                unidadVenta: p.unidadVenta,
             }));
 
-        itemsToLoad = [...fromPrecios, ...fromArticulos];
+        itemsToLoad = fromArticulos;
     }
     setCatalogItems(itemsToLoad.filter(item => item && item.description && item.itemCode));
 

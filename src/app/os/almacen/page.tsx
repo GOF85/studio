@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -15,16 +14,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
+import { formatCurrency } from '@/lib/utils';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
   orderId: string;
-  orderStatus: PickingSheet['status'];
+  orderStatus?: PickingSheet['status'];
   solicita?: 'Sala' | 'Cocina';
+  tipo?: string;
+  deliveryDate?: string;
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -87,58 +90,79 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
     )
 }
 
+function StatusCard({ title, items, totalQuantity, onClick }: { title: string, items: number, totalQuantity: number, onClick: () => void }) {
+    return (
+        <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={onClick}>
+            <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium">{title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
+                <p className="text-xs text-muted-foreground">{totalQuantity} artículos en total</p>
+            </CardContent>
+        </Card>
+    )
+}
+
 export default function AlmacenPage() {
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
   
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
 
-   const { allItems, blockedItems, pendingItems } = useMemo(() => {
+   const { allItems, blockedItems, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
     setMaterialOrders(relatedOrders);
 
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
-
+    
+    const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
-
-    const enPreparacionItems: ItemWithOrderInfo[] = [];
-    const listoItems: ItemWithOrderInfo[] = [];
 
     relatedPickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
             if (item.type === 'Almacen') {
                 const uniqueKey = `${item.orderId}-${item.itemCode}`;
-                const itemWithInfo = {
+                const itemWithInfo: ItemWithOrderInfo = {
                     ...item,
                     orderId: sheet.id,
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
                 };
-                if(targetStatus === 'En Preparación') enPreparacionItems.push(itemWithInfo)
-                else if (targetStatus === 'Listo') listoItems.push(itemWithInfo);
+                statusItems[targetStatus].push(itemWithInfo);
                 processedItemKeys.add(uniqueKey);
             }
         });
     });
 
-    const all = relatedOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita })));
-    const blocked = [...enPreparacionItems, ...listoItems].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    const all = relatedOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo, deliveryDate: order.deliveryDate } as ItemWithOrderInfo)));
     
     const pending = all.filter(item => {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
       return !processedItemKeys.has(uniqueKey);
     });
     
-    return { allItems: all, blockedItems: blocked, pendingItems: pending };
+    statusItems['Asignado'] = pending;
+
+    const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+
+    return { 
+        allItems: all, 
+        blockedItems: [...statusItems['En Preparación'], ...statusItems['Listo']],
+        pendingItems: pending,
+        itemsByStatus: statusItems,
+        totalValoracionPendiente
+    };
   }, [osId]);
 
   useEffect(() => {
@@ -162,12 +186,12 @@ export default function AlmacenPage() {
     setIsLoading(false);
   }
 
-  const handleItemChange = (orderId: string, itemCode: string, field: 'quantity' | 'solicita', value: any) => {
+  const handleItemChange = (orderId: string, itemCode: string, field: 'quantity' | 'solicita' | 'deliveryDate', value: any) => {
     setMaterialOrders(prevOrders => {
       return prevOrders.map(order => {
         if (order.id === orderId) {
-            if (field === 'solicita') {
-                 return { ...order, solicita: value };
+            if (field === 'solicita' || field === 'deliveryDate') {
+                 return { ...order, [field]: value };
             }
           const updatedItems = order.items
             .map(item => item.itemCode === itemCode ? { ...item, [field]: value } : item)
@@ -194,50 +218,67 @@ export default function AlmacenPage() {
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
   };
+  
+  const renderStatusModal = (status: StatusColumn) => {
+    const items = itemsByStatus[status];
+    return (
+        <DialogContent className="max-w-4xl">
+            <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto">
+                <Table>
+                    <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {items.length > 0 ? items.map((item, index) => (
+                            <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
+                        )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
+                    </TableBody>
+                </Table>
+            </div>
+        </DialogContent>
+    )
+  }
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
   }
 
   return (
-    <>
+    <Dialog onOpenChange={(open) => !open && setActiveModal(null)}>
       <div className="flex items-center justify-between mb-4">
          <div className="flex items-center gap-2">
             <Dialog>
                 <DialogTrigger asChild>
                     <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-4xl">
                     <DialogHeader><DialogTitle>Resumen de Artículos de Almacén</DialogTitle></DialogHeader>
-                    <div className="space-y-4">
-                        <div>
-                            <h3 className="font-semibold mb-2">Artículos Pendientes de Picking</h3>
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {Object.entries(pendingItems.reduce((acc, item) => {
-                                        acc[item.description] = (acc[item.description] || 0) + item.quantity;
-                                        return acc;
-                                    }, {} as Record<string, number>)).map(([desc, qty]) => (
-                                        <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                        <div>
-                            <h3 className="font-semibold mb-2">Artículos en Proceso / Listos</h3>
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {Object.entries(blockedItems.reduce((acc, item) => {
-                                        acc[item.description] = (acc[item.description] || 0) + item.quantity;
-                                        return acc;
-                                    }, {} as Record<string, number>)).map(([desc, qty]) => (
-                                        <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
+                    <div className="max-h-[70vh] overflow-y-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Artículo</TableHead>
+                                    <TableHead>Cantidad</TableHead>
+                                    <TableHead>Cant. Cajas</TableHead>
+                                    <TableHead>Valoración</TableHead>
+                                    <TableHead>Estado</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                               {[...pendingItems, ...blockedItems].map((item, index) => {
+                                 const isBlocked = blockedItems.some(bi => bi.itemCode === item.itemCode && bi.orderId === item.orderId);
+                                 const cajas = item.unidadVenta ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
+                                 return(
+                                    <TableRow key={`${item.itemCode}-${index}`}>
+                                        <TableCell>{item.description}</TableCell>
+                                        <TableCell>{item.quantity}</TableCell>
+                                        <TableCell>{cajas}</TableCell>
+                                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                                        <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
+                                    </TableRow>
+                                 )
+                               })}
+                            </TableBody>
+                        </Table>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -251,57 +292,42 @@ export default function AlmacenPage() {
         </Button>
       </div>
       
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+            {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => (
+                <StatusCard 
+                    key={status}
+                    title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
+                    items={itemsByStatus[status].length}
+                    totalQuantity={itemsByStatus[status].reduce((sum, item) => sum + item.quantity, 0)}
+                    onClick={() => setActiveModal(status)}
+                />
+            ))}
+        </div>
+      
         <Card>
             <div className="flex items-center justify-between p-4">
-                <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
-                <Button onClick={handleSaveAll} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                    <span className="ml-2">Guardar Cambios</span>
-                </Button>
+                <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
+                <div className="flex items-center gap-4">
+                    <div className="text-right">
+                        <p className="font-bold text-lg">{formatCurrency(totalValoracionPendiente)}</p>
+                        <p className="text-xs text-muted-foreground">Valoración total pendiente</p>
+                    </div>
+                    <Button onClick={handleSaveAll} disabled={isLoading}>
+                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                        <span className="ml-2">Guardar Cambios</span>
+                    </Button>
+                </div>
             </div>
             <CardContent>
-                <Collapsible defaultOpen={false}>
-                    <div className="flex items-center gap-2 font-semibold text-destructive border p-2 rounded-md hover:bg-muted/50 mb-4">
-                        <CollapsibleTrigger asChild>
-                           <div className="flex-1 flex items-center cursor-pointer">
-                             <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                             Bloqueado (En Preparación / Listo)
-                           </div>
-                        </CollapsibleTrigger>
-                    </div>
-                    <CollapsibleContent>
-                         <div className="border rounded-lg mb-6">
-                             <Table>
-                                <TableHeader>
-                                    <TableRow><TableHead>Contrato</TableHead><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead><TableHead>Solicita</TableHead></TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {blockedItems.map((item, index) => (
-                                        <TableRow key={index} className="bg-muted/20">
-                                            <TableCell><Badge variant="secondary">{item.orderContract}</Badge></TableCell>
-                                            <TableCell>{item.description}</TableCell>
-                                            <TableCell>{item.quantity}</TableCell>
-                                            <TableCell>{item.solicita}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                    {blockedItems.length === 0 && (
-                                        <TableRow><TableCell colSpan={4} className="h-20 text-center text-muted-foreground">No hay artículos bloqueados.</TableCell></TableRow>
-                                    )}
-                                </TableBody>
-                             </Table>
-                         </div>
-                    </CollapsibleContent>
-                </Collapsible>
-                
-                <h3 className="font-semibold text-lg my-2 text-green-700">Pendiente (Asignado)</h3>
                 <div className="border rounded-lg">
                     <Table>
                          <TableHeader>
                             <TableRow>
                                 <TableHead>Artículo</TableHead>
                                 <TableHead>Solicita</TableHead>
-                                <TableHead>Contrato</TableHead>
+                                <TableHead>Fecha Entrega</TableHead>
                                 <TableHead className="w-32">Cantidad</TableHead>
+                                <TableHead>Valoración</TableHead>
                                 <TableHead className="text-right w-12"></TableHead>
                             </TableRow>
                         </TableHeader>
@@ -318,22 +344,32 @@ export default function AlmacenPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                     <TableCell><Badge variant="outline">{materialOrders.find(o=>o.id === item.orderId)?.contractNumber}</Badge></TableCell>
+                                     <TableCell>
+                                        <Input 
+                                            type="date" 
+                                            value={item.deliveryDate ? format(new Date(item.deliveryDate), 'yyyy-MM-dd') : ''}
+                                            onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'deliveryDate', e.target.value)}
+                                            className="h-8"
+                                        />
+                                    </TableCell>
                                     <TableCell>
                                         <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'quantity', parseInt(e.target.value) || 0)} className="h-8"/>
                                     </TableCell>
+                                    <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
                                     <TableCell>
                                         <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteItem(item.orderId, item.itemCode)}><Trash2 className="h-4 w-4"/></Button>
                                     </TableCell>
                                 </TableRow>
                             )) : (
-                                <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </div>
             </CardContent>
         </Card>
+      
+       {activeModal && renderStatusModal(activeModal)}
 
        <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
             <AlertDialogContent>
@@ -354,7 +390,7 @@ export default function AlmacenPage() {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-    </>
+    </Dialog>
   );
 }
-
+    

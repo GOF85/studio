@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
@@ -115,7 +116,7 @@ export default function AlquilerPage() {
   const osId = params.id as string;
   const { toast } = useToast();
 
- const { allItems, blockedItems, pendingItems, itemsByStatus } = useMemo(() => {
+   const { allItems, blockedItems, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
     setMaterialOrders(relatedOrders);
@@ -153,11 +154,14 @@ export default function AlquilerPage() {
     
     statusItems['Asignado'] = pending;
 
+    const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+
     return { 
         allItems: all, 
         blockedItems: [...statusItems['En Preparación'], ...statusItems['Listo']],
         pendingItems: pending,
-        itemsByStatus: statusItems
+        itemsByStatus: statusItems,
+        totalValoracionPendiente
     };
   }, [osId]);
 
@@ -250,9 +254,17 @@ export default function AlquilerPage() {
                     <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
                     <div className="max-h-[70vh] overflow-y-auto">
                         <Table>
-                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead><TableHead>Cant. Cajas</TableHead><TableHead>Valoración</TableHead><TableHead>Estado</TableHead></TableRow></TableHeader>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Artículo</TableHead>
+                                    <TableHead>Cantidad</TableHead>
+                                    <TableHead>Cant. Cajas</TableHead>
+                                    <TableHead>Valoración</TableHead>
+                                    <TableHead>Estado</TableHead>
+                                </TableRow>
+                            </TableHeader>
                             <TableBody>
-                               {allItems.map((item, index) => {
+                               {[...pendingItems, ...blockedItems].map((item, index) => {
                                  const isBlocked = blockedItems.some(bi => bi.itemCode === item.itemCode && bi.orderId === item.orderId);
                                  const cajas = item.unidadVenta ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
                                  return(
@@ -280,11 +292,11 @@ export default function AlquilerPage() {
         </Button>
       </div>
       
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
             {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => (
                 <StatusCard 
                     key={status}
-                    title={status}
+                    title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
                     items={itemsByStatus[status].length}
                     totalQuantity={itemsByStatus[status].reduce((sum, item) => sum + item.quantity, 0)}
                     onClick={() => setActiveModal(status)}
@@ -295,10 +307,16 @@ export default function AlquilerPage() {
         <Card>
             <div className="flex items-center justify-between p-4">
                 <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
-                <Button onClick={handleSaveAll} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                    <span className="ml-2">Guardar Cambios</span>
-                </Button>
+                <div className="flex items-center gap-4">
+                    <div className="text-right">
+                        <p className="font-bold text-lg">{formatCurrency(totalValoracionPendiente)}</p>
+                        <p className="text-xs text-muted-foreground">Valoración total pendiente</p>
+                    </div>
+                    <Button onClick={handleSaveAll} disabled={isLoading}>
+                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                        <span className="ml-2">Guardar Cambios</span>
+                    </Button>
+                </div>
             </div>
             <CardContent>
                 <div className="border rounded-lg">
@@ -309,6 +327,7 @@ export default function AlquilerPage() {
                                 <TableHead>Solicita</TableHead>
                                 <TableHead>Fecha Entrega</TableHead>
                                 <TableHead className="w-32">Cantidad</TableHead>
+                                <TableHead>Valoración</TableHead>
                                 <TableHead className="text-right w-12"></TableHead>
                             </TableRow>
                         </TableHeader>
@@ -336,12 +355,13 @@ export default function AlquilerPage() {
                                     <TableCell>
                                         <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'quantity', parseInt(e.target.value) || 0)} className="h-8"/>
                                     </TableCell>
+                                    <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
                                     <TableCell>
                                         <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => handleDeleteItem(item.orderId, item.itemCode)}><Trash2 className="h-4 w-4"/></Button>
                                     </TableCell>
                                 </TableRow>
                             )) : (
-                                <TableRow><TableCell colSpan={5} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={6} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
