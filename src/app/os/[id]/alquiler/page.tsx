@@ -21,7 +21,6 @@ import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
-
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
   orderId: string;
@@ -93,7 +92,7 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
     )
 }
 
-function StatusCard({ title, items, totalQuantity, onClick }: { title: string, items: number, totalQuantity: number, onClick: () => void }) {
+function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { title: string, items: number, totalQuantity: number, totalValue: number, onClick: () => void }) {
     return (
         <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={onClick}>
             <CardHeader className="pb-2">
@@ -101,7 +100,7 @@ function StatusCard({ title, items, totalQuantity, onClick }: { title: string, i
             </CardHeader>
             <CardContent>
                 <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
-                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos en total</p>
+                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos | {formatCurrency(totalValue)}</p>
             </CardContent>
         </Card>
     )
@@ -119,7 +118,7 @@ export default function AlquilerPage() {
   const osId = params.id as string;
   const { toast } = useToast();
 
- const { allItems, blockedItems, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
+ const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
     setMaterialOrders(relatedOrders);
@@ -129,20 +128,40 @@ export default function AlquilerPage() {
     
     const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
+    const processedOrderIds = new Set<string>();
 
     relatedPickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
              if (item.type === 'Alquiler') {
-                const uniqueKey = `${item.orderId}-${item.itemCode}`;
+                const originalOrder = relatedOrders.find(o => o.id === item.orderId);
+                if (!originalOrder) return;
+                
+                processedOrderIds.add(originalOrder.id);
+                
+                const originalItem = originalOrder.items.find(i => i.itemCode === item.itemCode);
+                if (!originalItem) return;
+
+                const uniqueKey = `${originalOrder.id}-${item.itemCode}`;
+                
                 const itemWithInfo: ItemWithOrderInfo = {
-                    ...item,
+                    ...originalItem,
+                    quantity: item.quantity, // Use quantity from picking sheet
                     orderId: sheet.id,
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
+                    tipo: item.type,
+                    deliveryDate: originalOrder.deliveryDate
                 };
-                statusItems[targetStatus].push(itemWithInfo);
+
+                const existingInStatus = statusItems[targetStatus].find(i => i.itemCode === item.itemCode && i.orderId === item.orderId);
+                if (existingInStatus) {
+                    existingInStatus.quantity += item.quantity;
+                } else {
+                    statusItems[targetStatus].push(itemWithInfo);
+                }
+                
                 processedItemKeys.add(uniqueKey);
             }
         });
@@ -156,12 +175,14 @@ export default function AlquilerPage() {
     });
     
     statusItems['Asignado'] = pending;
+
+    const blocked = relatedOrders.filter(order => processedOrderIds.has(order.id));
     
     const totalValoracionPendiente = pending.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
     return { 
         allItems: all, 
-        blockedItems: [...statusItems['En Preparación'], ...statusItems['Listo']],
+        blockedOrders: blocked,
         pendingItems: pending,
         itemsByStatus: statusItems,
         totalValoracionPendiente
@@ -242,7 +263,7 @@ export default function AlquilerPage() {
   }
   
     const renderSummaryModal = () => {
-    const all = [...pendingItems, ...blockedItems];
+    const all = [...pendingItems, ...itemsByStatus['En Preparación'], ...itemsByStatus['Listo']];
     const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     return (
       <DialogContent className="max-w-4xl">
@@ -260,7 +281,7 @@ export default function AlquilerPage() {
             </TableHeader>
             <TableBody>
               {all.map((item, index) => {
-                const isBlocked = blockedItems.some(bi => bi.itemCode === item.itemCode && bi.orderId === item.orderId);
+                const isBlocked = !pendingItems.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
                 const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
                 return (
                   <TableRow key={`${item.itemCode}-${index}`}>
@@ -307,18 +328,22 @@ export default function AlquilerPage() {
       </div>
       
        <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => (
+            {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
+                const items = itemsByStatus[status];
+                const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                return (
                 <StatusCard 
                     key={status}
                     title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
-                    items={itemsByStatus[status].length}
-                    totalQuantity={itemsByStatus[status].reduce((sum, item) => sum + item.quantity, 0)}
+                    items={items.length}
+                    totalQuantity={items.reduce((sum, item) => sum + item.quantity, 0)}
+                    totalValue={totalValue}
                     onClick={() => setActiveModal(status)}
                 />
-            ))}
+            )})}
         </div>
       
-        <Card>
+        <Card className="mb-6">
             <div className="flex items-center justify-between p-4">
                 <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
                  <div className="flex items-center gap-4">
@@ -382,6 +407,40 @@ export default function AlquilerPage() {
                 </div>
             </CardContent>
         </Card>
+        
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
+            </CardHeader>
+            <CardContent>
+                 <div className="border rounded-lg">
+                    <Table>
+                         <TableHeader>
+                            <TableRow>
+                                <TableHead>Hoja Picking</TableHead>
+                                <TableHead>Estado</TableHead>
+                                <TableHead>Contenido</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {blockedOrders.length > 0 ? blockedOrders.map(order => (
+                                <TableRow key={order.id}>
+                                    <TableCell>
+                                        <Link href={`/almacen/picking/${order.id}`} className="text-primary hover:underline">
+                                            <Badge variant="secondary">{order.id}</Badge>
+                                        </Link>
+                                    </TableCell>
+                                    <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
+                                    <TableCell>{order.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}</TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos en preparación o listos.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
 
        {activeModal && renderStatusModal(activeModal)}
 
@@ -407,4 +466,3 @@ export default function AlquilerPage() {
     </Dialog>
   );
 }
-
