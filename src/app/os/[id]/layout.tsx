@@ -40,47 +40,6 @@ const navLinks: NavLink[] = [
     { path: 'cta-explotacion', title: 'Cta. Explotación', icon: Euro },
 ];
 
-function OSSidebarNav({ className, onLinkClick }: { className?: string; onLinkClick?: () => void; }) {
-    const pathname = usePathname();
-    const params = useParams();
-    const osId = params.id as string;
-    const dashboardHref = `/os/${osId}`;
-
-    return (
-        <nav className={cn("grid items-start gap-1 pb-4", className)}>
-            <Link href={dashboardHref} onClick={onLinkClick}>
-                 <span
-                    className={cn(
-                        "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                        pathname === `/os/${osId}` ? "bg-accent" : "transparent"
-                    )}
-                >
-                    <LayoutDashboard className="mr-2 h-4 w-4" />
-                    <span>Panel de Control</span>
-                </span>
-            </Link>
-          {navLinks.map((item, index) => {
-              const href = `/os/${osId}/${item.path}`;
-              return (
-              <Link
-                  key={index}
-                  href={href}
-                  onClick={onLinkClick}
-              >
-                  <span
-                      className={cn(
-                          "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                          pathname.startsWith(href) ? "bg-accent" : "transparent"
-                      )}
-                  >
-                      <item.icon className="mr-2 h-4 w-4" />
-                      <span>{item.title}</span>
-                  </span>
-              </Link>
-          )})}
-      </nav>
-    );
-}
 
 export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
     const params = useParams();
@@ -117,6 +76,8 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
 
     if (!serviceOrder || !currentModule) return null;
 
+    const dashboardHref = `/os/${osId}`;
+
     return (
       <div className="container mx-auto">
           <div className="sticky top-[56px] z-30 bg-background py-2 border-b mb-4">
@@ -136,7 +97,38 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                           <SheetTitle>Módulos de la OS</SheetTitle>
                         </SheetHeader>
                         <ScrollArea className="h-full p-4">
-                          <OSSidebarNav onLinkClick={() => setIsSheetOpen(false)} />
+                           <nav className={cn("grid items-start gap-1 pb-4")}>
+                                <Link href={dashboardHref} onClick={() => setIsSheetOpen(false)}>
+                                    <span
+                                        className={cn(
+                                            "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                                            pathname === `/os/${osId}` ? "bg-accent" : "transparent"
+                                        )}
+                                    >
+                                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                                        <span>Panel de Control</span>
+                                    </span>
+                                </Link>
+                              {navLinks.map((item, index) => {
+                                  const href = `/os/${osId}/${item.path}`;
+                                  return (
+                                  <Link
+                                      key={index}
+                                      href={href}
+                                      onClick={() => setIsSheetOpen(false)}
+                                  >
+                                      <span
+                                          className={cn(
+                                              "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                                              pathname.startsWith(href) ? "bg-accent" : "transparent"
+                                          )}
+                                      >
+                                          <item.icon className="mr-2 h-4 w-4" />
+                                          <span>{item.title}</span>
+                                      </span>
+                                  </Link>
+                              )})}
+                          </nav>
                         </ScrollArea>
                       </SheetContent>
                     </Sheet>
