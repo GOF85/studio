@@ -392,16 +392,21 @@ export default function ComercialPage() {
 
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-5xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>{item ? 'Editar' : 'Nuevo'} Hito del Briefing</DialogTitle>
+             {serviceOrder && (
+              <DialogDescription>
+                OS: {serviceOrder.serviceNumber} | {serviceOrder.space} | {serviceOrder.asistentes}pax
+              </DialogDescription>
+            )}
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <FormField control={form.control} name="fecha" render={({field}) => <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem> } />
-                <FormField control={form.control} name="horaInicio" render={({field}) => <FormItem><FormLabel>Hora Inicio</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem> } />
-                <FormField control={form.control} name="horaFin" render={({field}) => <FormItem><FormLabel>Hora Fin</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="fecha" render={({field}) => <FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage/></FormItem> } />
+                <FormField control={form.control} name="horaInicio" render={({field}) => <FormItem><FormLabel>Hora Inicio</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage/></FormItem> } />
+                <FormField control={form.control} name="horaFin" render={({field}) => <FormItem><FormLabel>Hora Fin</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage/></FormItem> } />
                 <FormField control={form.control} name="sala" render={({field}) => (
                     <FormItem className="flex flex-col"><FormLabel>Sala</FormLabel>
                        <Combobox
@@ -410,13 +415,14 @@ export default function ComercialPage() {
                           onChange={handleLocationChange}
                           placeholder="Busca o crea una sala..."
                           searchPlaceholder="Buscar sala..."
+                          onCreated={onAddLocation}
                       />
                       <FormMessage />
                     </FormItem>
                  )} />
-                <FormField control={form.control} name="asistentes" render={({field}) => <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input placeholder="Nº Asistentes" type="number" {...field} /></FormControl></FormItem> } />
-                <FormField control={form.control} name="precioUnitario" render={({field}) => <FormItem><FormLabel>Precio Unitario</FormLabel><FormControl><Input placeholder="Precio Unitario" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
-                 <FormField control={form.control} name="importeFijo" render={({field}) => <FormItem><FormLabel>Importe Fijo</FormLabel><FormControl><Input placeholder="Importe Fijo" type="number" step="0.01" {...field} /></FormControl></FormItem> } />
+                <FormField control={form.control} name="asistentes" render={({field}) => <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input placeholder="Nº Asistentes" type="number" {...field} /></FormControl><FormMessage/></FormItem> } />
+                <FormField control={form.control} name="precioUnitario" render={({field}) => <FormItem><FormLabel>Precio Unitario</FormLabel><FormControl><Input placeholder="Precio Unitario" type="number" step="0.01" {...field} /></FormControl><FormMessage/></FormItem> } />
+                 <FormField control={form.control} name="importeFijo" render={({field}) => <FormItem><FormLabel>Importe Fijo</FormLabel><FormControl><Input placeholder="Importe Fijo" type="number" step="0.01" {...field} /></FormControl><FormMessage/></FormItem> } />
                 <FormItem>
                   <FormLabel>Total</FormLabel>
                   <FormControl>
@@ -433,6 +439,7 @@ export default function ComercialPage() {
                                 {tiposServicio.map(tipo => <SelectItem key={tipo.id} value={tipo.servicio}>{tipo.servicio}</SelectItem>)}
                             </SelectContent>
                         </Select>
+                        <FormMessage/>
                     </FormItem> 
                 )} />
                 <FormField
