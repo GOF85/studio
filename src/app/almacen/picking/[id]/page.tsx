@@ -238,6 +238,7 @@ export default function PickingSheetPage() {
                             const state = itemStates.get(item.itemCode);
                             if (!state) return null;
                             const hasIncident = !!state.incidentComment || state.pickedQuantity !== item.quantity;
+                            const cajas = (item.unidadVenta && item.unidadVenta > 0) ? (item.quantity / item.unidadVenta).toFixed(2) : null;
 
                             return (
                                 <div key={item.itemCode} className={cn(
@@ -253,7 +254,10 @@ export default function PickingSheetPage() {
                                     />
                                     <Label htmlFor={`item-${item.itemCode}`} className="flex-grow cursor-pointer">
                                         <p className="font-bold text-lg">{item.description}</p>
-                                        <p className="text-sm text-muted-foreground">Código: {item.itemCode} | Cant. Requerida: {item.quantity}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Cant. Requerida: {item.quantity}
+                                            {cajas && <span className="text-xs ml-2">({`~${cajas} cajas`})</span>}
+                                        </p>
                                     </Label>
                                     <div className="flex items-center gap-2">
                                         <Label htmlFor={`qty-${item.itemCode}`} className="text-sm font-medium">Cant. Recogida:</Label>
