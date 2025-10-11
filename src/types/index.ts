@@ -978,4 +978,3 @@ export type CategoriaReceta = {
     id: string;
     nombre: string;
 }
-

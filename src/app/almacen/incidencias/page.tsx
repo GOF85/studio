@@ -82,68 +82,75 @@ export default function IncidenciasPickingPage() {
             category: a.categoria,
             price: a.precioAlquiler > 0 ? a.precioAlquiler : a.precioVenta
         }));
-        
-        const allAlquiler = (JSON.parse(localStorage.getItem('alquilerDB') || '[]') as AlquilerDBItem[]).map(a => ({
-             value: a.id,
-             label: a.concepto,
-             category: 'Alquiler',
-             price: a.precioAlquiler
-        }));
 
-        setCatalog([...allArticulos, ...allAlquiler]);
+        setCatalog(allArticulos);
 
         setIsMounted(true);
     }, []);
     
-   const handleAcceptMerma = () => {
+   const handleAcceptDeviation = () => {
         if (!resolvingIncident) return;
         
-        const { item, pickedQty, sheetId } = resolvingIncident;
+        const { item, pickedQty, sheetId, comment, requiredQty } = resolvingIncident;
         const originalOrderId = item.orderId;
+        const deviation = pickedQty - requiredQty;
         
         let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
         
         if (originalOrderId) {
             const orderIndex = allMaterialOrders.findIndex(o => o.id === originalOrderId);
+
             if (orderIndex !== -1) {
                 const orderToUpdate = { ...allMaterialOrders[orderIndex] };
                 const itemIndex = orderToUpdate.items.findIndex(i => i.itemCode === item.itemCode);
 
                 if (itemIndex !== -1) {
-                    if (pickedQty > 0) {
-                        // Update quantity
-                        orderToUpdate.items[itemIndex] = { ...orderToUpdate.items[itemIndex], quantity: pickedQty };
-                    } else {
-                        // Remove item if picked quantity is 0
-                        orderToUpdate.items.splice(itemIndex, 1);
+                    const originalItem = orderToUpdate.items[itemIndex];
+                    
+                    // Update quantity
+                    const newQuantity = pickedQty;
+                    orderToUpdate.items[itemIndex] = { ...originalItem, quantity: newQuantity };
+
+                    // Add traceability record
+                    const ajuste = {
+                        tipo: deviation > 0 ? 'exceso' : 'merma',
+                        cantidad: deviation,
+                        fecha: new Date().toISOString(),
+                        comentario: `Incidencia en picking: ${comment}`
+                    };
+                    
+                    if (!orderToUpdate.items[itemIndex].ajustes) {
+                        orderToUpdate.items[itemIndex].ajustes = [];
                     }
+                    orderToUpdate.items[itemIndex].ajustes!.push(ajuste);
                     
                     // Recalculate total for the order
                     orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + (current.price * current.quantity), 0);
                     
                     allMaterialOrders[orderIndex] = orderToUpdate;
                     localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
-                     toast({ title: "Pedido Original Ajustado", description: `La cantidad de "${item.description}" se ha actualizado a ${pickedQty}.` });
+                    toast({ title: "Pedido Original Ajustado", description: `La cantidad de "${item.description}" se ha actualizado a ${newQuantity}.` });
+
+                     // Mark incidence as resolved in the picking sheet
+                    const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
+                    const sheet = allSheets[sheetId];
+                    if (sheet && sheet.itemStates[item.itemCode]) {
+                        sheet.itemStates[item.itemCode].resolved = true;
+                        localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
+                        
+                        // Update UI immediately
+                        setIncidencias(prev => prev.filter(inc => !(inc.sheetId === sheetId && inc.item.itemCode === item.itemCode)));
+                        setResolvingIncident(null);
+                        
+                        toast({ title: "Incidencia Resuelta", description: "El pedido original ha sido ajustado y la incidencia marcada como resuelta." });
+                    }
+
+                } else {
+                    toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el artículo en el pedido original.' });
                 }
             } else {
                  toast({ variant: 'destructive', title: 'Error', description: `No se pudo encontrar el pedido original con ID: ${originalOrderId}` });
             }
-        }
-
-        // Mark incidence as resolved in the picking sheet
-        const allSheets = JSON.parse(localStorage.getItem('pickingSheets') || '{}');
-        const sheet = allSheets[sheetId];
-        if (sheet && sheet.itemStates[item.itemCode]) {
-            sheet.itemStates[item.itemCode].resolved = true;
-            localStorage.setItem('pickingSheets', JSON.stringify(allSheets));
-            
-            // Update UI immediately
-            setIncidencias(prev => prev.filter(inc => !(inc.sheetId === sheetId && inc.item.itemCode === item.itemCode)));
-            setResolvingIncident(null);
-            
-            toast({ title: "Merma Aceptada", description: "La incidencia ha sido marcada como resuelta." });
-        } else {
-             toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar la hoja de picking para resolver la incidencia.' });
         }
     };
     
@@ -283,11 +290,11 @@ export default function IncidenciasPickingPage() {
                     </DialogHeader>
                     <div className="py-4 grid grid-cols-2 gap-6">
                         <div className="space-y-3">
-                            <h4 className="font-semibold">Opción A: Aceptar Merma</h4>
+                            <h4 className="font-semibold">Opción A: Aceptar Desviación</h4>
                             <p className="text-sm text-muted-foreground">
-                                Se aceptará la cantidad recogida como final. La diferencia se considerará una merma y el pedido original se ajustará para reflejar la cantidad real.
+                                La cantidad recogida se considerará final. El pedido original se ajustará para reflejar esta desviación (merma o exceso).
                             </p>
-                            <Button variant="destructive" onClick={handleAcceptMerma}>Confirmar Merma y Ajustar Pedido</Button>
+                            <Button variant="destructive" onClick={handleAcceptDeviation}>Confirmar Desviación y Ajustar Pedido</Button>
                         </div>
                          <div className="space-y-3 border-l pl-6">
                             <h4 className="font-semibold">Opción B: Sustituir y crear nuevo pedido</h4>
