@@ -4,8 +4,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2 } from 'lucide-react';
-import type { MaterialOrder, OrderItem, PickingSheet } from '@/types';
+import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, FileText } from 'lucide-react';
+import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,16 +14,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format } from 'date-fns';
+import { formatCurrency } from '@/lib/utils';
+
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
   orderId: string;
-  orderStatus: PickingSheet['status'];
+  orderStatus?: PickingSheet['status'];
   solicita?: 'Sala' | 'Cocina';
   tipo?: string;
+  deliveryDate?: string;
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -34,28 +37,85 @@ const statusMap: Record<PickingSheet['status'], StatusColumn> = {
     'Listo': 'Listo',
 }
 
+function BriefingSummaryDialog({ osId }: { osId: string }) {
+    const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
+
+    useEffect(() => {
+        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+        const currentBriefing = allBriefings.find(b => b.osId === osId);
+        if (currentBriefing) {
+            const sortedItems = [...currentBriefing.items].sort((a, b) => {
+                const dateComparison = a.fecha.localeCompare(b.fecha);
+                if (dateComparison !== 0) return dateComparison;
+                return a.horaInicio.localeCompare(b.horaInicio);
+            });
+            setBriefingItems(sortedItems);
+        }
+    }, [osId]);
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" />Resumen de Briefing</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl">
+                <DialogHeader><DialogTitle>Resumen de Servicios del Briefing</DialogTitle></DialogHeader>
+                <div className="max-h-[60vh] overflow-y-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead>Hora</TableHead>
+                                <TableHead>Descripción</TableHead>
+                                <TableHead className="text-right">Asistentes</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {briefingItems.length > 0 ? briefingItems.map(item => (
+                                <TableRow key={item.id}>
+                                    <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
+                                    <TableCell>{item.horaInicio}</TableCell>
+                                    <TableCell>{item.descripcion}</TableCell>
+                                    <TableCell className="text-right">{item.asistentes}</TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function StatusCard({ title, items, totalQuantity, onClick }: { title: string, items: number, totalQuantity: number, onClick: () => void }) {
+    return (
+        <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={onClick}>
+            <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium">{title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
+                <p className="text-xs text-muted-foreground">{totalQuantity} artículos en total</p>
+            </CardContent>
+        </Card>
+    )
+}
+
 export default function AlquilerPage() {
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-   const [kanbanData, setKanbanData] = useState<{
-      Asignado: ItemWithOrderInfo[],
-      'En Preparación': ItemWithOrderInfo[],
-      Listo: ItemWithOrderInfo[],
-      allItems: ItemWithOrderInfo[],
-      blockedItems: ItemWithOrderInfo[],
-      pendingItems: ItemWithOrderInfo[],
-  }>({ Asignado: [], 'En Preparación': [], Listo: [], allItems: [], blockedItems: [], pendingItems: [] });
+  const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
   
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
 
- useEffect(() => {
-    if (!osId) return;
-
+ const { allItems, blockedItems, pendingItems, itemsByStatus } = useMemo(() => {
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
     setMaterialOrders(relatedOrders);
@@ -63,7 +123,7 @@ export default function AlquilerPage() {
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
     
-    const items: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
+    const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
 
     relatedPickingSheets.forEach(sheet => {
@@ -71,37 +131,39 @@ export default function AlquilerPage() {
         sheet.items.forEach(item => {
              if (item.type === 'Alquiler') {
                 const uniqueKey = `${item.orderId}-${item.itemCode}`;
-                items[targetStatus].push({
+                const itemWithInfo: ItemWithOrderInfo = {
                     ...item,
                     orderId: sheet.id,
                     orderContract: sheet.id,
                     orderStatus: sheet.status,
                     solicita: sheet.solicitante,
-                });
+                };
+                statusItems[targetStatus].push(itemWithInfo);
                 processedItemKeys.add(uniqueKey);
             }
         });
     });
 
-    const all = relatedOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo } as ItemWithOrderInfo)));
-    const blocked = [...items['En Preparación'], ...items['Listo']].sort((a,b) => (a.solicita || '').localeCompare(b.solicita || ''));
+    const all = relatedOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo, deliveryDate: order.deliveryDate } as ItemWithOrderInfo)));
     
     const pending = all.filter(item => {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
       return !processedItemKeys.has(uniqueKey);
     });
-
-    items['Asignado'] = pending;
-
-    setKanbanData({
-      ...items,
-      allItems: all,
-      blockedItems: blocked,
-      pendingItems: pending,
-    });
     
-    setIsMounted(true);
+    statusItems['Asignado'] = pending;
+
+    return { 
+        allItems: all, 
+        blockedItems: [...statusItems['En Preparación'], ...statusItems['Listo']],
+        pendingItems: pending,
+        itemsByStatus: statusItems
+    };
   }, [osId]);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleSaveAll = () => {
     setIsLoading(true);
@@ -115,16 +177,17 @@ export default function AlquilerPage() {
     });
 
     localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
+     window.dispatchEvent(new Event('storage'));
     toast({ title: 'Guardado', description: 'Todos los cambios en los pedidos han sido guardados.' });
     setIsLoading(false);
   }
 
-  const handleItemChange = (orderId: string, itemCode: string, field: 'quantity' | 'solicita', value: any) => {
+  const handleItemChange = (orderId: string, itemCode: string, field: 'quantity' | 'solicita' | 'deliveryDate', value: any) => {
     setMaterialOrders(prevOrders => {
       return prevOrders.map(order => {
         if (order.id === orderId) {
-            if (field === 'solicita') {
-                 return { ...order, solicita: value };
+            if (field === 'solicita' || field === 'deliveryDate') {
+                 return { ...order, [field]: value };
             }
           const updatedItems = order.items
             .map(item => item.itemCode === itemCode ? { ...item, [field]: value } : item)
@@ -147,66 +210,68 @@ export default function AlquilerPage() {
     const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
     localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
     setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Alquiler'));
+    window.dispatchEvent(new Event('storage'));
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
   };
+  
+  const renderStatusModal = (status: StatusColumn) => {
+    const items = itemsByStatus[status];
+    return (
+        <DialogContent className="max-w-4xl">
+            <DialogHeader><DialogTitle>Artículos en estado: {status}</DialogTitle></DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto">
+                <Table>
+                    <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Solicita</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {items.length > 0 ? items.map((item, index) => (
+                            <TableRow key={`${item.itemCode}-${index}`}><TableCell>{item.description}</TableCell><TableCell>{item.solicita}</TableCell><TableCell className="text-right">{item.quantity}</TableCell></TableRow>
+                        )) : <TableRow><TableCell colSpan={3} className="h-24 text-center">No hay artículos en este estado.</TableCell></TableRow>}
+                    </TableBody>
+                </Table>
+            </div>
+        </DialogContent>
+    )
+  }
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
   }
 
-  const renderColumn = (title: string, items: ItemWithOrderInfo[]) => (
-    <Card className="flex-1 bg-muted/30">
-        <CardHeader className="pb-4">
-            <CardTitle className="text-lg flex items-center justify-between">
-                {title}
-                <Badge variant={title === 'Listo' ? 'default' : 'secondary'} className="text-sm">{items.length}</Badge>
-            </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-            {items.length > 0 ? items.map((item, index) => (
-                <Card key={`${item.itemCode}-${item.orderContract}-${index}`} className="p-2 text-sm">
-                     <div className="flex justify-between items-start">
-                        <p className="font-semibold truncate pr-2">{item.quantity} x {item.description}</p>
-                        {item.tipo && <Badge variant="outline">{item.tipo}</Badge>}
-                    </div>
-                    <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                        {item.solicita ? (
-                            <Badge variant={item.solicita === 'Sala' ? 'default' : 'outline'} className={item.solicita === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>
-                                {item.solicita === 'Sala' ? <Users size={10} className="mr-1"/> : <Soup size={10} className="mr-1"/>}
-                                {item.solicita}
-                            </Badge>
-                        ) : <span></span>}
-                        {title !== 'Asignado' && <Badge variant="outline">{item.orderContract}</Badge>}
-                    </div>
-                </Card>
-            )) : <p className="text-sm text-muted-foreground text-center py-4">No hay artículos.</p>}
-        </CardContent>
-    </Card>
-  );
-
   return (
-    <>
+    <Dialog onOpenChange={(open) => !open && setActiveModal(null)}>
       <div className="flex items-center justify-between mb-4">
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm" disabled={kanbanData.allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
-                <Table>
-                    <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead className="text-right">Cantidad Total</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {Object.entries(kanbanData.allItems.reduce((acc, item) => {
-                            acc[item.description] = (acc[item.description] || 0) + item.quantity;
-                            return acc;
-                        }, {} as Record<string, number>)).map(([desc, qty]) => (
-                            <TableRow key={desc}><TableCell>{desc}</TableCell><TableCell className="text-right">{qty}</TableCell></TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </DialogContent>
-        </Dialog>
+         <div className="flex items-center gap-2">
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl">
+                    <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
+                    <div className="max-h-[70vh] overflow-y-auto">
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead><TableHead>Cant. Cajas</TableHead><TableHead>Valoración</TableHead><TableHead>Estado</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                               {allItems.map((item, index) => {
+                                 const isBlocked = blockedItems.some(bi => bi.itemCode === item.itemCode && bi.orderId === item.orderId);
+                                 const cajas = item.unidadVenta ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
+                                 return(
+                                    <TableRow key={`${item.itemCode}-${index}`}>
+                                        <TableCell>{item.description}</TableCell>
+                                        <TableCell>{item.quantity}</TableCell>
+                                        <TableCell>{cajas}</TableCell>
+                                        <TableCell>{formatCurrency(item.quantity * item.price)}</TableCell>
+                                        <TableCell><Badge variant={isBlocked ? 'destructive' : 'default'}>{isBlocked ? 'Bloqueado' : 'Pendiente'}</Badge></TableCell>
+                                    </TableRow>
+                                 )
+                               })}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </DialogContent>
+            </Dialog>
+            <BriefingSummaryDialog osId={osId} />
+        </div>
         <Button asChild>
           <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
             <PlusCircle className="mr-2" />
@@ -215,68 +280,40 @@ export default function AlquilerPage() {
         </Button>
       </div>
       
-       <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {renderColumn('Asignado', kanbanData.Asignado)}
-            {renderColumn('En Preparación', kanbanData['En Preparación'])}
-            {renderColumn('Listo', kanbanData.Listo)}
-       </div>
-
+      <div className="grid md:grid-cols-3 gap-6 mb-8">
+            {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => (
+                <StatusCard 
+                    key={status}
+                    title={status}
+                    items={itemsByStatus[status].length}
+                    totalQuantity={itemsByStatus[status].reduce((sum, item) => sum + item.quantity, 0)}
+                    onClick={() => setActiveModal(status)}
+                />
+            ))}
+        </div>
+      
         <Card>
             <div className="flex items-center justify-between p-4">
-                <CardTitle className="text-lg">Gestión de Pedidos</CardTitle>
+                <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
                 <Button onClick={handleSaveAll} disabled={isLoading}>
                     {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                     <span className="ml-2">Guardar Cambios</span>
                 </Button>
             </div>
             <CardContent>
-                <Collapsible defaultOpen={false}>
-                    <div className="flex items-center gap-2 font-semibold text-destructive border p-2 rounded-md hover:bg-muted/50 mb-4">
-                        <CollapsibleTrigger asChild>
-                            <div className="flex flex-1 items-center cursor-pointer">
-                                <ChevronDown className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                                Bloqueado (En Preparación / Listo)
-                            </div>
-                        </CollapsibleTrigger>
-                    </div>
-                    <CollapsibleContent>
-                         <div className="border rounded-lg mb-6">
-                             <Table>
-                                <TableHeader>
-                                    <TableRow><TableHead>Contrato</TableHead><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead><TableHead>Solicita</TableHead></TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {kanbanData.blockedItems.map((item, index) => (
-                                        <TableRow key={index} className="bg-muted/20">
-                                            <TableCell><Badge variant="secondary">{item.orderContract}</Badge></TableCell>
-                                            <TableCell>{item.description}</TableCell>
-                                            <TableCell>{item.quantity}</TableCell>
-                                            <TableCell>{item.solicita}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                    {kanbanData.blockedItems.length === 0 && (
-                                        <TableRow><TableCell colSpan={4} className="h-20 text-center text-muted-foreground">No hay artículos bloqueados.</TableCell></TableRow>
-                                    )}
-                                </TableBody>
-                             </Table>
-                         </div>
-                    </CollapsibleContent>
-                </Collapsible>
-                
-                <h3 className="font-semibold text-lg my-2 text-green-700">Pendiente (Asignado)</h3>
                 <div className="border rounded-lg">
                     <Table>
                          <TableHeader>
                             <TableRow>
                                 <TableHead>Artículo</TableHead>
                                 <TableHead>Solicita</TableHead>
-                                <TableHead>Contrato</TableHead>
+                                <TableHead>Fecha Entrega</TableHead>
                                 <TableHead className="w-32">Cantidad</TableHead>
                                 <TableHead className="text-right w-12"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {kanbanData.pendingItems.length > 0 ? kanbanData.pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
+                            {pendingItems.length > 0 ? pendingItems.sort((a,b) => (a.solicita || '').localeCompare(b.solicita || '')).map(item => (
                                 <TableRow key={item.itemCode + item.orderId}>
                                     <TableCell>{item.description}</TableCell>
                                     <TableCell>
@@ -288,7 +325,14 @@ export default function AlquilerPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                     <TableCell><Badge variant="outline">{item.contractNumber}</Badge></TableCell>
+                                    <TableCell>
+                                        <Input 
+                                            type="date" 
+                                            value={item.deliveryDate ? format(new Date(item.deliveryDate), 'yyyy-MM-dd') : ''}
+                                            onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'deliveryDate', e.target.value)}
+                                            className="h-8"
+                                        />
+                                    </TableCell>
                                     <TableCell>
                                         <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(item.orderId, item.itemCode, 'quantity', parseInt(e.target.value) || 0)} className="h-8"/>
                                     </TableCell>
@@ -304,6 +348,8 @@ export default function AlquilerPage() {
                 </div>
             </CardContent>
         </Card>
+
+       {activeModal && renderStatusModal(activeModal)}
 
        <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
             <AlertDialogContent>
@@ -324,6 +370,6 @@ export default function AlquilerPage() {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-    </>
+    </Dialog>
   );
 }
