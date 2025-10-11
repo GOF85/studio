@@ -121,7 +121,7 @@ export default function BodegaPage() {
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bodega');
     setMaterialOrders(relatedOrders);
 
-    const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
+    const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '[]')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
     
     const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
@@ -130,7 +130,7 @@ export default function BodegaPage() {
     relatedPickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
-             if (item.type === 'Bodega') {
+            if (item.type === 'Bodega') {
                 const uniqueKey = `${item.orderId}-${item.itemCode}`;
                 const itemWithInfo: ItemWithOrderInfo = {
                     ...item,
@@ -245,7 +245,7 @@ export default function BodegaPage() {
   return (
     <Dialog onOpenChange={(open) => !open && setActiveModal(null)}>
       <div className="flex items-center justify-between mb-4">
-         <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
             <Dialog>
                 <DialogTrigger asChild>
                     <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
@@ -292,7 +292,7 @@ export default function BodegaPage() {
         </Button>
       </div>
       
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+       <div className="grid md:grid-cols-3 gap-6 mb-8">
             {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => (
                 <StatusCard 
                     key={status}
@@ -393,4 +393,5 @@ export default function BodegaPage() {
     </Dialog>
   );
 }
+
     

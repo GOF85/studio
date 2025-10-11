@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
@@ -121,7 +120,7 @@ export default function BioPage() {
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bio');
     setMaterialOrders(relatedOrders);
 
-    const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
+    const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '[]')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
     
     const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
@@ -292,7 +291,7 @@ export default function BioPage() {
         </Button>
       </div>
       
-       <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
             {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => (
                 <StatusCard 
                     key={status}
@@ -307,7 +306,7 @@ export default function BioPage() {
         <Card>
             <div className="flex items-center justify-between p-4">
                 <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
-                <div className="flex items-center gap-4">
+                 <div className="flex items-center gap-4">
                     <div className="text-right">
                         <p className="font-bold text-lg">{formatCurrency(totalValoracionPendiente)}</p>
                         <p className="text-xs text-muted-foreground">Valoración total pendiente</p>
@@ -344,7 +343,7 @@ export default function BioPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                    <TableCell>
+                                     <TableCell>
                                         <Input 
                                             type="date" 
                                             value={item.deliveryDate ? format(new Date(item.deliveryDate), 'yyyy-MM-dd') : ''}
@@ -393,4 +392,5 @@ export default function BioPage() {
     </Dialog>
   );
 }
+
     

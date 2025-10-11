@@ -14,12 +14,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
-
 
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
@@ -104,7 +102,7 @@ function StatusCard({ title, items, totalQuantity, onClick }: { title: string, i
     )
 }
 
-export default function AlquilerPage() {
+export default function AlmacenPage() {
   const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
@@ -116,9 +114,9 @@ export default function AlquilerPage() {
   const osId = params.id as string;
   const { toast } = useToast();
 
- const { allItems, blockedItems, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
+   const { allItems, blockedItems, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
+    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
     setMaterialOrders(relatedOrders);
 
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
@@ -130,7 +128,7 @@ export default function AlquilerPage() {
     relatedPickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
-             if (item.type === 'Alquiler') {
+            if (item.type === 'Almacen') {
                 const uniqueKey = `${item.orderId}-${item.itemCode}`;
                 const itemWithInfo: ItemWithOrderInfo = {
                     ...item,
@@ -213,7 +211,7 @@ export default function AlquilerPage() {
     let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderToDelete);
     localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
-    setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Alquiler'));
+    setMaterialOrders(updatedOrders.filter((o: MaterialOrder) => o.osId === osId && o.type === 'Almacen'));
     window.dispatchEvent(new Event('storage'));
     toast({ title: 'Pedido de material eliminado' });
     setOrderToDelete(null);
@@ -239,7 +237,7 @@ export default function AlquilerPage() {
   }
 
   if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Módulo de Alquiler..." />;
+    return <LoadingSkeleton title="Cargando Módulo de Almacén..." />;
   }
 
   return (
@@ -251,7 +249,7 @@ export default function AlquilerPage() {
                     <Button variant="outline" size="sm" disabled={allItems.length === 0}><Eye className="mr-2 h-4 w-4" />Ver Resumen de Artículos</Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-4xl">
-                    <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>Resumen de Artículos de Almacén</DialogTitle></DialogHeader>
                     <div className="max-h-[70vh] overflow-y-auto">
                         <Table>
                             <TableHeader>
@@ -285,9 +283,9 @@ export default function AlquilerPage() {
             <BriefingSummaryDialog osId={osId} />
         </div>
         <Button asChild>
-          <Link href={`/pedidos?osId=${osId}&type=Alquiler`}>
+          <Link href={`/pedidos?osId=${osId}&type=Almacen`}>
             <PlusCircle className="mr-2" />
-            Nuevo Pedido de Alquiler
+            Nuevo Pedido de Almacén
           </Link>
         </Button>
       </div>
@@ -308,7 +306,7 @@ export default function AlquilerPage() {
             <div className="flex items-center justify-between p-4">
                 <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
                 <div className="flex items-center gap-4">
-                     <div className="text-right">
+                    <div className="text-right">
                         <p className="font-bold text-lg">{formatCurrency(totalValoracionPendiente)}</p>
                         <p className="text-xs text-muted-foreground">Valoración total pendiente</p>
                     </div>
@@ -344,7 +342,7 @@ export default function AlquilerPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                     <TableCell>
+                                    <TableCell>
                                         <Input 
                                             type="date" 
                                             value={item.deliveryDate ? format(new Date(item.deliveryDate), 'yyyy-MM-dd') : ''}
