@@ -153,9 +153,6 @@ export default function PersonalFormPage() {
                 <FormField control={form.control} name="apellidos" render={({ field }) => (
                     <FormItem><FormLabel>Apellidos</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
-                 <FormField control={form.control} name="iniciales" render={({ field }) => (
-                    <FormItem><FormLabel>Iniciales</FormLabel><FormControl><Input {...field} placeholder="Auto (ej. JS)"/></FormControl><FormMessage /></FormItem>
-                )} />
                 <FormField control={form.control} name="departamento" render={({ field }) => (
                     <FormItem><FormLabel>Departamento</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
