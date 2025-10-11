@@ -99,7 +99,7 @@ export function ItemCatalog({ items, onAddItem, orderItems, orderType, plantilla
         <h2 className="text-3xl font-headline font-bold tracking-tight">Catálogo de Artículos</h2>
         <div className="flex gap-2">
             {plantillas && plantillas.length > 0 && <TemplateSelectorDialog plantillas={plantillas} onSelect={onApplyTemplate} />}
-            {orderType !== 'Alquiler' && <AssistantDialog onAddSuggestedItem={onAddItem} />}
+            {/* {orderType !== 'Alquiler' && <AssistantDialog onAddSuggestedItem={onAddItem} />} */}
         </div>
       </div>
        {orderType === 'Alquiler' && rentalProviders && onSelectProvider && (
