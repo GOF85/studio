@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Users, ArrowLeft } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Users, Menu } from 'lucide-react';
 import type { Personal } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,8 +38,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
-const CSV_HEADERS = ["id", "nombre", "departamento", "categoria", "telefono", "mail", "dni", "precioHora"];
+const CSV_HEADERS = ["id", "nombre", "apellidos", "iniciales", "departamento", "categoria", "telefono", "mail", "dni", "precioHora"];
 
 export default function PersonalPage() {
   const [personal, setPersonal] = useState<Personal[]>([]);
@@ -67,8 +68,9 @@ export default function PersonalPage() {
   const filteredPersonal = useMemo(() => {
     return personal.filter(p => {
       const matchesDepartment = selectedDepartment === 'all' || p.departamento === selectedDepartment;
+      const fullName = `${p.nombre} ${p.apellidos}`.toLowerCase();
       const matchesSearch = searchTerm.trim() === '' ||
-        p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        fullName.includes(searchTerm.toLowerCase()) ||
         p.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.mail || '').toLowerCase().includes(searchTerm.toLowerCase());
       return matchesDepartment && matchesSearch;
@@ -128,6 +130,8 @@ export default function PersonalPage() {
         const importedData: Personal[] = results.data.map(item => ({
             id: item.id || Date.now().toString() + Math.random(),
             nombre: item.nombre || '',
+            apellidos: item.apellidos || '',
+            iniciales: item.iniciales || '',
             departamento: item.departamento || '',
             categoria: item.categoria || '',
             telefono: item.telefono || '',
@@ -166,46 +170,41 @@ export default function PersonalPage() {
     <>
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-            <div>
-                <Button variant="ghost" size="sm" onClick={() => router.push('/bd')} className="mb-2">
-                    <ArrowLeft className="mr-2" />
-                    Volver a Bases de Datos
+            <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal</h1>
+            <div className="flex gap-2">
+                <Button asChild>
+                <Link href="/personal/nuevo">
+                    <PlusCircle className="mr-2" />
+                    Nuevo Empleado
+                </Link>
                 </Button>
-                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal</h1>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon">
+                            <Menu />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handleImportClick}>
+                            <FileUp className="mr-2" />
+                            Importar CSV
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept=".csv"
+                                onChange={handleImportCSV}
+                            />
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleExportCSV}>
+                            <FileDown className="mr-2" />
+                            Exportar CSV
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
-          <div className="flex gap-2">
-            <Button asChild>
-              <Link href="/personal/nuevo">
-                <PlusCircle className="mr-2" />
-                Nuevo Empleado
-              </Link>
-            </Button>
-          </div>
         </div>
         
-        <Card className="mb-6">
-          <CardHeader>
-            <h2 className="text-xl font-semibold">Importar y Exportar</h2>
-          </CardHeader>
-          <CardContent className="flex flex-col md:flex-row gap-4">
-             <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".csv"
-                onChange={handleImportCSV}
-            />
-            <Button variant="outline" className="w-full md:w-auto" onClick={handleImportClick}>
-              <FileUp className="mr-2" />
-              Importar CSV
-            </Button>
-            <Button variant="outline" className="w-full md:w-auto" onClick={handleExportCSV}>
-              <FileDown className="mr-2" />
-              Exportar CSV
-            </Button>
-          </CardContent>
-        </Card>
-
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
             placeholder="Buscar por nombre, categoría, mail..."
@@ -232,7 +231,8 @@ export default function PersonalPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="p-2">Nombre</TableHead>
+                <TableHead className="p-2 w-12">Ini.</TableHead>
+                <TableHead className="p-2">Nombre Completo</TableHead>
                 <TableHead className="p-2">Departamento</TableHead>
                 <TableHead className="p-2">Categoría</TableHead>
                 <TableHead className="p-2">Teléfono</TableHead>
@@ -245,7 +245,8 @@ export default function PersonalPage() {
               {filteredPersonal.length > 0 ? (
                 filteredPersonal.map(p => (
                   <TableRow key={p.id}>
-                    <TableCell className="font-medium p-2">{p.nombre}</TableCell>
+                    <TableCell className="font-mono text-xs p-2">{p.iniciales}</TableCell>
+                    <TableCell className="font-medium p-2">{`${p.nombre} ${p.apellidos}`}</TableCell>
                     <TableCell className="p-2">{p.departamento}</TableCell>
                     <TableCell className="p-2">{p.categoria}</TableCell>
                     <TableCell className="p-2">{p.telefono}</TableCell>
@@ -275,7 +276,7 @@ export default function PersonalPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={8} className="h-24 text-center">
                     No se encontraron empleados que coincidan con la búsqueda.
                   </TableCell>
                 </TableRow>

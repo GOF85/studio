@@ -113,6 +113,8 @@ export type MaterialOrder = {
 export type Personal = {
     id: string;
     nombre: string;
+    apellidos: string;
+    iniciales: string;
     departamento: string;
     categoria: string;
     telefono: string;

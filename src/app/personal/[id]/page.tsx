@@ -19,6 +19,8 @@ import { useLoadingStore } from '@/hooks/use-loading-store';
 export const personalFormSchema = z.object({
   id: z.string(),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
+  apellidos: z.string().min(1, 'Los apellidos son obligatorios'),
+  iniciales: z.string().optional(),
   departamento: z.string().min(1, 'El departamento es obligatorio'),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
   telefono: z.string().optional(),
@@ -31,6 +33,8 @@ type PersonalFormValues = z.infer<typeof personalFormSchema>;
 
 const defaultValues: Partial<PersonalFormValues> = {
     nombre: '',
+    apellidos: '',
+    iniciales: '',
     departamento: '',
     categoria: '',
     telefono: '',
@@ -74,8 +78,16 @@ export default function PersonalFormPage() {
     let allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     let message = '';
     
+    // Auto-generate initials if not provided
+    if (!data.iniciales && data.nombre && data.apellidos) {
+        const nombreInicial = data.nombre.charAt(0).toUpperCase();
+        const apellidoInicial = data.apellidos.charAt(0).toUpperCase();
+        data.iniciales = `${nombreInicial}${apellidoInicial}`;
+    }
+
     const finalData: Personal = {
         ...data,
+        iniciales: data.iniciales || '',
         precioHora: data.precioHora || 0,
         dni: data.dni || '',
         mail: data.mail || '',
@@ -89,9 +101,9 @@ export default function PersonalFormPage() {
         message = 'Empleado actualizado correctamente.';
       }
     } else {
-       const existing = allPersonal.find(p => p.nombre.toLowerCase() === data.nombre.toLowerCase());
+       const existing = allPersonal.find(p => p.nombre.toLowerCase() === data.nombre.toLowerCase() && p.apellidos.toLowerCase() === data.apellidos.toLowerCase());
         if (existing) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un empleado con este nombre.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Ya existe un empleado con este nombre y apellidos.' });
             setIsLoading(false);
             return;
         }
@@ -137,6 +149,12 @@ export default function PersonalFormPage() {
               <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <FormField control={form.control} name="nombre" render={({ field }) => (
                     <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="apellidos" render={({ field }) => (
+                    <FormItem><FormLabel>Apellidos</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="iniciales" render={({ field }) => (
+                    <FormItem><FormLabel>Iniciales</FormLabel><FormControl><Input {...field} placeholder="Auto (ej. JS)"/></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="departamento" render={({ field }) => (
                     <FormItem><FormLabel>Departamento</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
