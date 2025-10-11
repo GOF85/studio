@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, FileText } from 'lucide-react';
-import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem, ReturnSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +21,6 @@ import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
-
 type ItemWithOrderInfo = OrderItem & {
   orderContract: string;
   orderId: string;
@@ -29,6 +28,13 @@ type ItemWithOrderInfo = OrderItem & {
   solicita?: 'Sala' | 'Cocina';
   tipo?: string;
   deliveryDate?: string;
+  ajustes?: { tipo: string; cantidad: number; fecha: string; comentario: string; }[];
+};
+
+type BlockedOrderInfo = {
+    sheetId: string;
+    status: PickingSheet['status'];
+    items: OrderItem[];
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -93,7 +99,7 @@ function BriefingSummaryDialog({ osId }: { osId: string }) {
     )
 }
 
-function StatusCard({ title, items, totalQuantity, onClick }: { title: string, items: number, totalQuantity: number, onClick: () => void }) {
+function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { title: string, items: number, totalQuantity: number, totalValue: number, onClick: () => void }) {
     return (
         <Card className="hover:bg-accent transition-colors cursor-pointer" onClick={onClick}>
             <CardHeader className="pb-2">
@@ -101,7 +107,7 @@ function StatusCard({ title, items, totalQuantity, onClick }: { title: string, i
             </CardHeader>
             <CardContent>
                 <p className="text-2xl font-bold">{items} <span className="text-sm font-normal text-muted-foreground">refs.</span></p>
-                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos en total</p>
+                <p className="text-xs text-muted-foreground">{totalQuantity.toLocaleString('es-ES')} artículos | {formatCurrency(totalValue)}</p>
             </CardContent>
         </Card>
     )
@@ -119,40 +125,103 @@ export default function BioPage() {
   const osId = params.id as string;
   const { toast } = useToast();
 
-   const { allItems, blockedItems, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
+   const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
+    if (typeof window === 'undefined') {
+        return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
+    }
+    
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bio');
-    setMaterialOrders(relatedOrders);
-
+    
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
     
+    const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
+    
+    const mermas: Record<string, number> = {};
+    allReturnSheets.forEach(sheet => {
+      Object.entries(sheet.itemStates).forEach(([key, state]) => {
+        const itemInfo = sheet.items.find(i => `${'i.orderId'}_${'i.itemCode'}` === key);
+        if (itemInfo && itemInfo.type === 'Bio' && itemInfo.sentQuantity > state.returnedQuantity) {
+            const perdida = (itemInfo.sentQuantity - state.returnedQuantity) * itemInfo.price;
+            mermas[itemInfo.itemCode] = (mermas[itemInfo.itemCode] || 0) + perdida;
+        }
+      });
+    });
+
     const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
+    const blocked: BlockedOrderInfo[] = [];
 
     relatedPickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
+        const sheetInfo: BlockedOrderInfo = { sheetId: sheet.id, status: sheet.status, items: [] };
+
         sheet.items.forEach(item => {
-            if (item.type === 'Bio') {
-                const uniqueKey = `${item.orderId}-${item.itemCode}`;
-                const itemWithInfo: ItemWithOrderInfo = {
-                    ...item,
-                    orderId: sheet.id,
-                    orderContract: sheet.id,
-                    orderStatus: sheet.status,
-                    solicita: sheet.solicitante,
-                };
-                statusItems[targetStatus].push(itemWithInfo);
-                processedItemKeys.add(uniqueKey);
+            if (item.type !== 'Bio') return;
+            
+            const uniqueKey = `${item.orderId}-${item.itemCode}`;
+            const orderRef = relatedOrders.find(o => o.id === item.orderId);
+            
+            let cantidadReal = item.quantity;
+            if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
+                const mermaAplicable = Math.min(cantidadReal, mermas[item.itemCode]);
+                cantidadReal -= mermaAplicable;
+                mermas[item.itemCode] -= mermaAplicable;
             }
+
+            if(cantidadReal > 0) {
+              const itemWithInfo: ItemWithOrderInfo = {
+                  ...item, 
+                  quantity: cantidadReal,
+                  orderId: sheet.id, 
+                  orderContract: orderRef?.contractNumber || 'N/A', 
+                  orderStatus: sheet.status, 
+                  solicita: orderRef?.solicita,
+              };
+              statusItems[targetStatus].push(itemWithInfo);
+              sheetInfo.items.push(itemWithInfo);
+            }
+            processedItemKeys.add(uniqueKey);
         });
+
+        if (sheetInfo.items.length > 0) {
+            blocked.push(sheetInfo);
+        }
     });
 
-    const all = relatedOrders.flatMap(order => order.items.map(item => ({...item, orderId: order.id, contractNumber: order.contractNumber, solicita: order.solicita, tipo: item.tipo, deliveryDate: order.deliveryDate } as ItemWithOrderInfo)));
+    const all = relatedOrders.flatMap(order => 
+        order.items.map(item => {
+             let cantidadAjustada = item.quantity;
+            (item.ajustes || []).forEach(ajuste => {
+              cantidadAjustada += ajuste.cantidad;
+            });
+            return {
+                ...item, 
+                quantity: cantidadAjustada,
+                orderId: order.id, 
+                contractNumber: order.contractNumber, 
+                solicita: order.solicita, 
+                tipo: item.tipo, 
+                deliveryDate: order.deliveryDate,
+                ajustes: item.ajustes 
+            } as ItemWithOrderInfo
+        })
+    );
     
     const pending = all.filter(item => {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
-      return !processedItemKeys.has(uniqueKey);
+      let cantidadAjustada = item.quantity;
+      if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
+          cantidadAjustada -= mermas[item.itemCode];
+      }
+      return !processedItemKeys.has(uniqueKey) && cantidadAjustada > 0;
+    }).map(item => {
+        let cantidadAjustada = item.quantity;
+        if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
+            cantidadAjustada -= mermas[item.itemCode];
+        }
+        return {...item, quantity: cantidadAjustada};
     });
     
     statusItems['Asignado'] = pending;
@@ -161,16 +230,19 @@ export default function BioPage() {
 
     return { 
         allItems: all, 
-        blockedItems: [...statusItems['En Preparación'], ...statusItems['Listo']],
+        blockedOrders: blocked,
         pendingItems: pending,
         itemsByStatus: statusItems,
         totalValoracionPendiente
     };
-  }, [osId]);
+  }, [osId, materialOrders]);
 
   useEffect(() => {
+    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bio');
+    setMaterialOrders(relatedOrders);
     setIsMounted(true);
-  }, []);
+  }, [osId]);
 
   const handleSaveAll = () => {
     setIsLoading(true);
@@ -242,7 +314,7 @@ export default function BioPage() {
   }
   
     const renderSummaryModal = () => {
-    const all = [...pendingItems, ...blockedItems];
+    const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
     const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     return (
       <DialogContent className="max-w-4xl">
@@ -260,7 +332,7 @@ export default function BioPage() {
             </TableHeader>
             <TableBody>
               {all.map((item, index) => {
-                const isBlocked = blockedItems.some(bi => bi.itemCode === item.itemCode && bi.orderId === item.orderId);
+                const isBlocked = !itemsByStatus.Asignado.some(pi => pi.itemCode === item.itemCode && pi.orderId === item.orderId);
                 const cajas = item.unidadVenta && item.unidadVenta > 0 ? (item.quantity / item.unidadVenta).toFixed(2) : '-';
                 return (
                   <TableRow key={`${item.itemCode}-${index}`}>
@@ -288,7 +360,7 @@ export default function BioPage() {
   }
 
   return (
-    <Dialog onOpenChange={(open) => !open && setActiveModal(null)}>
+    <Dialog open={!!activeModal} onOpenChange={(open) => !open && setActiveModal(null)}>
       <div className="flex items-center justify-between mb-4">
          <div className="flex items-center gap-2">
             <Dialog>
@@ -308,18 +380,22 @@ export default function BioPage() {
       </div>
       
        <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => (
+            {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
+                const items = itemsByStatus[status];
+                const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                return (
                 <StatusCard 
                     key={status}
                     title={status === 'Asignado' ? 'Asignado (Pendiente)' : status}
-                    items={itemsByStatus[status].length}
-                    totalQuantity={itemsByStatus[status].reduce((sum, item) => sum + item.quantity, 0)}
+                    items={items.length}
+                    totalQuantity={items.reduce((sum, item) => sum + item.quantity, 0)}
+                    totalValue={totalValue}
                     onClick={() => setActiveModal(status)}
                 />
-            ))}
+            )})}
         </div>
       
-        <Card>
+        <Card className="mb-6">
             <div className="flex items-center justify-between p-4">
                 <CardTitle className="text-lg">Gestión de Pedidos Pendientes</CardTitle>
                 <div className="flex items-center gap-4">
@@ -359,7 +435,7 @@ export default function BioPage() {
                                             </SelectContent>
                                         </Select>
                                     </TableCell>
-                                     <TableCell>
+                                    <TableCell>
                                         <Input 
                                             type="date" 
                                             value={item.deliveryDate ? format(new Date(item.deliveryDate), 'yyyy-MM-dd') : ''}
@@ -377,6 +453,40 @@ export default function BioPage() {
                                 </TableRow>
                             )) : (
                                 <TableRow><TableCell colSpan={6} className="h-20 text-center text-muted-foreground">No hay pedidos pendientes.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-lg">Consulta de Pedidos en Preparación o Listos</CardTitle>
+            </CardHeader>
+             <CardContent>
+                 <div className="border rounded-lg">
+                    <Table>
+                         <TableHeader>
+                            <TableRow>
+                                <TableHead>Hoja Picking</TableHead>
+                                <TableHead>Estado</TableHead>
+                                <TableHead>Contenido</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {blockedOrders.length > 0 ? blockedOrders.map(order => (
+                                <TableRow key={order.sheetId}>
+                                    <TableCell>
+                                        <Link href={`/almacen/picking/${order.sheetId}`} className="text-primary hover:underline">
+                                            <Badge variant="secondary">{order.sheetId}</Badge>
+                                        </Link>
+                                    </TableCell>
+                                    <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
+                                    <TableCell>{order.items.map(i => `${i.quantity}x ${i.description}`).join(', ')}</TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow><TableCell colSpan={3} className="h-20 text-center text-muted-foreground">No hay pedidos en preparación o listos.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
