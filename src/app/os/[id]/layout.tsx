@@ -44,10 +44,11 @@ function OSSidebarNav({ className, onLinkClick }: { className?: string; onLinkCl
     const pathname = usePathname();
     const params = useParams();
     const osId = params.id as string;
+    const dashboardHref = `/os/${osId}`;
 
     return (
         <nav className={cn("grid items-start gap-1 pb-4", className)}>
-            <Link href={`/os/${osId}`} onClick={onLinkClick}>
+            <Link href={dashboardHref} onClick={onLinkClick}>
                  <span
                     className={cn(
                         "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
