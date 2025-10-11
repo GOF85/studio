@@ -10,9 +10,10 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
-import { Briefcase, Utensils, Warehouse, Euro, ArrowRight } from 'lucide-react';
+import { Briefcase, Utensils, Warehouse, Euro, ArrowRight, Star, Building, FileText, LayoutDashboard } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: string; horaSalida: string; cantidad?: number}[]) => {
     return orders.reduce((sum, order) => {
@@ -181,5 +182,3 @@ export default function OsDashboardPage() {
         </div>
     );
 }
-
-    
