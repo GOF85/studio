@@ -92,16 +92,6 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
                 </Link>
               </Button>
             )}
-            {isOsModule && (
-                <>
-                    <Button asChild variant="ghost" className="text-base gap-2">
-                        <Link href="/pes"><ClipboardList className="h-5 w-5 text-primary"/>PES</Link>
-                    </Button>
-                    <Button asChild variant="ghost" className="text-base gap-2">
-                        <Link href="/calendario"><Calendar className="h-5 w-5 text-primary"/>Calendario PES</Link>
-                    </Button>
-                </>
-            )}
             <UserSwitcher />
         </nav>
       </div>
