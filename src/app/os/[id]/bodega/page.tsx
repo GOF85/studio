@@ -113,19 +113,19 @@ function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { titl
 }
 
 export default function BodegaPage() {
-  const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
+  const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
 
-   const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
-    if (typeof window === 'undefined') {
+ const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
+    if (!isMounted) {
         return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
     }
     
@@ -170,16 +170,16 @@ export default function BodegaPage() {
             }
 
             if(cantidadReal > 0) {
-                const itemWithInfo: ItemWithOrderInfo = {
-                    ...item, 
-                    quantity: cantidadReal,
-                    orderId: sheet.id, 
-                    orderContract: orderRef?.contractNumber || 'N/A', 
-                    orderStatus: sheet.status, 
-                    solicita: orderRef?.solicita,
-                };
-                statusItems[targetStatus].push(itemWithInfo);
-                sheetInfo.items.push(itemWithInfo);
+              const itemWithInfo: ItemWithOrderInfo = {
+                  ...item, 
+                  quantity: cantidadReal,
+                  orderId: sheet.id, 
+                  orderContract: orderRef?.contractNumber || 'N/A', 
+                  orderStatus: sheet.status, 
+                  solicita: orderRef?.solicita,
+              };
+              statusItems[targetStatus].push(itemWithInfo);
+              sheetInfo.items.push(itemWithInfo);
             }
             processedItemKeys.add(uniqueKey);
         });
@@ -236,13 +236,13 @@ export default function BodegaPage() {
         itemsByStatus: statusItems,
         totalValoracionPendiente
     };
-  }, [osId, materialOrders]);
+  }, [osId, isMounted]);
 
   useEffect(() => {
+    setIsMounted(true);
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bodega');
     setMaterialOrders(relatedOrders);
-    setIsMounted(true);
   }, [osId]);
 
   const handleSaveAll = () => {
@@ -314,9 +314,9 @@ export default function BodegaPage() {
     )
   }
   
-  const renderSummaryModal = () => {
+    const renderSummaryModal = () => {
     const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
-    const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+     const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     return (
       <DialogContent className="max-w-4xl">
         <DialogHeader><DialogTitle>Resumen de Artículos de Bodega</DialogTitle></DialogHeader>
@@ -379,7 +379,7 @@ export default function BodegaPage() {
         </Button>
       </div>
       
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+       <div className="grid md:grid-cols-3 gap-6 mb-8">
             {(Object.keys(itemsByStatus) as StatusColumn[]).map(status => {
                 const items = itemsByStatus[status];
                 const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);

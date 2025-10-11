@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, FileText } from 'lucide-react';
+import { PlusCircle, Eye, Save, Loader2, Trash2, FileText } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem, ReturnSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
@@ -114,11 +113,11 @@ function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { titl
 }
 
 export default function BioPage() {
-  const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
+  const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   
   const router = useRouter();
   const params = useParams();
@@ -126,29 +125,29 @@ export default function BioPage() {
   const { toast } = useToast();
 
    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
-    if (typeof window === 'undefined') {
+    if (!isMounted) {
         return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
     }
     
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bio');
-    
+
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
-    
+
     const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
     
     const mermas: Record<string, number> = {};
     allReturnSheets.forEach(sheet => {
       Object.entries(sheet.itemStates).forEach(([key, state]) => {
-        const itemInfo = sheet.items.find(i => `${'i.orderId'}_${'i.itemCode'}` === key);
+        const itemInfo = sheet.items.find(i => `${i.orderId}_${i.itemCode}` === key);
         if (itemInfo && itemInfo.type === 'Bio' && itemInfo.sentQuantity > state.returnedQuantity) {
-            const perdida = (itemInfo.sentQuantity - state.returnedQuantity) * itemInfo.price;
+            const perdida = itemInfo.sentQuantity - state.returnedQuantity;
             mermas[itemInfo.itemCode] = (mermas[itemInfo.itemCode] || 0) + perdida;
         }
       });
     });
-
+    
     const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
     const blocked: BlockedOrderInfo[] = [];
@@ -204,7 +203,7 @@ export default function BioPage() {
                 solicita: order.solicita, 
                 tipo: item.tipo, 
                 deliveryDate: order.deliveryDate,
-                ajustes: item.ajustes 
+                ajustes: item.ajustes
             } as ItemWithOrderInfo
         })
     );
@@ -213,7 +212,9 @@ export default function BioPage() {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
       let cantidadAjustada = item.quantity;
       if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
-          cantidadAjustada -= mermas[item.itemCode];
+          const mermaAplicable = Math.min(cantidadAjustada, mermas[item.itemCode]);
+          cantidadAjustada -= mermaAplicable;
+          mermas[item.itemCode] -= mermaAplicable;
       }
       return !processedItemKeys.has(uniqueKey) && cantidadAjustada > 0;
     }).map(item => {
@@ -235,13 +236,13 @@ export default function BioPage() {
         itemsByStatus: statusItems,
         totalValoracionPendiente
     };
-  }, [osId, materialOrders]);
+  }, [osId, isMounted]);
 
   useEffect(() => {
+    setIsMounted(true);
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Bio');
     setMaterialOrders(relatedOrders);
-    setIsMounted(true);
   }, [osId]);
 
   const handleSaveAll = () => {
@@ -313,7 +314,7 @@ export default function BioPage() {
     )
   }
   
-    const renderSummaryModal = () => {
+  const renderSummaryModal = () => {
     const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
     const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     return (
@@ -353,7 +354,6 @@ export default function BioPage() {
       </DialogContent>
     )
   }
-
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Bio..." />;

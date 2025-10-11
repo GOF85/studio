@@ -113,11 +113,11 @@ function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { titl
 }
 
 export default function AlmacenPage() {
-  const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
+  const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   
   const router = useRouter();
   const params = useParams();
@@ -125,16 +125,28 @@ export default function AlmacenPage() {
   const { toast } = useToast();
 
    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
-    if (typeof window === 'undefined') {
+    if (!isMounted) {
         return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
     }
     
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
-    setMaterialOrders(relatedOrders);
 
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
+
+    const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
+    
+    const mermas: Record<string, number> = {};
+    allReturnSheets.forEach(sheet => {
+      Object.entries(sheet.itemStates).forEach(([key, state]) => {
+        const itemInfo = sheet.items.find(i => `${i.orderId}_${i.itemCode}` === key);
+        if (itemInfo && itemInfo.type === 'Almacen' && itemInfo.sentQuantity > state.returnedQuantity) {
+            const perdida = itemInfo.sentQuantity - state.returnedQuantity;
+            mermas[itemInfo.itemCode] = (mermas[itemInfo.itemCode] || 0) + perdida;
+        }
+      });
+    });
     
     const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
@@ -150,16 +162,25 @@ export default function AlmacenPage() {
             const uniqueKey = `${item.orderId}-${item.itemCode}`;
             const orderRef = relatedOrders.find(o => o.id === item.orderId);
             
-            const itemWithInfo: ItemWithOrderInfo = {
-                ...item, 
-                quantity: item.quantity,
-                orderId: sheet.id, 
-                orderContract: orderRef?.contractNumber || 'N/A', 
-                orderStatus: sheet.status, 
-                solicita: orderRef?.solicita,
-            };
-            statusItems[targetStatus].push(itemWithInfo);
-            sheetInfo.items.push(itemWithInfo);
+            let cantidadReal = item.quantity;
+            if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
+                const mermaAplicable = Math.min(cantidadReal, mermas[item.itemCode]);
+                cantidadReal -= mermaAplicable;
+                mermas[item.itemCode] -= mermaAplicable;
+            }
+
+            if(cantidadReal > 0) {
+              const itemWithInfo: ItemWithOrderInfo = {
+                  ...item, 
+                  quantity: cantidadReal,
+                  orderId: sheet.id, 
+                  orderContract: orderRef?.contractNumber || 'N/A', 
+                  orderStatus: sheet.status, 
+                  solicita: orderRef?.solicita,
+              };
+              statusItems[targetStatus].push(itemWithInfo);
+              sheetInfo.items.push(itemWithInfo);
+            }
             processedItemKeys.add(uniqueKey);
         });
 
@@ -170,10 +191,13 @@ export default function AlmacenPage() {
 
     const all = relatedOrders.flatMap(order => 
         order.items.map(item => {
-            const adjustedQuantity = (item.ajustes || []).reduce((qty, adj) => qty + adj.cantidad, item.quantity);
+             let cantidadAjustada = item.quantity;
+            (item.ajustes || []).forEach(ajuste => {
+              cantidadAjustada += ajuste.cantidad;
+            });
             return {
                 ...item, 
-                quantity: adjustedQuantity,
+                quantity: cantidadAjustada,
                 orderId: order.id, 
                 contractNumber: order.contractNumber, 
                 solicita: order.solicita, 
@@ -186,7 +210,19 @@ export default function AlmacenPage() {
     
     const pending = all.filter(item => {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
-      return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
+      let cantidadAjustada = item.quantity;
+      if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
+          const mermaAplicable = Math.min(cantidadAjustada, mermas[item.itemCode]);
+          cantidadAjustada -= mermaAplicable;
+          mermas[item.itemCode] -= mermaAplicable;
+      }
+      return !processedItemKeys.has(uniqueKey) && cantidadAjustada > 0;
+    }).map(item => {
+        let cantidadAjustada = item.quantity;
+        if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
+            cantidadAjustada -= mermas[item.itemCode];
+        }
+        return {...item, quantity: cantidadAjustada};
     });
     
     statusItems['Asignado'] = pending;
@@ -200,11 +236,14 @@ export default function AlmacenPage() {
         itemsByStatus: statusItems,
         totalValoracionPendiente
     };
-  }, [osId, materialOrders]);
+  }, [osId, isMounted]);
 
   useEffect(() => {
     setIsMounted(true);
-  }, []);
+    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
+    setMaterialOrders(relatedOrders);
+  }, [osId]);
 
   const handleSaveAll = () => {
     setIsLoading(true);

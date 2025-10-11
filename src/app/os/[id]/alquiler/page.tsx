@@ -1,11 +1,10 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, Eye, Save, Loader2, Trash2, FileText } from 'lucide-react';
+import { PlusCircle, Users, Soup, Eye, ChevronDown, Save, Loader2, Trash2, FileText } from 'lucide-react';
 import type { MaterialOrder, OrderItem, PickingSheet, ComercialBriefing, ComercialBriefingItem, ReturnSheet } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -114,11 +113,11 @@ function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { titl
 }
 
 export default function AlquilerPage() {
-  const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
+  const [materialOrders, setMaterialOrders] = useState<MaterialOrder[]>([]);
   
   const router = useRouter();
   const params = useParams();
@@ -126,13 +125,13 @@ export default function AlquilerPage() {
   const { toast } = useToast();
 
  const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
-    if (typeof window === 'undefined') {
+    if (!isMounted) {
         return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
     }
     
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
-    
+
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
 
@@ -148,7 +147,7 @@ export default function AlquilerPage() {
         }
       });
     });
-
+    
     const statusItems: Record<StatusColumn, ItemWithOrderInfo[]> = { Asignado: [], 'En Preparación': [], Listo: [] };
     const processedItemKeys = new Set<string>();
     const blocked: BlockedOrderInfo[] = [];
@@ -211,7 +210,19 @@ export default function AlquilerPage() {
     
     const pending = all.filter(item => {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
-      return !processedItemKeys.has(uniqueKey) && item.quantity > 0;
+      let cantidadAjustada = item.quantity;
+      if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
+          const mermaAplicable = Math.min(cantidadAjustada, mermas[item.itemCode]);
+          cantidadAjustada -= mermaAplicable;
+          mermas[item.itemCode] -= mermaAplicable;
+      }
+      return !processedItemKeys.has(uniqueKey) && cantidadAjustada > 0;
+    }).map(item => {
+        let cantidadAjustada = item.quantity;
+        if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
+            cantidadAjustada -= mermas[item.itemCode];
+        }
+        return {...item, quantity: cantidadAjustada};
     });
     
     statusItems['Asignado'] = pending;
@@ -225,13 +236,13 @@ export default function AlquilerPage() {
         itemsByStatus: statusItems,
         totalValoracionPendiente
     };
-  }, [osId, materialOrders]);
+  }, [osId, isMounted]);
 
   useEffect(() => {
+    setIsMounted(true);
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Alquiler');
     setMaterialOrders(relatedOrders);
-    setIsMounted(true);
   }, [osId]);
 
   const handleSaveAll = () => {
@@ -305,7 +316,7 @@ export default function AlquilerPage() {
   
     const renderSummaryModal = () => {
     const all = [...itemsByStatus.Asignado, ...itemsByStatus['En Preparación'], ...itemsByStatus.Listo];
-     const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const totalValue = all.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     return (
       <DialogContent className="max-w-4xl">
         <DialogHeader><DialogTitle>Resumen de Artículos de Alquiler</DialogTitle></DialogHeader>
