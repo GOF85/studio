@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -114,7 +113,7 @@ export default function BodegaPage() {
     relatedPickingSheets.forEach(sheet => {
         const targetStatus = statusMap[sheet.status];
         sheet.items.forEach(item => {
-            if (item.type === 'Bodega') {
+             if (item.type === 'Bodega') {
                 const uniqueKey = `${item.orderId}-${item.itemCode}`;
                 const itemWithInfo = {
                     ...item,
@@ -124,7 +123,7 @@ export default function BodegaPage() {
                     solicita: sheet.solicitante,
                 };
                 if(targetStatus === 'En Preparación') enPreparacionItems.push(itemWithInfo);
-                else if(targetStatus === 'Listo') listoItems.push(itemWithInfo);
+                else if (targetStatus === 'Listo') listoItems.push(itemWithInfo);
                 processedItemKeys.add(uniqueKey);
             }
         });
@@ -137,7 +136,7 @@ export default function BodegaPage() {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
       return !processedItemKeys.has(uniqueKey);
     });
-    
+
     return { allItems: all, blockedItems: blocked, pendingItems: pending };
   }, [osId]);
 
@@ -355,3 +354,4 @@ export default function BodegaPage() {
   );
 }
 
+    

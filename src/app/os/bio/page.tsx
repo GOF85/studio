@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -25,6 +24,7 @@ type ItemWithOrderInfo = OrderItem & {
   orderId: string;
   orderStatus: PickingSheet['status'];
   solicita?: 'Sala' | 'Cocina';
+  tipo?: string;
 };
 
 type StatusColumn = 'Asignado' | 'En Preparación' | 'Listo';
@@ -136,7 +136,7 @@ export default function BioPage() {
       const uniqueKey = `${item.orderId}-${item.itemCode}`;
       return !processedItemKeys.has(uniqueKey);
     });
-    
+
     return { allItems: all, blockedItems: blocked, pendingItems: pending };
   }, [osId]);
 
@@ -354,3 +354,4 @@ export default function BioPage() {
   );
 }
 
+    
