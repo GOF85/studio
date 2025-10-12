@@ -31,7 +31,6 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
@@ -50,6 +49,7 @@ export default function PersonalPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [personToDelete, setPersonToDelete] = useState<string | null>(null);
+  const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -112,7 +112,10 @@ export default function PersonalPage() {
   
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+        setIsImportAlertOpen(false);
+        return;
+    }
 
     Papa.parse(file, {
         header: true,
@@ -150,10 +153,12 @@ export default function PersonalPage() {
             localStorage.setItem('personal', JSON.stringify(importedData));
             setPersonal(importedData);
             toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+            setIsImportAlertOpen(false);
         },
         error: (err) => {
             console.error("Error with PapaParse:", err);
             toast({ variant: "destructive", title: "Error al procesar el archivo", description: "No se pudo leer el contenido del CSV." });
+            setIsImportAlertOpen(false);
         }
     });
     
@@ -194,26 +199,10 @@ export default function PersonalPage() {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                    <FileUp className="mr-2" />
-                                    Importar CSV
-                                </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. Normalmente es una coma (,) o un punto y coma (;).
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter className="!justify-center gap-4">
-                                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas</Button>
-                                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma</Button>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsImportAlertOpen(true); }}>
+                            <FileUp className="mr-2" />
+                            Importar CSV
+                        </DropdownMenuItem>
                         <input
                             type="file"
                             ref={fileInputRef}
@@ -330,6 +319,21 @@ export default function PersonalPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. Normalmente es una coma (,) o un punto y coma (;).
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="!justify-center gap-4">
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas</Button>
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma</Button>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </>
   );
 }
