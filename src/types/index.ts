@@ -1,5 +1,4 @@
 
-
 import { z } from "zod";
 
 export type CateringItem = {
@@ -483,11 +482,12 @@ export type PersonalExternoOrder = {
   osId: string;
   proveedorId: string;
   categoria: string;
-  cantidad: number;
   precioHora: number;
   fecha: string;
   horaEntrada: string;
   horaSalida: string;
+  solicitadoPor: 'Sala' | 'Pase' | 'Otro';
+  tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
   observaciones?: string;
   horaEntradaReal?: string;
   horaSalidaReal?: string;
@@ -725,7 +725,7 @@ export type LoteAsignado = {
     ofId: string;
     containerId: string;
     quantity: number;
-    hitoId: string;
+    hitoId: string
 }
 export type ContenedorDinamico = {
     id: string;
@@ -986,5 +986,3 @@ export type CategoriaReceta = {
     id: string;
     nombre: string;
 }
-
-    

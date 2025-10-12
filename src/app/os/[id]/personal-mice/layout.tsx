@@ -1,6 +1,6 @@
 'use client';
 
-export default function PersonalExternoLayout({
+export default function PersonalMiceLayout({
     children,
   }: {
     children: React.ReactNode
