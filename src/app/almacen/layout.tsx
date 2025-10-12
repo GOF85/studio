@@ -23,9 +23,6 @@ function NavContent({ closeSheet, pathname }: { closeSheet: () => void, pathname
         <div className="w-full">
              <SheetHeader className="pb-4 mb-4 border-b text-left">
                 <SheetTitle className="text-xl font-headline font-bold flex items-center gap-3"><Warehouse size={24}/>Panel de Almacen</SheetTitle>
-                <p className="text-sm text-muted-foreground pl-[36px]">
-                    Logística de material y expediciones.
-                </p>
             </SheetHeader>
             <nav className="grid items-start gap-1">
                 {almacenNav.map((item, index) => {
