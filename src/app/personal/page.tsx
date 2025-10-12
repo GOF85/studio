@@ -31,6 +31,7 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
+    AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import Papa from 'papaparse';
@@ -109,67 +110,57 @@ export default function PersonalPage() {
     return 0;
   };
   
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const text = e.target?.result as string;
-        if (!text) {
-            toast({ variant: 'destructive', title: 'Error de lectura', description: 'No se pudo leer el archivo.' });
-            return;
+    Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        delimiter: delimiter,
+        complete: (results) => {
+            if (results.errors.length > 0) {
+                console.error("Errors parsing CSV:", results.errors);
+                toast({ variant: 'destructive', title: 'Error de Lectura', description: 'Algunas filas del CSV no pudieron ser leídas. Revisa el formato.' });
+            }
+
+            const importedData: Personal[] = [];
+            results.data.forEach((item: any) => {
+                if (item.nombre && item.apellidos) { // Required fields
+                    importedData.push({
+                        id: item.id || `${Date.now()}-${Math.random()}`,
+                        nombre: item.nombre || '',
+                        apellidos: item.apellidos || '',
+                        iniciales: item.iniciales || '',
+                        departamento: item.departamento || '',
+                        categoria: item.categoria || '',
+                        telefono: item.telefono || '',
+                        mail: item.mail || '',
+                        dni: item.dni || '',
+                        precioHora: parseCurrency(item.precioHora),
+                    });
+                }
+            });
+
+            if (importedData.length === 0 && results.data.length > 0) {
+                toast({ variant: 'destructive', title: 'Error de Formato', description: 'No se pudo importar ninguna fila. Asegúrate de que las columnas "nombre" y "apellidos" están presentes y rellenas.' });
+                return;
+            }
+            
+            localStorage.setItem('personal', JSON.stringify(importedData));
+            setPersonal(importedData);
+            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+        },
+        error: (err) => {
+            console.error("Error with PapaParse:", err);
+            toast({ variant: "destructive", title: "Error al procesar el archivo", description: "No se pudo leer el contenido del CSV." });
         }
-
-        // 1. Detect delimiter
-        const firstLine = text.split('\n')[0];
-        const delimiter = firstLine.includes(';') ? ';' : ',';
-        
-        Papa.parse(text, {
-            header: true,
-            skipEmptyLines: true,
-            delimiter: delimiter,
-            complete: (results) => {
-                if (results.errors.length > 0) {
-                    console.error("Errors parsing CSV:", results.errors);
-                    toast({ variant: 'destructive', title: 'Error de Parseo', description: 'Algunas filas del CSV no pudieron ser leídas. Revisa el formato.' });
-                }
-
-                const importedData: Personal[] = [];
-                results.data.forEach((item: any) => {
-                    if (item.nombre && item.apellidos) {
-                        importedData.push({
-                            id: item.id || `${Date.now()}-${Math.random()}`,
-                            nombre: item.nombre || '',
-                            apellidos: item.apellidos || '',
-                            iniciales: item.iniciales || '',
-                            departamento: item.departamento || '',
-                            categoria: item.categoria || '',
-                            telefono: item.telefono || '',
-                            mail: item.mail || '',
-                            dni: item.dni || '',
-                            precioHora: parseCurrency(item.precioHora),
-                        });
-                    }
-                });
-
-                if (importedData.length === 0 && results.data.length > 0) {
-                    toast({ variant: 'destructive', title: 'Error de Formato', description: 'No se pudo importar ninguna fila. Asegúrate de que las columnas "nombre" y "apellidos" están presentes y rellenas.' });
-                    return;
-                }
-                
-                localStorage.setItem('personal', JSON.stringify(importedData));
-                setPersonal(importedData);
-                toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
-            },
-        });
-    };
-    reader.readAsText(file);
+    });
     
     if (event.target) {
       event.target.value = '';
     }
-};
+  };
 
   const handleDelete = () => {
     if (!personToDelete) return;
@@ -203,17 +194,33 @@ export default function PersonalPage() {
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={handleImportClick}>
-                            <FileUp className="mr-2" />
-                            Importar CSV
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                className="hidden"
-                                accept=".csv,.txt"
-                                onChange={handleImportCSV}
-                            />
-                        </DropdownMenuItem>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                    <FileUp className="mr-2" />
+                                    Importar CSV
+                                </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. Normalmente es una coma (,) o un punto y coma (;).
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter className="!justify-center gap-4">
+                                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas</Button>
+                                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma</Button>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept=".csv"
+                            onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as any)}
+                        />
                         <DropdownMenuItem onClick={handleExportCSV}>
                             <FileDown className="mr-2" />
                             Exportar CSV
@@ -326,5 +333,3 @@ export default function PersonalPage() {
     </>
   );
 }
-
-    
