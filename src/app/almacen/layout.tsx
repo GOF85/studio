@@ -62,7 +62,7 @@ export default function AlmacenLayout({ children }: { children: React.ReactNode 
 
     return (
         <div className="container mx-auto">
-            <div className="flex items-center justify-between my-4">
+            <div className="flex items-center justify-start gap-4 my-4">
                 <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                     <SheetTrigger asChild>
                         <Button variant="outline" size="icon">
@@ -74,16 +74,15 @@ export default function AlmacenLayout({ children }: { children: React.ReactNode 
                     </SheetContent>
                 </Sheet>
                 
-                <div className="flex-grow flex justify-center items-center gap-3">
+                <Separator orientation="vertical" className="h-6" />
+
+                <div className="flex items-center gap-3">
                     <Warehouse className="h-7 w-7 text-primary"/>
                     <h1 className="text-xl font-headline font-bold">Almacen MC</h1>
                     <Separator orientation="vertical" className="h-6" />
                     <PageIcon className="h-6 w-6"/> 
                     <h2 className="text-lg font-semibold">{currentPage.title}</h2>
                 </div>
-
-                {/* Empty div to balance flexbox */}
-                <div className="w-10"></div>
             </div>
 
             <main className="py-8 pt-0">
