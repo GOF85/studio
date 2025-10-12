@@ -144,7 +144,6 @@ export default function ProveedoresPage() {
         <div className="flex items-center justify-between mb-6">
             <div>
                 <Button variant="ghost" size="sm" onClick={() => router.push('/bd')} className="mb-2">
-                    <ArrowLeft className="mr-2" />
                     Volver a Bases de Datos
                 </Button>
                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Base de Datos de Proveedores</h1>

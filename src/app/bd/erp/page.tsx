@@ -46,7 +46,7 @@ const formSchema = z.object({
 });
 
 type IngredientesERPFormValues = z.infer<typeof formSchema>;
-const CSV_HEADERS = ["id", "IdERP", "nombreProductoERP", "referenciaProveedor", "IdERP", "familiaCategoria", "precioCompra", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
+const CSV_HEADERS = ["id", "IdERP", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
 
 export default function IngredientesERPPage() {
   const [isMounted, setIsMounted] = useState(false);
