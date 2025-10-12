@@ -83,7 +83,7 @@ export default function PersonalPage() {
       toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay personal para exportar.' });
       return;
     }
-    const csv = Papa.unparse(personal, { header: true });
+    const csv = Papa.unparse(personal, { header: true, delimiter: ";" });
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -118,6 +118,7 @@ export default function PersonalPage() {
     Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
+      delimiter: ";",
       complete: (results) => {
         const headers = results.meta.fields || [];
         const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
@@ -127,7 +128,7 @@ export default function PersonalPage() {
             return;
         }
         
-        const importedData: Personal[] = results.data.map(item => ({
+        const importedData: Personal[] = results.data.map((item: any) => ({
             id: item.id || Date.now().toString() + Math.random(),
             nombre: item.nombre || '',
             apellidos: item.apellidos || '',
