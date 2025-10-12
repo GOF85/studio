@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, History, AlertTriangle, MessageSquare, Check, RotateCcw, Save } from 'lucide-react';
+import { ArrowLeft, History, AlertTriangle, MessageSquare, Check, RotateCcw, Save, Minus, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -24,14 +24,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 // We need to include the original order ID to trace back and update it.
-type ReturnSheetItem = OrderItem & { sentQuantity: number; orderId: string };
+type ReturnSheetItem = OrderItem & { sentQuantity: number; orderId: string; type: MaterialOrder['type'] };
+type ReturnIncidencia = { osId: string; osServiceNumber: string; item: ReturnSheetItem; comment: string; timestamp: string };
 
 export default function RetornoSheetPage() {
     const [sheet, setSheet] = useState<ReturnSheet | null>(null);
     const [isMounted, setIsMounted] = useState(false);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
-    const [showMermaConfirm, setShowMermaConfirm] = useState(false);
-
+    
     const router = useRouter();
     const params = useParams();
     const osId = params.id as string;
@@ -50,10 +50,15 @@ export default function RetornoSheetPage() {
             
             osOrders.forEach(order => {
                 order.items.forEach(item => {
-                    const newItem: ReturnSheetItem = { ...item, sentQuantity: item.quantity, orderId: order.id };
+                    const newItem: ReturnSheetItem = { ...item, sentQuantity: item.quantity, orderId: order.id, type: order.type };
                     itemsFromOrders.push(newItem);
                     const itemKey = `${order.id}_${item.itemCode}`;
-                    initialItemStates[itemKey] = { returnedQuantity: item.quantity };
+                    
+                    // Smart Returns Logic
+                    const isConsumable = order.type === 'Bodega' || order.type === 'Bio';
+                    initialItemStates[itemKey] = { 
+                        returnedQuantity: isConsumable ? 0 : item.quantity 
+                    };
                 });
             });
             
@@ -103,47 +108,28 @@ export default function RetornoSheetPage() {
 
         saveSheet({ itemStates: newStates, status });
     };
-
-    const handleAcceptMerma = () => {
-        if (!sheet) return;
-        let allMaterialOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-        let updated = false;
-
-        Object.entries(sheet.itemStates).forEach(([itemKey, state]) => {
-            const [orderId, itemCode] = itemKey.split('_');
-            const originalItem = sheet.items.find(i => i.orderId === orderId && i.itemCode === itemCode);
-            
-            if (originalItem && originalItem.sentQuantity !== state.returnedQuantity) {
-                const orderIndex = allMaterialOrders.findIndex(o => o.id === orderId);
-                if (orderIndex > -1) {
-                    const orderToUpdate = allMaterialOrders[orderIndex];
-                    const itemIndex = orderToUpdate.items.findIndex(i => i.itemCode === itemCode);
-                    if (itemIndex > -1) {
-                        // Update the quantity in the original order
-                        orderToUpdate.items[itemIndex].quantity = state.returnedQuantity;
-                        
-                        // Recalculate total for the order
-                        orderToUpdate.total = orderToUpdate.items.reduce((sum, current) => sum + (current.price * current.quantity), 0);
-
-                         if (state.returnedQuantity === 0) {
-                            orderToUpdate.items.splice(itemIndex, 1);
-                        }
-
-                        allMaterialOrders[orderIndex] = orderToUpdate;
-                        updated = true;
-                    }
-                }
-            }
-        });
+    
+    const handleAddIncidencia = (item: ReturnSheetItem, comment: string) => {
+        if(!sheet || !sheet.os) return;
+        const allIncidencias = JSON.parse(localStorage.getItem('incidenciasRetorno') || '[]') as ReturnIncidencia[];
+        const newIncidencia: ReturnIncidencia = {
+            osId: sheet.osId,
+            osServiceNumber: sheet.os.serviceNumber,
+            item,
+            comment,
+            timestamp: new Date().toISOString()
+        };
         
-        if (updated) {
-            localStorage.setItem('materialOrders', JSON.stringify(allMaterialOrders));
-            toast({ title: "Pedidos Ajustados", description: "Las cantidades de los pedidos originales se han actualizado para reflejar la merma." });
+        const existingIndex = allIncidencias.findIndex(inc => inc.osId === osId && inc.item.itemCode === item.itemCode);
+        if(existingIndex > -1) {
+            allIncidencias[existingIndex] = newIncidencia;
         } else {
-            toast({ title: "Sin cambios", description: "No se encontraron discrepancias para ajustar." });
+            allIncidencias.push(newIncidencia);
         }
-        setShowMermaConfirm(false);
-    };
+        localStorage.setItem('incidenciasRetorno', JSON.stringify(allIncidencias));
+        updateItemState(`${item.orderId}_${item.itemCode}`, { incidentComment: comment });
+        toast({title: 'Incidencia Registrada', description: `Se ha registrado una incidencia para ${item.description}`});
+    }
 
     const handleReset = () => {
         const allSheets = JSON.parse(localStorage.getItem('returnSheets') || '{}');
@@ -158,43 +144,31 @@ export default function RetornoSheetPage() {
          saveSheet({ status: 'Completado' });
          toast({ title: "Retorno Completado", description: "Se ha marcado el retorno como completado." });
     }
-
-    const { consumption, totalSent, totalReturned, totalLost, hasDiscrepancy } = useMemo(() => {
-        if (!sheet) return { consumption: [], totalSent: 0, totalReturned: 0, totalLost: 0, hasDiscrepancy: false };
-        
-        let sent = 0;
-        let returned = 0;
-        let discrepancy = false;
-
+    
+    const groupedItems = useMemo(() => {
+        if(!sheet) return {};
         const consumptionList = sheet.items.map(item => {
             const itemKey = `${item.orderId}_${item.itemCode}`;
-            const state = sheet.itemStates[itemKey];
-            const returnedQty = state?.returnedQuantity ?? 0;
-            const consumed = item.sentQuantity - returnedQty;
+            const state = sheet.itemStates[itemKey] || { returnedQuantity: 0 };
+            const returnedQty = state.returnedQuantity;
 
-            if (item.sentQuantity !== returnedQty) {
-                discrepancy = true;
-            }
-
-            sent += item.sentQuantity;
-            returned += returnedQty;
             return {
                 ...item,
                 itemKey,
                 returnedQuantity: returnedQty,
-                consumed: consumed > 0 ? consumed : 0,
-                surplus: consumed < 0 ? Math.abs(consumed) : 0,
-                hasIncident: !!state?.incidentComment
+                consumed: Math.max(0, item.sentQuantity - returnedQty),
+                surplus: Math.max(0, returnedQty - item.sentQuantity),
+                hasIncident: !!state.incidentComment
             }
         });
+        
+        return consumptionList.reduce((acc, item) => {
+            const group = item.type || 'Varios';
+            if (!acc[group]) acc[group] = [];
+            acc[group].push(item);
+            return acc;
+        }, {} as Record<string, ReturnType<typeof consumptionList>>);
 
-        return {
-            consumption: consumptionList,
-            totalSent: sent,
-            totalReturned: returned,
-            totalLost: sent - returned,
-            hasDiscrepancy: discrepancy,
-        }
     }, [sheet]);
 
 
@@ -205,27 +179,18 @@ export default function RetornoSheetPage() {
     return (
         <TooltipProvider>
         <div>
-            <div className="flex items-center justify-between mb-4">
-                <div>
-                    <Button variant="ghost" size="sm" onClick={() => router.push('/almacen/retornos')} className="mb-2">
-                        <ArrowLeft className="mr-2" /> Volver al listado
-                    </Button>
-                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                        <History /> Hoja de Retorno
-                    </h1>
-                </div>
+            <div className="flex items-center justify-end mb-4">
                  <div className="flex items-center gap-2">
-                    {hasDiscrepancy && <Button variant="destructive" onClick={() => setShowMermaConfirm(true)}><Save className="mr-2"/>Ajustar Pedido por Merma</Button>}
                     <Button variant="outline" onClick={() => setShowResetConfirm(true)}><RotateCcw className="mr-2"/>Reiniciar</Button>
                     <Button onClick={handleComplete} disabled={sheet.status === 'Completado'}><Check className="mr-2"/>Marcar como Completado</Button>
                  </div>
             </div>
             
             <Card className="mb-6">
-                <CardHeader>
+                <CardHeader className="py-3">
                     <div className="flex justify-between items-start">
                         <div>
-                             <CardTitle>Servicio: {sheet.os.serviceNumber}</CardTitle>
+                             <CardTitle className="text-xl">Servicio: {sheet.os.serviceNumber}</CardTitle>
                              <CardDescription>
                                 {sheet.os.client} {sheet.os.finalClient && `- ${sheet.os.finalClient}`}
                             </CardDescription>
@@ -235,58 +200,57 @@ export default function RetornoSheetPage() {
                 </CardHeader>
             </Card>
 
-            <div className="grid md:grid-cols-3 gap-4 mb-6">
-                <Card>
-                    <CardHeader><CardTitle>Total Enviado</CardTitle></CardHeader>
-                    <CardContent><p className="text-2xl font-bold">{totalSent}</p></CardContent>
-                </Card>
-                <Card>
-                    <CardHeader><CardTitle>Total Devuelto</CardTitle></CardHeader>
-                    <CardContent><p className="text-2xl font-bold">{totalReturned}</p></CardContent>
-                </Card>
-                <Card>
-                    <CardHeader><CardTitle>Total Merma/Pérdida</CardTitle></CardHeader>
-                    <CardContent><p className={cn("text-2xl font-bold", totalLost > 0 ? "text-destructive" : "text-green-600")}>{totalLost}</p></CardContent>
-                </Card>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                 {Object.entries(groupedItems).map(([type, items]) => (
+                    <Card key={type}>
+                        <CardHeader className="py-2"><CardTitle className="text-base">{type}</CardTitle></CardHeader>
+                        <CardContent className="py-2"><p className="text-2xl font-bold">{items.length}</p><span className="text-xs text-muted-foreground">tipos de artículo</span></CardContent>
+                    </Card>
+                ))}
             </div>
 
-            <Card>
-                <CardHeader><CardTitle>Desglose de Retorno</CardTitle></CardHeader>
-                <CardContent>
-                    <div className="border rounded-lg">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Artículo</TableHead>
-                                    <TableHead className="text-center">Cant. Enviada</TableHead>
-                                    <TableHead className="w-40 text-center">Cant. Devuelta</TableHead>
-                                    <TableHead className="text-center">Consumo</TableHead>
-                                    <TableHead className="text-center">Excedente</TableHead>
-                                    <TableHead className="text-right">Incidencia</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {consumption.map(item => (
-                                <TableRow key={item.itemKey}>
-                                    <TableCell className="font-medium">{item.description}</TableCell>
-                                    <TableCell className="text-center font-semibold">{item.sentQuantity}</TableCell>
-                                    <TableCell className="text-center">
-                                         <Input
-                                            id={`qty-${item.itemKey}`}
-                                            type="number"
-                                            value={item.returnedQuantity}
-                                            onChange={(e) => updateItemState(item.itemKey, { returnedQuantity: parseInt(e.target.value, 10) || 0 })}
-                                            className="w-20 mx-auto text-center h-9"
-                                        />
-                                    </TableCell>
-                                     <TableCell className="text-center font-bold text-destructive">{item.consumed}</TableCell>
-                                    <TableCell className="text-center font-bold text-green-600">{item.surplus}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
+            {Object.entries(groupedItems).map(([type, items]) => (
+                <Card key={type} className="mb-4">
+                    <CardHeader><CardTitle>{type}</CardTitle></CardHeader>
+                    <CardContent>
+                        <div className="border rounded-lg">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Artículo</TableHead>
+                                        <TableHead className="text-center">Enviado</TableHead>
+                                        <TableHead className="w-52 text-center">Devuelto</TableHead>
+                                        <TableHead className="text-center">Consumo</TableHead>
+                                        <TableHead className="text-center">Excedente</TableHead>
+                                        <TableHead className="text-right">Incidencia</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {items.map(item => {
+                                        const isMismatch = item.sentQuantity !== item.returnedQuantity;
+                                        return (
+                                        <TableRow key={item.itemKey} className={cn(isMismatch && item.hasIncident && "bg-destructive/10", isMismatch && !item.hasIncident && "bg-amber-50/80")}>
+                                            <TableCell className="font-medium">{item.description}</TableCell>
+                                            <TableCell className="text-center font-semibold">{item.sentQuantity}</TableCell>
+                                            <TableCell className="text-center">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateItemState(item.itemKey, { returnedQuantity: Math.max(0, item.returnedQuantity - 1)})}><Minus className="h-4 w-4"/></Button>
+                                                    <Input
+                                                        id={`qty-${item.itemKey}`}
+                                                        type="number"
+                                                        value={item.returnedQuantity}
+                                                        onChange={(e) => updateItemState(item.itemKey, { returnedQuantity: parseInt(e.target.value, 10) || 0 })}
+                                                        className="w-16 mx-auto text-center h-8"
+                                                    />
+                                                     <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateItemState(item.itemKey, { returnedQuantity: item.returnedQuantity + 1})}><Plus className="h-4 w-4"/></Button>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className={cn("text-center font-bold", item.consumed > 0 && "text-destructive")}>{item.consumed}</TableCell>
+                                            <TableCell className={cn("text-center font-bold", item.surplus > 0 && "text-green-600")}>{item.surplus}</TableCell>
+                                            <TableCell className="text-right">
                                                 <Dialog>
                                                     <DialogTrigger asChild>
-                                                         <Button variant="ghost" size="icon" className={cn("h-9 w-9 text-muted-foreground hover:text-amber-600", item.hasIncident && "text-amber-600")}>
+                                                        <Button variant="ghost" size="icon" className={cn("h-9 w-9 text-muted-foreground hover:text-amber-600", item.hasIncident && "text-amber-600")}>
                                                             <MessageSquare className="h-5 w-5"/>
                                                         </Button>
                                                     </DialogTrigger>
@@ -300,28 +264,20 @@ export default function RetornoSheetPage() {
                                                             defaultValue={sheet.itemStates[item.itemKey]?.incidentComment}
                                                             placeholder="Ej: Se devolvieron 3 copas rotas."
                                                             rows={4}
-                                                            onBlur={(e) => updateItemState(item.itemKey, { incidentComment: e.target.value })}
+                                                            onBlur={(e) => handleAddIncidencia(item, e.target.value)}
                                                         />
-                                                         <DialogFooter>
-                                                            <DialogClose asChild>
-                                                                <Button>Cerrar</Button>
-                                                            </DialogClose>
-                                                        </DialogFooter>
+                                                        <DialogFooter><DialogClose asChild><Button>Cerrar</Button></DialogClose></DialogFooter>
                                                     </DialogContent>
                                                 </Dialog>
-                                            </TooltipTrigger>
-                                            {item.hasIncident && (
-                                                <TooltipContent><p>{sheet.itemStates[item.itemKey]?.incidentComment}</p></TooltipContent>
-                                            )}
-                                        </Tooltip>
-                                    </TableCell>
-                                </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
+                                            </TableCell>
+                                        </TableRow>
+                                    )})}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
         </div>
         <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
             <AlertDialogContent>
@@ -334,21 +290,6 @@ export default function RetornoSheetPage() {
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction onClick={handleReset} className="bg-destructive hover:bg-destructive/80">Sí, reiniciar</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-
-        <AlertDialog open={showMermaConfirm} onOpenChange={setShowMermaConfirm}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>¿Confirmar Ajuste por Merma?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Esta acción ajustará las cantidades en los pedidos de material originales para que coincidan con las cantidades devueltas. Este cambio afectará a los costes y a la planificación. ¿Estás seguro?
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleAcceptMerma}>Sí, Ajustar Pedidos</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

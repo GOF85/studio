@@ -16,10 +16,10 @@ export const almacenNav = [
     { title: 'Gestión de Picking', href: '/almacen/picking', icon: ListChecks, exact: false },
     { title: 'Incidencias de Picking', href: '/almacen/incidencias', icon: AlertTriangle, exact: true },
     { title: 'Gestión de Retornos', href: '/almacen/retornos', icon: History, exact: false },
+    { title: 'Incidencias de Retorno', href: '/almacen/incidencias-retorno', icon: AlertTriangle, exact: true },
 ];
 
-function NavContent({ closeSheet }: { closeSheet: () => void }) {
-    const pathname = usePathname();
+function NavContent({ closeSheet, pathname }: { closeSheet: () => void, pathname: string }) {
     return (
         <div className="w-full">
              <SheetHeader className="pb-4 mb-4 border-b text-left">
@@ -57,8 +57,20 @@ export default function AlmacenLayout({ children }: { children: React.ReactNode 
     const pathname = usePathname();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     
-    const currentPage = almacenNav.find(item => item.exact ? pathname === item.href : pathname.startsWith(item.href)) || { title: 'Panel de Almacen', icon: Warehouse };
-    const PageIcon = currentPage.icon;
+    let currentPageTitle = 'Panel de Almacen';
+    let CurrentPageIcon = Warehouse;
+    
+    if (pathname.startsWith('/almacen/retornos/')) {
+        currentPageTitle = 'Hoja de Retorno';
+        CurrentPageIcon = History;
+    } else {
+        const foundPage = almacenNav.find(item => item.exact ? pathname === item.href : pathname.startsWith(item.href));
+        if(foundPage) {
+            currentPageTitle = foundPage.title;
+            CurrentPageIcon = foundPage.icon;
+        }
+    }
+
 
     return (
         <div className="container mx-auto">
@@ -70,7 +82,7 @@ export default function AlmacenLayout({ children }: { children: React.ReactNode 
                         </Button>
                     </SheetTrigger>
                     <SheetContent side="left" className="w-[280px]">
-                         <NavContent closeSheet={() => setIsSheetOpen(false)} />
+                         <NavContent closeSheet={() => setIsSheetOpen(false)} pathname={pathname}/>
                     </SheetContent>
                 </Sheet>
                 
@@ -80,8 +92,8 @@ export default function AlmacenLayout({ children }: { children: React.ReactNode 
                     <Warehouse className="h-7 w-7 text-primary"/>
                     <h1 className="text-xl font-headline font-bold">Almacen MC</h1>
                     <Separator orientation="vertical" className="h-6" />
-                    <PageIcon className="h-6 w-6"/> 
-                    <h2 className="text-lg font-semibold">{currentPage.title}</h2>
+                    <CurrentPageIcon className="h-6 w-6"/> 
+                    <h2 className="text-lg font-semibold">{currentPageTitle}</h2>
                 </div>
             </div>
 
