@@ -219,7 +219,10 @@ export default function IncidenciasPickingPage() {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="lg:hidden mb-6">
+                 {/* This title is handled by the layout now */}
+            </div>
+            <div className="hidden lg:block mb-6">
                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
                     <AlertTriangle /> Incidencias de Picking
                 </h1>

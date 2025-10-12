@@ -298,7 +298,7 @@ export default function PlanificacionAlmacenPage() {
         const sheetsKeys = new Set<string>();
         selectedItems.forEach(id => {
             const [itemCode, orderId, fecha, tipo, solicitanteStr] = id.split('__');
-            const solicitante = solicitanteStr === 'general' ? undefined : solicitanteStr;
+            const solicitante = solicitanteStr === 'general' ? undefined : solicitanteStr as 'Sala' | 'Cocina';
             
             // Find the OS that contains this need to build the correct key
             let osForThisItem: ServiceOrder | undefined;
@@ -409,6 +409,15 @@ export default function PlanificacionAlmacenPage() {
 
     return (
         <div>
+             <div className="lg:hidden mb-6">
+                 {/* This title is handled by the layout now */}
+             </div>
+            <div className="hidden lg:block mb-6">
+                <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
+                    <ClipboardList /> Planificación de Necesidades
+                </h1>
+            </div>
+
              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
                 {statsCards.map(card => (
                     <Link href={card.href} key={card.title}>
@@ -425,116 +434,120 @@ export default function PlanificacionAlmacenPage() {
                 ))}
             </div>
 
-            <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                    <ClipboardList /> Planificación de Necesidades
-                </h1>
-                <div className="flex items-center gap-4">
-                     <Button onClick={handleGeneratePicking} disabled={numSheetsToGenerate === 0}>
-                        <ListChecks className="mr-2"/> Generar Hoja de Picking ({numSheetsToGenerate})
-                     </Button>
-                </div>
-            </div>
-
-            <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-card">
-                <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                    <PopoverTrigger asChild>
-                        <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango de fechas</span>)}
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                         <div>
+                            <CardTitle>Cálculo de Necesidades de Material</CardTitle>
+                            <CardDescription>Selecciona un rango de fechas para ver el material pendiente de preparar.</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <Button onClick={handleGeneratePicking} disabled={numSheetsToGenerate === 0}>
+                                <ListChecks className="mr-2"/> Generar Hoja de Picking ({numSheetsToGenerate})
+                            </Button>
+                        </div>
+                    </div>
+                </CardHeader>
+                 <CardContent>
+                    <div className="flex items-center gap-4 mb-6 p-4 border rounded-lg bg-secondary/50">
+                        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                            <PopoverTrigger asChild>
+                                <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Elige un rango de fechas</span>)}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range.to){ setIsDatePickerOpen(false) }}} numberOfMonths={2} locale={es} />
+                            </PopoverContent>
+                        </Popover>
+                        <Button onClick={calcularNecesidades} disabled={isLoading}>
+                            {isLoading ? <Loader2 className="animate-spin mr-2" /> : <RefreshCw className="mr-2" />}
+                            {isLoading ? 'Calculando...' : 'Recalcular Necesidades'}
                         </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range.to){ setIsDatePickerOpen(false) }}} numberOfMonths={2} locale={es} />
-                    </PopoverContent>
-                </Popover>
-                 <Button onClick={calcularNecesidades} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin mr-2" /> : <RefreshCw className="mr-2" />}
-                    {isLoading ? 'Calculando...' : 'Recalcular Necesidades'}
-                </Button>
-            </div>
+                    </div>
 
-            {isLoading ? <div className="flex justify-center items-center h-48"><Loader2 className="mx-auto animate-spin text-primary" size={48} /></div>
-            : necesidades.length > 0 ? (
-                <Accordion type="multiple" defaultValue={necesidades.map(n => n.fecha)} className="w-full space-y-4">
-                    {necesidades.map(({ fecha, ordenes, totalItems }) => (
-                         <AccordionItem value={fecha} key={fecha} className="border-none">
-                            <Card>
-                                <AccordionTrigger className="p-4 hover:no-underline rounded-lg">
-                                    <div className="flex items-center gap-3 w-full">
-                                        <CalendarIcon className="h-6 w-6"/>
-                                        <div className="text-left">
-                                            <h3 className="text-xl font-bold capitalize">{format(new Date(fecha), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
-                                            <p className="text-sm text-muted-foreground">{totalItems} artículos en total para este día</p>
-                                        </div>
-                                    </div>
-                                </AccordionTrigger>
-                                <AccordionContent className="border-t">
-                                    <div className="p-4 space-y-3">
-                                    {Object.entries(ordenes).sort(([, a], [, b]) => a.os.serviceNumber.localeCompare(b.os.serviceNumber)).map(([osKey, {os, necesidades: necesidadesOs, solicitante}]) => (
-                                        <Collapsible key={osKey} className="border rounded-lg">
-                                            <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-t-lg">
-                                                <Checkbox
-                                                    checked={getOsSelectionState(osKey, fecha)}
-                                                    onCheckedChange={() => handleSelectOS(osKey, fecha)}
-                                                    aria-label={`Seleccionar todos los artículos para OS ${os.serviceNumber}`}
-                                                />
-                                                <CollapsibleTrigger className="flex-grow flex items-center justify-between group">
-                                                    <div className="text-left">
-                                                        <div className="flex items-center gap-3">
-                                                            <p className="font-bold">{os.serviceNumber} - {os.client}</p>
-                                                            {solicitante && <Badge variant={solicitante === 'Sala' ? 'default' : 'outline'} className={solicitante === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>{solicitante === 'Sala' ? <Users size={12} className="mr-1.5"/> : <Soup size={12} className="mr-1.5"/>}{solicitante}</Badge>}
-                                                        </div>
-                                                        <p className="text-xs text-muted-foreground">{os.space}</p>
-                                                    </div>
-                                                    <ChevronRight className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-90"/>
-                                                </CollapsibleTrigger>
+                    {isLoading ? <div className="flex justify-center items-center h-48"><Loader2 className="mx-auto animate-spin text-primary" size={48} /></div>
+                    : necesidades.length > 0 ? (
+                        <Accordion type="multiple" defaultValue={necesidades.map(n => n.fecha)} className="w-full space-y-4">
+                            {necesidades.map(({ fecha, ordenes, totalItems }) => (
+                                <AccordionItem value={fecha} key={fecha} className="border-none">
+                                    <Card>
+                                        <AccordionTrigger className="p-4 hover:no-underline rounded-lg">
+                                            <div className="flex items-center gap-3 w-full">
+                                                <CalendarIcon className="h-6 w-6"/>
+                                                <div className="text-left">
+                                                    <h3 className="text-xl font-bold capitalize">{format(new Date(fecha), 'EEEE, d \'de\' MMMM', {locale: es})}</h3>
+                                                    <p className="text-sm text-muted-foreground">{totalItems} artículos en total para este día</p>
+                                                </div>
                                             </div>
-                                            <CollapsibleContent className="p-3">
-                                                 {(Object.keys(necesidadesOs) as Array<keyof NecesidadesPorTipo>).map(tipo => {
-                                                    const items = necesidadesOs[tipo];
-                                                    if (items.length === 0) return null;
-                                                    return (
-                                                        <div key={tipo} className="mb-2 last:mb-0">
-                                                            <h4 className="font-semibold mb-1 text-sm">{tipo}</h4>
-                                                            <div className="border rounded-md">
-                                                                <Table>
-                                                                    <TableHeader><TableRow><TableHead className="w-8"></TableHead><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead></TableRow></TableHeader>
-                                                                    <TableBody>
-                                                                        {items.map((item) => {
-                                                                            const orderId = (item as any).orderId || os.id;
-                                                                            const itemId = `${item.itemCode}__${orderId}__${fecha}__${tipo}__${item.solicitante || 'general'}`;
-                                                                            return (
-                                                                            <TableRow key={itemId}>
-                                                                                <TableCell><Checkbox onCheckedChange={() => handleSelectItem(itemId)} checked={selectedItems.has(itemId)} aria-label={`Seleccionar ${item.description}`} /></TableCell>
-                                                                                <TableCell>{item.description}</TableCell>
-                                                                                <TableCell>{item.quantity}</TableCell>
-                                                                            </TableRow>
-                                                                        )})}
-                                                                    </TableBody>
-                                                                </Table>
+                                        </AccordionTrigger>
+                                        <AccordionContent className="border-t">
+                                            <div className="p-4 space-y-3">
+                                            {Object.entries(ordenes).sort(([, a], [, b]) => a.os.serviceNumber.localeCompare(b.os.serviceNumber)).map(([osKey, {os, necesidades: necesidadesOs, solicitante}]) => (
+                                                <Collapsible key={osKey} className="border rounded-lg">
+                                                    <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-t-lg">
+                                                        <Checkbox
+                                                            checked={getOsSelectionState(osKey, fecha)}
+                                                            onCheckedChange={() => handleSelectOS(osKey, fecha)}
+                                                            aria-label={`Seleccionar todos los artículos para OS ${os.serviceNumber}`}
+                                                        />
+                                                        <CollapsibleTrigger className="flex-grow flex items-center justify-between group">
+                                                            <div className="text-left">
+                                                                <div className="flex items-center gap-3">
+                                                                    <p className="font-bold">{os.serviceNumber} - {os.client}</p>
+                                                                    {solicitante && <Badge variant={solicitante === 'Sala' ? 'default' : 'outline'} className={solicitante === 'Sala' ? 'bg-blue-600' : 'bg-orange-500'}>{solicitante === 'Sala' ? <Users size={12} className="mr-1.5"/> : <Soup size={12} className="mr-1.5"/>}{solicitante}</Badge>}
+                                                                </div>
+                                                                <p className="text-xs text-muted-foreground">{os.space}</p>
                                                             </div>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </CollapsibleContent>
-                                        </Collapsible>
-                                    ))}
-                                    </div>
-                                </AccordionContent>
-                            </Card>
-                         </AccordionItem>
-                    ))}
-                </Accordion>
-            ) : (
-                <Card>
-                    <CardContent className="py-12 text-center">
-                        <Warehouse className="mx-auto h-12 w-12 text-muted-foreground" />
-                        <h3 className="mt-4 text-lg font-semibold">Sin Necesidades</h3>
-                        <p className="mt-1 text-sm text-muted-foreground">No hay pedidos de material para el rango de fechas seleccionado.</p>
-                    </CardContent>
-                </Card>
-            )}
+                                                            <ChevronRight className="h-5 w-5 transition-transform duration-200 group-data-[state=open]:rotate-90"/>
+                                                        </CollapsibleTrigger>
+                                                    </div>
+                                                    <CollapsibleContent className="p-3">
+                                                        {(Object.keys(necesidadesOs) as Array<keyof NecesidadesPorTipo>).map(tipo => {
+                                                            const items = necesidadesOs[tipo];
+                                                            if (items.length === 0) return null;
+                                                            return (
+                                                                <div key={tipo} className="mb-2 last:mb-0">
+                                                                    <h4 className="font-semibold mb-1 text-sm">{tipo}</h4>
+                                                                    <div className="border rounded-md">
+                                                                        <Table>
+                                                                            <TableHeader><TableRow><TableHead className="w-8"></TableHead><TableHead>Artículo</TableHead><TableHead>Cantidad</TableHead></TableRow></TableHeader>
+                                                                            <TableBody>
+                                                                                {items.map((item) => {
+                                                                                    const orderId = (item as any).orderId || os.id;
+                                                                                    const itemId = `${item.itemCode}__${orderId}__${fecha}__${tipo}__${item.solicitante || 'general'}`;
+                                                                                    return (
+                                                                                    <TableRow key={itemId}>
+                                                                                        <TableCell><Checkbox onCheckedChange={() => handleSelectItem(itemId)} checked={selectedItems.has(itemId)} aria-label={`Seleccionar ${item.description}`} /></TableCell>
+                                                                                        <TableCell>{item.description}</TableCell>
+                                                                                        <TableCell>{item.quantity}</TableCell>
+                                                                                    </TableRow>
+                                                                                )})}
+                                                                            </TableBody>
+                                                                        </Table>
+                                                                    </div>
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </CollapsibleContent>
+                                                </Collapsible>
+                                            ))}
+                                            </div>
+                                        </AccordionContent>
+                                    </Card>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
+                    ) : (
+                        <div className="py-12 text-center">
+                            <Warehouse className="mx-auto h-12 w-12 text-muted-foreground" />
+                            <h3 className="mt-4 text-lg font-semibold">Sin Necesidades</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">No hay pedidos de material para el rango de fechas seleccionado.</p>
+                        </div>
+                    )}
+                 </CardContent>
+            </Card>
         </div>
     );
 }

@@ -112,7 +112,10 @@ export default function GestionPickingPage() {
     return (
         <>
         <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="lg:hidden mb-6">
+                 {/* This title is handled by the layout now */}
+            </div>
+            <div className="hidden lg:block mb-6">
                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
                     <ListChecks /> Gestión de Picking
                 </h1>
@@ -181,7 +184,7 @@ export default function GestionPickingPage() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex gap-2 justify-end">
-                                                    <Button size="sm">
+                                                    <Button size="sm" onClick={(e) => { e.stopPropagation(); handleStartPicking(sheet.id); }}>
                                                       {sheet.status === 'Pendiente' ? 'Iniciar Picking' : 'Ver / Continuar'}
                                                     </Button>
                                                     <Button variant="destructive" size="icon" onClick={(e) => { e.stopPropagation(); setSheetToDelete(sheet.id); }}>
