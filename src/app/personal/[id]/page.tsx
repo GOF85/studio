@@ -53,6 +53,7 @@ export default function PersonalFormPage() {
 
   const { isLoading, setIsLoading } = useLoadingStore();
   const { toast } = useToast();
+  const [isDataLoaded, setIsDataLoaded] = useState(!isEditing);
 
   const form = useForm<PersonalFormValues>({
     resolver: zodResolver(personalFormSchema),
@@ -65,6 +66,7 @@ export default function PersonalFormPage() {
       const person = personal.find(p => p.id === id);
       if (person) {
         form.reset(person);
+        setIsDataLoaded(true);
       } else {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el empleado.' });
         router.push('/personal');
@@ -155,24 +157,30 @@ export default function PersonalFormPage() {
                 <FormField control={form.control} name="apellidos" render={({ field }) => (
                     <FormItem><FormLabel>Apellidos</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={form.control} name="departamento" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Departamento</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleccionar departamento..." />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {DEPARTAMENTOS_PERSONAL.map(dep => (
-                                    <SelectItem key={dep} value={dep}>{dep}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                )} />
+                 {isDataLoaded && (
+                   <FormField
+                    control={form.control}
+                    name="departamento"
+                    render={({ field }) => (
+                      <FormItem>
+                          <FormLabel>Departamento</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                  <SelectTrigger>
+                                      <SelectValue placeholder="Seleccionar departamento..." />
+                                  </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                  {DEPARTAMENTOS_PERSONAL.map(dep => (
+                                      <SelectItem key={dep} value={dep}>{dep}</SelectItem>
+                                  ))}
+                              </SelectContent>
+                          </Select>
+                          <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                 )}
                 <FormField control={form.control} name="categoria" render={({ field }) => (
                     <FormItem><FormLabel>Categoría</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
