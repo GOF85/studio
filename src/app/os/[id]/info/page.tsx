@@ -210,6 +210,8 @@ export default function InfoPage() {
     return briefingItems.some(item => item.descripcion.toLowerCase() === 'prueba de menu');
   }, [briefingItems]);
 
+  const getFullName = (p: Personal) => `${p.nombre} ${p.apellidos}`;
+
   const personalSala = useMemo(() => personal.filter(p => p.departamento === 'SALA' && p.nombre), [personal]);
   const personalPase = useMemo(() => personal.filter(p => p.departamento === 'Pase' && p.nombre), [personal]);
   const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR' && p.nombre), [personal]);
@@ -228,7 +230,7 @@ export default function InfoPage() {
   const { formState: { isDirty }, setValue, watch } = form;
   
   const handlePersonalChange = (name: string, phoneField: keyof OsFormValues, mailField: keyof OsFormValues) => {
-    const person = personal.find(p => p.nombre === name);
+    const person = personal.find(p => getFullName(p) === name);
     setValue(phoneField, person?.telefono || '', { shouldDirty: true });
     setValue(mailField, person?.mail || '', { shouldDirty: true });
   }
@@ -268,7 +270,7 @@ export default function InfoPage() {
   useEffect(() => {
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-    setPersonal(allPersonal.filter(p => p.nombre));
+    setPersonal(allPersonal.filter(p => p.nombre && p.apellidos));
     setEspacios(allEspacios.filter(e => e.identificacion.nombreEspacio));
 
     let currentOS: ServiceOrder | null = null;
@@ -633,14 +635,14 @@ export default function InfoPage() {
                             <AccordionContent>
                               <div className="space-y-4 px-4 pb-4">
                                 {[['respMetre', 'respMetrePhone', 'respMetreMail', 'Resp. Metre', personalSala], ['respPase', 'respPasePhone', 'respPaseMail', 'Resp. Pase', personalPase], ['respCocinaPase', 'respCocinaPasePhone', 'respCocinaPaseMail', 'Resp. Cocina Pase', personalPase], ['respCocinaCPR', 'respCocinaCPRPhone', 'respCocinaCPRMail', 'Resp. Cocina CPR', personalCPR]].map(([name, phone, mail, label, personalList]) => (
-                                  <div key={name} className="flex items-end gap-4">
+                                  <div key={name as string} className="flex items-end gap-4">
                                     <FormField control={form.control} name={name as any} render={({ field }) => (
                                       <FormItem className="flex-grow">
-                                        <FormLabel>{label}</FormLabel>
+                                        <FormLabel>{label as string}</FormLabel>
                                         <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, phone as any, mail as any); }} value={field.value}>
                                           <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
                                           <SelectContent>
-                                            {(personalList as Personal[]).map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
+                                            {(personalList as Personal[]).map(p => <SelectItem key={p.id} value={getFullName(p)}>{getFullName(p)}</SelectItem>)}
                                           </SelectContent>
                                         </Select>
                                       </FormItem>
@@ -665,7 +667,7 @@ export default function InfoPage() {
                                       <FormLabel>Resp. Comercial</FormLabel>
                                       <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'comercialPhone', 'comercialMail'); }} value={field.value}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                        <SelectContent>{personalComercial.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}</SelectContent>
+                                        <SelectContent>{personalComercial.map(p => <SelectItem key={p.id} value={getFullName(p)}>{getFullName(p)}</SelectItem>)}</SelectContent>
                                       </Select>
                                     </FormItem>
                                   )} />
@@ -682,7 +684,7 @@ export default function InfoPage() {
                                       <FormLabel>Resp. RRHH</FormLabel>
                                       <Select onValueChange={(value) => { field.onChange(value); handlePersonalChange(value, 'respRRHHPhone', 'respRRHHMail'); }} value={field.value}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                        <SelectContent>{personalRRHH.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}</SelectContent>
+                                        <SelectContent>{personalRRHH.map(p => <SelectItem key={p.id} value={getFullName(p)}>{getFullName(p)}</SelectItem>)}</SelectContent>
                                       </Select>
                                     </FormItem>
                                   )} />
@@ -796,5 +798,6 @@ export default function InfoPage() {
     </>
   );
 }
+
 
 
