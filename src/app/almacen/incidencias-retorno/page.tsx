@@ -123,7 +123,7 @@ export default function IncidenciasRetornoPage() {
             head: [tableColumn],
             body: tableRows,
             startY: 45,
-            headStyles: { fillColor: [22, 163, 74] } // Corporate Green
+            headStyles: { fillColor: [0, 112, 60] } // Corporate Green
         });
 
         doc.save(`Informe_Incidencias_${group.osServiceNumber}.pdf`);
@@ -177,8 +177,8 @@ export default function IncidenciasRetornoPage() {
                     <Accordion type="multiple" className="w-full space-y-4">
                         {groupedAndFilteredIncidencias.map(group => (
                              <AccordionItem value={group.osId} key={group.osId} className="border rounded-lg">
-                                <AccordionTrigger className="p-4 hover:no-underline rounded-lg">
-                                    <div className="flex justify-between items-center w-full">
+                                <div className="flex justify-between items-center w-full p-4">
+                                    <AccordionTrigger className="p-0 hover:no-underline flex-grow">
                                         <div className="flex items-center gap-4">
                                             <Badge 
                                                 variant="outline" 
@@ -190,12 +190,12 @@ export default function IncidenciasRetornoPage() {
                                             <div className="flex items-center gap-2 text-sm text-muted-foreground"><User className="h-4 w-4"/> {group.cliente}</div>
                                             <div className="flex items-center gap-2 text-sm text-muted-foreground"><Building className="h-4 w-4"/> {group.espacio}</div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handlePrint(group);}}><Printer className="mr-2 h-4 w-4" /> Imprimir</Button>
-                                            <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); setOsToDelete(group.osId);}}><Trash2 className="mr-2 h-4 w-4" /> Borrar</Button>
-                                        </div>
+                                    </AccordionTrigger>
+                                    <div className="flex items-center gap-2 pl-4" onClick={(e) => e.stopPropagation()}>
+                                        <Button variant="outline" size="sm" onClick={() => handlePrint(group)}><Printer className="mr-2 h-4 w-4" /> Imprimir</Button>
+                                        <Button variant="destructive" size="sm" onClick={() => setOsToDelete(group.osId)}><Trash2 className="mr-2 h-4 w-4" /> Borrar</Button>
                                     </div>
-                                </AccordionTrigger>
+                                </div>
                                 <AccordionContent>
                                     <div className="border-t p-4">
                                     <Table>
