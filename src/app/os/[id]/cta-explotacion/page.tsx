@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from "react"
@@ -18,7 +19,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { GASTO_LABELS } from '@/lib/constants';
-import { formatNumber, formatCurrency, formatPercentage } from '@/lib/utils';
+import { formatNumber, formatCurrency, formatPercentage, calculateHours } from '@/lib/utils';
 import { Separator } from "@/components/ui/separator";
 
 type CostRow = {
@@ -30,19 +31,6 @@ type CostRow = {
   objetivo_pct: number;
   comentario?: string;
 };
-
-const calculateHours = (start?: string, end?: string): number => {
-    if (!start || !end) return 0;
-    try {
-        const startTime = new Date(`1970-01-01T${start}:00`);
-        const endTime = new Date(`1970-01-01T${end}:00`);
-        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
-        const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-        return diff > 0 ? diff : 0;
-    } catch (e) {
-        return 0;
-    }
-}
 
 const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: string; horaSalida: string; cantidad?: number}[]) => {
     return orders.reduce((sum, order) => {
@@ -117,7 +105,7 @@ export default function CtaExplotacionPage() {
     const currentBriefing = allBriefings.find(b => b.osId === osId);
     const totalBriefing = currentBriefing?.items.reduce((acc, item) => acc + (item.asistentes * item.precioUnitario) + (item.importeFijo || 0), 0) || 0;
     
-    const allAjustes = JSON.parse(localStorage.getItem('comercialAjustes') || '{}')[osId] || [];
+    const allAjustes = (JSON.parse(localStorage.getItem('comercialAjustes') || '{}')[osId] || []) as { importe: number }[];
     const totalAjustes = allAjustes.reduce((sum: number, ajuste: {importe: number}) => sum + ajuste.importe, 0);
     const facturacionBruta = totalBriefing + totalAjustes;
 
@@ -138,8 +126,7 @@ export default function CtaExplotacionPage() {
     const allPruebasMenu = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as PruebaMenuData[];
     const pruebaMenu = allPruebasMenu.find(p => p.osId === osId);
     
-    const allPersonalExternoAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
-    const personalExternoAjustes = allPersonalExternoAjustes[osId] || [];
+    const allPersonalExternoAjustes = (JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}')[osId] || []) as {ajuste: number}[];
     
     const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
     let devolucionesPorCategoria: Record<string, number> = {};
@@ -168,7 +155,7 @@ export default function CtaExplotacionPage() {
       const price = order.precioHora || 0;
       return acc + realHours * price * (order.cantidad || 1);
     }, 0);
-    const personalExternoTotalAjustes = personalExternoAjustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
+    const personalExternoTotalAjustes = allPersonalExternoAjustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
     
     const personalMiceRealCost = (allPersonalMiceOrders.filter(o => o.osId === osId)).reduce((acc, order) => {
         const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
@@ -188,7 +175,7 @@ export default function CtaExplotacionPage() {
       { label: GASTO_LABELS.decoracion, presupuesto: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)) },
       { label: GASTO_LABELS.atipicos, presupuesto: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)) },
       { label: GASTO_LABELS.personalMice, presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: personalMiceRealCost },
-      { label: GASTO_LABELS.personalExterno, presupuesto: calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)), cierre: personalExternoRealCost + personalExternoTotalAjustes },
+      { label: GASTO_LABELS.personalExterno, presupuesto: calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)) + personalExternoTotalAjustes, cierre: personalExternoRealCost + personalExternoTotalAjustes },
       { label: GASTO_LABELS.costePruebaMenu, presupuesto: costePruebaTotal, cierre: costePruebaTotal },
     ];
     

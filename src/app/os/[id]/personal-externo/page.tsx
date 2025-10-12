@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -34,27 +35,9 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Label } from '@/components/ui/label';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatCurrency } from '@/lib/utils';
+import { calculateHours } from '@/lib/utils';
 
-
-const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
-
-const calculateHours = (start?: string, end?: string): number => {
-    if (!start || !end) return 0;
-    try {
-        let startTime = new Date(`1970-01-01T${start}:00`);
-        let endTime = new Date(`1970-01-01T${end}:00`);
-        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
-        
-        if (endTime < startTime) {
-            endTime.setDate(endTime.getDate() + 1);
-        }
-
-        const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-        return diff > 0 ? diff : 0;
-    } catch (e) {
-        return 0;
-    }
-}
 
 const formatDuration = (hours: number) => {
     const totalMinutes = Math.round(hours * 60);
@@ -81,7 +64,6 @@ const asignacionSchema = z.object({
 
 const personalTurnoSchema = z.object({
   id: z.string(),
-  osId: z.string(),
   proveedorId: z.string().min(1, "El proveedor es obligatorio"),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
   precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
@@ -247,7 +229,7 @@ export default function PersonalExternoPage() {
     defaultValues: { turnos: [], observacionesGenerales: '' },
   });
 
-  const { control, setValue, watch, trigger, register, handleSubmit } = form;
+  const { control, setValue, watch, trigger, register, formState } = form;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -259,6 +241,12 @@ export default function PersonalExternoPage() {
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const currentOS = allServiceOrders.find(os => os.id === osId);
         setServiceOrder(currentOS || null);
+
+        if (currentOS?.space) {
+            const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as any[];
+            const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
+            setSpaceAddress(currentSpace?.calle || '');
+        }
         
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
         const currentBriefing = allBriefings.find(b => b.osId === osId);
@@ -305,9 +293,9 @@ export default function PersonalExternoPage() {
     return () => {
         window.removeEventListener('storage', handleStorageChange);
     };
-  }, [loadData]);
+  }, [loadData, updateKey]);
   
-  const handleFinalSave = () => {
+  const onSubmit = () => {
     setIsLoading(true);
     const data = form.getValues();
 
@@ -327,7 +315,7 @@ export default function PersonalExternoPage() {
         osId,
         fecha: format(t.fecha, 'yyyy-MM-dd'),
         statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
-        requiereActualizacion: false, // Reset flag on save
+        requiereActualizacion: formState.dirtyFields.turnos?.some((dirtyTurno, index) => dirtyTurno && data.turnos[index].id === t.id),
         asignaciones: (t.asignaciones || []).map(a => ({
             ...a,
             horaEntradaReal: a.horaEntradaReal || '',
@@ -345,12 +333,8 @@ export default function PersonalExternoPage() {
     setTimeout(() => {
         toast({ title: 'Guardado', description: 'Los cambios se han guardado.' });
         setIsLoading(false);
-        form.reset(data); 
+        form.reset(data); // Mark as not dirty
     }, 500);
-  };
-  
-  const onSubmit = () => {
-    handleFinalSave();
   };
 
   const handleProviderChange = useCallback((index: number, proveedorId: string) => {
@@ -452,7 +436,6 @@ export default function PersonalExternoPage() {
         .map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
 }, [proveedoresDB, proveedoresMap]);
 
-
 const turnosAprobados = useMemo(() => {
     return watchedFields.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
 }, [watchedFields, updateKey]);
@@ -467,41 +450,41 @@ const turnosAprobados = useMemo(() => {
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
-                 {briefingItems.length > 0 && (
-                     <Accordion type="single" collapsible className="w-full mb-4">
-                        <AccordionItem value="item-1">
-                        <Card>
-                            <AccordionTrigger className="p-4">
-                                <h3 className="text-xl font-semibold">Servicios del Evento</h3>
-                            </AccordionTrigger>
-                            <AccordionContent>
-                            <CardContent className="pt-0">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="py-2 px-3">Fecha</TableHead>
-                                            <TableHead className="py-2 px-3">Descripción</TableHead>
-                                            <TableHead className="py-2 px-3">Asistentes</TableHead>
-                                            <TableHead className="py-2 px-3">Duración</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {briefingItems.map(hito => (
-                                            <TableRow key={hito.id}>
-                                                <TableCell className="py-2 px-3">{format(new Date(hito.fecha), 'dd/MM/yy')} {hito.horaInicio}</TableCell>
-                                                <TableCell className="py-2 px-3">{hito.descripcion}</TableCell>
-                                                <TableCell className="py-2 px-3">{hito.asistentes}</TableCell>
-                                                <TableCell className="py-2 px-3">{calculateHours(hito.horaInicio, hito.horaFin).toFixed(2)}h</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
-                            </AccordionContent>
-                        </Card>
-                        </AccordionItem>
-                    </Accordion>
-                 )}
+                 <Accordion type="single" collapsible className="w-full mb-4" >
+                    <AccordionItem value="item-1">
+                    <Card>
+                        <AccordionTrigger className="p-4">
+                            <h3 className="text-xl font-semibold">Servicios del Evento</h3>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                        <CardContent className="pt-0">
+                            <Table>
+                            <TableHeader>
+                                <TableRow>
+                                <TableHead className="py-2 px-3">Fecha</TableHead>
+                                <TableHead className="py-2 px-3">Descripción</TableHead>
+                                <TableHead className="py-2 px-3">Asistentes</TableHead>
+                                <TableHead className="py-2 px-3">Duración</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {briefingItems.length > 0 ? briefingItems.map(item => (
+                                <TableRow key={item.id}>
+                                    <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yy')} {item.horaInicio}</TableCell>
+                                    <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
+                                    <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
+                                    <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
+                                </TableRow>
+                                )) : (
+                                    <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                            </Table>
+                        </CardContent>
+                        </AccordionContent>
+                    </Card>
+                    </AccordionItem>
+                </Accordion>
 
                 <Tabs defaultValue="planificacion">
                     <div className="flex justify-between items-center mb-4">
@@ -509,7 +492,7 @@ const turnosAprobados = useMemo(() => {
                             <TabsTrigger value="planificacion" className="text-base px-6">Planificación de Turnos</TabsTrigger>
                             <TabsTrigger value="aprobados" className="text-base px-6">Cierre y Horas Reales</TabsTrigger>
                         </TabsList>
-                         <Button type="button" onClick={onSubmit} disabled={isLoading || !form.formState.isDirty}>
+                        <Button type="button" onClick={onSubmit} disabled={isLoading || !formState.isDirty}>
                             {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                             <span className="ml-2">Guardar Cambios</span>
                         </Button>
@@ -528,16 +511,16 @@ const turnosAprobados = useMemo(() => {
                                 <Table className="text-xs">
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead className="px-2 py-1 w-32">Fecha</TableHead>
-                                            <TableHead className="px-2 py-1 w-28">Solicitado</TableHead>
+                                            <TableHead className="px-2 py-1">Fecha</TableHead>
+                                            <TableHead className="px-2 py-1">Solicitado</TableHead>
                                             <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
-                                            <TableHead className="px-2 py-1 w-32">Tipo Servicio</TableHead>
+                                            <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
                                             <TableHead className="px-1 py-1 bg-muted/30 w-24">H. Entrada</TableHead>
                                             <TableHead className="px-1 py-1 bg-muted/30 w-24">H. Salida</TableHead>
                                             <TableHead className="px-1 py-1 bg-muted/30 w-20">H. Plan.</TableHead>
                                             <TableHead className="px-1 py-1 bg-muted/30 w-20">€/Hora</TableHead>
                                             <TableHead className="px-1 py-1 w-10"></TableHead>
-                                            <TableHead className="px-1 py-1 w-12 text-right"></TableHead>
+                                            <TableHead className="text-right px-2 py-1"></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -673,7 +656,7 @@ const turnosAprobados = useMemo(() => {
                                                     </TableCell>
                                                      <TableCell className="font-mono text-center">{realHours > 0 ? formatDuration(realHours) : '-'}</TableCell>
                                                     <TableCell className="w-[100px] text-center">
-                                                            <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
+                                                        <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
                                                     </TableCell>
                                                 </TableRow>
                                             )})
