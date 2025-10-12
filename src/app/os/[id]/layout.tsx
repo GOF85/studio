@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -19,7 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 
 
 type NavLink = {
@@ -98,6 +99,8 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
     if (!serviceOrder || !currentModule) return null;
 
     const dashboardHref = `/os/${osId}`;
+
+    const durationDays = serviceOrder.startDate && serviceOrder.endDate ? differenceInDays(new Date(serviceOrder.endDate), new Date(serviceOrder.startDate)) + 1 : 0;
 
     return (
       <TooltipProvider>
@@ -207,10 +210,11 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                         )}
                     </div>
                     <div className="flex items-center gap-4">
-                        {serviceOrder.startDate && (
+                        {serviceOrder.startDate && serviceOrder.endDate && (
                             <div className="flex items-center gap-2 font-semibold">
                                 <Calendar className="h-4 w-4"/>
                                 <span>{format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')} - {format(new Date(serviceOrder.endDate), 'dd/MM/yyyy')}</span>
+                                {durationDays > 0 && <Badge variant="outline">{durationDays} día{durationDays > 1 && 's'}</Badge>}
                             </div>
                         )}
                     </div>
