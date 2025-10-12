@@ -61,60 +61,6 @@ const StatusCard = ({ title, status, description }: { title: string, status: 'Co
     )
 }
 
-function BriefingSummaryDialog({ osId }: { osId: string }) {
-    const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
-
-    useEffect(() => {
-        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-        const currentBriefing = allBriefings.find(b => b.osId === osId);
-        if (currentBriefing) {
-            const sortedItems = [...currentBriefing.items].sort((a, b) => {
-                const dateComparison = a.fecha.localeCompare(b.fecha);
-                if (dateComparison !== 0) return dateComparison;
-                return a.horaInicio.localeCompare(b.horaInicio);
-            });
-            setBriefingItems(sortedItems);
-        }
-    }, [osId]);
-
-    return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="sm"><FileText className="mr-2 h-4 w-4" />Resumen de Servicios del Briefing</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl">
-                <DialogHeader><DialogTitle>Resumen de Servicios del Briefing</DialogTitle></DialogHeader>
-                <div className="max-h-[60vh] overflow-y-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Fecha</TableHead>
-                                <TableHead>Hora</TableHead>
-                                <TableHead>Descripción</TableHead>
-                                <TableHead>Observaciones</TableHead>
-                                <TableHead className="text-right">Asistentes</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {briefingItems.length > 0 ? briefingItems.map(item => (
-                                <TableRow key={item.id} className={cn(item.conGastronomia && 'bg-green-100/50 hover:bg-green-100')}>
-                                    <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
-                                    <TableCell>{item.horaInicio} - {item.horaFin}</TableCell>
-                                    <TableCell>{item.descripcion}</TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">{item.comentarios}</TableCell>
-                                    <TableCell className="text-right">{item.asistentes}</TableCell>
-                                </TableRow>
-                            )) : (
-                                <TableRow><TableCell colSpan={5} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
 export default function OsDashboardPage() {
     const router = useRouter();
     const params = useParams();
@@ -123,9 +69,9 @@ export default function OsDashboardPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [isMounted, setIsMounted] = useState(false);
     
-    const { facturacionNeta, costeTotal, briefingItemsCount, pruebasMenuCount, rentabilidadEstimada, rentabilidadPct, eventStatus, durationDays } = useMemo(() => {
+    const { facturacionNeta, costeTotal, briefingItemsCount, pruebasMenuCount, rentabilidadEstimada, rentabilidadPct, eventStatus } = useMemo(() => {
         if (!isMounted || !serviceOrder) {
-            return { facturacionNeta: 0, costeTotal: 0, briefingItemsCount: 0, pruebasMenuCount: 0, rentabilidadEstimada: 0, rentabilidadPct: 0, eventStatus: {}, durationDays: 0 };
+            return { facturacionNeta: 0, costeTotal: 0, briefingItemsCount: 0, pruebasMenuCount: 0, rentabilidadEstimada: 0, rentabilidadPct: 0, eventStatus: {} };
         }
 
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
@@ -186,8 +132,6 @@ export default function OsDashboardPage() {
             almacen: allMaterialOrders.filter(o => o.osId === osId).length > 0 ? 'En Progreso' : 'Pendiente'
         };
 
-        const duration = differenceInDays(new Date(serviceOrder.endDate), new Date(serviceOrder.startDate)) + 1;
-
         return {
             facturacionNeta,
             costeTotal,
@@ -196,7 +140,6 @@ export default function OsDashboardPage() {
             rentabilidadEstimada: rentabilidad,
             rentabilidadPct: rentabilidadPorcentaje,
             eventStatus: status,
-            durationDays: duration
         };
 
     }, [osId, isMounted, serviceOrder]);
@@ -242,27 +185,6 @@ export default function OsDashboardPage() {
 
     return (
         <div className="space-y-6">
-             <div className="flex justify-between items-center text-sm text-muted-foreground bg-secondary px-3 py-2 rounded-md">
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <span className="font-semibold">Comercial:</span>
-                        <span>{serviceOrder.comercial}</span>
-                    </div>
-                     <div className="flex items-center gap-2">
-                        <span className="font-semibold">Metre:</span>
-                        <span>{serviceOrder.respMetre || '-'}</span>
-                    </div>
-                </div>
-                 <div className="flex items-center gap-4">
-                     <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4"/>
-                        <span className="font-semibold">{format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')} - {format(new Date(serviceOrder.endDate), 'dd/MM/yyyy')}</span>
-                        <Badge>{durationDays} {durationDays > 1 ? 'días' : 'día'}</Badge>
-                    </div>
-                    <BriefingSummaryDialog osId={osId} />
-                </div>
-            </div>
-
              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {statCards.map((card, index) => (
                     <Card key={index}>
@@ -308,4 +230,3 @@ export default function OsDashboardPage() {
         </div>
     );
 }
-

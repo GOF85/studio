@@ -11,7 +11,13 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ObjectiveDisplay } from '@/components/os/objective-display';
-import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar, LayoutDashboard } from 'lucide-react';
+import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar, LayoutDashboard, Phone } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 
 type NavLink = {
@@ -38,6 +44,15 @@ const navLinks: NavLink[] = [
     { path: 'prueba-menu', title: 'Prueba de Menu', icon: ClipboardCheck, moduleName: 'costePruebaMenu' },
     { path: 'cta-explotacion', title: 'Cta. Explotación', icon: Euro },
 ];
+
+const getInitials = (name: string) => {
+    if (!name) return '';
+    const nameParts = name.split(' ');
+    if (nameParts.length > 1) {
+        return `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+}
 
 
 export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
@@ -76,13 +91,14 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
             window.removeEventListener('storage', handleStorageChange);
         };
 
-    }, [osId]);
+    }, [osId, updateKey]);
 
     if (!serviceOrder || !currentModule) return null;
 
     const dashboardHref = `/os/${osId}`;
 
     return (
+      <TooltipProvider>
       <div className="container mx-auto">
           <div className="sticky top-[56px] z-30 bg-background py-2 border-b mb-4">
             <div className="flex flex-col gap-2">
@@ -157,11 +173,52 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                   )}
                 </div>
               </div>
-          </div>
+               <div className="flex justify-between items-center text-sm text-muted-foreground bg-secondary px-3 py-2 rounded-md">
+                    <div className="flex items-center gap-4">
+                        {serviceOrder.comercial && (
+                            <Tooltip>
+                                <TooltipTrigger className="flex items-center gap-2 cursor-default">
+                                    <span className="font-semibold">Comercial:</span>
+                                    <Badge>{getInitials(serviceOrder.comercial)}</Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <div className="flex flex-col gap-1 p-1">
+                                        <span className="font-bold flex items-center gap-2"><Users className="h-4 w-4"/> {serviceOrder.comercial}</span>
+                                        {serviceOrder.comercialPhone && <span className="flex items-center gap-2"><Phone className="h-4 w-4"/> {serviceOrder.comercialPhone}</span>}
+                                    </div>
+                                </TooltipContent>
+                            </Tooltip>
+                        )}
+                        {serviceOrder.respMetre && (
+                             <Tooltip>
+                                <TooltipTrigger className="flex items-center gap-2 cursor-default">
+                                    <span className="font-semibold">Metre:</span>
+                                    <Badge>{getInitials(serviceOrder.respMetre)}</Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <div className="flex flex-col gap-1 p-1">
+                                        <span className="font-bold flex items-center gap-2"><Users className="h-4 w-4"/> {serviceOrder.respMetre}</span>
+                                        {serviceOrder.respMetrePhone && <span className="flex items-center gap-2"><Phone className="h-4 w-4"/> {serviceOrder.respMetrePhone}</span>}
+                                    </div>
+                                </TooltipContent>
+                            </Tooltip>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-4">
+                        {serviceOrder.startDate && (
+                            <div className="flex items-center gap-2 font-semibold">
+                                <Calendar className="h-4 w-4"/>
+                                <span>{format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')} - {format(new Date(serviceOrder.endDate), 'dd/MM/yyyy')}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
           </div>
           <main>
               {children}
           </main>
       </div>
+      </TooltipProvider>
     );
 }
