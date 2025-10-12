@@ -1,54 +1,40 @@
+
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, ArrowLeft, Users, Phone, Building, Save, Loader2, Pencil, AlertTriangle, CheckCircle } from 'lucide-react';
-import type { PersonalExternoOrder, ServiceOrder, Espacio, ComercialBriefing, ComercialBriefingItem, Proveedor, CategoriaPersonal, PersonalExternoAjuste } from '@/types';
-import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { differenceInMinutes, parse, format } from 'date-fns';
+import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle } from 'lucide-react';
+
+import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, AsignacionPersonal, EstadoPersonalEntrega, PedidoEntrega, EntregaHito, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExternoAjuste } from '@/types';
+import { ESTADO_PERSONAL_ENTREGA } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { Separator } from '@/components/ui/separator';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { Calendar as CalendarIcon } from 'lucide-react';
-import { Dialog, DialogClose, DialogDescription, DialogOverlay } from '@/components/ui/dialog';
-import { DialogTitle } from '@radix-ui/react-dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { MessageSquare } from 'lucide-react';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
@@ -75,9 +61,21 @@ const formatDuration = (hours: number) => {
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
 
-const personalExternoSchema = z.object({
+const asignacionSchema = z.object({
   id: z.string(),
-  osId: z.string(),
+  nombre: z.string(),
+  dni: z.string().optional(),
+  telefono: z.string().optional(),
+  comentarios: z.string().optional(),
+  rating: z.number().optional(),
+  comentariosMice: z.string().optional(),
+  horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+  horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+});
+
+
+const personalTurnoSchema = z.object({
+  id: z.string(),
   proveedorId: z.string().min(1, "El proveedor es obligatorio"),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
   precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
@@ -87,67 +85,243 @@ const personalExternoSchema = z.object({
   solicitadoPor: z.enum(solicitadoPorOptions),
   tipoServicio: z.enum(tipoServicioOptions),
   observaciones: z.string().optional().default(''),
-  horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
-  horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+  statusPartner: z.enum(['Pendiente Asignación', 'Gestionado']),
+  asignaciones: z.array(asignacionSchema).optional(),
+  requiereActualizacion: z.boolean().optional(),
 });
 
 const formSchema = z.object({
-    personal: z.array(personalExternoSchema)
-})
+    turnos: z.array(personalTurnoSchema),
+    observacionesGenerales: z.string().optional().default('')
+});
 
-type PersonalExternoFormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
+function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; asigIndex: number, form: any }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const { getValues, setValue } = form;
+
+    const ratingFieldName = `turnos.${turnoIndex}.asignaciones.${asigIndex}.rating`;
+    const commentFieldName = `turnos.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`;
+    const asignacion = getValues(`turnos.${turnoIndex}.asignaciones.${asigIndex}`);
+    
+    const [rating, setRating] = useState(getValues(ratingFieldName) || 3);
+    const [comment, setComment] = useState(getValues(commentFieldName) || '');
+    
+    useEffect(() => {
+        if(isOpen) {
+            setRating(getValues(ratingFieldName) || 3);
+            setComment(getValues(commentFieldName) || '');
+        }
+    }, [isOpen, getValues, ratingFieldName, commentFieldName]);
+
+    const handleSave = () => {
+        setValue(ratingFieldName, rating, { shouldDirty: true });
+        setValue(commentFieldName, comment, { shouldDirty: true });
+        setIsOpen(false);
+    };
+
+    const handleOpenChange = (open: boolean) => {
+        if (!open) {
+            handleSave();
+        }
+        setIsOpen(open);
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+            <DialogTrigger asChild>
+                <div className="flex items-center justify-center cursor-pointer">
+                    <Pencil className={cn("h-4 w-4", getValues(commentFieldName) && "text-primary")} />
+                </div>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Valoración para: {asignacion?.nombre}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-6 py-4">
+                    <div className="space-y-2">
+                        <Label>Desempeño (1-5)</Label>
+                        <div className="flex items-center gap-4 pt-2">
+                            <span className="text-sm text-muted-foreground">Bajo</span>
+                            <Slider
+                                value={[rating]}
+                                onValueChange={(value) => setRating(value[0])}
+                                max={5}
+                                min={1}
+                                step={1}
+                            />
+                            <span className="text-sm text-muted-foreground">Alto</span>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                         <Label>Comentarios Internos MICE</Label>
+                        <Textarea 
+                            value={comment} 
+                            onChange={(e) => setComment(e.target.value)}
+                            rows={4}
+                            placeholder="Añade aquí comentarios internos sobre el desempeño..."
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button onClick={handleSave}>Guardar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+
+function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const { getValues, setValue } = form;
+
+    const fieldName = `turnos.${turnoIndex}.observaciones`;
+    const dialogTitle = `Observaciones para la ETT`;
+
+    const [comment, setComment] = useState(getValues(fieldName) || '');
+
+    const handleSave = () => {
+        setValue(fieldName, comment, { shouldDirty: true });
+        setIsOpen(false);
+    };
+    
+    useEffect(() => {
+        if(isOpen) {
+            setComment(getValues(fieldName) || '');
+        }
+    }, [isOpen, getValues, fieldName]);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
+                    <Pencil className={cn("h-4 w-4", getValues(fieldName) && "text-primary")} />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{dialogTitle}</DialogTitle>
+                </DialogHeader>
+                <Textarea 
+                    value={comment} 
+                    onChange={(e) => setComment(e.target.value)}
+                    rows={4}
+                    placeholder="Añade aquí comentarios..."
+                />
+                <DialogFooter>
+                    <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleSave}>Guardar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function PersonalExternoPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [spaceAddress, setSpaceAddress] = useState<string>('');
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [proveedoresDB, setProveedoresDB] = useState<CategoriaPersonal[]>([]);
-  const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
+  const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-
+  const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
+  
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
 
-  const form = useForm<PersonalExternoFormValues>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { personal: [] },
+    defaultValues: { turnos: [], observacionesGenerales: '' },
   });
 
-  const { control, setValue, trigger } = form;
+  const { control, setValue, watch, trigger, register, handleSubmit } = form;
 
-  const { fields, append, remove, move } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control,
-    name: "personal",
+    name: "turnos",
   });
   
- const handleProviderChange = useCallback((index: number, proveedorId: string) => {
+  const loadData = useCallback(() => {
+    try {
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const currentOS = allServiceOrders.find(os => os.id === osId);
+        setServiceOrder(currentOS || null);
+        
+        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+        const currentBriefing = allBriefings.find(b => b.osId === osId);
+        setBriefingItems(currentBriefing?.items || []);
+
+        const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
+        const turnosDelPedido = allTurnos.filter(p => p.osId === osId);
+        
+        if(turnosDelPedido.length > 0) {
+            form.reset({ 
+                turnos: turnosDelPedido.map(t => ({
+                    ...t,
+                    fecha: new Date(t.fecha),
+                    asignaciones: (t.asignaciones || []).map(a => ({
+                        ...a,
+                        horaEntradaReal: a.horaEntradaReal || '',
+                        horaSalidaReal: a.horaSalidaReal || '',
+                    }))
+                })),
+                observacionesGenerales: ''
+            });
+        }
+        
+        const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
+        setAjustes(storedAjustes[osId] || []);
+        
+        const dbProveedores = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
+        setProveedoresDB(dbProveedores);
+        
+        const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+        setProveedoresMap(new Map(allProveedores.map(p => [p.id, p.nombreComercial])));
+
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos.' });
+    } finally {
+        setIsMounted(true);
+    }
+  }, [osId, toast, form]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+  
+  const handleProviderChange = useCallback((index: number, proveedorId: string) => {
     if (!proveedorId) return;
     const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
     if (tipoPersonal) {
-      setValue(`personal.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
-      setValue(`personal.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
-      setValue(`personal.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
-      trigger(`personal.${index}`);
+        setValue(`turnos.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
+        setValue(`turnos.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
+        setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
+        trigger(`turnos.${index}`);
     }
 }, [proveedoresDB, setValue, trigger]);
-  
-  const watchedFields = useWatch({ control, name: 'personal' });
 
- const { totalPlanned, totalReal, totalAjustes, finalTotalReal } = useMemo(() => {
-    const planned = watchedFields?.reduce((acc, order) => {
-      const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
-      return acc + plannedHours * (order.precioHora || 0);
+  const watchedFields = watch('turnos');
+
+  const { totalPlanned, totalReal, totalAjustes, finalTotalReal } = useMemo(() => {
+    const planned = watchedFields?.reduce((acc, turno) => {
+      const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
+      return acc + plannedHours * (turno.precioHora || 0);
     }, 0) || 0;
 
-    const real = watchedFields?.reduce((acc, order) => {
-      const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
-      return acc + realHours * (order.precioHora || 0);
+    const real = watchedFields?.reduce((acc, turno) => {
+        return acc + (turno.asignaciones || []).reduce((sumAsignacion, asignacion) => {
+            const realHours = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
+            if (realHours > 0) {
+                return sumAsignacion + realHours * (turno.precioHora || 0);
+            }
+            const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
+            return sumAsignacion + plannedHours * (turno.precioHora || 0);
+        }, 0);
     }, 0) || 0;
     
     const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
@@ -155,73 +329,37 @@ export default function PersonalExternoPage() {
     return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj };
   }, [watchedFields, ajustes]);
 
-  const loadData = useCallback(() => {
-     if (!osId) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
-        router.push('/pes');
-        return;
-    }
-    
-    try {
-        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-        const currentOS = allServiceOrders.find(os => os.id === osId);
-        setServiceOrder(currentOS || null);
-
-        if (currentOS?.space) {
-            const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-            const currentSpace = allEspacios.find(e => e.identificacion.nombreEspacio === currentOS.space);
-            setSpaceAddress(currentSpace?.identificacion.calle || '');
-        }
-
-        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-        const currentBriefing = allBriefings.find(b => b.osId === osId);
-        setBriefingItems(currentBriefing?.items || []);
-
-        const allOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
-        const relatedOrders = allOrders.filter(order => order.osId === osId).map(o => ({...o, fecha: new Date(o.fecha)}));
-        form.reset({ personal: relatedOrders });
-        
-        const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
-        setAjustes(storedAjustes[osId] || []);
-
-        const dbProveedores = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
-        setProveedoresDB(dbProveedores);
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos.' });
-    } finally {
-        setIsMounted(true);
-    }
-  }, [osId, router, toast, form]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-
- const onSubmit = (data: PersonalExternoFormValues) => {
+  const onSubmit = (data: FormValues) => {
     setIsLoading(true);
     if (!osId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID del pedido.' });
       setIsLoading(false);
       return;
     }
-
-    const allOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
-    const otherOsOrders = allOrders.filter(o => o.osId !== osId);
     
-    const currentOsOrders: PersonalExternoOrder[] = data.personal.map(p => ({ 
-        ...p,
+    const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
+    const otherOsOrders = allTurnos.filter(p => p.osId !== osId);
+    
+    const currentOsOrders: PersonalExternoOrder[] = data.turnos.map(t => ({
+        ...t,
         osId,
-        fecha: format(p.fecha, 'yyyy-MM-dd'),
-     }));
+        fecha: format(t.fecha, 'yyyy-MM-dd'),
+        statusPartner: t.statusPartner || 'Pendiente Asignación',
+        requiereActualizacion: false, // This will be set by the partner portal logic if they make changes
+        asignaciones: (t.asignaciones || []).map(a => ({
+            ...a,
+            horaEntradaReal: a.horaEntradaReal || '',
+            horaSalidaReal: a.horaSalidaReal || '',
+        })),
+    }));
 
     const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
     localStorage.setItem('personalExternoOrders', JSON.stringify(updatedAllOrders));
 
     setTimeout(() => {
-        toast({ title: 'Personal Externo guardado', description: 'Todos los cambios han sido guardados.' });
+        toast({ title: 'Guardado', description: 'Los cambios se han guardado.' });
         setIsLoading(false);
-        form.reset(data); // Resets form with new values, marking it as not dirty
+        form.reset(data); // Mark as not dirty
     }, 500);
   };
   
@@ -229,7 +367,6 @@ export default function PersonalExternoPage() {
     if (!osId || !serviceOrder) return;
     append({
         id: Date.now().toString(),
-        osId: osId,
         proveedorId: '',
         categoria: '',
         precioHora: 0,
@@ -239,8 +376,8 @@ export default function PersonalExternoPage() {
         solicitadoPor: 'Sala',
         tipoServicio: 'Servicio',
         observaciones: '',
-        horaEntradaReal: '',
-        horaSalidaReal: '',
+        statusPartner: 'Pendiente Asignación',
+        asignaciones: [],
     });
   }
   
@@ -248,7 +385,7 @@ export default function PersonalExternoPage() {
     if (rowToDelete !== null) {
       remove(rowToDelete);
       setRowToDelete(null);
-      toast({ title: 'Asignación eliminada' });
+      toast({ title: 'Turno eliminado' });
     }
   };
   
@@ -284,248 +421,273 @@ export default function PersonalExternoPage() {
 
   const providerOptions = useMemo(() => {
     return proveedoresDB
-        .filter(p => p.nombreProveedor) // Filter out items with empty or null provider names
-        .map(p => ({ label: `${p.nombreProveedor} - ${p.categoria}`, value: p.id }));
-}, [proveedoresDB]);
+        .filter(p => proveedoresMap.has(p.proveedorId)) 
+        .map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
+}, [proveedoresDB, proveedoresMap]);
+
+const turnosAprobados = useMemo(() => {
+    return watchedFields.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
+}, [watchedFields]);
+
 
   if (!isMounted || !serviceOrder) {
-    return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
+    return <LoadingSkeleton title="Cargando Asignación de Personal..." />;
   }
 
   return (
     <>
-        <div className="flex items-start justify-end mb-4">
-            <div className="flex gap-2">
-                <Button type="submit" form="personal-form" disabled={isLoading || !form.formState.isDirty}>
+    <TooltipProvider>
+      <FormProvider {...form}>
+        <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
+            <div className="flex items-center justify-end mb-4">
+                <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
                     {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                     <span className="ml-2">Guardar Cambios</span>
                 </Button>
             </div>
-        </div>
-        
-         <Accordion type="single" collapsible className="w-full mb-4" >
-            <AccordionItem value="item-1">
-            <Card>
-                <AccordionTrigger className="p-4">
-                    <h3 className="text-xl font-semibold">Servicios del Evento</h3>
-                </AccordionTrigger>
-                <AccordionContent>
-                <CardContent className="pt-0">
-                    <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead className="py-2 px-3">Fecha</TableHead>
-                        <TableHead className="py-2 px-3">Descripción</TableHead>
-                        <TableHead className="py-2 px-3">Asistentes</TableHead>
-                        <TableHead className="py-2 px-3">Duración</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {briefingItems.length > 0 ? briefingItems.map(item => (
-                        <TableRow key={item.id}>
-                            <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
-                            <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
-                            <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                            <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
-                        </TableRow>
-                        )) : (
-                            <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
-                        )}
-                    </TableBody>
-                    </Table>
-                </CardContent>
-                </AccordionContent>
-            </Card>
-            </AccordionItem>
-        </Accordion>
-
-       <FormProvider {...form}>
-        <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)}>
-            <Card>
-                <CardHeader className="flex-row items-center justify-between">
-                    <CardTitle>Planificación de Personal</CardTitle>
-                    <Button type="button" onClick={addRow}>
-                        <PlusCircle className="mr-2" />
-                        Añadir Personal
-                    </Button>
-                </CardHeader>
-                <CardContent>
-                    <div className="border rounded-lg overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="px-2 py-2">Fecha</TableHead>
-                                    <TableHead className="px-2 py-2">Solicitado Por</TableHead>
-                                    <TableHead className="px-2 py-2 min-w-48">Proveedor - Categoría</TableHead>
-                                    <TableHead className="px-2 py-2">Tipo Servicio</TableHead>
-                                    <TableHead colSpan={3} className="text-center border-l border-r px-2 py-2 bg-muted/30">Planificado</TableHead>
-                                    <TableHead className="text-right px-2 py-2">Acción</TableHead>
-                                </TableRow>
-                                <TableRow>
-                                    <TableHead className="px-1 py-2"></TableHead>
-                                    <TableHead className="px-2 py-2"></TableHead>
-                                    <TableHead className="px-2 py-2"></TableHead>
-                                    <TableHead className="px-2 py-2"></TableHead>
-                                    <TableHead className="border-l px-1 py-2 bg-muted/30 w-24">H. Entrada</TableHead>
-                                    <TableHead className="px-1 py-2 bg-muted/30 w-24">H. Salida</TableHead>
-                                    <TableHead className="border-r px-1 py-2 bg-muted/30 w-20">€/Hora</TableHead>
-                                    <TableHead className="px-2 py-2"></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                            {fields.length > 0 ? (
-                                fields.map((field, index) => (
-                                    <TableRow key={field.id}>
-                                        <TableCell className="px-2 py-1">
-                                            <FormField control={control} name={`personal.${index}.fecha`} render={({ field: dateField }) => (
-                                                <FormItem>
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <FormControl>
-                                                                <Button variant={"outline"} className={cn("w-32 h-9 pl-3 text-left font-normal", !dateField.value && "text-muted-foreground")}>
-                                                                    {dateField.value ? format(dateField.value, "dd/MM/yy") : <span>Elige</span>}
-                                                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                                </Button>
-                                                            </FormControl>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0" align="start">
-                                                            <Calendar mode="single" selected={dateField.value} onSelect={dateField.onChange} initialFocus locale={es} />
-                                                        </PopoverContent>
-                                                    </Popover>
-                                                </FormItem>
-                                            )} />
-                                        </TableCell>
-                                        <TableCell className="px-2 py-1">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.solicitadoPor`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <Select onValueChange={field.onChange} value={field.value}>
-                                                            <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
-                                                            <SelectContent>{solicitadoPorOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                                                        </Select>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="px-2 py-1 min-w-48">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.proveedorId`}
-                                                render={({ field }) => (
-                                                <FormItem>
-                                                    <Combobox
-                                                        options={providerOptions}
-                                                        value={field.value}
-                                                        onChange={(value) => handleProviderChange(index, value)}
-                                                        placeholder="Proveedor..."
-                                                    />
-                                                </FormItem>
-                                                )}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="px-2 py-1">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.tipoServicio`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <Select onValueChange={field.onChange} value={field.value}>
-                                                            <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
-                                                            <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                                                        </Select>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="border-l px-1 py-1 bg-muted/30">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.horaEntrada`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="px-1 py-1 bg-muted/30">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.horaSalida`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9" /></FormControl></FormItem>}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="border-r px-1 py-1 bg-muted/30">
-                                            <FormField
-                                                control={control}
-                                                name={`personal.${index}.precioHora`}
-                                                render={({ field }) => <FormItem><FormControl><Input type="number" step="0.01" {...field} className="w-20 h-9" readOnly /></FormControl></FormItem>}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="text-right px-2 py-1">
-                                            <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                <TableCell colSpan={8} className="h-24 text-center">
-                                    No hay personal asignado. Haz clic en "Añadir Personal" para empezar.
-                                </TableCell>
-                                </TableRow>
-                            )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-2 gap-4 mt-4">
-                 <Card>
-                    <CardHeader className="py-2"><CardTitle className="text-lg">Cierre y Horas Reales</CardTitle></CardHeader>
-                    <CardContent>
-                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Nombre</TableHead>
-                                    <TableHead>Categoría</TableHead>
-                                    <TableHead>H. Entrada Real</TableHead>
-                                    <TableHead>H. Salida Real</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {fields.length > 0 ? fields.map((field, index) => (
-                                <TableRow key={field.id}>
-                                    <TableCell className="font-semibold">{field.nombre}</TableCell>
-                                    <TableCell>{field.categoria}</TableCell>
-                                    <TableCell>
-                                        <FormField
-                                            control={control}
-                                            name={`personal.${index}.horaEntradaReal`}
-                                            render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                         <FormField
-                                            control={control}
-                                            name={`personal.${index}.horaSalidaReal`}
-                                            render={({ field }) => <FormItem><FormControl><Input type="time" {...field} className="w-24 h-9"/></FormControl></FormItem>}
-                                        />
-                                    </TableCell>
-                                </TableRow>
-                                )) : <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay personal planificado.</TableCell></TableRow>}
-                            </TableBody>
-                         </Table>
-                    </CardContent>
-                </Card>
-                 <div className="space-y-4">
+            <Tabs defaultValue="planificacion">
+                  <TabsList className="mb-4 grid w-full grid-cols-2">
+                    <TabsTrigger value="planificacion" className="text-base px-6">Planificación de Turnos</TabsTrigger>
+                    <TabsTrigger value="aprobados" className="text-base px-6">Turnos Aprobados</TabsTrigger>
+                </TabsList>
+                <TabsContent value="planificacion">
                     <Card>
-                        <CardHeader className="flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-lg">Ajuste de Costes</CardTitle>
-                            <Button size="sm" type="button" variant="outline" onClick={addAjusteRow}><PlusCircle className="mr-2"/>Añadir Ajuste</Button>
+                        <CardHeader className="py-3 flex-row items-center justify-between">
+                            <CardTitle className="text-lg">Planificación de Turnos</CardTitle>
+                            <Button type="button" onClick={addRow} size="sm">
+                                <PlusCircle className="mr-2" />
+                                Añadir Turno
+                            </Button>
                         </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2">
+                        <CardContent className="p-2">
+                            <div className="border rounded-lg overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="px-2 py-1">Fecha</TableHead>
+                                        <TableHead className="px-2 py-1">Solicitado Por</TableHead>
+                                        <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
+                                        <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
+                                        <TableHead colSpan={3} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
+                                        <TableHead className="px-2 py-1">Observaciones ETT</TableHead>
+                                        <TableHead className="text-right px-2 py-1"></TableHead>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableHead className="px-1 py-1"></TableHead>
+                                        <TableHead className="px-2 py-1"></TableHead>
+                                        <TableHead className="px-2 py-1"></TableHead>
+                                        <TableHead className="px-2 py-1"></TableHead>
+                                        <TableHead className="border-l px-1 py-1 bg-muted/30 w-24">H. Entrada</TableHead>
+                                        <TableHead className="px-1 py-1 bg-muted/30 w-24">H. Salida</TableHead>
+                                        <TableHead className="border-r px-1 py-1 bg-muted/30 w-20">€/Hora</TableHead>
+                                        <TableHead className="px-2 py-1"></TableHead>
+                                        <TableHead className="px-2 py-1 w-12"></TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {fields.length > 0 ? (
+                                        fields.map((field, index) => (
+                                            <TableRow key={field.id}>
+                                                <TableCell className="px-2 py-1">
+                                                    <FormField control={control} name={`turnos.${index}.fecha`} render={({ field: dateField }) => (
+                                                        <FormItem>
+                                                            <Popover>
+                                                                <PopoverTrigger asChild>
+                                                                    <FormControl>
+                                                                        <Button variant={"outline"} className={cn("w-32 h-9 pl-3 text-left font-normal", !dateField.value && "text-muted-foreground")}>
+                                                                            {dateField.value ? format(dateField.value, "dd/MM/yy") : <span>Elige</span>}
+                                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                        </Button>
+                                                                    </FormControl>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-auto p-0" align="start">
+                                                                    <Calendar mode="single" selected={dateField.value} onSelect={dateField.onChange} initialFocus locale={es} />
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        </FormItem>
+                                                    )} />
+                                                </TableCell>
+                                                <TableCell className="px-2 py-1">
+                                                    <FormField
+                                                        control={control}
+                                                        name={`turnos.${index}.solicitadoPor`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                                    <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
+                                                                    <SelectContent>{solicitadoPorOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                                                                </Select>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="px-2 py-1 min-w-48">
+                                                    <FormField
+                                                        control={control}
+                                                        name={`turnos.${index}.proveedorId`}
+                                                        render={({ field: selectField }) => (
+                                                        <FormItem>
+                                                            <Combobox
+                                                                options={providerOptions}
+                                                                value={selectField.value}
+                                                                onChange={(value) => handleProviderChange(index, value)}
+                                                                placeholder="Proveedor..."
+                                                            />
+                                                        </FormItem>
+                                                        )}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="px-2 py-1">
+                                                    <FormField
+                                                        control={control}
+                                                        name={`turnos.${index}.tipoServicio`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                                    <FormControl><SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger></FormControl>
+                                                                    <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                                                                </Select>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </TableCell>
+                                                <TableCell className="border-l px-1 py-1 bg-muted/30">
+                                                    <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
+                                                </TableCell>
+                                                <TableCell className="px-1 py-1 bg-muted/30">
+                                                    <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9" /></FormControl></FormItem>} />
+                                                </TableCell>
+                                                <TableCell className="border-r px-1 py-1 bg-muted/30">
+                                                    <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9" readOnly /></FormControl></FormItem>} />
+                                                </TableCell>
+                                                 <TableCell>
+                                                    <CommentDialog turnoIndex={index} form={form} />
+                                                </TableCell>
+                                                <TableCell className="text-right px-2 py-1">
+                                                    <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                        <TableCell colSpan={9} className="h-24 text-center">
+                                            No hay personal asignado. Haz clic en "Añadir Turno" para empezar.
+                                        </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="aprobados">
+                     <Card>
+                        <CardHeader className="py-3"><CardTitle className="text-lg">Turnos Aprobados por ETT</CardTitle></CardHeader>
+                        <CardContent className="p-2">
+                             <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Nombre</TableHead>
+                                        <TableHead>DNI</TableHead>
+                                        <TableHead>Fecha-Horario</TableHead>
+                                        <TableHead className="w-24">H. Entrada Real</TableHead>
+                                        <TableHead className="w-24">H. Salida Real</TableHead>
+                                        <TableHead className="w-[200px] text-center">Desempeño y Comentarios MICE</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {turnosAprobados.length > 0 ? watchedFields.map((turno, turnoIndex) => {
+                                        if (turno.statusPartner !== 'Gestionado' || !turno.asignaciones || turno.asignaciones.length === 0) return null;
+                                        
+                                        return turno.asignaciones.map((asignacion, asigIndex) => {
+                                            const realHours = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
+                                            const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
+                                            const deviation = realHours > 0 ? realHours - plannedHours : 0;
+                                            const hasTimeMismatch = Math.abs(deviation) > 0.01;
+
+                                            return (
+                                            <TableRow key={asignacion.id} className={cn(hasTimeMismatch && "bg-amber-50")}>
+                                                <TableCell className="font-semibold flex items-center gap-2">
+                                                    {hasTimeMismatch && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger><AlertTriangle className="h-4 w-4 text-amber-500" /></TooltipTrigger>
+                                                            <TooltipContent><p>Desviación: {deviation > 0 ? '+' : ''}{formatDuration(deviation)} horas</p></TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+                                                    {asignacion.nombre}
+                                                </TableCell>
+                                                <TableCell>{asignacion.dni}</TableCell>
+                                                <TableCell>
+                                                    <div className="font-semibold">{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
+                                                    <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
+                                                </TableCell>
+                                                <TableCell>
+                                                <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
+                                                </TableCell>
+                                                <TableCell>
+                                                <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
+                                                </TableCell>
+                                                <TableCell className="w-[200px] text-center">
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="flex items-center justify-center gap-1">
+                                                                <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
+                                                                {(asignacion.comentariosMice || (asignacion.rating && asignacion.rating !== 3)) && (
+                                                                    <MessageSquare className="h-4 w-4 text-primary" />
+                                                                )}
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p className="font-bold">Valoración: {'⭐'.repeat(asignacion.rating || 0)}</p>
+                                                            {asignacion.comentariosMice && <p className="max-w-xs">{asignacion.comentariosMice}</p>}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TableCell>
+                                            </TableRow>
+                                        )})
+                                    }) : (
+                                        <TableRow><TableCell colSpan={6} className="h-24 text-center">No hay turnos gestionados por la ETT.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
+            
+             <div className="mt-8">
+                <Card>
+                    <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
+                    <CardContent className="grid grid-cols-2 gap-8 p-4">
+                        <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Coste Total Planificado:</span>
+                                <span className="font-bold">{formatCurrency(totalPlanned)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Coste Total Real (Horas):</span>
+                                <span className="font-bold">{formatCurrency(totalReal)}</span>
+                            </div>
+                            <Separator className="my-2" />
+                            <div className="flex justify-between font-bold text-base">
+                                <span>Coste Total Real (con Ajustes):</span>
+                                <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
+                                    {formatCurrency(finalTotalReal)}
+                                </span>
+                            </div>
+                            <Separator className="my-2" />
+                                <div className="flex justify-between font-bold text-base">
+                                <span>Desviación (Plan vs Real):</span>
+                                <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
+                                    {formatCurrency(finalTotalReal - totalPlanned)}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <h4 className="text-xs font-semibold text-muted-foreground">AJUSTE DE COSTES</h4>
                             {ajustes.map((ajuste, index) => (
                                 <div key={ajuste.id} className="flex gap-2 items-center">
                                     <Input 
@@ -545,70 +707,38 @@ export default function PersonalExternoPage() {
                                     <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjusteRow(index)}><Trash2 className="h-4 w-4"/></Button>
                                 </div>
                             ))}
-                            {ajustes.length > 0 && <Separator />}
-                            <div className="flex justify-between font-bold">
-                                <span>Total Ajustes:</span>
-                                <span>{formatCurrency(totalAjustes)}</span>
-                            </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
-                        <CardContent className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Coste Total Planificado:</span>
-                                <span className="font-bold">{formatCurrency(totalPlanned)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Coste Total Real (Horas):</span>
-                                <span className="font-bold">{formatCurrency(totalReal)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Ajustes:</span>
-                                <span className="font-bold">{formatCurrency(totalAjustes)}</span>
-                            </div>
-                            <Separator className="my-2" />
-                            <div className="flex justify-between font-bold text-base">
-                                <span>Coste Total Real (con Ajustes):</span>
-                                <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
-                                    {formatCurrency(finalTotalReal)}
-                                </span>
-                            </div>
-                            <Separator className="my-2" />
-                            <div className="flex justify-between font-bold text-base">
-                                <span>Desviación (Plan vs Real):</span>
-                                <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
-                                    {formatCurrency(finalTotalReal - totalPlanned)}
-                                </span>
-                            </div>
-                        </CardContent>
-                    </Card>
-                 </div>
+                            <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
+                                <Separator className="my-2" />
+                                <div className="flex justify-between font-bold">
+                                    <span>Total Ajustes:</span>
+                                    <span>{formatCurrency(totalAjustes)}</span>
+                                </div>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </form>
        </FormProvider>
-
-        <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
-            <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                <AlertDialogDescription>
-                Esta acción no se puede deshacer. Se eliminará la asignación de personal de la tabla.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setRowToDelete(null)}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                className="bg-destructive hover:bg-destructive/90"
-                onClick={handleDeleteRow}
-                >
-                Eliminar
-                </AlertDialogAction>
-            </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
+          <AlertDialogContent>
+          <AlertDialogHeader>
+              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+              <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará la asignación de personal de la tabla.
+              </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setRowToDelete(null)}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleDeleteRow}
+              >
+              Eliminar
+              </AlertDialogAction>
+          </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
+      </TooltipProvider>
     </>
   );
 }
-
