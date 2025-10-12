@@ -538,16 +538,19 @@ export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
 
 export const ingredienteErpSchema = z.object({
   id: z.string(),
-  IdERP: z.string(),
+  IdERP: z.string().optional(),
   nombreProductoERP: z.string().min(1, 'El nombre del producto es obligatorio'),
-  referenciaProveedor: z.string(),
-  nombreProveedor: z.string(),
-  familiaCategoria: z.string(),
+  referenciaProveedor: z.string().optional(),
+  nombreProveedor: z.string().optional(),
+  familiaCategoria: z.string().optional(),
+  precioCompra: z.coerce.number().min(0, "Debe ser un valor positivo."),
+  unidadConversion: z.coerce.number().min(1, "Debe ser mayor que 0.").default(1),
   precio: z.coerce.number().min(0),
-  precioAlquilerUd: z.coerce.number().min(0).optional(),
+  precioAlquiler: z.coerce.number().min(0).optional(),
   unidad: z.enum(UNIDADES_MEDIDA),
   tipo: z.string().optional(),
   alquiler: z.boolean().default(false),
+  observaciones: z.string().optional(),
 });
 
 export type IngredienteERP = z.infer<typeof ingredienteErpSchema>;
@@ -602,7 +605,7 @@ export type ElaboracionEnReceta = {
   merma: number;
 }
 
-export const SABORES_PRINCIPales = ['DULCE', 'SALADO', 'ÁCIDO', 'AMARGO', 'UMAMI'] as const;
+export const SABORES_PRINCIPALES = ['DULCE', 'SALADO', 'ÁCIDO', 'AMARGO', 'UMAMI'] as const;
 export type SaborPrincipal = typeof SABORES_PRINCIPALES[number];
 
 export const PARTIDAS_PRODUCCION = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'] as const;

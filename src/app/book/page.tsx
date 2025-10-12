@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -81,7 +82,7 @@ export default function BookDashboardPage() {
                              <Link href="/book/ingredientes"><ChefHat size={16} className="mr-2"/>Ingredientes</Link>
                         </DropdownMenuItem>
                          <DropdownMenuItem asChild>
-                             <Link href="/book/ingredientes-erp"><Package size={16} className="mr-2"/>Materia Prima (ERP)</Link>
+                             <Link href="/bd/erp"><Package size={16} className="mr-2"/>Materia Prima (ERP)</Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                              <Link href="/menaje-db"><GlassWater size={16} className="mr-2"/>Menaje</Link>

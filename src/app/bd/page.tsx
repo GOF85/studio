@@ -35,7 +35,7 @@ const generalDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
     { id: '9', name: 'Atípicos (Conceptos)', description: 'Gestión de conceptos de gastos varios.', path: '/atipicos-db', icon: Percent },
     { id: '10', name: 'Objetivos de Gasto', description: 'Plantillas para el análisis de rentabilidad.', path: '/objetivos-gasto', icon: Target },
     { id: '12', name: 'Decoración (Conceptos)', description: 'Gestión de conceptos de decoración.', path: '/decoracion-db', icon: Percent },
-    { id: '13', name: 'Book: Materia Prima (ERP)', description: 'Gestión de precios y productos de proveedores.', path: '/book/ingredientes-erp', icon: Package },
+    { id: '13', name: 'Base de Datos ERP', description: 'Gestión de precios y productos de proveedores.', path: '/bd/erp', icon: Package },
     { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', path: '/plantillas-pedidos', icon: FilePlus2 },
     { id: '19', name: 'Formatos de Expedición', description: 'Define los formatos de empaquetado para producción.', path: '/formatos-expedicion', icon: Package },
 ];
@@ -66,7 +66,7 @@ export default function BdPage() {
             if (db.path === '/tipo-servicio') count = countItems('tipoServicio');
             if (db.path === '/atipicos-db') count = countItems('atipicosDB');
             if (db.path === '/decoracion-db') count = countItems('decoracionDB');
-            if (db.path === '/book/ingredientes-erp') count = countItems('ingredientesERP');
+            if (db.path === '/bd/erp') count = countItems('ingredientesERP');
             if (db.path === '/plantillas-pedidos') count = countItems('pedidoPlantillas');
             if (db.path === '/formatos-expedicion') count = countItems('formatosExpedicionDB');
             if (db.path === '/proveedores') count = countItems('proveedores');

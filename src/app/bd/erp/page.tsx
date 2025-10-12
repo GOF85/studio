@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -7,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusCircle, Save, Trash2, ArrowLeft, Loader2, Menu, FileUp, FileDown } from 'lucide-react';
+import { PlusCircle, Save, Trash2, ArrowLeft, Loader2, Menu, FileUp, FileDown, Database } from 'lucide-react';
 import type { IngredienteERP, UnidadMedida } from '@/types';
 import { UNIDADES_MEDIDA, ingredienteErpSchema } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -46,7 +45,7 @@ const formSchema = z.object({
 });
 
 type IngredientesERPFormValues = z.infer<typeof formSchema>;
-const CSV_HEADERS = ["id", "IdERP", "nombreProductoERP", "referenciaProveedor", "nombreProveedor", "familiaCategoria", "precio", "precioAlquilerUd", "unidad", "tipo", "alquiler"];
+const CSV_HEADERS = ["id", "IdERP", "nombreProductoERP", "referenciaProveedor", "nombreProveedor", "familiaCategoria", "precioCompra", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
 
 export default function IngredientesERPPage() {
   const [isMounted, setIsMounted] = useState(false);
@@ -69,7 +68,7 @@ export default function IngredientesERPPage() {
     }
   });
 
-  const { fields, append, remove, control, getValues } = useFieldArray({
+  const { fields, append, remove, control, getValues, watch } = useFieldArray({
     control: form.control,
     name: "items"
   });
@@ -81,7 +80,7 @@ export default function IngredientesERPPage() {
     setIsMounted(true);
   }, [form]);
   
-  const watchedItems = form.watch('items');
+  const watchedItems = watch('items');
 
   const { categories, types, providers } = useMemo(() => {
     if (!watchedItems) return { categories: [], types: [], providers: [] };
@@ -139,11 +138,13 @@ export default function IngredientesERPPage() {
       referenciaProveedor: '',
       nombreProveedor: '',
       familiaCategoria: '',
-      precio: 0,
-      precioAlquilerUd: 0,
+      precioCompra: 0,
+      unidadConversion: 1,
+      precioAlquiler: 0,
       unidad: 'UNIDAD',
       tipo: '',
       alquiler: false,
+      observaciones: '',
     });
   };
   
@@ -211,11 +212,14 @@ export default function IngredientesERPPage() {
             referenciaProveedor: item.referenciaProveedor || '',
             nombreProveedor: item.nombreProveedor || '',
             familiaCategoria: item.familiaCategoria || '',
-            precio: parseCurrency(item.precio),
-            precioAlquilerUd: parseCurrency(item.precioAlquilerUd),
+            precioCompra: parseCurrency(item.precioCompra),
+            unidadConversion: Number(item.unidadConversion) || 1,
+            precio: 0, // será calculado
+            precioAlquiler: parseCurrency(item.precioAlquiler),
             unidad: UNIDADES_MEDIDA.includes(item.unidad) ? item.unidad : 'UNIDAD',
             tipo: item.tipo || '',
             alquiler: parseBoolean(item.alquiler),
+            observaciones: item.observaciones || ''
         }));
         
         form.reset({items: importedData})
@@ -240,13 +244,7 @@ export default function IngredientesERPPage() {
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <Button variant="ghost" size="sm" onClick={() => router.push('/bd')} className="mb-2">
-                            <ArrowLeft className="mr-2" />
-                            Volver a Bases de Datos
-                        </Button>
-                        <h1 className="text-3xl font-headline font-bold flex items-center gap-3">Materia Prima (ERP)</h1>
-                    </div>
+                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Database />Base de Datos ERP</h1>
                 <div className="flex gap-2">
                     <Button type="button" variant="outline" onClick={handleAddNewRow}>
                         <PlusCircle className="mr-2" />
@@ -310,22 +308,27 @@ export default function IngredientesERPPage() {
                 <Table>
                     <TableHeader>
                     <TableRow>
-                        <TableHead className="p-2 w-64">Producto</TableHead>
-                        <TableHead className="p-2 w-32">Id. ERP</TableHead>
-                        <TableHead className="p-2 w-48">Proveedor</TableHead>
-                        <TableHead className="p-2 w-40">Ref. Proveedor</TableHead>
-                        <TableHead className="p-2 w-40">Categoría</TableHead>
-                        <TableHead className="p-2 w-40">Tipo</TableHead>
-                        <TableHead className="p-2 w-28">P. Venta/Ud</TableHead>
-                        <TableHead className="p-2 w-28">P. Alquiler/Ud</TableHead>
+                        <TableHead className="p-2 w-48">Producto</TableHead>
+                        <TableHead className="p-2 w-28">Id. ERP</TableHead>
+                        <TableHead className="p-2 w-40">Proveedor</TableHead>
+                        <TableHead className="p-2 w-32">Ref. Proveedor</TableHead>
+                        <TableHead className="p-2 w-28">P. Compra</TableHead>
+                        <TableHead className="p-2 w-28">Factor Conv.</TableHead>
+                        <TableHead className="p-2 w-28">Precio/Unidad</TableHead>
+                        <TableHead className="p-2 w-28">P. Alquiler</TableHead>
                         <TableHead className="p-2 w-32">Unidad</TableHead>
                         <TableHead className="p-2 w-28 text-center">Apto Alquiler</TableHead>
+                        <TableHead className="p-2 w-48">Observaciones</TableHead>
                         <TableHead className="p-2 w-16 text-right">Acciones</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
                     {filteredItems.length > 0 ? (
-                        filteredItems.map(item => (
+                        filteredItems.map(item => {
+                            const precioCompra = watchedItems[item.originalIndex]?.precioCompra || 0;
+                            const unidadConversion = watchedItems[item.originalIndex]?.unidadConversion || 1;
+                            const precioCalculado = unidadConversion > 0 ? precioCompra / unidadConversion : 0;
+                            return (
                         <TableRow key={item.id}>
                             <TableCell className="p-1">
                                 <FormField control={form.control} name={`items.${item.originalIndex}.nombreProductoERP`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
@@ -340,16 +343,16 @@ export default function IngredientesERPPage() {
                                  <FormField control={form.control} name={`items.${item.originalIndex}.referenciaProveedor`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
                             </TableCell>
                             <TableCell className="p-1">
-                                 <FormField control={form.control} name={`items.${item.originalIndex}.familiaCategoria`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
+                                 <FormField control={form.control} name={`items.${item.originalIndex}.precioCompra`} render={({ field }) => ( <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8"/> )} />
                             </TableCell>
                             <TableCell className="p-1">
-                                 <FormField control={form.control} name={`items.${item.originalIndex}.tipo`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
+                                 <FormField control={form.control} name={`items.${item.originalIndex}.unidadConversion`} render={({ field }) => ( <Input type="number" step="1" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 1)} className="h-8"/> )} />
+                            </TableCell>
+                             <TableCell className="p-1">
+                                <Input value={formatCurrency(precioCalculado)} readOnly className="h-8 bg-muted/50 font-semibold" />
                             </TableCell>
                             <TableCell className="p-1">
-                                 <FormField control={form.control} name={`items.${item.originalIndex}.precio`} render={({ field }) => ( <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8"/> )} />
-                            </TableCell>
-                            <TableCell className="p-1">
-                                 <FormField control={form.control} name={`items.${item.originalIndex}.precioAlquilerUd`} render={({ field }) => ( <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8"/> )} />
+                                 <FormField control={form.control} name={`items.${item.originalIndex}.precioAlquiler`} render={({ field }) => ( <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8"/> )} />
                             </TableCell>
                             <TableCell className="p-1">
                                 <FormField control={form.control} name={`items.${item.originalIndex}.unidad`} render={({ field }) => ( 
@@ -366,16 +369,19 @@ export default function IngredientesERPPage() {
                                       <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                                  )} />
                             </TableCell>
+                             <TableCell className="p-1">
+                                <FormField control={form.control} name={`items.${item.originalIndex}.observaciones`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
+                            </TableCell>
                             <TableCell className="text-right p-1">
                                 <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" type="button" onClick={() => setItemToDelete(item.originalIndex)}>
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             </TableCell>
                         </TableRow>
-                        ))
+                        )})
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={11} className="h-24 text-center">
+                        <TableCell colSpan={12} className="h-24 text-center">
                             No se encontraron ingredientes que coincidan con la búsqueda.
                         </TableCell>
                         </TableRow>
@@ -409,4 +415,3 @@ export default function IngredientesERPPage() {
     </>
   );
 }
-
