@@ -15,8 +15,7 @@ const almacenNav = [
     { title: 'Gestión de Retornos', href: '/almacen/retornos', icon: History },
 ];
 
-function NavContent() {
-    const pathname = usePathname();
+function NavContent({ pathname }: { pathname: string }) {
     return (
         <div className="w-full">
              <SheetHeader className="pb-4 mb-4 border-b text-left">
@@ -48,6 +47,7 @@ function NavContent() {
 }
 
 export default function AlmacenLayout({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname();
     return (
         <div className="container mx-auto">
             <div className="grid lg:grid-cols-[250px_1fr] gap-12">
@@ -87,7 +87,7 @@ export default function AlmacenLayout({ children }: { children: React.ReactNode 
                                 </Button>
                             </SheetTrigger>
                             <SheetContent side="left" className="w-[280px]">
-                                 <NavContent />
+                                 <NavContent pathname={pathname} />
                             </SheetContent>
                         </Sheet>
                     </div>
