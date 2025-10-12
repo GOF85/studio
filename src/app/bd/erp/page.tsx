@@ -57,6 +57,8 @@ export default function IngredientesERPPage() {
   const [providerFilter, setProviderFilter] = useState('all');
   const [forRentFilter, setForRentFilter] = useState(false);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
+  const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
+
 
   const router = useRouter();
   const { toast } = useToast();
@@ -86,7 +88,6 @@ export default function IngredientesERPPage() {
     let storedData = localStorage.getItem('ingredientesERP');
     const items = storedData ? JSON.parse(storedData) : [];
     
-    // Enrich items with provider name
     const enrichedItems = items.map((item: IngredienteERP) => ({
       ...item,
       nombreProveedor: pMap.get(item.idProveedor || '') || item.nombreProveedor || ''
@@ -179,7 +180,6 @@ export default function IngredientesERPPage() {
       return;
     }
     const dataToExport = getValues('items').map(item => {
-        // Ensure all CSV_HEADERS are present
         const exportItem: any = {};
         CSV_HEADERS.forEach(header => {
             exportItem[header] = (item as any)[header] ?? '';
@@ -215,13 +215,17 @@ export default function IngredientesERPPage() {
     return s === 'true' || s === '1';
   }
 
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+        setIsImportAlertOpen(false);
+        return;
+    }
 
     Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
+      delimiter,
       complete: (results) => {
         const headers = results.meta.fields || [];
         const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
@@ -240,7 +244,7 @@ export default function IngredientesERPPage() {
             familiaCategoria: item.familiaCategoria || '',
             precioCompra: parseCurrency(item.precioCompra),
             unidadConversion: Number(item.unidadConversion) || 1,
-            precio: 0, // será calculado
+            precio: 0, 
             precioAlquiler: parseCurrency(item.precioAlquiler),
             unidad: UNIDADES_MEDIDA.includes(item.unidad) ? item.unidad : 'UNIDAD',
             tipo: item.tipo || '',
@@ -250,9 +254,11 @@ export default function IngredientesERPPage() {
         
         form.reset({items: importedData})
         toast({ title: 'Importación preparada', description: `Se han cargado ${importedData.length} registros. Haz clic en "Guardar Cambios" para confirmar.` });
+        setIsImportAlertOpen(false);
       },
       error: (error) => {
         toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+        setIsImportAlertOpen(false);
       }
     });
     if(event.target) {
@@ -287,15 +293,8 @@ export default function IngredientesERPPage() {
                           </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                          <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsImportAlertOpen(true); }}>
                                <FileUp size={16} className="mr-2"/>Importar CSV
-                               <input
-                                type="file"
-                                ref={fileInputRef}
-                                className="hidden"
-                                accept=".csv"
-                                onChange={handleImportCSV}
-                              />
                           </DropdownMenuItem>
                            <DropdownMenuItem onClick={handleExportCSV}>
                                <FileDown size={16} className="mr-2"/>Exportar CSV
@@ -329,6 +328,13 @@ export default function IngredientesERPPage() {
                         <Label htmlFor="for-rent-filter">Apto Alquiler</Label>
                     </div>
                 </div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept=".csv"
+                  onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as any)}
+                />
 
                 <div className="border rounded-lg">
                 <Table>
@@ -438,7 +444,21 @@ export default function IngredientesERPPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. Normalmente es una coma (,) o un punto y coma (;).
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="!justify-center gap-4">
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </>
   );
 }
-

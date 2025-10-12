@@ -705,6 +705,7 @@ export type PickingSheet = {
 export type ReturnItemState = {
     returnedQuantity: number;
     incidentComment?: string;
+    isReviewed?: boolean;
 };
 
 export type ReturnSheet = {
