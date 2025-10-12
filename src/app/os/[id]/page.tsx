@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useRouter, useParams } from 'next/navigation';
@@ -166,10 +165,10 @@ export default function OsDashboardPage() {
             title: 'Nº de Servicios', 
             value: (
                 <div className="flex items-baseline gap-2">
-                    {briefingItemsCount > 0 && <span>{briefingItemsCount} <span className="text-sm font-normal">Servicios</span></span>}
-                    {briefingItemsCount > 0 && pruebasMenuCount > 0 && <span className="text-xl">/</span>}
-                    {pruebasMenuCount > 0 && <span>{pruebasMenuCount} <span className="text-sm font-normal">P. Menú</span></span>}
-                    {briefingItemsCount === 0 && pruebasMenuCount === 0 && <span>0</span>}
+                  {briefingItemsCount > 0 && <span>{briefingItemsCount} <span className="text-sm font-normal">Servicios</span></span>}
+                  {briefingItemsCount > 0 && pruebasMenuCount > 0 && <span className="text-xl">/</span>}
+                  {pruebasMenuCount > 0 && <span>{pruebasMenuCount} <span className="text-sm font-normal">P. Menú</span></span>}
+                  {briefingItemsCount === 0 && pruebasMenuCount === 0 && <span>0</span>}
                 </div>
             ), 
             description: 'Servicios con gastronomía' 
