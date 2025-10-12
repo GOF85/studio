@@ -1,7 +1,7 @@
 
 "use client"
 
-import * as React from "react"
+import { useState } from "react"
 import { Check, ChevronsUpDown, PlusCircle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -36,8 +36,8 @@ interface ComboboxProps {
 }
 
 export function Combobox({ options, value, onChange, onCreated, placeholder, searchPlaceholder, emptyPlaceholder }: ComboboxProps) {
-  const [open, setOpen] = React.useState(false)
-  const [query, setQuery] = React.useState('');
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('');
 
   const filteredOptions = query 
     ? options.filter(option => option.label.toLowerCase().includes(query.toLowerCase()))
