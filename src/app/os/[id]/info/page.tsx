@@ -211,6 +211,7 @@ export default function InfoPage() {
   }, [briefingItems]);
 
   const personalSala = useMemo(() => personal.filter(p => p.departamento === 'SALA' && p.nombre), [personal]);
+  const personalPase = useMemo(() => personal.filter(p => p.departamento === 'Pase' && p.nombre), [personal]);
   const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR' && p.nombre), [personal]);
   const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'COMERCIAL' && p.nombre), [personal]);
   const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA' && p.nombre), [personal]);
@@ -631,7 +632,7 @@ export default function InfoPage() {
                             <AccordionTrigger className="p-0"><ResponsablesTitle /></AccordionTrigger>
                             <AccordionContent>
                               <div className="space-y-4 px-4 pb-4">
-                                {[['respMetre', 'respMetrePhone', 'respMetreMail', 'Resp. Metre', personalSala], ['respPase', 'respPasePhone', 'respPaseMail', 'Resp. Pase', personalCPR], ['respCocinaPase', 'respCocinaPasePhone', 'respCocinaPaseMail', 'Resp. Cocina Pase', personalCPR], ['respCocinaCPR', 'respCocinaCPRPhone', 'respCocinaCPRMail', 'Resp. Cocina CPR', personalCPR]].map(([name, phone, mail, label, personalList]) => (
+                                {[['respMetre', 'respMetrePhone', 'respMetreMail', 'Resp. Metre', personalSala], ['respPase', 'respPasePhone', 'respPaseMail', 'Resp. Pase', personalPase], ['respCocinaPase', 'respCocinaPasePhone', 'respCocinaPaseMail', 'Resp. Cocina Pase', personalPase], ['respCocinaCPR', 'respCocinaCPRPhone', 'respCocinaCPRMail', 'Resp. Cocina CPR', personalCPR]].map(([name, phone, mail, label, personalList]) => (
                                   <div key={name} className="flex items-end gap-4">
                                     <FormField control={form.control} name={name as any} render={({ field }) => (
                                       <FormItem className="flex-grow">
@@ -795,4 +796,5 @@ export default function InfoPage() {
     </>
   );
 }
+
 
