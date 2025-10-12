@@ -107,22 +107,23 @@ export default function PersonalExternoPage() {
     defaultValues: { personal: [] },
   });
 
-  const { control, setValue } = form;
+  const { control, setValue, trigger } = form;
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, move } = useFieldArray({
     control,
     name: "personal",
   });
   
  const handleProviderChange = useCallback((index: number, proveedorId: string) => {
     if (!proveedorId) return;
-    // This logic needs to be updated to reflect the new structure for personal providers
-    // const provider = proveedoresDB.find(p => p.id === proveedorId);
-    // if (provider) {
-    //   setValue(`personal.${index}.proveedorId`, provider.id, { shouldDirty: true });
-    //   // Logic to find category and price needs to be added
-    // }
-  }, [proveedoresDB, setValue]);
+    const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
+    if (tipoPersonal) {
+      setValue(`personal.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
+      setValue(`personal.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
+      setValue(`personal.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
+      trigger(`personal.${index}`);
+    }
+}, [proveedoresDB, setValue, trigger]);
   
   const watchedFields = useWatch({ control, name: 'personal' });
 
