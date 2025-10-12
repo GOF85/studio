@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -250,7 +251,7 @@ export default function PersonalExternoPage() {
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const currentOS = allServiceOrders.find(os => os.id === osId);
         setServiceOrder(currentOS || null);
-
+        
         const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
         setAjustes(storedAjustes[osId] || []);
         
@@ -268,7 +269,7 @@ export default function PersonalExternoPage() {
                 turnos: turnosDelPedido.map(t => ({
                     ...t,
                     fecha: new Date(t.fecha),
-                    asignaciones: (t.asignaciones || []).map((a:any) => ({
+                    asignaciones: (t.asignaciones || []).map(a => ({
                         ...a,
                         horaEntradaReal: a.horaEntradaReal || '',
                         horaSalidaReal: a.horaSalidaReal || '',
@@ -331,25 +332,26 @@ export default function PersonalExternoPage() {
       setIsLoading(false);
       return;
     }
-    
+
     const allOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
     const otherOsOrders = allOrders.filter(o => o.osId !== osId);
-    
+
     const currentOsOrders = data.turnos.map(t => {
-      const existingTurno = fields.find(et => et.id === t.id);
-      const requiereActualizacion = !existingTurno || !existingTurno.asignaciones;
-      return {
-        ...t,
-        osId,
-        fecha: format(t.fecha, 'yyyy-MM-dd'),
-        statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
-        requiereActualizacion,
-        asignaciones: (t.asignaciones || []).map(a => ({
-          ...a,
-          horaEntradaReal: a.horaEntradaReal || '',
-          horaSalidaReal: a.horaSalidaReal || '',
-        })),
-      };
+        const existingTurno = fields.find(et => et.id === t.id);
+        const requiereActualizacion = !existingTurno || !existingTurno.asignaciones || existingTurno.asignaciones.length === 0;
+
+        return {
+            ...t,
+            osId,
+            fecha: format(t.fecha, 'yyyy-MM-dd'),
+            statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
+            requiereActualizacion,
+            asignaciones: (t.asignaciones || []).map(a => ({
+                ...a,
+                horaEntradaReal: a.horaEntradaReal || '',
+                horaSalidaReal: a.horaSalidaReal || '',
+            })),
+        };
     });
 
     const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
@@ -360,7 +362,7 @@ export default function PersonalExternoPage() {
         setIsLoading(false);
         form.reset(data); // Mark as not dirty
     }, 500);
-  };
+};
   
   const addRow = () => {
     if (!osId || !serviceOrder) return;
@@ -432,7 +434,7 @@ const turnosAprobados = useMemo(() => {
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Asignación de Personal..." />;
   }
-
+  
   return (
     <>
       <TooltipProvider>
@@ -707,4 +709,3 @@ const turnosAprobados = useMemo(() => {
     </>
   );
 }
-
