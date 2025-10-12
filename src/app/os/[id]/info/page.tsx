@@ -637,7 +637,7 @@ export default function InfoPage() {
                                 {[
                                     ['respMetre', 'respMetrePhone', 'respMetreMail', 'Resp. Metre', personalSala], 
                                     ['respPase', 'respPasePhone', 'respPaseMail', 'Resp. Pase', personalPase], 
-                                    ['respCocinaPase', 'respCocinaPasePhone', 'respCocinaPaseMail', 'Resp. Cocina Pase', personalCocina], 
+                                    ['respCocinaPase', 'respCocinaPasePhone', 'respCocinaPaseMail', 'Resp. Cocina Pase', personalPase], 
                                     ['respCocinaCPR', 'respCocinaCPRPhone', 'respCocinaCPRMail', 'Resp. Cocina CPR', personalCPR]
                                 ].map(([name, phone, mail, label, personalList]) => (
                                   <div key={name as string} className="flex items-end gap-4">
@@ -803,6 +803,7 @@ export default function InfoPage() {
     </>
   );
 }
+
 
 
 
