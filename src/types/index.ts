@@ -110,7 +110,7 @@ export type MaterialOrder = {
 };
 
 
-export const DEPARTAMENTOS_PERSONAL = ['SALA', 'COCINA', 'CPR', 'COMERCIAL', 'RRHH', 'LOGISTICA', 'OPERACIONES', 'DIRECCION'] as const;
+export const DEPARTAMENTOS_PERSONAL = ['Sala', 'Pase', 'CPR', 'RRHH', 'Almacén', 'Comercial', 'Operaciones', 'Marketing', 'HQ'] as const;
 export type DepartamentoPersonal = typeof DEPARTAMENTOS_PERSONAL[number];
 
 export type Personal = {
@@ -602,7 +602,7 @@ export type ElaboracionEnReceta = {
   merma: number;
 }
 
-export const SABORES_PRINCIPALES = ['DULCE', 'SALADO', 'ÁCIDO', 'AMARGO', 'UMAMI'] as const;
+export const SABORES_PRINCIPales = ['DULCE', 'SALADO', 'ÁCIDO', 'AMARGO', 'UMAMI'] as const;
 export type SaborPrincipal = typeof SABORES_PRINCIPALES[number];
 
 export const PARTIDAS_PRODUCCION = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'] as const;
@@ -983,3 +983,5 @@ export type CategoriaReceta = {
     id: string;
     nombre: string;
 }
+
+    
