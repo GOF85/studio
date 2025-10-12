@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,7 +13,7 @@ import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calenda
 import type { PersonalExternoOrder, CategoriaPersonal, Proveedor, AsignacionPersonal, EstadoPersonalEntrega, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExternoAjuste } from '@/types';
 import { ESTADO_PERSONAL_ENTREGA } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -41,9 +41,15 @@ const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style:
 const calculateHours = (start?: string, end?: string): number => {
     if (!start || !end) return 0;
     try {
-        const startTime = new Date(`1970-01-01T${start}:00`);
-        const endTime = new Date(`1970-01-01T${end}:00`);
+        let startTime = new Date(`1970-01-01T${start}:00`);
+        let endTime = new Date(`1970-01-01T${end}:00`);
         if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
+
+        // If end time is earlier than start time, it's an overnight shift
+        if (endTime < startTime) {
+            endTime.setDate(endTime.getDate() + 1);
+        }
+
         const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
         return diff > 0 ? diff : 0;
     } catch (e) {
@@ -295,8 +301,76 @@ export default function PersonalExternoPage() {
 
   useEffect(() => {
     loadData();
+    const handleStorageChange = () => {
+        setUpdateKey(Date.now());
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+        window.removeEventListener('storage', handleStorageChange);
+    };
   }, [loadData]);
   
+  const handleFinalSave = () => {
+    setIsLoading(true);
+    const data = form.getValues();
+
+    if (!osId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID del pedido.' });
+      setIsLoading(false);
+      return;
+    }
+    
+    let allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
+    const otherOsOrders = allTurnos.filter(o => o.osId !== osId);
+    
+    const currentOsOrders: PersonalExternoOrder[] = data.turnos.map(t => {
+      const existingTurno = watchedFields?.find(et => et.id === t.id);
+      return {
+        ...t,
+        osId,
+        fecha: format(t.fecha, 'yyyy-MM-dd'),
+        statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
+        requiereActualizacion: false, // Reset flag on save
+        asignaciones: (t.asignaciones || []).map(a => ({
+            ...a,
+            horaEntradaReal: a.horaEntradaReal || '',
+            horaSalidaReal: a.horaSalidaReal || '',
+        })),
+        observacionesGenerales: data.observacionesGenerales
+      }
+    });
+
+    const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
+    localStorage.setItem('personalExternoOrders', JSON.stringify(updatedAllOrders));
+
+    // Also trigger update in CTA
+    window.dispatchEvent(new Event('storage'));
+    
+    setTimeout(() => {
+        toast({ title: 'Guardado', description: 'Los cambios se han guardado.' });
+        setIsLoading(false);
+        form.reset(data); // Mark as not dirty
+        if (nextAction) {
+            nextAction();
+            setNextAction(null);
+        }
+    }, 500);
+  };
+  
+  const onSubmit = () => {
+    handleFinalSave();
+  };
+
+  const onBackToList = () => {
+    if (form.formState.isDirty) {
+        setNextAction(() => () => router.push('/personal-externo'));
+        setShowStatusConfirm(true);
+    } else {
+        router.push('/personal-externo');
+    }
+  };
+
+
   const handleProviderChange = useCallback((index: number, proveedorId: string) => {
     if (!proveedorId) return;
     const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
@@ -330,46 +404,8 @@ export default function PersonalExternoPage() {
     const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
 
     return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj };
-  }, [watchedFields, ajustes]);
+  }, [watchedFields, ajustes, updateKey]);
   
-  const onSubmit = (data: FormValues) => {
-    setIsLoading(true);
-    let allOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
-    const otherOsOrders = allOrders.filter(o => o.osId !== osId);
-    
-    const currentOsOrders: PersonalExternoOrder[] = data.turnos.map(t => {
-      const existingTurno = watchedFields?.find(et => et.id === t.id);
-      return {
-        ...t,
-        osId,
-        fecha: format(t.fecha, 'yyyy-MM-dd'),
-        statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
-        requiereActualizacion: false, // Reset flag on save
-        asignaciones: (t.asignaciones || []).map(a => ({
-            ...a,
-            horaEntradaReal: a.horaEntradaReal || '',
-            horaSalidaReal: a.horaSalidaReal || '',
-        })),
-        observacionesGenerales: data.observacionesGenerales
-      }
-    });
-
-    localStorage.setItem('personalExternoOrders', JSON.stringify([...otherOsOrders, ...currentOsOrders]));
-    
-    // Also trigger update in CTA
-    window.dispatchEvent(new Event('storage'));
-
-    setTimeout(() => {
-        toast({ title: 'Guardado', description: 'Los cambios se han guardado.' });
-        setIsLoading(false);
-        form.reset(data); // Mark as not dirty
-        if (nextAction) {
-            nextAction();
-            setNextAction(null);
-        }
-    }, 500);
-  };
-
   const addRow = () => {
     if (!osId || !serviceOrder) return;
     append({
@@ -434,7 +470,7 @@ export default function PersonalExternoPage() {
 
 const turnosAprobados = useMemo(() => {
     return watchedFields.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
-}, [watchedFields]);
+}, [watchedFields, updateKey]);
 
 
   if (!isMounted || !serviceOrder) {
@@ -442,9 +478,10 @@ const turnosAprobados = useMemo(() => {
   }
   
   return (
-    <TooltipProvider>
+    <>
+      <TooltipProvider>
         <FormProvider {...form}>
-            <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
+            <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
                 <div className="flex items-center justify-end mb-4">
                     <div className="flex items-center gap-2">
                         <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
@@ -474,7 +511,7 @@ const turnosAprobados = useMemo(() => {
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead className="px-2 py-1 w-32">Fecha</TableHead>
-                                            <TableHead className="px-2 py-1">Solicitado</TableHead>
+                                            <TableHead className="px-2 py-1 w-28">Solicitado</TableHead>
                                             <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
                                             <TableHead className="px-2 py-1 w-32">Tipo Servicio</TableHead>
                                             <TableHead className="px-1 py-1 bg-muted/30 w-24">H. Entrada</TableHead>
@@ -661,7 +698,7 @@ const turnosAprobados = useMemo(() => {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <h4 className="text-xs font-semibold text-muted-foreground">AJUSTE DE COSTES</h4>
+                               <h4 className="text-xs font-semibold text-muted-foreground">AJUSTE DE COSTES</h4>
                                 {ajustes.map((ajuste, index) => (
                                     <div key={ajuste.id} className="flex gap-2 items-center">
                                         <Input 
@@ -692,7 +729,9 @@ const turnosAprobados = useMemo(() => {
                     </Card>
                 </div>
             </form>
-       </FormProvider>
+        </FormProvider>
+        </TooltipProvider>
+
         <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
             <AlertDialogContent>
             <AlertDialogHeader>
@@ -712,7 +751,23 @@ const turnosAprobados = useMemo(() => {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-        </TooltipProvider>
+        
+        <AlertDialog open={showStatusConfirm} onOpenChange={setShowStatusConfirm}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Quieres guardar los cambios antes de salir?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Tienes cambios sin guardar en la planificación de personal.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="sm:justify-between">
+                    <Button variant="ghost" onClick={() => { setShowStatusConfirm(false); if(nextAction) nextAction(); }}>Descartar y Salir</Button>
+                    <Button onClick={() => { setShowStatusConfirm(false); handleSubmit(onSubmit)(); }}>Guardar y Salir</Button>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    </>
   );
 }
 
+    
