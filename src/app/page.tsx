@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -7,6 +8,7 @@ import { ClipboardList, Calendar, BookHeart, Factory, Settings, ChefHat, Compone
 import type { LucideIcon } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import { almacenNav } from '@/app/almacen/layout';
 
 type SubLink = {
     title: string;
@@ -59,11 +61,7 @@ const mainMenuItems: MenuItem[] = [
         href: '/almacen', 
         icon: Warehouse, 
         description: 'Gestiona picking, retornos y logística de material.',
-        sublinks: [
-            { title: 'Planificación de Pedidos', href: '/almacen/planificacion', icon: ClipboardCheck },
-            { title: 'Gestión de Picking', href: '/almacen/picking', icon: ListChecks },
-            { title: 'Gestión de Retornos', href: '/almacen/retornos', icon: History },
-        ]
+        sublinks: almacenNav,
     },
      { 
         title: 'Configuración', 
