@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { ServiceOrder, ObjetivosGasto } from '@/types';
 import { Target, Info, RefreshCw } from 'lucide-react';
 import { GASTO_LABELS } from '@/lib/constants';
-import { formatCurrency, formatPercentage, formatNumber } from '@/lib/utils';
+import { formatCurrency, formatPercentage, formatNumber, calculateHours } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -21,19 +21,6 @@ interface ObjectiveDisplayProps {
   osId: string;
   moduleName: ModuleName;
   updateKey?: number; // To force re-render
-}
-
-const calculateHours = (start?: string, end?: string): number => {
-    if (!start || !end) return 0;
-    try {
-        const startTime = new Date(`1970-01-01T${start}:00`);
-        const endTime = new Date(`1970-01-01T${end}:00`);
-        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
-        const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-        return diff > 0 ? diff : 0;
-    } catch (e) {
-        return 0;
-    }
 }
 
 export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDisplayProps) {
@@ -189,3 +176,4 @@ export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDispl
   );
 }
 
+  

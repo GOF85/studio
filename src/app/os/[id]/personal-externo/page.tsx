@@ -1,9 +1,8 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -35,19 +34,8 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Label } from '@/components/ui/label';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency } from '@/lib/utils';
-import { calculateHours } from '@/lib/utils';
+import { formatCurrency, calculateHours, formatDuration } from '@/lib/utils';
 
-
-const formatDuration = (hours: number) => {
-    const totalMinutes = Math.round(hours * 60);
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-}
-
-const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH'] as const;
-const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
 
 const asignacionSchema = z.object({
   id: z.string(),
@@ -70,8 +58,8 @@ const personalTurnoSchema = z.object({
   fecha: z.date({ required_error: "La fecha es obligatoria."}),
   horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
-  solicitadoPor: z.enum(centroCosteOptions),
-  tipoServicio: z.enum(tipoServicioOptions),
+  solicitadoPor: z.enum(['SALA', 'COCINA', 'LOGISTICA', 'RRHH']),
+  tipoServicio: z.enum(['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga']),
   observaciones: z.string().optional().default(''),
   statusPartner: z.enum(['Pendiente Asignación', 'Gestionado']),
   asignaciones: z.array(asignacionSchema).optional(),
@@ -350,7 +338,7 @@ export default function PersonalExternoPage() {
 
   const watchedFields = watch('turnos');
 
-  const { totalPlanned, totalReal, totalAjustes, finalTotalReal } = useMemo(() => {
+  const { totalPlanned, totalReal, totalAjustes, finalTotalReal, totalPlanificadoConAjustes } = useMemo(() => {
     const planned = watchedFields?.reduce((acc, turno) => {
       const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
       return acc + plannedHours * (turno.precioHora || 0);
@@ -362,15 +350,16 @@ export default function PersonalExternoPage() {
             if (realHours > 0) {
                 return sumAsignacion + realHours * (turno.precioHora || 0);
             }
-            // If no real hours, use planned hours for this person
             const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
             return sumAsignacion + plannedHours * (turno.precioHora || 0);
         }, 0);
     }, 0) || 0;
     
     const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
+    
+    const costePlanificadoConAjustes = planned + aj;
 
-    return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj };
+    return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj, totalPlanificadoConAjustes: costePlanificadoConAjustes };
   }, [watchedFields, ajustes, updateKey]);
   
   const addRow = () => {
@@ -450,6 +439,12 @@ const turnosAprobados = useMemo(() => {
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
+                <div className="flex justify-end mb-4">
+                    <Button type="button" onClick={onSubmit} disabled={isLoading || !formState.isDirty}>
+                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                        <span className="ml-2">Guardar Cambios</span>
+                    </Button>
+                </div>
                  <Accordion type="single" collapsible className="w-full mb-4" >
                     <AccordionItem value="item-1">
                     <Card>
@@ -470,7 +465,7 @@ const turnosAprobados = useMemo(() => {
                             <TableBody>
                                 {briefingItems.length > 0 ? briefingItems.map(item => (
                                 <TableRow key={item.id}>
-                                    <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yy')} {item.horaInicio}</TableCell>
+                                    <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yy')} {item.horaEntrada}</TableCell>
                                     <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
                                     <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
                                     <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
@@ -487,16 +482,10 @@ const turnosAprobados = useMemo(() => {
                 </Accordion>
 
                 <Tabs defaultValue="planificacion">
-                    <div className="flex justify-between items-center mb-4">
-                        <TabsList className="grid w-full grid-cols-2 max-w-md">
-                            <TabsTrigger value="planificacion" className="text-base px-6">Planificación de Turnos</TabsTrigger>
-                            <TabsTrigger value="aprobados" className="text-base px-6">Cierre y Horas Reales</TabsTrigger>
-                        </TabsList>
-                        <Button type="button" onClick={onSubmit} disabled={isLoading || !formState.isDirty}>
-                            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                            <span className="ml-2">Guardar Cambios</span>
-                        </Button>
-                    </div>
+                     <TabsList className="mb-4 grid w-full grid-cols-2 max-w-md">
+                        <TabsTrigger value="planificacion" className="text-base px-6">Planificación de Turnos</TabsTrigger>
+                        <TabsTrigger value="aprobados" className="text-base px-6">Cierre y Horas Reales</TabsTrigger>
+                    </TabsList>
                     <TabsContent value="planificacion">
                         <Card>
                             <CardHeader className="py-3 flex-row items-center justify-between">
@@ -548,7 +537,7 @@ const turnosAprobados = useMemo(() => {
                                                     </TableCell>
                                                         <TableCell className="px-2 py-1">
                                                         <FormField control={control} name={`turnos.${index}.solicitadoPor`} render={({ field: selectField }) => (
-                                                            <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{centroCosteOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
+                                                            <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{['SALA', 'COCINA', 'LOGISTICA', 'RRHH'].map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
                                                         )}/>
                                                     </TableCell>
                                                     <TableCell className="px-2 py-1 min-w-48">
@@ -568,7 +557,7 @@ const turnosAprobados = useMemo(() => {
                                                     </TableCell>
                                                     <TableCell className="px-2 py-1">
                                                         <FormField control={control} name={`turnos.${index}.tipoServicio`} render={({ field: selectField }) => (
-                                                            <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
+                                                            <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'].map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
                                                         )}/>
                                                     </TableCell>
                                                     <TableCell className="border-l px-2 py-1 bg-muted/30">
@@ -679,22 +668,26 @@ const turnosAprobados = useMemo(() => {
                                     <span className="text-muted-foreground">Coste Total Planificado:</span>
                                     <span className="font-bold">{formatCurrency(totalPlanned)}</span>
                                 </div>
+                                <div className="flex justify-between font-bold text-base">
+                                    <span className="text-muted-foreground">Coste Total Planificado (con Ajustes):</span>
+                                    <span className="font-bold">{formatCurrency(totalPlanificadoConAjustes)}</span>
+                                </div>
+                                <Separator className="my-2" />
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Coste Total Real (Horas):</span>
                                     <span className="font-bold">{formatCurrency(totalReal)}</span>
                                 </div>
-                                <Separator className="my-2" />
                                 <div className="flex justify-between font-bold text-base">
                                     <span>Coste Total Real (con Ajustes):</span>
-                                    <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
+                                    <span className={finalTotalReal > totalPlanificadoConAjustes ? 'text-destructive' : 'text-green-600'}>
                                         {formatCurrency(finalTotalReal)}
                                     </span>
                                 </div>
                                 <Separator className="my-2" />
                                  <div className="flex justify-between font-bold text-base">
                                     <span>Desviación (Plan vs Real):</span>
-                                    <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
-                                        {formatCurrency(finalTotalReal - totalPlanned)}
+                                    <span className={finalTotalReal > totalPlanificadoConAjustes ? 'text-destructive' : 'text-green-600'}>
+                                        {formatCurrency(finalTotalReal - totalPlanificadoConAjustes)}
                                     </span>
                                 </div>
                             </div>
@@ -755,3 +748,6 @@ const turnosAprobados = useMemo(() => {
     </>
   );
 }
+
+
+  

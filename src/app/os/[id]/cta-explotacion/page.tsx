@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from "react"
@@ -30,15 +29,6 @@ type CostRow = {
   objetivo: number;
   objetivo_pct: number;
   comentario?: string;
-};
-
-const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: string; horaSalida: string; cantidad?: number}[]) => {
-    return orders.reduce((sum, order) => {
-        const hours = calculateHours(order.horaEntrada, order.horaSalida);
-        const quantity = order.cantidad || 1;
-        const price = order.precioHora || 0;
-        return sum + (hours * price * quantity);
-    }, 0);
 };
 
 export default function CtaExplotacionPage() {
@@ -163,6 +153,8 @@ export default function CtaExplotacionPage() {
         return acc + realHours * price;
     }, 0);
     const costePruebaTotal = pruebaMenu?.costePruebaMenu || 0;
+
+    const costePersonalExternoPlanificado = calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)) + personalExternoTotalAjustes;
     
     const newCostes = [
       { label: GASTO_LABELS.gastronomia, presupuesto: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)) },
@@ -175,7 +167,7 @@ export default function CtaExplotacionPage() {
       { label: GASTO_LABELS.decoracion, presupuesto: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)) },
       { label: GASTO_LABELS.atipicos, presupuesto: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)) },
       { label: GASTO_LABELS.personalMice, presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: personalMiceRealCost },
-      { label: GASTO_LABELS.personalExterno, presupuesto: calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)) + personalExternoTotalAjustes, cierre: personalExternoRealCost + personalExternoTotalAjustes },
+      { label: GASTO_LABELS.personalExterno, presupuesto: costePersonalExternoPlanificado, cierre: personalExternoRealCost + personalExternoTotalAjustes },
       { label: GASTO_LABELS.costePruebaMenu, presupuesto: costePruebaTotal, cierre: costePruebaTotal },
     ];
     
@@ -503,3 +495,5 @@ export default function CtaExplotacionPage() {
     </TooltipProvider>
   );
 }
+
+  
