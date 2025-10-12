@@ -3,11 +3,10 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusCircle, Save, Trash2, ArrowLeft, Loader2, Menu, FileUp, FileDown, Database } from 'lucide-react';
+import { PlusCircle, Save, Trash2, Loader2, Menu, FileUp, FileDown, Database } from 'lucide-react';
 import type { IngredienteERP, UnidadMedida, Proveedor } from '@/types';
 import { UNIDADES_MEDIDA, ingredienteErpSchema } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -46,7 +45,7 @@ const formSchema = z.object({
 });
 
 type IngredientesERPFormValues = z.infer<typeof formSchema>;
-const CSV_HEADERS = ["id", "IdERP", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
+const CSV_HEADERS = ["id", "idProveedor", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
 
 export default function IngredientesERPPage() {
   const [isMounted, setIsMounted] = useState(false);
@@ -90,7 +89,7 @@ export default function IngredientesERPPage() {
     // Enrich items with provider name
     const enrichedItems = items.map((item: IngredienteERP) => ({
       ...item,
-      nombreProveedor: pMap.get(item.IdERP || '') || item.nombreProveedor || ''
+      nombreProveedor: pMap.get(item.idProveedor || '') || item.nombreProveedor || ''
     }));
 
     form.reset({ items: enrichedItems });
@@ -125,7 +124,7 @@ export default function IngredientesERPPage() {
           (item.nombreProductoERP || '').toLowerCase().includes(term) ||
           (item.nombreProveedor || '').toLowerCase().includes(term) ||
           (item.referenciaProveedor || '').toLowerCase().includes(term) ||
-          (item.IdERP || '').toLowerCase().includes(term) ||
+          (item.idProveedor || '').toLowerCase().includes(term) ||
           (item.tipo || '').toLowerCase().includes(term);
 
         const categoryMatch = categoryFilter === 'all' || item.familiaCategoria === categoryFilter;
@@ -150,7 +149,7 @@ export default function IngredientesERPPage() {
   const handleAddNewRow = () => {
     append({
       id: Date.now().toString(),
-      IdERP: '',
+      idProveedor: '',
       nombreProductoERP: '',
       referenciaProveedor: '',
       nombreProveedor: '',
@@ -225,10 +224,10 @@ export default function IngredientesERPPage() {
         
         const importedData: IngredienteERP[] = results.data.map(item => ({
             id: item.id || Date.now().toString() + Math.random(),
-            IdERP: item.IdERP || '',
+            idProveedor: item.idProveedor || '',
             nombreProductoERP: item.nombreProductoERP || '',
             referenciaProveedor: item.referenciaProveedor || '',
-            nombreProveedor: proveedoresMap.get(item.IdERP || '') || item.nombreProveedor || '',
+            nombreProveedor: proveedoresMap.get(item.idProveedor || '') || item.nombreProveedor || '',
             familiaCategoria: item.familiaCategoria || '',
             precioCompra: parseCurrency(item.precioCompra),
             unidadConversion: Number(item.unidadConversion) || 1,
@@ -327,7 +326,7 @@ export default function IngredientesERPPage() {
                     <TableHeader>
                     <TableRow>
                         <TableHead className="p-2 w-48">Producto</TableHead>
-                        <TableHead className="p-2 w-28">Id. ERP</TableHead>
+                        <TableHead className="p-2 w-28">Id. Proveedor</TableHead>
                         <TableHead className="p-2 w-40">Proveedor</TableHead>
                         <TableHead className="p-2 w-32">Ref. Proveedor</TableHead>
                         <TableHead className="p-2 w-28">P. Compra</TableHead>
@@ -352,10 +351,10 @@ export default function IngredientesERPPage() {
                                 <FormField control={form.control} name={`items.${item.originalIndex}.nombreProductoERP`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
                             </TableCell>
                             <TableCell className="p-1">
-                                 <FormField control={form.control} name={`items.${item.originalIndex}.IdERP`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
+                                 <FormField control={form.control} name={`items.${item.originalIndex}.idProveedor`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
                             </TableCell>
                             <TableCell className="p-1">
-                                 <Input value={proveedoresMap.get(item.IdERP || '') || item.nombreProveedor || ''} readOnly className="h-8 bg-muted/50"/>
+                                 <Input value={proveedoresMap.get(item.idProveedor || '') || item.nombreProveedor || ''} readOnly className="h-8 bg-muted/50"/>
                             </TableCell>
                             <TableCell className="p-1">
                                  <FormField control={form.control} name={`items.${item.originalIndex}.referenciaProveedor`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />

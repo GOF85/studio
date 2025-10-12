@@ -539,7 +539,7 @@ export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
 
 export const ingredienteErpSchema = z.object({
   id: z.string(),
-  IdERP: z.string().optional(),
+  idProveedor: z.string().optional(),
   nombreProductoERP: z.string().min(1, 'El nombre del producto es obligatorio'),
   referenciaProveedor: z.string().optional(),
   nombreProveedor: z.string().optional(),

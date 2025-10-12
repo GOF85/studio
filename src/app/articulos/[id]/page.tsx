@@ -121,7 +121,7 @@ export default function ArticuloFormPage() {
     return ingredientesERP.filter(p => {
         const matchesSearch = 
             p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
-            p.nombreProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
+            (p.nombreProveedor || '').toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
             p.referenciaProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase());
         
         if (categoria === 'Alquiler') {
@@ -135,8 +135,8 @@ export default function ArticuloFormPage() {
     if (selectedErpProduct) {
         setValue('tipo', selectedErpProduct.tipo, { shouldDirty: true });
         
-        if (selectedErpProduct.precioAlquilerUd) {
-            setValue('precioAlquiler', selectedErpProduct.precioAlquilerUd, { shouldDirty: true });
+        if (selectedErpProduct.precioAlquiler) {
+            setValue('precioAlquiler', selectedErpProduct.precioAlquiler, { shouldDirty: true });
         }
 
         if (esProducidoPorPartner) {
@@ -348,7 +348,7 @@ export default function ArticuloFormPage() {
                     <FormItem><FormLabel>Precio Venta</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={(!!selectedErpProduct && !esProducidoPorPartner)} className={(!!selectedErpProduct && !esProducidoPorPartner) ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="precioAlquiler" render={({ field }) => (
-                    <FormItem><FormLabel>Precio Alquiler</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={(!!selectedErpProduct && !!selectedErpProduct.precioAlquilerUd)} className={(!!selectedErpProduct && !!selectedErpProduct.precioAlquilerUd) ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Precio Alquiler</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={(!!selectedErpProduct && !!selectedErpProduct.precioAlquiler)} className={(!!selectedErpProduct && !!selectedErpProduct.precioAlquiler) ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="precioReposicion" render={({ field }) => (
                     <FormItem><FormLabel>Precio Reposición</FormLabel><FormControl><Input type="number" step="0.01" {...field} readOnly={!!selectedErpProduct && esProducidoPorPartner} className={!!selectedErpProduct && esProducidoPorPartner ? "bg-muted" : ""} /></FormControl><FormMessage /></FormItem>
@@ -379,6 +379,3 @@ export default function ArticuloFormPage() {
     </>
   );
 }
-
-
-
