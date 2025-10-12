@@ -110,6 +110,9 @@ export type MaterialOrder = {
 };
 
 
+export const DEPARTAMENTOS_PERSONAL = ['SALA', 'COCINA', 'CPR', 'COMERCIAL', 'RRHH', 'LOGISTICA', 'OPERACIONES', 'DIRECCION'] as const;
+export type DepartamentoPersonal = typeof DEPARTAMENTOS_PERSONAL[number];
+
 export type Personal = {
     id: string;
     nombre: string;
