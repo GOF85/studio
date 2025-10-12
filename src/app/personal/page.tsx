@@ -118,7 +118,7 @@ export default function PersonalPage() {
     Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
-      delimiter: ";",
+      delimitersToGuess: [',', ';'],
       complete: (results) => {
         const headers = results.meta.fields || [];
         const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
