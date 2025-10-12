@@ -1,6 +1,7 @@
+
 'use client';
 
-import { Users, BookOpen, Workflow, Factory, BarChart3, ShieldCheck, Warehouse } from "lucide-react";
+import { Users, BookOpen, Workflow, Factory, BarChart3, ShieldCheck, Warehouse, GitBranch } from "lucide-react";
 
 export default function UserManualPage() {
     return (
@@ -78,17 +79,31 @@ export default function UserManualPage() {
                 <h3>5.4. Gestión de Retornos</h3>
                 <p>Después de un evento, desde el módulo de **"Gestión de Retornos"**, se puede procesar el material devuelto, registrando roturas o pérdidas, lo que también afectará al coste final del servicio.</p>
             </section>
-            
+
             <section id="c6">
-                <h2 className="flex items-center gap-3"><BarChart3 />Capítulo 6: Informes y Análisis</h2>
+                <h2 className="flex items-center gap-3"><GitBranch />Capítulo 6: Estructura Económica y Operativa</h2>
+                <p>La aplicación está diseñada para reflejar la estructura de centros de coste de la empresa, permitiendo un análisis financiero preciso y una imputación de costes correcta.</p>
+                <h3>6.1. Centros de Coste</h3>
+                <ul>
+                    <li><strong>CPR (Centro de Producción):</strong> Responsable de toda la producción gastronómica (cocineros, director gastronómico). Sus ingresos provienen de las "compras" internas que le hace la unidad de Catering para cada evento. Su objetivo es cubrir sus costes operativos (materia prima, personal, etc.).</li>
+                    <li><strong>Catering (Sala y Pase):</strong> Es la unidad que factura al cliente final. Se encarga del servicio en el evento (maîtres, camareros, cocineros de pase). Sus costes son el personal, la gastronomía (que le compra a CPR), bebidas, transporte, etc.</li>
+                    <li><strong>Almacén:</strong> Centro logístico para material no gastronómico. Se financia a través de un % de cada referencia servida y por los servicios de transporte. Cubre sus propios gastos de personal, mantenimiento y reposición.</li>
+                    <li><strong>HQ (Administración):</strong> Engloba los departamentos transversales (administración, marketing, etc.). Se financia con un 25% de la rentabilidad final de cada evento para cubrir sus gastos operativos.</li>
+                </ul>
+                 <h3>6.2. Flujo de Personal y RRHH</h3>
+                <p>El responsable de producción de un evento propone una necesidad de personal (ej: 10 camareros) basada en ratios estándar. RRHH recibe esta propuesta, la valida, y es el departamento con la autoridad final para asignar el personal interno o solicitarlo a ETTs, optimizando los recursos de la empresa a nivel global.</p>
+            </section>
+            
+            <section id="c7">
+                <h2 className="flex items-center gap-3"><BarChart3 />Capítulo 7: Informes y Análisis</h2>
                 <p>MICE Catering no solo gestiona, sino que también proporciona inteligencia de negocio para tomar decisiones estratégicas.</p>
-                <h3>6.1. Informe de Productividad</h3>
+                <h3>7.1. Informe de Productividad</h3>
                 <p>Analiza los tiempos de producción por responsable, desde que una OF es asignada hasta que se finaliza. Permite detectar cuellos de botella y optimizar flujos de trabajo.</p>
-                <h3>6.2. Gestión de Excedentes</h3>
+                <h3>7.2. Gestión de Excedentes</h3>
                 <p>Controla el sobrante de producción, ajusta su cantidad real y define su vida útil para facilitar su reaprovechamiento y reducir mermas.</p>
-                <h3>6.3. Trazabilidad de Lotes</h3>
+                <h3>7.3. Trazabilidad de Lotes</h3>
                 <p>Consulta el historial completo de cualquier lote de producción (OF), desde su creación hasta los eventos en los que fue servido, para una trazabilidad total.</p>
-                <h3>6.4. Informe de Incidencias</h3>
+                <h3>7.4. Informe de Incidencias</h3>
                 <p>Revisa un listado centralizado de todas las OF que han sido marcadas con incidencias, facilitando su seguimiento y resolución.</p>
             </section>
         </>
