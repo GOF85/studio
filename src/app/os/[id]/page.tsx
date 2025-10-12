@@ -112,7 +112,8 @@ export default function OsDashboardPage() {
         if (currentBriefing) {
             currentBriefing.items.forEach(item => {
                 if (item.conGastronomia) {
-                    if (item.descripcion.toLowerCase() === 'prueba de menu') {
+                    const normalizedDesc = item.descripcion.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    if (normalizedDesc === 'prueba de menu') {
                         tastingMenus++;
                     } else {
                         gastronomicServices++;
@@ -164,9 +165,9 @@ export default function OsDashboardPage() {
         { 
             title: 'Nº de Servicios', 
             value: (
-                <div className="flex items-baseline gap-2">
+                <div className="flex items-baseline gap-1.5">
                     {briefingItemsCount > 0 && <span>{briefingItemsCount} <span className="text-sm font-normal">Servicios</span></span>}
-                    {briefingItemsCount > 0 && pruebasMenuCount > 0 && <span className="text-xl">/</span>}
+                    {briefingItemsCount > 0 && pruebasMenuCount > 0 && <span className="text-xl font-normal">/</span>}
                     {pruebasMenuCount > 0 && <span>{pruebasMenuCount} <span className="text-sm font-normal">P. Menú</span></span>}
                     {briefingItemsCount === 0 && pruebasMenuCount === 0 && <span>0</span>}
                 </div>
