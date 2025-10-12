@@ -409,15 +409,6 @@ export default function PlanificacionAlmacenPage() {
 
     return (
         <div>
-             <div className="lg:hidden mb-6">
-                 {/* This title is handled by the layout now */}
-             </div>
-            <div className="hidden lg:block mb-6">
-                <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                    <ClipboardList /> Planificación de Necesidades
-                </h1>
-            </div>
-
              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
                 {statsCards.map(card => (
                     <Link href={card.href} key={card.title}>
@@ -540,11 +531,13 @@ export default function PlanificacionAlmacenPage() {
                             ))}
                         </Accordion>
                     ) : (
-                        <div className="py-12 text-center">
-                            <Warehouse className="mx-auto h-12 w-12 text-muted-foreground" />
-                            <h3 className="mt-4 text-lg font-semibold">Sin Necesidades</h3>
-                            <p className="mt-1 text-sm text-muted-foreground">No hay pedidos de material para el rango de fechas seleccionado.</p>
-                        </div>
+                        <Card>
+                            <CardContent className="py-12 text-center">
+                                <Warehouse className="mx-auto h-12 w-12 text-muted-foreground" />
+                                <h3 className="mt-4 text-lg font-semibold">Sin Necesidades</h3>
+                                <p className="mt-1 text-sm text-muted-foreground">No hay pedidos de material para el rango de fechas seleccionado.</p>
+                            </CardContent>
+                        </Card>
                     )}
                  </CardContent>
             </Card>
@@ -557,3 +550,4 @@ export default function PlanificacionAlmacenPage() {
     
 
     
+

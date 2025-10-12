@@ -112,15 +112,6 @@ export default function GestionPickingPage() {
     return (
         <>
         <div>
-            <div className="lg:hidden mb-6">
-                 {/* This title is handled by the layout now */}
-            </div>
-            <div className="hidden lg:block mb-6">
-                <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                    <ListChecks /> Gestión de Picking
-                </h1>
-            </div>
-
              <div className="flex flex-col md:flex-row gap-4 mb-6">
                 <div className="relative flex-grow">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

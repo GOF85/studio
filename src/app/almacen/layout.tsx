@@ -8,6 +8,8 @@ import { Warehouse, ClipboardList, ListChecks, History, AlertTriangle, Menu } fr
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
+import { Separator } from '@/components/ui/separator';
+
 
 export const almacenNav = [
     { title: 'Planificación', href: '/almacen/planificacion', icon: ClipboardList, exact: false },
@@ -60,7 +62,7 @@ export default function AlmacenLayout({ children }: { children: React.ReactNode 
 
     return (
         <div className="container mx-auto">
-            <div className="flex items-center justify-between mb-4 lg:hidden">
+            <div className="flex items-center justify-between my-4">
                 <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                     <SheetTrigger asChild>
                         <Button variant="outline" size="icon">
@@ -71,44 +73,22 @@ export default function AlmacenLayout({ children }: { children: React.ReactNode 
                          <NavContent closeSheet={() => setIsSheetOpen(false)} />
                     </SheetContent>
                 </Sheet>
-                 <h1 className="text-xl font-headline font-bold flex items-center gap-2">
-                    <PageIcon className="h-6 w-6"/> {currentPage.title}
-                </h1>
+                
+                <div className="flex-grow flex justify-center items-center gap-3">
+                    <Warehouse className="h-7 w-7 text-primary"/>
+                    <h1 className="text-xl font-headline font-bold">Almacen MC</h1>
+                    <Separator orientation="vertical" className="h-6" />
+                    <PageIcon className="h-6 w-6"/> 
+                    <h2 className="text-lg font-semibold">{currentPage.title}</h2>
+                </div>
+
+                {/* Empty div to balance flexbox */}
+                <div className="w-10"></div>
             </div>
 
-            <div className="grid lg:grid-cols-[250px_1fr] gap-12">
-                <aside className="lg:sticky top-20 self-start h-[calc(100vh-5rem)] hidden lg:block">
-                     <div className="pb-4 mb-4 border-b">
-                        <h2 className="text-xl font-headline font-bold flex items-center gap-3"><Warehouse size={24}/>Panel de Almacen</h2>
-                        <p className="text-sm text-muted-foreground">
-                            Logística de material y expediciones.
-                        </p>
-                    </div>
-                    <nav className="grid items-start gap-1">
-                        {almacenNav.map((item, index) => {
-                            const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
-                            return (
-                            <Link
-                                key={index}
-                                href={item.href}
-                            >
-                                <span
-                                    className={cn(
-                                        "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                                        isActive ? "bg-accent" : "transparent"
-                                    )}
-                                >
-                                    <item.icon className="mr-2 h-4 w-4" />
-                                    <span>{item.title}</span>
-                                </span>
-                            </Link>
-                        )})}
-                    </nav>
-                </aside>
-                <main className="py-8 pt-0 lg:pt-8">
-                    {children}
-                </main>
-            </div>
+            <main className="py-8 pt-0">
+                {children}
+            </main>
         </div>
     );
 }
