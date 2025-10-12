@@ -45,7 +45,7 @@ const formSchema = z.object({
 });
 
 type IngredientesERPFormValues = z.infer<typeof formSchema>;
-const CSV_HEADERS = ["id", "idProveedor", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
+const CSV_HEADERS = ["id", "idProveedor", "nombreProveedor", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
 
 export default function IngredientesERPPage() {
   const [isMounted, setIsMounted] = useState(false);
@@ -178,7 +178,16 @@ export default function IngredientesERPPage() {
       toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay artículos para exportar.' });
       return;
     }
-    const csv = Papa.unparse(getValues('items'));
+    const dataToExport = getValues('items').map(item => {
+        // Ensure all CSV_HEADERS are present
+        const exportItem: any = {};
+        CSV_HEADERS.forEach(header => {
+            exportItem[header] = (item as any)[header] ?? '';
+        });
+        return exportItem;
+    });
+
+    const csv = Papa.unparse(dataToExport);
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -432,3 +441,4 @@ export default function IngredientesERPPage() {
     </>
   );
 }
+
