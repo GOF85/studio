@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { formatNumber } from '@/lib/utils';
+import { formatNumber, formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -102,29 +102,50 @@ export default function IncidenciasRetornoPage() {
         doc.text(`Cliente: ${group.cliente}`, 14, 30);
         doc.text(`Fecha Evento: ${format(new Date(group.fechaEvento), 'dd/MM/yyyy', { locale: es })}`, 14, 36);
 
-        const tableColumn = ["Artículo", "Enviado", "Devuelto", "Merma", "% Merma", "Comentario"];
-        const tableRows: (string | number)[][] = [];
+        let finalY = 45;
 
+        const incidenciasPorTipo: Record<string, ReturnIncidencia[]> = {};
         group.incidencias.forEach(inc => {
-            const merma = inc.item.sentQuantity - inc.item.returnedQuantity;
-            const pctMerma = inc.item.sentQuantity > 0 ? (merma / inc.item.sentQuantity) * 100 : 0;
-            const incData = [
-                inc.item.description,
-                inc.item.sentQuantity,
-                inc.item.returnedQuantity,
-                merma,
-                `${pctMerma.toFixed(1)}%`,
-                inc.comment
-            ];
-            tableRows.push(incData);
+            const tipo = inc.item.type || 'Varios';
+            if(!incidenciasPorTipo[tipo]) incidenciasPorTipo[tipo] = [];
+            incidenciasPorTipo[tipo].push(inc);
         });
 
-        autoTable(doc, {
-            head: [tableColumn],
-            body: tableRows,
-            startY: 45,
-            headStyles: { fillColor: [0, 112, 60] } // Corporate Green
-        });
+        for (const tipo in incidenciasPorTipo) {
+            if (finalY > 250) { doc.addPage(); finalY = 20; }
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text(tipo, 14, finalY);
+            finalY += 6;
+            
+            const tableColumn = ["Artículo", "Enviado", "Devuelto", "Merma", "Valor Merma", "% Merma", "Comentario"];
+            const tableRows: (string | number)[][] = [];
+            
+            incidenciasPorTipo[tipo].forEach(inc => {
+                const merma = inc.item.sentQuantity - inc.item.returnedQuantity;
+                const valorMerma = merma * inc.item.price;
+                const pctMerma = inc.item.sentQuantity > 0 ? (merma / inc.item.sentQuantity) * 100 : 0;
+                tableRows.push([
+                    inc.item.description,
+                    inc.item.sentQuantity,
+                    inc.item.returnedQuantity,
+                    merma,
+                    formatCurrency(valorMerma),
+                    `${pctMerma.toFixed(1)}%`,
+                    inc.comment
+                ]);
+            });
+            
+            autoTable(doc, {
+                head: [tableColumn],
+                body: tableRows,
+                startY: finalY,
+                headStyles: { fillColor: [0, 112, 60] }
+            });
+
+            finalY = (doc as any).lastAutoTable.finalY + 10;
+        }
+
 
         doc.save(`Informe_Incidencias_${group.osServiceNumber}.pdf`);
     }
@@ -142,6 +163,15 @@ export default function IncidenciasRetornoPage() {
 
     if (!isMounted) {
         return <LoadingSkeleton title="Cargando Incidencias de Retorno..." />;
+    }
+    
+    const getGroupedIncidentsByType = (incidencias: ReturnIncidencia[]) => {
+        return incidencias.reduce((acc, inc) => {
+            const tipo = inc.item.type || 'Varios';
+            if(!acc[tipo]) acc[tipo] = [];
+            acc[tipo].push(inc);
+            return acc;
+        }, {} as Record<string, ReturnIncidencia[]>);
     }
 
     return (
@@ -175,7 +205,9 @@ export default function IncidenciasRetornoPage() {
             <div className="space-y-4">
                 {groupedAndFilteredIncidencias.length > 0 ? (
                     <Accordion type="multiple" className="w-full space-y-4">
-                        {groupedAndFilteredIncidencias.map(group => (
+                        {groupedAndFilteredIncidencias.map(group => {
+                            const incidenciasPorTipo = getGroupedIncidentsByType(group.incidencias);
+                            return (
                              <AccordionItem value={group.osId} key={group.osId} className="border rounded-lg">
                                 <div className="flex justify-between items-center w-full p-4">
                                     <AccordionTrigger className="p-0 hover:no-underline flex-grow">
@@ -197,41 +229,51 @@ export default function IncidenciasRetornoPage() {
                                     </div>
                                 </div>
                                 <AccordionContent>
-                                    <div className="border-t p-4">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Artículo</TableHead>
-                                                <TableHead className="w-48">Discrepancia</TableHead>
-                                                <TableHead className="w-24 text-center">Merma</TableHead>
-                                                <TableHead className="w-24 text-center">% Merma</TableHead>
-                                                <TableHead>Comentario</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {group.incidencias.map(inc => {
-                                                const merma = inc.item.sentQuantity - inc.item.returnedQuantity;
-                                                const pctMerma = inc.item.sentQuantity > 0 ? (merma / inc.item.sentQuantity) * 100 : 0;
-                                                return (
-                                                    <TableRow key={`${inc.osId}-${inc.item.itemCode}-${inc.timestamp}`}>
-                                                        <TableCell className="font-medium">{inc.item.description}</TableCell>
-                                                        <TableCell>
-                                                            Enviado: {inc.item.sentQuantity} / Devuelto: {inc.item.returnedQuantity}
-                                                        </TableCell>
-                                                        <TableCell className="text-center font-bold text-destructive">{merma}</TableCell>
-                                                        <TableCell className="text-center font-bold text-destructive">
-                                                            <Badge variant="destructive">{formatNumber(pctMerma, 1)}%</Badge>
-                                                        </TableCell>
-                                                        <TableCell className="max-w-md truncate">{inc.comment}</TableCell>
-                                                    </TableRow>
-                                                )
-                                            })}
-                                        </TableBody>
-                                    </Table>
+                                    <div className="border-t p-4 space-y-4">
+                                        {Object.entries(incidenciasPorTipo).map(([tipo, incs]) => (
+                                        <div key={tipo}>
+                                            <h4 className="font-semibold text-lg mb-2">{tipo}</h4>
+                                            <div className="border rounded-md">
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>Artículo</TableHead>
+                                                            <TableHead className="w-48">Discrepancia</TableHead>
+                                                            <TableHead className="w-24 text-center">Merma</TableHead>
+                                                            <TableHead className="w-24 text-center">Valor Merma</TableHead>
+                                                            <TableHead className="w-24 text-center">% Merma</TableHead>
+                                                            <TableHead>Comentario</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {incs.map(inc => {
+                                                            const merma = inc.item.sentQuantity - inc.item.returnedQuantity;
+                                                            const valorMerma = merma * inc.item.price;
+                                                            const pctMerma = inc.item.sentQuantity > 0 ? (merma / inc.item.sentQuantity) * 100 : 0;
+                                                            return (
+                                                                <TableRow key={`${inc.osId}-${inc.item.itemCode}-${inc.timestamp}`}>
+                                                                    <TableCell className="font-medium">{inc.item.description}</TableCell>
+                                                                    <TableCell>
+                                                                        Enviado: {inc.item.sentQuantity} / Devuelto: {inc.item.returnedQuantity}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-center font-bold text-destructive">{merma}</TableCell>
+                                                                    <TableCell className="text-center font-bold text-destructive">{formatCurrency(valorMerma)}</TableCell>
+                                                                    <TableCell className="text-center font-bold text-destructive">
+                                                                        <Badge variant="destructive">{formatNumber(pctMerma, 1)}%</Badge>
+                                                                    </TableCell>
+                                                                    <TableCell className="max-w-md truncate">{inc.comment}</TableCell>
+                                                                </TableRow>
+                                                            )
+                                                        })}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </div>
+                                        ))}
                                     </div>
                                 </AccordionContent>
                              </AccordionItem>
-                        ))}
+                        )})}
                     </Accordion>
                 ) : (
                     <Card>
