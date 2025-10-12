@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, FileDown, FileUp, Users, Menu } from 'lucide-react';
 import type { Personal } from '@/types';
+import { DEPARTAMENTOS_PERSONAL } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -60,10 +61,8 @@ export default function PersonalPage() {
   }, []);
   
   const departments = useMemo(() => {
-    if (!personal) return ['all'];
-    const allDepartments = personal.map(p => p.departamento).filter(Boolean); // Filter out empty strings
-    return ['all', ...Array.from(new Set(allDepartments))];
-  }, [personal]);
+    return ['all', ...DEPARTAMENTOS_PERSONAL];
+  }, []);
 
   const filteredPersonal = useMemo(() => {
     return personal.filter(p => {
@@ -99,7 +98,7 @@ export default function PersonalPage() {
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
-
+  
   const parseCurrency = (value: string | number) => {
     if (typeof value === 'number') return value;
     if (typeof value === 'string') {
@@ -115,42 +114,49 @@ export default function PersonalPage() {
     if (!file) {
       return;
     }
+
+    const importedData: Personal[] = [];
+    
     Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
-      delimitersToGuess: [',', ';'],
       complete: (results) => {
         const headers = results.meta.fields || [];
         const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
 
         if (!hasAllHeaders) {
-            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
+            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas: ${CSV_HEADERS.join(', ')}.`});
             return;
         }
-        
-        const importedData: Personal[] = results.data.map((item: any) => ({
-            id: item.id || Date.now().toString() + Math.random(),
-            nombre: item.nombre || '',
-            apellidos: item.apellidos || '',
-            iniciales: item.iniciales || '',
-            departamento: item.departamento || '',
-            categoria: item.categoria || '',
-            telefono: item.telefono || '',
-            mail: item.mail || '',
-            dni: item.dni || '',
-            precioHora: parseCurrency(item.precioHora),
-        }));
 
+        results.data.forEach((item: any) => {
+            if (item.nombre && item.apellidos) { // Basic validation
+                importedData.push({
+                    id: item.id || `${Date.now()}-${Math.random()}`,
+                    nombre: item.nombre || '',
+                    apellidos: item.apellidos || '',
+                    iniciales: item.iniciales || '',
+                    departamento: item.departamento || '',
+                    categoria: item.categoria || '',
+                    telefono: item.telefono || '',
+                    mail: item.mail || '',
+                    dni: item.dni || '',
+                    precioHora: parseCurrency(item.precioHora),
+                });
+            }
+        });
+        
         localStorage.setItem('personal', JSON.stringify(importedData));
         setPersonal(importedData);
         toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
       },
-      error: (error) => {
+      error: (error: any) => {
         toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
       }
     });
-    if(event.target) {
-        event.target.value = '';
+
+    if (event.target) {
+      event.target.value = '';
     }
   };
 
