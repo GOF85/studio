@@ -257,7 +257,7 @@ export default function RetornoSheetPage() {
                                         <TableHead>Artículo</TableHead>
                                         <TableHead className="text-center w-24">Enviado</TableHead>
                                         <TableHead className="w-52 text-center">Devuelto</TableHead>
-                                        <TableHead className="w-24 text-center">Consumo</TableHead>
+                                        <TableHead className="w-24 text-center">Consumo / Merma</TableHead>
                                         <TableHead className="w-24 text-center">Excedente</TableHead>
                                         <TableHead className="text-center w-20">Revisado</TableHead>
                                         <TableHead className="text-right w-20">Incidencia</TableHead>
