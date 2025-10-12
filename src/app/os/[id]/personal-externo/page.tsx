@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -36,6 +36,9 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, calculateHours, formatDuration } from '@/lib/utils';
 
+
+const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH'] as const;
+const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
 
 const asignacionSchema = z.object({
   id: z.string(),
@@ -346,12 +349,11 @@ export default function PersonalExternoPage() {
 
     const real = watchedFields?.reduce((acc, turno) => {
         return acc + (turno.asignaciones || []).reduce((sumAsignacion, asignacion) => {
-            const realHours = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
-            if (realHours > 0) {
-                return sumAsignacion + realHours * (turno.precioHora || 0);
+            let realHours = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
+            if (realHours <= 0) {
+                realHours = calculateHours(turno.horaEntrada, turno.horaSalida);
             }
-            const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
-            return sumAsignacion + plannedHours * (turno.precioHora || 0);
+            return sumAsignacion + realHours * (turno.precioHora || 0);
         }, 0);
     }, 0) || 0;
     
@@ -366,7 +368,6 @@ export default function PersonalExternoPage() {
     if (!osId || !serviceOrder) return;
     append({
         id: Date.now().toString(),
-        osId: osId,
         proveedorId: '',
         categoria: '',
         precioHora: 0,
@@ -436,15 +437,10 @@ const turnosAprobados = useMemo(() => {
 
   return (
     <>
+      <main>
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
-                <div className="flex justify-end mb-4">
-                    <Button type="button" onClick={onSubmit} disabled={isLoading || !formState.isDirty}>
-                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                        <span className="ml-2">Guardar Cambios</span>
-                    </Button>
-                </div>
                  <Accordion type="single" collapsible className="w-full mb-4" >
                     <AccordionItem value="item-1">
                     <Card>
@@ -465,7 +461,7 @@ const turnosAprobados = useMemo(() => {
                             <TableBody>
                                 {briefingItems.length > 0 ? briefingItems.map(item => (
                                 <TableRow key={item.id}>
-                                    <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yy')} {item.horaEntrada}</TableCell>
+                                    <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yy')} {item.horaInicio}</TableCell>
                                     <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
                                     <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
                                     <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
@@ -481,8 +477,16 @@ const turnosAprobados = useMemo(() => {
                     </AccordionItem>
                 </Accordion>
 
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-bold">Planificación y Cierre</h2>
+                    <Button type="button" onClick={onSubmit} disabled={isLoading || !formState.isDirty}>
+                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                        <span className="ml-2">Guardar Cambios</span>
+                    </Button>
+                </div>
+                
                 <Tabs defaultValue="planificacion">
-                     <TabsList className="mb-4 grid w-full grid-cols-2 max-w-md">
+                     <TabsList className="mb-4 grid w-full grid-cols-2 max-w-lg">
                         <TabsTrigger value="planificacion" className="text-base px-6">Planificación de Turnos</TabsTrigger>
                         <TabsTrigger value="aprobados" className="text-base px-6">Cierre y Horas Reales</TabsTrigger>
                     </TabsList>
@@ -664,19 +668,11 @@ const turnosAprobados = useMemo(() => {
                         <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
                         <CardContent className="grid grid-cols-2 gap-8 p-4">
                             <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Coste Total Planificado:</span>
-                                    <span className="font-bold">{formatCurrency(totalPlanned)}</span>
-                                </div>
                                 <div className="flex justify-between font-bold text-base">
                                     <span className="text-muted-foreground">Coste Total Planificado (con Ajustes):</span>
                                     <span className="font-bold">{formatCurrency(totalPlanificadoConAjustes)}</span>
                                 </div>
                                 <Separator className="my-2" />
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Coste Total Real (Horas):</span>
-                                    <span className="font-bold">{formatCurrency(totalReal)}</span>
-                                </div>
                                 <div className="flex justify-between font-bold text-base">
                                     <span>Coste Total Real (con Ajustes):</span>
                                     <span className={finalTotalReal > totalPlanificadoConAjustes ? 'text-destructive' : 'text-green-600'}>
@@ -745,9 +741,22 @@ const turnosAprobados = useMemo(() => {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+      </main>
     </>
   );
 }
 
+```
+- src/os/alquiler/page.tsx:
+```
 
-  
+CANTFIX
+    
+```
+- src/os/bodega/[id]/page.tsx:
+```
+
+CANTFIX
+    
+```
+```

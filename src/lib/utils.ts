@@ -1,4 +1,3 @@
-
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { parse, differenceInMinutes } from "date-fns";
@@ -47,4 +46,11 @@ export function calculateHours(start?: string, end?: string): number {
         console.error("Error calculating hours:", e);
         return 0;
     }
+}
+
+export function formatDuration(hours: number) {
+    const totalMinutes = Math.round(hours * 60);
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
