@@ -22,10 +22,36 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
+import { formatCurrency, formatNumber } from '@/lib/utils';
 
-// We need to include the original order ID to trace back and update it.
 type ReturnSheetItem = OrderItem & { sentQuantity: number; orderId: string; type: MaterialOrder['type'] };
 type ReturnIncidencia = { osId: string; osServiceNumber: string; item: ReturnSheetItem; comment: string; timestamp: string };
+
+type StatCardProps = {
+  title: string;
+  itemCount: number;
+  totalValue: number;
+  progress: number;
+};
+
+function StatCard({ title, itemCount, totalValue, progress }: StatCardProps) {
+    return (
+        <Card>
+            <CardHeader className="py-2 px-3">
+                <div className="flex justify-between items-baseline">
+                    <CardTitle className="text-base">{title}</CardTitle>
+                    <div className="font-bold text-lg">{itemCount} <span className="text-xs text-muted-foreground font-normal">refs.</span></div>
+                </div>
+                 <p className="text-xs text-muted-foreground text-right">{formatCurrency(totalValue)}</p>
+            </CardHeader>
+            <CardContent className="p-3 pt-0">
+                 <Progress value={progress} />
+            </CardContent>
+        </Card>
+    )
+}
 
 export default function RetornoSheetPage() {
     const [sheet, setSheet] = useState<ReturnSheet | null>(null);
@@ -54,10 +80,12 @@ export default function RetornoSheetPage() {
                     itemsFromOrders.push(newItem);
                     const itemKey = `${order.id}_${item.itemCode}`;
                     
-                    // Smart Returns Logic
                     const isConsumable = order.type === 'Bodega' || order.type === 'Bio';
+                    const isRental = order.type === 'Alquiler';
+
                     initialItemStates[itemKey] = { 
-                        returnedQuantity: isConsumable ? 0 : item.quantity 
+                        returnedQuantity: isConsumable ? 0 : item.quantity,
+                        isReviewed: isRental, // Auto-mark rentals as reviewed
                     };
                 });
             });
@@ -76,6 +104,9 @@ export default function RetornoSheetPage() {
             
             allSheets[osId] = currentSheet;
             localStorage.setItem('returnSheets', JSON.stringify(allSheets));
+        } else if (!currentSheet.os) {
+            const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+            currentSheet.os = allServiceOrders.find(o => o.id === osId);
         }
         
         setSheet(currentSheet);
@@ -89,12 +120,14 @@ export default function RetornoSheetPage() {
     const saveSheet = useCallback((newSheetData: Partial<ReturnSheet>) => {
         if (!sheet) return;
         
-        const updatedSheet: ReturnSheet = { ...sheet, ...newSheetData };
+        const { os, ...sheetToSave } = sheet;
+
+        const updatedSheet: ReturnSheet = { ...sheetToSave, ...newSheetData };
         const allSheets = JSON.parse(localStorage.getItem('returnSheets') || '{}');
         allSheets[osId] = updatedSheet;
         localStorage.setItem('returnSheets', JSON.stringify(allSheets));
         
-        setSheet(updatedSheet);
+        setSheet({...updatedSheet, os });
     }, [sheet, osId]);
 
     const updateItemState = (itemKey: string, updates: Partial<ReturnItemState>) => {
@@ -120,6 +153,7 @@ export default function RetornoSheetPage() {
             timestamp: new Date().toISOString()
         };
         
+        const itemKey = `${item.orderId}_${item.itemCode}`;
         const existingIndex = allIncidencias.findIndex(inc => inc.osId === osId && inc.item.itemCode === item.itemCode);
         if(existingIndex > -1) {
             allIncidencias[existingIndex] = newIncidencia;
@@ -127,7 +161,7 @@ export default function RetornoSheetPage() {
             allIncidencias.push(newIncidencia);
         }
         localStorage.setItem('incidenciasRetorno', JSON.stringify(allIncidencias));
-        updateItemState(`${item.orderId}_${item.itemCode}`, { incidentComment: comment });
+        updateItemState(itemKey, { incidentComment: comment });
         toast({title: 'Incidencia Registrada', description: `Se ha registrado una incidencia para ${item.description}`});
     }
 
@@ -145,11 +179,11 @@ export default function RetornoSheetPage() {
          toast({ title: "Retorno Completado", description: "Se ha marcado el retorno como completado." });
     }
     
-    const groupedItems = useMemo(() => {
-        if(!sheet) return {};
+    const { groupedItems, stats } = useMemo(() => {
+        if(!sheet) return { groupedItems: {}, stats: {} };
         const consumptionList = sheet.items.map(item => {
             const itemKey = `${item.orderId}_${item.itemCode}`;
-            const state = sheet.itemStates[itemKey] || { returnedQuantity: 0 };
+            const state = sheet.itemStates[itemKey] || { returnedQuantity: 0, isReviewed: false };
             const returnedQty = state.returnedQuantity;
 
             return {
@@ -158,16 +192,28 @@ export default function RetornoSheetPage() {
                 returnedQuantity: returnedQty,
                 consumed: Math.max(0, item.sentQuantity - returnedQty),
                 surplus: Math.max(0, returnedQty - item.sentQuantity),
-                hasIncident: !!state.incidentComment
+                hasIncident: !!state.incidentComment,
+                isReviewed: state.isReviewed || false,
             }
         });
         
-        return consumptionList.reduce((acc, item) => {
+        const grouped = consumptionList.reduce((acc, item) => {
             const group = item.type || 'Varios';
             if (!acc[group]) acc[group] = [];
             acc[group].push(item);
             return acc;
         }, {} as Record<string, ReturnType<typeof consumptionList>>);
+
+        const calculatedStats: Record<string, { itemCount: number, totalValue: number, checkedCount: number, progress: number }> = {};
+        Object.entries(grouped).forEach(([type, items]) => {
+            const itemCount = items.length;
+            const totalValue = items.reduce((sum, item) => sum + (item.price * item.sentQuantity), 0);
+            const checkedCount = items.filter(i => i.isReviewed).length;
+            const progress = itemCount > 0 ? (checkedCount / itemCount) * 100 : 0;
+            calculatedStats[type] = { itemCount, totalValue, checkedCount, progress };
+        });
+
+        return { groupedItems: grouped, stats: calculatedStats };
 
     }, [sheet]);
 
@@ -179,33 +225,23 @@ export default function RetornoSheetPage() {
     return (
         <TooltipProvider>
         <div>
-            <div className="flex items-center justify-end mb-4">
+            <div className="flex items-center justify-between mb-4">
+                 <h2 className="text-xl font-semibold">Servicio: {sheet.os.serviceNumber} <Badge variant="outline" className="ml-2">{format(new Date(sheet.os.endDate), 'PPP', { locale: es })}</Badge></h2>
                  <div className="flex items-center gap-2">
                     <Button variant="outline" onClick={() => setShowResetConfirm(true)}><RotateCcw className="mr-2"/>Reiniciar</Button>
                     <Button onClick={handleComplete} disabled={sheet.status === 'Completado'}><Check className="mr-2"/>Marcar como Completado</Button>
                  </div>
             </div>
             
-            <Card className="mb-6">
-                <CardHeader className="py-3">
-                    <div className="flex justify-between items-start">
-                        <div>
-                             <CardTitle className="text-xl">Servicio: {sheet.os.serviceNumber}</CardTitle>
-                             <CardDescription>
-                                {sheet.os.client} {sheet.os.finalClient && `- ${sheet.os.finalClient}`}
-                            </CardDescription>
-                        </div>
-                        <Badge variant="secondary" className="text-base">{format(new Date(sheet.os.endDate), 'PPP', { locale: es })}</Badge>
-                    </div>
-                </CardHeader>
-            </Card>
-
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                 {Object.entries(groupedItems).map(([type, items]) => (
-                    <Card key={type}>
-                        <CardHeader className="py-2"><CardTitle className="text-base">{type}</CardTitle></CardHeader>
-                        <CardContent className="py-2"><p className="text-2xl font-bold">{items.length}</p><span className="text-xs text-muted-foreground">tipos de artículo</span></CardContent>
-                    </Card>
+                 {Object.entries(stats).map(([type, statData]) => (
+                    <StatCard 
+                        key={type}
+                        title={type}
+                        itemCount={statData.itemCount}
+                        totalValue={statData.totalValue}
+                        progress={statData.progress}
+                    />
                 ))}
             </div>
 
@@ -217,22 +253,32 @@ export default function RetornoSheetPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
+                                        <TableHead className="w-8"></TableHead>
                                         <TableHead>Artículo</TableHead>
-                                        <TableHead className="text-center">Enviado</TableHead>
+                                        <TableHead className="text-center w-24">Enviado</TableHead>
                                         <TableHead className="w-52 text-center">Devuelto</TableHead>
-                                        <TableHead className="text-center">Consumo</TableHead>
-                                        <TableHead className="text-center">Excedente</TableHead>
-                                        <TableHead className="text-right">Incidencia</TableHead>
+                                        <TableHead className="w-24 text-center">Consumo</TableHead>
+                                        <TableHead className="w-24 text-center">Excedente</TableHead>
+                                        <TableHead className="text-center w-20">Revisado</TableHead>
+                                        <TableHead className="text-right w-20">Incidencia</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {items.map(item => {
                                         const isMismatch = item.sentQuantity !== item.returnedQuantity;
+                                        const rowCn = cn(
+                                            isMismatch && !item.hasIncident && "bg-amber-50/80",
+                                            item.isReviewed && "bg-slate-100/60 opacity-60 hover:opacity-100"
+                                        );
+
                                         return (
-                                        <TableRow key={item.itemKey} className={cn(isMismatch && item.hasIncident && "bg-destructive/10", isMismatch && !item.hasIncident && "bg-amber-50/80")}>
-                                            <TableCell className="font-medium">{item.description}</TableCell>
-                                            <TableCell className="text-center font-semibold">{item.sentQuantity}</TableCell>
-                                            <TableCell className="text-center">
+                                        <TableRow key={item.itemKey} className={rowCn}>
+                                             <TableCell className="p-1">
+                                                {item.isReviewed && <Check className="h-5 w-5 text-green-600" />}
+                                            </TableCell>
+                                            <TableCell className="font-medium p-2">{item.description}</TableCell>
+                                            <TableCell className="text-center font-semibold p-2">{item.sentQuantity}</TableCell>
+                                            <TableCell className="text-center p-1">
                                                 <div className="flex items-center justify-center gap-1">
                                                     <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateItemState(item.itemKey, { returnedQuantity: Math.max(0, item.returnedQuantity - 1)})}><Minus className="h-4 w-4"/></Button>
                                                     <Input
@@ -245,9 +291,15 @@ export default function RetornoSheetPage() {
                                                      <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateItemState(item.itemKey, { returnedQuantity: item.returnedQuantity + 1})}><Plus className="h-4 w-4"/></Button>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className={cn("text-center font-bold", item.consumed > 0 && "text-destructive")}>{item.consumed}</TableCell>
-                                            <TableCell className={cn("text-center font-bold", item.surplus > 0 && "text-green-600")}>{item.surplus}</TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell className={cn("text-center font-bold p-2", item.consumed > 0 && "text-destructive")}>{item.consumed}</TableCell>
+                                            <TableCell className={cn("text-center font-bold p-2", item.surplus > 0 && "text-green-600")}>{item.surplus}</TableCell>
+                                            <TableCell className="text-center p-2">
+                                                <Checkbox
+                                                    checked={item.isReviewed}
+                                                    onCheckedChange={(checked) => updateItemState(item.itemKey, { isReviewed: !!checked })}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="text-right p-1">
                                                 <Dialog>
                                                     <DialogTrigger asChild>
                                                         <Button variant="ghost" size="icon" className={cn("h-9 w-9 text-muted-foreground hover:text-amber-600", item.hasIncident && "text-amber-600")}>
@@ -278,6 +330,12 @@ export default function RetornoSheetPage() {
                     </CardContent>
                 </Card>
             ))}
+             <div className="mt-6 flex justify-end">
+                <Button onClick={handleComplete} disabled={sheet.status === 'Completado'} size="lg">
+                    <Check className="mr-2" />
+                    Marcar como Completado
+                </Button>
+            </div>
         </div>
         <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
             <AlertDialogContent>

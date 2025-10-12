@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Separator } from '@/components/ui/separator';
 
-
 export const almacenNav = [
     { title: 'Planificación', href: '/almacen/planificacion', icon: ClipboardList, exact: false },
     { title: 'Gestión de Picking', href: '/almacen/picking', icon: ListChecks, exact: false },
@@ -58,7 +57,7 @@ export default function AlmacenLayout({ children }: { children: React.ReactNode 
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     
     let currentPageTitle = 'Panel de Almacen';
-    let CurrentPageIcon = Warehouse;
+    let CurrentPageIcon: React.ElementType = Warehouse;
     
     if (pathname.startsWith('/almacen/retornos/')) {
         currentPageTitle = 'Hoja de Retorno';
