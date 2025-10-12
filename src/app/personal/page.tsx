@@ -108,57 +108,68 @@ export default function PersonalPage() {
     }
     return 0;
   };
-
+  
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
-    const importedData: Personal[] = [];
-    
-    Papa.parse<any>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const headers = results.meta.fields || [];
-        const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
-
-        if (!hasAllHeaders) {
-            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas: ${CSV_HEADERS.join(', ')}.`});
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const text = e.target?.result as string;
+        if (!text) {
+            toast({ variant: 'destructive', title: 'Error de lectura', description: 'No se pudo leer el archivo.' });
             return;
         }
 
-        results.data.forEach((item: any) => {
-            if (item.nombre && item.apellidos) { // Basic validation
-                importedData.push({
-                    id: item.id || `${Date.now()}-${Math.random()}`,
-                    nombre: item.nombre || '',
-                    apellidos: item.apellidos || '',
-                    iniciales: item.iniciales || '',
-                    departamento: item.departamento || '',
-                    categoria: item.categoria || '',
-                    telefono: item.telefono || '',
-                    mail: item.mail || '',
-                    dni: item.dni || '',
-                    precioHora: parseCurrency(item.precioHora),
-                });
-            }
-        });
+        // 1. Detect delimiter
+        const firstLine = text.split('\n')[0];
+        const delimiter = firstLine.includes(';') ? ';' : ',';
         
-        localStorage.setItem('personal', JSON.stringify(importedData));
-        setPersonal(importedData);
-        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
-      },
-      error: (error: any) => {
-        toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
-      }
-    });
+        Papa.parse(text, {
+            header: true,
+            skipEmptyLines: true,
+            delimiter: delimiter,
+            complete: (results) => {
+                if (results.errors.length > 0) {
+                    console.error("Errors parsing CSV:", results.errors);
+                    toast({ variant: 'destructive', title: 'Error de Parseo', description: 'Algunas filas del CSV no pudieron ser leídas. Revisa el formato.' });
+                }
 
+                const importedData: Personal[] = [];
+                results.data.forEach((item: any) => {
+                    if (item.nombre && item.apellidos) {
+                        importedData.push({
+                            id: item.id || `${Date.now()}-${Math.random()}`,
+                            nombre: item.nombre || '',
+                            apellidos: item.apellidos || '',
+                            iniciales: item.iniciales || '',
+                            departamento: item.departamento || '',
+                            categoria: item.categoria || '',
+                            telefono: item.telefono || '',
+                            mail: item.mail || '',
+                            dni: item.dni || '',
+                            precioHora: parseCurrency(item.precioHora),
+                        });
+                    }
+                });
+
+                if (importedData.length === 0 && results.data.length > 0) {
+                    toast({ variant: 'destructive', title: 'Error de Formato', description: 'No se pudo importar ninguna fila. Asegúrate de que las columnas "nombre" y "apellidos" están presentes y rellenas.' });
+                    return;
+                }
+                
+                localStorage.setItem('personal', JSON.stringify(importedData));
+                setPersonal(importedData);
+                toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+            },
+        });
+    };
+    reader.readAsText(file);
+    
     if (event.target) {
       event.target.value = '';
     }
-  };
+};
 
   const handleDelete = () => {
     if (!personToDelete) return;
@@ -199,7 +210,7 @@ export default function PersonalPage() {
                                 type="file"
                                 ref={fileInputRef}
                                 className="hidden"
-                                accept=".csv"
+                                accept=".csv,.txt"
                                 onChange={handleImportCSV}
                             />
                         </DropdownMenuItem>
@@ -315,3 +326,5 @@ export default function PersonalPage() {
     </>
   );
 }
+
+    
