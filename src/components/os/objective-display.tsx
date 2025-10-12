@@ -125,10 +125,6 @@ export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDispl
             const allPersonalExternoOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as any[];
             const allPersonalExternoAjustes = (JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}')[osId] || []) as {ajuste: number}[];
             const costeTurnos = allPersonalExternoOrders.filter(o => o.osId === osId).reduce((sum, order) => {
-                 const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
-                 if (realHours > 0) {
-                     return sum + realHours * (order.precioHora || 0);
-                 }
                  const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
                  return sum + plannedHours * (order.precioHora || 0);
             }, 0);
@@ -192,3 +188,4 @@ export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDispl
     </TooltipProvider>
   );
 }
+
