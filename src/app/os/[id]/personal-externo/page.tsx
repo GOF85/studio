@@ -207,8 +207,10 @@ export default function PersonalExternoPage() {
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
+  const [personalExterno, setPersonalExterno] = useState<PersonalExternoOrder | null>(null);
   const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
-  const [updateKey, setUpdateKey] = useState(Date.now());
+  const [showStatusConfirm, setShowStatusConfirm] = useState(false);
+  const [nextAction, setNextAction] = useState<(() => void) | null>(null);
   
   const router = useRouter();
   const params = useParams();
@@ -220,7 +222,7 @@ export default function PersonalExternoPage() {
     defaultValues: { turnos: [], observacionesGenerales: '' },
   });
 
-  const { control, setValue, watch, trigger, register, formState } = form;
+  const { control, setValue, watch, trigger, register, handleSubmit } = form;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -277,16 +279,9 @@ export default function PersonalExternoPage() {
 
   useEffect(() => {
     loadData();
-    const handleStorageChange = () => {
-        setUpdateKey(Date.now());
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-        window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [loadData, updateKey]);
+  }, [loadData]);
   
-  const onSubmit = () => {
+  const handleFinalSave = () => {
     setIsLoading(true);
     const data = form.getValues();
 
@@ -300,32 +295,39 @@ export default function PersonalExternoPage() {
     const otherOsOrders = allTurnos.filter(o => o.osId !== osId);
     
     const currentOsOrders: PersonalExternoOrder[] = data.turnos.map(t => {
-      const existingTurno = watchedFields?.find(et => et.id === t.id);
-      return {
-        ...t,
-        osId,
-        fecha: format(t.fecha, 'yyyy-MM-dd'),
-        statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
-        requiereActualizacion: formState.dirtyFields.turnos?.some((dirtyTurno, index) => dirtyTurno && data.turnos[index].id === t.id),
-        asignaciones: (t.asignaciones || []).map(a => ({
-            ...a,
-            horaEntradaReal: a.horaEntradaReal || '',
-            horaSalidaReal: a.horaSalidaReal || '',
-        })),
-        observacionesGenerales: data.observacionesGenerales
-      }
+        const existingTurno = watchedFields?.find(et => et.id === t.id);
+        const requiereActualizacion = !existingTurno || !existingTurno.asignaciones;
+        return {
+            ...t,
+            osId,
+            fecha: format(t.fecha, 'yyyy-MM-dd'),
+            statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
+            requiereActualizacion: requiereActualizacion,
+            asignaciones: (t.asignaciones || []).map(a => ({
+                ...a,
+                horaEntradaReal: a.horaEntradaReal || '',
+                horaSalidaReal: a.horaSalidaReal || '',
+            })),
+            observacionesGenerales: data.observacionesGenerales
+        }
     });
-
+    
     const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
     localStorage.setItem('personalExternoOrders', JSON.stringify(updatedAllOrders));
-    
-    window.dispatchEvent(new Event('storage'));
     
     setTimeout(() => {
         toast({ title: 'Guardado', description: 'Los cambios se han guardado.' });
         setIsLoading(false);
         form.reset(data); // Mark as not dirty
+        if (nextAction) {
+            nextAction();
+            setNextAction(null);
+        }
     }, 500);
+  };
+  
+  const onSubmit = () => {
+    handleFinalSave();
   };
 
   const handleProviderChange = useCallback((index: number, proveedorId: string) => {
@@ -362,7 +364,7 @@ export default function PersonalExternoPage() {
     const costePlanificadoConAjustes = planned + aj;
 
     return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj, totalPlanificadoConAjustes: costePlanificadoConAjustes };
-  }, [watchedFields, ajustes, updateKey]);
+  }, [watchedFields, ajustes]);
   
   const addRow = () => {
     if (!osId || !serviceOrder) return;
@@ -428,7 +430,7 @@ export default function PersonalExternoPage() {
 
 const turnosAprobados = useMemo(() => {
     return watchedFields.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
-}, [watchedFields, updateKey]);
+}, [watchedFields]);
 
 
   if (!isMounted || !serviceOrder) {
@@ -441,6 +443,12 @@ const turnosAprobados = useMemo(() => {
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
+                <div className="flex items-start justify-end mb-4">
+                    <Button type="button" onClick={onSubmit} disabled={isLoading || !form.formState.isDirty}>
+                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                        <span className="ml-2">Guardar Cambios</span>
+                    </Button>
+                </div>
                  <Accordion type="single" collapsible className="w-full mb-4" >
                     <AccordionItem value="item-1">
                     <Card>
@@ -477,14 +485,6 @@ const turnosAprobados = useMemo(() => {
                     </AccordionItem>
                 </Accordion>
 
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-bold">Planificación y Cierre</h2>
-                    <Button type="button" onClick={onSubmit} disabled={isLoading || !formState.isDirty}>
-                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                        <span className="ml-2">Guardar Cambios</span>
-                    </Button>
-                </div>
-                
                 <Tabs defaultValue="planificacion">
                      <TabsList className="mb-4 grid w-full grid-cols-2 max-w-lg">
                         <TabsTrigger value="planificacion" className="text-base px-6">Planificación de Turnos</TabsTrigger>
@@ -741,22 +741,8 @@ const turnosAprobados = useMemo(() => {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+
       </main>
     </>
   );
 }
-
-```
-- src/os/alquiler/page.tsx:
-```
-
-CANTFIX
-    
-```
-- src/os/bodega/[id]/page.tsx:
-```
-
-CANTFIX
-    
-```
-```
