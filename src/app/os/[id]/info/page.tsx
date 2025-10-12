@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -212,12 +212,12 @@ export default function InfoPage() {
 
   const getFullName = (p: Personal) => `${p.nombre} ${p.apellidos}`;
 
-  const personalSala = useMemo(() => personal.filter(p => p.departamento === 'SALA' && p.nombre), [personal]);
-  const personalPase = useMemo(() => personal.filter(p => p.departamento === 'Pase' && p.nombre), [personal]);
-  const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR' && p.nombre), [personal]);
-  const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'COMERCIAL' && p.nombre), [personal]);
-  const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA' && p.nombre), [personal]);
-  const personalRRHH = useMemo(() => personal.filter(p => p.departamento === 'RRHH' && p.nombre), [personal]);
+  const personalSala = useMemo(() => personal.filter(p => p.departamento === 'Sala' && p.nombre && p.apellidos), [personal]);
+  const personalPase = useMemo(() => personal.filter(p => p.departamento === 'Pase' && p.nombre && p.apellidos), [personal]);
+  const personalCPR = useMemo(() => personal.filter(p => p.departamento === 'CPR' && p.nombre && p.apellidos), [personal]);
+  const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'Comercial' && p.nombre && p.apellidos), [personal]);
+  const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA' && p.nombre && p.apellidos), [personal]);
+  const personalRRHH = useMemo(() => personal.filter(p => p.departamento === 'RRHH' && p.nombre && p.apellidos), [personal]);
   const validEspacios = useMemo(() => espacios.filter(e => e.identificacion.nombreEspacio), [espacios]);
   const espacioOptions = useMemo(() => validEspacios.map(e => ({label: e.identificacion.nombreEspacio, value: e.identificacion.nombreEspacio})), [validEspacios]);
 
@@ -634,7 +634,12 @@ export default function InfoPage() {
                             <AccordionTrigger className="p-0"><ResponsablesTitle /></AccordionTrigger>
                             <AccordionContent>
                               <div className="space-y-4 px-4 pb-4">
-                                {[['respMetre', 'respMetrePhone', 'respMetreMail', 'Resp. Metre', personalSala], ['respPase', 'respPasePhone', 'respPaseMail', 'Resp. Pase', personalPase], ['respCocinaPase', 'respCocinaPasePhone', 'respCocinaPaseMail', 'Resp. Cocina Pase', personalPase], ['respCocinaCPR', 'respCocinaCPRPhone', 'respCocinaCPRMail', 'Resp. Cocina CPR', personalCPR]].map(([name, phone, mail, label, personalList]) => (
+                                {[
+                                    ['respMetre', 'respMetrePhone', 'respMetreMail', 'Resp. Metre', personalSala], 
+                                    ['respPase', 'respPasePhone', 'respPaseMail', 'Resp. Pase', personalPase], 
+                                    ['respCocinaPase', 'respCocinaPasePhone', 'respCocinaPaseMail', 'Resp. Cocina Pase', personalCocina], 
+                                    ['respCocinaCPR', 'respCocinaCPRPhone', 'respCocinaCPRMail', 'Resp. Cocina CPR', personalCPR]
+                                ].map(([name, phone, mail, label, personalList]) => (
                                   <div key={name as string} className="flex items-end gap-4">
                                     <FormField control={form.control} name={name as any} render={({ field }) => (
                                       <FormItem className="flex-grow">
@@ -798,6 +803,7 @@ export default function InfoPage() {
     </>
   );
 }
+
 
 
 
