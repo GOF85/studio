@@ -412,7 +412,7 @@ export default function PlanificacionAlmacenPage() {
              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
                 {statsCards.map(card => (
                     <Link href={card.href} key={card.title}>
-                        <Card className="hover:bg-accent transition-colors">
+                        <Card className="hover:bg-accent transition-colors h-full">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
                             <card.icon className={cn("h-4 w-4", card.color)} />

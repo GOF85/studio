@@ -38,14 +38,13 @@ export default function GestionRetornosPage() {
     const { toast } = useToast();
 
     useEffect(() => {
+        setIsMounted(true);
         const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[])
             .filter(os => os.status === 'Confirmado');
         setServiceOrders(allServiceOrders);
         
         const allReturnSheets = JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>;
         setReturnSheets(allReturnSheets);
-
-        setIsMounted(true);
     }, []);
 
     const handleCleanOrphanedReturns = () => {
@@ -199,6 +198,7 @@ export default function GestionRetornosPage() {
         </div>
     );
 }
+
 
 
 
