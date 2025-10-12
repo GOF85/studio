@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -26,7 +26,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 
-type ReturnSheetItem = OrderItem & { sentQuantity: number; orderId: string; type: MaterialOrder['type'] };
+type ReturnSheetItem = OrderItem & { sentQuantity: number; returnedQuantity: number; orderId: string; type: MaterialOrder['type'] };
 type ReturnIncidencia = { osId: string; osServiceNumber: string; item: ReturnSheetItem; comment: string; timestamp: string };
 
 type StatCardProps = {
@@ -71,21 +71,21 @@ export default function RetornoSheetPage() {
             const allMaterialOrders: MaterialOrder[] = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
             const osOrders = allMaterialOrders.filter(o => o.osId === osId);
             
-            const itemsFromOrders: ReturnSheetItem[] = [];
+            const itemsFromOrders: Omit<ReturnSheetItem, 'returnedQuantity'>[] = [];
             const initialItemStates: Record<string, ReturnItemState> = {};
             
             osOrders.forEach(order => {
                 order.items.forEach(item => {
-                    const newItem: ReturnSheetItem = { ...item, sentQuantity: item.quantity, orderId: order.id, type: order.type };
+                    const isRental = order.type === 'Alquiler';
+                    const isAlmacen = order.type === 'Almacen';
+                    const isAutoReturn = isRental || isAlmacen;
+
+                    const newItem: Omit<ReturnSheetItem, 'returnedQuantity'> = { ...item, sentQuantity: item.quantity, orderId: order.id, type: order.type };
                     itemsFromOrders.push(newItem);
                     const itemKey = `${order.id}_${item.itemCode}`;
-                    
-                    const isConsumable = order.type === 'Bodega' || order.type === 'Bio';
-                    const isRental = order.type === 'Alquiler';
 
                     initialItemStates[itemKey] = { 
-                        returnedQuantity: isConsumable ? 0 : item.quantity,
-                        isReviewed: isRental, // Auto-mark rentals as reviewed
+                        returnedQuantity: isAutoReturn ? item.quantity : 0,
                     };
                 });
             });
@@ -97,7 +97,7 @@ export default function RetornoSheetPage() {
                 id: osId,
                 osId: osId,
                 status: 'Pendiente',
-                items: itemsFromOrders,
+                items: itemsFromOrders.map(i => ({...i, returnedQuantity: initialItemStates[`${i.orderId}_${i.itemCode}`]?.returnedQuantity || 0 })),
                 itemStates: initialItemStates,
                 os: os,
             };
@@ -115,7 +115,7 @@ export default function RetornoSheetPage() {
 
     useEffect(() => {
         loadSheet();
-    }, [loadSheet]);
+    }, [loadData]);
     
     const saveSheet = useCallback((newSheetData: Partial<ReturnSheet>) => {
         if (!sheet) return;
@@ -136,7 +136,7 @@ export default function RetornoSheetPage() {
         const currentState = newStates[itemKey] || { returnedQuantity: 0 };
         newStates[itemKey] = { ...currentState, ...updates };
 
-        const hasStarted = Object.values(newStates).some(state => state.returnedQuantity !== undefined);
+        const hasStarted = Object.values(newStates).some(state => state.isReviewed);
         const status = sheet.status === 'Pendiente' && hasStarted ? 'Procesando' : sheet.status;
 
         saveSheet({ itemStates: newStates, status });
@@ -169,7 +169,7 @@ export default function RetornoSheetPage() {
         const allSheets = JSON.parse(localStorage.getItem('returnSheets') || '{}');
         delete allSheets[osId];
         localStorage.setItem('returnSheets', JSON.stringify(allSheets));
-        loadSheet();
+        loadData(); // Use loadData instead of loadSheet
         toast({ title: "Retorno Reiniciado", description: "Se ha restaurado el estado inicial del retorno." });
         setShowResetConfirm(false);
     }
@@ -226,7 +226,10 @@ export default function RetornoSheetPage() {
         <TooltipProvider>
         <div>
             <div className="flex items-center justify-between mb-4">
-                 <h2 className="text-xl font-semibold">Servicio: {sheet.os.serviceNumber} <Badge variant="outline" className="ml-2">{format(new Date(sheet.os.endDate), 'PPP', { locale: es })}</Badge></h2>
+                 <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-base">{sheet.os.serviceNumber}</Badge>
+                    <span className="text-lg font-semibold">{sheet.os.client}</span>
+                 </div>
                  <div className="flex items-center gap-2">
                     <Button variant="outline" onClick={() => setShowResetConfirm(true)}><RotateCcw className="mr-2"/>Reiniciar</Button>
                     <Button onClick={handleComplete} disabled={sheet.status === 'Completado'}><Check className="mr-2"/>Marcar como Completado</Button>
@@ -355,5 +358,3 @@ export default function RetornoSheetPage() {
         </TooltipProvider>
     );
 }
-
-    
