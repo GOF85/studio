@@ -68,8 +68,9 @@ export default function IngredientesERPPage() {
     }
   });
 
-  const { fields, append, remove, control, getValues, watch } = useFieldArray({
-    control: form.control,
+  const { control, getValues, watch } = form;
+  const { fields, append, remove } = useFieldArray({
+    control,
     name: "items"
   });
 
@@ -315,7 +316,7 @@ export default function IngredientesERPPage() {
                         <TableHead className="p-2 w-28">P. Compra</TableHead>
                         <TableHead className="p-2 w-28">Factor Conv.</TableHead>
                         <TableHead className="p-2 w-28">Precio/Unidad</TableHead>
-                        <TableHead className="p-2 w-28">P. Alquiler</TableHead>
+                        <TableHead className="p-2 w-28">Precio Alquiler</TableHead>
                         <TableHead className="p-2 w-32">Unidad</TableHead>
                         <TableHead className="p-2 w-28 text-center">Apto Alquiler</TableHead>
                         <TableHead className="p-2 w-48">Observaciones</TableHead>
