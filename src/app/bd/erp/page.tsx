@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -7,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PlusCircle, Save, Trash2, ArrowLeft, Loader2, Menu, FileUp, FileDown, Database } from 'lucide-react';
-import type { IngredienteERP, UnidadMedida } from '@/types';
+import type { IngredienteERP, UnidadMedida, Proveedor } from '@/types';
 import { UNIDADES_MEDIDA, ingredienteErpSchema } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,7 +46,7 @@ const formSchema = z.object({
 });
 
 type IngredientesERPFormValues = z.infer<typeof formSchema>;
-const CSV_HEADERS = ["id", "IdERP", "nombreProductoERP", "referenciaProveedor", "nombreProveedor", "familiaCategoria", "precioCompra", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
+const CSV_HEADERS = ["id", "IdERP", "nombreProductoERP", "referenciaProveedor", "IdERP", "familiaCategoria", "precioCompra", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
 
 export default function IngredientesERPPage() {
   const [isMounted, setIsMounted] = useState(false);
@@ -56,6 +57,7 @@ export default function IngredientesERPPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [providerFilter, setProviderFilter] = useState('all');
   const [forRentFilter, setForRentFilter] = useState(false);
+  const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
 
   const router = useRouter();
   const { toast } = useToast();
@@ -75,9 +77,23 @@ export default function IngredientesERPPage() {
   });
 
   useEffect(() => {
+    const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+    const pMap = new Map<string, string>();
+    allProveedores.forEach(p => {
+        if(p.IdERP) pMap.set(p.IdERP, p.nombreComercial);
+    });
+    setProveedoresMap(pMap);
+
     let storedData = localStorage.getItem('ingredientesERP');
     const items = storedData ? JSON.parse(storedData) : [];
-    form.reset({ items });
+    
+    // Enrich items with provider name
+    const enrichedItems = items.map((item: IngredienteERP) => ({
+      ...item,
+      nombreProveedor: pMap.get(item.IdERP || '') || item.nombreProveedor || ''
+    }));
+
+    form.reset({ items: enrichedItems });
     setIsMounted(true);
   }, [form]);
   
@@ -141,6 +157,7 @@ export default function IngredientesERPPage() {
       familiaCategoria: '',
       precioCompra: 0,
       unidadConversion: 1,
+      precio: 0,
       precioAlquiler: 0,
       unidad: 'UNIDAD',
       tipo: '',
@@ -211,7 +228,7 @@ export default function IngredientesERPPage() {
             IdERP: item.IdERP || '',
             nombreProductoERP: item.nombreProductoERP || '',
             referenciaProveedor: item.referenciaProveedor || '',
-            nombreProveedor: item.nombreProveedor || '',
+            nombreProveedor: proveedoresMap.get(item.IdERP || '') || item.nombreProveedor || '',
             familiaCategoria: item.familiaCategoria || '',
             precioCompra: parseCurrency(item.precioCompra),
             unidadConversion: Number(item.unidadConversion) || 1,
@@ -338,7 +355,7 @@ export default function IngredientesERPPage() {
                                  <FormField control={form.control} name={`items.${item.originalIndex}.IdERP`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
                             </TableCell>
                             <TableCell className="p-1">
-                                 <FormField control={form.control} name={`items.${item.originalIndex}.nombreProveedor`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
+                                 <Input value={proveedoresMap.get(item.IdERP || '') || item.nombreProveedor || ''} readOnly className="h-8 bg-muted/50"/>
                             </TableCell>
                             <TableCell className="p-1">
                                  <FormField control={form.control} name={`items.${item.originalIndex}.referenciaProveedor`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />

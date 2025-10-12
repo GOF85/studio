@@ -1,4 +1,5 @@
 
+
 import { z } from "zod";
 
 export type CateringItem = {
@@ -878,6 +879,7 @@ export type TipoProveedor = typeof TIPO_PROVEEDOR_OPCIONES[number];
 export type Proveedor = {
   id: string;
   cif: string;
+  IdERP?: string;
   nombreEmpresa: string;
   nombreComercial: string;
   direccionFacturacion: string;

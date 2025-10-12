@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 export const proveedorSchema = z.object({
   id: z.string(),
   cif: z.string().min(1, 'El CIF/NIF es obligatorio'),
+  IdERP: z.string().optional(),
   nombreEmpresa: z.string().min(1, 'El nombre de la empresa es obligatorio'),
   nombreComercial: z.string().optional(),
   direccionFacturacion: z.string().min(1, 'La dirección es obligatoria'),
@@ -40,6 +41,7 @@ type ProveedorFormValues = z.infer<typeof proveedorSchema>;
 
 const defaultValues: Partial<ProveedorFormValues> = {
   cif: '',
+  IdERP: '',
   nombreEmpresa: '',
   nombreComercial: '',
   direccionFacturacion: '',
@@ -165,6 +167,9 @@ export default function ProveedorFormPage() {
                 )} />
                  <FormField control={form.control} name="cif" render={({ field }) => (
                     <FormItem><FormLabel>CIF / NIF</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="IdERP" render={({ field }) => (
+                    <FormItem><FormLabel>IdERP</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                  <FormField control={form.control} name="nombreEmpresa" render={({ field }) => (
                     <FormItem className="lg:col-span-3"><FormLabel>Nombre o Razón Social</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
