@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -126,8 +125,12 @@ export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDispl
             const allPersonalExternoOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as any[];
             const allPersonalExternoAjustes = (JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}')[osId] || []) as {ajuste: number}[];
             const costeTurnos = allPersonalExternoOrders.filter(o => o.osId === osId).reduce((sum, order) => {
-                const hours = calculateHours(order.horaEntrada, order.horaSalida);
-                return sum + (hours * (order.precioHora || 0) * (order.cantidad || 1));
+                 const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
+                 if (realHours > 0) {
+                     return sum + realHours * (order.precioHora || 0);
+                 }
+                 const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
+                 return sum + plannedHours * (order.precioHora || 0);
             }, 0);
             const costeAjustes = allPersonalExternoAjustes.reduce((sum: number, ajuste) => sum + ajuste.ajuste, 0);
             budgetValue = costeTurnos + costeAjustes;

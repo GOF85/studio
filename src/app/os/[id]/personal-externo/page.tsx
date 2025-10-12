@@ -81,6 +81,7 @@ const asignacionSchema = z.object({
 
 const personalTurnoSchema = z.object({
   id: z.string(),
+  osId: z.string(),
   proveedorId: z.string().min(1, "El proveedor es obligatorio"),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
   precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
@@ -275,20 +276,18 @@ export default function PersonalExternoPage() {
         const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
         const turnosDelPedido = allTurnos.filter(p => p.osId === osId);
         
-        if(turnosDelPedido.length > 0) {
-            form.reset({ 
-                turnos: turnosDelPedido.map(t => ({
-                    ...t,
-                    fecha: new Date(t.fecha),
-                    asignaciones: (t.asignaciones || []).map(a => ({
-                        ...a,
-                        horaEntradaReal: a.horaEntradaReal || '',
-                        horaSalidaReal: a.horaSalidaReal || '',
-                    }))
-                })),
-                observacionesGenerales: turnosDelPedido[0]?.observacionesGenerales || ''
-            });
-        }
+        form.reset({ 
+            turnos: turnosDelPedido.map(t => ({
+                ...t,
+                fecha: new Date(t.fecha),
+                asignaciones: (t.asignaciones || []).map(a => ({
+                    ...a,
+                    horaEntradaReal: a.horaEntradaReal || '',
+                    horaSalidaReal: a.horaSalidaReal || '',
+                }))
+            })),
+            observacionesGenerales: turnosDelPedido[0]?.observacionesGenerales || ''
+        });
 
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos.' });
@@ -306,7 +305,7 @@ export default function PersonalExternoPage() {
     return () => {
         window.removeEventListener('storage', handleStorageChange);
     };
-  }, [loadData, updateKey]);
+  }, [loadData]);
   
   const handleFinalSave = () => {
     setIsLoading(true);
@@ -358,10 +357,10 @@ export default function PersonalExternoPage() {
     if (!proveedorId) return;
     const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
     if (tipoPersonal) {
-        setValue(`personal.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
-        setValue(`personal.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
-        setValue(`personal.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
-        trigger(`personal.${index}`);
+        setValue(`turnos.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
+        setValue(`turnos.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
+        setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
+        trigger(`turnos.${index}`);
     }
 }, [proveedoresDB, setValue, trigger]);
 
@@ -379,6 +378,7 @@ export default function PersonalExternoPage() {
             if (realHours > 0) {
                 return sumAsignacion + realHours * (turno.precioHora || 0);
             }
+            // If no real hours, use planned hours for this person
             const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
             return sumAsignacion + plannedHours * (turno.precioHora || 0);
         }, 0);
@@ -452,6 +452,7 @@ export default function PersonalExternoPage() {
         .map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
 }, [proveedoresDB, proveedoresMap]);
 
+
 const turnosAprobados = useMemo(() => {
     return watchedFields.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
 }, [watchedFields, updateKey]);
@@ -478,17 +479,19 @@ const turnosAprobados = useMemo(() => {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead className="py-1 px-2">Servicio</TableHead>
-                                            <TableHead className="py-1 px-2">Horario</TableHead>
-                                            <TableHead className="py-1 px-2 w-[40%]">Observaciones</TableHead>
+                                            <TableHead className="py-2 px-3">Fecha</TableHead>
+                                            <TableHead className="py-2 px-3">Descripción</TableHead>
+                                            <TableHead className="py-2 px-3">Asistentes</TableHead>
+                                            <TableHead className="py-2 px-3">Duración</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {briefingItems.map(hito => (
                                             <TableRow key={hito.id}>
-                                                <TableCell className="py-1 px-2 font-medium">{hito.descripcion}</TableCell>
-                                                <TableCell className="py-1 px-2">{format(new Date(hito.fecha), 'dd/MM/yy')} {hito.horaInicio}</TableCell>
-                                                <TableCell className="py-1 px-2 text-xs text-muted-foreground">{hito.comentarios}</TableCell>
+                                                <TableCell className="py-2 px-3">{format(new Date(hito.fecha), 'dd/MM/yy')} {hito.horaInicio}</TableCell>
+                                                <TableCell className="py-2 px-3">{hito.descripcion}</TableCell>
+                                                <TableCell className="py-2 px-3">{hito.asistentes}</TableCell>
+                                                <TableCell className="py-2 px-3">{calculateHours(hito.horaInicio, hito.horaFin).toFixed(2)}h</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -506,12 +509,10 @@ const turnosAprobados = useMemo(() => {
                             <TabsTrigger value="planificacion" className="text-base px-6">Planificación de Turnos</TabsTrigger>
                             <TabsTrigger value="aprobados" className="text-base px-6">Cierre y Horas Reales</TabsTrigger>
                         </TabsList>
-                        <div className="flex items-center gap-2">
-                             <Button type="button" onClick={onSubmit} disabled={isLoading || !form.formState.isDirty}>
-                                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                                <span className="ml-2">Guardar Cambios</span>
-                            </Button>
-                        </div>
+                         <Button type="button" onClick={onSubmit} disabled={isLoading || !form.formState.isDirty}>
+                            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                            <span className="ml-2">Guardar Cambios</span>
+                        </Button>
                     </div>
                     <TabsContent value="planificacion">
                         <Card>
