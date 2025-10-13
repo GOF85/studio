@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { ServiceOrder, ObjetivosGasto } from '@/types';
+import type { ServiceOrder, ObjetivosGasto, PersonalExternoOrder } from '@/types';
 import { Target, Info, RefreshCw } from 'lucide-react';
 import { GASTO_LABELS } from '@/lib/constants';
 import { formatCurrency, formatPercentage, formatNumber, calculateHours } from '@/lib/utils';
@@ -66,63 +67,66 @@ export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDispl
       const objectiveValue = facturacionNeta * objectivePct;
 
       let budgetValue = 0;
-      const materialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as any[];
       
-      switch(moduleName) {
-        case 'gastronomia':
-            const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as any[];
-            budgetValue = allGastroOrders.filter(o => o.osId === osId).reduce((sum, o) => sum + (o.total || 0), 0);
-            break;
-        case 'bodega':
-            budgetValue = materialOrders.filter(o => o.osId === osId && o.type === 'Bodega').reduce((s, o) => s + o.total, 0);
-            break;
-        case 'consumibles':
-            budgetValue = materialOrders.filter(o => o.osId === osId && o.type === 'Bio').reduce((s, o) => s + o.total, 0);
-            break;
-        case 'hielo':
-            const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as any[];
-            budgetValue = allHieloOrders.filter(o => o.osId === osId).reduce((s, o) => s + o.total, 0);
-            break;
-        case 'almacen':
-             budgetValue = materialOrders.filter(o => o.osId === osId && o.type === 'Almacen').reduce((s, o) => s + o.total, 0);
-            break;
-        case 'alquiler':
-             budgetValue = materialOrders.filter(o => o.osId === osId && o.type === 'Alquiler').reduce((s, o) => s + o.total, 0);
-            break;
-        case 'transporte':
-            const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as any[];
-            budgetValue = allTransporteOrders.filter(o => o.osId === osId).reduce((s, o) => s + o.precio, 0);
-            break;
-        case 'decoracion':
-            const allDecoracionOrders = JSON.parse(localStorage.getItem('decoracionOrders') || '[]') as any[];
-            budgetValue = allDecoracionOrders.filter(o => o.osId === osId).reduce((s, o) => s + o.precio, 0);
-            break;
-        case 'atipicos':
-            const allAtipicoOrders = JSON.parse(localStorage.getItem('atipicosOrders') || '[]') as any[];
-            budgetValue = allAtipicoOrders.filter(o => o.osId === osId).reduce((s, o) => s + o.precio, 0);
-            break;
-        case 'personalMice':
-            const allPersonalMiceOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as any[];
-            budgetValue = allPersonalMiceOrders.filter(o => o.osId === osId).reduce((sum, order) => {
-                const hours = calculateHours(order.horaEntrada, order.horaSalida);
-                return sum + (hours * (order.precioHora || 0));
-            }, 0);
-            break;
-        case 'personalExterno':
-            const allPersonalExternoOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as any[];
+      if (moduleName === 'personalExterno') {
+            const allPersonalExternoOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
             const allPersonalExternoAjustes = (JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}')[osId] || []) as {ajuste: number}[];
             const costeTurnos = allPersonalExternoOrders.filter(o => o.osId === osId).reduce((sum, order) => {
+                 const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
                  const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
-                 return sum + plannedHours * (order.precioHora || 0);
+                 const hoursToUse = realHours > 0 ? realHours : plannedHours;
+                 return sum + hoursToUse * (order.precioHora || 0) * (order.asignaciones?.length || 1);
             }, 0);
-            const costeAjustes = allPersonalExternoAjustes.reduce((sum: number, ajuste) => sum + ajuste.ajuste, 0);
+            const costeAjustes = allPersonalExternoAjustes.reduce((sum: number, ajuste) => sum + ajuste.importe, 0);
             budgetValue = costeTurnos + costeAjustes;
-            break;
-        case 'costePruebaMenu':
-             const allPruebasMenu = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as any[];
-             const prueba = allPruebasMenu.find(p => p.osId === osId);
-             budgetValue = prueba?.costePruebaMenu || 0;
-             break;
+      } else {
+            const materialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as any[];
+            switch(moduleName) {
+                case 'gastronomia':
+                    const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as any[];
+                    budgetValue = allGastroOrders.filter(o => o.osId === osId).reduce((sum, o) => sum + (o.total || 0), 0);
+                    break;
+                case 'bodega':
+                    budgetValue = materialOrders.filter(o => o.osId === osId && o.type === 'Bodega').reduce((s, o) => s + o.total, 0);
+                    break;
+                case 'consumibles':
+                    budgetValue = materialOrders.filter(o => o.osId === osId && o.type === 'Bio').reduce((s, o) => s + o.total, 0);
+                    break;
+                case 'hielo':
+                    const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as any[];
+                    budgetValue = allHieloOrders.filter(o => o.osId === osId).reduce((s, o) => s + o.total, 0);
+                    break;
+                case 'almacen':
+                    budgetValue = materialOrders.filter(o => o.osId === osId && o.type === 'Almacen').reduce((s, o) => s + o.total, 0);
+                    break;
+                case 'alquiler':
+                    budgetValue = materialOrders.filter(o => o.osId === osId && o.type === 'Alquiler').reduce((s, o) => s + o.total, 0);
+                    break;
+                case 'transporte':
+                    const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as any[];
+                    budgetValue = allTransporteOrders.filter(o => o.osId === osId).reduce((s, o) => s + o.precio, 0);
+                    break;
+                case 'decoracion':
+                    const allDecoracionOrders = JSON.parse(localStorage.getItem('decoracionOrders') || '[]') as any[];
+                    budgetValue = allDecoracionOrders.filter(o => o.osId === osId).reduce((s, o) => s + o.precio, 0);
+                    break;
+                case 'atipicos':
+                    const allAtipicoOrders = JSON.parse(localStorage.getItem('atipicosOrders') || '[]') as any[];
+                    budgetValue = allAtipicoOrders.filter(o => o.osId === osId).reduce((s, o) => s + o.precio, 0);
+                    break;
+                case 'personalMice':
+                    const allPersonalMiceOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as any[];
+                    budgetValue = allPersonalMiceOrders.filter(o => o.osId === osId).reduce((sum, order) => {
+                        const hours = calculateHours(order.horaEntrada, order.horaSalida);
+                        return sum + (hours * (order.precioHora || 0));
+                    }, 0);
+                    break;
+                case 'costePruebaMenu':
+                    const allPruebasMenu = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as any[];
+                    const prueba = allPruebasMenu.find(p => p.osId === osId);
+                    budgetValue = prueba?.costePruebaMenu || 0;
+                    break;
+            }
       }
 
       setData({

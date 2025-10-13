@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from "react"
@@ -31,12 +32,28 @@ type CostRow = {
   comentario?: string;
 };
 
-const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: string; horaSalida: string; asignaciones?: any[]}[]) => {
+const calculatePersonalMiceTotal = (orders: PersonalMiceOrder[], type: 'planned' | 'real') => {
     return orders.reduce((sum, order) => {
-        const hours = calculateHours(order.horaEntrada, order.horaSalida);
-        const quantity = order.asignaciones?.length || 1;
+        const hours = type === 'real' && order.horaEntradaReal && order.horaSalidaReal 
+            ? calculateHours(order.horaEntradaReal, order.horaSalidaReal)
+            : calculateHours(order.horaEntrada, order.horaSalida);
         const price = order.precioHora || 0;
-        return sum + (hours * price * quantity);
+        return sum + (hours * price);
+    }, 0);
+};
+
+const calculatePersonalExternoTotal = (orders: PersonalExternoOrder[], type: 'planned' | 'real') => {
+    return orders.reduce((sum, order) => {
+        if (type === 'real') {
+            return sum + (order.asignaciones || []).reduce((sumAsignacion, asignacion) => {
+                const realHours = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
+                const hoursToUse = realHours > 0 ? realHours : calculateHours(order.horaEntrada, order.horaSalida);
+                return sumAsignacion + hoursToUse * (order.precioHora || 0);
+            }, 0);
+        }
+        const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
+        const quantity = (order.asignaciones || []).length > 0 ? order.asignaciones.length : 1;
+        return sum + (plannedHours * (order.precioHora || 0) * quantity);
     }, 0);
 };
 
@@ -148,32 +165,16 @@ export default function CtaExplotacionPage() {
     const getCierreCost = (label: string, presupuesto: number) => {
         const categoria = Object.keys(GASTO_LABELS).find(key => GASTO_LABELS[key as keyof typeof GASTO_LABELS] === label);
         const perdida = categoria ? (devolucionesPorCategoria[categoria as string] || 0) : 0;
-        return presupuesto - perdida; // Restamos la pérdida
+        return presupuesto + perdida; // Sumamos la pérdida como un coste adicional
     };
     
-    const personalExternoPlanificado = calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId));
+    const personalExternoPlanificado = calculatePersonalExternoTotal(allPersonalExternoOrders.filter(o => o.osId === osId), 'planned');
     const costeAjustesPersonalExterno = allPersonalExternoAjustes.reduce((sum, ajuste) => sum + ajuste.importe, 0);
 
-    const personalExternoRealCost = (allPersonalExternoOrders.filter(o => o.osId === osId)).reduce((acc, order) => {
-        const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
-        const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
-        const hoursToUse = realHours > 0 ? realHours : plannedHours;
-        const price = order.precioHora || 0;
-        const asignaciones = (order.asignaciones || []).length > 0 ? order.asignaciones.length : 1;
-        return acc + hoursToUse * price * asignaciones;
-    }, 0);
-    const costePersonalExternoCierre = personalExternoRealCost + costeAjustesPersonalExterno;
+    const personalExternoReal = calculatePersonalExternoTotal(allPersonalExternoOrders.filter(o => o.osId === osId), 'real');
 
-
-    const personalMiceRealCost = (allPersonalMiceOrders.filter(o => o.osId === osId)).reduce((acc, order) => {
-        const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
-        const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
-        const hoursToUse = realHours > 0 ? realHours : plannedHours;
-        const price = order.precioHora || 0;
-        return acc + hoursToUse * price;
-    }, 0);
-    const costePruebaTotal = pruebaMenu?.costePruebaMenu || 0;
-    
+    const costePersonalExternoCierre = personalExternoReal + costeAjustesPersonalExterno;
+    const costePersonalExternoPresupuesto = personalExternoPlanificado + costeAjustesPersonalExterno;
     
     const newCostes = [
       { label: GASTO_LABELS.gastronomia, presupuesto: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)) },
@@ -185,9 +186,9 @@ export default function CtaExplotacionPage() {
       { label: GASTO_LABELS.transporte, presupuesto: getModuleTotal(allTransporteOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allTransporteOrders.filter(o => o.osId === osId)) },
       { label: GASTO_LABELS.decoracion, presupuesto: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)) },
       { label: GASTO_LABELS.atipicos, presupuesto: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)) },
-      { label: GASTO_LABELS.personalMice, presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: personalMiceRealCost },
-      { label: GASTO_LABELS.personalExterno, presupuesto: personalExternoPlanificado + costeAjustesPersonalExterno, cierre: costePersonalExternoCierre },
-      { label: GASTO_LABELS.costePruebaMenu, presupuesto: costePruebaTotal, cierre: costePruebaTotal },
+      { label: GASTO_LABELS.personalMice, presupuesto: calculatePersonalMiceTotal(allPersonalMiceOrders.filter(o => o.osId === osId), 'planned'), cierre: calculatePersonalMiceTotal(allPersonalMiceOrders.filter(o => o.osId === osId), 'real') },
+      { label: GASTO_LABELS.personalExterno, presupuesto: costePersonalExternoPresupuesto, cierre: costePersonalExternoCierre },
+      { label: GASTO_LABELS.costePruebaMenu, presupuesto: pruebaMenu?.costePruebaMenu || 0, cierre: pruebaMenu?.costePruebaMenu || 0 },
     ];
     
     setCtaData({
@@ -525,6 +526,7 @@ export default function CtaExplotacionPage() {
     </TooltipProvider>
   );
 }
+
 
 
 
