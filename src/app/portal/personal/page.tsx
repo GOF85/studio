@@ -1,10 +1,11 @@
 
+
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Building2 } from 'lucide-react';
-import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, startOfToday, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatUnit } from '@/lib/utils';
-import type { PersonalEntrega, PersonalEntregaTurno, AsignacionPersonal, EstadoPersonalEntrega, Entrega, PedidoEntrega, Proveedor } from '@/types';
+import type { PersonalExternoTurno, AsignacionPersonal, Entrega, PedidoEntrega, Proveedor, ServiceOrder, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -23,30 +24,29 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from '@/components/ui/calendar';
 import Link from 'next/link';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DateRange } from 'react-day-picker';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { logActivity } from '../activity-log/utils';
 
 
-type TurnoConEstado = PersonalEntregaTurno & {
+type TurnoConDetalles = PersonalExternoTurno & {
     osId: string;
     serviceNumber: string;
     cliente: string;
-    fechaEntrega: string;
-    horaEntrega: string;
+    fechaEvento: string;
     lugarEntrega: string;
 };
 
-const statusVariant: { [key in PersonalEntregaTurno['statusPartner']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
+const statusVariant: { [key in PersonalExternoTurno['statusPartner']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
   'Pendiente Asignación': 'secondary',
   'Gestionado': 'default',
 };
 
-const statusRowClass: { [key in PersonalEntregaTurno['statusPartner']]?: string } = {
+const statusRowClass: { [key in PersonalExternoTurno['statusPartner']]?: string } = {
   'Gestionado': 'bg-green-50 hover:bg-green-100/80',
 };
 
@@ -54,11 +54,11 @@ const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 type DayDetails = {
     day: Date;
-    events: TurnoConEstado[];
+    events: TurnoConDetalles[];
 } | null;
 
 
-function AsignacionDialog({ turno, onSave, children, isReadOnly }: { turno: TurnoConEstado; onSave: (turnoId: string, asignaciones: AsignacionPersonal[]) => void; children: React.ReactNode, isReadOnly: boolean }) {
+function AsignacionDialog({ turno, onSave, children, isReadOnly }: { turno: TurnoConDetalles; onSave: (turnoId: string, asignaciones: AsignacionPersonal[]) => void; children: React.ReactNode, isReadOnly: boolean }) {
     const [isOpen, setIsOpen] = useState(false);
     const [asignacion, setAsignacion] = useState<AsignacionPersonal>({ id: '1', nombre: '', dni: '', telefono: '', comentarios: '' });
     
@@ -112,7 +112,7 @@ function AsignacionDialog({ turno, onSave, children, isReadOnly }: { turno: Turn
 }
 
 export default function PartnerPersonalPortalPage() {
-    const [turnos, setTurnos] = useState<TurnoConEstado[]>([]);
+    const [turnos, setTurnos] = useState<TurnoConDetalles[]>([]);
     const [isMounted, setIsMounted] = useState(false);
     const { toast } = useToast();
     const [showCompleted, setShowCompleted] = useState(false);
@@ -150,34 +150,34 @@ export default function PartnerPersonalPortalPage() {
             setProveedorNombre(proveedor?.nombreComercial || '');
         }
 
-        const allEntregas = (JSON.parse(localStorage.getItem('entregas') || '[]') as Entrega[]).filter(os => os.status === 'Confirmado');
-        const allPersonalEntregas = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
-        const allPedidosEntrega = (JSON.parse(localStorage.getItem('pedidosEntrega') || '[]') as PedidoEntrega[]);
+        const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
+        const allPersonalExterno = (JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[]);
+        const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
 
-        const osMap = new Map(allEntregas.map(os => [os.id, os]));
-        const pedidosMap = new Map(allPedidosEntrega.map(p => [p.osId, p]));
+        const osMap = new Map(allServiceOrders.map(os => [os.id, os]));
+        const briefingsMap = new Map(allBriefings.map(b => [b.osId, b]));
         
-        const partnerTurnos: TurnoConEstado[] = [];
+        const partnerTurnos: TurnoConDetalles[] = [];
 
-        allPersonalEntregas.forEach(pedido => {
+        allPersonalExterno.forEach(pedido => {
             const os = osMap.get(pedido.osId);
-            const osPedido = pedidosMap.get(pedido.osId);
-
             if (!os) return;
+            
+            const briefing = briefingsMap.get(pedido.osId);
 
             (pedido.turnos || []).forEach(turno => {
                 const shouldInclude = !impersonatedUser?.proveedorId || turno.proveedorId === impersonatedUser.proveedorId;
 
                 if (shouldInclude) {
-                    const hito = osPedido?.hitos.find(h => new Date(h.fecha).toISOString().slice(0,10) === new Date(turno.fecha).toISOString().slice(0,10));
+                    const hito = briefing?.items.find(h => new Date(h.fecha).toISOString().slice(0,10) === new Date(turno.fecha).toISOString().slice(0,10));
                     partnerTurnos.push({
                         ...turno,
                         osId: pedido.osId,
                         serviceNumber: os.serviceNumber,
                         cliente: os.client,
-                        fechaEntrega: turno.fecha,
+                        fechaEvento: turno.fecha,
                         horaEntrega: turno.horaEntrada,
-                        lugarEntrega: hito?.lugarEntrega || os.direccionPrincipal || 'No especificado',
+                        lugarEntrega: hito?.sala || os.spaceAddress || 'No especificado',
                     });
                 }
             });
@@ -202,19 +202,20 @@ export default function PartnerPersonalPortalPage() {
         loadData();
     }, [loadData]);
     
-    const handleStatusChange = (turnoId: string, newStatus: PersonalEntregaTurno['statusPartner']) => {
+    const handleStatusChange = (turnoId: string, newStatus: PersonalExternoTurno['statusPartner']) => {
+        if(!impersonatedUser) return;
         const turno = turnos.find(t => t.id === turnoId);
-        if(!turno || !impersonatedUser) return;
+        if(!turno) return;
 
-        const allPersonalEntregas = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
-        const pedidoIndex = allPersonalEntregas.findIndex(p => p.osId === turno.osId);
+        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+        const pedidoIndex = allPersonalExterno.findIndex(p => p.osId === turno.osId);
         if(pedidoIndex === -1) return;
 
-        const turnoIndex = allPersonalEntregas[pedidoIndex].turnos.findIndex(t => t.id === turnoId);
+        const turnoIndex = allPersonalExterno[pedidoIndex].turnos.findIndex(t => t.id === turnoId);
         if(turnoIndex === -1) return;
         
-        allPersonalEntregas[pedidoIndex].turnos[turnoIndex].statusPartner = newStatus;
-        localStorage.setItem('personalEntrega', JSON.stringify(allPersonalEntregas));
+        allPersonalExterno[pedidoIndex].turnos[turnoIndex].statusPartner = newStatus;
+        localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
         
         logActivity(impersonatedUser, 'Actualización de Estado', `Turno ${turno.categoria} para ${turno.serviceNumber} a "${newStatus}"`, turno.id);
 
@@ -226,14 +227,14 @@ export default function PartnerPersonalPortalPage() {
         const turno = turnos.find(t => t.id === turnoId);
         if(!turno || !impersonatedUser) return;
 
-        const allPersonalEntregas = JSON.parse(localStorage.getItem('personalEntrega') || '[]') as PersonalEntrega[];
-        const pedidoIndex = allPersonalEntregas.findIndex(p => p.osId === turno.osId);
+        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+        const pedidoIndex = allPersonalExterno.findIndex(p => p.osId === turno.osId);
         if(pedidoIndex === -1) return;
 
-        const turnoIndex = allPersonalEntregas[pedidoIndex].turnos.findIndex(t => t.id === turnoId);
+        const turnoIndex = allPersonalExterno[pedidoIndex].turnos.findIndex(t => t.id === turnoId);
         if(turnoIndex === -1) return;
 
-        const updatedTurno = { ...allPersonalEntregas[pedidoIndex].turnos[turnoIndex] };
+        const updatedTurno = { ...allPersonalExterno[pedidoIndex].turnos[turnoIndex] };
         updatedTurno.asignaciones = asignaciones;
 
         if (asignaciones.length > 0 && asignaciones[0].nombre) {
@@ -241,9 +242,9 @@ export default function PartnerPersonalPortalPage() {
             updatedTurno.requiereActualizacion = false;
         }
 
-        allPersonalEntregas[pedidoIndex].turnos[turnoIndex] = updatedTurno;
+        allPersonalExterno[pedidoIndex].turnos[turnoIndex] = updatedTurno;
 
-        localStorage.setItem('personalEntrega', JSON.stringify(allPersonalEntregas));
+        localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
         
         logActivity(impersonatedUser, 'Asignación de Personal', `Asignado ${asignaciones[0].nombre} a turno ${turno.categoria}`, turno.id);
         
@@ -252,29 +253,30 @@ export default function PartnerPersonalPortalPage() {
     }
 
     const filteredTurnos = useMemo(() => {
+        const today = startOfToday();
         return turnos.filter(t => {
             const statusMatch = showCompleted || t.statusPartner !== 'Gestionado';
 
             let dateMatch = true;
             if (dateRange?.from) {
-                const turnoDate = new Date(t.fechaEntrega);
+                const turnoDate = new Date(t.fechaEvento);
                 if (dateRange.to) {
                     dateMatch = isWithinInterval(turnoDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
                 } else {
                     dateMatch = isSameDay(turnoDate, dateRange.from);
                 }
             }
-
+            
             return statusMatch && dateMatch;
         });
     }, [turnos, showCompleted, dateRange]);
 
 
     const turnosAgrupadosPorDia = useMemo(() => {
-        const groupedByDay: { [date: string]: { [location: string]: TurnoConEstado[] } } = {};
+        const groupedByDay: { [date: string]: { [location: string]: TurnoConDetalles[] } } = {};
         
         filteredTurnos.forEach(turno => {
-            const dateKey = format(new Date(turno.fechaEntrega), 'yyyy-MM-dd');
+            const dateKey = format(new Date(turno.fechaEvento), 'yyyy-MM-dd');
             if (!groupedByDay[dateKey]) {
                 groupedByDay[dateKey] = {};
             }
@@ -301,9 +303,9 @@ export default function PartnerPersonalPortalPage() {
     const calendarDays = eachDayOfInterval({ start: calStartDate, end: calEndDate });
 
      const eventsByDay = useMemo(() => {
-        const grouped: { [dayKey: string]: TurnoConEstado[] } = {};
+        const grouped: { [dayKey: string]: TurnoConDetalles[] } = {};
         turnos.forEach(event => {
-            const dayKey = format(new Date(event.fechaEntrega), 'yyyy-MM-dd');
+            const dayKey = format(new Date(event.fechaEvento), 'yyyy-MM-dd');
             if (!grouped[dayKey]) grouped[dayKey] = [];
             grouped[dayKey].push(event);
         });
@@ -315,7 +317,7 @@ export default function PartnerPersonalPortalPage() {
 
 
     if (!isMounted) {
-        return <LoadingSkeleton title="Cargando Portal de Personal..." />;
+        return <LoadingSkeleton title="Cargando Portal de Personal Externo..." />;
     }
     
     if(impersonatedUser?.roles?.includes('Partner Personal') && !impersonatedUser?.proveedorId) {
@@ -358,7 +360,7 @@ export default function PartnerPersonalPortalPage() {
                     <TabsTrigger value="calendario">Calendario</TabsTrigger>
                 </TabsList>
                 <TabsContent value="lista" className="mt-6">
-                    <div className="flex items-center space-x-4 mb-4">
+                     <div className="flex items-center space-x-4 mb-4">
                         <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                             <PopoverTrigger asChild>
                                 <Button id="date" variant={"outline"} className={cn("w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
@@ -523,3 +525,4 @@ export default function PartnerPersonalPortalPage() {
     
 
     
+

@@ -509,12 +509,12 @@ export type PersonalExternoTurno = {
 export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
 export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
 
-export type PersonalExternoOrder = {
+export type PersonalExterno = {
     osId: string;
     turnos: PersonalExternoTurno[];
     status: EstadoPersonalExterno;
     observacionesGenerales?: string;
-}
+};
 
 
 export type PruebaMenuItem = {
@@ -920,15 +920,29 @@ export type Proveedor = {
   tipos: TipoProveedor[];
 };
 
-export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
-export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
+export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado'] as const;
+export type EstadoPersonalEntrega = typeof ESTADO_PERSONAL_ENTREGA[number];
 
-export type PersonalExterno = {
-    osId: string;
-    turnos: PersonalExternoTurno[];
-    status: EstadoPersonalExterno;
-    observacionesGenerales?: string;
+export type PersonalEntregaTurno = {
+  id: string;
+  proveedorId: string;
+  categoria: string;
+  precioHora: number;
+  fecha: string;
+  horaEntrada: string;
+  horaSalida: string;
+  observaciones?: string;
+  statusPartner: 'Pendiente Asignación' | 'Gestionado';
+  asignaciones: AsignacionPersonal[];
+  requiereActualizacion?: boolean;
 };
+
+export type PersonalEntrega = {
+    osId: string;
+    turnos: PersonalEntregaTurno[];
+    status: EstadoPersonalEntrega;
+    observacionesGenerales?: string;
+}
 
 
 // --- PORTAL & AUTH ---

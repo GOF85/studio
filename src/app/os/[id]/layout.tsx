@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/tooltip"
 import { Badge } from '@/components/ui/badge';
 import { format, differenceInDays } from 'date-fns';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 
 type NavLink = {
@@ -178,13 +179,15 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                   )}
                 </div>
               </div>
-               <div className="flex justify-between items-center text-sm text-muted-foreground bg-secondary px-3 py-2 rounded-md">
+               <div className="flex justify-between items-center text-sm text-muted-foreground bg-secondary px-3 py-1 rounded-md">
                     <div className="flex items-center gap-4">
                         {serviceOrder.comercial && (
                             <Tooltip>
                                 <TooltipTrigger className="flex items-center gap-2 cursor-default">
                                     <span className="font-semibold">Comercial:</span>
-                                    <Badge>{getInitials(serviceOrder.comercial)}</Badge>
+                                    <Avatar className="h-6 w-6 text-xs">
+                                        <AvatarFallback>{getInitials(serviceOrder.comercial)}</AvatarFallback>
+                                    </Avatar>
                                 </TooltipTrigger>
                                 <TooltipContent>
                                     <div className="flex flex-col gap-1 p-1">
@@ -198,7 +201,9 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                              <Tooltip>
                                 <TooltipTrigger className="flex items-center gap-2 cursor-default">
                                     <span className="font-semibold">Metre:</span>
-                                    <Badge>{getInitials(serviceOrder.respMetre)}</Badge>
+                                    <Avatar className="h-6 w-6 text-xs">
+                                        <AvatarFallback>{getInitials(serviceOrder.respMetre)}</AvatarFallback>
+                                    </Avatar>
                                 </TooltipTrigger>
                                 <TooltipContent>
                                     <div className="flex flex-col gap-1 p-1">
