@@ -478,9 +478,20 @@ export type PersonalMiceOrder = {
     horaSalidaReal: string;
 }
 
-export type PersonalExternoOrder = {
+export type AsignacionPersonal = {
   id: string;
-  osId: string;
+  nombre: string;
+  dni: string;
+  telefono: string;
+  comentarios: string;
+  comentariosMice?: string;
+  rating?: number;
+  horaEntradaReal: string;
+  horaSalidaReal: string;
+};
+
+export type PersonalExternoTurno = {
+  id: string;
   proveedorId: string;
   categoria: string;
   precioHora: number;
@@ -491,21 +502,20 @@ export type PersonalExternoOrder = {
   tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
   observaciones?: string;
   statusPartner: 'Pendiente Asignación' | 'Gestionado';
-  asignaciones: {
-    id: string;
-    nombre: string;
-    dni?: string;
-    telefono?: string;
-    comentarios?: string;
-    horaEntradaReal?: string;
-    horaSalidaReal?: string;
-    comentariosMice?: string;
-    rating?: number;
-  }[];
+  asignaciones: AsignacionPersonal[];
   requiereActualizacion?: boolean;
-  horaEntradaReal?: string;
-  horaSalidaReal?: string;
 };
+
+export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
+export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
+
+export type PersonalExternoOrder = {
+    osId: string;
+    turnos: PersonalExternoTurno[];
+    status: EstadoPersonalExterno;
+    observacionesGenerales?: string;
+}
+
 
 export type PruebaMenuItem = {
     id: string;
@@ -910,39 +920,13 @@ export type Proveedor = {
   tipos: TipoProveedor[];
 };
 
-export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado'] as const;
-export type EstadoPersonalEntrega = typeof ESTADO_PERSONAL_ENTREGA[number];
+export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
+export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
 
-export type AsignacionPersonal = {
-  id: string;
-  nombre: string;
-  dni: string;
-  telefono: string;
-  comentarios: string;
-  comentariosMice?: string;
-  rating?: number;
-  horaEntradaReal: string;
-  horaSalidaReal: string;
-};
-
-export type PersonalEntregaTurno = {
-  id: string;
-  proveedorId: string;
-  fecha: string;
-  horaEntrada: string;
-  horaSalida: string;
-  categoria: string;
-  precioHora: number;
-  observaciones: string;
-  statusPartner: 'Pendiente Asignación' | 'Gestionado';
-  asignaciones: AsignacionPersonal[];
-  requiereActualizacion?: boolean;
-};
-
-export type PersonalEntrega = {
+export type PersonalExterno = {
     osId: string;
-    turnos: PersonalEntregaTurno[];
-    status: EstadoPersonalEntrega;
+    turnos: PersonalExternoTurno[];
+    status: EstadoPersonalExterno;
     observacionesGenerales?: string;
 };
 
@@ -1004,4 +988,3 @@ export type CategoriaReceta = {
     id: string;
     nombre: string;
 }
-
