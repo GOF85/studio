@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -80,9 +81,9 @@ function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; a
     const [isOpen, setIsOpen] = useState(false);
     const { getValues, setValue } = form;
 
-    const ratingFieldName = `turnos.${'${turnoIndex}'}.asignaciones.${'${asigIndex}'}.rating`;
-    const commentFieldName = `turnos.${'${turnoIndex}'}.asignaciones.${'${asigIndex}'}.comentariosMice`;
-    const asignacion = getValues(`turnos.${'${turnoIndex}'}.asignaciones.${'${asigIndex}'}`);
+    const ratingFieldName = `turnos.${turnoIndex}.asignaciones.${asigIndex}.rating`;
+    const commentFieldName = `turnos.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`;
+    const asignacion = getValues(`turnos.${turnoIndex}.asignaciones.${asigIndex}`);
     
     const [rating, setRating] = useState(getValues(ratingFieldName) || 3);
     const [comment, setComment] = useState(getValues(commentFieldName) || '');
@@ -156,7 +157,7 @@ function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) 
     const [isOpen, setIsOpen] = useState(false);
     const { getValues, setValue } = form;
 
-    const fieldName = `turnos.${'${turnoIndex}'}.observaciones`;
+    const fieldName = `turnos.${turnoIndex}.observaciones`;
     const dialogTitle = `Observaciones para la ETT`;
 
     const [comment, setComment] = useState(getValues(fieldName) || '');
@@ -271,10 +272,46 @@ export default function PersonalExternoPage() {
     loadData();
   }, [loadData]);
   
+  const handleProviderChange = useCallback((index: number, proveedorId: string) => {
+    if (!proveedorId) return;
+    const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
+    if (tipoPersonal) {
+        setValue(`turnos.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
+        setValue(`turnos.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
+        setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
+        trigger(`turnos.${index}`);
+    }
+}, [proveedoresDB, setValue, trigger]);
+
+  const watchedFields = watch('turnos');
+
+  const { totalPlanned, totalReal, totalAjustes, finalTotalReal, totalPlanificadoConAjustes } = useMemo(() => {
+    const planned = watchedFields?.reduce((acc, turno) => {
+      const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
+      return acc + plannedHours * (turno.precioHora || 0);
+    }, 0) || 0;
+
+    const real = watchedFields?.reduce((acc, turno) => {
+        return acc + (turno.asignaciones || []).reduce((sumAsignacion, asignacion) => {
+            let realHours = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
+            if (realHours <= 0) {
+                realHours = calculateHours(turno.horaEntrada, turno.horaSalida);
+            }
+            return sumAsignacion + realHours * (turno.precioHora || 0);
+        }, 0);
+    }, 0) || 0;
+    
+    const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.importe, 0);
+    
+    const costePlanificadoConAjustes = planned + aj;
+
+    return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj, totalPlanificadoConAjustes: costePlanificadoConAjustes };
+  }, [watchedFields, ajustes]);
+
   const onSubmit = (data: FormValues) => {
     setIsLoading(true);
     if (!osId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID del pedido.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
       setIsLoading(false);
       return;
     }
@@ -304,47 +341,11 @@ export default function PersonalExternoPage() {
     localStorage.setItem('personalExternoOrders', JSON.stringify(updatedAllOrders));
     
     setTimeout(() => {
-        toast({ title: 'Guardado', description: 'Los cambios se han guardado.' });
+        toast({ title: 'Personal guardado', description: 'La planificación del personal ha sido guardada.' });
         setIsLoading(false);
-        form.reset(data); // Mark as not dirty
+        form.reset(data); // Resets form with new values, marking it as not dirty
     }, 500);
   };
-
-  const handleProviderChange = useCallback((index: number, proveedorId: string) => {
-    if (!proveedorId) return;
-    const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
-    if (tipoPersonal) {
-        setValue(`turnos.${'${index}'}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
-        setValue(`turnos.${'${index}'}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
-        setValue(`turnos.${'${index}'}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
-        trigger(`turnos.${'${index}'}`);
-    }
-}, [proveedoresDB, setValue, trigger]);
-
-  const watchedFields = watch('turnos');
-
-  const { totalPlanned, totalReal, totalAjustes, finalTotalReal, totalPlanificadoConAjustes } = useMemo(() => {
-    const planned = watchedFields?.reduce((acc, turno) => {
-      const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
-      return acc + plannedHours * (turno.precioHora || 0);
-    }, 0) || 0;
-
-    const real = watchedFields?.reduce((acc, turno) => {
-        return acc + (turno.asignaciones || []).reduce((sumAsignacion, asignacion) => {
-            let realHours = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
-            if (realHours <= 0) {
-                realHours = calculateHours(turno.horaEntrada, turno.horaSalida);
-            }
-            return sumAsignacion + realHours * (turno.precioHora || 0);
-        }, 0);
-    }, 0) || 0;
-    
-    const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.importe, 0);
-    
-    const costePlanificadoConAjustes = planned + aj;
-
-    return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj, totalPlanificadoConAjustes: costePlanificadoConAjustes };
-  }, [watchedFields, ajustes]);
   
   const addRow = () => {
     if (!osId || !serviceOrder) return;
@@ -404,7 +405,7 @@ export default function PersonalExternoPage() {
   const providerOptions = useMemo(() => {
     return proveedoresDB
         .filter(p => proveedoresMap.has(p.proveedorId)) 
-        .map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${'${p.categoria}'}`, value: p.id }));
+        .map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
 }, [proveedoresDB, proveedoresMap]);
 
 const turnosAprobados = useMemo(() => {
@@ -457,10 +458,10 @@ const uniqueTurnoProviders = useMemo(() => {
                             <TableBody>
                                 {briefingItems.length > 0 ? briefingItems.map(item => (
                                 <TableRow key={item.id}>
-                                    <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yy')} {item.horaInicio}</TableCell>
+                                    <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yy')} {item.horaEntrada}</TableCell>
                                     <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
                                     <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                                    <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
+                                    <TableCell className="py-2 px-3">{calculateHours(item.horaEntrada, item.horaFin).toFixed(2)}h</TableCell>
                                 </TableRow>
                                 )) : (
                                     <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
@@ -509,7 +510,7 @@ const uniqueTurnoProviders = useMemo(() => {
                                             fields.map((field, index) => (
                                                 <TableRow key={field.id}>
                                                     <TableCell className="px-2 py-1">
-                                                        <FormField control={control} name={`turnos.${'${index}'}.fecha`} render={({ field: dateField }) => (
+                                                        <FormField control={control} name={`turnos.${index}.fecha`} render={({ field: dateField }) => (
                                                             <FormItem>
                                                                 <Popover>
                                                                     <PopoverTrigger asChild>
@@ -528,14 +529,14 @@ const uniqueTurnoProviders = useMemo(() => {
                                                         )} />
                                                     </TableCell>
                                                         <TableCell className="px-2 py-1">
-                                                        <FormField control={control} name={`turnos.${'${index}'}.solicitadoPor`} render={({ field: selectField }) => (
+                                                        <FormField control={control} name={`turnos.${index}.solicitadoPor`} render={({ field: selectField }) => (
                                                             <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{['SALA', 'COCINA', 'LOGISTICA', 'RRHH'].map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
                                                         )}/>
                                                     </TableCell>
                                                     <TableCell className="px-2 py-1 min-w-48">
                                                         <FormField
                                                             control={control}
-                                                            name={`turnos.${'${index}'}.proveedorId`}
+                                                            name={`turnos.${index}.proveedorId`}
                                                             render={({ field: f }) => (
                                                             <FormItem>
                                                                 <Combobox
@@ -548,21 +549,21 @@ const uniqueTurnoProviders = useMemo(() => {
                                                             )}/>
                                                     </TableCell>
                                                     <TableCell className="px-2 py-1">
-                                                        <FormField control={control} name={`turnos.${'${index}'}.tipoServicio`} render={({ field: selectField }) => (
+                                                        <FormField control={control} name={`turnos.${index}.tipoServicio`} render={({ field: selectField }) => (
                                                             <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'].map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
                                                         )}/>
                                                     </TableCell>
                                                     <TableCell className="border-l px-2 py-1 bg-muted/30">
-                                                        <FormField control={control} name={`turnos.${'${index}'}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-8 text-xs" /></FormControl></FormItem>} />
+                                                        <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-8 text-xs" /></FormControl></FormItem>} />
                                                     </TableCell>
                                                     <TableCell className="px-2 py-1 bg-muted/30">
-                                                        <FormField control={control} name={`turnos.${'${index}'}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-8 text-xs" /></FormControl></FormItem>} />
+                                                        <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-8 text-xs" /></FormControl></FormItem>} />
                                                     </TableCell>
                                                      <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center">
                                                         {formatDuration(calculateHours(watchedFields[index].horaEntrada, watchedFields[index].horaSalida))}
                                                     </TableCell>
                                                     <TableCell className="border-r px-2 py-1 bg-muted/30">
-                                                        <FormField control={control} name={`turnos.${'${index}'}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-8 text-xs" readOnly /></FormControl></FormItem>} />
+                                                        <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-8 text-xs" readOnly /></FormControl></FormItem>} />
                                                     </TableCell>
                                                     <TableCell>
                                                         <CommentDialog turnoIndex={index} form={form} />
@@ -630,10 +631,10 @@ const uniqueTurnoProviders = useMemo(() => {
                                                         <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
                                                     </TableCell>
                                                      <TableCell>
-                                                    <FormField control={control} name={`turnos.${'${turnoIndex}'}.asignaciones.${'${asigIndex}'}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8 w-24 text-xs" />} />
+                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8 w-24 text-xs" />} />
                                                     </TableCell>
                                                     <TableCell>
-                                                            <FormField control={control} name={`turnos.${'${turnoIndex}'}.asignaciones.${'${asigIndex}'}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8 w-24 text-xs" />} />
+                                                            <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8 w-24 text-xs" />} />
                                                     </TableCell>
                                                      <TableCell className="font-mono text-center">{realHours > 0 ? formatDuration(realHours) : '-'}</TableCell>
                                                     <TableCell className="w-[100px] text-center">
@@ -656,9 +657,13 @@ const uniqueTurnoProviders = useMemo(() => {
                         <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
                         <CardContent className="grid grid-cols-2 gap-8 p-4">
                             <div className="space-y-2 text-sm">
-                                <div className="flex justify-between font-bold text-base">
+                                 <div className="flex justify-between font-bold text-base">
                                     <span className="text-muted-foreground">Coste Total Planificado (con Ajustes):</span>
                                     <span className="font-bold">{formatCurrency(totalPlanificadoConAjustes)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Real (Horas):</span>
+                                    <span className="font-bold">{formatCurrency(totalReal)}</span>
                                 </div>
                                 <Separator className="my-2" />
                                 <div className="flex justify-between font-bold text-base">
@@ -733,4 +738,3 @@ const uniqueTurnoProviders = useMemo(() => {
   );
 }
 
-    

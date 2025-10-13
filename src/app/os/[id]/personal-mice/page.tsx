@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -145,7 +144,7 @@ export default function PersonalMiceFormPage() {
 
         const allOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
         const relatedOrders = allOrders.filter(order => order.osId === osId);
-        form.reset({ personal: relatedOrders });
+        form.reset({ personal: relatedOrders.map(o => ({...o, horaEntradaReal: o.horaEntradaReal || '', horaSalidaReal: o.horaSalidaReal || ''})) });
 
         const dbPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
         setPersonalDB(dbPersonal);
@@ -220,6 +219,12 @@ export default function PersonalMiceFormPage() {
     <>
         <FormProvider {...form}>
         <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)}>
+            <div className="flex items-start justify-end mb-4">
+                <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                    <span className="ml-2">Guardar Cambios</span>
+                </Button>
+            </div>
              <Accordion type="single" collapsible className="w-full mb-4" >
                 <AccordionItem value="item-1">
                 <Card>

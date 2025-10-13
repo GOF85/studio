@@ -474,8 +474,8 @@ export type PersonalMiceOrder = {
     horaEntrada: string;
     horaSalida: string;
     precioHora: number;
-    horaEntradaReal?: string;
-    horaSalidaReal?: string;
+    horaEntradaReal: string;
+    horaSalidaReal: string;
 }
 
 export type PersonalExternoOrder = {
@@ -533,7 +533,7 @@ export type PersonalExternoAjuste = {
     id: string;
     proveedorId: string;
     concepto: string;
-    ajuste: number;
+    importe: number;
 }
 export const UNIDADES_MEDIDA = ['UNIDAD', 'KILO', 'LITRO', 'GRAMO', 'BOTELLA', 'CAJA', 'PACK'] as const;
 export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
@@ -902,13 +902,13 @@ export type EstadoPersonalEntrega = typeof ESTADO_PERSONAL_ENTREGA[number];
 export type AsignacionPersonal = {
   id: string;
   nombre: string;
-  dni?: string;
-  telefono?: string;
-  comentarios?: string;
+  dni: string;
+  telefono: string;
+  comentarios: string;
   comentariosMice?: string;
   rating?: number;
-  horaEntradaReal?: string;
-  horaSalidaReal?: string;
+  horaEntradaReal: string;
+  horaSalidaReal: string;
 };
 
 export type PersonalEntregaTurno = {
