@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -10,7 +11,7 @@ import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle } from 'lucide-react';
 
-import type { PersonalExternoOrder, CategoriaPersonal, Proveedor, AsignacionPersonal, EstadoPersonalEntrega, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExternoAjuste } from '@/types';
+import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, AsignacionPersonal, EstadoPersonalEntrega, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExternoAjuste } from '@/types';
 import { ESTADO_PERSONAL_ENTREGA } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -400,22 +401,20 @@ export default function PersonalExternoPage() {
   }
 
   const addAjusteRow = () => {
-      const newAjustes = [...ajustes, { id: Date.now().toString(), concepto: '', ajuste: 0 }];
-      setAjustes(newAjustes);
-      saveAjustes(newAjustes);
-  };
-
-  const updateAjuste = (index: number, field: 'concepto' | 'ajuste', value: string | number) => {
-      const newAjustes = [...ajustes];
-      if (field === 'ajuste') {
-          newAjustes[index][field] = parseFloat(value as string) || 0;
-      } else {
-          newAjustes[index][field] = value as string;
+      const proveedorId = (document.getElementById('ajuste-proveedor') as HTMLSelectElement)?.value;
+      const concepto = (document.getElementById('ajuste-concepto') as HTMLInputElement)?.value;
+      const importe = (document.getElementById('ajuste-importe') as HTMLInputElement)?.value;
+      if(!proveedorId || !concepto || !importe) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Debes rellenar todos los campos para añadir un ajuste.'});
+        return;
       }
+      const newAjustes = [...ajustes, { id: Date.now().toString(), proveedorId, concepto, ajuste: parseFloat(importe) }];
       setAjustes(newAjustes);
       saveAjustes(newAjustes);
+      if(document.getElementById('ajuste-concepto')) (document.getElementById('ajuste-concepto') as HTMLInputElement).value = '';
+      if(document.getElementById('ajuste-importe')) (document.getElementById('ajuste-importe') as HTMLInputElement).value = '';
   };
-
+  
   const removeAjusteRow = (index: number) => {
       const newAjustes = ajustes.filter((_, i) => i !== index);
       setAjustes(newAjustes);
@@ -432,6 +431,16 @@ const turnosAprobados = useMemo(() => {
     return watchedFields.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
 }, [watchedFields]);
 
+  const uniqueTurnoProviders = useMemo(() => {
+    const providerIds = new Set(watchedFields?.map(t => t.proveedorId));
+    return Array.from(providerIds).map(id => {
+      const turno = watchedFields.find(t => t.proveedorId === id);
+      const cat = proveedoresDB.find(p => p.id === id);
+      const prov = cat ? proveedoresMap.get(cat.proveedorId) : 'Desconocido';
+      return { id: cat?.proveedorId || '', label: prov || 'Desconocido'};
+    }).filter((v,i,a) => a.findIndex(t => (t.id === v.id)) === i); // unique
+  }, [watchedFields, proveedoresDB, proveedoresMap]);
+
 
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Asignación de Personal..." />;
@@ -442,7 +451,7 @@ const turnosAprobados = useMemo(() => {
       <main>
       <TooltipProvider>
         <FormProvider {...form}>
-            <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
+            <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
                 <div className="flex items-start justify-end mb-4">
                     <Button type="button" onClick={onSubmit} disabled={isLoading || !form.formState.isDirty}>
                         {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
@@ -689,30 +698,28 @@ const turnosAprobados = useMemo(() => {
                             </div>
                             <div className="space-y-2">
                                <h4 className="text-xs font-semibold text-muted-foreground">AJUSTE DE COSTES</h4>
+                               <div className="border rounded-md p-2 space-y-2">
                                 {ajustes.map((ajuste, index) => (
                                     <div key={ajuste.id} className="flex gap-2 items-center">
-                                        <Input 
-                                            placeholder="Concepto" 
-                                            value={ajuste.concepto} 
-                                            onChange={(e) => updateAjuste(index, 'concepto', e.target.value)}
-                                            className="h-9"
-                                        />
-                                        <Input 
-                                            type="number"
-                                            step="0.01"
-                                            placeholder="Importe"
-                                            value={ajuste.ajuste}
-                                            onChange={(e) => updateAjuste(index, 'ajuste', e.target.value)}
-                                            className="w-32 h-9"
-                                        />
-                                        <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjusteRow(index)}><Trash2 className="h-4 w-4"/></Button>
+                                        <p className="text-sm flex-grow">({proveedoresMap.get(ajuste.proveedorId) || '?'}) {ajuste.concepto}: <span className="font-mono">{formatCurrency(ajuste.ajuste)}</span></p>
+                                        <Button type="button" variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => removeAjusteRow(index)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
                                 ))}
-                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
-                                 <Separator className="my-2" />
-                                  <div className="flex justify-between font-bold">
-                                      <span>Total Ajustes:</span>
-                                      <span>{formatCurrency(totalAjustes)}</span>
+                                </div>
+                                <div className="flex gap-2 pt-2">
+                                     <Select name="ajuste-proveedor" id="ajuste-proveedor">
+                                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Proveedor..."/></SelectTrigger>
+                                        <SelectContent>
+                                            {uniqueTurnoProviders.map(p => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <Input id="ajuste-concepto" placeholder="Concepto" className="h-8 text-xs flex-grow"/>
+                                    <Input id="ajuste-importe" type="number" step="0.01" placeholder="Importe" className="text-right h-8 w-24 text-xs"/>
+                                    <Button type="button" onClick={handleAddAjuste} size="sm" className="h-8 text-xs">Añadir</Button>
+                                </div>
+                                  <div className="flex justify-end font-bold pt-2">
+                                      <span className="text-sm">Total Ajustes:</span>
+                                      <span className="text-sm ml-2">{formatCurrency(totalAjustes)}</span>
                                   </div>
                             </div>
                         </CardContent>

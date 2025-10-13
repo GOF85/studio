@@ -531,6 +531,7 @@ export type ObjetivosGasto = CtaExplotacionObjetivos & {
 
 export type PersonalExternoAjuste = {
     id: string;
+    proveedorId: string;
     concepto: string;
     ajuste: number;
 }
