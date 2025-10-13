@@ -31,6 +31,15 @@ type CostRow = {
   comentario?: string;
 };
 
+const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: string; horaSalida: string; cantidad?: number}[]) => {
+    return orders.reduce((sum, order) => {
+        const hours = calculateHours(order.horaEntrada, order.horaSalida);
+        const quantity = order.cantidad || 1;
+        const price = order.precioHora || 0;
+        return sum + (hours * price * quantity);
+    }, 0);
+};
+
 export default function CtaExplotacionPage() {
   const router = useRouter();
   const params = useParams();
