@@ -435,53 +435,18 @@ const turnosAprobados = useMemo(() => {
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
-                <div className="flex items-start justify-end mb-4">
-                    <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
-                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                        <span className="ml-2">Guardar Cambios</span>
-                    </Button>
-                </div>
-                 <Accordion type="single" collapsible className="w-full mb-4" >
-                    <AccordionItem value="item-1">
-                    <Card>
-                        <AccordionTrigger className="p-4">
-                            <h3 className="text-xl font-semibold">Servicios del Evento</h3>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                        <CardContent className="pt-0">
-                            <Table>
-                            <TableHeader>
-                                <TableRow>
-                                <TableHead className="py-2 px-3">Fecha</TableHead>
-                                <TableHead className="py-2 px-3">Descripción</TableHead>
-                                <TableHead className="py-2 px-3">Asistentes</TableHead>
-                                <TableHead className="py-2 px-3">Duración</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {briefingItems.length > 0 ? briefingItems.map(item => (
-                                <TableRow key={item.id}>
-                                    <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
-                                    <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
-                                    <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                                    <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
-                                </TableRow>
-                                )) : (
-                                    <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                            </Table>
-                        </CardContent>
-                        </AccordionContent>
-                    </Card>
-                    </AccordionItem>
-                </Accordion>
-
                 <Tabs defaultValue="planificacion">
-                     <TabsList className="mb-4 grid w-full grid-cols-2 max-w-lg">
-                        <TabsTrigger value="planificacion" className="text-base px-6">Planificación de Turnos</TabsTrigger>
-                        <TabsTrigger value="aprobados" className="text-base px-6">Cierre y Horas Reales</TabsTrigger>
-                    </TabsList>
+                    <div className="flex items-center justify-between mb-4">
+                        <TabsList className="grid grid-cols-2">
+                            <TabsTrigger value="planificacion" className="text-base px-6">Planificación de Turnos</TabsTrigger>
+                            <TabsTrigger value="aprobados" className="text-base px-6">Cierre y Horas Reales</TabsTrigger>
+                        </TabsList>
+                        <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
+                            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                            <span className="ml-2">Guardar Cambios</span>
+                        </Button>
+                    </div>
+
                     <TabsContent value="planificacion">
                         <Card>
                             <CardHeader className="py-3 flex-row items-center justify-between">
@@ -500,8 +465,7 @@ const turnosAprobados = useMemo(() => {
                                             <TableHead className="px-2 py-1">Solicitado</TableHead>
                                             <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
                                             <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
-                                            <TableHead colSpan={3} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
-                                            <TableHead className="px-1 py-1 w-10"></TableHead>
+                                            <TableHead colSpan={4} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
                                             <TableHead className="text-right px-2 py-1"></TableHead>
                                         </TableRow>
                                         <TableRow>
@@ -511,8 +475,8 @@ const turnosAprobados = useMemo(() => {
                                             <TableHead className="px-2 py-1"></TableHead>
                                             <TableHead className="border-l px-2 py-1 bg-muted/30 w-24">H. Entrada</TableHead>
                                             <TableHead className="px-2 py-1 bg-muted/30 w-24">H. Salida</TableHead>
+                                            <TableHead className="px-2 py-1 bg-muted/30 w-20">Horas</TableHead>
                                             <TableHead className="border-r px-2 py-1 bg-muted/30 w-20">€/Hora</TableHead>
-                                            <TableHead className="px-2 py-1"></TableHead>
                                             <TableHead className="px-2 py-1"></TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -570,16 +534,19 @@ const turnosAprobados = useMemo(() => {
                                                     <TableCell className="px-2 py-1 bg-muted/30">
                                                         <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-8 text-xs" /></FormControl></FormItem>} />
                                                     </TableCell>
+                                                    <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center">
+                                                        {formatDuration(calculateHours(watchedFields[index].horaEntrada, watchedFields[index].horaSalida))}
+                                                    </TableCell>
                                                     <TableCell className="border-r px-2 py-1 bg-muted/30">
                                                         <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-8 text-xs" readOnly /></FormControl></FormItem>} />
                                                     </TableCell>
-                                                    <TableCell>
-                                                        <CommentDialog turnoIndex={index} form={form} />
-                                                    </TableCell>
                                                     <TableCell className="text-right px-2 py-1">
-                                                        <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => setRowToDelete(index)}>
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
+                                                        <div className="flex">
+                                                            <CommentDialog turnoIndex={index} form={form} />
+                                                            <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => setRowToDelete(index)}>
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
                                                     </TableCell>
                                                 </TableRow>
                                             ))
@@ -736,10 +703,61 @@ const turnosAprobados = useMemo(() => {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-
     </main>
   );
 }
 
+```
+- src/app/os/page.tsx:
+```tsx
 
-    
+'use client';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+// This page should ideally not be accessed directly.
+// It redirects to the main OS list page.
+export default function OsPage() {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/pes');
+    }, [router]);
+    return null;
+}
+
+```
+- src/app/page.tsx:
+```tsx
+'use client';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+// This page just redirects to the first page of the catering module.
+export default function RedirectToCatering() {
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/pes');
+    }, [router]);
+    return null;
+}
+
+```
+- `src/lib/constants.ts`:
+```ts
+import type { ObjetivosGasto } from './types';
+
+export const GASTO_LABELS: Record<keyof Omit<ObjetivosGasto, 'id' | 'name'>, string> = {
+    gastronomia: 'Gastronomía',
+    bodega: 'Bodega',
+    consumibles: 'Bio',
+    hielo: 'Hielo',
+    almacen: 'Almacén',
+    alquiler: 'Alquiler',
+    transporte: 'Transporte',
+    decoracion: 'Decoración',
+    atipicos: 'Atípicos',
+    personalMice: 'Personal MICE',
+    personalExterno: 'Personal Externo',
+    costePruebaMenu: 'Coste Prueba de Menu',
+};
+```
