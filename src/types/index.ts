@@ -490,6 +490,19 @@ export type PersonalExternoOrder = {
   solicitadoPor: 'Sala' | 'Pase' | 'Otro';
   tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
   observaciones?: string;
+  statusPartner: 'Pendiente Asignación' | 'Gestionado';
+  asignaciones: {
+    id: string;
+    nombre: string;
+    dni?: string;
+    telefono?: string;
+    comentarios?: string;
+    horaEntradaReal?: string;
+    horaSalidaReal?: string;
+    comentariosMice?: string;
+    rating?: number;
+  }[];
+  requiereActualizacion?: boolean;
   horaEntradaReal?: string;
   horaSalidaReal?: string;
 };
@@ -532,6 +545,7 @@ export type ObjetivosGasto = CtaExplotacionObjetivos & {
 export type PersonalExternoAjuste = {
     id: string;
     proveedorId: string;
+    proveedorNombre?: string;
     concepto: string;
     importe: number;
 }

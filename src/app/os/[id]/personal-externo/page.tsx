@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useForm, useFieldArray, FormProvider, useWatch, useFormContext } from 'react-hook-form';
+import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
@@ -93,9 +93,9 @@ const formSchema = z.object({
     personal: z.array(personalTurnoSchema),
     ajustes: z.array(z.object({
         id: z.string(),
-        proveedorId: z.string(),
-        concepto: z.string(),
-        importe: z.number(),
+        proveedorId: z.string().min(1, "Debe seleccionar un proveedor para el ajuste."),
+        concepto: z.string().min(1, "El concepto del ajuste es obligatorio."),
+        importe: z.coerce.number(),
     })).optional(),
 })
 
@@ -226,7 +226,7 @@ function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) 
 export default function PersonalExternoPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [proveedoresDB, setProveedoresDB] = useState<CategoriaPersonal[]>([]);
-  const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
+  const [allProveedores, setAllProveedores] = useState<Proveedor[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
   
@@ -257,8 +257,8 @@ export default function PersonalExternoPage() {
         const dbProveedores = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
         setProveedoresDB(dbProveedores);
         
-        const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
-        setProveedoresMap(new Map(allProveedores.map(p => [p.id, p.nombreComercial])));
+        const allProveedoresData = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
+        setAllProveedores(allProveedoresData);
 
         const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
         const turnosDelPedido = allTurnos.filter(p => p.osId === osId);
@@ -295,7 +295,7 @@ export default function PersonalExternoPage() {
   const watchedFields = watch('personal');
   const watchedAjustes = watch('ajustes');
 
-  const { totalPlanned, totalReal, totalAjustes, finalTotalReal } = useMemo(() => {
+ const { totalPlanned, totalReal, totalAjustes, finalTotalReal } = useMemo(() => {
     const planned = watchedFields?.reduce((acc, order) => {
       const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
       return acc + plannedHours * (order.precioHora || 0);
@@ -366,7 +366,6 @@ export default function PersonalExternoPage() {
   const addRow = () => {
     append({
         id: Date.now().toString(),
-        osId: osId,
         proveedorId: '',
         categoria: '',
         precioHora: 0,
@@ -398,14 +397,23 @@ export default function PersonalExternoPage() {
   };
 
   const providerOptions = useMemo(() => {
-    return proveedoresDB
-        .filter(p => proveedoresMap.has(p.proveedorId)) 
-        .map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
-}, [proveedoresDB, proveedoresMap]);
+    const uniqueProviders = [...new Map(proveedoresDB.map(p => [p.proveedorId, allProveedores.find(ap => ap.id === p.proveedorId)])).values()];
+    return uniqueProviders.filter(Boolean).map(p => ({
+        value: p!.id,
+        label: p!.nombreComercial
+    }));
+  }, [proveedoresDB, allProveedores]);
 
-const turnosAprobados = useMemo(() => {
+  const categoriaOptions = useMemo(() => {
+    return proveedoresDB.map(p => ({
+        value: p.id,
+        label: `${p.nombreProveedor} - ${p.categoria}`
+    }));
+  }, [proveedoresDB]);
+
+  const turnosAprobados = useMemo(() => {
     return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
-}, [watchedFields]);
+  }, [watchedFields]);
 
 
   if (!isMounted) {
@@ -502,7 +510,7 @@ const turnosAprobados = useMemo(() => {
                                                             render={({ field: f }) => (
                                                             <FormItem>
                                                                 <Combobox
-                                                                    options={providerOptions}
+                                                                    options={categoriaOptions}
                                                                     value={f.value}
                                                                     onChange={(value) => handleProviderChange(index, value)}
                                                                     placeholder="Proveedor..."
@@ -588,7 +596,7 @@ const turnosAprobados = useMemo(() => {
                             </Card>
                         </TabsContent>
                         <TabsContent value="aprobados">
-                             <Card>
+                            <Card>
                                 <CardHeader className="py-3"><CardTitle className="text-lg">Cierre y Horas Reales</CardTitle></CardHeader>
                                 <CardContent className="p-2">
                                     <p className="text-sm text-muted-foreground p-2">Esta sección será completada por el responsable en el evento. Los datos aquí introducidos se usarán para el cálculo del coste real.</p>
@@ -663,7 +671,7 @@ const turnosAprobados = useMemo(() => {
                         </TabsContent>
                     </Tabs>
                     
-                     <div className="mt-8">
+                    <div className="mt-8">
                         <Card>
                             <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
                             <CardContent className="grid grid-cols-2 gap-8 p-4">
@@ -678,42 +686,43 @@ const turnosAprobados = useMemo(() => {
                                     </div>
                                     <Separator className="my-2" />
                                     <div className="flex justify-between font-bold text-base">
-                                        <span>Coste Total Real (con Ajustes):</span>
+                                        <span>Coste FINAL (Real + Ajustes):</span>
                                         <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
                                             {formatCurrency(finalTotalReal)}
                                         </span>
                                     </div>
                                     <Separator className="my-2" />
-                                        <div className="flex justify-between font-bold text-base">
-                                        <span>Desviación (Plan vs Real):</span>
+                                    <div className="flex justify-between font-bold text-base">
+                                        <span>Desviación (Plan vs FINAL):</span>
                                         <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
                                             {formatCurrency(finalTotalReal - totalPlanned)}
                                         </span>
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <h4 className="text-xs font-semibold text-muted-foreground">AJUSTE DE COSTES</h4>
-                                    <FormProvider {...form}>
-                                        <div className="space-y-2">
-                                        {(form.watch('ajustes') || []).map((ajuste, index) => (
-                                            <div key={index} className="flex gap-2 items-center">
-                                                <FormField control={control} name={`ajustes.${index}.concepto`} render={({field}) => (
-                                                    <Input placeholder="Concepto" {...field} className="h-9" />
-                                                )} />
-                                                <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
-                                                    <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-32 h-9" />
-                                                )} />
-                                                <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
-                                            </div>
-                                        ))}
-                                        <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
-                                        </div>
-                                    </FormProvider>
-                                        <Separator className="my-2" />
-                                        <div className="flex justify-between font-bold">
-                                            <span>Total Ajustes:</span>
-                                            <span>{formatCurrency(totalAjustes)}</span>
-                                        </div>
+                                <h4 className="text-xs font-semibold text-muted-foreground">AJUSTES DE COSTE (Facturas, dietas, etc.)</h4>
+                                {(ajusteFields || []).map((ajuste, index) => (
+                                    <div key={ajuste.id} className="flex gap-2 items-center">
+                                        <FormField control={control} name={`ajustes.${index}.proveedorId`} render={({field}) => (
+                                            <FormItem className="flex-grow">
+                                                <Combobox options={providerOptions} value={field.value} onChange={field.onChange} placeholder="Proveedor..."/>
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={control} name={`ajustes.${index}.concepto`} render={({field}) => (
+                                            <Input placeholder="Concepto" {...field} className="h-9 flex-grow"/>
+                                        )} />
+                                        <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
+                                            <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-32 h-9"/>
+                                        )} />
+                                        <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
+                                    </div>
+                                ))}
+                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
+                                <Separator className="my-2" />
+                                <div className="flex justify-between font-bold">
+                                    <span>Total Ajustes:</span>
+                                    <span>{formatCurrency(totalAjustes)}</span>
+                                </div>
                                 </div>
                             </CardContent>
                         </Card>

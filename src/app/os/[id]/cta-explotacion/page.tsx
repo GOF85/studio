@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from "react"
@@ -152,21 +150,29 @@ export default function CtaExplotacionPage() {
         return presupuesto - perdida; // Restamos la pérdida
     };
     
+    const personalExternoPlanificado = calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId));
+
     const personalExternoRealCost = (allPersonalExternoOrders.filter(o => o.osId === osId)).reduce((acc, order) => {
-      const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
-      const price = order.precioHora || 0;
-      return acc + realHours * price * ((order.asignaciones || []).length || 1);
+        const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
+        const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
+        const hoursToUse = realHours > 0 ? realHours : plannedHours;
+        const price = order.precioHora || 0;
+        const asignaciones = (order.asignaciones || []).length > 0 ? order.asignaciones.length : 1;
+        return acc + hoursToUse * price * asignaciones;
     }, 0);
     const personalExternoTotalAjustes = allPersonalExternoAjustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
-    
+    const costePersonalExternoCierre = personalExternoRealCost + personalExternoTotalAjustes;
+
+
     const personalMiceRealCost = (allPersonalMiceOrders.filter(o => o.osId === osId)).reduce((acc, order) => {
         const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
+        const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
+        const hoursToUse = realHours > 0 ? realHours : plannedHours;
         const price = order.precioHora || 0;
-        return acc + realHours * price;
+        return acc + hoursToUse * price;
     }, 0);
     const costePruebaTotal = pruebaMenu?.costePruebaMenu || 0;
     
-    const costePersonalExternoPlanificado = calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)) + personalExternoTotalAjustes;
     
     const newCostes = [
       { label: GASTO_LABELS.gastronomia, presupuesto: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)) },
@@ -179,7 +185,7 @@ export default function CtaExplotacionPage() {
       { label: GASTO_LABELS.decoracion, presupuesto: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)) },
       { label: GASTO_LABELS.atipicos, presupuesto: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)) },
       { label: GASTO_LABELS.personalMice, presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: personalMiceRealCost },
-      { label: GASTO_LABELS.personalExterno, presupuesto: costePersonalExternoPlanificado, cierre: personalExternoRealCost + personalExternoTotalAjustes },
+      { label: GASTO_LABELS.personalExterno, presupuesto: personalExternoPlanificado, cierre: costePersonalExternoCierre },
       { label: GASTO_LABELS.costePruebaMenu, presupuesto: costePruebaTotal, cierre: costePruebaTotal },
     ];
     
@@ -518,5 +524,6 @@ export default function CtaExplotacionPage() {
     </TooltipProvider>
   );
 }
+
 
 
