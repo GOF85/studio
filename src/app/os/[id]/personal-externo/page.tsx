@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,6 +34,7 @@ import { FeedbackDialog } from '@/components/portal/feedback-dialog';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { calculateHours, formatCurrency, formatDuration } from '@/lib/utils';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
@@ -76,7 +77,7 @@ const formSchema = z.object({
         concepto: z.string().min(1, "El concepto del ajuste es obligatorio."),
         importe: z.coerce.number(),
     })).optional(),
-})
+});
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -180,6 +181,10 @@ export default function PersonalExternoPage() {
         
         const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
         
+        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+        const currentPersonalExterno = allPersonalExterno.find(p => p.osId === osId);
+        setPersonalExterno(currentPersonalExterno || { osId, turnos: [], status: 'Pendiente' });
+        
         form.reset({ 
             turnos: turnosDelPedido.map(t => ({
                 ...t, 
@@ -192,9 +197,6 @@ export default function PersonalExternoPage() {
             })),
             ajustes: storedAjustes[osId] || []
         });
-        
-        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        setPersonalExterno(allPersonalExterno.find(p => p.osId === osId) || { osId, turnos: [], status: 'Pendiente' });
         
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos de personal externo.' });
@@ -240,88 +242,145 @@ export default function PersonalExternoPage() {
 
     return { totalPlanned: planned, totalReal: real, totalAjustes: aj, costeFinalPlanificado: planned + aj, finalTotalReal: real + aj };
   }, [watchedFields, watchedAjustes]);
-  
-  const onSubmit = (data: FormValues) => {
-    setIsLoading(true);
-    if (!osId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
-      setIsLoading(false);
-      return;
-    }
 
-    const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
-    const otherOsOrders = allTurnos.filter(o => o.osId !== osId);
-    
-    const currentOsOrders: PersonalExternoOrder[] = data.turnos.map(t => {
-        const existingTurno = personalExterno?.turnos.find(et => et.id === t.id);
-        const hasChanges = JSON.stringify(t) !== JSON.stringify(existingTurno);
-        return {
-            ...t, 
-            osId,
-            fecha: format(t.fecha, 'yyyy-MM-dd'),
-            statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
-            requiereActualizacion: hasChanges,
-            asignaciones: (t.asignaciones || []).map(a => ({
-                ...a,
-                horaEntradaReal: a.horaEntradaReal || '',
-                horaSalidaReal: a.horaSalidaReal || '',
-            })),
-        }
-    });
-
-    const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
-    localStorage.setItem('personalExternoOrders', JSON.stringify(updatedAllOrders));
-
-    const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
-    allAjustes[osId] = data.ajustes || [];
-    localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
-
-    window.dispatchEvent(new Event('storage'));
-
-    setTimeout(() => {
-        toast({ title: 'Personal guardado', description: 'La planificación del personal ha sido guardada.' });
-        setIsLoading(false);
-        form.reset(data); // Resets form with new values, marking it as not dirty
-    }, 500);
-  };
-  
     const handleGlobalStatusAction = () => {
         if (!personalExterno) return;
-        const currentStatus = personalExterno.status;
-        let newStatus: EstadoPersonalExterno = currentStatus;
+
+        let newStatus: EstadoPersonalExterno;
         let toastTitle = '';
         let toastDescription = '';
+        let requiresUpdate = false;
 
-        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        const index = allPersonalExterno.findIndex(p => p.osId === osId);
-        if (index === -1) return;
-
+        const currentStatus = personalExterno.status;
+        
         if (currentStatus === 'Pendiente') {
             newStatus = 'Solicitado';
             toastTitle = 'Personal Solicitado';
             toastDescription = 'La petición ha sido enviada a los proveedores de personal.';
-            // Marcar todos los turnos como que requieren actualización
-            const updatedTurnos = allPersonalExterno[index].turnos.map(t => ({ ...t, requiereActualizacion: true }));
-            allPersonalExterno[index].turnos = updatedTurnos;
-
+            requiresUpdate = true;
         } else if (currentStatus === 'Solicitado') {
-             toastTitle = 'Actualización Notificada';
-             toastDescription = 'Se ha notificado a los proveedores de los últimos cambios.';
-             const updatedTurnos = allPersonalExterno[index].turnos.map(t => ({ ...t, requiereActualizacion: true }));
-             allPersonalExterno[index].turnos = updatedTurnos;
-
+            toastTitle = 'Actualización Notificada';
+            toastDescription = 'Se ha notificado a los proveedores de los últimos cambios.';
+            requiresUpdate = true;
+            newStatus = 'Solicitado'; // Stays in the same state
         } else if (currentStatus === 'Asignado') {
             newStatus = 'Cerrado';
             toastTitle = 'Personal Cerrado';
             toastDescription = 'El módulo de personal se ha cerrado y los costes reales están validados.';
+        } else {
+            return; // No action for "Cerrado"
+        }
+
+        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+        const index = allPersonalExterno.findIndex(p => p.osId === osId);
+        
+        if (index !== -1) {
+            allPersonalExterno[index].status = newStatus;
+            if (requiresUpdate) {
+                const updatedTurnos = (allPersonalExterno[index].turnos || []).map(t => ({ ...t, requiereActualizacion: true }));
+                allPersonalExterno[index].turnos = updatedTurnos;
+            }
+            localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
+            setPersonalExterno(allPersonalExterno[index]);
+            toast({ title: toastTitle, description: toastDescription });
+        }
+    };
+
+    const isSolicitudDesactualizada = useMemo(() => {
+        if (personalExterno?.status !== 'Solicitado') return false;
+        
+        const currentTurnoIds = new Set(watchedFields?.map(f => f.id));
+        const savedTurnos = personalExterno?.turnos || [];
+        const savedTurnoIds = new Set(savedTurnos.map(t => t.id));
+
+        if(currentTurnoIds.size !== savedTurnoIds.size) return true;
+        if(Array.from(currentTurnoIds).some(id => !savedTurnoIds.has(id))) return true;
+
+        for (const turno of savedTurnos) {
+            if (turno.requiereActualizacion) return true;
         }
         
-        allPersonalExterno[index].status = newStatus;
-        localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-        setPersonalExterno(allPersonalExterno[index]); // Update local state
+        return false;
+    }, [watchedFields, personalExterno]);
+    
+    const ActionButton = () => {
+        if(!personalExterno) return null;
+
+        switch(personalExterno.status) {
+            case 'Pendiente':
+                return <Button onClick={handleGlobalStatusAction}><Send className="mr-2"/>Solicitar a ETT</Button>
+            case 'Solicitado':
+                if (isSolicitudDesactualizada) {
+                    return (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button onClick={handleGlobalStatusAction}><RefreshCw className="mr-2 text-blue-500 animate-pulse"/>Notificar Cambios a ETT</Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Hay cambios en la planificación. Notifica al proveedor.</p></TooltipContent>
+                        </Tooltip>
+                    )
+                }
+                return <Button variant="secondary" disabled><CheckCircle className="mr-2"/>Solicitado</Button>
+            case 'Asignado':
+                 return <Button onClick={() => handleGlobalStatusAction()}><Save className="mr-2"/>Cerrar y Validar Costes</Button>
+            case 'Cerrado':
+                 return <Button variant="secondary" disabled><CheckCircle className="mr-2"/>Cerrado</Button>
+            default:
+                return null;
+        }
+    }
+  
+    const onSubmit = (data: FormValues) => {
+        setIsLoading(true);
+        if (!osId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
+            setIsLoading(false);
+            return;
+        }
+    
+        const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
+        const otherOsOrders = allTurnos.filter(o => o.osId !== osId);
         
-        toast({ title: toastTitle, description: toastDescription });
-    };
+        const currentOsOrders: PersonalExternoOrder[] = data.turnos.map(t => {
+            return {
+                ...t, 
+                osId,
+                fecha: format(t.fecha, 'yyyy-MM-dd'),
+                requiereActualizacion: true, // Mark as changed on any save
+                asignaciones: (t.asignaciones || []).map(a => ({
+                    ...a,
+                    horaEntradaReal: a.horaEntradaReal || '',
+                    horaSalidaReal: a.horaSalidaReal || '',
+                })),
+            }
+        });
+    
+        const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
+        localStorage.setItem('personalExternoOrders', JSON.stringify(updatedAllOrders));
+    
+        const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
+        allAjustes[osId] = data.ajustes || [];
+        localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
+
+        // Update the central status object as well
+        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+        const index = allPersonalExterno.findIndex(p => p.osId === osId);
+        if (index > -1) {
+             allPersonalExterno[index].turnos = currentOsOrders;
+        } else {
+            allPersonalExterno.push({osId, turnos: currentOsOrders, status: 'Pendiente'});
+        }
+        localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
+
+
+        window.dispatchEvent(new Event('storage'));
+    
+        setTimeout(() => {
+            toast({ title: 'Personal guardado', description: 'La planificación del personal ha sido guardada.' });
+            setIsLoading(false);
+            form.reset(data);
+        }, 500);
+      };
   
   const addRow = () => {
     append({
@@ -374,103 +433,13 @@ export default function PersonalExternoPage() {
     return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
   }, [watchedFields]);
 
-    const isSolicitudDesactualizada = useMemo(() => {
-        if (personalExterno?.status !== 'Solicitado') return false;
-        return watchedFields.some(t => t.requiereActualizacion);
-    }, [watchedFields, personalExterno]);
-    
-    const ActionButton = () => {
-        if(!personalExterno) return null;
 
-        switch(personalExterno.status) {
-            case 'Pendiente':
-                return <Button onClick={handleGlobalStatusAction}><Send className="mr-2"/>Solicitar a ETT</Button>
-            case 'Solicitado':
-                if (isSolicitudDesactualizada) {
-                    return (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button onClick={handleGlobalStatusAction}><RefreshCw className="mr-2 text-blue-500 animate-pulse"/>Notificar Cambios a ETT</Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>Hay cambios en la planificación. Notifica al proveedor.</p></TooltipContent>
-                        </Tooltip>
-                    )
-                }
-                return <Button variant="secondary" disabled><CheckCircle className="mr-2"/>Solicitado</Button>
-            case 'Asignado':
-                 return <Button onClick={() => handleGlobalStatusAction()}><Save className="mr-2"/>Cerrar y Validar Costes</Button>
-            case 'Cerrado':
-                 return <Button variant="secondary" disabled><CheckCircle className="mr-2"/>Cerrado</Button>
-            default:
-                return null;
-        }
-    }
-    
-    const handlePrintReport = () => {
-        if (!serviceOrder) return;
-        setIsPrinting(true);
-        try {
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            const margin = 15;
-            const pageWidth = doc.internal.pageSize.getWidth();
-            let finalY = margin;
-            
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor('#059669'); // Primary color
-            doc.text('Informe de Personal Externo', margin, finalY);
-            finalY += 10;
-            
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151');
-            doc.text(`OS: ${serviceOrder.serviceNumber} - ${serviceOrder.client}`, margin, finalY);
-            finalY += 10;
-
-            const body = (getValues('turnos') || []).filter(t => t.asignaciones && t.asignaciones.length > 0).flatMap(turno => 
-                (turno.asignaciones || []).map(asig => {
-                    const horasPlan = calculateHours(turno.horaEntrada, turno.horaSalida);
-                    const horasReal = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || horasPlan;
-                    return [
-                        asig.nombre,
-                        turno.categoria,
-                        format(new Date(turno.fecha), 'dd/MM/yy'),
-                        formatDuration(horasPlan),
-                        formatDuration(horasReal),
-                        formatCurrency(horasReal * turno.precioHora),
-                        `${'⭐'.repeat(asig.rating || 0)} ${asig.comentariosMice || ''}`
-                    ]
-                })
-            );
-
-            autoTable(doc, {
-                head: [['Nombre', 'Categoría', 'Fecha', 'H. Plan.', 'H. Real', 'Coste', 'Valoración']],
-                body,
-                startY: finalY,
-                theme: 'grid',
-                headStyles: { fillColor: '#f3f4f6', textColor: '#374151', fontStyle: 'bold' },
-                styles: { fontSize: 8 },
-            });
-             finalY = (doc as any).lastAutoTable.finalY + 10;
-             
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'bold');
-            doc.text(`Coste Final: ${formatCurrency(finalTotalReal)}`, pageWidth - margin, finalY, { align: 'right'});
-
-            doc.save(`Informe_Personal_${serviceOrder.serviceNumber}.pdf`);
-
-        } catch (error) {
-            console.error(error);
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el informe PDF.'});
-        } finally {
-            setIsPrinting(false);
-        }
-    }
-
-
-  if (!isMounted) {
+  if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
   }
+  
+  const statusBadgeVariant = personalExterno?.status === 'Asignado' || personalExterno?.status === 'Cerrado' ? 'success' : personalExterno?.status === 'Solicitado' ? 'outline' : 'warning';
+
 
   return (
     <>
@@ -486,7 +455,7 @@ export default function PersonalExternoPage() {
                              {isPrinting ? <Loader2 className="animate-spin" /> : <Users />}
                             <span className="ml-2">Generar Informe PDF</span>
                         </Button>
-                        <Button type="submit" disabled={isLoading || !formState.isDirty}>
+                        <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
                             {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                             <span className="ml-2">Guardar Cambios</span>
                         </Button>
@@ -685,6 +654,7 @@ export default function PersonalExternoPage() {
                                             <TableHead>Fecha-Horario Plan.</TableHead>
                                             <TableHead className="w-24">H. Entrada Real</TableHead>
                                             <TableHead className="w-24">H. Salida Real</TableHead>
+                                            <TableHead className="w-24 text-center">Desviación</TableHead>
                                             <TableHead className="w-[200px] text-center">Desempeño y Comentarios MICE</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -700,15 +670,7 @@ export default function PersonalExternoPage() {
 
                                                 return (
                                                 <TableRow key={asignacion.id} className={cn(hasTimeMismatch && "bg-amber-50")}>
-                                                    <TableCell className="font-semibold flex items-center gap-2">
-                                                        {hasTimeMismatch && (
-                                                            <Tooltip>
-                                                                <TooltipTrigger><AlertTriangle className="h-4 w-4 text-amber-500" /></TooltipTrigger>
-                                                                <TooltipContent><p>Desviación: {deviation > 0 ? '+' : ''}{formatDuration(deviation)} horas</p></TooltipContent>
-                                                            </Tooltip>
-                                                        )}
-                                                        {asignacion.nombre}
-                                                    </TableCell>
+                                                    <TableCell className="font-semibold">{asignacion.nombre}</TableCell>
                                                     <TableCell>{asignacion.dni}</TableCell>
                                                     <TableCell>
                                                         <div className="font-semibold">{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
@@ -720,13 +682,16 @@ export default function PersonalExternoPage() {
                                                     <TableCell>
                                                     <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                     </TableCell>
+                                                    <TableCell className={cn("text-center font-bold", deviation > 0 && "text-destructive", deviation < 0 && "text-green-600")}>
+                                                        {deviation.toFixed(2)}h
+                                                    </TableCell>
                                                     <TableCell className="w-[200px] text-center">
                                                        <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
                                                     </TableCell>
                                                 </TableRow>
                                             )})
                                         }) : (
-                                            <TableRow><TableCell colSpan={6} className="h-24 text-center">No hay turnos gestionados por la ETT.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={7} className="h-24 text-center">No hay turnos gestionados por la ETT.</TableCell></TableRow>
                                         )}
                                     </TableBody>
                                 </Table>
@@ -796,7 +761,7 @@ export default function PersonalExternoPage() {
                     </Card>
                 </div>
             </form>
-       </FormProvider>
+        </FormProvider>
         </TooltipProvider>
 
         <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
@@ -818,7 +783,6 @@ export default function PersonalExternoPage() {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-
       </main>
     </>
   );
