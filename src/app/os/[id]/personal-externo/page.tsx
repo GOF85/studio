@@ -9,7 +9,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Users2 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 import type { Entrega, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoPersonalExterno, PedidoEntrega, EntregaHito, ServiceOrder, ComercialBriefingItem, ComercialBriefing, PersonalExternoAjuste } from '@/types';
 import { ESTADO_PERSONAL_EXTERNO } from '@/types';
@@ -31,10 +33,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { FeedbackDialog } from '@/components/portal/feedback-dialog';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { calculateHours, formatCurrency, formatDuration } from '@/lib/utils';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
@@ -243,64 +244,42 @@ export default function PersonalExternoPage() {
     return { totalPlanned: planned, totalReal: real, totalAjustes: aj, costeFinalPlanificado: planned + aj, finalTotalReal: real + aj };
   }, [watchedFields, watchedAjustes]);
 
-    const handleGlobalStatusAction = () => {
+    const handleGlobalStatusAction = (newStatus: EstadoPersonalExterno) => {
         if (!personalExterno) return;
-
-        let newStatus: EstadoPersonalExterno;
-        let toastTitle = '';
-        let toastDescription = '';
-        let requiresUpdate = false;
-
-        const currentStatus = personalExterno.status;
         
-        if (currentStatus === 'Pendiente') {
-            newStatus = 'Solicitado';
-            toastTitle = 'Personal Solicitado';
-            toastDescription = 'La petición ha sido enviada a los proveedores de personal.';
-            requiresUpdate = true;
-        } else if (currentStatus === 'Solicitado') {
-            toastTitle = 'Actualización Notificada';
-            toastDescription = 'Se ha notificado a los proveedores de los últimos cambios.';
-            requiresUpdate = true;
-            newStatus = 'Solicitado'; // Stays in the same state
-        } else if (currentStatus === 'Asignado') {
-            newStatus = 'Cerrado';
-            toastTitle = 'Personal Cerrado';
-            toastDescription = 'El módulo de personal se ha cerrado y los costes reales están validados.';
-        } else {
-            return; // No action for "Cerrado"
+        let requiresUpdate = false;
+        if(newStatus === 'Solicitado') {
+            requiresUpdate = personalExterno.turnos.some(t => t.statusPartner !== 'Gestionado');
         }
 
+        const updatedTurnos = personalExterno.turnos.map(t => ({
+            ...t,
+            requiereActualizacion: newStatus === 'Solicitado' ? true : t.requiereActualizacion,
+        }));
+        
+        const updatedPersonalExterno = { ...personalExterno, status: newStatus, turnos: updatedTurnos };
+        
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
         const index = allPersonalExterno.findIndex(p => p.osId === osId);
         
-        if (index !== -1) {
-            allPersonalExterno[index].status = newStatus;
-            if (requiresUpdate) {
-                const updatedTurnos = (allPersonalExterno[index].turnos || []).map(t => ({ ...t, requiereActualizacion: true }));
-                allPersonalExterno[index].turnos = updatedTurnos;
-            }
-            localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-            setPersonalExterno(allPersonalExterno[index]);
-            toast({ title: toastTitle, description: toastDescription });
+        if (index > -1) {
+            allPersonalExterno[index] = updatedPersonalExterno;
+        } else {
+            allPersonalExterno.push(updatedPersonalExterno);
         }
+        localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
+        setPersonalExterno(updatedPersonalExterno);
+        toast({ title: 'Estado actualizado', description: `La solicitud de personal ahora está: ${newStatus}` });
     };
 
     const isSolicitudDesactualizada = useMemo(() => {
         if (personalExterno?.status !== 'Solicitado') return false;
-        
         const currentTurnoIds = new Set(watchedFields?.map(f => f.id));
         const savedTurnos = personalExterno?.turnos || [];
         const savedTurnoIds = new Set(savedTurnos.map(t => t.id));
-
         if(currentTurnoIds.size !== savedTurnoIds.size) return true;
-        if(Array.from(currentTurnoIds).some(id => !savedTurnoIds.has(id))) return true;
-
-        for (const turno of savedTurnos) {
-            if (turno.requiereActualizacion) return true;
-        }
         
-        return false;
+        return Array.from(currentTurnoIds).some(id => !savedTurnoIds.has(id));
     }, [watchedFields, personalExterno]);
     
     const ActionButton = () => {
@@ -308,13 +287,13 @@ export default function PersonalExternoPage() {
 
         switch(personalExterno.status) {
             case 'Pendiente':
-                return <Button onClick={handleGlobalStatusAction}><Send className="mr-2"/>Solicitar a ETT</Button>
+                return <Button onClick={() => handleGlobalStatusAction('Solicitado')}><Send className="mr-2"/>Solicitar a ETT</Button>
             case 'Solicitado':
                 if (isSolicitudDesactualizada) {
                     return (
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button onClick={handleGlobalStatusAction}><RefreshCw className="mr-2 text-blue-500 animate-pulse"/>Notificar Cambios a ETT</Button>
+                                <Button onClick={() => handleGlobalStatusAction('Solicitado')}><RefreshCw className="mr-2 text-blue-500 animate-pulse"/>Notificar Cambios a ETT</Button>
                             </TooltipTrigger>
                             <TooltipContent><p>Hay cambios en la planificación. Notifica al proveedor.</p></TooltipContent>
                         </Tooltip>
@@ -322,7 +301,7 @@ export default function PersonalExternoPage() {
                 }
                 return <Button variant="secondary" disabled><CheckCircle className="mr-2"/>Solicitado</Button>
             case 'Asignado':
-                 return <Button onClick={() => handleGlobalStatusAction()}><Save className="mr-2"/>Cerrar y Validar Costes</Button>
+                 return <Button onClick={() => handleGlobalStatusAction('Cerrado')}><Save className="mr-2"/>Cerrar y Validar Costes</Button>
             case 'Cerrado':
                  return <Button variant="secondary" disabled><CheckCircle className="mr-2"/>Cerrado</Button>
             default:
@@ -338,40 +317,42 @@ export default function PersonalExternoPage() {
             return;
         }
     
-        const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
-        const otherOsOrders = allTurnos.filter(o => o.osId !== osId);
+        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+        const index = allPersonalExterno.findIndex(p => p.osId === osId);
         
-        const currentOsOrders: PersonalExternoOrder[] = data.turnos.map(t => {
-            return {
-                ...t, 
-                osId,
-                fecha: format(t.fecha, 'yyyy-MM-dd'),
-                requiereActualizacion: true, // Mark as changed on any save
-                asignaciones: (t.asignaciones || []).map(a => ({
-                    ...a,
-                    horaEntradaReal: a.horaEntradaReal || '',
-                    horaSalidaReal: a.horaSalidaReal || '',
-                })),
-            }
-        });
+        const currentStatus = personalExterno?.status || 'Pendiente';
+        
+        const newPersonalData: PersonalExterno = {
+            osId,
+            turnos: data.turnos.map(t => {
+                const existingTurno = personalExterno?.turnos.find(et => et.id === t.id);
+                return {
+                    ...t, 
+                    fecha: format(t.fecha, 'yyyy-MM-dd'),
+                    statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
+                    requiereActualizacion: true,
+                    asignaciones: (t.asignaciones || []).map(a => ({
+                        ...a,
+                        horaEntradaReal: a.horaEntradaReal || '',
+                        horaSalidaReal: a.horaSalidaReal || '',
+                    })),
+                }
+            }),
+            status: currentStatus,
+            observacionesGenerales: form.getValues('observacionesGenerales'),
+        };
+        
+        if (index > -1) {
+            allPersonalExterno[index] = newPersonalData;
+        } else {
+            allPersonalExterno.push(newPersonalData);
+        }
     
-        const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
-        localStorage.setItem('personalExternoOrders', JSON.stringify(updatedAllOrders));
-    
+        localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
+        
         const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
         allAjustes[osId] = data.ajustes || [];
         localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
-
-        // Update the central status object as well
-        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        const index = allPersonalExterno.findIndex(p => p.osId === osId);
-        if (index > -1) {
-             allPersonalExterno[index].turnos = currentOsOrders;
-        } else {
-            allPersonalExterno.push({osId, turnos: currentOsOrders, status: 'Pendiente'});
-        }
-        localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-
 
         window.dispatchEvent(new Event('storage'));
     
@@ -415,6 +396,80 @@ export default function PersonalExternoPage() {
   const removeAjusteRow = (index: number) => {
       removeAjuste(index);
   };
+  
+  const handlePrintReport = () => {
+    if (!serviceOrder) return;
+    setIsPrinting(true);
+
+    try {
+        const doc = new jsPDF();
+        let finalY = 15;
+
+        // Header
+        doc.setFontSize(18);
+        doc.text(`Informe de Personal Externo - OS ${serviceOrder.serviceNumber}`, 15, finalY);
+        finalY += 10;
+        doc.setFontSize(10);
+        doc.text(`${serviceOrder.client} - ${format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}`, 15, finalY);
+        finalY += 15;
+
+        // Table
+        const head = [['Personal', 'Categoría', 'Horas Plan.', 'Horas Real', 'Desviación', 'Coste Real', 'Valoración', 'Comentarios']];
+        const body = watchedFields.flatMap(turno => 
+            (turno.asignaciones || []).map(asig => {
+                const plannedH = calculateHours(turno.horaEntrada, turno.horaSalida);
+                const realH = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || plannedH;
+                const deviation = realH - plannedH;
+                const coste = realH * (turno.precioHora || 0);
+
+                return [
+                    asig.nombre,
+                    turno.categoria,
+                    formatDuration(plannedH),
+                    formatDuration(realH),
+                    `${deviation > 0 ? '+' : ''}${formatDuration(deviation)}`,
+                    formatCurrency(coste),
+                    '⭐'.repeat(asig.rating || 0),
+                    asig.comentariosMice || ''
+                ];
+            })
+        );
+        
+        autoTable(doc, {
+            head,
+            body,
+            startY: finalY,
+            headStyles: { fillColor: [41, 128, 185] },
+        });
+
+        finalY = (doc as any).lastAutoTable.finalY + 15;
+
+        // Summary
+        doc.setFontSize(12);
+        doc.text('Resumen de Costes', 15, finalY);
+        finalY += 8;
+
+        autoTable(doc, {
+            body: [
+                ['Coste Planificado', formatCurrency(totalPlanned)],
+                ['Coste Real (Horas)', formatCurrency(totalReal)],
+                ['Ajustes Manuales', formatCurrency(totalAjustes)],
+                [{ content: 'Coste Final', styles: { fontStyle: 'bold' } }, { content: formatCurrency(finalTotalReal), styles: { fontStyle: 'bold' } }]
+            ],
+            startY: finalY,
+            theme: 'plain',
+        });
+        
+        doc.save(`Informe_Personal_${serviceOrder.serviceNumber}.pdf`);
+
+    } catch (error) {
+        console.error("PDF Generation Error:", error);
+        toast({ variant: "destructive", title: "Error al generar PDF" });
+    } finally {
+        setIsPrinting(false);
+    }
+  }
+
 
   const providerOptions = useMemo(() => 
     allProveedores.filter(p => p.tipos.includes('Personal')).map(p => ({
@@ -452,7 +507,7 @@ export default function PersonalExternoPage() {
                          <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
                         <ActionButton />
                         <Button type="button" onClick={handlePrintReport} disabled={isPrinting}>
-                             {isPrinting ? <Loader2 className="animate-spin" /> : <Users />}
+                             {isPrinting ? <Loader2 className="animate-spin" /> : <Users2 />}
                             <span className="ml-2">Generar Informe PDF</span>
                         </Button>
                         <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
@@ -670,7 +725,15 @@ export default function PersonalExternoPage() {
 
                                                 return (
                                                 <TableRow key={asignacion.id} className={cn(hasTimeMismatch && "bg-amber-50")}>
-                                                    <TableCell className="font-semibold">{asignacion.nombre}</TableCell>
+                                                    <TableCell className="font-semibold flex items-center gap-2">
+                                                        {hasTimeMismatch && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger><AlertTriangle className="h-4 w-4 text-amber-500" /></TooltipTrigger>
+                                                                <TooltipContent><p>Desviación: {deviation > 0 ? '+' : ''}{formatDuration(deviation)} horas</p></TooltipContent>
+                                                            </Tooltip>
+                                                        )}
+                                                        {asignacion.nombre}
+                                                    </TableCell>
                                                     <TableCell>{asignacion.dni}</TableCell>
                                                     <TableCell>
                                                         <div className="font-semibold">{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
@@ -783,7 +846,9 @@ export default function PersonalExternoPage() {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+
       </main>
     </>
   );
 }
+
