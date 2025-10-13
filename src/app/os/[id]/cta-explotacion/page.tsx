@@ -40,11 +40,13 @@ const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: strin
     }, 0);
 };
 
+
 export default function CtaExplotacionPage() {
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
+  const [updateKey, setUpdateKey] = useState(Date.now());
 
   const [ctaData, setCtaData] = useState<{
     serviceOrder: ServiceOrder | null;
@@ -187,7 +189,7 @@ export default function CtaExplotacionPage() {
         costes: newCostes,
         facturacionNeta: netRevenue,
     });
-  }, [osId]);
+  }, [osId, updateKey]);
 
   useEffect(() => {
     if (osId) {
@@ -504,5 +506,3 @@ export default function CtaExplotacionPage() {
     </TooltipProvider>
   );
 }
-
-  
