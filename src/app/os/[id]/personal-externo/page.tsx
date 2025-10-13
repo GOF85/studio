@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -421,7 +422,11 @@ export default function PersonalExternoPage() {
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
-                <div className="flex items-start justify-end mb-4">
+                 <div className="flex items-center justify-between mb-4">
+                    <TabsList>
+                        <TabsTrigger value="planificacion">Planificación de Turnos</TabsTrigger>
+                        <TabsTrigger value="aprobados">Cierre y Horas Reales</TabsTrigger>
+                    </TabsList>
                     <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
                         {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                         <span className="ml-2">Guardar Cambios</span>
@@ -429,10 +434,6 @@ export default function PersonalExternoPage() {
                 </div>
                 
                 <Tabs defaultValue="planificacion">
-                     <TabsList className="mb-4 grid w-full grid-cols-2">
-                        <TabsTrigger value="planificacion">Planificación de Turnos</TabsTrigger>
-                        <TabsTrigger value="aprobados">Cierre y Horas Reales</TabsTrigger>
-                    </TabsList>
                     <TabsContent value="planificacion">
                         <Card>
                             <CardHeader className="py-3 flex-row items-center justify-between">
@@ -619,21 +620,8 @@ export default function PersonalExternoPage() {
                                                     <TableCell>
                                                     <FormField control={control} name={`personal.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                     </TableCell>
-                                                    <TableCell className="w-[200px]">
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <div className="flex items-center justify-center gap-1 cursor-pointer">
-                                                                    <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
-                                                                    {(asignacion.comentariosMice || (asignacion.rating && asignacion.rating !== 3)) && (
-                                                                        <MessageSquare className="h-4 w-4 text-primary" />
-                                                                    )}
-                                                                </div>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p className="font-bold">Valoración: {'⭐'.repeat(asignacion.rating || 0)}</p>
-                                                                {asignacion.comentariosMice && <p className="max-w-xs">{asignacion.comentariosMice}</p>}
-                                                            </TooltipContent>
-                                                        </Tooltip>
+                                                    <TableCell className="w-[200px] text-center">
+                                                       <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
                                                     </TableCell>
                                                 </TableRow>
                                             )})
@@ -656,9 +644,9 @@ export default function PersonalExternoPage() {
                                     <span className="text-muted-foreground">Coste Total Planificado:</span>
                                     <span className="font-bold">{formatCurrency(totalPlanned)}</span>
                                 </div>
-                                <div className="flex justify-between font-bold text-base">
-                                    <span>Coste Final Planificado (Plan. + Ajustes):</span>
-                                    <span>{formatCurrency(costeFinalPlanificado)}</span>
+                                 <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Final Planificado (Plan. + Ajustes):</span>
+                                    <span className="font-bold">{formatCurrency(costeFinalPlanificado)}</span>
                                 </div>
                                 <Separator className="my-2" />
                                  <div className="flex justify-between">
@@ -734,4 +722,6 @@ export default function PersonalExternoPage() {
     </>
   );
 }
+
+
 
