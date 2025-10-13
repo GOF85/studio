@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -434,7 +434,7 @@ const turnosAprobados = useMemo(() => {
     <main>
       <TooltipProvider>
         <FormProvider {...form}>
-            <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
+            <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
                 <div className="flex items-start justify-end mb-4">
                     <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
                         {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
@@ -464,7 +464,7 @@ const turnosAprobados = useMemo(() => {
                                     <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
                                     <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
                                     <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                                    <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaSalida).toFixed(2)}h</TableCell>
+                                    <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
                                 </TableRow>
                                 )) : (
                                     <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
@@ -691,7 +691,7 @@ const turnosAprobados = useMemo(() => {
                             <div className="space-y-2">
                                <h4 className="text-xs font-semibold text-muted-foreground">AJUSTE DE COSTES</h4>
                                <div className="border rounded-lg p-2 space-y-2">
-                                  {ajustes.map((ajuste) => (
+                                  {ajustes.map((ajuste, index) => (
                                     <div key={ajuste.id} className="flex gap-2 items-center text-xs">
                                       <p className="flex-grow">({proveedoresMap.get(ajuste.proveedorId) || '?'}) {ajuste.concepto}: <span className="font-mono">{formatCurrency(ajuste.importe)}</span></p>
                                       <Button type="button" variant="ghost" size="icon" className="text-destructive h-6 w-6" onClick={() => removeAjusteRow(ajuste.id)}><Trash2 className="h-3 w-3"/></Button>
@@ -736,6 +736,10 @@ const turnosAprobados = useMemo(() => {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+
     </main>
   );
 }
+
+
+    

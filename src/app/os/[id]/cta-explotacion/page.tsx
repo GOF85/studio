@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from "react"
@@ -164,7 +165,7 @@ export default function CtaExplotacionPage() {
         return acc + realHours * price;
     }, 0);
     const costePruebaTotal = pruebaMenu?.costePruebaMenu || 0;
-
+    
     const costePersonalExternoPlanificado = calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId)) + personalExternoTotalAjustes;
     
     const newCostes = [
