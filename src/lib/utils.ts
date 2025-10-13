@@ -6,7 +6,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(value: number) {
+export function formatCurrency(value: number | null | undefined) {
+  if (value === null || value === undefined || isNaN(value)) {
+    return (0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+  }
   return value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 }
 

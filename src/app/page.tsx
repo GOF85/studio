@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, Calendar, BookHeart, Factory, Settings, ChefHat, Component, Package, GlassWater, ChevronRight, ClipboardCheck, ListChecks, History, AlertTriangle, PackagePlus, BarChart3, ShieldCheck, LifeBuoy, Sprout, Warehouse, FileText, Printer } from 'lucide-react';
+import { ClipboardList, Calendar, BookHeart, Factory, Settings, ChefHat, Component, Package, GlassWater, ChevronRight, ClipboardCheck, ListChecks, History, AlertTriangle, PackagePlus, BarChart3, ShieldCheck, LifeBuoy, Sprout, Warehouse, FileText, Printer, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
@@ -34,7 +35,7 @@ const mainMenuItems: MenuItem[] = [
             { title: 'Recetas', href: '/book/recetas', icon: BookHeart },
             { title: 'Elaboraciones', href: '/book/elaboraciones', icon: Component },
             { title: 'Ingredientes', href: '/book/ingredientes', icon: ChefHat },
-            { title: 'Materia Prima (ERP)', href: '/book/ingredientes-erp', icon: Package },
+            { title: 'Materia Prima (ERP)', href: '/bd/erp', icon: Package },
             { title: 'Menaje', href: '/menaje-db', icon: GlassWater },
             { title: 'Información de Alérgenos', href: '/book/alergenos', icon: Sprout },
         ]
@@ -48,7 +49,7 @@ const mainMenuItems: MenuItem[] = [
             { title: 'Planificación', href: '/cpr/planificacion', icon: ClipboardCheck },
             { title: 'Órdenes de Fabricación', href: '/cpr/of', icon: Factory },
             { title: 'Picking y Logística', href: '/cpr/picking', icon: ListChecks },
-            { title: 'Excedentes', href: '/cpr/excedentes', icon: PackagePlus },
+            { title: 'Stock Elaboraciones', href: '/cpr/excedentes', icon: PackagePlus },
             { title: 'Control de Calidad', href: '/cpr/calidad', icon: ShieldCheck },
             { title: 'Productividad', href: '/cpr/productividad', icon: BarChart3 },
             { title: 'Informe de Picking', href: '/cpr/informe-picking', icon: FileText },
@@ -64,12 +65,22 @@ const mainMenuItems: MenuItem[] = [
         sublinks: almacenNav,
     },
      { 
+        title: 'Bases de Datos', 
+        href: '/bd', 
+        icon: Package, 
+        description: 'Gestiona proveedores, personal y catálogos.',
+        sublinks: [
+            { title: 'Proveedores', href: '/proveedores', icon: Users },
+            { title: 'Personal Interno', href: '/personal', icon: Users },
+            { title: 'Tipos de Servicio', href: '/tipo-servicio', icon: ClipboardList },
+        ]
+    },
+     { 
         title: 'Configuración', 
         href: '/configuracion', 
         icon: Settings, 
-        description: 'Administra las bases de datos y plantillas del sistema.',
+        description: 'Administra las plantillas y el sistema.',
         sublinks: [
-            { title: 'Bases de Datos', href: '/bd', icon: Package },
             { title: 'Documentación', href: '/docs', icon: LifeBuoy },
         ]
     },
