@@ -32,10 +32,10 @@ type CostRow = {
   comentario?: string;
 };
 
-const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: string; horaSalida: string; cantidad?: number}[]) => {
+const calculatePersonalTotal = (orders: {precioHora?: number; horaEntrada: string; horaSalida: string; asignaciones?: any[]}[]) => {
     return orders.reduce((sum, order) => {
         const hours = calculateHours(order.horaEntrada, order.horaSalida);
-        const quantity = order.cantidad || 1;
+        const quantity = order.asignaciones?.length || 1;
         const price = order.precioHora || 0;
         return sum + (hours * price * quantity);
     }, 0);
@@ -155,7 +155,7 @@ export default function CtaExplotacionPage() {
     const personalExternoRealCost = (allPersonalExternoOrders.filter(o => o.osId === osId)).reduce((acc, order) => {
       const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
       const price = order.precioHora || 0;
-      return acc + realHours * price * (order.cantidad || 1);
+      return acc + realHours * price * ((order.asignaciones || []).length || 1);
     }, 0);
     const personalExternoTotalAjustes = allPersonalExternoAjustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
     
@@ -200,6 +200,17 @@ export default function CtaExplotacionPage() {
       router.push('/pes');
     }
   }, [osId, router, toast, loadData]);
+  
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      // Reload data if any of the relevant keys change
+      if (event.key && event.key.includes('Orders') || event.key?.includes('Ajustes') || event.key?.includes('Briefings')) {
+        setUpdateKey(Date.now());
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
   
   const handleObjetivoChange = (plantillaId: string) => {
     if (!osId || !ctaData) return;
@@ -507,3 +518,4 @@ export default function CtaExplotacionPage() {
     </TooltipProvider>
   );
 }
+
