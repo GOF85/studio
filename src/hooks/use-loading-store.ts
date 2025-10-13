@@ -1,3 +1,4 @@
+
 'use client';
 
 import { create } from 'zustand';
@@ -11,3 +12,4 @@ export const useLoadingStore = create<LoadingState>((set) => ({
   isLoading: false,
   setIsLoading: (isLoading) => set({ isLoading }),
 }));
+

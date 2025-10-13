@@ -204,7 +204,7 @@ export default function CtaExplotacionPage() {
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
       // Reload data if any of the relevant keys change
-      if (event.key && event.key.includes('Orders') || event.key?.includes('Ajustes') || event.key?.includes('Briefings')) {
+      if (event.key && (event.key.includes('Orders') || event.key.includes('Ajustes') || event.key.includes('Briefings') || event.key.includes('ctaRealCosts'))) {
         setUpdateKey(Date.now());
       }
     };
@@ -518,4 +518,5 @@ export default function CtaExplotacionPage() {
     </TooltipProvider>
   );
 }
+
 
