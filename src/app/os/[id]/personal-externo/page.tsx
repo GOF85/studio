@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -422,19 +421,18 @@ export default function PersonalExternoPage() {
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
-                 <div className="flex items-center justify-between mb-4">
-                    <TabsList>
-                        <TabsTrigger value="planificacion">Planificación de Turnos</TabsTrigger>
-                        <TabsTrigger value="aprobados">Cierre y Horas Reales</TabsTrigger>
-                    </TabsList>
+                 <div className="flex items-center justify-end mb-4">
                     <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
                         {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                         <span className="ml-2">Guardar Cambios</span>
                     </Button>
                 </div>
-                
                 <Tabs defaultValue="planificacion">
-                    <TabsContent value="planificacion">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="planificacion">Planificación de Turnos</TabsTrigger>
+                        <TabsTrigger value="aprobados">Cierre y Horas Reales</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="planificacion" className="mt-4">
                         <Card>
                             <CardHeader className="py-3 flex-row items-center justify-between">
                                 <CardTitle className="text-lg">Planificación de Turnos</CardTitle>
@@ -453,7 +451,7 @@ export default function PersonalExternoPage() {
                                             <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
                                             <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
                                             <TableHead colSpan={3} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
-                                            <TableHead className="text-center px-2 py-1">Observaciones</TableHead>
+                                            <TableHead className="px-2 py-1">Obs. ETT</TableHead>
                                             <TableHead className="text-center px-2 py-1">Estado</TableHead>
                                             <TableHead className="text-right px-2 py-1">Acción</TableHead>
                                         </TableRow>
@@ -533,7 +531,7 @@ export default function PersonalExternoPage() {
                                                 <TableCell className="border-r px-2 py-1 bg-muted/30">
                                                     <FormField control={control} name={`personal.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9 text-xs" readOnly /></FormControl></FormItem>} />
                                                 </TableCell>
-                                                <TableCell className="text-center">
+                                                <TableCell>
                                                     <CommentDialog turnoIndex={index} form={form} />
                                                 </TableCell>
                                                 <TableCell>
@@ -644,16 +642,16 @@ export default function PersonalExternoPage() {
                                     <span className="text-muted-foreground">Coste Total Planificado:</span>
                                     <span className="font-bold">{formatCurrency(totalPlanned)}</span>
                                 </div>
-                                 <div className="flex justify-between">
+                                <div className="flex justify-between">
                                     <span className="text-muted-foreground">Coste Final Planificado (Plan. + Ajustes):</span>
                                     <span className="font-bold">{formatCurrency(costeFinalPlanificado)}</span>
                                 </div>
                                 <Separator className="my-2" />
-                                 <div className="flex justify-between">
+                                <div className="flex justify-between">
                                     <span className="text-muted-foreground">Coste Total Real (Horas):</span>
                                     <span className="font-bold">{formatCurrency(totalReal)}</span>
                                 </div>
-                                 <div className="flex justify-between font-bold text-base">
+                                <div className="flex justify-between font-bold text-base">
                                     <span>Coste FINAL (Real + Ajustes):</span>
                                     <span className={finalTotalReal > costeFinalPlanificado ? 'text-destructive' : 'text-green-600'}>
                                         {formatCurrency(finalTotalReal)}
@@ -696,7 +694,7 @@ export default function PersonalExternoPage() {
                     </Card>
                 </div>
             </form>
-        </FormProvider>
+       </FormProvider>
         </TooltipProvider>
 
         <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
@@ -718,10 +716,8 @@ export default function PersonalExternoPage() {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+
       </main>
     </>
   );
 }
-
-
-
