@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -58,7 +58,9 @@ const formatDuration = (hours: number) => {
 }
 
 const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH'] as const;
+const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
+
 
 const asignacionSchema = z.object({
   id: z.string(),
@@ -81,7 +83,7 @@ const personalTurnoSchema = z.object({
   fecha: z.date({ required_error: "La fecha es obligatoria."}),
   horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
-  solicitadoPor: z.enum(centroCosteOptions),
+  solicitadoPor: z.enum(solicitadoPorOptions),
   tipoServicio: z.enum(tipoServicioOptions),
   observaciones: z.string().optional().default(''),
   statusPartner: z.enum(['Pendiente Asignación', 'Gestionado']),
@@ -278,10 +280,10 @@ export default function PersonalExternoPage() {
     if (!proveedorId) return;
     const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
     if (tipoPersonal) {
-      setValue(`personal.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
-      setValue(`personal.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
-      setValue(`personal.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
-      trigger(`personal.${index}`);
+        setValue(`personal.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
+        setValue(`personal.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
+        setValue(`personal.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
+        trigger(`personal.${index}`);
     }
 }, [proveedoresDB, setValue, trigger]);
 
@@ -365,7 +367,7 @@ export default function PersonalExternoPage() {
         fecha: new Date(),
         horaEntrada: '09:00',
         horaSalida: '17:00',
-        solicitadoPor: 'SALA',
+        solicitadoPor: 'Sala',
         tipoServicio: 'Servicio',
         observaciones: '',
         statusPartner: 'Pendiente Asignación',
@@ -510,7 +512,12 @@ const turnosAprobados = useMemo(() => {
                                             </TableCell>
                                             <TableCell className="px-2 py-1">
                                                 <FormField control={control} name={`personal.${index}.tipoServicio`} render={({ field: selectField }) => (
-                                                    <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="w-32 h-9 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
+                                                    <FormItem>
+                                                        <Select onValueChange={selectField.onChange} value={selectField.value}>
+                                                            <FormControl><SelectTrigger className="w-32 h-9 text-xs"><SelectValue /></SelectTrigger></FormControl>
+                                                            <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                                                        </Select>
+                                                    </FormItem>
                                                 )}/>
                                             </TableCell>
                                             <TableCell className="border-l px-2 py-1 bg-muted/30">
