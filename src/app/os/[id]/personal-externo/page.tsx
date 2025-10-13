@@ -1,51 +1,37 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, Save, Loader2, Users, Pencil, MessageSquare, AlertTriangle, CheckCircle } from 'lucide-react';
+import { format, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle } from 'lucide-react';
+
 import type { PersonalExternoOrder, CategoriaPersonal, Proveedor, PersonalExternoAjuste } from '@/types';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { parse, format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { Separator } from '@/components/ui/separator';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { Calendar as CalendarIcon } from 'lucide-react';
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
@@ -71,7 +57,7 @@ const formatDuration = (hours: number) => {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
-const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
+const centroCosteOptions = ['SALA', 'COCINA', 'LOGISTICA', 'RRHH'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
 
 const asignacionSchema = z.object({
@@ -95,7 +81,7 @@ const personalTurnoSchema = z.object({
   fecha: z.date({ required_error: "La fecha es obligatoria."}),
   horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
-  solicitadoPor: z.enum(solicitadoPorOptions),
+  solicitadoPor: z.enum(centroCosteOptions),
   tipoServicio: z.enum(tipoServicioOptions),
   observaciones: z.string().optional().default(''),
   statusPartner: z.enum(['Pendiente Asignación', 'Gestionado']),
@@ -372,13 +358,14 @@ export default function PersonalExternoPage() {
   const addRow = () => {
     append({
         id: Date.now().toString(),
+        osId: osId,
         proveedorId: '',
         categoria: '',
         precioHora: 0,
         fecha: new Date(),
         horaEntrada: '09:00',
         horaSalida: '17:00',
-        solicitadoPor: 'Sala',
+        solicitadoPor: 'SALA',
         tipoServicio: 'Servicio',
         observaciones: '',
         statusPartner: 'Pendiente Asignación',
@@ -394,7 +381,7 @@ export default function PersonalExternoPage() {
     }
   };
   
-    const { fields: ajusteFields, append: appendAjuste, remove: removeAjuste, update: updateAjuste } = useFieldArray({
+    const { fields: ajusteFields, append: appendAjuste, remove: removeAjuste } = useFieldArray({
         control,
         name: "ajustes",
     });
@@ -425,7 +412,7 @@ const turnosAprobados = useMemo(() => {
   return (
     <>
       <main>
-       <TooltipProvider>
+        <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
             <div className="flex items-start justify-end mb-4">
@@ -436,7 +423,7 @@ const turnosAprobados = useMemo(() => {
             </div>
             
             <Tabs defaultValue="planificacion">
-                <TabsList className="mb-4 grid w-full grid-cols-2">
+                 <TabsList className="mb-4 grid w-full grid-cols-2">
                     <TabsTrigger value="planificacion">Planificación de Turnos</TabsTrigger>
                     <TabsTrigger value="aprobados">Cierre y Horas Reales</TabsTrigger>
                 </TabsList>
@@ -459,7 +446,7 @@ const turnosAprobados = useMemo(() => {
                                         <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
                                         <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
                                         <TableHead colSpan={4} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
-                                        <TableHead className="px-2 py-1">Observaciones</TableHead>
+                                        <TableHead className="px-2 py-1">Observaciones para ETT</TableHead>
                                         <TableHead className="px-2 py-1">Estado</TableHead>
                                         <TableHead className="text-right px-2 py-1">Acción</TableHead>
                                     </TableRow>
@@ -533,7 +520,7 @@ const turnosAprobados = useMemo(() => {
                                                 <FormField control={control} name={`personal.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
                                             </TableCell>
                                              <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center">
-                                                {formatDuration(calculateHours(watchedFields[index].horaEntrada, watchedFields[index].horaSalida))}h
+                                                {formatDuration(calculateHours(field.horaEntrada, field.horaSalida))}h
                                             </TableCell>
                                             <TableCell className="border-r px-2 py-1 bg-muted/30">
                                                 <FormField control={control} name={`personal.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9 text-xs" readOnly /></FormControl></FormItem>} />
@@ -582,7 +569,7 @@ const turnosAprobados = useMemo(() => {
                                 ) : (
                                     <TableRow>
                                     <TableCell colSpan={11} className="h-24 text-center">
-                                        No hay personal asignado. Haz clic en "Añadir Personal" para empezar.
+                                        No hay personal asignado. Haz clic en "Añadir Turno" para empezar.
                                     </TableCell>
                                     </TableRow>
                                 )}
@@ -592,7 +579,7 @@ const turnosAprobados = useMemo(() => {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                 <TabsContent value="aprobados">
+                <TabsContent value="aprobados">
                      <Card>
                         <CardHeader className="py-3"><CardTitle className="text-lg">Cierre y Horas Reales</CardTitle></CardHeader>
                         <CardContent className="p-2">
@@ -667,8 +654,8 @@ const turnosAprobados = useMemo(() => {
                     </Card>
                 </TabsContent>
             </Tabs>
-            
-             <div className="mt-8">
+
+            <div className="mt-8">
                 <Card>
                     <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
                     <CardContent className="grid grid-cols-2 gap-8 p-4">
@@ -698,7 +685,7 @@ const turnosAprobados = useMemo(() => {
                         </div>
                         <div className="space-y-2">
                             <h4 className="text-xs font-semibold text-muted-foreground">AJUSTE DE COSTES</h4>
-                             <FormProvider {...form}>
+                            <FormProvider {...form}>
                                 <div className="space-y-2">
                                 {(form.watch('ajustes') || []).map((ajuste, index) => (
                                     <div key={index} className="flex gap-2 items-center">
@@ -746,8 +733,131 @@ const turnosAprobados = useMemo(() => {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-      </main>
+    </main>
     </>
   );
 }
 
+```
+- src/app/os/page.tsx:
+```tsx
+
+'use client';
+
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+export default function OsRedirectPage() {
+    const router = useRouter();
+
+    useEffect(() => {
+        router.replace('/pes');
+    }, [router]);
+
+    return null;
+}
+
+```
+- src/hooks/use-local-storage.ts:
+```ts
+"use client"
+import { useState, useEffect } from 'react';
+
+// A custom hook to work with localStorage
+export function useLocalStorage<T>(key: string, initialValue: T) {
+  // Get from local storage then
+  // parse stored json or return initialValue
+  const readValue = () => {
+    // Prevent build error "window is undefined" but keep keep working
+    if (typeof window === 'undefined') {
+      return initialValue;
+    }
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.warn(`Error reading localStorage key “${key}”:`, error);
+      return initialValue;
+    }
+  };
+
+  const [storedValue, setStoredValue] = useState<T>(readValue);
+
+  const setValue = (value: T | ((val: T) => T)) => {
+    // Prevent build error "window is undefined" but keep keep working
+    if (typeof window == 'undefined') {
+      console.warn(
+        `Tried setting localStorage key “${key}” even though environment is not a client`
+      );
+    }
+    try {
+      // Allow value to be a function so we have same API as useState
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      // Save state
+      setStoredValue(valueToStore);
+      // Save to local storage
+      window.localStorage.setItem(key, JSON.stringify(valueToStore));
+    } catch (error) {
+      console.warn(`Error setting localStorage key “${key}”:`, error);
+    }
+  };
+  
+    useEffect(() => {
+        setStoredValue(readValue());
+    }, []);
+
+  return [storedValue, setValue] as const;
+}
+
+```
+- tailwind.config.js:
+```js
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  theme: {
+    extend: {
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-conic':
+          'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
+      },
+    },
+  },
+  plugins: [],
+}
+
+```
+- tsconfig.json:
+```json
+{
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+```
