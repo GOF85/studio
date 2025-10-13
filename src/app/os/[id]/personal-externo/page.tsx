@@ -6,7 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, Save, Loader2, Users, Pencil } from 'lucide-react';
+import { PlusCircle, Trash2, Save, Loader2, Users, Pencil, MessageSquare, AlertTriangle, CheckCircle } from 'lucide-react';
 import type { PersonalExternoOrder, CategoriaPersonal, Proveedor, PersonalExternoAjuste } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,28 +40,54 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarIcon } from 'lucide-react';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 
-const calculateHours = (start?: string, end?: string) => {
+const calculateHours = (start?: string, end?: string): number => {
     if (!start || !end) return 0;
     try {
         const startTime = parse(start, 'HH:mm', new Date());
         const endTime = parse(end, 'HH:mm', new Date());
-        const diff = differenceInMinutes(endTime, startTime);
-        return diff > 0 ? diff / 60 : 0;
+        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
+        const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+        return diff > 0 ? diff : 0;
     } catch (e) {
         return 0;
     }
 }
 
+const formatDuration = (hours: number) => {
+    const totalMinutes = Math.round(hours * 60);
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
 
-const personalExternoSchema = z.object({
+const asignacionSchema = z.object({
   id: z.string(),
-  osId: z.string(),
+  nombre: z.string(),
+  dni: z.string().optional(),
+  telefono: z.string().optional(),
+  comentarios: z.string().optional(),
+  rating: z.number().optional(),
+  comentariosMice: z.string().optional(),
+  horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+  horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+});
+
+
+const personalTurnoSchema = z.object({
+  id: z.string(),
   proveedorId: z.string().min(1, "El proveedor es obligatorio"),
   categoria: z.string().min(1, 'La categoría es obligatoria'),
   precioHora: z.coerce.number().min(0, 'El precio por hora debe ser positivo'),
@@ -71,15 +97,138 @@ const personalExternoSchema = z.object({
   solicitadoPor: z.enum(solicitadoPorOptions),
   tipoServicio: z.enum(tipoServicioOptions),
   observaciones: z.string().optional().default(''),
-  horaEntradaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
-  horaSalidaReal: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM").optional().or(z.literal('')),
+  statusPartner: z.enum(['Pendiente Asignación', 'Gestionado']),
+  asignaciones: z.array(asignacionSchema).optional(),
+  requiereActualizacion: z.boolean().optional(),
 });
 
 const formSchema = z.object({
-    personal: z.array(personalExternoSchema)
+    personal: z.array(personalTurnoSchema)
 })
 
 type PersonalExternoFormValues = z.infer<typeof formSchema>;
+
+function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; asigIndex: number, form: any }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const { getValues, setValue } = form;
+
+    const ratingFieldName = `personal.${turnoIndex}.asignaciones.${asigIndex}.rating`;
+    const commentFieldName = `personal.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`;
+    const asignacion = getValues(`personal.${turnoIndex}.asignaciones.${asigIndex}`);
+    
+    const [rating, setRating] = useState(getValues(ratingFieldName) || 3);
+    const [comment, setComment] = useState(getValues(commentFieldName) || '');
+    
+    useEffect(() => {
+        if(isOpen) {
+            setRating(getValues(ratingFieldName) || 3);
+            setComment(getValues(commentFieldName) || '');
+        }
+    }, [isOpen, getValues, ratingFieldName, commentFieldName]);
+
+    const handleSave = () => {
+        setValue(ratingFieldName, rating, { shouldDirty: true });
+        setValue(commentFieldName, comment, { shouldDirty: true });
+        setIsOpen(false);
+    };
+
+    const handleOpenChange = (open: boolean) => {
+        if (!open) {
+            handleSave();
+        }
+        setIsOpen(open);
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
+                    <Pencil className={cn("h-4 w-4", getValues(commentFieldName) && "text-primary")} />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Valoración para: {asignacion?.nombre}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-6 py-4">
+                    <div className="space-y-2">
+                        <Label>Desempeño (1-5)</Label>
+                        <div className="flex items-center gap-4 pt-2">
+                            <span className="text-sm text-muted-foreground">Bajo</span>
+                            <Slider
+                                value={[rating]}
+                                onValueChange={(value) => setRating(value[0])}
+                                max={5}
+                                min={1}
+                                step={1}
+                            />
+                            <span className="text-sm text-muted-foreground">Alto</span>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                         <Label>Comentarios Internos MICE</Label>
+                        <Textarea 
+                            value={comment} 
+                            onChange={(e) => setComment(e.target.value)}
+                            rows={4}
+                            placeholder="Añade aquí comentarios internos sobre el desempeño..."
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button onClick={handleSave}>Guardar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+
+function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const { getValues, setValue } = form;
+
+    const fieldName = `personal.${turnoIndex}.observaciones`;
+    const dialogTitle = `Observaciones para la ETT`;
+
+    const [comment, setComment] = useState(getValues(fieldName) || '');
+
+    const handleSave = () => {
+        setValue(fieldName, comment, { shouldDirty: true });
+        setIsOpen(false);
+    };
+    
+    useEffect(() => {
+        if(isOpen) {
+            setComment(getValues(fieldName) || '');
+        }
+    }, [isOpen, getValues, fieldName]);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
+                    <Pencil className={cn("h-4 w-4", getValues(fieldName) && "text-primary")} />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{dialogTitle}</DialogTitle>
+                </DialogHeader>
+                <Textarea 
+                    value={comment} 
+                    onChange={(e) => setComment(e.target.value)}
+                    rows={4}
+                    placeholder="Añade aquí comentarios..."
+                />
+                <DialogFooter>
+                    <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleSave}>Guardar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function PersonalExternoPage() {
   const [isMounted, setIsMounted] = useState(false);
@@ -113,7 +262,7 @@ export default function PersonalExternoPage() {
         
         const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
         setProveedoresMap(new Map(allProveedores.map(p => [p.id, p.nombreComercial])));
-        
+
         const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
         const turnosDelPedido = allTurnos.filter(p => p.osId === osId);
         
@@ -133,7 +282,7 @@ export default function PersonalExternoPage() {
     loadData();
   }, [loadData]);
   
- const handleProviderChange = useCallback((index: number, proveedorId: string) => {
+  const handleProviderChange = useCallback((index: number, proveedorId: string) => {
     if (!proveedorId) return;
     const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
     if (tipoPersonal) {
@@ -153,13 +302,14 @@ export default function PersonalExternoPage() {
     }, 0) || 0;
 
     const real = watchedFields?.reduce((acc, order) => {
-        const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
-        if (realHours > 0) {
-            return acc + realHours * (order.precioHora || 0);
-        }
-        // If no real hours, use planned hours for this person
-        const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
-        return acc + plannedHours * (order.precioHora || 0);
+        return acc + (order.asignaciones || []).reduce((sumAsignacion, asignacion) => {
+            const realHours = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
+            if (realHours > 0) {
+                return sumAsignacion + realHours * (order.precioHora || 0);
+            }
+            const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
+            return sumAsignacion + plannedHours * (order.precioHora || 0);
+        }, 0);
     }, 0) || 0;
     
     const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.importe, 0);
@@ -179,11 +329,22 @@ export default function PersonalExternoPage() {
     const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
     const otherOsOrders = allTurnos.filter(o => o.osId !== osId);
     
-    const currentOsOrders: PersonalExternoOrder[] = data.personal.map(t => ({
-        ...t,
-        osId,
-        fecha: format(t.fecha, 'yyyy-MM-dd'),
-    }));
+    const currentOsOrders: PersonalExternoOrder[] = data.personal.map(t => {
+        const existingTurno = watchedFields?.find(et => et.id === t.id);
+        const requiereActualizacion = !existingTurno || !existingTurno.asignaciones;
+        return {
+            ...t, 
+            osId,
+            fecha: format(t.fecha, 'yyyy-MM-dd'),
+            statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
+            requiereActualizacion: requiereActualizacion,
+            asignaciones: (t.asignaciones || []).map(a => ({
+                ...a,
+                horaEntradaReal: a.horaEntradaReal || '',
+                horaSalidaReal: a.horaSalidaReal || '',
+            })),
+        }
+    });
 
     const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
     localStorage.setItem('personalExternoOrders', JSON.stringify(updatedAllOrders));
@@ -209,8 +370,8 @@ export default function PersonalExternoPage() {
         solicitadoPor: 'Sala',
         tipoServicio: 'Servicio',
         observaciones: '',
-        horaEntradaReal: '',
-        horaSalidaReal: '',
+        statusPartner: 'Pendiente Asignación',
+        asignaciones: [],
     });
   }
   
@@ -221,7 +382,7 @@ export default function PersonalExternoPage() {
       toast({ title: 'Asignación eliminada' });
     }
   };
-
+  
   const saveAjustes = (newAjustes: PersonalExternoAjuste[]) => {
       if (!osId) return;
       const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
@@ -257,6 +418,11 @@ export default function PersonalExternoPage() {
         .map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
 }, [proveedoresDB, proveedoresMap]);
 
+const turnosAprobados = useMemo(() => {
+    return watchedFields.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
+}, [watchedFields]);
+
+
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
   }
@@ -264,7 +430,7 @@ export default function PersonalExternoPage() {
   return (
     <>
       <main>
-      <TooltipProvider>
+       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
             <div className="flex items-start justify-end mb-4">
@@ -297,6 +463,7 @@ export default function PersonalExternoPage() {
                                         <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
                                         <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
                                         <TableHead colSpan={4} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
+                                        <TableHead className="px-2 py-1">Estado</TableHead>
                                         <TableHead className="text-right px-2 py-1">Acción</TableHead>
                                     </TableRow>
                                     <TableRow>
@@ -308,6 +475,7 @@ export default function PersonalExternoPage() {
                                         <TableHead className="px-2 py-1 bg-muted/30 w-24">H. Salida</TableHead>
                                         <TableHead className="px-2 py-1 bg-muted/30">Horas Plan.</TableHead>
                                         <TableHead className="border-r px-2 py-1 bg-muted/30 w-20">€/Hora</TableHead>
+                                        <TableHead className="px-2 py-1"></TableHead>
                                         <TableHead className="px-2 py-1"></TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -366,10 +534,31 @@ export default function PersonalExternoPage() {
                                                 <FormField control={control} name={`personal.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
                                             </TableCell>
                                                 <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center">
-                                                {formatDuration(calculateHours(watchedFields[index].horaEntrada, watchedFields[index].horaSalida))}h
+                                                {calculateHours(watchedFields[index].horaEntrada, watchedFields[index].horaSalida).toFixed(2)}h
                                             </TableCell>
                                             <TableCell className="border-r px-2 py-1 bg-muted/30">
                                                 <FormField control={control} name={`personal.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9 text-xs" readOnly /></FormControl></FormItem>} />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <div className="flex justify-center">
+                                                        {field.statusPartner === 'Gestionado' ? (
+                                                             <CheckCircle className="h-5 w-5 text-green-600"/>
+                                                        ) : (
+                                                            <AlertTriangle className="h-5 w-5 text-amber-500" />
+                                                        )}
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p className="font-bold">Asignaciones:</p>
+                                                        {field.asignaciones && field.asignaciones.length > 0 ? (
+                                                            <ul className="list-disc pl-4 text-xs">
+                                                                {field.asignaciones.map(a => <li key={a.id}>{a.nombre} {a.dni && `(${a.dni})`}</li>)}
+                                                            </ul>
+                                                        ) : <p>Pendiente de gestionar por ETT.</p>}
+                                                    </TooltipContent>
+                                                </Tooltip>
                                             </TableCell>
                                             <TableCell className="text-right px-2 py-1">
                                                 <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
@@ -380,7 +569,7 @@ export default function PersonalExternoPage() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                    <TableCell colSpan={9} className="h-24 text-center">
+                                    <TableCell colSpan={10} className="h-24 text-center">
                                         No hay personal asignado. Haz clic en "Añadir Turno" para empezar.
                                     </TableCell>
                                     </TableRow>
@@ -392,10 +581,10 @@ export default function PersonalExternoPage() {
                     </Card>
                 </TabsContent>
                 <TabsContent value="aprobados">
-                    <Card>
+                     <Card>
                         <CardHeader className="py-3"><CardTitle className="text-lg">Cierre y Horas Reales</CardTitle></CardHeader>
                         <CardContent className="p-2">
-                             <p className="text-sm text-muted-foreground p-2">Esta sección será completada por el responsable en el evento. Los datos aquí introducidos se usarán para el cálculo del coste real.</p>
+                            <p className="text-sm text-muted-foreground p-2">Esta sección será completada por el responsable en el evento. Los datos aquí introducidos se usarán para el cálculo del coste real.</p>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -483,8 +672,8 @@ export default function PersonalExternoPage() {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-
-      </main>
     </>
   );
 }
+
+```
