@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -81,9 +80,9 @@ function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; a
     const [isOpen, setIsOpen] = useState(false);
     const { getValues, setValue } = form;
 
-    const ratingFieldName = `turnos.${turnoIndex}.asignaciones.${asigIndex}.rating`;
-    const commentFieldName = `turnos.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`;
-    const asignacion = getValues(`turnos.${turnoIndex}.asignaciones.${asigIndex}`);
+    const ratingFieldName = `turnos.${'${turnoIndex}'}.asignaciones.${'${asigIndex}'}.rating`;
+    const commentFieldName = `turnos.${'${turnoIndex}'}.asignaciones.${'${asigIndex}'}.comentariosMice`;
+    const asignacion = getValues(`turnos.${'${turnoIndex}'}.asignaciones.${'${asigIndex}'}`);
     
     const [rating, setRating] = useState(getValues(ratingFieldName) || 3);
     const [comment, setComment] = useState(getValues(commentFieldName) || '');
@@ -157,7 +156,7 @@ function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) 
     const [isOpen, setIsOpen] = useState(false);
     const { getValues, setValue } = form;
 
-    const fieldName = `turnos.${turnoIndex}.observaciones`;
+    const fieldName = `turnos.${'${turnoIndex}'}.observaciones`;
     const dialogTitle = `Observaciones para la ETT`;
 
     const [comment, setComment] = useState(getValues(fieldName) || '');
@@ -201,17 +200,13 @@ function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) 
 
 export default function PersonalExternoPage() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [spaceAddress, setSpaceAddress] = useState<string>('');
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [proveedoresDB, setProveedoresDB] = useState<CategoriaPersonal[]>([]);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
-  const [personalExterno, setPersonalExterno] = useState<PersonalExternoOrder | null>(null);
   const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
-  const [showStatusConfirm, setShowStatusConfirm] = useState(false);
-  const [nextAction, setNextAction] = useState<(() => void) | null>(null);
   
   const router = useRouter();
   const params = useParams();
@@ -223,7 +218,7 @@ export default function PersonalExternoPage() {
     defaultValues: { turnos: [], observacionesGenerales: '' },
   });
 
-  const { control, setValue, watch, trigger, register, handleSubmit } = form;
+  const { control, setValue, watch, trigger, register } = form;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -236,12 +231,6 @@ export default function PersonalExternoPage() {
         const currentOS = allServiceOrders.find(os => os.id === osId);
         setServiceOrder(currentOS || null);
 
-        if (currentOS?.space) {
-            const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as any[];
-            const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
-            setSpaceAddress(currentSpace?.calle || '');
-        }
-        
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
         const currentBriefing = allBriefings.find(b => b.osId === osId);
         setBriefingItems(currentBriefing?.items || []);
@@ -282,10 +271,8 @@ export default function PersonalExternoPage() {
     loadData();
   }, [loadData]);
   
-  const handleFinalSave = () => {
+  const onSubmit = (data: FormValues) => {
     setIsLoading(true);
-    const data = form.getValues();
-
     if (!osId) {
       toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID del pedido.' });
       setIsLoading(false);
@@ -320,25 +307,17 @@ export default function PersonalExternoPage() {
         toast({ title: 'Guardado', description: 'Los cambios se han guardado.' });
         setIsLoading(false);
         form.reset(data); // Mark as not dirty
-        if (nextAction) {
-            nextAction();
-            setNextAction(null);
-        }
     }, 500);
-  };
-  
-  const onSubmit = () => {
-    handleFinalSave();
   };
 
   const handleProviderChange = useCallback((index: number, proveedorId: string) => {
     if (!proveedorId) return;
     const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
     if (tipoPersonal) {
-        setValue(`turnos.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
-        setValue(`turnos.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
-        setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
-        trigger(`turnos.${index}`);
+        setValue(`turnos.${'${index}'}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
+        setValue(`turnos.${'${index}'}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
+        setValue(`turnos.${'${index}'}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
+        trigger(`turnos.${'${index}'}`);
     }
 }, [proveedoresDB, setValue, trigger]);
 
@@ -360,7 +339,7 @@ export default function PersonalExternoPage() {
         }, 0);
     }, 0) || 0;
     
-    const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
+    const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.importe, 0);
     
     const costePlanificadoConAjustes = planned + aj;
 
@@ -400,19 +379,20 @@ export default function PersonalExternoPage() {
       localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
   }
 
-  const addAjusteRow = () => {
-      const proveedorId = (document.getElementById('ajuste-proveedor') as HTMLSelectElement)?.value;
-      const concepto = (document.getElementById('ajuste-concepto') as HTMLInputElement)?.value;
-      const importe = (document.getElementById('ajuste-importe') as HTMLInputElement)?.value;
-      if(!proveedorId || !concepto || !importe) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Debes rellenar todos los campos para añadir un ajuste.'});
+  const handleAddAjuste = () => {
+    const proveedorId = (document.getElementById('ajuste-proveedor') as HTMLSelectElement)?.value;
+    const concepto = (document.getElementById('ajuste-concepto') as HTMLInputElement)?.value;
+    const importe = (document.getElementById('ajuste-importe') as HTMLInputElement)?.value;
+
+    if (!proveedorId || !concepto || !importe) {
+        toast({ variant: 'destructive', title: 'Error', description: 'El proveedor, concepto y el importe son obligatorios.' });
         return;
-      }
-      const newAjustes = [...ajustes, { id: Date.now().toString(), proveedorId, concepto, ajuste: parseFloat(importe) }];
-      setAjustes(newAjustes);
-      saveAjustes(newAjustes);
-      if(document.getElementById('ajuste-concepto')) (document.getElementById('ajuste-concepto') as HTMLInputElement).value = '';
-      if(document.getElementById('ajuste-importe')) (document.getElementById('ajuste-importe') as HTMLInputElement).value = '';
+    }
+    const newAjustes = [...ajustes, { id: Date.now().toString(), proveedorId, concepto, importe: parseFloat(importe) }];
+    setAjustes(newAjustes);
+    saveAjustes(newAjustes);
+    if(document.getElementById('ajuste-concepto')) (document.getElementById('ajuste-concepto') as HTMLInputElement).value = '';
+    if(document.getElementById('ajuste-importe')) (document.getElementById('ajuste-importe') as HTMLInputElement).value = '';
   };
   
   const removeAjusteRow = (index: number) => {
@@ -424,36 +404,35 @@ export default function PersonalExternoPage() {
   const providerOptions = useMemo(() => {
     return proveedoresDB
         .filter(p => proveedoresMap.has(p.proveedorId)) 
-        .map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${p.categoria}`, value: p.id }));
+        .map(p => ({ label: `${proveedoresMap.get(p.proveedorId)} - ${'${p.categoria}'}`, value: p.id }));
 }, [proveedoresDB, proveedoresMap]);
 
 const turnosAprobados = useMemo(() => {
     return watchedFields.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
 }, [watchedFields]);
 
-  const uniqueTurnoProviders = useMemo(() => {
+const uniqueTurnoProviders = useMemo(() => {
     const providerIds = new Set(watchedFields?.map(t => t.proveedorId));
     return Array.from(providerIds).map(id => {
-      const turno = watchedFields.find(t => t.proveedorId === id);
       const cat = proveedoresDB.find(p => p.id === id);
       const prov = cat ? proveedoresMap.get(cat.proveedorId) : 'Desconocido';
       return { id: cat?.proveedorId || '', label: prov || 'Desconocido'};
-    }).filter((v,i,a) => a.findIndex(t => (t.id === v.id)) === i); // unique
+    }).filter((v,i,a) => v.id && a.findIndex(t => (t.id === v.id)) === i); // unique and valid
   }, [watchedFields, proveedoresDB, proveedoresMap]);
 
 
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Asignación de Personal..." />;
   }
-
+  
   return (
     <>
       <main>
       <TooltipProvider>
         <FormProvider {...form}>
-            <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
+            <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-start justify-end mb-4">
-                    <Button type="button" onClick={onSubmit} disabled={isLoading || !form.formState.isDirty}>
+                    <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
                         {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                         <span className="ml-2">Guardar Cambios</span>
                     </Button>
@@ -530,7 +509,7 @@ const turnosAprobados = useMemo(() => {
                                             fields.map((field, index) => (
                                                 <TableRow key={field.id}>
                                                     <TableCell className="px-2 py-1">
-                                                        <FormField control={control} name={`turnos.${index}.fecha`} render={({ field: dateField }) => (
+                                                        <FormField control={control} name={`turnos.${'${index}'}.fecha`} render={({ field: dateField }) => (
                                                             <FormItem>
                                                                 <Popover>
                                                                     <PopoverTrigger asChild>
@@ -549,19 +528,19 @@ const turnosAprobados = useMemo(() => {
                                                         )} />
                                                     </TableCell>
                                                         <TableCell className="px-2 py-1">
-                                                        <FormField control={control} name={`turnos.${index}.solicitadoPor`} render={({ field: selectField }) => (
+                                                        <FormField control={control} name={`turnos.${'${index}'}.solicitadoPor`} render={({ field: selectField }) => (
                                                             <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{['SALA', 'COCINA', 'LOGISTICA', 'RRHH'].map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
                                                         )}/>
                                                     </TableCell>
                                                     <TableCell className="px-2 py-1 min-w-48">
                                                         <FormField
                                                             control={control}
-                                                            name={`turnos.${index}.proveedorId`}
-                                                            render={({ field }) => (
+                                                            name={`turnos.${'${index}'}.proveedorId`}
+                                                            render={({ field: f }) => (
                                                             <FormItem>
                                                                 <Combobox
                                                                     options={providerOptions}
-                                                                    value={field.value}
+                                                                    value={f.value}
                                                                     onChange={(value) => handleProviderChange(index, value)}
                                                                     placeholder="Proveedor..."
                                                                 />
@@ -569,21 +548,21 @@ const turnosAprobados = useMemo(() => {
                                                             )}/>
                                                     </TableCell>
                                                     <TableCell className="px-2 py-1">
-                                                        <FormField control={control} name={`turnos.${index}.tipoServicio`} render={({ field: selectField }) => (
+                                                        <FormField control={control} name={`turnos.${'${index}'}.tipoServicio`} render={({ field: selectField }) => (
                                                             <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'].map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
                                                         )}/>
                                                     </TableCell>
                                                     <TableCell className="border-l px-2 py-1 bg-muted/30">
-                                                        <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-8 text-xs" /></FormControl></FormItem>} />
+                                                        <FormField control={control} name={`turnos.${'${index}'}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-8 text-xs" /></FormControl></FormItem>} />
                                                     </TableCell>
                                                     <TableCell className="px-2 py-1 bg-muted/30">
-                                                        <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-8 text-xs" /></FormControl></FormItem>} />
+                                                        <FormField control={control} name={`turnos.${'${index}'}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-8 text-xs" /></FormControl></FormItem>} />
                                                     </TableCell>
                                                      <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center">
                                                         {formatDuration(calculateHours(watchedFields[index].horaEntrada, watchedFields[index].horaSalida))}
                                                     </TableCell>
                                                     <TableCell className="border-r px-2 py-1 bg-muted/30">
-                                                        <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-8 text-xs" readOnly /></FormControl></FormItem>} />
+                                                        <FormField control={control} name={`turnos.${'${index}'}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-8 text-xs" readOnly /></FormControl></FormItem>} />
                                                     </TableCell>
                                                     <TableCell>
                                                         <CommentDialog turnoIndex={index} form={form} />
@@ -651,10 +630,10 @@ const turnosAprobados = useMemo(() => {
                                                         <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
                                                     </TableCell>
                                                      <TableCell>
-                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8 w-24 text-xs" />} />
+                                                    <FormField control={control} name={`turnos.${'${turnoIndex}'}.asignaciones.${'${asigIndex}'}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8 w-24 text-xs" />} />
                                                     </TableCell>
                                                     <TableCell>
-                                                            <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8 w-24 text-xs" />} />
+                                                            <FormField control={control} name={`turnos.${'${turnoIndex}'}.asignaciones.${'${asigIndex}'}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8 w-24 text-xs" />} />
                                                     </TableCell>
                                                      <TableCell className="font-mono text-center">{realHours > 0 ? formatDuration(realHours) : '-'}</TableCell>
                                                     <TableCell className="w-[100px] text-center">
@@ -701,7 +680,7 @@ const turnosAprobados = useMemo(() => {
                                <div className="border rounded-md p-2 space-y-2">
                                 {ajustes.map((ajuste, index) => (
                                     <div key={ajuste.id} className="flex gap-2 items-center">
-                                        <p className="text-sm flex-grow">({proveedoresMap.get(ajuste.proveedorId) || '?'}) {ajuste.concepto}: <span className="font-mono">{formatCurrency(ajuste.ajuste)}</span></p>
+                                        <p className="text-sm flex-grow">({proveedoresMap.get(ajuste.proveedorId) || '?'}) {ajuste.concepto}: <span className="font-mono">{formatCurrency(ajuste.importe)}</span></p>
                                         <Button type="button" variant="ghost" size="icon" className="text-destructive h-7 w-7" onClick={() => removeAjusteRow(index)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
                                 ))}
@@ -753,3 +732,5 @@ const turnosAprobados = useMemo(() => {
     </>
   );
 }
+
+    
