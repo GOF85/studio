@@ -1,19 +1,16 @@
 
-
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Users2 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send } from 'lucide-react';
 
-import type { Entrega, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoPersonalExterno, PedidoEntrega, EntregaHito, ServiceOrder, ComercialBriefingItem, ComercialBriefing, PersonalExternoAjuste } from '@/types';
+import type { PersonalExternoAjuste, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoPersonalExterno } from '@/types';
 import { ESTADO_PERSONAL_EXTERNO } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -36,7 +33,8 @@ import { FeedbackDialog } from '@/components/portal/feedback-dialog';
 import { calculateHours, formatCurrency, formatDuration } from '@/lib/utils';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
@@ -149,7 +147,7 @@ export default function PersonalExternoPage() {
     defaultValues: { turnos: [], ajustes: [] },
   });
 
-  const { control, setValue, watch, trigger, getValues } = form;
+  const { control, setValue, watch, trigger, getValues, handleSubmit } = form;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -331,12 +329,7 @@ export default function PersonalExternoPage() {
                     fecha: format(t.fecha, 'yyyy-MM-dd'),
                     statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
                     requiereActualizacion: true,
-                    asignaciones: (t.asignaciones || []).map(a => ({
-                        ...a,
-                        horaEntradaReal: a.horaEntradaReal || '',
-                        horaSalidaReal: a.horaSalidaReal || '',
-                    })),
-                }
+                } as PersonalExternoTurno;
             }),
             status: currentStatus,
             observacionesGenerales: form.getValues('observacionesGenerales'),
@@ -501,13 +494,14 @@ export default function PersonalExternoPage() {
       <main>
       <TooltipProvider>
         <FormProvider {...form}>
-            <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
-                <div className="flex items-start justify-end mb-4">
+            <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
+                <div className="flex items-start justify-between mb-4">
+                     <div/>
                     <div className="flex items-center gap-2">
                          <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
                         <ActionButton />
                         <Button type="button" onClick={handlePrintReport} disabled={isPrinting}>
-                             {isPrinting ? <Loader2 className="animate-spin" /> : <Users2 />}
+                             {isPrinting ? <Loader2 className="animate-spin" /> : <Users />}
                             <span className="ml-2">Generar Informe PDF</span>
                         </Button>
                         <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
@@ -540,7 +534,7 @@ export default function PersonalExternoPage() {
                                     <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
                                     <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
                                     <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                                    <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
+                                    <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaSalida).toFixed(2)}h</TableCell>
                                 </TableRow>
                                 )) : (
                                     <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
@@ -709,7 +703,6 @@ export default function PersonalExternoPage() {
                                             <TableHead>Fecha-Horario Plan.</TableHead>
                                             <TableHead className="w-24">H. Entrada Real</TableHead>
                                             <TableHead className="w-24">H. Salida Real</TableHead>
-                                            <TableHead className="w-24 text-center">Desviación</TableHead>
                                             <TableHead className="w-[200px] text-center">Desempeño y Comentarios MICE</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -745,16 +738,13 @@ export default function PersonalExternoPage() {
                                                     <TableCell>
                                                     <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                     </TableCell>
-                                                    <TableCell className={cn("text-center font-bold", deviation > 0 && "text-destructive", deviation < 0 && "text-green-600")}>
-                                                        {deviation.toFixed(2)}h
-                                                    </TableCell>
                                                     <TableCell className="w-[200px] text-center">
                                                        <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
                                                     </TableCell>
                                                 </TableRow>
                                             )})
                                         }) : (
-                                            <TableRow><TableCell colSpan={7} className="h-24 text-center">No hay turnos gestionados por la ETT.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={6} className="h-24 text-center">No hay turnos gestionados por la ETT.</TableCell></TableRow>
                                         )}
                                     </TableBody>
                                 </Table>
@@ -824,7 +814,7 @@ export default function PersonalExternoPage() {
                     </Card>
                 </div>
             </form>
-        </FormProvider>
+       </FormProvider>
         </TooltipProvider>
 
         <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
@@ -852,3 +842,4 @@ export default function PersonalExternoPage() {
   );
 }
 
+    
