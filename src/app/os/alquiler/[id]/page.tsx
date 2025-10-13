@@ -1,11 +1,9 @@
 'use client';
+
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-export default function OsRedirectPage() {
+export default function AlquilerIdRedirectPage({ params }: { params: { id: string } }) {
     const router = useRouter();
     useEffect(() => {
-        router.replace('/pes');
-    }, [router]);
-    return null;
-}
+        router.replace(`/os/${params.id}/al

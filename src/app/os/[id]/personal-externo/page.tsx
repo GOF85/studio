@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -59,7 +59,6 @@ const formatDuration = (hours: number) => {
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
-
 
 const asignacionSchema = z.object({
   id: z.string(),
@@ -241,7 +240,7 @@ export default function PersonalExternoPage() {
     defaultValues: { personal: [], ajustes: [] },
   });
 
-  const { control, setValue, trigger, watch } = form;
+  const { control, setValue, trigger, watch, getValues } = form;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -394,12 +393,11 @@ export default function PersonalExternoPage() {
       removeAjuste(index);
   };
 
-  const providerOptions = useMemo(() => {
-    return allProveedores.filter(p => p.tipos.includes('Personal')).map(p => ({
+  const providerOptions = useMemo(() => 
+    allProveedores.filter(p => p.tipos.includes('Personal')).map(p => ({
         value: p.id,
         label: p.nombreComercial
-    }));
-  }, [allProveedores]);
+    })), [allProveedores]);
 
   const categoriaOptions = useMemo(() => {
     return proveedoresDB.map(p => ({
@@ -453,9 +451,9 @@ export default function PersonalExternoPage() {
                                             <TableHead className="px-2 py-1">Solicitado Por</TableHead>
                                             <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
                                             <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
-                                            <TableHead colSpan={4} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
-                                            <TableHead className="px-2 py-1">Observaciones para ETT</TableHead>
-                                            <TableHead className="px-2 py-1">Estado</TableHead>
+                                            <TableHead colSpan={3} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
+                                            <TableHead className="text-center px-2 py-1">Observaciones</TableHead>
+                                            <TableHead className="text-center px-2 py-1">Estado</TableHead>
                                             <TableHead className="text-right px-2 py-1">Acción</TableHead>
                                         </TableRow>
                                         <TableRow>
@@ -465,7 +463,6 @@ export default function PersonalExternoPage() {
                                             <TableHead className="px-2 py-1"></TableHead>
                                             <TableHead className="border-l px-2 py-1 bg-muted/30 w-24">H. Entrada</TableHead>
                                             <TableHead className="px-2 py-1 bg-muted/30 w-24">H. Salida</TableHead>
-                                            <TableHead className="px-2 py-1 bg-muted/30">Horas Plan.</TableHead>
                                             <TableHead className="border-r px-2 py-1 bg-muted/30 w-20">€/Hora</TableHead>
                                             <TableHead className="px-2 py-1"></TableHead>
                                             <TableHead className="px-2 py-1"></TableHead>
@@ -532,43 +529,25 @@ export default function PersonalExternoPage() {
                                                 <TableCell className="px-2 py-1 bg-muted/30">
                                                     <FormField control={control} name={`personal.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
                                                 </TableCell>
-                                                 <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center">
-                                                    {formatDuration(calculateHours(field.horaEntrada, field.horaSalida))}h
-                                                </TableCell>
                                                 <TableCell className="border-r px-2 py-1 bg-muted/30">
                                                     <FormField control={control} name={`personal.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9 text-xs" readOnly /></FormControl></FormItem>} />
                                                 </TableCell>
-                                                <TableCell>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <div className="flex items-center justify-center cursor-pointer">
-                                                                <CommentDialog turnoIndex={index} form={form} />
-                                                                {field.observaciones && <MessageSquare className="h-4 w-4 text-primary" />}
-                                                            </div>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p className="max-w-xs">{field.observaciones}</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
+                                                <TableCell className="text-center">
+                                                    <CommentDialog turnoIndex={index} form={form} />
                                                 </TableCell>
                                                 <TableCell>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <div className="flex justify-center">
                                                             {field.statusPartner === 'Gestionado' ? (
-                                                                 <CheckCircle className="h-5 w-5 text-green-600"/>
+                                                                <CheckCircle className="h-5 w-5 text-green-600"/>
                                                             ) : (
                                                                 <AlertTriangle className="h-5 w-5 text-amber-500" />
                                                             )}
                                                             </div>
                                                         </TooltipTrigger>
                                                         <TooltipContent>
-                                                            <p className="font-bold">Asignaciones:</p>
-                                                            {field.asignaciones && field.asignaciones.length > 0 ? (
-                                                                <ul className="list-disc pl-4 text-xs">
-                                                                    {field.asignaciones.map(a => <li key={a.id}>{a.nombre} {a.dni && `(${a.dni})`}</li>)}
-                                                                </ul>
-                                                            ) : <p>Pendiente de gestionar por ETT.</p>}
+                                                            {field.statusPartner}
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 </TableCell>
@@ -581,7 +560,7 @@ export default function PersonalExternoPage() {
                                         ))
                                     ) : (
                                         <TableRow>
-                                        <TableCell colSpan={11} className="h-24 text-center">
+                                        <TableCell colSpan={10} className="h-24 text-center">
                                             No hay personal asignado. Haz clic en "Añadir Turno" para empezar.
                                         </TableCell>
                                         </TableRow>
@@ -677,16 +656,16 @@ export default function PersonalExternoPage() {
                                     <span className="text-muted-foreground">Coste Total Planificado:</span>
                                     <span className="font-bold">{formatCurrency(totalPlanned)}</span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Coste Total Real (Horas):</span>
-                                    <span className="font-bold">{formatCurrency(totalReal)}</span>
-                                </div>
-                                <Separator className="my-2" />
                                 <div className="flex justify-between font-bold text-base">
                                     <span>Coste Final Planificado (Plan. + Ajustes):</span>
                                     <span>{formatCurrency(costeFinalPlanificado)}</span>
                                 </div>
-                                <div className="flex justify-between font-bold text-base">
+                                <Separator className="my-2" />
+                                 <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Real (Horas):</span>
+                                    <span className="font-bold">{formatCurrency(totalReal)}</span>
+                                </div>
+                                 <div className="flex justify-between font-bold text-base">
                                     <span>Coste FINAL (Real + Ajustes):</span>
                                     <span className={finalTotalReal > costeFinalPlanificado ? 'text-destructive' : 'text-green-600'}>
                                         {formatCurrency(finalTotalReal)}
@@ -700,8 +679,8 @@ export default function PersonalExternoPage() {
                                     </span>
                                 </div>
                             </div>
-                             <div className="space-y-2">
-                                <h4 className="text-xs font-semibold text-muted-foreground">AJUSTES DE COSTE (Facturas, dietas, etc.)</h4>
+                            <div className="space-y-2">
+                               <h4 className="text-xs font-semibold text-muted-foreground">AJUSTE DE COSTES (Facturas, dietas, etc.)</h4>
                                 {(ajusteFields || []).map((ajuste, index) => (
                                     <div key={ajuste.id} className="flex gap-2 items-center">
                                         <FormField control={control} name={`ajustes.${index}.proveedorId`} render={({field}) => (
@@ -731,7 +710,6 @@ export default function PersonalExternoPage() {
             </form>
         </FormProvider>
         </TooltipProvider>
-      </main>
 
         <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
             <AlertDialogContent>
@@ -752,6 +730,8 @@ export default function PersonalExternoPage() {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+      </main>
     </>
   );
 }
+
