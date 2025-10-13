@@ -20,7 +20,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { differenceInMinutes, parse, format } from 'date-fns';
+import { parse, format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -103,7 +104,13 @@ const personalTurnoSchema = z.object({
 });
 
 const formSchema = z.object({
-    personal: z.array(personalTurnoSchema)
+    personal: z.array(personalTurnoSchema),
+    ajustes: z.array(z.object({
+        id: z.string(),
+        proveedorId: z.string(),
+        concepto: z.string(),
+        importe: z.number(),
+    })).optional(),
 })
 
 type PersonalExternoFormValues = z.infer<typeof formSchema>;
@@ -236,8 +243,7 @@ export default function PersonalExternoPage() {
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
-  const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
-
+  
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
@@ -266,10 +272,10 @@ export default function PersonalExternoPage() {
         const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
         const turnosDelPedido = allTurnos.filter(p => p.osId === osId);
         
-        form.reset({ personal: turnosDelPedido.map(t => ({...t, fecha: new Date(t.fecha), horaEntradaReal: t.horaEntradaReal || '', horaSalidaReal: t.horaSalidaReal || ''})) });
+        form.reset({ personal: turnosDelPedido.map(t => ({...t, fecha: new Date(t.fecha), asignaciones: t.asignaciones || []})) });
 
         const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
-        setAjustes(storedAjustes[osId] || []);
+        form.setValue('ajustes', storedAjustes[osId] || []);
 
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos de personal externo.' });
@@ -294,6 +300,7 @@ export default function PersonalExternoPage() {
 }, [proveedoresDB, setValue, trigger]);
 
   const watchedFields = useWatch({ control, name: 'personal' });
+  const watchedAjustes = useWatch({ control, name: 'ajustes' });
 
  const { totalPlanned, totalReal, totalAjustes, finalTotalReal } = useMemo(() => {
     const planned = watchedFields?.reduce((acc, order) => {
@@ -307,16 +314,16 @@ export default function PersonalExternoPage() {
             if (realHours > 0) {
                 return sumAsignacion + realHours * (order.precioHora || 0);
             }
+            // If no real hours, use planned hours for this person
             const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
             return sumAsignacion + plannedHours * (order.precioHora || 0);
         }, 0);
     }, 0) || 0;
     
-    const aj = ajustes.reduce((sum, ajuste) => sum + ajuste.importe, 0);
+    const aj = watchedAjustes?.reduce((sum, ajuste) => sum + ajuste.importe, 0) || 0;
 
     return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj };
-  }, [watchedFields, ajustes]);
-
+  }, [watchedFields, watchedAjustes]);
 
  const onSubmit = (data: PersonalExternoFormValues) => {
     setIsLoading(true);
@@ -348,6 +355,11 @@ export default function PersonalExternoPage() {
 
     const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
     localStorage.setItem('personalExternoOrders', JSON.stringify(updatedAllOrders));
+
+    const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
+    allAjustes[osId] = data.ajustes || [];
+    localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
+
     window.dispatchEvent(new Event('storage'));
 
     setTimeout(() => {
@@ -360,7 +372,6 @@ export default function PersonalExternoPage() {
   const addRow = () => {
     append({
         id: Date.now().toString(),
-        osId: osId,
         proveedorId: '',
         categoria: '',
         precioHora: 0,
@@ -379,38 +390,22 @@ export default function PersonalExternoPage() {
     if (rowToDelete !== null) {
       remove(rowToDelete);
       setRowToDelete(null);
-      toast({ title: 'Asignación eliminada' });
+      toast({ title: 'Turno eliminado' });
     }
   };
   
-  const saveAjustes = (newAjustes: PersonalExternoAjuste[]) => {
-      if (!osId) return;
-      const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
-      allAjustes[osId] = newAjustes;
-      localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
-      setAjustes(newAjustes);
-  }
+    const { fields: ajusteFields, append: appendAjuste, remove: removeAjuste, update: updateAjuste } = useFieldArray({
+        control,
+        name: "ajustes",
+    });
 
-  const addAjusteRow = () => {
-      const newAjustes = [...ajustes, { id: Date.now().toString(), proveedorId: '', concepto: '', importe: 0 }];
-      saveAjustes(newAjustes);
-  };
+    const addAjusteRow = () => {
+        appendAjuste({ id: Date.now().toString(), proveedorId: '', concepto: '', importe: 0 });
+    };
 
-  const updateAjuste = (index: number, field: keyof PersonalExternoAjuste, value: string | number) => {
-      const newAjustes = [...ajustes];
-      if (field === 'importe') {
-          (newAjustes[index] as any)[field] = parseFloat(value as string) || 0;
-      } else {
-          (newAjustes[index] as any)[field] = value as string;
-      }
-      setAjustes(newAjustes);
-      saveAjustes(newAjustes);
-  };
-
-  const removeAjusteRow = (index: number) => {
-      const newAjustes = ajustes.filter((_, i) => i !== index);
-      saveAjustes(newAjustes);
-  };
+    const removeAjusteRow = (index: number) => {
+        removeAjuste(index);
+    };
 
   const providerOptions = useMemo(() => {
     return proveedoresDB
@@ -419,7 +414,7 @@ export default function PersonalExternoPage() {
 }, [proveedoresDB, proveedoresMap]);
 
 const turnosAprobados = useMemo(() => {
-    return watchedFields.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
+    return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
 }, [watchedFields]);
 
 
@@ -439,6 +434,7 @@ const turnosAprobados = useMemo(() => {
                     <span className="ml-2">Guardar Cambios</span>
                 </Button>
             </div>
+            
             <Tabs defaultValue="planificacion">
                 <TabsList className="mb-4 grid w-full grid-cols-2">
                     <TabsTrigger value="planificacion">Planificación de Turnos</TabsTrigger>
@@ -463,6 +459,7 @@ const turnosAprobados = useMemo(() => {
                                         <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
                                         <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
                                         <TableHead colSpan={4} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
+                                        <TableHead className="px-2 py-1">Observaciones</TableHead>
                                         <TableHead className="px-2 py-1">Estado</TableHead>
                                         <TableHead className="text-right px-2 py-1">Acción</TableHead>
                                     </TableRow>
@@ -475,6 +472,7 @@ const turnosAprobados = useMemo(() => {
                                         <TableHead className="px-2 py-1 bg-muted/30 w-24">H. Salida</TableHead>
                                         <TableHead className="px-2 py-1 bg-muted/30">Horas Plan.</TableHead>
                                         <TableHead className="border-r px-2 py-1 bg-muted/30 w-20">€/Hora</TableHead>
+                                        <TableHead className="px-2 py-1"></TableHead>
                                         <TableHead className="px-2 py-1"></TableHead>
                                         <TableHead className="px-2 py-1"></TableHead>
                                     </TableRow>
@@ -502,7 +500,7 @@ const turnosAprobados = useMemo(() => {
                                                     </FormItem>
                                                 )} />
                                             </TableCell>
-                                                <TableCell className="px-2 py-1">
+                                             <TableCell className="px-2 py-1">
                                                 <FormField control={control} name={`personal.${index}.solicitadoPor`} render={({ field: selectField }) => (
                                                     <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="w-28 h-9 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{solicitadoPorOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
                                                 )}/>
@@ -511,16 +509,17 @@ const turnosAprobados = useMemo(() => {
                                                 <FormField
                                                     control={control}
                                                     name={`personal.${index}.proveedorId`}
-                                                    render={({ field: selectField }) => (
+                                                    render={({ field }) => (
                                                     <FormItem>
                                                         <Combobox
                                                             options={providerOptions}
-                                                            value={selectField.value}
+                                                            value={field.value}
                                                             onChange={(value) => handleProviderChange(index, value)}
                                                             placeholder="Proveedor..."
                                                         />
                                                     </FormItem>
-                                                    )}/>
+                                                    )}
+                                                />
                                             </TableCell>
                                             <TableCell className="px-2 py-1">
                                                 <FormField control={control} name={`personal.${index}.tipoServicio`} render={({ field: selectField }) => (
@@ -533,11 +532,24 @@ const turnosAprobados = useMemo(() => {
                                             <TableCell className="px-2 py-1 bg-muted/30">
                                                 <FormField control={control} name={`personal.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
                                             </TableCell>
-                                                <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center">
-                                                {calculateHours(watchedFields[index].horaEntrada, watchedFields[index].horaSalida).toFixed(2)}h
+                                             <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center">
+                                                {formatDuration(calculateHours(watchedFields[index].horaEntrada, watchedFields[index].horaSalida))}h
                                             </TableCell>
                                             <TableCell className="border-r px-2 py-1 bg-muted/30">
                                                 <FormField control={control} name={`personal.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9 text-xs" readOnly /></FormControl></FormItem>} />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <div className="flex items-center justify-center cursor-pointer">
+                                                            <CommentDialog turnoIndex={index} form={form} />
+                                                            {field.observaciones && <MessageSquare className="h-4 w-4 text-primary" />}
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p className="max-w-xs">{field.observaciones}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
                                             </TableCell>
                                             <TableCell>
                                                 <Tooltip>
@@ -569,8 +581,8 @@ const turnosAprobados = useMemo(() => {
                                     ))
                                 ) : (
                                     <TableRow>
-                                    <TableCell colSpan={10} className="h-24 text-center">
-                                        No hay personal asignado. Haz clic en "Añadir Turno" para empezar.
+                                    <TableCell colSpan={11} className="h-24 text-center">
+                                        No hay personal asignado. Haz clic en "Añadir Personal" para empezar.
                                     </TableCell>
                                     </TableRow>
                                 )}
@@ -580,17 +592,83 @@ const turnosAprobados = useMemo(() => {
                         </CardContent>
                     </Card>
                 </TabsContent>
-                <TabsContent value="aprobados">
+                 <TabsContent value="aprobados">
                      <Card>
                         <CardHeader className="py-3"><CardTitle className="text-lg">Cierre y Horas Reales</CardTitle></CardHeader>
                         <CardContent className="p-2">
                             <p className="text-sm text-muted-foreground p-2">Esta sección será completada por el responsable en el evento. Los datos aquí introducidos se usarán para el cálculo del coste real.</p>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Nombre</TableHead>
+                                        <TableHead>DNI</TableHead>
+                                        <TableHead>Fecha-Horario</TableHead>
+                                        <TableHead className="w-24">H. Entrada Real</TableHead>
+                                        <TableHead className="w-24">H. Salida Real</TableHead>
+                                        <TableHead className="w-[200px] text-center">Desempeño y Comentarios MICE</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {turnosAprobados.length > 0 ? watchedFields.map((turno, turnoIndex) => {
+                                        if (turno.statusPartner !== 'Gestionado' || !turno.asignaciones || turno.asignaciones.length === 0) return null;
+                                        
+                                        return turno.asignaciones.map((asignacion, asigIndex) => {
+                                            const realHours = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
+                                            const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
+                                            const deviation = realHours > 0 ? realHours - plannedHours : 0;
+                                            const hasTimeMismatch = Math.abs(deviation) > 0.01;
+
+                                            return (
+                                            <TableRow key={asignacion.id} className={cn(hasTimeMismatch && "bg-amber-50")}>
+                                                <TableCell className="font-semibold flex items-center gap-2">
+                                                    {hasTimeMismatch && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger><AlertTriangle className="h-4 w-4 text-amber-500" /></TooltipTrigger>
+                                                            <TooltipContent><p>Desviación: {deviation > 0 ? '+' : ''}{formatDuration(deviation)} horas</p></TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+                                                    {asignacion.nombre}
+                                                </TableCell>
+                                                <TableCell>{asignacion.dni}</TableCell>
+                                                <TableCell>
+                                                    <div className="font-semibold">{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
+                                                    <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
+                                                </TableCell>
+                                                <TableCell>
+                                                <FormField control={control} name={`personal.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
+                                                </TableCell>
+                                                <TableCell>
+                                                <FormField control={control} name={`personal.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
+                                                </TableCell>
+                                                <TableCell className="w-[200px]">
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="flex items-center justify-center gap-1 cursor-pointer">
+                                                                <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
+                                                                {(asignacion.comentariosMice || (asignacion.rating && asignacion.rating !== 3)) && (
+                                                                    <MessageSquare className="h-4 w-4 text-primary" />
+                                                                )}
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p className="font-bold">Valoración: {'⭐'.repeat(asignacion.rating || 0)}</p>
+                                                            {asignacion.comentariosMice && <p className="max-w-xs">{asignacion.comentariosMice}</p>}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TableCell>
+                                            </TableRow>
+                                        )})
+                                    }) : (
+                                        <TableRow><TableCell colSpan={6} className="h-24 text-center">No hay turnos gestionados por la ETT.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
                         </CardContent>
                     </Card>
                 </TabsContent>
             </Tabs>
             
-                 <div className="mt-8">
+             <div className="mt-8">
                 <Card>
                     <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
                     <CardContent className="grid grid-cols-2 gap-8 p-4">
@@ -620,26 +698,22 @@ const turnosAprobados = useMemo(() => {
                         </div>
                         <div className="space-y-2">
                             <h4 className="text-xs font-semibold text-muted-foreground">AJUSTE DE COSTES</h4>
-                            {ajustes.map((ajuste, index) => (
-                                <div key={ajuste.id} className="flex gap-2 items-center">
-                                    <Input 
-                                        placeholder="Concepto" 
-                                        value={ajuste.concepto} 
-                                        onChange={(e) => updateAjuste(index, 'concepto', e.target.value)}
-                                        className="h-9"
-                                    />
-                                    <Input 
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="Importe"
-                                        value={ajuste.importe}
-                                        onChange={(e) => updateAjuste(index, 'ajuste', e.target.value)}
-                                        className="w-32 h-9"
-                                    />
-                                    <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjusteRow(index)}><Trash2 className="h-4 w-4"/></Button>
+                             <FormProvider {...form}>
+                                <div className="space-y-2">
+                                {(form.watch('ajustes') || []).map((ajuste, index) => (
+                                    <div key={index} className="flex gap-2 items-center">
+                                        <FormField control={control} name={`ajustes.${index}.concepto`} render={({field}) => (
+                                            <Input placeholder="Concepto" {...field} className="h-9" />
+                                        )} />
+                                        <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
+                                            <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-32 h-9" />
+                                        )} />
+                                        <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
+                                    </div>
+                                ))}
+                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
                                 </div>
-                            ))}
-                            <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
+                            </FormProvider>
                                 <Separator className="my-2" />
                                 <div className="flex justify-between font-bold">
                                     <span>Total Ajustes:</span>
@@ -672,8 +746,8 @@ const turnosAprobados = useMemo(() => {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+      </main>
     </>
   );
 }
 
-```
