@@ -86,7 +86,7 @@ function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) 
     const [isOpen, setIsOpen] = useState(false);
     const { getValues, setValue } = form;
 
-    const fieldName = `turnos.${'${turnoIndex}'}.observaciones`;
+    const fieldName = `turnos.${turnoIndex}.observaciones`;
     const dialogTitle = `Observaciones para la ETT`;
 
     const [comment, setComment] = useState(getValues(fieldName) || '');
@@ -149,7 +149,7 @@ export default function PersonalExternoPage() {
     defaultValues: { turnos: [], ajustes: [] },
   });
 
-  const { control, setValue, watch, trigger, getValues, handleSubmit } = form;
+  const { control, setValue, watch, trigger, getValues, handleSubmit, formState } = form;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -214,10 +214,10 @@ export default function PersonalExternoPage() {
     if (!proveedorId) return;
     const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
     if (tipoPersonal) {
-        setValue(`turnos.${'${index}'}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
-        setValue(`turnos.${'${index}'}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
-        setValue(`turnos.${'${index}'}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
-        trigger(`turnos.${'${index}'}`);
+        setValue(`turnos.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
+        setValue(`turnos.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
+        setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
+        trigger(`turnos.${index}`);
     }
 }, [proveedoresDB, setValue, trigger]);
 
@@ -269,7 +269,7 @@ export default function PersonalExternoPage() {
         }
         localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
         setPersonalExterno(updatedPersonalExterno);
-        toast({ title: 'Estado actualizado', description: `La solicitud de personal ahora está: ${'${newStatus}'}` });
+        toast({ title: 'Estado actualizado', description: `La solicitud de personal ahora está: ${newStatus}` });
     };
 
     const isSolicitudDesactualizada = useMemo(() => {
@@ -402,10 +402,10 @@ export default function PersonalExternoPage() {
 
         // Header
         doc.setFontSize(18);
-        doc.text(`Informe de Personal Externo - OS ${'${serviceOrder.serviceNumber}'}`, 15, finalY);
+        doc.text(`Informe de Personal Externo - OS ${serviceOrder.serviceNumber}`, 15, finalY);
         finalY += 10;
         doc.setFontSize(10);
-        doc.text(`${'${serviceOrder.client}'} - ${'${format(new Date(serviceOrder.startDate), \'dd/MM/yyyy\')}'}`, 15, finalY);
+        doc.text(`${serviceOrder.client} - ${format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}`, 15, finalY);
         finalY += 15;
 
         // Table
@@ -422,7 +422,7 @@ export default function PersonalExternoPage() {
                     turno.categoria,
                     formatDuration(plannedH),
                     formatDuration(realH),
-                    `${'${deviation > 0 ? \'+\' : \'\'}'}${'${formatDuration(deviation)}'}`,
+                    `${deviation > 0 ? '+' : ''}${formatDuration(deviation)}`,
                     formatCurrency(coste),
                     '⭐'.repeat(asig.rating || 0),
                     asig.comentariosMice || ''
@@ -455,7 +455,7 @@ export default function PersonalExternoPage() {
             theme: 'plain',
         });
         
-        doc.save(`Informe_Personal_${'${serviceOrder.serviceNumber}'}.pdf`);
+        doc.save(`Informe_Personal_${serviceOrder.serviceNumber}.pdf`);
 
     } catch (error) {
         console.error("PDF Generation Error:", error);
@@ -475,7 +475,7 @@ export default function PersonalExternoPage() {
   const categoriaOptions = useMemo(() => {
     return proveedoresDB.map(p => ({
         value: p.id,
-        label: `${'${allProveedores.find(prov => prov.id === p.proveedorId)?.nombreComercial}'} - ${'${p.categoria}'}`
+        label: `${allProveedores.find(prov => prov.id === p.proveedorId)?.nombreComercial} - ${p.categoria}`
     }));
   }, [proveedoresDB, allProveedores]);
 
@@ -498,7 +498,7 @@ export default function PersonalExternoPage() {
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
                 <div className="flex items-start justify-between mb-4">
-                    <div/>
+                    <div />
                     <div className="flex items-center gap-2">
                          <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
                         <ActionButton />
@@ -536,7 +536,7 @@ export default function PersonalExternoPage() {
                                     <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
                                     <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
                                     <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                                    <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaSalida).toFixed(2)}h</TableCell>
+                                    <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
                                 </TableRow>
                                 )) : (
                                     <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
@@ -595,7 +595,7 @@ export default function PersonalExternoPage() {
                                         fields.map((field, index) => (
                                             <TableRow key={field.id}>
                                                 <TableCell className="px-2 py-1">
-                                                    <FormField control={control} name={`turnos.${'${index}'}.fecha`} render={({ field: dateField }) => (
+                                                    <FormField control={control} name={`turnos.${index}.fecha`} render={({ field: dateField }) => (
                                                         <FormItem>
                                                             <Popover>
                                                                 <PopoverTrigger asChild>
@@ -614,14 +614,14 @@ export default function PersonalExternoPage() {
                                                     )} />
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1">
-                                                    <FormField control={control} name={`turnos.${'${index}'}.solicitadoPor`} render={({ field: selectField }) => (
+                                                    <FormField control={control} name={`turnos.${index}.solicitadoPor`} render={({ field: selectField }) => (
                                                         <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="w-28 h-9 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{solicitadoPorOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
                                                     )}/>
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1 min-w-48">
                                                     <FormField
                                                         control={control}
-                                                        name={`turnos.${'${index}'}.proveedorId`}
+                                                        name={`turnos.${index}.proveedorId`}
                                                         render={({ field: f }) => (
                                                         <FormItem>
                                                             <Combobox
@@ -635,7 +635,7 @@ export default function PersonalExternoPage() {
                                                     />
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1">
-                                                    <FormField control={control} name={`turnos.${'${index}'}.tipoServicio`} render={({ field: selectField }) => (
+                                                    <FormField control={control} name={`turnos.${index}.tipoServicio`} render={({ field: selectField }) => (
                                                         <FormItem>
                                                             <Select onValueChange={selectField.onChange} value={selectField.value}>
                                                                 <FormControl><SelectTrigger className="w-32 h-9 text-xs"><SelectValue /></SelectTrigger></FormControl>
@@ -645,13 +645,13 @@ export default function PersonalExternoPage() {
                                                     )}/>
                                                 </TableCell>
                                                 <TableCell className="border-l px-2 py-1 bg-muted/30">
-                                                    <FormField control={control} name={`turnos.${'${index}'}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
+                                                    <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1 bg-muted/30">
-                                                    <FormField control={control} name={`turnos.${'${index}'}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
+                                                    <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell className="border-r px-2 py-1 bg-muted/30">
-                                                    <FormField control={control} name={`turnos.${'${index}'}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9 text-xs" readOnly /></FormControl></FormItem>} />
+                                                    <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9 text-xs" readOnly /></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell>
                                                     <CommentDialog turnoIndex={index} form={form} />
@@ -735,10 +735,10 @@ export default function PersonalExternoPage() {
                                                         <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
                                                     </TableCell>
                                                     <TableCell>
-                                                    <FormField control={control} name={`turnos.${'${turnoIndex}'}.asignaciones.${'${asigIndex}'}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
+                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                     </TableCell>
                                                     <TableCell>
-                                                    <FormField control={control} name={`turnos.${'${turnoIndex}'}.asignaciones.${'${asigIndex}'}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
+                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                     </TableCell>
                                                     <TableCell className="w-[200px] text-center">
                                                        <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
@@ -791,15 +791,15 @@ export default function PersonalExternoPage() {
                                <h4 className="text-xs font-semibold text-muted-foreground">AJUSTE DE COSTES (Facturas, dietas, etc.)</h4>
                                 {(ajusteFields || []).map((ajuste, index) => (
                                     <div key={ajuste.id} className="flex gap-2 items-center">
-                                        <FormField control={control} name={`ajustes.${'${index}'}.proveedorId`} render={({field}) => (
+                                        <FormField control={control} name={`ajustes.${index}.proveedorId`} render={({field}) => (
                                             <FormItem className="flex-grow">
                                                 <Combobox options={providerOptions} value={field.value} onChange={field.onChange} placeholder="Proveedor..."/>
                                             </FormItem>
                                         )} />
-                                        <FormField control={control} name={`ajustes.${'${index}'}.concepto`} render={({field}) => (
+                                        <FormField control={control} name={`ajustes.${index}.concepto`} render={({field}) => (
                                             <Input placeholder="Concepto" {...field} className="h-9 flex-grow"/>
                                         )} />
-                                        <FormField control={control} name={`ajustes.${'${index}'}.importe`} render={({field}) => (
+                                        <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
                                             <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-24 h-9"/>
                                         )} />
                                         <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
@@ -843,4 +843,3 @@ export default function PersonalExternoPage() {
     </>
   );
 }
-
