@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from "react"
@@ -126,7 +127,7 @@ export default function CtaExplotacionPage() {
     const allPruebasMenu = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as PruebaMenuData[];
     const pruebaMenu = allPruebasMenu.find(p => p.osId === osId);
     
-    const allPersonalExternoAjustes = (JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}')[osId] || []) as {ajuste: number}[];
+    const allPersonalExternoAjustes = (JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}')[osId] || []) as {importe: number}[];
     
     const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
     let devolucionesPorCategoria: Record<string, number> = {};
@@ -151,6 +152,7 @@ export default function CtaExplotacionPage() {
     };
     
     const personalExternoPlanificado = calculatePersonalTotal(allPersonalExternoOrders.filter(o => o.osId === osId));
+    const costeAjustesPersonalExterno = allPersonalExternoAjustes.reduce((sum, ajuste) => sum + ajuste.importe, 0);
 
     const personalExternoRealCost = (allPersonalExternoOrders.filter(o => o.osId === osId)).reduce((acc, order) => {
         const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
@@ -160,8 +162,7 @@ export default function CtaExplotacionPage() {
         const asignaciones = (order.asignaciones || []).length > 0 ? order.asignaciones.length : 1;
         return acc + hoursToUse * price * asignaciones;
     }, 0);
-    const personalExternoTotalAjustes = allPersonalExternoAjustes.reduce((sum, ajuste) => sum + ajuste.ajuste, 0);
-    const costePersonalExternoCierre = personalExternoRealCost + personalExternoTotalAjustes;
+    const costePersonalExternoCierre = personalExternoRealCost + costeAjustesPersonalExterno;
 
 
     const personalMiceRealCost = (allPersonalMiceOrders.filter(o => o.osId === osId)).reduce((acc, order) => {
@@ -185,7 +186,7 @@ export default function CtaExplotacionPage() {
       { label: GASTO_LABELS.decoracion, presupuesto: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allDecoracionOrders.filter(o => o.osId === osId)) },
       { label: GASTO_LABELS.atipicos, presupuesto: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allAtipicoOrders.filter(o => o.osId === osId)) },
       { label: GASTO_LABELS.personalMice, presupuesto: calculatePersonalTotal(allPersonalMiceOrders.filter(o => o.osId === osId)), cierre: personalMiceRealCost },
-      { label: GASTO_LABELS.personalExterno, presupuesto: personalExternoPlanificado, cierre: costePersonalExternoCierre },
+      { label: GASTO_LABELS.personalExterno, presupuesto: personalExternoPlanificado + costeAjustesPersonalExterno, cierre: costePersonalExternoCierre },
       { label: GASTO_LABELS.costePruebaMenu, presupuesto: costePruebaTotal, cierre: costePruebaTotal },
     ];
     
@@ -524,6 +525,7 @@ export default function CtaExplotacionPage() {
     </TooltipProvider>
   );
 }
+
 
 
 

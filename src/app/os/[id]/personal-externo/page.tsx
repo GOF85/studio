@@ -295,7 +295,7 @@ export default function PersonalExternoPage() {
   const watchedFields = watch('personal');
   const watchedAjustes = watch('ajustes');
 
- const { totalPlanned, totalReal, totalAjustes, finalTotalReal } = useMemo(() => {
+  const { totalPlanned, totalReal, totalAjustes, costeFinalPlanificado, finalTotalReal } = useMemo(() => {
     const planned = watchedFields?.reduce((acc, order) => {
       const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
       return acc + plannedHours * (order.precioHora || 0);
@@ -307,7 +307,6 @@ export default function PersonalExternoPage() {
             if (realHours > 0) {
                 return sumAsignacion + realHours * (order.precioHora || 0);
             }
-            // If no real hours, use planned hours for this person
             const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
             return sumAsignacion + plannedHours * (order.precioHora || 0);
         }, 0);
@@ -315,7 +314,7 @@ export default function PersonalExternoPage() {
     
     const aj = watchedAjustes?.reduce((sum, ajuste) => sum + ajuste.importe, 0) || 0;
 
-    return { totalPlanned: planned, totalReal: real, totalAjustes: aj, finalTotalReal: real + aj };
+    return { totalPlanned: planned, totalReal: real, totalAjustes: aj, costeFinalPlanificado: planned + aj, finalTotalReal: real + aj };
   }, [watchedFields, watchedAjustes]);
 
 
@@ -397,12 +396,12 @@ export default function PersonalExternoPage() {
   };
 
   const providerOptions = useMemo(() => {
-    const uniqueProviders = [...new Map(proveedoresDB.map(p => [p.proveedorId, allProveedores.find(ap => ap.id === p.proveedorId)])).values()];
-    return uniqueProviders.filter(Boolean).map(p => ({
+    const uniqueProviders = [...new Map(allProveedores.map(p => [p.id, p])).values()];
+    return uniqueProviders.filter(p => p.tipos.includes('Personal')).map(p => ({
         value: p!.id,
         label: p!.nombreComercial
     }));
-  }, [proveedoresDB, allProveedores]);
+  }, [allProveedores]);
 
   const categoriaOptions = useMemo(() => {
     return proveedoresDB.map(p => ({
@@ -535,7 +534,7 @@ export default function PersonalExternoPage() {
                                                     <TableCell className="px-2 py-1 bg-muted/30">
                                                         <FormField control={control} name={`personal.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
                                                     </TableCell>
-                                                    <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center">
+                                                     <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center">
                                                         {formatDuration(calculateHours(field.horaEntrada, field.horaSalida))}h
                                                     </TableCell>
                                                     <TableCell className="border-r px-2 py-1 bg-muted/30">
@@ -686,16 +685,20 @@ export default function PersonalExternoPage() {
                                     </div>
                                     <Separator className="my-2" />
                                     <div className="flex justify-between font-bold text-base">
+                                        <span>Coste Final Planificado (Plan + Ajustes):</span>
+                                        <span>{formatCurrency(costeFinalPlanificado)}</span>
+                                    </div>
+                                    <div className="flex justify-between font-bold text-base">
                                         <span>Coste FINAL (Real + Ajustes):</span>
-                                        <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
+                                        <span className={finalTotalReal > costeFinalPlanificado ? 'text-destructive' : 'text-green-600'}>
                                             {formatCurrency(finalTotalReal)}
                                         </span>
                                     </div>
                                     <Separator className="my-2" />
-                                    <div className="flex justify-between font-bold text-base">
-                                        <span>Desviación (Plan vs FINAL):</span>
-                                        <span className={finalTotalReal > totalPlanned ? 'text-destructive' : 'text-green-600'}>
-                                            {formatCurrency(finalTotalReal - totalPlanned)}
+                                     <div className="flex justify-between font-bold text-base">
+                                        <span>Desviación (FINAL vs Planificado):</span>
+                                        <span className={finalTotalReal > costeFinalPlanificado ? 'text-destructive' : 'text-green-600'}>
+                                            {formatCurrency(finalTotalReal - costeFinalPlanificado)}
                                         </span>
                                     </div>
                                 </div>
@@ -754,3 +757,4 @@ export default function PersonalExternoPage() {
     </>
   );
 }
+
