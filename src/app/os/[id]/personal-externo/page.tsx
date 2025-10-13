@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -11,8 +10,7 @@ import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle } from 'lucide-react';
 
-import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, AsignacionPersonal, EstadoPersonalEntrega, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExternoAjuste } from '@/types';
-import { ESTADO_PERSONAL_ENTREGA } from '@/types';
+import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalEntregaTurno, AsignacionPersonal, EstadoPersonalEntrega, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExternoAjuste, PersonalExternoOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -62,8 +60,8 @@ const personalTurnoSchema = z.object({
   fecha: z.date({ required_error: "La fecha es obligatoria."}),
   horaEntrada: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
   horaSalida: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Formato HH:MM"),
-  solicitadoPor: z.enum(['SALA', 'COCINA', 'LOGISTICA', 'RRHH']),
-  tipoServicio: z.enum(['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga']),
+  solicitadoPor: z.enum(centroCosteOptions),
+  tipoServicio: z.enum(tipoServicioOptions),
   observaciones: z.string().optional().default(''),
   statusPartner: z.enum(['Pendiente Asignación', 'Gestionado']),
   asignaciones: z.array(asignacionSchema).optional(),
@@ -208,7 +206,7 @@ export default function PersonalExternoPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
   const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
-  
+
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
@@ -231,7 +229,7 @@ export default function PersonalExternoPage() {
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const currentOS = allServiceOrders.find(os => os.id === osId);
         setServiceOrder(currentOS || null);
-
+        
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
         const currentBriefing = allBriefings.find(b => b.osId === osId);
         setBriefingItems(currentBriefing?.items || []);
@@ -339,11 +337,11 @@ export default function PersonalExternoPage() {
     
     const updatedAllOrders = [...otherOsOrders, ...currentOsOrders];
     localStorage.setItem('personalExternoOrders', JSON.stringify(updatedAllOrders));
-    
+
     setTimeout(() => {
         toast({ title: 'Personal guardado', description: 'La planificación del personal ha sido guardada.' });
         setIsLoading(false);
-        form.reset(data); // Resets form with new values, marking it as not dirty
+        form.reset(data);
     }, 500);
   };
   
@@ -378,22 +376,27 @@ export default function PersonalExternoPage() {
       const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
       allAjustes[osId] = newAjustes;
       localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
+      setAjustes(newAjustes);
   }
-
+  
   const handleAddAjuste = () => {
-    const proveedorId = (document.getElementById('ajuste-proveedor') as HTMLSelectElement)?.value;
-    const concepto = (document.getElementById('ajuste-concepto') as HTMLInputElement)?.value;
-    const importe = (document.getElementById('ajuste-importe') as HTMLInputElement)?.value;
+    const proveedorSelect = document.querySelector<HTMLSelectElement>('#ajuste-proveedor');
+    const conceptoInput = document.querySelector<HTMLInputElement>('#ajuste-concepto');
+    const importeInput = document.querySelector<HTMLInputElement>('#ajuste-importe');
+    
+    const proveedorId = proveedorSelect?.value;
+    const concepto = conceptoInput?.value;
+    const importe = importeInput?.value;
 
     if (!proveedorId || !concepto || !importe) {
         toast({ variant: 'destructive', title: 'Error', description: 'El proveedor, concepto y el importe son obligatorios.' });
         return;
     }
     const newAjustes = [...ajustes, { id: Date.now().toString(), proveedorId, concepto, importe: parseFloat(importe) }];
-    setAjustes(newAjustes);
     saveAjustes(newAjustes);
-    if(document.getElementById('ajuste-concepto')) (document.getElementById('ajuste-concepto') as HTMLInputElement).value = '';
-    if(document.getElementById('ajuste-importe')) (document.getElementById('ajuste-importe') as HTMLInputElement).value = '';
+
+    if(conceptoInput) conceptoInput.value = '';
+    if(importeInput) importeInput.value = '';
   };
   
   const removeAjusteRow = (index: number) => {
@@ -416,19 +419,18 @@ const uniqueTurnoProviders = useMemo(() => {
     const providerIds = new Set(watchedFields?.map(t => t.proveedorId));
     return Array.from(providerIds).map(id => {
       const cat = proveedoresDB.find(p => p.id === id);
-      const prov = cat ? proveedoresMap.get(cat.proveedorId) : 'Desconocido';
-      return { id: cat?.proveedorId || '', label: prov || 'Desconocido'};
-    }).filter((v,i,a) => v.id && a.findIndex(t => (t.id === v.id)) === i); // unique and valid
+      const provId = cat ? cat.proveedorId : '';
+      return { id: provId, label: proveedoresMap.get(provId) || 'Desconocido'};
+    }).filter((v,i,a) => v.id && a.findIndex(t => (t.id === v.id)) === i);
   }, [watchedFields, proveedoresDB, proveedoresMap]);
 
 
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Asignación de Personal..." />;
   }
-  
+
   return (
     <>
-      <main>
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
@@ -458,10 +460,10 @@ const uniqueTurnoProviders = useMemo(() => {
                             <TableBody>
                                 {briefingItems.length > 0 ? briefingItems.map(item => (
                                 <TableRow key={item.id}>
-                                    <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yy')} {item.horaEntrada}</TableCell>
+                                    <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yy')} {item.horaInicio}</TableCell>
                                     <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
                                     <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                                    <TableCell className="py-2 px-3">{calculateHours(item.horaEntrada, item.horaFin).toFixed(2)}h</TableCell>
+                                    <TableCell className="py-2 px-3">{calculateHours(item.horaEntrada, item.horaSalida).toFixed(2)}h</TableCell>
                                 </TableRow>
                                 )) : (
                                     <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
@@ -657,9 +659,14 @@ const uniqueTurnoProviders = useMemo(() => {
                         <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
                         <CardContent className="grid grid-cols-2 gap-8 p-4">
                             <div className="space-y-2 text-sm">
-                                 <div className="flex justify-between font-bold text-base">
-                                    <span className="text-muted-foreground">Coste Total Planificado (con Ajustes):</span>
-                                    <span className="font-bold">{formatCurrency(totalPlanificadoConAjustes)}</span>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Planificado (sin ajustes):</span>
+                                    <span className="font-bold">{formatCurrency(totalPlanned)}</span>
+                                </div>
+                                <Separator className="my-2" />
+                                <div className="flex justify-between font-bold text-base">
+                                    <span >Coste Total Planificado (con Ajustes):</span>
+                                    <span >{formatCurrency(totalPlanificadoConAjustes)}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">Coste Total Real (Horas):</span>
@@ -691,7 +698,7 @@ const uniqueTurnoProviders = useMemo(() => {
                                 ))}
                                 </div>
                                 <div className="flex gap-2 pt-2">
-                                     <Select name="ajuste-proveedor" id="ajuste-proveedor">
+                                    <Select name="ajuste-proveedor" id="ajuste-proveedor">
                                         <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Proveedor..."/></SelectTrigger>
                                         <SelectContent>
                                             {uniqueTurnoProviders.map(p => <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>)}
@@ -710,7 +717,7 @@ const uniqueTurnoProviders = useMemo(() => {
                     </Card>
                 </div>
             </form>
-        </FormProvider>
+       </FormProvider>
         </TooltipProvider>
 
         <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
@@ -732,9 +739,338 @@ const uniqueTurnoProviders = useMemo(() => {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-
-      </main>
     </>
   );
 }
 
+```
+- src/app/pes/layout.tsx:
+```tsx
+
+
+'use client';
+
+export default function PesLayout({
+    children,
+  }: {
+    children: React.ReactNode
+  }) {
+    return (
+        <div>
+            {children}
+        </div>
+    )
+}
+
+```
+- src/app/pes/page.tsx:
+```tsx
+
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { format, parseISO, isBefore, startOfToday } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { PlusCircle, ClipboardList, Package, Star } from 'lucide-react';
+import type { ServiceOrder } from '@/types';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+export default function PrevisionServiciosPage() {
+  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [showPastEvents, setShowPastEvents] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const router = useRouter();
+
+  useEffect(() => {
+    let storedOrders = localStorage.getItem('serviceOrders');
+    setServiceOrders(storedOrders ? JSON.parse(storedOrders) : []);
+    setIsMounted(true);
+  }, []);
+
+  const availableMonths = useMemo(() => {
+    if (!serviceOrders) return ['all'];
+    const months = new Set<string>();
+    serviceOrders.forEach(os => {
+      try {
+        const month = format(new Date(os.startDate), 'yyyy-MM');
+        months.add(month);
+      } catch (e) {
+        console.error(`Invalid start date for OS ${os.serviceNumber}: ${os.startDate}`);
+      }
+    });
+    return ['all', ...Array.from(months).sort().reverse()];
+  }, [serviceOrders]);
+  
+  const filteredAndSortedOrders = useMemo(() => {
+    const today = startOfToday();
+    const cateringOrders = serviceOrders.filter(os => os.vertical !== 'Entregas');
+
+    const filtered = cateringOrders.filter(os => {
+      const searchMatch = searchTerm.trim() === '' || os.serviceNumber.toLowerCase().includes(searchTerm.toLowerCase()) || os.client.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      let monthMatch = true;
+      if (selectedMonth !== 'all') {
+        try {
+          const osMonth = format(new Date(os.startDate), 'yyyy-MM');
+          monthMatch = osMonth === selectedMonth;
+        } catch (e) {
+          monthMatch = false;
+        }
+      }
+      
+      let pastEventMatch = true;
+      if (!showPastEvents) {
+          try {
+              pastEventMatch = !isBefore(new Date(os.endDate), today);
+          } catch (e) {
+              pastEventMatch = true;
+          }
+      }
+
+      const statusMatch = statusFilter === 'all' || os.status === statusFilter;
+
+      return searchMatch && monthMatch && pastEventMatch && statusMatch;
+    });
+
+    return filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+
+  }, [serviceOrders, searchTerm, selectedMonth, showPastEvents, statusFilter]);
+  
+  const statusVariant: { [key in ServiceOrder['status']]: 'default' | 'secondary' | 'destructive' } = {
+    Borrador: 'secondary',
+    Pendiente: 'destructive',
+    Confirmado: 'default',
+    Anulado: 'destructive'
+  };
+
+  if (!isMounted) {
+    return <LoadingSkeleton title="Cargando Previsión de Servicios..." />;
+  }
+
+  return (
+    <main className="container mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><ClipboardList />Previsión de Servicios de Catering</h1>
+        <Button asChild>
+          <Link href="/os/nuevo/info">
+            <PlusCircle className="mr-2" />
+            Nueva Orden
+          </Link>
+        </Button>
+      </div>
+
+       <div className="space-y-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+                <Input
+                    placeholder="Buscar por Nº de Servicio o Cliente..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                />
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                    <SelectTrigger className="w-full sm:w-[240px]">
+                    <SelectValue placeholder="Filtrar por mes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                    <SelectItem value="all">Todos los meses</SelectItem>
+                    {availableMonths.map(month => (
+                        <SelectItem key={month} value={month}>
+                        {month === 'all' ? 'Todos' : format(new Date(`${month}-02`), 'MMMM yyyy', { locale: es })}
+                        </SelectItem>
+                    ))}
+                    </SelectContent>
+                </Select>
+                <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+                    <Checkbox id="show-past" checked={showPastEvents} onCheckedChange={(checked) => setShowPastEvents(Boolean(checked))} />
+                    <label htmlFor="show-past" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Mostrar eventos finalizados
+                    </label>
+            </div>
+            </div>
+             <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Estado:</span>
+                <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
+                <Button size="sm" variant={statusFilter === 'Borrador' ? 'default' : 'outline'} onClick={() => setStatusFilter('Borrador')}>Borrador</Button>
+                <Button size="sm" variant={statusFilter === 'Pendiente' ? 'default' : 'outline'} onClick={() => setStatusFilter('Pendiente')}>Pendiente</Button>
+                <Button size="sm" variant={statusFilter === 'Confirmado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Confirmado')}>Confirmado</Button>
+                <Button size="sm" variant={statusFilter === 'Anulado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Anulado')}>Anulado</Button>
+            </div>
+      </div>
+
+       <div className="border rounded-lg">
+          <Table>
+              <TableHeader>
+              <TableRow>
+                  <TableHead>Nº Servicio</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Fecha Inicio</TableHead>
+                  <TableHead>Espacio</TableHead>
+                  <TableHead>Asistentes</TableHead>
+                  <TableHead>Comercial</TableHead>
+                  <TableHead>Estado</TableHead>
+              </TableRow>
+              </TableHeader>
+              <TableBody>
+              {filteredAndSortedOrders.length > 0 ? (
+                  filteredAndSortedOrders.map(os => (
+                  <TableRow key={os.id} onClick={() => router.push(`/os/${os.id}`)} className="cursor-pointer">
+                      <TableCell className="font-medium flex items-center gap-2">
+                        {os.isVip && (
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <Star className="h-4 w-4 text-amber-500 fill-amber-500"/>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Evento VIP</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
+                        {os.serviceNumber}
+                      </TableCell>
+                      <TableCell>{os.client}</TableCell>
+                      <TableCell>{format(new Date(os.startDate), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell>{os.space}</TableCell>
+                      <TableCell>{os.asistentes}</TableCell>
+                      <TableCell>{os.comercial}</TableCell>
+                      <TableCell>
+                      <Badge variant={statusVariant[os.status]}>
+                          {os.status}
+                      </Badge>
+                      </TableCell>
+                  </TableRow>
+                  ))
+              ) : (
+                  <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center">
+                      No hay órdenes de servicio que coincidan con los filtros.
+                  </TableCell>
+                  </TableRow>
+              )}
+              </TableBody>
+          </Table>
+        </div>
+    </main>
+  );
+}
+
+```
+- src/hooks/use-form-persistence.ts:
+```ts
+import { useEffect } from 'react';
+import { useForm, UseFormReturn } from 'react-hook-form';
+
+export function useFormPersistence<T>(
+    form: UseFormReturn<T>,
+    storageKey: string,
+    isLoaded: boolean
+) {
+  const { watch, reset } = form;
+
+  // Cargar datos del localStorage cuando el componente se monta y los datos iniciales están listos
+  useEffect(() => {
+    if (isLoaded) {
+      const savedData = localStorage.getItem(storageKey);
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          // Reinicia el formulario con los datos guardados.
+          // Es importante asegurarse que los datos parseados tienen la misma estructura que el formulario espera.
+          reset(parsedData, { keepDefaultValues: false });
+        } catch (error) {
+          console.error("Error parsing form data from localStorage", error);
+        }
+      }
+    }
+  }, [reset, storageKey, isLoaded]);
+
+  // Guardar datos en localStorage cada vez que el formulario cambia
+  useEffect(() => {
+    if (isLoaded) {
+      const subscription = watch((value) => {
+        localStorage.setItem(storageKey, JSON.stringify(value));
+      });
+      return () => subscription.unsubscribe();
+    }
+  }, [watch, storageKey, isLoaded]);
+
+  return form;
+}
+
+```
+- src/hooks/use-local-storage.ts:
+```ts
+'use client'
+
+import { useState, useEffect } from 'react';
+
+function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => void] {
+  // Estado para almacenar nuestro valor
+  // Pasa la función de estado inicial a useState para que la lógica solo se ejecute una vez
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    if (typeof window === 'undefined') {
+      return initialValue;
+    }
+    try {
+      // Obtener del almacenamiento local por clave
+      const item = window.localStorage.getItem(key);
+      // Parsear el JSON almacenado o si no existe, devolver initialValue
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      // Si hay un error, también devolver initialValue
+      console.log(error);
+      return initialValue;
+    }
+  });
+
+  // useEffect para actualizar el almacenamiento local cuando el estado cambia
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        // Permitir que el valor sea una función para tener la misma API que useState
+        const valueToStore =
+          typeof storedValue === 'function'
+            ? storedValue(storedValue)
+            : storedValue;
+        // Guardar estado
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      }
+    } catch (error) {
+      // Una implementación más avanzada podría manejar el error
+      console.log(error);
+    }
+  }, [key, storedValue]);
+
+  return [storedValue, setStoredValue];
+}
+
+export default useLocalStorage;
+
+```
