@@ -1,16 +1,18 @@
 
+
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send } from 'lucide-react';
 
-import type { Entrega, PersonalEntrega, CategoriaPersonal, Proveedor, PersonalExternoAjuste, ServiceOrder, PersonalExternoOrder } from '@/types';
+import type { Entrega, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoPersonalExterno, PedidoEntrega, EntregaHito, ServiceOrder, ComercialBriefingItem, ComercialBriefing, PersonalExternoAjuste } from '@/types';
+import { ESTADO_PERSONAL_EXTERNO } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -28,34 +30,11 @@ import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
-import { Slider } from '@/components/ui/slider';
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FeedbackDialog } from '@/components/portal/feedback-dialog';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { calculateHours, formatCurrency, formatDuration } from '@/lib/utils';
 
-
-const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
-
-const calculateHours = (start?: string, end?: string): number => {
-    if (!start || !end) return 0;
-    try {
-        const startTime = new Date(`1970-01-01T${start}:00`);
-        const endTime = new Date(`1970-01-01T${end}:00`);
-        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
-        const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
-        return diff > 0 ? diff : 0;
-    } catch (e) {
-        return 0;
-    }
-}
-
-const formatDuration = (hours: number) => {
-    const totalMinutes = Math.round(hours * 60);
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-}
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
@@ -90,7 +69,7 @@ const personalTurnoSchema = z.object({
 });
 
 const formSchema = z.object({
-    personal: z.array(personalTurnoSchema),
+    turnos: z.array(personalTurnoSchema),
     ajustes: z.array(z.object({
         id: z.string(),
         proveedorId: z.string().min(1, "Debe seleccionar un proveedor para el ajuste."),
@@ -99,89 +78,13 @@ const formSchema = z.object({
     })).optional(),
 })
 
-type PersonalExternoFormValues = z.infer<typeof formSchema>;
-
-function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; asigIndex: number, form: any }) {
-    const [isOpen, setIsOpen] = useState(false);
-    const { getValues, setValue } = form;
-
-    const ratingFieldName = `personal.${turnoIndex}.asignaciones.${asigIndex}.rating`;
-    const commentFieldName = `personal.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`;
-    const asignacion = getValues(`personal.${turnoIndex}.asignaciones.${asigIndex}`);
-    
-    const [rating, setRating] = useState(getValues(ratingFieldName) || 3);
-    const [comment, setComment] = useState(getValues(commentFieldName) || '');
-    
-    useEffect(() => {
-        if(isOpen) {
-            setRating(getValues(ratingFieldName) || 3);
-            setComment(getValues(commentFieldName) || '');
-        }
-    }, [isOpen, getValues, ratingFieldName, commentFieldName]);
-
-    const handleSave = () => {
-        setValue(ratingFieldName, rating, { shouldDirty: true });
-        setValue(commentFieldName, comment, { shouldDirty: true });
-        setIsOpen(false);
-    };
-
-    const handleOpenChange = (open: boolean) => {
-        if (!open) {
-            handleSave();
-        }
-        setIsOpen(open);
-    }
-
-    return (
-        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" type="button">
-                    <Pencil className={cn("h-4 w-4", getValues(commentFieldName) && "text-primary")} />
-                </Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Valoración para: {asignacion?.nombre}</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-6 py-4">
-                    <div className="space-y-2">
-                        <Label>Desempeño (1-5)</Label>
-                        <div className="flex items-center gap-4 pt-2">
-                            <span className="text-sm text-muted-foreground">Bajo</span>
-                            <Slider
-                                value={[rating]}
-                                onValueChange={(value) => setRating(value[0])}
-                                max={5}
-                                min={1}
-                                step={1}
-                            />
-                            <span className="text-sm text-muted-foreground">Alto</span>
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                         <Label>Comentarios Internos MICE</Label>
-                        <Textarea 
-                            value={comment} 
-                            onChange={(e) => setComment(e.target.value)}
-                            rows={4}
-                            placeholder="Añade aquí comentarios internos sobre el desempeño..."
-                        />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button onClick={handleSave}>Guardar</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
+type FormValues = z.infer<typeof formSchema>;
 
 function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) {
     const [isOpen, setIsOpen] = useState(false);
     const { getValues, setValue } = form;
 
-    const fieldName = `personal.${turnoIndex}.observaciones`;
+    const fieldName = `turnos.${turnoIndex}.observaciones`;
     const dialogTitle = `Observaciones para la ETT`;
 
     const [comment, setComment] = useState(getValues(fieldName) || '');
@@ -224,36 +127,48 @@ function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) 
 }
 
 export default function PersonalExternoPage() {
+  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [proveedoresDB, setProveedoresDB] = useState<CategoriaPersonal[]>([]);
   const [allProveedores, setAllProveedores] = useState<Proveedor[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
+  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
+  const [personalExterno, setPersonalExterno] = useState<PersonalExterno | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
   
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
 
-  const form = useForm<PersonalExternoFormValues>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { personal: [], ajustes: [] },
+    defaultValues: { turnos: [], ajustes: [] },
   });
 
-  const { control, setValue, trigger, watch, getValues } = form;
+  const { control, setValue, watch, trigger, getValues } = form;
 
   const { fields, append, remove } = useFieldArray({
     control,
-    name: "personal",
+    name: "turnos",
   });
   
   const { fields: ajusteFields, append: appendAjuste, remove: removeAjuste } = useFieldArray({
     control,
     name: "ajustes",
   });
-
+  
   const loadData = useCallback(() => {
     try {
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const currentOS = allServiceOrders.find(os => os.id === osId);
+        setServiceOrder(currentOS || null);
+
+        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+        const currentBriefing = allBriefings.find(b => b.osId === osId);
+        setBriefingItems(currentBriefing?.items || []);
+
         const dbProveedores = JSON.parse(localStorage.getItem('tiposPersonal') || '[]') as CategoriaPersonal[];
         setProveedoresDB(dbProveedores);
         
@@ -266,10 +181,21 @@ export default function PersonalExternoPage() {
         const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
         
         form.reset({ 
-            personal: turnosDelPedido.map(t => ({...t, fecha: new Date(t.fecha), asignaciones: t.asignaciones || []})),
+            turnos: turnosDelPedido.map(t => ({
+                ...t, 
+                fecha: new Date(t.fecha), 
+                asignaciones: (t.asignaciones || []).map(a => ({
+                    ...a,
+                    horaEntradaReal: a.horaEntradaReal || '',
+                    horaSalidaReal: a.horaSalidaReal || '',
+                }))
+            })),
             ajustes: storedAjustes[osId] || []
         });
-
+        
+        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+        setPersonalExterno(allPersonalExterno.find(p => p.osId === osId) || { osId, turnos: [], status: 'Pendiente' });
+        
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos de personal externo.' });
     } finally {
@@ -285,14 +211,14 @@ export default function PersonalExternoPage() {
     if (!proveedorId) return;
     const tipoPersonal = proveedoresDB.find(p => p.id === proveedorId);
     if (tipoPersonal) {
-        setValue(`personal.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
-        setValue(`personal.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
-        setValue(`personal.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
-        trigger(`personal.${index}`);
+        setValue(`turnos.${index}.proveedorId`, tipoPersonal.id, { shouldDirty: true });
+        setValue(`turnos.${index}.categoria`, tipoPersonal.categoria, { shouldDirty: true });
+        setValue(`turnos.${index}.precioHora`, tipoPersonal.precioHora || 0, { shouldDirty: true });
+        trigger(`turnos.${index}`);
     }
 }, [proveedoresDB, setValue, trigger]);
 
-  const watchedFields = watch('personal');
+  const watchedFields = watch('turnos');
   const watchedAjustes = watch('ajustes');
 
   const { totalPlanned, totalReal, totalAjustes, costeFinalPlanificado, finalTotalReal } = useMemo(() => {
@@ -314,9 +240,8 @@ export default function PersonalExternoPage() {
 
     return { totalPlanned: planned, totalReal: real, totalAjustes: aj, costeFinalPlanificado: planned + aj, finalTotalReal: real + aj };
   }, [watchedFields, watchedAjustes]);
-
-
- const onSubmit = (data: PersonalExternoFormValues) => {
+  
+  const onSubmit = (data: FormValues) => {
     setIsLoading(true);
     if (!osId) {
       toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
@@ -327,15 +252,15 @@ export default function PersonalExternoPage() {
     const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
     const otherOsOrders = allTurnos.filter(o => o.osId !== osId);
     
-    const currentOsOrders: PersonalExternoOrder[] = data.personal.map(t => {
-        const existingTurno = watchedFields?.find(et => et.id === t.id);
-        const requiereActualizacion = !existingTurno || !existingTurno.asignaciones;
+    const currentOsOrders: PersonalExternoOrder[] = data.turnos.map(t => {
+        const existingTurno = personalExterno?.turnos.find(et => et.id === t.id);
+        const hasChanges = JSON.stringify(t) !== JSON.stringify(existingTurno);
         return {
             ...t, 
             osId,
             fecha: format(t.fecha, 'yyyy-MM-dd'),
             statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
-            requiereActualizacion: requiereActualizacion,
+            requiereActualizacion: hasChanges,
             asignaciones: (t.asignaciones || []).map(a => ({
                 ...a,
                 horaEntradaReal: a.horaEntradaReal || '',
@@ -360,6 +285,44 @@ export default function PersonalExternoPage() {
     }, 500);
   };
   
+    const handleGlobalStatusAction = () => {
+        if (!personalExterno) return;
+        const currentStatus = personalExterno.status;
+        let newStatus: EstadoPersonalExterno = currentStatus;
+        let toastTitle = '';
+        let toastDescription = '';
+
+        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+        const index = allPersonalExterno.findIndex(p => p.osId === osId);
+        if (index === -1) return;
+
+        if (currentStatus === 'Pendiente') {
+            newStatus = 'Solicitado';
+            toastTitle = 'Personal Solicitado';
+            toastDescription = 'La petición ha sido enviada a los proveedores de personal.';
+            // Marcar todos los turnos como que requieren actualización
+            const updatedTurnos = allPersonalExterno[index].turnos.map(t => ({ ...t, requiereActualizacion: true }));
+            allPersonalExterno[index].turnos = updatedTurnos;
+
+        } else if (currentStatus === 'Solicitado') {
+             toastTitle = 'Actualización Notificada';
+             toastDescription = 'Se ha notificado a los proveedores de los últimos cambios.';
+             const updatedTurnos = allPersonalExterno[index].turnos.map(t => ({ ...t, requiereActualizacion: true }));
+             allPersonalExterno[index].turnos = updatedTurnos;
+
+        } else if (currentStatus === 'Asignado') {
+            newStatus = 'Cerrado';
+            toastTitle = 'Personal Cerrado';
+            toastDescription = 'El módulo de personal se ha cerrado y los costes reales están validados.';
+        }
+        
+        allPersonalExterno[index].status = newStatus;
+        localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
+        setPersonalExterno(allPersonalExterno[index]); // Update local state
+        
+        toast({ title: toastTitle, description: toastDescription });
+    };
+  
   const addRow = () => {
     append({
         id: Date.now().toString(),
@@ -374,6 +337,7 @@ export default function PersonalExternoPage() {
         observaciones: '',
         statusPartner: 'Pendiente Asignación',
         asignaciones: [],
+        requiereActualizacion: true,
     });
   }
   
@@ -410,6 +374,99 @@ export default function PersonalExternoPage() {
     return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
   }, [watchedFields]);
 
+    const isSolicitudDesactualizada = useMemo(() => {
+        if (personalExterno?.status !== 'Solicitado') return false;
+        return watchedFields.some(t => t.requiereActualizacion);
+    }, [watchedFields, personalExterno]);
+    
+    const ActionButton = () => {
+        if(!personalExterno) return null;
+
+        switch(personalExterno.status) {
+            case 'Pendiente':
+                return <Button onClick={handleGlobalStatusAction}><Send className="mr-2"/>Solicitar a ETT</Button>
+            case 'Solicitado':
+                if (isSolicitudDesactualizada) {
+                    return (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button onClick={handleGlobalStatusAction}><RefreshCw className="mr-2 text-blue-500 animate-pulse"/>Notificar Cambios a ETT</Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Hay cambios en la planificación. Notifica al proveedor.</p></TooltipContent>
+                        </Tooltip>
+                    )
+                }
+                return <Button variant="secondary" disabled><CheckCircle className="mr-2"/>Solicitado</Button>
+            case 'Asignado':
+                 return <Button onClick={() => handleGlobalStatusAction()}><Save className="mr-2"/>Cerrar y Validar Costes</Button>
+            case 'Cerrado':
+                 return <Button variant="secondary" disabled><CheckCircle className="mr-2"/>Cerrado</Button>
+            default:
+                return null;
+        }
+    }
+    
+    const handlePrintReport = () => {
+        if (!serviceOrder) return;
+        setIsPrinting(true);
+        try {
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const margin = 15;
+            const pageWidth = doc.internal.pageSize.getWidth();
+            let finalY = margin;
+            
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor('#059669'); // Primary color
+            doc.text('Informe de Personal Externo', margin, finalY);
+            finalY += 10;
+            
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor('#374151');
+            doc.text(`OS: ${serviceOrder.serviceNumber} - ${serviceOrder.client}`, margin, finalY);
+            finalY += 10;
+
+            const body = (getValues('turnos') || []).filter(t => t.asignaciones && t.asignaciones.length > 0).flatMap(turno => 
+                (turno.asignaciones || []).map(asig => {
+                    const horasPlan = calculateHours(turno.horaEntrada, turno.horaSalida);
+                    const horasReal = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || horasPlan;
+                    return [
+                        asig.nombre,
+                        turno.categoria,
+                        format(new Date(turno.fecha), 'dd/MM/yy'),
+                        formatDuration(horasPlan),
+                        formatDuration(horasReal),
+                        formatCurrency(horasReal * turno.precioHora),
+                        `${'⭐'.repeat(asig.rating || 0)} ${asig.comentariosMice || ''}`
+                    ]
+                })
+            );
+
+            autoTable(doc, {
+                head: [['Nombre', 'Categoría', 'Fecha', 'H. Plan.', 'H. Real', 'Coste', 'Valoración']],
+                body,
+                startY: finalY,
+                theme: 'grid',
+                headStyles: { fillColor: '#f3f4f6', textColor: '#374151', fontStyle: 'bold' },
+                styles: { fontSize: 8 },
+            });
+             finalY = (doc as any).lastAutoTable.finalY + 10;
+             
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Coste Final: ${formatCurrency(finalTotalReal)}`, pageWidth - margin, finalY, { align: 'right'});
+
+            doc.save(`Informe_Personal_${serviceOrder.serviceNumber}.pdf`);
+
+        } catch (error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el informe PDF.'});
+        } finally {
+            setIsPrinting(false);
+        }
+    }
+
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
@@ -421,14 +478,59 @@ export default function PersonalExternoPage() {
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
-                 <div className="flex items-center justify-end mb-4">
-                    <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
-                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                        <span className="ml-2">Guardar Cambios</span>
-                    </Button>
+                <div className="flex items-start justify-end mb-4">
+                    <div className="flex items-center gap-2">
+                         <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
+                        <ActionButton />
+                        <Button type="button" onClick={handlePrintReport} disabled={isPrinting}>
+                             {isPrinting ? <Loader2 className="animate-spin" /> : <Users />}
+                            <span className="ml-2">Generar Informe PDF</span>
+                        </Button>
+                        <Button type="submit" disabled={isLoading || !formState.isDirty}>
+                            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                            <span className="ml-2">Guardar Cambios</span>
+                        </Button>
+                    </div>
                 </div>
+                
+                <Accordion type="single" collapsible className="w-full mb-4" >
+                    <AccordionItem value="item-1">
+                    <Card>
+                        <AccordionTrigger className="p-4">
+                            <h3 className="text-xl font-semibold">Servicios del Evento</h3>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                        <CardContent className="pt-0">
+                            <Table>
+                            <TableHeader>
+                                <TableRow>
+                                <TableHead className="py-2 px-3">Fecha</TableHead>
+                                <TableHead className="py-2 px-3">Descripción</TableHead>
+                                <TableHead className="py-2 px-3">Asistentes</TableHead>
+                                <TableHead className="py-2 px-3">Duración</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {briefingItems.length > 0 ? briefingItems.map(item => (
+                                <TableRow key={item.id}>
+                                    <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
+                                    <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
+                                    <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
+                                    <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
+                                </TableRow>
+                                )) : (
+                                    <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                            </Table>
+                        </CardContent>
+                        </AccordionContent>
+                    </Card>
+                    </AccordionItem>
+                </Accordion>
+
                 <Tabs defaultValue="planificacion">
-                    <TabsList className="grid w-full grid-cols-2">
+                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="planificacion">Planificación de Turnos</TabsTrigger>
                         <TabsTrigger value="aprobados">Cierre y Horas Reales</TabsTrigger>
                     </TabsList>
@@ -452,7 +554,7 @@ export default function PersonalExternoPage() {
                                             <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
                                             <TableHead colSpan={3} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
                                             <TableHead className="px-2 py-1">Obs. ETT</TableHead>
-                                            <TableHead className="text-center px-2 py-1">Estado</TableHead>
+                                            <TableHead className="text-center px-2 py-1">Estado ETT</TableHead>
                                             <TableHead className="text-right px-2 py-1">Acción</TableHead>
                                         </TableRow>
                                         <TableRow>
@@ -473,7 +575,7 @@ export default function PersonalExternoPage() {
                                         fields.map((field, index) => (
                                             <TableRow key={field.id}>
                                                 <TableCell className="px-2 py-1">
-                                                    <FormField control={control} name={`personal.${index}.fecha`} render={({ field: dateField }) => (
+                                                    <FormField control={control} name={`turnos.${index}.fecha`} render={({ field: dateField }) => (
                                                         <FormItem>
                                                             <Popover>
                                                                 <PopoverTrigger asChild>
@@ -492,14 +594,14 @@ export default function PersonalExternoPage() {
                                                     )} />
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1">
-                                                    <FormField control={control} name={`personal.${index}.solicitadoPor`} render={({ field: selectField }) => (
+                                                    <FormField control={control} name={`turnos.${index}.solicitadoPor`} render={({ field: selectField }) => (
                                                         <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="w-28 h-9 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{solicitadoPorOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
                                                     )}/>
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1 min-w-48">
                                                     <FormField
                                                         control={control}
-                                                        name={`personal.${index}.proveedorId`}
+                                                        name={`turnos.${index}.proveedorId`}
                                                         render={({ field: f }) => (
                                                         <FormItem>
                                                             <Combobox
@@ -513,7 +615,7 @@ export default function PersonalExternoPage() {
                                                     />
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1">
-                                                    <FormField control={control} name={`personal.${index}.tipoServicio`} render={({ field: selectField }) => (
+                                                    <FormField control={control} name={`turnos.${index}.tipoServicio`} render={({ field: selectField }) => (
                                                         <FormItem>
                                                             <Select onValueChange={selectField.onChange} value={selectField.value}>
                                                                 <FormControl><SelectTrigger className="w-32 h-9 text-xs"><SelectValue /></SelectTrigger></FormControl>
@@ -523,13 +625,13 @@ export default function PersonalExternoPage() {
                                                     )}/>
                                                 </TableCell>
                                                 <TableCell className="border-l px-2 py-1 bg-muted/30">
-                                                    <FormField control={control} name={`personal.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
+                                                    <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1 bg-muted/30">
-                                                    <FormField control={control} name={`personal.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
+                                                    <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell className="border-r px-2 py-1 bg-muted/30">
-                                                    <FormField control={control} name={`personal.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9 text-xs" readOnly /></FormControl></FormItem>} />
+                                                    <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9 text-xs" readOnly /></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell>
                                                     <CommentDialog turnoIndex={index} form={form} />
@@ -580,7 +682,7 @@ export default function PersonalExternoPage() {
                                         <TableRow>
                                             <TableHead>Nombre</TableHead>
                                             <TableHead>DNI</TableHead>
-                                            <TableHead>Fecha-Horario</TableHead>
+                                            <TableHead>Fecha-Horario Plan.</TableHead>
                                             <TableHead className="w-24">H. Entrada Real</TableHead>
                                             <TableHead className="w-24">H. Salida Real</TableHead>
                                             <TableHead className="w-[200px] text-center">Desempeño y Comentarios MICE</TableHead>
@@ -613,10 +715,10 @@ export default function PersonalExternoPage() {
                                                         <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
                                                     </TableCell>
                                                     <TableCell>
-                                                    <FormField control={control} name={`personal.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
+                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                     </TableCell>
                                                     <TableCell>
-                                                    <FormField control={control} name={`personal.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
+                                                    <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                     </TableCell>
                                                     <TableCell className="w-[200px] text-center">
                                                        <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
@@ -678,7 +780,7 @@ export default function PersonalExternoPage() {
                                             <Input placeholder="Concepto" {...field} className="h-9 flex-grow"/>
                                         )} />
                                         <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
-                                            <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-32 h-9"/>
+                                            <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-24 h-9"/>
                                         )} />
                                         <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
