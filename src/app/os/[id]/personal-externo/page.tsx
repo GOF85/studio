@@ -40,8 +40,8 @@ const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style:
 const calculateHours = (start?: string, end?: string): number => {
     if (!start || !end) return 0;
     try {
-        const startTime = parse(start, 'HH:mm', new Date());
-        const endTime = parse(end, 'HH:mm', new Date());
+        const startTime = new Date(`1970-01-01T${start}:00`);
+        const endTime = new Date(`1970-01-01T${end}:00`);
         if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
         const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
         return diff > 0 ? diff : 0;
@@ -654,8 +654,8 @@ const turnosAprobados = useMemo(() => {
                     </Card>
                 </TabsContent>
             </Tabs>
-
-            <div className="mt-8">
+            
+             <div className="mt-8">
                 <Card>
                     <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
                     <CardContent className="grid grid-cols-2 gap-8 p-4">
@@ -733,131 +733,7 @@ const turnosAprobados = useMemo(() => {
             </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-    </main>
+      </main>
     </>
   );
 }
-
-```
-- src/app/os/page.tsx:
-```tsx
-
-'use client';
-
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-
-export default function OsRedirectPage() {
-    const router = useRouter();
-
-    useEffect(() => {
-        router.replace('/pes');
-    }, [router]);
-
-    return null;
-}
-
-```
-- src/hooks/use-local-storage.ts:
-```ts
-"use client"
-import { useState, useEffect } from 'react';
-
-// A custom hook to work with localStorage
-export function useLocalStorage<T>(key: string, initialValue: T) {
-  // Get from local storage then
-  // parse stored json or return initialValue
-  const readValue = () => {
-    // Prevent build error "window is undefined" but keep keep working
-    if (typeof window === 'undefined') {
-      return initialValue;
-    }
-    try {
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
-    } catch (error) {
-      console.warn(`Error reading localStorage key “${key}”:`, error);
-      return initialValue;
-    }
-  };
-
-  const [storedValue, setStoredValue] = useState<T>(readValue);
-
-  const setValue = (value: T | ((val: T) => T)) => {
-    // Prevent build error "window is undefined" but keep keep working
-    if (typeof window == 'undefined') {
-      console.warn(
-        `Tried setting localStorage key “${key}” even though environment is not a client`
-      );
-    }
-    try {
-      // Allow value to be a function so we have same API as useState
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      // Save state
-      setStoredValue(valueToStore);
-      // Save to local storage
-      window.localStorage.setItem(key, JSON.stringify(valueToStore));
-    } catch (error) {
-      console.warn(`Error setting localStorage key “${key}”:`, error);
-    }
-  };
-  
-    useEffect(() => {
-        setStoredValue(readValue());
-    }, []);
-
-  return [storedValue, setValue] as const;
-}
-
-```
-- tailwind.config.js:
-```js
-/** @type {import('tailwindcss').Config} */
-module.exports = {
-  content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
-  ],
-  theme: {
-    extend: {
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-conic':
-          'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-      },
-    },
-  },
-  plugins: [],
-}
-
-```
-- tsconfig.json:
-```json
-{
-  "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
-}
-```
