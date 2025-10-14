@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -31,7 +32,6 @@ import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
-import { FeedbackDialog } from '@/components/portal/feedback-dialog';
 import { calculateHours, formatCurrency, formatDuration, formatPercentage } from '@/lib/utils';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -39,6 +39,7 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Label } from '@/components/ui/label';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { logActivity } from '../activity-log/utils';
+
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
@@ -84,6 +85,81 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; asigIndex: number, form: any }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const { getValues, setValue } = form;
+
+    const ratingFieldName = `turnos.${turnoIndex}.asignaciones.${asigIndex}.rating`;
+    const commentFieldName = `turnos.${turnoIndex}.asignaciones.${asigIndex}.comentariosMice`;
+    const asignacion = getValues(`turnos.${turnoIndex}.asignaciones.${asigIndex}`);
+    
+    const [rating, setRating] = useState(getValues(ratingFieldName) || 3);
+    const [comment, setComment] = useState(getValues(commentFieldName) || '');
+    
+    useEffect(() => {
+        if(isOpen) {
+            setRating(getValues(ratingFieldName) || 3);
+            setComment(getValues(commentFieldName) || '');
+        }
+    }, [isOpen, getValues, ratingFieldName, commentFieldName]);
+
+    const handleSave = () => {
+        setValue(ratingFieldName, rating, { shouldDirty: true });
+        setValue(commentFieldName, comment, { shouldDirty: true });
+        setIsOpen(false);
+    };
+
+    const handleOpenChange = (open: boolean) => {
+        if (!open && isOpen) { // Only save on close if it was open
+            handleSave();
+        }
+        setIsOpen(open);
+    }
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+            <DialogTrigger asChild>
+                 <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
+                    <Pencil className={cn("h-4 w-4", getValues(commentFieldName) && "text-primary")} />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Valoración para: {asignacion?.nombre}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-6 py-4">
+                    <div className="space-y-2">
+                        <Label>Desempeño (1-5)</Label>
+                        <div className="flex items-center gap-4 pt-2">
+                            <span className="text-sm text-muted-foreground">Bajo</span>
+                            <Slider
+                                value={[rating]}
+                                onValueChange={(value) => setRating(value[0])}
+                                max={5}
+                                min={1}
+                                step={1}
+                            />
+                            <span className="text-sm text-muted-foreground">Alto</span>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                         <Label>Comentarios Internos MICE</Label>
+                        <Textarea 
+                            value={comment} 
+                            onChange={(e) => setComment(e.target.value)}
+                            rows={4}
+                            placeholder="Añade aquí comentarios internos sobre el desempeño..."
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button onClick={handleSave}>Guardar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -626,7 +702,7 @@ export default function PersonalExternoPage() {
                                             <TableHead className="px-2 py-1">Solicitado Por</TableHead>
                                             <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
                                             <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
-                                            <TableHead colSpan={3} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
+                                            <TableHead colSpan={4} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
                                             <TableHead className="px-2 py-1">Obs. ETT</TableHead>
                                             <TableHead className="text-center px-2 py-1">Estado ETT</TableHead>
                                             <TableHead className="text-right px-2 py-1">Acción</TableHead>
@@ -638,6 +714,7 @@ export default function PersonalExternoPage() {
                                             <TableHead className="px-2 py-1"></TableHead>
                                             <TableHead className="border-l px-2 py-1 bg-muted/30 w-24">H. Entrada</TableHead>
                                             <TableHead className="px-2 py-1 bg-muted/30 w-24">H. Salida</TableHead>
+                                            <TableHead className="px-2 py-1 bg-muted/30 w-20">Horas</TableHead>
                                             <TableHead className="border-r px-2 py-1 bg-muted/30 w-20">€/Hora</TableHead>
                                             <TableHead className="px-2 py-1"></TableHead>
                                             <TableHead className="px-2 py-1"></TableHead>
@@ -704,6 +781,9 @@ export default function PersonalExternoPage() {
                                                 <TableCell className="px-2 py-1 bg-muted/30">
                                                     <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
                                                 </TableCell>
+                                                <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center">
+                                                    {formatDuration(calculateHours(watchedFields[index].horaEntrada, watchedFields[index].horaSalida))}h
+                                                </TableCell>
                                                 <TableCell className="border-r px-2 py-1 bg-muted/30">
                                                     <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9 text-xs" readOnly /></FormControl></FormItem>} />
                                                 </TableCell>
@@ -735,7 +815,7 @@ export default function PersonalExternoPage() {
                                         ))
                                     ) : (
                                         <TableRow>
-                                        <TableCell colSpan={10} className="h-24 text-center">
+                                        <TableCell colSpan={11} className="h-24 text-center">
                                             No hay personal asignado. Haz clic en "Añadir Turno" para empezar.
                                         </TableCell>
                                         </TableRow>
@@ -779,15 +859,17 @@ export default function PersonalExternoPage() {
                                                 <TableRow key={asignacion.id} className={cn(hasTimeMismatch && "bg-amber-50")}>
                                                     <TableCell className="font-semibold">
                                                         <Tooltip>
-                                                          <TooltipTrigger className="flex items-center gap-2">
-                                                            {hasTimeMismatch && <AlertTriangle className="h-4 w-4 text-amber-500" />}
-                                                            {asignacion.nombre}
-                                                          </TooltipTrigger>
-                                                          <TooltipContent>
-                                                            <p>Desviación: {deviation > 0 ? '+' : ''}{formatDuration(deviation)} horas</p>
-                                                            {asignacion.comentariosMice && <p className="mt-2 pt-2 border-t max-w-xs">{asignacion.comentariosMice}</p>}
-                                                            {asignacion.rating && <p className="font-bold">Valoración: {'⭐'.repeat(asignacion.rating)}</p>}
-                                                          </TooltipContent>
+                                                            <TooltipTrigger className="flex items-center gap-2">
+                                                                {hasTimeMismatch && <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                                                                {asignacion.nombre}
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <div className="p-1 max-w-xs space-y-1">
+                                                                    {hasTimeMismatch && <p>Desviación: {deviation > 0 ? '+' : ''}{formatDuration(deviation)} horas</p>}
+                                                                    {(asignacion.rating && asignacion.rating !== 3) && <p className="font-bold">Valoración: {'⭐'.repeat(asignacion.rating || 0)}</p>}
+                                                                    {asignacion.comentariosMice && <p>{asignacion.comentariosMice}</p>}
+                                                                </div>
+                                                            </TooltipContent>
                                                         </Tooltip>
                                                     </TableCell>
                                                     <TableCell>{asignacion.dni}</TableCell>
@@ -814,7 +896,7 @@ export default function PersonalExternoPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
-                    <TabsContent value="documentacion" className="mt-4">
+                    <TabsContent value="documentacion">
                         <Card>
                              <CardHeader className="py-3 flex-row items-center justify-between">
                                 <CardTitle className="text-lg">Documentación</CardTitle>
@@ -880,7 +962,6 @@ export default function PersonalExternoPage() {
                                                 value={field.value}
                                                 onChange={field.onChange}
                                                 placeholder="Concepto..."
-                                                onCreated={(value) => { field.onChange(value); }}
                                                 />
                                         )} />
                                         <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
@@ -927,3 +1008,4 @@ export default function PersonalExternoPage() {
     </>
   );
 }
+
