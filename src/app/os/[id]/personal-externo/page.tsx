@@ -34,7 +34,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { FeedbackDialog } from '@/components/portal/feedback-dialog';
-import { calculateHours, formatCurrency, formatDuration, formatNumber } from '@/lib/utils';
+import { calculateHours, formatCurrency, formatDuration, formatNumber, formatPercentage } from '@/lib/utils';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -400,7 +400,7 @@ export default function PersonalExternoPage() {
   const turnosAprobados = useMemo(() => {
     return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
   }, [watchedFields]);
-  
+
   const handlePrintInforme = async () => {
     if (!serviceOrder) return;
     setIsPrinting(true);
@@ -602,7 +602,7 @@ export default function PersonalExternoPage() {
                 <div className="flex items-start justify-between mb-2 sticky top-24 z-20 bg-background/95 backdrop-blur-sm py-2 -mt-2">
                     <div/>
                     <div className="flex items-center gap-2">
-                         <Badge variant={statusBadgeVariant[personalExterno?.status || 'Pendiente']} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
+                         <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
                         <ActionButton />
                         <Button type="submit" disabled={isLoading || !formState.isDirty}>
                             {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
