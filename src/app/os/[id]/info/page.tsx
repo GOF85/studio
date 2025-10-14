@@ -85,6 +85,9 @@ export const osFormSchema = z.object({
   respCocinaPase: z.string().optional().default(''),
   respCocinaPasePhone: z.string().optional().default(''),
   respCocinaPaseMail: z.string().email().optional().or(z.literal('')),
+  respProjectManager: z.string().optional().default(''),
+  respProjectManagerPhone: z.string().optional().default(''),
+  respProjectManagerMail: z.string().email().optional().or(z.literal('')),
   comercialAsiste: z.boolean().optional().default(false),
   comercial: z.string().optional().default(''),
   comercialPhone: z.string().optional().default(''),
@@ -120,6 +123,7 @@ const defaultValues: Partial<OsFormValues> = {
   respPase: '', respPasePhone: '', respPaseMail: '',
   respCocinaPase: '', respCocinaPasePhone: '', respCocinaPaseMail: '',
   respCocinaCPR: '', respCocinaCPRPhone: '', respCocinaCPRMail: '',
+  respProjectManager: '', respProjectManagerPhone: '', respProjectManagerMail: '',
   comercialAsiste: false, comercial: '', comercialPhone: '', comercialMail: '',
   rrhhAsiste: false, respRRHH: '', respRRHHPhone: '', respRRHHMail: '',
   agencyPercentage: 0, agencyCommissionValue: 0, spacePercentage: 0, spaceCommissionValue: 0,
@@ -218,6 +222,7 @@ export default function InfoPage() {
   const personalComercial = useMemo(() => personal.filter(p => p.departamento === 'Comercial' && p.nombre && p.apellidos), [personal]);
   const personalCocina = useMemo(() => personal.filter(p => p.departamento === 'COCINA' && p.nombre && p.apellidos), [personal]);
   const personalRRHH = useMemo(() => personal.filter(p => p.departamento === 'RRHH' && p.nombre && p.apellidos), [personal]);
+  const personalOperaciones = useMemo(() => personal.filter(p => p.departamento === 'Operaciones' && p.nombre && p.apellidos), [personal]);
   const validEspacios = useMemo(() => espacios.filter(e => e.identificacion.nombreEspacio), [espacios]);
   const espacioOptions = useMemo(() => validEspacios.map(e => ({label: e.identificacion.nombreEspacio, value: e.identificacion.nombreEspacio})), [validEspacios]);
 
@@ -638,7 +643,8 @@ export default function InfoPage() {
                                     ['respMetre', 'respMetrePhone', 'respMetreMail', 'Resp. Metre', personalSala], 
                                     ['respPase', 'respPasePhone', 'respPaseMail', 'Resp. Pase', personalPase], 
                                     ['respCocinaPase', 'respCocinaPasePhone', 'respCocinaPaseMail', 'Resp. Cocina Pase', personalPase], 
-                                    ['respCocinaCPR', 'respCocinaCPRPhone', 'respCocinaCPRMail', 'Resp. Cocina CPR', personalCPR]
+                                    ['respCocinaCPR', 'respCocinaCPRPhone', 'respCocinaCPRMail', 'Resp. Cocina CPR', personalCPR],
+                                    ['respProjectManager', 'respProjectManagerPhone', 'respProjectManagerMail', 'Resp. Project Manager', personalOperaciones],
                                 ].map(([name, phone, mail, label, personalList]) => (
                                   <div key={name as string} className="flex items-end gap-4">
                                     <FormField control={form.control} name={name as any} render={({ field }) => (
@@ -803,8 +809,4 @@ export default function InfoPage() {
     </>
   );
 }
-
-
-
-
 

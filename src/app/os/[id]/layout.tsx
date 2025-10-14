@@ -229,6 +229,22 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                                 </TooltipContent>
                             </Tooltip>
                         )}
+                        {serviceOrder.respProjectManager && (
+                             <Tooltip>
+                                <TooltipTrigger className="flex items-center gap-2 cursor-default">
+                                    <span className="font-semibold">PM:</span>
+                                    <Avatar className="h-6 w-6 text-xs">
+                                        <AvatarFallback>{getInitials(serviceOrder.respProjectManager)}</AvatarFallback>
+                                    </Avatar>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <div className="flex flex-col gap-1 p-1">
+                                        <span className="font-bold flex items-center gap-2"><Users className="h-4 w-4"/> {serviceOrder.respProjectManager}</span>
+                                        {serviceOrder.respProjectManagerPhone && <span className="flex items-center gap-2"><Phone className="h-4 w-4"/> {serviceOrder.respProjectManagerPhone}</span>}
+                                    </div>
+                                </TooltipContent>
+                            </Tooltip>
+                        )}
                     </div>
                     <div className="flex items-center gap-4">
                         {serviceOrder.startDate && serviceOrder.endDate && (
