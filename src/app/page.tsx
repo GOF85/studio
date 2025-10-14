@@ -1,11 +1,10 @@
 
-
 'use client';
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, Calendar, BookHeart, Factory, Settings, ChefHat, Component, Package, GlassWater, ChevronRight, ClipboardCheck, ListChecks, History, AlertTriangle, PackagePlus, BarChart3, ShieldCheck, LifeBuoy, Sprout, Warehouse, FileText, Printer, Users } from 'lucide-react';
+import { ClipboardList, Calendar, BookHeart, Factory, Settings, ChefHat, Component, Package, GlassWater, ChevronRight, ClipboardCheck, ListChecks, History, AlertTriangle, PackagePlus, BarChart3, ShieldCheck, LifeBuoy, Sprout, Warehouse, FileText, Printer, Users, Truck } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
@@ -112,6 +111,8 @@ export default function DashboardPage() {
                 </Link>
             </div>
           </section>
+          
+          <Separator className="my-10"/>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {mainMenuItems.map(item => (
@@ -149,6 +150,44 @@ export default function DashboardPage() {
                   </Card>
               ))}
           </div>
+
+          <Separator className="my-10"/>
+
+           <section>
+             <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4 text-center">Portales de Colaboradores</h2>
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+                <Link href="/portal/partner">
+                    <Card className="h-full hover:border-green-500/50 hover:shadow-lg transition-all">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-3"><Factory className="text-green-600"/>Portal de Partner de Producción</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">Acceso para partners de gastronomía para gestionar sus pedidos de producción.</p>
+                        </CardContent>
+                    </Card>
+                </Link>
+                <Link href="/portal/personal">
+                    <Card className="h-full hover:border-blue-500/50 hover:shadow-lg transition-all">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-3"><Users className="text-blue-600"/>Portal de Partner de Personal</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">Gestión de turnos y asignación de personal para ETTs.</p>
+                        </CardContent>
+                    </Card>
+                </Link>
+                <Link href="/portal/transporte">
+                    <Card className="h-full hover:border-orange-500/50 hover:shadow-lg transition-all">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-3"><Truck className="text-orange-600"/>Portal de Transporte</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">Consulta de rutas de entrega y gestión de albaranes digitales.</p>
+                        </CardContent>
+                    </Card>
+                </Link>
+             </div>
+          </section>
         </main>
         <footer className="py-4 border-t mt-auto">
           <div className="container mx-auto text-center text-sm text-muted-foreground">
