@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 
 export type CateringItem = {
@@ -503,9 +504,6 @@ export type PersonalExternoTurno = {
   requiereActualizacion?: boolean;
 };
 
-export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
-export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
-
 export type PersonalExterno = {
     osId: string;
     turnos: PersonalExternoTurno[];
@@ -550,14 +548,39 @@ export type ObjetivosGasto = CtaExplotacionObjetivos & {
     name: string;
 };
 
-export const AJUSTE_CONCEPTO_OPCIONES = ['Dietas', 'Transporte', 'Parking', 'Gastos Adicionales', 'Otros'] as const;
-export type AjusteConcepto = typeof AJUSTE_CONCEPTO_OPCIONES[number];
-
-export type PersonalExternoAjuste = {
+export type ComercialAjuste = {
     id: string;
-    proveedorId: string;
-    concepto: AjusteConcepto | string;
+    concepto: string;
     importe: number;
+}
+export type Precio = {
+    id: string;
+    categoria: string;
+    producto: string;
+    precioUd: number;
+    precioAlquilerUd: number;
+    unidad: string;
+    observaciones: string;
+    loc: string;
+    imagen: string;
+    unidadVenta?: number;
+}
+
+export type MenajeDB = {
+    id: string;
+    descripcion: string;
+    categoria: string;
+    imagen: string;
+}
+
+export type TipoCocina = {
+    id: string;
+    nombre: string;
+}
+
+export type CategoriaReceta = {
+    id: string;
+    nombre: string;
 }
 
 export const UNIDADES_MEDIDA = ['UNIDAD', 'KILO', 'LITRO', 'GRAMO', 'BOTELLA', 'CAJA', 'PACK'] as const;
@@ -924,66 +947,6 @@ export type Proveedor = {
 export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
 export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
 
-export type PersonalExternoTurno = {
-  id: string;
-  proveedorId: string;
-  categoria: string;
-  precioHora: number;
-  fecha: string;
-  horaEntrada: string;
-  horaSalida: string;
-  solicitadoPor: 'Sala' | 'Pase' | 'Otro';
-  tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
-  observaciones?: string;
-  statusPartner: 'Pendiente Asignación' | 'Gestionado';
-  asignaciones: AsignacionPersonal[];
-  requiereActualizacion?: boolean;
-};
-
-export type PersonalExterno = {
-    osId: string;
-    turnos: PersonalExternoTurno[];
-    status: EstadoPersonalExterno;
-    observacionesGenerales?: string;
-    hojaFirmadaUrl?: string;
-};
-
-
-export type PruebaMenuItem = {
-    id: string;
-    type: 'header' | 'item';
-    mainCategory: 'BODEGA' | 'GASTRONOMÍA';
-    referencia: string;
-    observaciones?: string;
-};
-
-export type PruebaMenuData = {
-    osId: string;
-    items: PruebaMenuItem[];
-    observacionesGenerales: string;
-    costePruebaMenu?: number;
-};
-
-export type CtaExplotacionObjetivos = {
-    gastronomia: number;
-    bodega: number;
-    consumibles: number;
-    hielo: number;
-    almacen: number;
-    alquiler: number;
-    transporte: number;
-    decoracion: number;
-    atipicos: number;
-    personalMice: number;
-    personalExterno: number;
-    costePruebaMenu: number;
-}
-
-export type ObjetivosGasto = CtaExplotacionObjetivos & {
-    id: string;
-    name: string;
-};
-
 export const AJUSTE_CONCEPTO_OPCIONES = ['Dietas', 'Transporte', 'Parking', 'Gastos Adicionales', 'Otros'] as const;
 export type AjusteConcepto = typeof AJUSTE_CONCEPTO_OPCIONES[number];
 
@@ -994,37 +957,25 @@ export type PersonalExternoAjuste = {
     importe: number;
 };
 
-export type ComercialAjuste = {
-    id: string;
-    concepto: string;
-    importe: number;
-}
-export type Precio = {
-    id: string;
-    categoria: string;
-    producto: string;
-    precioUd: number;
-    precioAlquilerUd: number;
-    unidad: string;
-    observaciones: string;
-    loc: string;
-    imagen: string;
-    unidadVenta?: number;
-}
+export type PortalUserRole = 'Admin' | 'Comercial' | 'CPR' | 'Pase' | 'Dirección' | 'Almacen' | 'Operaciones' | 'Project Manager' | 'Partner Gastronomia' | 'Partner Personal' | 'Transporte';
 
-export type MenajeDB = {
-    id: string;
-    descripcion: string;
-    categoria: string;
-    imagen: string;
-}
+export const PORTAL_ROLES: PortalUserRole[] = ['Admin', 'Comercial', 'CPR', 'Pase', 'Dirección', 'Almacen', 'Operaciones', 'Project Manager', 'Partner Gastronomia', 'Partner Personal', 'Transporte'];
 
-export type TipoCocina = {
-    id: string;
-    nombre: string;
-}
+export type PortalUser = {
+  id: string;
+  nombre: string;
+  email: string;
+  roles: PortalUserRole[];
+  proveedorId?: string;
+};
 
-export type CategoriaReceta = {
-    id: string;
-    nombre: string;
-}
+export type ActivityLog = {
+  id: string;
+  timestamp: string;
+  userId: string;
+  userName: string;
+  userRole: PortalUserRole;
+  action: string;
+  details: string;
+  entityId: string; // e.g., osId, turnoId, etc.
+};
