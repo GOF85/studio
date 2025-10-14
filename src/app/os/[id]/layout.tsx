@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -208,6 +209,22 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                                     <div className="flex flex-col gap-1 p-1">
                                         <span className="font-bold flex items-center gap-2"><Users className="h-4 w-4"/> {serviceOrder.respMetre}</span>
                                         {serviceOrder.respMetrePhone && <span className="flex items-center gap-2"><Phone className="h-4 w-4"/> {serviceOrder.respMetrePhone}</span>}
+                                    </div>
+                                </TooltipContent>
+                            </Tooltip>
+                        )}
+                         {serviceOrder.respPase && (
+                             <Tooltip>
+                                <TooltipTrigger className="flex items-center gap-2 cursor-default">
+                                    <span className="font-semibold">Pase:</span>
+                                    <Avatar className="h-6 w-6 text-xs">
+                                        <AvatarFallback>{getInitials(serviceOrder.respPase)}</AvatarFallback>
+                                    </Avatar>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <div className="flex flex-col gap-1 p-1">
+                                        <span className="font-bold flex items-center gap-2"><Users className="h-4 w-4"/> {serviceOrder.respPase}</span>
+                                        {serviceOrder.respPasePhone && <span className="flex items-center gap-2"><Phone className="h-4 w-4"/> {serviceOrder.respPasePhone}</span>}
                                     </div>
                                 </TooltipContent>
                             </Tooltip>
