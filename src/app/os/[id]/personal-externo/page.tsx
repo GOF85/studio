@@ -32,14 +32,36 @@ import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
-import { calculateHours, formatCurrency, formatDuration, formatPercentage } from '@/lib/utils';
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Slider } from '@/components/ui/slider';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { logActivity } from '../activity-log/utils';
 
+
+const formatCurrency = (value: number) => value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+
+const calculateHours = (start?: string, end?: string): number => {
+    if (!start || !end) return 0;
+    try {
+        const startTime = new Date(`1970-01-01T${start}:00`);
+        const endTime = new Date(`1970-01-01T${end}:00`);
+        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) return 0;
+        const diff = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+        return diff > 0 ? diff : 0;
+    } catch (e) {
+        return 0;
+    }
+}
+
+const formatDuration = (hours: number) => {
+    const totalMinutes = Math.round(hours * 60);
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
@@ -116,13 +138,15 @@ function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; a
         }
         setIsOpen(open);
     }
-    
+
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-                 <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
-                    <Pencil className={cn("h-4 w-4", getValues(commentFieldName) && "text-primary")} />
-                </Button>
+                <div className="relative group">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
+                        <Pencil className={cn("h-4 w-4", getValues(commentFieldName) && "text-primary")} />
+                    </Button>
+                </div>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
@@ -621,9 +645,6 @@ export default function PersonalExternoPage() {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
   }
   
-  const statusBadgeVariant = personalExterno?.status === 'Asignado' || personalExterno?.status === 'Cerrado' ? 'success' : personalExterno?.status === 'Solicitado' ? 'outline' : 'warning';
-
-
   return (
     <>
       <main>
@@ -698,13 +719,13 @@ export default function PersonalExternoPage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead className="px-2 py-1">Fecha</TableHead>
-                                            <TableHead className="px-2 py-1">Solicitado Por</TableHead>
+                                            <TableHead className="px-2 py-1 w-36">Fecha</TableHead>
+                                            <TableHead className="px-2 py-1 w-32">Solicitado Por</TableHead>
                                             <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
-                                            <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
+                                            <TableHead className="px-2 py-1 w-40">Tipo Servicio</TableHead>
                                             <TableHead colSpan={4} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
                                             <TableHead className="px-2 py-1">Obs. ETT</TableHead>
-                                            <TableHead className="text-center px-2 py-1">Estado ETT</TableHead>
+                                            <TableHead className="px-2 py-1 w-12 text-center"></TableHead>
                                             <TableHead className="text-right px-2 py-1">Acción</TableHead>
                                         </TableRow>
                                         <TableRow>
@@ -731,7 +752,7 @@ export default function PersonalExternoPage() {
                                                             <Popover>
                                                                 <PopoverTrigger asChild>
                                                                     <FormControl>
-                                                                        <Button variant={"outline"} className={cn("w-32 h-9 pl-3 text-left font-normal", !dateField.value && "text-muted-foreground")}>
+                                                                        <Button variant={"outline"} className={cn("w-full h-9 pl-3 text-left font-normal", !dateField.value && "text-muted-foreground")}>
                                                                             {dateField.value ? format(dateField.value, "dd/MM/yy") : <span>Elige</span>}
                                                                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                                         </Button>
@@ -746,7 +767,7 @@ export default function PersonalExternoPage() {
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1">
                                                     <FormField control={control} name={`turnos.${index}.solicitadoPor`} render={({ field: selectField }) => (
-                                                        <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="w-28 h-9 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{solicitadoPorOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
+                                                        <FormItem><Select onValueChange={selectField.onChange} value={selectField.value}><FormControl><SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger></FormControl><SelectContent>{solicitadoPorOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></FormItem>
                                                     )}/>
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1 min-w-48">
@@ -769,28 +790,28 @@ export default function PersonalExternoPage() {
                                                     <FormField control={control} name={`turnos.${index}.tipoServicio`} render={({ field: selectField }) => (
                                                         <FormItem>
                                                             <Select onValueChange={selectField.onChange} value={selectField.value}>
-                                                                <FormControl><SelectTrigger className="w-32 h-9 text-xs"><SelectValue /></SelectTrigger></FormControl>
+                                                                <FormControl><SelectTrigger className="w-full h-9 text-xs"><SelectValue /></SelectTrigger></FormControl>
                                                                 <SelectContent>{tipoServicioOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                                                             </Select>
                                                         </FormItem>
                                                     )}/>
                                                 </TableCell>
                                                 <TableCell className="border-l px-2 py-1 bg-muted/30">
-                                                    <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
+                                                    <FormField control={control} name={`turnos.${index}.horaEntrada`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-full h-9 text-xs" /></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1 bg-muted/30">
-                                                    <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
+                                                    <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-full h-9 text-xs" /></FormControl></FormItem>} />
                                                 </TableCell>
-                                                <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center">
+                                                 <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center text-xs">
                                                     {formatDuration(calculateHours(watchedFields[index].horaEntrada, watchedFields[index].horaSalida))}h
                                                 </TableCell>
                                                 <TableCell className="border-r px-2 py-1 bg-muted/30">
-                                                    <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9 text-xs" readOnly /></FormControl></FormItem>} />
+                                                    <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-full h-9 text-xs" readOnly /></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell>
                                                     <CommentDialog turnoIndex={index} form={form} />
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="text-center">
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <div className="flex justify-center">
@@ -841,8 +862,8 @@ export default function PersonalExternoPage() {
                                             <TableHead>H. Planificadas</TableHead>
                                             <TableHead className="w-24">H. Entrada Real</TableHead>
                                             <TableHead className="w-24">H. Salida Real</TableHead>
-                                            <TableHead>H. Reales</TableHead>
-                                            <TableHead className="text-center">Feedback MICE</TableHead>
+                                            <TableHead className="w-20">H. Reales</TableHead>
+                                            <TableHead className="text-center w-28">Feedback MICE</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -901,16 +922,56 @@ export default function PersonalExternoPage() {
                              <CardHeader className="py-3 flex-row items-center justify-between">
                                 <CardTitle className="text-lg">Documentación</CardTitle>
                                 <div className="flex gap-2">
-                                    <Button type="button" variant="outline" onClick={handlePrintInforme} disabled={isPrinting}>
-                                        {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <FileText className="mr-2" />}
-                                        Generar Informe Facturación
-                                    </Button>
                                     <Button type="button" variant="outline" onClick={handlePrintParte} disabled={isPrinting}>
                                         {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
                                         Imprimir Parte de Horas
                                     </Button>
                                 </div>
                             </CardHeader>
+                            <CardContent className="space-y-4">
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base">Hoja de Firmas Adjunta</CardTitle></CardHeader>
+                                    <CardContent>
+                                        {personalExterno?.hojaFirmadaUrl ? (
+                                             <div className="relative">
+                                                <Image src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" width={500} height={300} className="rounded-md w-full h-auto object-contain"/>
+                                                <Button size="sm" variant="destructive" className="absolute top-2 right-2" onClick={() => {
+                                                    const updated = {...personalExterno, hojaFirmadaUrl: undefined};
+                                                    setPersonalExterno(updated);
+                                                    const allData = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+                                                    const index = allData.findIndex(p => p.osId === osId);
+                                                    if (index !== -1) {
+                                                        allData[index] = updated;
+                                                        localStorage.setItem('personalExterno', JSON.stringify(allData));
+                                                    }
+                                                }}><Trash2/></Button>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <Label htmlFor="upload-photo">Subir hoja de firmas escaneada</Label>
+                                                <Input id="upload-photo" type="file" accept="image/*" ref={fileInputRef} onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if(file && personalExterno) {
+                                                        const reader = new FileReader();
+                                                        reader.onload = (event) => {
+                                                            const result = event.target?.result as string;
+                                                             const updated = {...personalExterno, hojaFirmadaUrl: result};
+                                                            setPersonalExterno(updated);
+                                                            const allData = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+                                                            const index = allData.findIndex(p => p.osId === osId);
+                                                            if (index !== -1) {
+                                                                allData[index] = updated;
+                                                                localStorage.setItem('personalExterno', JSON.stringify(allData));
+                                                            }
+                                                        };
+                                                        reader.readAsDataURL(file);
+                                                    }
+                                                }} />
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </CardContent>
                         </Card>
                     </TabsContent>
                 </Tabs>
@@ -1008,4 +1069,3 @@ export default function PersonalExternoPage() {
     </>
   );
 }
-
