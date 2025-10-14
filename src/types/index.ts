@@ -503,6 +503,9 @@ export type PersonalExternoTurno = {
   requiereActualizacion?: boolean;
 };
 
+export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
+export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
+
 export type PersonalExterno = {
     osId: string;
     turnos: PersonalExternoTurno[];
@@ -511,6 +514,15 @@ export type PersonalExterno = {
     hojaFirmadaUrl?: string;
 };
 
+export const AJUSTE_CONCEPTO_OPCIONES = ['Dietas', 'Transporte', 'Parking', 'Gastos Adicionales', 'Otros'] as const;
+export type AjusteConcepto = typeof AJUSTE_CONCEPTO_OPCIONES[number];
+
+export type PersonalExternoAjuste = {
+    id: string;
+    proveedorId: string;
+    concepto: AjusteConcepto | string;
+    importe: number;
+};
 
 export type PruebaMenuItem = {
     id: string;
@@ -943,18 +955,15 @@ export type Proveedor = {
   tipos: TipoProveedor[];
 };
 
-export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
-export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
-
-export const AJUSTE_CONCEPTO_OPCIONES = ['Dietas', 'Transporte', 'Parking', 'Gastos Adicionales', 'Otros'] as const;
-export type AjusteConcepto = (typeof AJUSTE_CONCEPTO_OPCIONES)[number];
-
-export type PersonalExternoAjuste = {
-    id: string;
+export type PersonalExternoDB = {
+    id: string; // DNI
     proveedorId: string;
-    concepto: AjusteConcepto | string;
-    importe: number;
-};
+    nombre: string;
+    apellido1: string;
+    apellido2: string;
+    nombreCompleto: string;
+    nombreCompacto: string;
+}
 
 export type PortalUserRole = 'Admin' | 'Comercial' | 'CPR' | 'Pase' | 'Dirección' | 'Almacen' | 'Operaciones' | 'Project Manager' | 'Partner Gastronomia' | 'Partner Personal' | 'Transporte';
 

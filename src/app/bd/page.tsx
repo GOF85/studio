@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, AlertTriangle, Target, FilePlus2 } from 'lucide-react';
+import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, AlertTriangle, Target, FilePlus2, UserPlus } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
@@ -43,6 +43,7 @@ const generalDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
 const providerDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
     { id: '25', name: 'Proveedores', description: 'Base de datos central de proveedores.', path: '/proveedores', icon: Users },
     { id: '26', name: 'Catálogo de Personal Externo', description: 'Categorías y precios del personal de ETTs.', path: '/tipos-personal', icon: Users },
+    { id: '28', name: 'Personal Externo', description: 'Base de datos de trabajadores de ETTs.', path: '/personal-externo-db', icon: UserPlus },
     { id: '27', name: 'Catálogo de Transporte', description: 'Vehículos y precios de las empresas de transporte.', path: '/tipos-transporte', icon: Truck },
 ];
 
@@ -71,6 +72,7 @@ export default function BdPage() {
             if (db.path === '/formatos-expedicion') count = countItems('formatosExpedicionDB');
             if (db.path === '/proveedores') count = countItems('proveedores');
             if (db.path === '/tipos-personal') count = countItems('tiposPersonal');
+            if (db.path === '/personal-externo-db') count = countItems('personalExternoDB');
             if (db.path === '/tipos-transporte') count = countItems('tiposTransporte');
             if (db.path === '/objetivos-gasto') count = countItems('objetivosGastoPlantillas');
             return { ...db, itemCount: count };
