@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -121,7 +120,7 @@ export default function PartnerPersonalPortalPage() {
     const { impersonatedUser } = useImpersonatedUser();
     const [proveedorNombre, setProveedorNombre] = useState('');
     const router = useRouter();
-
+    
     const [currentDate, setCurrentDate] = useState(new Date());
     const [dayDetails, setDayDetails] = useState<DayDetails | null>(null);
 
@@ -150,6 +149,7 @@ export default function PartnerPersonalPortalPage() {
             setProveedorNombre(proveedor?.nombreComercial || '');
         }
 
+
         const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
         const allPersonalExterno = (JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[]);
         const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
@@ -176,7 +176,6 @@ export default function PartnerPersonalPortalPage() {
                         serviceNumber: os.serviceNumber,
                         cliente: os.client,
                         fechaEvento: turno.fecha,
-                        horaEntrega: turno.horaEntrada,
                         lugarEntrega: hito?.sala || os.spaceAddress || 'No especificado',
                     });
                 }
@@ -202,27 +201,6 @@ export default function PartnerPersonalPortalPage() {
         loadData();
     }, [loadData]);
     
-    const handleStatusChange = (turnoId: string, newStatus: PersonalExternoTurno['statusPartner']) => {
-        if(!impersonatedUser) return;
-        const turno = turnos.find(t => t.id === turnoId);
-        if(!turno) return;
-
-        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        const pedidoIndex = allPersonalExterno.findIndex(p => p.osId === turno.osId);
-        if(pedidoIndex === -1) return;
-
-        const turnoIndex = allPersonalExterno[pedidoIndex].turnos.findIndex(t => t.id === turnoId);
-        if(turnoIndex === -1) return;
-        
-        allPersonalExterno[pedidoIndex].turnos[turnoIndex].statusPartner = newStatus;
-        localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-        
-        logActivity(impersonatedUser, 'Actualización de Estado', `Turno ${turno.categoria} para ${turno.serviceNumber} a "${newStatus}"`, turno.id);
-
-        loadData();
-        toast({ title: 'Estado actualizado', description: `El estado del turno ha sido cambiado a "${newStatus}".` });
-    };
-
     const handleSaveAsignaciones = (turnoId: string, asignaciones: AsignacionPersonal[]) => {
         const turno = turnos.find(t => t.id === turnoId);
         if(!turno || !impersonatedUser) return;
@@ -294,7 +272,6 @@ export default function PartnerPersonalPortalPage() {
                 locations: Object.entries(locations).sort(([locA], [locB]) => locA.localeCompare(locB)),
             }));
     }, [filteredTurnos]);
-
 
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
@@ -523,6 +500,3 @@ export default function PartnerPersonalPortalPage() {
 }
 
     
-
-    
-
