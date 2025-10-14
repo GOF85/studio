@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -9,9 +8,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, FileText } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, FileText, Upload, Mail } from 'lucide-react';
 
 import type { PersonalExternoAjuste, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoPersonalExterno } from '@/types';
 import { ESTADO_PERSONAL_EXTERNO, AJUSTE_CONCEPTO_OPCIONES } from '@/types';
@@ -33,11 +32,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { FeedbackDialog } from '@/components/portal/feedback-dialog';
-import { calculateHours, formatCurrency, formatDuration } from '@/lib/utils';
+import { calculateHours, formatCurrency, formatDuration, formatPercentage } from '@/lib/utils';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { logActivity } from '../activity-log/utils';
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
@@ -393,7 +394,88 @@ export default function PersonalExternoPage() {
     return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
   }, [watchedFields]);
 
-    const handlePrintParte = async () => {
+  const handlePrintInforme = () => {
+    if (!serviceOrder) return;
+    setIsPrinting(true);
+    try {
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const margin = 10;
+      let finalY = margin;
+
+      const addHeader = () => {
+          doc.setFontSize(16);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor('#059669'); // Verde corporativo
+          doc.text('Informe de Facturación - Personal Externo', margin, finalY);
+          finalY += 8;
+          
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor('#374151');
+          doc.text(`Pedido: ${serviceOrder.serviceNumber} - ${serviceOrder.client}`, margin, finalY);
+          finalY += 10;
+      };
+
+      addHeader();
+      
+      const kpiData = [
+          { title: 'Coste Total Final', value: formatCurrency(finalTotalReal), color: '#059669' },
+          { title: 'Desviación vs. Plan.', value: formatCurrency(finalTotalReal - costeFinalPlanificado), color: finalTotalReal > costeFinalPlanificado ? '#ef4444' : '#10b981' },
+          { title: 'Coste Medio / Hora Real', value: formatCurrency(totalReal > 0 ? finalTotalReal / (totalReal / watchedFields.reduce((s,t) => s + (t.precioHora||0), 0) / watchedFields.length) : 0) },
+          { title: 'Total Horas Reales', value: `${formatDuration(watchedFields.reduce((s,t) => s + calculateHours(t.horaEntradaReal, t.horaSalidaReal), 0))}h` },
+      ];
+      
+      let kpiX = margin;
+      const kpiCardWidth = (doc.internal.pageSize.getWidth() - margin * 2) / 4 - 5;
+      kpiData.forEach(kpi => {
+          doc.setDrawColor('#e5e7eb');
+          doc.roundedRect(kpiX, finalY, kpiCardWidth, 18, 2, 2, 'S');
+          doc.setFontSize(8);
+          doc.setTextColor('#6b7280');
+          doc.text(kpi.title, kpiX + 3, finalY + 5);
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(kpi.color || '#1f2937');
+          doc.text(kpi.value, kpiX + 3, finalY + 12);
+          kpiX += kpiCardWidth + 5;
+      });
+      finalY += 25;
+      
+      const bySolicitante: Record<string, number> = {};
+      let totalTurnos = 0;
+      watchedFields.forEach(t => {
+          const solicitante = t.solicitadoPor || 'Otro';
+          bySolicitante[solicitante] = (bySolicitante[solicitante] || 0) + 1;
+          totalTurnos++;
+      });
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor('#1f2937');
+      doc.text('% Personal Solicitado por Departamento', margin, finalY);
+      finalY += 6;
+
+      autoTable(doc, {
+          head: [['Departamento', 'Nº Turnos', '% del Total']],
+          body: Object.entries(bySolicitante).map(([depto, count]) => [depto, count, `${formatPercentage(count / totalTurnos)}`]),
+          startY: finalY,
+          theme: 'striped',
+          styles: { fontSize: 8, cellPadding: 1.5 },
+          headStyles: { fillColor: '#059669', textColor: '#ffffff' }
+      });
+      finalY = (doc as any).lastAutoTable.finalY + 10;
+      
+      doc.save(`Informe_Facturacion_${serviceOrder.serviceNumber}.pdf`);
+
+    } catch (e) {
+        console.error(e);
+        toast({variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.'});
+    } finally {
+        setIsPrinting(false);
+    }
+  };
+  
+    const handlePrintParte = () => {
       if (!serviceOrder) return;
       setIsPrinting(true);
       try {
@@ -431,6 +513,8 @@ export default function PersonalExternoPage() {
             .map(item => [
                 item.nombre,
                 item.turno.categoria,
+                item.turno.solicitadoPor,
+                item.turno.tipoServicio,
                 `${item.turno.horaEntrada} - ${item.turno.horaSalida}`,
                 '', // H. Entrada Real
                 '', // H. Salida Real
@@ -438,7 +522,7 @@ export default function PersonalExternoPage() {
             ]);
 
         autoTable(doc, {
-            head: [['Nombre', 'Categoría', 'Horario Planificado', 'H. Entrada Real', 'H. Salida Real', 'Firma']],
+            head: [['Nombre', 'Categoría', 'Solicitado Por', 'Tipo Servicio', 'Horario Planificado', 'H. Entrada Real', 'H. Salida Real', 'Firma']],
             body: tableData,
             startY: finalY,
             theme: 'grid',
@@ -455,98 +539,13 @@ export default function PersonalExternoPage() {
           setIsPrinting(false);
       }
     };
-    
-    const handlePrintInforme = async () => {
-      if (!serviceOrder) return;
-      setIsPrinting(true);
-      try {
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const margin = 10;
-        let finalY = margin;
-
-        const addHeader = () => {
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor('#059669'); // Verde corporativo
-            doc.text('Informe de Facturación - Personal Externo', margin, finalY);
-            finalY += 8;
-            
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151');
-            doc.text(`Pedido: ${serviceOrder.serviceNumber} - ${serviceOrder.client}`, margin, finalY);
-            finalY += 10;
-        };
-
-        addHeader();
-        
-        // KPIs
-        const kpiData = [
-            { title: 'Coste Total Final', value: formatCurrency(finalTotalReal), color: '#059669' },
-            { title: 'Desviación vs. Plan.', value: formatCurrency(finalTotalReal - costeFinalPlanificado), color: finalTotalReal > costeFinalPlanificado ? '#ef4444' : '#10b981' },
-            { title: 'Coste Medio / Hora Real', value: formatCurrency(totalReal > 0 ? finalTotalReal / (totalReal / watchedFields.reduce((s,t) => s + (t.precioHora||0), 0) / watchedFields.length) : 0) },
-            { title: 'Total Horas Reales', value: `${formatDuration(watchedFields.reduce((s,t) => s + calculateHours(t.horaEntradaReal, t.horaSalidaReal), 0))}h` },
-        ];
-        
-        let kpiX = margin;
-        const kpiCardWidth = (doc.internal.pageSize.getWidth() - margin * 2) / 4 - 5;
-        kpiData.forEach(kpi => {
-            doc.setDrawColor('#e5e7eb');
-            doc.roundedRect(kpiX, finalY, kpiCardWidth, 18, 2, 2, 'S');
-            doc.setFontSize(8);
-            doc.setTextColor('#6b7280');
-            doc.text(kpi.title, kpiX + 3, finalY + 5);
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(kpi.color || '#1f2937');
-            doc.text(kpi.value, kpiX + 3, finalY + 12);
-            kpiX += kpiCardWidth + 5;
-        });
-        finalY += 25;
-        
-        // % Solicitado
-        const bySolicitante: Record<string, number> = {};
-        let totalTurnos = 0;
-        watchedFields.forEach(t => {
-            const solicitante = t.solicitadoPor || 'Otro';
-            bySolicitante[solicitante] = (bySolicitante[solicitante] || 0) + 1;
-            totalTurnos++;
-        });
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor('#1f2937');
-        doc.text('% Personal Solicitado por Departamento', margin, finalY);
-        finalY += 6;
-
-        autoTable(doc, {
-            head: [['Departamento', 'Nº Turnos', '% del Total']],
-            body: Object.entries(bySolicitante).map(([depto, count]) => [depto, count, `${(count / totalTurnos * 100).toFixed(1)}%`]),
-            startY: finalY,
-            theme: 'striped',
-            styles: { fontSize: 8, cellPadding: 1.5 },
-            headStyles: { fillColor: '#059669', textColor: '#ffffff' }
-        });
-        finalY = (doc as any).lastAutoTable.finalY + 10;
-        
-        // ... (resto de tablas)
-
-        doc.save(`Informe_Facturacion_${serviceOrder.serviceNumber}.pdf`);
-
-      } catch (e) {
-          console.error(e);
-          toast({variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.'});
-      } finally {
-          setIsPrinting(false);
-      }
-    };
 
 
-    if (!isMounted || !serviceOrder) {
-        return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
-    }
+  if (!isMounted || !serviceOrder) {
+    return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
+  }
   
-    const statusBadgeVariant = personalExterno?.status === 'Asignado' || personalExterno?.status === 'Cerrado' ? 'success' : personalExterno?.status === 'Solicitado' ? 'outline' : 'warning';
+  const statusBadgeVariant = personalExterno?.status === 'Asignado' || personalExterno?.status === 'Cerrado' ? 'success' : personalExterno?.status === 'Solicitado' ? 'outline' : 'warning';
 
 
   return (
@@ -757,11 +756,13 @@ export default function PersonalExternoPage() {
                                         <TableRow>
                                             <TableHead>Nombre</TableHead>
                                             <TableHead>DNI</TableHead>
-                                            <TableHead>Fecha-Horario</TableHead>
+                                            <TableHead>Teléfono</TableHead>
+                                            <TableHead>Email</TableHead>
+                                            <TableHead>H. Planificadas</TableHead>
                                             <TableHead className="w-24">H. Entrada Real</TableHead>
                                             <TableHead className="w-24">H. Salida Real</TableHead>
-                                            <TableHead className="w-24">Horas Real.</TableHead>
-                                            <TableHead className="w-[150px] text-center">Desempeño y Comentarios MICE</TableHead>
+                                            <TableHead>H. Reales</TableHead>
+                                            <TableHead className="text-center">Feedback MICE</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -776,103 +777,58 @@ export default function PersonalExternoPage() {
 
                                                 return (
                                                 <TableRow key={asignacion.id} className={cn(hasTimeMismatch && "bg-amber-50")}>
-                                                    <TableCell className="font-semibold flex items-center gap-2">
-                                                        {hasTimeMismatch && (
-                                                            <Tooltip>
-                                                                <TooltipTrigger><AlertTriangle className="h-4 w-4 text-amber-500" /></TooltipTrigger>
-                                                                <TooltipContent><p>Desviación: {deviation > 0 ? '+' : ''}{formatDuration(deviation)} horas</p></TooltipContent>
-                                                            </Tooltip>
-                                                        )}
-                                                        {asignacion.nombre}
+                                                    <TableCell className="font-semibold">
+                                                        <Tooltip>
+                                                          <TooltipTrigger className="flex items-center gap-2">
+                                                            {hasTimeMismatch && <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                                                            {asignacion.nombre}
+                                                          </TooltipTrigger>
+                                                          <TooltipContent>
+                                                            <p>Desviación: {deviation > 0 ? '+' : ''}{formatDuration(deviation)} horas</p>
+                                                            {asignacion.comentariosMice && <p className="mt-2 pt-2 border-t max-w-xs">{asignacion.comentariosMice}</p>}
+                                                            {asignacion.rating && <p className="font-bold">Valoración: {'⭐'.repeat(asignacion.rating)}</p>}
+                                                          </TooltipContent>
+                                                        </Tooltip>
                                                     </TableCell>
                                                     <TableCell>{asignacion.dni}</TableCell>
-                                                    <TableCell>
-                                                        <div className="font-semibold">{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
-                                                        <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
-                                                    </TableCell>
+                                                    <TableCell>{asignacion.telefono}</TableCell>
+                                                    <TableCell>{asignacion.email}</TableCell>
+                                                    <TableCell className="font-mono text-center">{formatDuration(plannedHours)}h</TableCell>
                                                     <TableCell>
                                                     <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaEntradaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                     </TableCell>
                                                     <TableCell>
                                                     <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                     </TableCell>
-                                                    <TableCell className="font-mono text-center">
-                                                        {formatDuration(calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal) || calculateHours(turno.horaEntrada, turno.horaSalida))}h
-                                                     </TableCell>
+                                                     <TableCell className="font-mono text-center">{realHours > 0 ? `${formatDuration(realHours)}h` : '-'}</TableCell>
                                                     <TableCell className="text-center">
                                                        <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
                                                     </TableCell>
                                                 </TableRow>
                                             )})
                                         }) : (
-                                            <TableRow><TableCell colSpan={7} className="h-24 text-center">No hay turnos gestionados por la ETT.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={9} className="h-24 text-center">No hay turnos gestionados por la ETT.</TableCell></TableRow>
                                         )}
                                     </TableBody>
                                 </Table>
                             </CardContent>
                         </Card>
                     </TabsContent>
-                    <TabsContent value="documentacion">
+                    <TabsContent value="documentacion" className="mt-4">
                         <Card>
-                            <CardHeader className="py-3 flex-row items-center justify-between">
+                             <CardHeader className="py-3 flex-row items-center justify-between">
                                 <CardTitle className="text-lg">Documentación</CardTitle>
                                 <div className="flex gap-2">
-                                    <Button type="button" variant="outline" onClick={handlePrintParte} disabled={isPrinting}>
-                                        {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
-                                        Imprimir Parte de Horas
-                                    </Button>
                                     <Button type="button" variant="outline" onClick={handlePrintInforme} disabled={isPrinting}>
                                         {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <FileText className="mr-2" />}
                                         Generar Informe Facturación
                                     </Button>
+                                    <Button type="button" variant="outline" onClick={handlePrintParte} disabled={isPrinting}>
+                                        {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
+                                        Imprimir Parte de Horas
+                                    </Button>
                                 </div>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <Card>
-                                    <CardHeader><CardTitle className="text-base">Hoja de Firmas Adjunta</CardTitle></CardHeader>
-                                    <CardContent>
-                                        {personalExterno?.hojaFirmadaUrl ? (
-                                             <div className="relative">
-                                                <img src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" className="rounded-md w-full h-auto object-contain max-w-lg mx-auto"/>
-                                                <Button size="sm" variant="destructive" className="absolute top-2 right-2" type="button" onClick={() => {
-                                                    const updated = {...personalExterno, hojaFirmadaUrl: undefined };
-                                                    const all = JSON.parse(localStorage.getItem('personalExterno') || '[]');
-                                                    const index = all.findIndex((p: PersonalExterno) => p.osId === osId);
-                                                    if(index > -1) {
-                                                        all[index] = updated;
-                                                        localStorage.setItem('personalExterno', JSON.stringify(all));
-                                                        setPersonalExterno(updated);
-                                                    }
-                                                }}><Trash2/></Button>
-                                            </div>
-                                        ) : (
-                                            <div>
-                                                <Label htmlFor="upload-photo">Subir hoja de firmas escaneada</Label>
-                                                <Input id="upload-photo" type="file" accept="image/*" ref={fileInputRef} onChange={(e) => {
-                                                    const file = e.target.files?.[0];
-                                                    if (file) {
-                                                        const reader = new FileReader();
-                                                        reader.onload = (event) => {
-                                                            const result = event.target?.result;
-                                                            if(typeof result === 'string') {
-                                                                const updated = {...personalExterno, hojaFirmadaUrl: result };
-                                                                const all = JSON.parse(localStorage.getItem('personalExterno') || '[]');
-                                                                const index = all.findIndex((p: PersonalExterno) => p.osId === osId);
-                                                                if(index > -1) {
-                                                                    all[index] = updated;
-                                                                    localStorage.setItem('personalExterno', JSON.stringify(all));
-                                                                    setPersonalExterno(updated as PersonalExterno);
-                                                                }
-                                                            }
-                                                        };
-                                                        reader.readAsDataURL(file);
-                                                    }
-                                                }} />
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </CardContent>
                         </Card>
                     </TabsContent>
                 </Tabs>
@@ -924,7 +880,7 @@ export default function PersonalExternoPage() {
                                                 value={field.value}
                                                 onChange={field.onChange}
                                                 placeholder="Concepto..."
-                                                onCreated={(value) => setValue(`ajustes.${index}.concepto`, value, { shouldDirty: true })}
+                                                onCreated={(value) => { field.onChange(value); }}
                                                 />
                                         )} />
                                         <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
@@ -933,7 +889,7 @@ export default function PersonalExternoPage() {
                                         <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
                                 ))}
-                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={() => appendAjuste({ id: Date.now().toString(), proveedorId: '', concepto: 'Otros', importe: 0 })}>Añadir Ajuste</Button>
+                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={() => appendAjuste({ id: Date.now().toString(), proveedorId: '', concepto: '', importe: 0 })}>Añadir Ajuste</Button>
                                  <Separator className="my-2" />
                                   <div className="flex justify-between font-bold">
                                       <span>Total Ajustes:</span>
