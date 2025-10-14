@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -10,12 +9,10 @@ import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, FileText, Upload } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import Image from 'next/image';
 
 import type { PersonalExternoAjuste, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoPersonalExterno } from '@/types';
-import { ESTADO_PERSONAL_EXTERNO } from '@/types';
+import { ESTADO_PERSONAL_EXTERNO, AJUSTE_CONCEPTO_OPCIONES } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -139,8 +136,8 @@ export default function PersonalExternoPage() {
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [personalExterno, setPersonalExterno] = useState<PersonalExterno | null>(null);
-  const [isPrinting, setIsPrinting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const router = useRouter();
   const params = useParams();
@@ -402,6 +399,18 @@ export default function PersonalExternoPage() {
     return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
   }, [watchedFields]);
 
+  const removeHojaFirmada = () => {
+    if (!personalExterno) return;
+    const updatedPersonal = { ...personalExterno, hojaFirmadaUrl: undefined };
+    const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+    const index = allPersonalExterno.findIndex(p => p.osId === osId);
+    if (index > -1) {
+        allPersonalExterno[index] = updatedPersonal as PersonalExterno;
+    }
+    localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
+    setPersonalExterno(updatedPersonal as PersonalExterno);
+  }
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -425,20 +434,8 @@ export default function PersonalExternoPage() {
         reader.readAsDataURL(file);
     }
   };
-
-  const removeHojaFirmada = () => {
-    if (!personalExterno) return;
-    const updatedPersonal = { ...personalExterno, hojaFirmadaUrl: undefined };
-    const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-    const index = allPersonalExterno.findIndex(p => p.osId === osId);
-    if (index > -1) {
-        allPersonalExterno[index] = updatedPersonal as PersonalExterno;
-    }
-    localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-    setPersonalExterno(updatedPersonal as PersonalExterno);
-  }
   
-  const handlePrintParte = () => {
+    const handlePrintParte = () => {
     if (!serviceOrder) return;
     setIsPrinting(true);
     try {
@@ -506,95 +503,6 @@ export default function PersonalExternoPage() {
     }
   }
 
-  const handlePrintReport = () => {
-        if (!serviceOrder) return;
-        setIsPrinting(true);
-        try {
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            const margin = 15;
-            let finalY = margin;
-
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor('#00703C');
-            doc.text('Informe de Costes de Personal Externo', margin, finalY);
-            finalY += 10;
-
-            const summaryData = [
-                { title: 'Coste Final', value: formatCurrency(finalTotalReal), color: '#00703C'},
-                { title: 'Desviación vs. Plan', value: formatCurrency(finalTotalReal - costeFinalPlanificado), color: finalTotalReal > costeFinalPlanificado ? '#ef4444' : '#22c55e'},
-                { title: 'Total Horas Reales', value: `${formatDuration(watchedFields.reduce((acc, t) => acc + (t.asignaciones || []).reduce((s, a) => s + calculateHours(a.horaEntradaReal, a.horaSalidaReal), 0),0))}h` , color: '#333'},
-            ];
-
-            const summaryBoxWidth = (doc.internal.pageSize.getWidth() - margin * 2) / summaryData.length - 5;
-            summaryData.forEach((item, index) => {
-                doc.setFontSize(12);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(item.color);
-                doc.text(item.value, margin + index * (summaryBoxWidth + 5) + 5, finalY + 14);
-                
-                doc.setFontSize(9);
-                doc.setFont('helvetica', 'normal');
-                doc.setTextColor('#6b7280');
-                doc.text(item.title, margin + index * (summaryBoxWidth + 5) + 5, finalY + 5);
-
-            });
-            finalY += 30;
-
-            const turnosToPrint = getValues('turnos');
-            const tableBody = turnosToPrint.flatMap(turno => 
-                (turno.asignaciones || []).map(asig => {
-                     const horasReales = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal);
-                     const costeReal = horasReales * turno.precioHora;
-                     return [
-                        allProveedores.find(p=>p.id === proveedoresDB.find(pdb => pdb.id === turno.proveedorId)?.proveedorId)?.nombreComercial || 'N/A',
-                        turno.categoria,
-                        asig.nombre,
-                        formatDuration(horasReales),
-                        formatCurrency(costeReal),
-                        '⭐'.repeat(asig.rating || 0),
-                        asig.comentariosMice || ''
-                     ]
-                })
-            );
-
-            autoTable(doc, {
-                startY: finalY,
-                head: [['Proveedor', 'Categoría', 'Personal', 'Horas Reales', 'Coste Real', 'Valoración', 'Comentarios MICE']],
-                body: tableBody,
-                theme: 'grid',
-                headStyles: { fillColor: '#00703C', textColor: '#ffffff' },
-            });
-            
-            finalY = (doc as any).lastAutoTable.finalY + 10;
-            
-            const ajustesToPrint = getValues('ajustes') || [];
-            if(ajustesToPrint.length > 0) {
-                 doc.setFontSize(12);
-                 doc.setFont('helvetica', 'bold');
-                 doc.setTextColor('#333');
-                 doc.text('Ajustes Adicionales', margin, finalY);
-                 finalY += 8;
-
-                 autoTable(doc, {
-                    startY: finalY,
-                    head: [['Proveedor', 'Concepto', 'Importe']],
-                    body: ajustesToPrint.map(a => [allProveedores.find(p=>p.id === a.proveedorId)?.nombreComercial || 'N/A', a.concepto, formatCurrency(a.importe)]),
-                    theme: 'grid',
-                    headStyles: { fillColor: '#f3f4f6', textColor: '#374151' },
-                 });
-            }
-
-            doc.save(`Informe_Personal_Externo_${serviceOrder.serviceNumber}.pdf`);
-            toast({ title: 'Informe Generado', description: 'El informe PDF se ha descargado correctamente.'});
-        } catch (e) {
-            console.error(e);
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el informe PDF.' });
-        } finally {
-            setIsPrinting(false);
-        }
-  }
-
 
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
@@ -609,45 +517,52 @@ export default function PersonalExternoPage() {
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
-                <div className="flex items-center justify-between mb-2">
-                </div>
-
-                <div className="mb-4">
-                    <Accordion type="single" collapsible className="w-full">
-                        <AccordionItem value="item-1">
-                        <Card>
-                            <AccordionTrigger className="p-4">
-                                <h3 className="text-xl font-semibold">Servicios del Evento</h3>
-                            </AccordionTrigger>
-                            <AccordionContent>
-                            <CardContent className="pt-0">
-                                <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                    <TableHead className="py-2 px-3">Fecha</TableHead>
-                                    <TableHead className="py-2 px-3">Descripción</TableHead>
-                                    <TableHead className="py-2 px-3">Asistentes</TableHead>
-                                    <TableHead className="py-2 px-3">Duración</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {briefingItems.length > 0 ? briefingItems.map(item => (
-                                    <TableRow key={item.id}>
-                                        <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
-                                        <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
-                                        <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                                        <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
-                                    </TableRow>
-                                    )) : (
-                                        <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
-                                    )}
-                                </TableBody>
-                                </Table>
-                            </CardContent>
-                            </AccordionContent>
-                        </Card>
-                        </AccordionItem>
-                    </Accordion>
+                
+                <Accordion type="single" collapsible className="w-full mb-4" >
+                    <AccordionItem value="item-1">
+                    <Card>
+                        <AccordionTrigger className="p-4">
+                            <h3 className="text-xl font-semibold">Servicios del Evento</h3>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                        <CardContent className="pt-0">
+                            <Table>
+                            <TableHeader>
+                                <TableRow>
+                                <TableHead className="py-2 px-3">Fecha</TableHead>
+                                <TableHead className="py-2 px-3">Descripción</TableHead>
+                                <TableHead className="py-2 px-3">Asistentes</TableHead>
+                                <TableHead className="py-2 px-3">Duración</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {briefingItems.length > 0 ? briefingItems.map(item => (
+                                <TableRow key={item.id}>
+                                    <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
+                                    <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
+                                    <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
+                                    <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
+                                </TableRow>
+                                )) : (
+                                    <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                            </Table>
+                        </CardContent>
+                        </AccordionContent>
+                    </Card>
+                    </AccordionItem>
+                </Accordion>
+                <div className="flex items-center justify-between mb-4 sticky top-[60px] z-20 bg-background/95 backdrop-blur-sm py-2 -mt-2">
+                    <div/>
+                    <div className="flex items-center gap-2">
+                        <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
+                        <ActionButton />
+                        <Button type="submit" disabled={isLoading || !formState.isDirty}>
+                            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                            <span className="ml-2">Guardar Cambios</span>
+                        </Button>
+                    </div>
                 </div>
 
                 <Tabs defaultValue="planificacion">
@@ -660,18 +575,10 @@ export default function PersonalExternoPage() {
                         <Card>
                             <CardHeader className="py-3 flex-row items-center justify-between">
                                 <CardTitle className="text-lg">Planificación de Turnos</CardTitle>
-                                <div className="flex items-center gap-2">
-                                     <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
-                                    <ActionButton />
-                                    <Button type="button" onClick={addRow} size="sm">
-                                        <PlusCircle className="mr-2" />
-                                        Añadir Turno
-                                    </Button>
-                                    <Button type="submit" disabled={isLoading || !formState.isDirty}>
-                                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                                        <span className="ml-2">Guardar Cambios</span>
-                                    </Button>
-                                </div>
+                                <Button type="button" onClick={addRow} size="sm">
+                                    <PlusCircle className="mr-2" />
+                                    Añadir Turno
+                                </Button>
                             </CardHeader>
                             <CardContent className="p-2">
                                 <div className="border rounded-lg overflow-x-auto">
@@ -872,10 +779,6 @@ export default function PersonalExternoPage() {
                                         {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
                                         Imprimir Parte de Horas
                                     </Button>
-                                    <Button type="button" onClick={handlePrintReport} disabled={isPrinting}>
-                                        {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
-                                        Generar Informe PDF
-                                    </Button>
                                 </div>
                             </CardHeader>
                             <CardContent className="space-y-4">
@@ -942,10 +845,16 @@ export default function PersonalExternoPage() {
                                             </FormItem>
                                         )} />
                                         <FormField control={control} name={`ajustes.${index}.concepto`} render={({field}) => (
-                                            <Input placeholder="Concepto" {...field} className="h-9 flex-grow"/>
+                                            <Combobox 
+                                                options={AJUSTE_CONCEPTO_OPCIONES.map(o => ({label: o, value: o}))} 
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                placeholder="Concepto..."
+                                                onCreated={(value) => field.onChange(value)}
+                                                />
                                         )} />
                                         <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
-                                            <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-24 h-9"/>
+                                            <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="w-24 h-9"/>
                                         )} />
                                         <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
@@ -961,7 +870,7 @@ export default function PersonalExternoPage() {
                     </Card>
                 </div>
             </form>
-       </FormProvider>
+        </FormProvider>
         </TooltipProvider>
 
         <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
@@ -988,4 +897,3 @@ export default function PersonalExternoPage() {
     </>
   );
 }
-
