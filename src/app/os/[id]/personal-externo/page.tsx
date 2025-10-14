@@ -418,18 +418,18 @@ export default function PersonalExternoPage() {
                 finalY += 12;
 
                 const summaryData = [
-                    { title: 'Coste Final', value: formatCurrency(finalTotalReal), color: '#333' },
+                    { title: 'Coste Final', value: formatCurrency(finalTotalReal), color: '#333333' },
                     { title: 'Desviación Económica', value: formatCurrency(finalTotalReal - costeFinalPlanificado), color: (finalTotalReal - costeFinalPlanificado) > 0 ? '#E53E3E' : '#38A169' },
-                    { title: 'Total Horas Reales', value: `${formatDuration(watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + calculateHours(a.horaEntradaReal, a.horaSalidaReal), 0), 0))}h`, color: '#333' },
+                    { title: 'Total Horas Reales', value: `${formatDuration(watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + calculateHours(a.horaEntradaReal, a.horaSalidaReal), 0), 0))}h`, color: '#333333' },
                 ];
                 
                 const summaryBoxWidth = (pageWidth - margin * 2) / summaryData.length - 5;
                 summaryData.forEach((item, index) => {
-                    doc.setDrawColor('#E2E8F0');
-                    doc.setFillColor('#F7FAFC');
+                    doc.setDrawColor(226, 232, 240);
+                    doc.setFillColor(247, 250, 252);
                     doc.rect(margin + index * (summaryBoxWidth + 5), finalY, summaryBoxWidth, 20, 'FD');
                     doc.setFontSize(8);
-                    doc.setTextColor('#718096');
+                    doc.setTextColor(113, 128, 150);
                     doc.text(item.title, margin + index * (summaryBoxWidth + 5) + 5, finalY + 7);
                     doc.setFontSize(12);
                     doc.setFont('helvetica', 'bold');
@@ -590,18 +590,11 @@ export default function PersonalExternoPage() {
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
-                <div className="flex items-start justify-end mb-4">
+                <div className="flex items-start justify-between mb-4">
+                    <div/>
                     <div className="flex items-center gap-2">
                          <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
                         <ActionButton />
-                         <Button type="button" variant="outline" onClick={handlePrintParteHoras} disabled={isPrintingParte}>
-                             {isPrintingParte ? <Loader2 className="animate-spin" /> : <Printer />}
-                            <span className="ml-2">Imprimir Parte de Horas</span>
-                        </Button>
-                         <Button type="button" onClick={handlePrintReport} disabled={isPrinting}>
-                             {isPrinting ? <Loader2 className="animate-spin" /> : <Users />}
-                            <span className="ml-2">Generar Informe PDF</span>
-                        </Button>
                         <Button type="submit" disabled={isLoading || !formState.isDirty}>
                             {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                             <span className="ml-2">Guardar Cambios</span>
@@ -646,9 +639,10 @@ export default function PersonalExternoPage() {
                 </Accordion>
 
                 <Tabs defaultValue="planificacion">
-                     <TabsList className="grid w-full grid-cols-2">
+                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="planificacion">Planificación de Turnos</TabsTrigger>
                         <TabsTrigger value="aprobados">Cierre y Horas Reales</TabsTrigger>
+                        <TabsTrigger value="documentacion">Documentación</TabsTrigger>
                     </TabsList>
                     <TabsContent value="planificacion" className="mt-4">
                         <Card>
@@ -798,7 +792,7 @@ export default function PersonalExternoPage() {
                                         <TableRow>
                                             <TableHead>Nombre</TableHead>
                                             <TableHead>DNI</TableHead>
-                                            <TableHead>Fecha-Horario Plan.</TableHead>
+                                            <TableHead>Fecha-Horario</TableHead>
                                             <TableHead className="w-24">H. Entrada Real</TableHead>
                                             <TableHead className="w-24">H. Salida Real</TableHead>
                                             <TableHead className="w-[200px] text-center">Desempeño y Comentarios MICE</TableHead>
@@ -849,57 +843,103 @@ export default function PersonalExternoPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
+                    <TabsContent value="documentacion">
+                         <Card>
+                            <CardHeader className="py-3 flex-row items-center justify-between">
+                                <CardTitle className="text-lg">Documentación y Reportes</CardTitle>
+                                <div className="flex items-center gap-2">
+                                    <Button type="button" variant="outline" onClick={handlePrintParteHoras} disabled={isPrintingParte}>
+                                        {isPrintingParte ? <Loader2 className="animate-spin" /> : <Printer />}
+                                        <span className="ml-2">Imprimir Parte de Horas</span>
+                                    </Button>
+                                    <Button type="button" onClick={handlePrintReport} disabled={isPrinting}>
+                                        {isPrinting ? <Loader2 className="animate-spin" /> : <Users />}
+                                        <span className="ml-2">Generar Informe PDF</span>
+                                    </Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-4">
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base">Hoja de Firmas</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-4">
+                                            {personalExterno?.hojaFirmadaUrl ? (
+                                                <div className="relative group">
+                                                    <Image src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" width={400} height={300} className="rounded-md w-full h-auto object-contain border"/>
+                                                    <Button size="icon" variant="destructive" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleGlobalStatusAction('Asignado')}>
+                                                        <Trash2/>
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <Label htmlFor="upload-photo">Adjuntar Parte de Horas Firmado</Label>
+                                                    <Input id="upload-photo" type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
                 </Tabs>
                 
-                 <div className="mt-8 grid lg:grid-cols-2 gap-8">
-                     <Card>
-                        <CardHeader className="py-2"><CardTitle className="text-lg">Hoja de Firmas</CardTitle></CardHeader>
-                        <CardContent>
-                             <div className="space-y-4">
-                                {personalExterno?.hojaFirmadaUrl ? (
-                                    <div className="relative group">
-                                        <Image src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" width={400} height={300} className="rounded-md w-full h-auto object-contain border"/>
-                                        <Button size="icon" variant="destructive" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleGlobalStatusAction('Asignado')}>
-                                            <Trash2/>
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <div>
-                                        <Label htmlFor="upload-photo">Adjuntar Parte de Horas Firmado</Label>
-                                        <Input id="upload-photo" type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} />
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
+                 <div className="mt-8">
                     <Card>
                         <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
-                        <CardContent className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Coste Total Planificado:</span>
-                                <span className="font-bold">{formatCurrency(totalPlanned)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Coste Final Planificado (Plan. + Ajustes):</span>
-                                <span className="font-bold">{formatCurrency(costeFinalPlanificado)}</span>
-                            </div>
-                            <Separator className="my-2" />
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Coste Total Real (Horas):</span>
-                                <span className="font-bold">{formatCurrency(totalReal)}</span>
-                            </div>
-                            <div className="flex justify-between font-bold text-base">
-                                <span>Coste FINAL (Real + Ajustes):</span>
-                                <span className={finalTotalReal > costeFinalPlanificado ? 'text-destructive' : 'text-green-600'}>
-                                    {formatCurrency(finalTotalReal)}
-                                </span>
-                            </div>
-                            <Separator className="my-2" />
+                        <CardContent className="grid grid-cols-2 gap-8 p-4">
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Planificado:</span>
+                                    <span className="font-bold">{formatCurrency(totalPlanned)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Final Planificado (Plan. + Ajustes):</span>
+                                    <span className="font-bold">{formatCurrency(costeFinalPlanificado)}</span>
+                                </div>
+                                <Separator className="my-2" />
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coste Total Real (Horas):</span>
+                                    <span className="font-bold">{formatCurrency(totalReal)}</span>
+                                </div>
                                 <div className="flex justify-between font-bold text-base">
-                                <span>Desviación (FINAL vs Planificado):</span>
-                                <span className={finalTotalReal > costeFinalPlanificado ? 'text-destructive' : 'text-green-600'}>
-                                    {formatCurrency(finalTotalReal - costeFinalPlanificado)}
-                                </span>
+                                    <span>Coste FINAL (Real + Ajustes):</span>
+                                    <span className={finalTotalReal > costeFinalPlanificado ? 'text-destructive' : 'text-green-600'}>
+                                        {formatCurrency(finalTotalReal)}
+                                    </span>
+                                </div>
+                                <Separator className="my-2" />
+                                 <div className="flex justify-between font-bold text-base">
+                                    <span>Desviación (FINAL vs Planificado):</span>
+                                    <span className={finalTotalReal > costeFinalPlanificado ? 'text-destructive' : 'text-green-600'}>
+                                        {formatCurrency(finalTotalReal - costeFinalPlanificado)}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                               <h4 className="text-xs font-semibold text-muted-foreground">AJUSTE DE COSTES (Facturas, dietas, etc.)</h4>
+                                {(ajusteFields || []).map((ajuste, index) => (
+                                    <div key={ajuste.id} className="flex gap-2 items-center">
+                                        <FormField control={control} name={`ajustes.${index}.proveedorId`} render={({field}) => (
+                                            <FormItem className="flex-grow">
+                                                <Combobox options={providerOptions} value={field.value} onChange={field.onChange} placeholder="Proveedor..."/>
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={control} name={`ajustes.${index}.concepto`} render={({field}) => (
+                                            <Input placeholder="Concepto" {...field} className="h-9 flex-grow"/>
+                                        )} />
+                                        <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
+                                            <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-24 h-9"/>
+                                        )} />
+                                        <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
+                                    </div>
+                                ))}
+                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
+                                 <Separator className="my-2" />
+                                  <div className="flex justify-between font-bold">
+                                      <span>Total Ajustes:</span>
+                                      <span>{formatCurrency(totalAjustes)}</span>
+                                  </div>
                             </div>
                         </CardContent>
                     </Card>
