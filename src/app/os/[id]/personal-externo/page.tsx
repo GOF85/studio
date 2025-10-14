@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, FileText, Upload } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, FileText, Upload, Mail } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -47,6 +47,7 @@ const asignacionSchema = z.object({
   nombre: z.string(),
   dni: z.string().optional(),
   telefono: z.string().optional(),
+  email: z.string().email().optional().or(z.literal('')),
   comentarios: z.string().optional(),
   rating: z.number().optional(),
   comentariosMice: z.string().optional(),
@@ -90,6 +91,59 @@ const statusBadgeVariant: { [key in EstadoPersonalExterno]: 'success' | 'warning
     'Cerrado': 'default',
 };
 
+function AsignacionDialog({ turno, onSave, children, isReadOnly }: { turno: TurnoConDetalles; onSave: (turnoId: string, asignaciones: AsignacionPersonal[]) => void; children: React.ReactNode, isReadOnly: boolean }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [asignacion, setAsignacion] = useState<AsignacionPersonal>({ id: '1', nombre: '', dni: '', telefono: '', email: '', comentarios: '', horaEntradaReal: '', horaSalidaReal: '' });
+    
+    useEffect(() => {
+        if(isOpen) {
+             setAsignacion(turno.asignaciones?.[0] || { id: '1', nombre: '', dni: '', telefono: '', email: '', comentarios: '', horaEntradaReal: '', horaSalidaReal: '' });
+        }
+    }, [isOpen, turno.asignaciones]);
+
+    const updateAsignacion = (field: keyof Omit<AsignacionPersonal, 'id'>, value: string) => {
+        setAsignacion(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleSave = () => {
+        if (!asignacion.nombre) {
+            alert("El nombre es obligatorio.");
+            return;
+        }
+        onSave(turno.id, [asignacion]);
+        setIsOpen(false);
+    }
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>{children}</DialogTrigger>
+            <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>Asignar Personal: {turno.categoria}</DialogTitle>
+                    <DialogDescription asChild>
+                        <div className="text-sm text-muted-foreground pt-2 space-y-1">
+                            <div className="flex items-center gap-2"><MapPin size={14}/> <strong>Dirección:</strong> {turno.lugarEntrega}</div>
+                            <div className="flex items-center gap-2"><Clock size={14}/> <strong>Horario:</strong> {turno.horaEntrada} - {turno.horaSalida}</div>
+                        </div>
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1"><Label htmlFor={`nombre-${asignacion.id}`}>Nombre y Apellidos</Label><Input id={`nombre-${asignacion.id}`} placeholder="Nombre completo" value={asignacion.nombre} onChange={e => updateAsignacion('nombre', e.target.value)} /></div>
+                        <div className="space-y-1"><Label htmlFor={`dni-${asignacion.id}`}>DNI</Label><Input id={`dni-${asignacion.id}`} placeholder="DNI" value={asignacion.dni} onChange={e => updateAsignacion('dni', e.target.value)} /></div>
+                        <div className="space-y-1"><Label htmlFor={`tel-${asignacion.id}`}>Teléfono</Label><Input id={`tel-${asignacion.id}`} placeholder="Teléfono de contacto" value={asignacion.telefono} onChange={e => updateAsignacion('telefono', e.target.value)} /></div>
+                        <div className="space-y-1"><Label htmlFor={`email-${asignacion.id}`}>Email</Label><Input id={`email-${asignacion.id}`} placeholder="Email" value={asignacion.email} onChange={e => updateAsignacion('email', e.target.value)} /></div>
+                        <div className="space-y-1 col-span-2"><Label htmlFor={`com-${asignacion.id}`}>Comentarios</Label><Input id={`com-${asignacion.id}`} placeholder="Notas (opcional)" value={asignacion.comentarios} onChange={e => updateAsignacion('comentarios', e.target.value)} /></div>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleSave} disabled={isReadOnly}>Guardar Asignación</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -146,9 +200,8 @@ export default function PersonalExternoPage() {
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [personalExterno, setPersonalExterno] = useState<PersonalExterno | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
-
+  
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
@@ -396,77 +449,11 @@ export default function PersonalExternoPage() {
     });
   }, [proveedoresDB, allProveedores]);
 
-  const hitosConPersonal = useMemo(() => {
-    if (!briefingItems || !serviceOrder) return [];
-    return briefingItems
-        .map((hito, index) => ({...hito, expedicionNumero: `${serviceOrder.serviceNumber}.${(index + 1).toString().padStart(2, '0')}`}))
-  }, [briefingItems, serviceOrder]);
-
   const turnosAprobados = useMemo(() => {
     return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
   }, [watchedFields]);
 
-  const handlePrintParte = async () => {
-    if (!serviceOrder) return;
-    setIsPrinting(true);
-    try {
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const margin = 15;
-        let finalY = margin;
-        
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor('#16a34a');
-        doc.text('Parte de Horas - Personal Externo', 15, finalY);
-        finalY += 8;
-
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor('#374151');
-        autoTable(doc, {
-            body: [
-                ['Nº Servicio:', serviceOrder.serviceNumber],
-                ['Cliente:', serviceOrder.client],
-                ['Fecha Evento:', format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
-            ],
-            startY: finalY,
-            theme: 'plain',
-            styles: { fontSize: 8, cellPadding: 0.5 },
-            columnStyles: { 0: { fontStyle: 'bold' } }
-        });
-        finalY = (doc as any).lastAutoTable.finalY + 8;
-
-        autoTable(doc, {
-            startY: finalY,
-            head: [['Fecha', 'Solicitado por', 'Tipo Servicio', 'Nombre y Apellidos', 'DNI', 'H. Entrada', 'H. Salida', 'Firma']],
-            body: watchedFields.flatMap(turno => 
-                (turno.asignaciones?.length ? turno.asignaciones : [{id: 'temp', nombre: 'PENDIENTE DE ASIGNAR', dni: ''}]).map(asig => [
-                    format(new Date(turno.fecha), 'dd/MM/yy'),
-                    turno.solicitadoPor,
-                    turno.tipoServicio,
-                    asig.nombre,
-                    asig.dni,
-                    turno.horaEntrada,
-                    turno.horaSalida,
-                    ''
-                ])
-            ),
-            theme: 'grid',
-            headStyles: { fillColor: '#059669', textColor: '#ffffff' },
-            styles: { fontSize: 7, cellPadding: 1.5, minCellHeight: 10 },
-            columnStyles: { 7: { cellWidth: 20 } }
-        });
-        
-        doc.save(`Parte_Horas_${serviceOrder.serviceNumber}.pdf`);
-    } catch (e) {
-        console.error(e);
-        toast({ variant: 'destructive', title: 'Error al generar PDF' });
-    } finally {
-        setIsPrinting(false);
-    }
-};
-
-  const handlePrintInforme = async () => {
+ const handlePrintInforme = async () => {
     if (!serviceOrder) return;
     setIsPrinting(true);
     try {
@@ -573,6 +560,67 @@ export default function PersonalExternoPage() {
         setIsPrinting(false);
     }
   };
+
+  const handlePrintParte = async () => {
+      if (!serviceOrder) return;
+      setIsPrinting(true);
+      try {
+          const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+          const margin = 15;
+          let finalY = margin;
+          
+          doc.setFontSize(16);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor('#16a34a');
+          doc.text('Parte de Horas - Personal Externo', 15, finalY);
+          finalY += 8;
+
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor('#374151');
+          autoTable(doc, {
+              body: [
+                  ['Nº Servicio:', serviceOrder.serviceNumber],
+                  ['Cliente:', serviceOrder.client],
+                  ['Fecha Evento:', format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
+              ],
+              startY: finalY,
+              theme: 'plain',
+              styles: { fontSize: 8, cellPadding: 0.5 },
+              columnStyles: { 0: { fontStyle: 'bold' } }
+          });
+          finalY = (doc as any).lastAutoTable.finalY + 8;
+
+          autoTable(doc, {
+              startY: finalY,
+              head: [['Fecha', 'Solicitado por', 'Tipo Servicio', 'Nombre y Apellidos', 'DNI', 'H. Entrada', 'H. Salida', 'Firma']],
+              body: watchedFields.flatMap(turno => 
+                  (turno.asignaciones?.length ? turno.asignaciones : [{id: 'temp', nombre: 'PENDIENTE DE ASIGNAR', dni: ''}]).map(asig => [
+                      format(new Date(turno.fecha), 'dd/MM/yy'),
+                      turno.solicitadoPor,
+                      turno.tipoServicio,
+                      asig.nombre,
+                      asig.dni,
+                      turno.horaEntrada,
+                      turno.horaSalida,
+                      ''
+                  ])
+              ),
+              theme: 'grid',
+              headStyles: { fillColor: '#059669', textColor: '#ffffff' },
+              styles: { fontSize: 7, cellPadding: 1.5, minCellHeight: 10 },
+              columnStyles: { 7: { cellWidth: 20 } }
+          });
+          
+          doc.save(`Parte_Horas_${serviceOrder.serviceNumber}.pdf`);
+      } catch (e) {
+          console.error(e);
+          toast({ variant: 'destructive', title: 'Error al generar PDF' });
+      } finally {
+          setIsPrinting(false);
+      }
+  };
+
 
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
@@ -786,6 +834,8 @@ export default function PersonalExternoPage() {
                                         <TableRow>
                                             <TableHead>Nombre</TableHead>
                                             <TableHead>DNI</TableHead>
+                                            <TableHead>Teléfono</TableHead>
+                                            <TableHead>Email</TableHead>
                                             <TableHead>Fecha-Horario Plan.</TableHead>
                                             <TableHead className="w-24">H. Entrada Real</TableHead>
                                             <TableHead className="w-24">H. Salida Real</TableHead>
@@ -815,6 +865,8 @@ export default function PersonalExternoPage() {
                                                         {asignacion.nombre}
                                                     </TableCell>
                                                     <TableCell>{asignacion.dni}</TableCell>
+                                                    <TableCell>{asignacion.telefono}</TableCell>
+                                                    <TableCell>{asignacion.email}</TableCell>
                                                     <TableCell>
                                                         <div className="font-semibold">{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
                                                         <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
@@ -834,7 +886,7 @@ export default function PersonalExternoPage() {
                                                 </TableRow>
                                             )})
                                         }) : (
-                                            <TableRow><TableCell colSpan={7} className="h-24 text-center">No hay turnos gestionados por la ETT.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={9} className="h-24 text-center">No hay turnos gestionados por la ETT.</TableCell></TableRow>
                                         )}
                                     </TableBody>
                                 </Table>
@@ -863,7 +915,6 @@ export default function PersonalExternoPage() {
                                         {personalExterno?.hojaFirmadaUrl ? (
                                              <div className="relative">
                                                 <img src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" width={500} height={300} className="rounded-md w-full h-auto object-contain"/>
-                                                <Button size="sm" variant="destructive" className="absolute top-2 right-2"><Trash2/></Button>
                                             </div>
                                         ) : (
                                             <div>
@@ -971,4 +1022,997 @@ export default function PersonalExternoPage() {
     </>
   );
 }
+```
+- `src/types/index.ts`:
+```ts
+import { z } from "zod";
 
+export type CateringItem = {
+  itemCode: string;
+  description: string;
+  price: number;
+  stock: number;
+  imageUrl: string;
+  imageHint: string;
+  category: string;
+  tipo?: string;
+  unidadVenta?: number;
+};
+
+export type OrderItem = CateringItem & {
+  quantity: number;
+  orderId?: string;
+  tipo?: string;
+  ajustes?: {
+      tipo: 'merma' | 'exceso' | 'ajuste manual' | 'devolucion';
+      cantidad: number;
+      fecha: string;
+      comentario: string;
+  }[];
+};
+
+export type OrderCompletionAssistantInput = {
+  eventDescription: string;
+};
+
+export type OrderCompletionAssistantOutput = {
+  itemCode: string;
+  description: string;
+  price: number;
+  quantity: number;
+}[];
+
+
+export type ServiceOrder = {
+    id: string;
+    serviceNumber: string;
+    startDate: string;
+    endDate: string;
+    client: string;
+    tipoCliente?: 'Empresa' | 'Agencia' | 'Particular';
+    finalClient: string;
+    contact: string;
+    phone: string;
+    asistentes: number;
+    space: string;
+    spaceAddress: string;
+    spaceContact: string;
+    spacePhone: string;
+    spaceMail: string;
+    respMetre: string;
+    respMetrePhone: string;
+    respMetreMail: string;
+    respCocinaCPR: string;
+    respCocinaCPRPhone: string;
+    respCocinaCPRMail: string;
+    respPase: string;
+    respPasePhone: string;
+    respPaseMail: string;
+    respCocinaPase: string;
+    respCocinaPasePhone: string;
+    respCocinaPaseMail: string;
+    comercialAsiste: boolean;
+    comercial: string;
+    comercialPhone: string;
+    comercialMail: string;
+    rrhhAsiste: boolean;
+    respRRHH: string;
+    respRRHHPhone: string;
+    respRRHHMail: string;
+    agencyPercentage: number;
+    agencyCommissionValue?: number;
+    spacePercentage: number;
+    spaceCommissionValue?: number;
+    comisionesAgencia?: number;
+    comisionesCanon?: number;
+    facturacion: number;
+    plane: string;
+    comments: string;
+    status: 'Borrador' | 'Pendiente' | 'Confirmado' | 'Anulado';
+    anulacionMotivo?: string;
+    deliveryTime?: string;
+    deliveryLocations?: string[];
+    objetivoGastoId?: string;
+    vertical?: 'Catering' | 'Entregas';
+    direccionPrincipal?: string;
+    isVip?: boolean;
+    email?: string;
+};
+
+export type MaterialOrder = {
+    id: string;
+    osId: string;
+    type: 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';
+    status: 'Asignado' | 'En preparación' | 'Listo';
+    items: OrderItem[];
+    days: number;
+    total: number;
+    contractNumber: string;
+    deliveryDate?: string;
+    deliverySpace?: string;
+    deliveryLocation?: string;
+    solicita?: 'Sala' | 'Cocina';
+};
+
+
+export const DEPARTAMENTOS_PERSONAL = ['Sala', 'Pase', 'CPR', 'RRHH', 'Almacén', 'Comercial', 'Operaciones', 'Marketing', 'HQ'] as const;
+export type DepartamentoPersonal = typeof DEPARTAMENTOS_PERSONAL[number];
+
+export type Personal = {
+    id: string;
+    nombre: string;
+    apellidos: string;
+    iniciales: string;
+    departamento: string;
+    categoria: string;
+    telefono: string;
+    mail: string;
+    dni: string;
+    precioHora: number;
+}
+
+export const TIPO_ESPACIO = ['Hotel', 'Espacio Singular', 'Finca', 'Restaurante', 'Auditorio', 'Corporativo', 'Centro de Congresos', 'Exterior'] as const;
+export const ESTILOS_ESPACIO = ['Clásico', 'Industrial', 'Moderno', 'Rústico', 'Lujoso', 'Minimalista', 'Tecnológico', 'Exterior/Jardín'] as const;
+export const TAGS_ESPACIO = ['Con Vistas', 'Terraza', 'Jardín', 'Piscina', 'Discoteca', 'Exclusividad Total', 'Pet-Friendly', 'Parking Propio', 'Luz Natural'] as const;
+export const IDEAL_PARA = ['Bodas', 'Eventos Corporativos', 'Presentaciones de producto', 'Rodajes', 'Fiestas Privadas', 'Congresos', 'Ferias'] as const;
+export type RelacionComercial = 'Exclusividad' | 'Homologado Preferente' | 'Homologado' | 'Puntual' | 'Sin Relación';
+
+
+export type Sala = {
+  id: string;
+  nombreSala: string;
+  m2?: number;
+  dimensiones?: string;
+  alturaMax?: number;
+  alturaMin?: number;
+  aforoTeatro?: number;
+  aforoEscuela?: number;
+  aforoCabaret?: number;
+  aforoCocktailSala?: number;
+  esDiafana: boolean;
+  tieneLuzNatural: boolean;
+};
+
+export type ContactoEspacio = {
+    id: string;
+    nombre: string;
+    cargo: string;
+    telefono: string;
+    email: string;
+};
+
+export type CuadroElectrico = {
+    id: string;
+    ubicacion: string;
+    potencia: string;
+};
+
+export type ImagenEspacio = {
+    id: string;
+    url: string;
+    isPrincipal: boolean;
+}
+
+export type MultimediaEspacio = {
+    imagenes?: ImagenEspacio[];
+    carpetaDRIVE?: string;
+    visitaVirtual?: string;
+}
+
+export type MetricasOperativas = {
+    dificultadMontaje: 1 | 2 | 3 | 4 | 5; // De Fácil a Muy Complejo
+    penalizacionPersonalMontaje: number; // Porcentaje extra de personal estimado
+    notasDificultadMontaje?: string;
+    valoracionOperaciones: 1 | 2 | 3 | 4 | 5; // Calificación interna del equipo de operaciones
+    factoresCriticosExito: string[]; // Qué debe salir bien sí o sí
+    riesgosPotenciales: string[]; // Qué suele fallar o qué riesgos hay
+    notasInternasOperaciones?: string;
+};
+
+export type FlowInvitado = {
+    accesoPrincipal: string; // Ej: "Recepción principal del hotel", "Entrada directa desde la calle"
+    recorridoInvitado: string; // Ej: "Subida en ascensor panorámico a planta 33"
+    aparcamiento: string; // Ej: "Valet parking", "Parking público de pago a 200m", "Zona de fácil aparcamiento"
+    transportePublico: string; // Paradas de metro/bus/tren cercanas
+    accesibilidadAsistentes: string; // Ej: "Acceso y baños adaptados para sillas de ruedas"
+    guardarropa: boolean;
+    seguridadPropia: boolean;
+};
+
+export type Espacio = {
+  id: string;
+  
+  identificacion: {
+    nombreEspacio: string;
+    tipoDeEspacio: (typeof TIPO_ESPACIO[number])[];
+    descripcionCorta?: string;
+    descripcionLarga?: string;
+    ciudad: string;
+    provincia: string;
+    calle: string;
+    codigoPostal: string;
+    zona?: string; 
+    estilos: (typeof ESTILOS_ESPACIO[number])[];
+    tags: (typeof TAGS_ESPACIO[number])[];
+    idealPara: (typeof IDEAL_PARA[number])[];
+  };
+  
+  capacidades: {
+    aforoMaximoCocktail: number;
+    aforoMaximoBanquete: number;
+    salas: Sala[];
+  };
+
+  logistica: {
+    accesoVehiculos?: string;
+    horarioMontajeDesmontaje?: string;
+    montacargas: boolean;
+    dimensionesMontacargas?: string;
+    accesoServicioIndependiente: boolean;
+    potenciaTotal?: string;
+    cuadrosElectricos?: CuadroElectrico[];
+    tomasAgua?: string[];
+    desagues?: string[];
+    tipoCocina: 'Cocina completa' | 'Office de regeneración' | 'Sin cocina';
+    equipamientoCocina?: string[];
+    potenciaElectricaCocina?: string;
+    tomasAguaCocina: boolean;
+    desaguesCocina: boolean;
+    extraccionHumos: boolean;
+    descripcionOffice?: string;
+    zonaAlmacenaje?: string;
+    limitadorSonido: boolean;
+    permiteMusicaExterior: boolean;
+    politicaDecoracion?: string;
+    puntosAnclaje: boolean;
+    metricasOperativas?: {
+        dificultadMontaje: number;
+        penalizacionPersonalMontaje: number;
+        notasDificultadMontaje?: string;
+    };
+  };
+
+  evaluacionMICE: {
+    proveedorId?: string;
+    relacionComercial: RelacionComercial;
+    valoracionComercial: number; 
+    puntosFuertes: string[];
+    puntosDebiles: string[];
+    perfilClienteIdeal?: string;
+    argumentarioVentaRapido?: string[];
+    exclusividadMusica: boolean;
+    exclusividadAudiovisuales: boolean;
+    otrosProveedoresExclusivos?: string;
+    notasComerciales?: string;
+    resumenEjecutivoIA?: string;
+    valoracionOperaciones: number; 
+    factoresCriticosExito: string[];
+    riesgosPotenciales: string[];
+  };
+
+  experienciaInvitado: {
+    flow: FlowInvitado;
+    equipamientoAudiovisuales?: string;
+    pantalla?: string;
+    sistemaSonido?: string;
+    escenario?: string;
+    conexionWifi?: string;
+  };
+
+  contactos: ContactoEspacio[];
+  multimedia?: MultimediaEspacio;
+  
+  espacio: string; 
+  escaparateMICE?: string;
+  carpetaDRIVE?: string;
+  nombreContacto1?: string;
+  telefonoContacto1?: string;
+  emailContacto1?: string;
+  canonEspacioPorcentaje?: number;
+  canonEspacioFijo?: number;
+  canonMcPorcentaje?: number;
+  canonMcFijo?: number;
+  comisionAlquilerMcPorcentaje?: number;
+  precioOrientativoAlquiler?: string;
+  horaLimiteCierre?: string;
+  aforoCocktail?: number;
+  aforoBanquete?: number;
+  auditorio?: string;
+  aforoAuditorio?: number;
+  zonaExterior?: string;
+  capacidadesPorSala?: string;
+  directorio?: string;
+  comentariosVarios?: string;
+  cocina?: string;
+  plato?: string; 
+  homologacion?: string;
+  comentariosMarketing?: string;
+};
+
+
+export const ARTICULO_CATERING_CATEGORIAS = ['Bodega', 'Almacen', 'Bio', 'Hielo', 'Alquiler', 'Menaje', 'Decoracion', 'Servicios', 'Otros'] as const;
+export type ArticuloCateringCategoria = typeof ARTICULO_CATERING_CATEGORIAS[number];
+
+export type ArticuloCatering = {
+    id: string;
+    erpId?: string;
+    nombre: string;
+    categoria: ArticuloCateringCategoria;
+    esHabitual?: boolean;
+    precioVenta: number;
+    precioAlquiler: number;
+    precioReposicion: number;
+    unidadVenta?: number;
+    stockSeguridad?: number;
+    tipo?: string;
+    loc?: string;
+    imagen?: string;
+    producidoPorPartner?: boolean;
+    partnerId?: string;
+    recetaId?: string; 
+    subcategoria?: string;
+}
+
+
+export type TipoServicio = {
+    id: string;
+    servicio: string;
+}
+
+export type ProveedorTransporte = {
+    id: string;
+    proveedorId: string;
+    nombreProveedor: string;
+    tipoTransporte: string; // Ej. "Furgoneta Isotermo"
+    precio: number;
+    tipo: 'Catering' | 'Entregas';
+}
+
+export type CategoriaPersonal = {
+  id: string;
+  proveedorId: string;
+  nombreProveedor: string;
+  categoria: string;
+  precioHora: number;
+};
+
+export type ComercialBriefingItem = {
+    id: string;
+    fecha: string;
+    horaInicio: string;
+    horaFin: string;
+    conGastronomia: boolean;
+    descripcion: string;
+    comentarios: string;
+    sala: string;
+    asistentes: number;
+    precioUnitario: number;
+    importeFijo?: number;
+    bebidas?: string;
+    matBebida?: string;
+    materialGastro?: string;
+    manteleria?: string;
+};
+
+export type ComercialBriefing = {
+    osId: string;
+    items: ComercialBriefingItem[];
+}
+
+export type GastronomyOrderStatus = 'Pendiente' | 'En preparación' | 'Listo' | 'Incidencia';
+
+export type GastronomyOrderItem = {
+    id: string; // Receta ID
+    type: 'item' | 'separator';
+    nombre: string;
+    categoria?: string;
+    costeMateriaPrima?: number;
+    quantity?: number;
+}
+
+export type GastronomyOrder = {
+    id: string; // briefing item ID
+    osId: string;
+    status: GastronomyOrderStatus;
+    descripcion: string;
+    fecha: string;
+    horaInicio: string;
+    asistentes: number;
+    comentarios?: string;
+    sala?: string;
+    items: GastronomyOrderItem[];
+    total: number;
+}
+
+export type TransporteOrder = {
+    id: string;
+    osId: string;
+    fecha: string;
+    proveedorId: string;
+    proveedorNombre: string;
+    tipoTransporte: string;
+    precio: number;
+    lugarRecogida: string;
+    horaRecogida: string;
+    lugarEntrega: string;
+    horaEntrega: string;
+    observaciones?: string;
+    status: 'Pendiente' | 'Confirmado' | 'En Ruta' | 'Entregado';
+    firmaUrl?: string;
+    firmadoPor?: string;
+    dniReceptor?: string;
+    fechaFirma?: string;
+    hitosIds?: string[]; // For Entregas, to link multiple deliveries
+}
+
+export type HieloOrder = {
+    id: string;
+    osId: string;
+    fecha: string;
+    proveedorId: string;
+    proveedorNombre: string;
+    items: { id: string; producto: string; precio: number; cantidad: number }[];
+    total: number;
+    observaciones: string;
+    status: 'Pendiente' | 'Confirmado' | 'En reparto' | 'Entregado';
+};
+
+export type DecoracionDBItem = {
+  id: string;
+  concepto: string;
+  precio: number;
+};
+
+export type DecoracionOrder = {
+  id: string;
+  osId: string;
+  fecha: string;
+  concepto: string;
+  precio: number;
+  observaciones?: string;
+};
+
+export type AtipicoDBItem = {
+  id: string;
+  concepto: string;
+  precio: number;
+};
+
+export type AtipicoOrder = {
+  id: string;
+  osId: string;
+  fecha: string;
+  concepto: string;
+  observaciones?: string;
+  precio: number;
+  status: 'Pendiente' | 'Aprobado' | 'Rechazado';
+};
+
+export type PersonalMiceOrder = {
+    id: string;
+    osId: string;
+    centroCoste: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
+    nombre: string;
+    dni: string;
+    tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
+    horaEntrada: string;
+    horaSalida: string;
+    precioHora: number;
+    horaEntradaReal: string;
+    horaSalidaReal: string;
+}
+
+export type AsignacionPersonal = {
+  id: string;
+  nombre: string;
+  dni: string;
+  telefono: string;
+  email?: string;
+  comentarios: string;
+  comentariosMice?: string;
+  rating?: number;
+  horaEntradaReal: string;
+  horaSalidaReal: string;
+};
+
+export type PersonalExternoTurno = {
+  id: string;
+  proveedorId: string;
+  categoria: string;
+  precioHora: number;
+  fecha: string;
+  horaEntrada: string;
+  horaSalida: string;
+  solicitadoPor: 'Sala' | 'Pase' | 'Otro';
+  tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
+  observaciones?: string;
+  statusPartner: 'Pendiente Asignación' | 'Gestionado';
+  asignaciones: AsignacionPersonal[];
+  requiereActualizacion?: boolean;
+};
+
+export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
+export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
+
+export type PersonalExterno = {
+    osId: string;
+    turnos: PersonalExternoTurno[];
+    status: EstadoPersonalExterno;
+    observacionesGenerales?: string;
+    hojaFirmadaUrl?: string;
+};
+
+export const AJUSTE_CONCEPTO_OPCIONES = ['Dietas', 'Transporte', 'Parking', 'Gastos Adicionales', 'Otros'] as const;
+export type AjusteConcepto = typeof AJUSTE_CONCEPTO_OPCIONES[number];
+
+export type PersonalExternoAjuste = {
+    id: string;
+    proveedorId: string;
+    concepto: AjusteConcepto | string;
+    importe: number;
+};
+
+export type PruebaMenuItem = {
+    id: string;
+    type: 'header' | 'item';
+    mainCategory: 'BODEGA' | 'GASTRONOMÍA';
+    referencia: string;
+    observaciones?: string;
+};
+
+export type PruebaMenuData = {
+    osId: string;
+    items: PruebaMenuItem[];
+    observacionesGenerales: string;
+    costePruebaMenu?: number;
+};
+
+export type CtaExplotacionObjetivos = {
+    gastronomia: number;
+    bodega: number;
+    consumibles: number;
+    hielo: number;
+    almacen: number;
+    alquiler: number;
+    transporte: number;
+    decoracion: number;
+    atipicos: number;
+    personalMice: number;
+    personalExterno: number;
+    costePruebaMenu: number;
+}
+
+export type ObjetivosGasto = CtaExplotacionObjetivos & {
+    id: string;
+    name: string;
+};
+
+export type ComercialAjuste = {
+    id: string;
+    concepto: string;
+    importe: number;
+}
+export type Precio = {
+    id: string;
+    categoria: string;
+    producto: string;
+    precioUd: number;
+    precioAlquilerUd: number;
+    unidad: string;
+    observaciones: string;
+    loc: string;
+    imagen: string;
+    unidadVenta?: number;
+}
+
+export type MenajeDB = {
+    id: string;
+    descripcion: string;
+    categoria: string;
+    imagen: string;
+}
+
+export type TipoCocina = {
+    id: string;
+    nombre: string;
+}
+
+export type CategoriaReceta = {
+    id: string;
+    nombre: string;
+}
+
+export const UNIDADES_MEDIDA = ['UNIDAD', 'KILO', 'LITRO', 'GRAMO', 'BOTELLA', 'CAJA', 'PACK'] as const;
+export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
+
+export const ingredienteErpSchema = z.object({
+  id: z.string(),
+  idProveedor: z.string().optional(),
+  nombreProductoERP: z.string().min(1, 'El nombre del producto es obligatorio'),
+  referenciaProveedor: z.string().optional(),
+  nombreProveedor: z.string().optional(),
+  familiaCategoria: z.string().optional(),
+  precioCompra: z.coerce.number().min(0, "Debe ser un valor positivo."),
+  unidadConversion: z.coerce.number().min(1, "Debe ser mayor que 0.").default(1),
+  precio: z.coerce.number().min(0),
+  precioAlquiler: z.coerce.number().min(0).optional(),
+  unidad: z.enum(UNIDADES_MEDIDA),
+  tipo: z.string().optional(),
+  alquiler: z.boolean().default(false),
+  observaciones: z.string().optional(),
+});
+
+export type IngredienteERP = z.infer<typeof ingredienteErpSchema>;
+
+export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS_DE_CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
+export type Alergeno = typeof ALERGENOS[number];
+
+export type IngredienteInterno = {
+    id: string;
+    nombreIngrediente: string;
+    productoERPlinkId: string;
+    mermaPorcentaje: number;
+    alergenosPresentes: Alergeno[];
+    alergenosTrazas: Alergeno[];
+}
+
+export type ComponenteElaboracion = {
+    id: string;
+    tipo: 'ingrediente' | 'elaboracion';
+    componenteId: string; // ID of IngredienteInterno or another Elaboracion
+    nombre: string;
+    cantidad: number;
+    costePorUnidad: number;
+}
+
+export type Elaboracion = {
+    id: string;
+    nombre: string;
+    produccionTotal: number;
+    unidadProduccion: UnidadMedida;
+    partidaProduccion: PartidaProduccion;
+    componentes: ComponenteElaboracion[];
+    instruccionesPreparacion: string;
+    fotosProduccionURLs?: string[];
+    videoProduccionURL?: string;
+    formatoExpedicion: string;
+    ratioExpedicion: number;
+    tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+    costePorUnidad?: number;
+    alergenos?: Alergeno[];
+}
+
+export type ElaboracionEnReceta = {
+  id: string;
+  elaboracionId: string;
+  nombre: string;
+  cantidad: number;
+  coste: number;
+  gramaje: number;
+  alergenos?: Alergeno[];
+  unidad: 'KILO' | 'LITRO' | 'UNIDAD';
+  merma: number;
+}
+
+export const SABORES_PRINCIPALES = ['DULCE', 'SALADO', 'ÁCIDO', 'AMARGO', 'UMAMI'] as const;
+export type SaborPrincipal = typeof SABORES_PRINCIPALES[number];
+
+export const PARTIDAS_PRODUCCION = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'] as const;
+export type PartidaProduccion = typeof PARTIDAS_PRODUCCION[number];
+
+export type Receta = {
+    id: string;
+    numeroReceta?: string;
+    nombre: string;
+    nombre_en?: string;
+    visibleParaComerciales: boolean;
+    descripcionComercial: string;
+    descripcionComercial_en?: string;
+    responsableEscandallo: string;
+    categoria: string;
+    partidaProduccion?: string; // Calculated field
+    gramajeTotal?: number;
+    estacionalidad: 'INVIERNO' | 'VERANO' | 'MIXTO';
+    tipoDieta: 'VEGETARIANO' | 'VEGANO' | 'AMBOS' | 'NINGUNO';
+    porcentajeCosteProduccion: number;
+    elaboraciones: ElaboracionEnReceta[];
+    menajeAsociado: { id: string; menajeId: string; descripcion: string; ratio: number }[];
+    instruccionesMiseEnPlace: string;
+    fotosMiseEnPlaceURLs?: string[];
+    instruccionesRegeneracion: string;
+    fotosRegeneracionURLs?: string[];
+    instruccionesEmplatado: string;
+    fotosEmplatadoURLs?: string[];
+    perfilSaborPrincipal?: SaborPrincipal;
+    perfilSaborSecundario?: string[];
+    perfilTextura?: string[];
+    tipoCocina?: string;
+    temperaturaServicio?: 'CALIENTE' | 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO';
+    tecnicaCoccionPrincipal?: string;
+    potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL', 'AL_MOMENTO';
+    formatoServicioIdeal?: string[];
+    equipamientoCritico?: string[];
+    dificultadProduccion?: number; // 1-5
+    estabilidadBuffet?: number; // 1-5
+    escalabilidad?: 'FACIL' | 'MEDIA' | 'DIFICIL';
+    etiquetasTendencia?: string[];
+    // Calculated fields
+    costeMateriaPrima?: number;
+    precioVenta?: number;
+    alergenos?: Alergeno[];
+    requiereRevision?: boolean;
+}
+
+export type OrdenFabricacion = {
+    id: string;
+    fechaCreacion: string;
+    fechaProduccionPrevista: string;
+    fechaAsignacion?: string;
+    fechaInicioProduccion?: string;
+    fechaFinalizacion?: string;
+    elaboracionId: string;
+    elaboracionNombre: string;
+    cantidadTotal: number;
+    cantidadReal?: number;
+    necesidadTotal?: number;
+    unidad: UnidadMedida;
+    partidaAsignada: PartidaProduccion;
+    responsable?: string;
+    estado: 'Pendiente' | 'Asignada' | 'En Proceso' | 'Finalizado' | 'Validado' | 'Incidencia';
+    osIDs: string[];
+    incidencia: boolean;
+    incidenciaObservaciones?: string;
+    okCalidad: boolean;
+    responsableCalidad?: string;
+    fechaValidacionCalidad?: string;
+    tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+}
+
+export type PickingItemState = {
+    itemCode: string;
+    checked: boolean;
+    pickedQuantity: number;
+    incidentComment?: string;
+    resolved?: boolean;
+};
+
+export type MaterialOrderType = 'Almacen' | 'Bodega' | 'Bio' | 'Alquiler';
+
+export type PickingSheet = {
+    id: string; // Composite key: osId + fechaNecesidad
+    osId: string;
+    fechaNecesidad: string;
+    items: (OrderItem & { type: MaterialOrderType })[];
+    status: 'Pendiente' | 'En Proceso' | 'Listo';
+    checkedItems?: string[];
+    itemStates?: Record<string, Omit<PickingItemState, 'itemCode'>>;
+    os?: ServiceOrder;
+    solicitante?: 'Sala' | 'Cocina';
+};
+
+export type ReturnItemState = {
+    returnedQuantity: number;
+    incidentComment?: string;
+    isReviewed?: boolean;
+};
+
+export type ReturnSheet = {
+    id: string; // osId
+    osId: string;
+    items: (OrderItem & { sentQuantity: number; orderId: string; type: MaterialOrderType; })[];
+    status: 'Pendiente' | 'Procesando' | 'Completado';
+    itemStates: Record<string, ReturnItemState>; // Key is `${orderId}_${itemCode}`
+    os?: ServiceOrder;
+}
+
+export type ContenedorIsotermo = {
+    id: string;
+    tipo: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+    numero: number;
+}
+export type LoteAsignado = {
+    allocationId: string;
+    ofId: string;
+    containerId: string;
+    quantity: number;
+    hitoId: string
+}
+export type ContenedorDinamico = {
+    id: string;
+    hitoId: string;
+    tipo: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+    numero: number;
+}
+export type PickingStatus = 'Pendiente' | 'Preparado' | 'Enviado' | 'Entregado' | 'Retornado';
+export type PickingState = {
+    osId: string;
+    status: PickingStatus;
+    assignedContainers: ContenedorDinamico[];
+    itemStates: LoteAsignado[];
+};
+export type PedidoPlantillaItem = {
+    itemCode: string;
+    quantity: number;
+    description: string;
+};
+export type PedidoPlantilla = {
+    id: string;
+    nombre: string;
+    tipo: MaterialOrderType;
+    items: PedidoPlantillaItem[];
+};
+export type FormatoExpedicion = {
+  id: string;
+  nombre: string;
+};
+
+export type StockLote = {
+    ofId: string;
+    cantidad: number;
+    fechaCaducidad: string;
+};
+
+export type StockElaboracion = {
+    elaboracionId: string;
+    cantidadTotal: number;
+    unidad: UnidadMedida;
+    lotes: StockLote[];
+}
+
+export type ExcedenteProduccion = {
+    ofId: string;
+    fechaProduccion: string;
+    diasCaducidad?: number;
+    cantidadAjustada: number;
+    motivoAjuste: string;
+    fechaAjuste: string;
+}
+
+// ---- NUEVA VERTICAL DE ENTREGAS ----
+
+export const CATEGORIAS_PRODUCTO_VENTA = ['Gastronomía', 'Bodega', 'Consumibles', 'Almacen', 'Packs', 'Transporte', 'Otros'] as const;
+export type CategoriaProductoVenta = typeof CATEGORIAS_PRODUCTO_VENTA[number];
+
+export type ImagenProducto = {
+  id: string;
+  url: string;
+  isPrincipal: boolean;
+}
+
+export type ProductoVentaComponente = {
+    erpId: string;
+    nombre: string;
+    cantidad: number;
+    coste?: number;
+};
+
+export type ProductoVenta = {
+    id: string;
+    nombre: string;
+    nombre_en?: string;
+    categoria: CategoriaProductoVenta;
+    ubicacion?: string;
+    imagenes: ImagenProducto[];
+    pvp: number;
+    pvpIfema?: number;
+    iva: number;
+    producidoPorPartner: boolean;
+    partnerId?: string;
+    recetaId?: string;
+    erpId?: string;
+    exclusivoIfema?: boolean;
+    componentes?: ProductoVentaComponente[];
+}
+
+export type PedidoEntregaItem = {
+    id: string; // ProductoVenta ID
+    nombre: string;
+    quantity: number;
+    pvp: number;
+    coste: number;
+    categoria: CategoriaProductoVenta;
+};
+export type EntregaHito = {
+    id: string;
+    fecha: string;
+    hora: string;
+    lugarEntrega: string;
+    localizacion?: string;
+    contacto?: string;
+    telefono?: string;
+    email?: string;
+    observaciones?: string;
+    items: PedidoEntregaItem[];
+    portes?: number;
+    horasCamarero?: number;
+}
+export type PedidoEntrega = {
+    osId: string;
+    hitos: EntregaHito[];
+};
+export type Entrega = ServiceOrder & {
+    vertical: 'Entregas';
+    tarifa: 'Empresa' | 'IFEMA';
+};
+export type PedidoPartner = {
+    id: string; // hitoId-productoId
+    osId: string;
+    serviceNumber: string;
+    expedicionNumero: string;
+    cliente: string;
+    fechaEntrega: string; // En CPR MICE
+    horaEntrega: string;  // En CPR MICE
+    elaboracionId: string;
+    elaboracionNombre: string;
+    cantidad: number;
+    unidad: UnidadMedida;
+}
+export type PedidoPartnerStatus = 'Pendiente' | 'En Producción' | 'Listo para Entrega';
+export type PickingIncidencia = {
+  itemId: string;
+  comment: string;
+  timestamp: string;
+};
+export type PickingEntregaState = {
+  hitoId: string;
+  status: 'Pendiente' | 'En Proceso' | 'Preparado';
+  checkedItems: Set<string>;
+  incidencias: PickingIncidencia[];
+  fotoUrl: string | null;
+  ordenItems?: string[];
+};
+
+export const TIPO_PROVEEDOR_OPCIONES = ['Transporte', 'Hielo', 'Gastronomia', 'Personal', 'Atipicos', 'Decoracion', 'Servicios', 'Otros', 'Alquiler'] as const;
+export type TipoProveedor = typeof TIPO_PROVEEDOR_OPCIONES[number];
+
+export type Proveedor = {
+  id: string;
+  cif: string;
+  IdERP?: string;
+  nombreEmpresa: string;
+  nombreComercial: string;
+  direccionFacturacion: string;
+  codigoPostal: string;
+  ciudad: string;
+  provincia: string;
+  pais: string;
+  emailContacto: string;
+  telefonoContacto: string;
+  iban?: string;
+  formaDePagoHabitual?: string;
+  tipos: TipoProveedor[];
+};
+
+export type PersonalExternoDB = {
+    id: string; // DNI
+    proveedorId: string;
+    nombre: string;
+    apellido1: string;
+    apellido2: string;
+    nombreCompleto: string;
+    nombreCompacto: string;
+}
+
+export type PortalUserRole = 'Admin' | 'Comercial' | 'CPR' | 'Pase' | 'Dirección' | 'Almacen' | 'Operaciones' | 'Project Manager' | 'Partner Gastronomia' | 'Partner Personal' | 'Transporte';
+
+export const PORTAL_ROLES: PortalUserRole[] = ['Admin', 'Comercial', 'CPR', 'Pase', 'Dirección', 'Almacen', 'Operaciones', 'Project Manager', 'Partner Gastronomia', 'Partner Personal', 'Transporte'];
+
+export type PortalUser = {
+  id: string;
+  nombre: string;
+  email: string;
+  roles: PortalUserRole[];
+  proveedorId?: string;
+};
+
+export type ActivityLog = {
+  id: string;
+  timestamp: string;
+  userId: string;
+  userName: string;
+  userRole: PortalUserRole;
+  action: string;
+  details: string;
+  entityId: string; // e.g., osId, turnoId, etc.
+};
+```
