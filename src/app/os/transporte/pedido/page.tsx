@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -13,6 +11,14 @@ import { ArrowLeft, Save, Truck, Calendar as CalendarIcon, X } from 'lucide-reac
 import type { ServiceOrder, ProveedorTransporte, TransporteOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,10 +52,10 @@ export default function PedidoTransportePage() {
   const orderId = searchParams.get('orderId');
   const isEditing = !!orderId;
 
-  const [isMounted, setIsMounted] = useState(false);
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [proveedores, setProveedores] = useState<ProveedorTransporte[]>([]);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isMounted, setIsMounted = useState(false);
+  const [serviceOrder, setServiceOrder = useState<ServiceOrder | null>(null);
+  const [proveedores, setProveedores = useState<ProveedorTransporte[]>([]);
+  const [isCalendarOpen, setIsCalendarOpen = useState(false);
   
   const { toast } = useToast();
 

@@ -1,6 +1,4 @@
-
-
-import type { ObjetivosGasto } from './types';
+import type { ObjetivosGasto } from '@/types';
 
 export const GASTO_LABELS: Record<keyof Omit<ObjetivosGasto, 'id' | 'name'>, string> = {
     gastronomia: 'Gastronomía',
@@ -16,4 +14,3 @@ export const GASTO_LABELS: Record<keyof Omit<ObjetivosGasto, 'id' | 'name'>, str
     personalExterno: 'Personal Externo',
     costePruebaMenu: 'Coste Prueba de Menu',
 };
-

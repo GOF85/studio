@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from "react"
@@ -13,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { ServiceOrder, ComercialBriefing, GastronomyOrder, MaterialOrder, TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExternoOrder, PruebaMenuData, CtaExplotacionObjetivos, PersonalExternoAjuste, ObjetivosGasto, ReturnSheet, PersonalExterno } from '@/types';
+import { ServiceOrder, ComercialBriefing, GastronomyOrder, MaterialOrder, TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExterno, PruebaMenuData, CtaExplotacionObjetivos, PersonalExternoAjuste, ObjetivosGasto, ReturnSheet, CategoriaPersonal } from '@/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -42,19 +40,26 @@ const calculatePersonalMiceTotal = (orders: PersonalMiceOrder[], type: 'planned'
     }, 0);
 };
 
-const calculatePersonalExternoTotal = (orders: PersonalExternoOrder[], type: 'planned' | 'real') => {
-    return orders.reduce((sum, order) => {
+const calculatePersonalExternoTotal = (personalExterno: PersonalExterno | null, ajustes: PersonalExternoAjuste[], type: 'planned' | 'real') => {
+    if (!personalExterno) return 0;
+
+    const costeTurnos = personalExterno.turnos.reduce((sum, turno) => {
         if (type === 'real') {
-            return sum + (order.asignaciones || []).reduce((sumAsignacion, asignacion) => {
+            return sum + (turno.asignaciones || []).reduce((sumAsignacion, asignacion) => {
                 const realHours = calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal);
-                const hoursToUse = realHours > 0 ? realHours : calculateHours(order.horaEntrada, order.horaSalida);
-                return sumAsignacion + hoursToUse * (order.precioHora || 0);
+                const hoursToUse = realHours > 0 ? realHours : calculateHours(turno.horaEntrada, turno.horaSalida);
+                return sumAsignacion + hoursToUse * (turno.precioHora || 0);
             }, 0);
         }
-        const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
-        const quantity = (order.asignaciones || []).length > 0 ? order.asignaciones.length : 1;
-        return sum + (plannedHours * (order.precioHora || 0) * quantity);
+        // Planned cost
+        const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
+        const quantity = (turno.asignaciones || []).length > 0 ? turno.asignaciones.length : 1;
+        return sum + (plannedHours * (turno.precioHora || 0) * quantity);
     }, 0);
+
+    const costeAjustes = ajustes.reduce((sum, ajuste) => sum + ajuste.importe, 0);
+    
+    return costeTurnos + costeAjustes;
 };
 
 
@@ -65,7 +70,7 @@ export default function CtaExplotacionPage() {
   const { toast } = useToast();
   const [updateKey, setUpdateKey] = useState(Date.now());
 
-  const [ctaData, setCtaData] = useState<{
+  const [ctaData, setCtaData = useState<{
     serviceOrder: ServiceOrder | null;
     objetivosPlantillas: ObjetivosGasto[];
     objetivos: ObjetivosGasto;
@@ -73,9 +78,9 @@ export default function CtaExplotacionPage() {
     facturacionNeta: number;
   } | null>(null);
 
-  const [realCostInputs, setRealCostInputs] = useState<Record<string, number | undefined>>({});
-  const [comentarios, setComentarios] = useState<Record<string, string>>({});
-  const [editingComment, setEditingComment] = useState<{label: string, text: string} | null>(null);
+  const [realCostInputs, setRealCostInputs = useState<Record<string, number | undefined>>({});
+  const [comentarios, setComentarios = useState<Record<string, string>>({});
+  const [editingComment, setEditingComment = useState<{label: string, text: string} | null>(null);
 
   const loadData = useCallback(() => {
     if (!osId) return;
@@ -140,11 +145,12 @@ export default function CtaExplotacionPage() {
     const allDecoracionOrders = JSON.parse(localStorage.getItem('decoracionOrders') || '[]') as DecoracionOrder[];
     const allAtipicoOrders = JSON.parse(localStorage.getItem('atipicosOrders') || '[]') as AtipicoOrder[];
     const allPersonalMiceOrders = JSON.parse(localStorage.getItem('personalMiceOrders') || '[]') as PersonalMiceOrder[];
-    const allPersonalExternoOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
     const allPruebasMenu = JSON.parse(localStorage.getItem('pruebasMenu') || '[]') as PruebaMenuData[];
     const pruebaMenu = allPruebasMenu.find(p => p.osId === osId);
     
-    const allPersonalExternoAjustes = (JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}')[osId] || []) as {importe: number}[];
+    const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+    const personalExternoData = allPersonalExterno.find(p => p.osId === osId) || null;
+    const allPersonalExternoAjustes = (JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}')[osId] || []) as PersonalExternoAjuste[];
     
     const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
     let devolucionesPorCategoria: Record<string, number> = {};
@@ -168,13 +174,8 @@ export default function CtaExplotacionPage() {
         return presupuesto + perdida; // Sumamos la pérdida como un coste adicional
     };
     
-    const personalExternoPlanificado = calculatePersonalExternoTotal(allPersonalExternoOrders.filter(o => o.osId === osId), 'planned');
-    const costeAjustesPersonalExterno = allPersonalExternoAjustes.reduce((sum, ajuste) => sum + ajuste.importe, 0);
-
-    const personalExternoReal = calculatePersonalExternoTotal(allPersonalExternoOrders.filter(o => o.osId === osId), 'real');
-
-    const costePersonalExternoCierre = personalExternoReal + costeAjustesPersonalExterno;
-    const costePersonalExternoPresupuesto = personalExternoPlanificado + costeAjustesPersonalExterno;
+    const costePersonalExternoPresupuesto = calculatePersonalExternoTotal(personalExternoData, allPersonalExternoAjustes, 'planned');
+    const costePersonalExternoCierre = calculatePersonalExternoTotal(personalExternoData, allPersonalExternoAjustes, 'real');
     
     const newCostes = [
       { label: GASTO_LABELS.gastronomia, presupuesto: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)) },
@@ -211,7 +212,6 @@ export default function CtaExplotacionPage() {
   
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      // Reload data if any of the relevant keys change
       if (event.key && (event.key.includes('Orders') || event.key.includes('Ajustes') || event.key.includes('Briefings') || event.key.includes('ctaRealCosts'))) {
         setUpdateKey(Date.now());
       }
@@ -526,9 +526,3 @@ export default function CtaExplotacionPage() {
     </TooltipProvider>
   );
 }
-
-
-
-
-
-

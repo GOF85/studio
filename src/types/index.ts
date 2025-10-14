@@ -1,5 +1,3 @@
-
-
 import { z } from "zod";
 
 export type CateringItem = {
@@ -552,13 +550,16 @@ export type ObjetivosGasto = CtaExplotacionObjetivos & {
     name: string;
 };
 
+export const AJUSTE_CONCEPTO_OPCIONES = ['Dietas', 'Transporte', 'Parking', 'Gastos Adicionales', 'Otros'] as const;
+export type AjusteConcepto = typeof AJUSTE_CONCEPTO_OPCIONES[number];
+
 export type PersonalExternoAjuste = {
     id: string;
     proveedorId: string;
-    proveedorNombre?: string;
-    concepto: string;
+    concepto: AjusteConcepto | string;
     importe: number;
 }
+
 export const UNIDADES_MEDIDA = ['UNIDAD', 'KILO', 'LITRO', 'GRAMO', 'BOTELLA', 'CAJA', 'PACK'] as const;
 export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
 
@@ -920,10 +921,10 @@ export type Proveedor = {
   tipos: TipoProveedor[];
 };
 
-export const ESTADO_PERSONAL_ENTREGA = ['Pendiente', 'Asignado'] as const;
-export type EstadoPersonalEntrega = typeof ESTADO_PERSONAL_ENTREGA[number];
+export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', 'Cerrado'] as const;
+export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
 
-export type PersonalEntregaTurno = {
+export type PersonalExternoTurno = {
   id: string;
   proveedorId: string;
   categoria: string;
@@ -931,42 +932,67 @@ export type PersonalEntregaTurno = {
   fecha: string;
   horaEntrada: string;
   horaSalida: string;
+  solicitadoPor: 'Sala' | 'Pase' | 'Otro';
+  tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
   observaciones?: string;
   statusPartner: 'Pendiente Asignación' | 'Gestionado';
   asignaciones: AsignacionPersonal[];
   requiereActualizacion?: boolean;
 };
 
-export type PersonalEntrega = {
+export type PersonalExterno = {
     osId: string;
-    turnos: PersonalEntregaTurno[];
-    status: EstadoPersonalEntrega;
+    turnos: PersonalExternoTurno[];
+    status: EstadoPersonalExterno;
     observacionesGenerales?: string;
-}
+    hojaFirmadaUrl?: string;
+};
 
 
-// --- PORTAL & AUTH ---
-export const PORTAL_ROLES = ['Partner Gastronomia', 'Partner Personal', 'Transporte', 'Admin', 'Comercial', 'CPR', 'Pase', 'Dirección', 'Almacen', 'Operaciones', 'Project Manager'] as const;
-export type PortalUserRole = typeof PORTAL_ROLES[number];
-
-export type PortalUser = {
-  id: string;
-  email: string;
-  nombre: string;
-  roles: PortalUserRole[];
-  proveedorId?: string; // Linked to Proveedor DB
-}
-
-export type ActivityLog = {
+export type PruebaMenuItem = {
     id: string;
-    timestamp: string; // ISO 8601
-    userId: string;
-    userName: string;
-    userRole: PortalUserRole;
-    action: string;
-    details: string;
-    entityId: string; // ID of the entity being acted upon (e.g., OS ID, Turno ID)
+    type: 'header' | 'item';
+    mainCategory: 'BODEGA' | 'GASTRONOMÍA';
+    referencia: string;
+    observaciones?: string;
+};
+
+export type PruebaMenuData = {
+    osId: string;
+    items: PruebaMenuItem[];
+    observacionesGenerales: string;
+    costePruebaMenu?: number;
+};
+
+export type CtaExplotacionObjetivos = {
+    gastronomia: number;
+    bodega: number;
+    consumibles: number;
+    hielo: number;
+    almacen: number;
+    alquiler: number;
+    transporte: number;
+    decoracion: number;
+    atipicos: number;
+    personalMice: number;
+    personalExterno: number;
+    costePruebaMenu: number;
 }
+
+export type ObjetivosGasto = CtaExplotacionObjetivos & {
+    id: string;
+    name: string;
+};
+
+export const AJUSTE_CONCEPTO_OPCIONES = ['Dietas', 'Transporte', 'Parking', 'Gastos Adicionales', 'Otros'] as const;
+export type AjusteConcepto = typeof AJUSTE_CONCEPTO_OPCIONES[number];
+
+export type PersonalExternoAjuste = {
+    id: string;
+    proveedorId: string;
+    concepto: AjusteConcepto | string;
+    importe: number;
+};
 
 export type ComercialAjuste = {
     id: string;

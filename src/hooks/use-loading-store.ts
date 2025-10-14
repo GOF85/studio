@@ -1,6 +1,3 @@
-
-'use client';
-
 import { create } from 'zustand';
 
 type LoadingState = {
@@ -8,8 +5,7 @@ type LoadingState = {
   setIsLoading: (isLoading: boolean) => void;
 };
 
-export const useLoadingStore = create<LoadingState>((set) => ({
+export const useLoadingStore = create<LoadingState>()((set) => ({
   isLoading: false,
   setIsLoading: (isLoading) => set({ isLoading }),
 }));
-

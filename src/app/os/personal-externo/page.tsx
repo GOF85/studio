@@ -1,18 +1,16 @@
-
-
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, FileText, Upload } from 'lucide-react';
 
-import type { Entrega, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoPersonalExterno, PedidoEntrega, EntregaHito, ServiceOrder, ComercialBriefingItem, ComercialBriefing } from '@/types';
-import { ESTADO_PERSONAL_EXTERNO } from '@/types';
+import type { PersonalExternoAjuste, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoPersonalExterno } from '@/types';
+import { ESTADO_PERSONAL_EXTERNO, AJUSTE_CONCEPTO_OPCIONES } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +30,10 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Badge } from '@/components/ui/badge';
 import { FeedbackDialog } from '@/components/portal/feedback-dialog';
 import { calculateHours, formatCurrency, formatDuration } from '@/lib/utils';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
@@ -69,7 +71,7 @@ const formSchema = z.object({
     turnos: z.array(personalTurnoSchema),
     ajustes: z.array(z.object({
         id: z.string(),
-        proveedorId: z.string().min(1, "Debe seleccionar un proveedor para el ajuste."),
+        proveedorId: z.string().min(1, "Debe seleccionar un proveedor."),
         concepto: z.string().min(1, "El concepto del ajuste es obligatorio."),
         importe: z.coerce.number(),
     })).optional(),
@@ -124,15 +126,14 @@ function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) 
 }
 
 export default function PersonalExternoPage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
-  const [proveedoresDB, setProveedoresDB] = useState<CategoriaPersonal[]>([]);
-  const [allProveedores, setAllProveedores] = useState<Proveedor[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [rowToDelete, setRowToDelete] = useState<number | null>(null);
-  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
-  const [personalExterno, setPersonalExterno] = useState<PersonalExterno | null>(null);
-  const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
+  const [serviceOrder, setServiceOrder = useState<ServiceOrder | null>(null);
+  const [isMounted, setIsMounted = useState(false);
+  const [proveedoresDB, setProveedoresDB = useState<CategoriaPersonal[]>([]);
+  const [allProveedores, setAllProveedores = useState<Proveedor[]>([]);
+  const [isLoading, setIsLoading = useState(false);
+  const [rowToDelete, setRowToDelete = useState<number | null>(null);
+  const [briefingItems, setBriefingItems = useState<ComercialBriefingItem[]>([]);
+  const [personalExterno, setPersonalExterno = useState<PersonalExterno | null>(null);
   
   const router = useRouter();
   const params = useParams();
@@ -144,7 +145,7 @@ export default function PersonalExternoPage() {
     defaultValues: { turnos: [], ajustes: [] },
   });
 
-  const { control, setValue, watch, trigger, getValues } = form;
+  const { control, setValue, watch, trigger, getValues, handleSubmit, formState } = form;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -172,25 +173,16 @@ export default function PersonalExternoPage() {
         const allProveedoresData = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
         setAllProveedores(allProveedoresData);
 
-        const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
-        const turnosDelPedido = allTurnos.filter(p => p.osId === osId);
+        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+        const currentPersonalExterno = allPersonalExterno.find(p => p.osId === osId) || { osId, turnos: [], status: 'Pendiente' };
+        setPersonalExterno(currentPersonalExterno);
         
         const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
-        setAjustes(storedAjustes[osId] || []);
         
-        const personalData = {
-            osId,
-            turnos: turnosDelPedido.map(t => ({...t, fecha: new Date(t.fecha), asignaciones: t.asignaciones || []})),
-            status: 'Pendiente', // This will be calculated later
-        }
-
         form.reset({ 
-            turnos: personalData.turnos,
+            turnos: currentPersonalExterno.turnos.map(t => ({...t, fecha: new Date(t.fecha)})),
             ajustes: storedAjustes[osId] || []
         });
-        
-        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        setPersonalExterno(allPersonalExterno.find(p => p.osId === osId) || { osId, turnos: [], status: 'Pendiente' });
         
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos de personal externo.' });
@@ -375,17 +367,20 @@ export default function PersonalExternoPage() {
   };
   
   const providerOptions = useMemo(() => 
-    proveedores.filter(p => p.tipos.includes('Personal')).map(p => ({
+    allProveedores.filter(p => p.tipos.includes('Personal')).map(p => ({
         value: p.id,
         label: p.nombreComercial
-    })), [proveedores]);
+    })), [allProveedores]);
 
   const categoriaOptions = useMemo(() => {
-    return proveedoresDB.map(p => ({
-        value: p.id,
-        label: `${p.nombreProveedor} - ${p.categoria}`
-    }));
-  }, [proveedoresDB]);
+    return proveedoresDB.map(p => {
+        const proveedor = allProveedores.find(prov => prov.id === p.proveedorId);
+        return {
+            value: p.id,
+            label: `${proveedor?.nombreComercial || 'Desconocido'} - ${p.categoria}`
+        }
+    });
+  }, [proveedoresDB, allProveedores]);
 
   const turnosAprobados = useMemo(() => {
     return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
@@ -404,9 +399,9 @@ export default function PersonalExternoPage() {
       <main>
       <TooltipProvider>
         <FormProvider {...form}>
-            <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
-                <div className="flex items-start justify-between mb-4">
-                    <div />
+            <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
+                <div className="flex items-start justify-between mb-2 sticky top-24 z-20 bg-background/95 backdrop-blur-sm py-2 -mt-2">
+                    <div/>
                     <div className="flex items-center gap-2">
                          <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
                         <ActionButton />
@@ -454,9 +449,10 @@ export default function PersonalExternoPage() {
                 </Accordion>
 
                 <Tabs defaultValue="planificacion">
-                     <TabsList className="grid w-full grid-cols-2">
+                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="planificacion">Planificación de Turnos</TabsTrigger>
                         <TabsTrigger value="aprobados">Cierre y Horas Reales</TabsTrigger>
+                        <TabsTrigger value="documentacion">Documentación</TabsTrigger>
                     </TabsList>
                     <TabsContent value="planificacion" className="mt-4">
                         <Card>
@@ -657,6 +653,37 @@ export default function PersonalExternoPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
+                    <TabsContent value="documentacion">
+                        <Card>
+                            <CardHeader className="py-3 flex-row items-center justify-between">
+                                <CardTitle className="text-lg">Documentación</CardTitle>
+                                <div className="flex gap-2">
+                                    <Button type="button" variant="outline" onClick={handlePrintParte} disabled={isPrinting}>
+                                        {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
+                                        Imprimir Parte de Horas
+                                    </Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base">Hoja de Firmas Adjunta</CardTitle></CardHeader>
+                                    <CardContent>
+                                        {personalExterno?.hojaFirmadaUrl ? (
+                                             <div className="relative">
+                                                <Image src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" width={500} height={300} className="rounded-md w-full h-auto object-contain"/>
+                                                <Button size="sm" variant="destructive" className="absolute top-2 right-2" onClick={removeHojaFirmada}><Trash2/></Button>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <Label htmlFor="upload-photo">Subir hoja de firmas escaneada</Label>
+                                                <Input id="upload-photo" type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} />
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
                 </Tabs>
                 
                  <div className="mt-8">
@@ -701,7 +728,12 @@ export default function PersonalExternoPage() {
                                             </FormItem>
                                         )} />
                                         <FormField control={control} name={`ajustes.${index}.concepto`} render={({field}) => (
-                                            <Input placeholder="Concepto" {...field} className="h-9 flex-grow"/>
+                                            <Combobox 
+                                                options={AJUSTE_CONCEPTO_OPCIONES.map(o => ({label: o, value: o}))} 
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                placeholder="Concepto..."
+                                                />
                                         )} />
                                         <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
                                             <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-24 h-9"/>
@@ -720,7 +752,7 @@ export default function PersonalExternoPage() {
                     </Card>
                 </div>
             </form>
-       </FormProvider>
+        </FormProvider>
         </TooltipProvider>
 
         <AlertDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)}>
