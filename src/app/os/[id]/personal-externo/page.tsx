@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -8,8 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, FileText, Upload } from 'lucide-react';
-import Image from 'next/image';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, FileText } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -381,26 +381,6 @@ export default function PersonalExternoPage() {
     }
   };
   
-  const providerOptions = useMemo(() => 
-    allProveedores.filter(p => p.tipos.includes('Personal')).map(p => ({
-        value: p.id,
-        label: p.nombreComercial
-    })), [allProveedores]);
-
-  const categoriaOptions = useMemo(() => {
-    return proveedoresDB.map(p => {
-        const proveedor = allProveedores.find(prov => prov.id === p.proveedorId);
-        return {
-            value: p.id,
-            label: `${proveedor?.nombreComercial || 'Desconocido'} - ${p.categoria}`
-        }
-    });
-  }, [proveedoresDB, allProveedores]);
-
-  const turnosAprobados = useMemo(() => {
-    return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
-  }, [watchedFields]);
-
     const handlePrintInforme = async () => {
         if (!serviceOrder) return;
         setIsPrinting(true);
@@ -514,7 +494,8 @@ export default function PersonalExternoPage() {
         setIsPrinting(true);
         try {
             const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            let finalY = 15;
+            const margin = 15;
+            let finalY = margin;
             
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
@@ -605,11 +586,26 @@ export default function PersonalExternoPage() {
         }
     };
 
+  const providerOptions = useMemo(() => 
+    allProveedores.filter(p => p.tipos.includes('Personal')).map(p => ({
+        value: p.id,
+        label: p.nombreComercial
+    })), [allProveedores]);
+
+  const categoriaOptions = useMemo(() => {
+    return proveedoresDB.map(p => {
+        const proveedor = allProveedores.find(prov => prov.id === p.proveedorId);
+        return {
+            value: p.id,
+            label: `${proveedor?.nombreComercial || 'Desconocido'} - ${p.categoria}`
+        }
+    });
+  }, [proveedoresDB, allProveedores]);
 
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
   }
-  
+
   return (
     <>
       <main>
@@ -688,8 +684,7 @@ export default function PersonalExternoPage() {
                                             <TableHead className="px-2 py-1">Solicitado Por</TableHead>
                                             <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
                                             <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
-                                            <TableHead colSpan={3} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
-                                            <TableHead className="px-2 py-1">Obs. ETT</TableHead>
+                                            <TableHead colSpan={4} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
                                             <TableHead className="text-center px-2 py-1">Estado ETT</TableHead>
                                             <TableHead className="text-right px-2 py-1">Acción</TableHead>
                                         </TableRow>
@@ -700,8 +695,8 @@ export default function PersonalExternoPage() {
                                             <TableHead className="px-2 py-1"></TableHead>
                                             <TableHead className="border-l px-2 py-1 bg-muted/30 w-24">H. Entrada</TableHead>
                                             <TableHead className="px-2 py-1 bg-muted/30 w-24">H. Salida</TableHead>
+                                            <TableHead className="px-2 py-1 bg-muted/30 w-20">Horas</TableHead>
                                             <TableHead className="border-r px-2 py-1 bg-muted/30 w-20">€/Hora</TableHead>
-                                            <TableHead className="px-2 py-1"></TableHead>
                                             <TableHead className="px-2 py-1"></TableHead>
                                             <TableHead className="px-2 py-1"></TableHead>
                                         </TableRow>
@@ -766,13 +761,16 @@ export default function PersonalExternoPage() {
                                                 <TableCell className="px-2 py-1 bg-muted/30">
                                                     <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
                                                 </TableCell>
+                                                <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center text-xs">
+                                                  {formatDuration(calculateHours(watchedFields[index].horaEntrada, watchedFields[index].horaSalida))}h
+                                                </TableCell>
                                                 <TableCell className="border-r px-2 py-1 bg-muted/30">
                                                     <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9 text-xs" readOnly /></FormControl></FormItem>} />
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="px-0 py-1 text-center">
                                                     <CommentDialog turnoIndex={index} form={form} />
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="px-2 py-1">
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <div className="flex justify-center">
@@ -818,10 +816,11 @@ export default function PersonalExternoPage() {
                                         <TableRow>
                                             <TableHead>Nombre</TableHead>
                                             <TableHead>DNI</TableHead>
-                                            <TableHead>Fecha-Horario</TableHead>
+                                            <TableHead>Fecha-Horario Plan.</TableHead>
                                             <TableHead className="w-24">H. Entrada Real</TableHead>
                                             <TableHead className="w-24">H. Salida Real</TableHead>
-                                            <TableHead className="w-[200px] text-center">Desempeño y Comentarios MICE</TableHead>
+                                            <TableHead className="w-24">Horas Real.</TableHead>
+                                            <TableHead className="w-[150px] text-center">Desempeño y Comentarios</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -856,13 +855,16 @@ export default function PersonalExternoPage() {
                                                     <TableCell>
                                                     <FormField control={control} name={`turnos.${turnoIndex}.asignaciones.${asigIndex}.horaSalidaReal`} render={({ field }) => <Input type="time" {...field} className="h-8" />} />
                                                     </TableCell>
-                                                    <TableCell className="w-[200px] text-center">
+                                                     <TableCell className="font-mono text-center">
+                                                        {formatDuration(calculateHours(asignacion.horaEntradaReal, asignacion.horaSalidaReal))}h
+                                                     </TableCell>
+                                                    <TableCell className="text-center">
                                                        <FeedbackDialog turnoIndex={turnoIndex} asigIndex={asigIndex} form={form} />
                                                     </TableCell>
                                                 </TableRow>
                                             )})
                                         }) : (
-                                            <TableRow><TableCell colSpan={6} className="h-24 text-center">No hay turnos gestionados por la ETT.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={7} className="h-24 text-center">No hay turnos gestionados por la ETT.</TableCell></TableRow>
                                         )}
                                     </TableBody>
                                 </Table>
@@ -999,5 +1001,3 @@ export default function PersonalExternoPage() {
     </>
   );
 }
-
-    
