@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -10,7 +11,7 @@ import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, Upload, Image as ImageIcon } from 'lucide-react';
 
 import type { PersonalExternoAjuste, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoPersonalExterno } from '@/types';
 import { ESTADO_PERSONAL_EXTERNO } from '@/types';
@@ -37,6 +38,7 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import Image from 'next/image';
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
@@ -74,7 +76,7 @@ const formSchema = z.object({
     turnos: z.array(personalTurnoSchema),
     ajustes: z.array(z.object({
         id: z.string(),
-        proveedorId: z.string().min(1, "Debe seleccionar un proveedor para el ajuste."),
+        proveedorId: z.string().min(1, "Debe seleccionar un proveedor."),
         concepto: z.string().min(1, "El concepto del ajuste es obligatorio."),
         importe: z.coerce.number(),
     })).optional(),
@@ -137,13 +139,15 @@ export default function PersonalExternoPage() {
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [personalExterno, setPersonalExterno] = useState<PersonalExterno | null>(null);
-  const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isPrintingParte, setIsPrintingParte] = useState(false);
   
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -178,17 +182,12 @@ export default function PersonalExternoPage() {
         const allProveedoresData = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
         setAllProveedores(allProveedoresData);
 
-        const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
-        const turnosDelPedido = allTurnos.filter(p => p.osId === osId);
-        
-        const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
-        
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
         const currentPersonalExterno = allPersonalExterno.find(p => p.osId === osId);
         setPersonalExterno(currentPersonalExterno || { osId, turnos: [], status: 'Pendiente' });
         
         form.reset({ 
-            turnos: turnosDelPedido.map(t => ({
+            turnos: currentPersonalExterno?.turnos.map(t => ({
                 ...t, 
                 fecha: new Date(t.fecha), 
                 asignaciones: (t.asignaciones || []).map(a => ({
@@ -196,8 +195,8 @@ export default function PersonalExternoPage() {
                     horaEntradaReal: a.horaEntradaReal || '',
                     horaSalidaReal: a.horaSalidaReal || '',
                 }))
-            })),
-            ajustes: storedAjustes[osId] || []
+            })) || [],
+            ajustes: (currentPersonalExterno as any)?.ajustes || []
         });
         
     } catch (error) {
@@ -275,30 +274,12 @@ export default function PersonalExternoPage() {
 
     const isSolicitudDesactualizada = useMemo(() => {
         if (personalExterno?.status !== 'Solicitado') return false;
+        const currentTurnoIds = new Set(watchedFields?.map(f => f.id));
+        const savedTurnoIds = new Set(personalExterno.turnos.map(t => t.id));
+        if(currentTurnoIds.size !== savedTurnoIds.size) return true;
         
-        const currentTurnos = getValues('turnos');
-        const savedTurnos = personalExterno.turnos;
-
-        if (currentTurnos.length !== savedTurnos.length) return true;
-
-        for (let i = 0; i < currentTurnos.length; i++) {
-            const current = currentTurnos[i];
-            const saved = savedTurnos.find(t => t.id === current.id);
-            if (!saved || 
-                current.proveedorId !== saved.proveedorId ||
-                current.categoria !== saved.categoria ||
-                format(current.fecha, 'yyyy-MM-dd') !== saved.fecha ||
-                current.horaEntrada !== saved.horaEntrada ||
-                current.horaSalida !== saved.horaSalida ||
-                current.solicitadoPor !== saved.solicitadoPor ||
-                current.tipoServicio !== saved.tipoServicio
-            ) {
-                return true;
-            }
-        }
-        
-        return false;
-    }, [watchedFields, personalExterno, getValues]);
+        return Array.from(currentTurnoIds).some(id => !savedTurnoIds.has(id));
+    }, [watchedFields, personalExterno]);
     
     const ActionButton = () => {
         if(!personalExterno) return null;
@@ -308,14 +289,7 @@ export default function PersonalExternoPage() {
                 return <Button onClick={() => handleGlobalStatusAction('Solicitado')}><Send className="mr-2"/>Solicitar a ETT</Button>
             case 'Solicitado':
                 if (isSolicitudDesactualizada) {
-                    return (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button onClick={() => handleGlobalStatusAction('Solicitado')}><RefreshCw className="mr-2 text-blue-500 animate-pulse"/>Notificar Cambios a ETT</Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>Hay cambios en la planificación. Notifica al proveedor.</p></TooltipContent>
-                        </Tooltip>
-                    )
+                    return <Button onClick={() => handleGlobalStatusAction('Solicitado')}><RefreshCw className="mr-2"/>Notificar Cambios a ETT</Button>
                 }
                 return <Button variant="secondary" disabled><CheckCircle className="mr-2"/>Solicitado</Button>
             case 'Asignado':
@@ -335,17 +309,38 @@ export default function PersonalExternoPage() {
       return;
     }
 
-    const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
-    const otherOsTurnos = allTurnos.filter(t => t.osId !== osId);
+    const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+    const index = allPersonalExterno.findIndex(p => p.osId === osId);
     
-    const currentOsTurnos = data.turnos.map(t => ({
-        ...t,
+    const currentStatus = personalExterno?.status || 'Pendiente';
+    
+    const newPersonalData: PersonalExterno = {
         osId,
-        fecha: format(t.fecha, 'yyyy-MM-dd'),
-    }));
+        turnos: data.turnos.map(t => {
+            const existingTurno = personalExterno?.turnos.find(et => et.id === t.id);
+            return {
+                ...t, 
+                fecha: format(t.fecha, 'yyyy-MM-dd'),
+                statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
+                requiereActualizacion: true,
+                asignaciones: (t.asignaciones || []).map(a => ({
+                    ...a,
+                    horaEntradaReal: a.horaEntradaReal || '',
+                    horaSalidaReal: a.horaSalidaReal || '',
+                })),
+            }
+        }),
+        status: currentStatus,
+        observacionesGenerales: form.getValues('observacionesGenerales'),
+    };
     
-    localStorage.setItem('personalExternoOrders', JSON.stringify([...otherOsTurnos, ...currentOsTurnos]));
+    if (index > -1) {
+        allPersonalExterno[index] = newPersonalData;
+    } else {
+        allPersonalExterno.push(newPersonalData);
+    }
 
+    localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
     
     const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
     allAjustes[osId] = data.ajustes || [];
@@ -399,92 +394,166 @@ export default function PersonalExternoPage() {
     removeAjuste(index);
   }
   
-  const handlePrintReport = () => {
-    if (!serviceOrder) return;
-    setIsPrinting(true);
-    toast({ title: 'Preparando informe...', description: 'El documento se descargará en breve.' });
+    const handlePrintReport = () => {
+        if (!serviceOrder) return;
+        setIsPrinting(true);
+        toast({ title: 'Preparando informe...', description: 'El documento se descargará en breve.' });
 
-    setTimeout(() => {
-        try {
-            const doc = new jsPDF({ orientation: 'landscape' });
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 15;
-            let finalY = margin;
+        setTimeout(() => {
+            try {
+                const doc = new jsPDF({ orientation: 'landscape' });
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const margin = 15;
+                let finalY = margin;
 
-            // Header
-            doc.setFontSize(18);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor('#00703C');
-            doc.text(`Informe de Personal Externo - OS ${serviceOrder.serviceNumber}`, margin, finalY);
-            finalY += 10;
-            doc.setFontSize(10);
-            doc.setTextColor(40);
-            doc.text(`${serviceOrder.client} - ${format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}`, margin, finalY);
-            finalY += 12;
-
-            // Summary Box
-            const summaryData = [
-                { title: 'Coste Final', value: formatCurrency(finalTotalReal), color: '#333' },
-                { title: 'Desviación Económica', value: formatCurrency(finalTotalReal - costeFinalPlanificado), color: (finalTotalReal - costeFinalPlanificado) > 0 ? '#E53E3E' : '#38A169' },
-                { title: 'Total Horas Reales', value: `${formatDuration(watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + calculateHours(a.horaEntradaReal, a.horaSalidaReal), 0), 0))}h`, color: '#333' },
-            ];
-            
-            const summaryBoxWidth = (pageWidth - margin * 2) / summaryData.length - 5;
-            summaryData.forEach((item, index) => {
-                doc.setDrawColor('#E2E8F0');
-                doc.setFillColor('#F7FAFC');
-                doc.rect(margin + index * (summaryBoxWidth + 5), finalY, summaryBoxWidth, 20, 'FD');
-                doc.setFontSize(8);
-                doc.setTextColor('#718096');
-                doc.text(item.title, margin + index * (summaryBoxWidth + 5) + 5, finalY + 7);
-                doc.setFontSize(12);
+                doc.setFontSize(18);
                 doc.setFont('helvetica', 'bold');
-                doc.setTextColor(item.color);
-                doc.text(item.value, margin + index * (summaryBoxWidth + 5) + 5, finalY + 14);
-            });
-            finalY += 30;
+                doc.setTextColor('#00703C');
+                doc.text(`Informe de Personal Externo - OS ${serviceOrder.serviceNumber}`, margin, finalY);
+                finalY += 10;
+                doc.setFontSize(10);
+                doc.setTextColor(40);
+                doc.text(`${serviceOrder.client} - ${format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}`, margin, finalY);
+                finalY += 12;
 
-            // Table
-            const head = [['Personal', 'Categoría', 'H.Plan', 'H.Real', 'Desv.', 'Coste Real', 'Valoración', 'Comentarios']];
-            const body = watchedFields.flatMap(turno => 
-                (turno.asignaciones || []).map(asig => {
-                    const plannedH = calculateHours(turno.horaEntrada, turno.horaSalida);
-                    const realH = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || plannedH;
-                    const deviation = realH - plannedH;
-                    const coste = realH * (turno.precioHora || 0);
+                const summaryData = [
+                    { title: 'Coste Final', value: formatCurrency(finalTotalReal), color: '#333' },
+                    { title: 'Desviación Económica', value: formatCurrency(finalTotalReal - costeFinalPlanificado), color: (finalTotalReal - costeFinalPlanificado) > 0 ? '#E53E3E' : '#38A169' },
+                    { title: 'Total Horas Reales', value: `${formatDuration(watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + calculateHours(a.horaEntradaReal, a.horaSalidaReal), 0), 0))}h`, color: '#333' },
+                ];
+                
+                const summaryBoxWidth = (pageWidth - margin * 2) / summaryData.length - 5;
+                summaryData.forEach((item, index) => {
+                    doc.setDrawColor('#E2E8F0');
+                    doc.setFillColor('#F7FAFC');
+                    doc.rect(margin + index * (summaryBoxWidth + 5), finalY, summaryBoxWidth, 20, 'FD');
+                    doc.setFontSize(8);
+                    doc.setTextColor('#718096');
+                    doc.text(item.title, margin + index * (summaryBoxWidth + 5) + 5, finalY + 7);
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(item.color);
+                    doc.text(item.value, margin + index * (summaryBoxWidth + 5) + 5, finalY + 14);
+                });
+                finalY += 30;
 
-                    return [
+                const head = [['Personal', 'Categoría', 'H.Plan', 'H.Real', 'Desv.', 'Coste Real', 'Valoración', 'Comentarios']];
+                const body = watchedFields.flatMap(turno => 
+                    (turno.asignaciones || []).map(asig => {
+                        const plannedH = calculateHours(turno.horaEntrada, turno.horaSalida);
+                        const realH = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || plannedH;
+                        const deviation = realH - plannedH;
+                        const coste = realH * (turno.precioHora || 0);
+
+                        return [
+                            asig.nombre,
+                            turno.categoria,
+                            formatDuration(plannedH),
+                            formatDuration(realH),
+                            `${deviation >= 0 ? '+' : ''}${formatDuration(deviation)}`,
+                            formatCurrency(coste),
+                            '⭐'.repeat(asig.rating || 0),
+                            asig.comentariosMice || ''
+                        ];
+                    })
+                );
+                
+                autoTable(doc, { head, body, startY: finalY, headStyles: { fillColor: '#00703C' } });
+                
+                doc.save(`Informe_Personal_${serviceOrder.serviceNumber}.pdf`);
+                toast({ title: 'Informe Generado', description: 'La descarga se ha completado.' });
+
+            } catch (error) {
+                console.error("PDF Generation Error:", error);
+                toast({ variant: "destructive", title: "Error al generar PDF" });
+            } finally {
+                setIsPrinting(false);
+            }
+        }, 500);
+    };
+
+    const handlePrintParteHoras = () => {
+        if (!serviceOrder) return;
+        setIsPrintingParte(true);
+        toast({ title: 'Preparando parte de horas...', description: 'El documento se descargará en breve.' });
+    
+        setTimeout(() => {
+            try {
+                const doc = new jsPDF({ orientation: 'portrait' });
+                const margin = 15;
+                let finalY = margin;
+    
+                doc.setFontSize(18);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor('#00703C');
+                doc.text(`Parte de Horas - Personal Externo`, margin, finalY);
+                finalY += 10;
+                doc.setFontSize(12);
+                doc.setTextColor(40);
+                doc.text(`OS: ${serviceOrder.serviceNumber} - ${serviceOrder.client}`, margin, finalY);
+                finalY += 15;
+    
+                const head = [['Personal Asignado', 'Categoría', 'H. Planificado', 'H. Entrada Real', 'H. Salida Real', 'Firma']];
+                const body = watchedFields.map(turno => 
+                    (turno.asignaciones && turno.asignaciones.length > 0) ? turno.asignaciones.map(asig => [
                         asig.nombre,
                         turno.categoria,
-                        formatDuration(plannedH),
-                        formatDuration(realH),
-                        `${deviation >= 0 ? '+' : ''}${formatDuration(deviation)}`,
-                        formatCurrency(coste),
-                        '⭐'.repeat(asig.rating || 0),
-                        asig.comentariosMice || ''
-                    ];
-                })
-            );
-            
-            autoTable(doc, {
-                head,
-                body,
-                startY: finalY,
-                headStyles: { fillColor: '#00703C' },
-            });
-            
-            doc.save(`Informe_Personal_${serviceOrder.serviceNumber}.pdf`);
-            toast({ title: 'Informe Generado', description: 'La descarga se ha completado.' });
+                        `${turno.horaEntrada} - ${turno.horaSalida}`,
+                        '', '', ''
+                    ]) : [[ 'Pendiente de Asignación', turno.categoria, `${turno.horaEntrada} - ${turno.horaSalida}`, '', '', '']]
+                ).flat();
+    
+                autoTable(doc, {
+                    head,
+                    body,
+                    startY: finalY,
+                    headStyles: { fillColor: '#00703C' },
+                    styles: { cellPadding: 3, fontSize: 9 },
+                    didParseCell: (data) => {
+                         if (data.column.index >= 3) { // Signature columns
+                            data.cell.styles.minCellHeight = 15;
+                        }
+                    }
+                });
+    
+                doc.save(`Parte_Horas_${serviceOrder.serviceNumber}.pdf`);
+                toast({ title: 'Parte de Horas Generado' });
+    
+            } catch (error) {
+                console.error("PDF Parte Horas Error:", error);
+                toast({ variant: "destructive", title: "Error al generar Parte de Horas" });
+            } finally {
+                setIsPrintingParte(false);
+            }
+        }, 500);
+    };
+    
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!personalExterno) return;
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const result = event.target?.result;
+                if (typeof result === 'string') {
+                    const updatedPersonalExterno = { ...personalExterno, hojaFirmadaUrl: result };
+                    setPersonalExterno(updatedPersonalExterno);
 
-        } catch (error) {
-            console.error("PDF Generation Error:", error);
-            toast({ variant: "destructive", title: "Error al generar PDF" });
-        } finally {
-            setIsPrinting(false);
+                    const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+                    const index = allPersonalExterno.findIndex(p => p.osId === osId);
+                    if (index > -1) {
+                        allPersonalExterno[index] = updatedPersonalExterno;
+                    } else {
+                        allPersonalExterno.push(updatedPersonalExterno);
+                    }
+                    localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
+                    toast({ title: 'Hoja de firmas adjuntada' });
+                }
+            };
+            reader.readAsDataURL(file);
         }
-    }, 500); // Small delay to show loading state
-  };
+    };
 
 
   const providerOptions = useMemo(() => 
@@ -525,8 +594,12 @@ export default function PersonalExternoPage() {
                     <div className="flex items-center gap-2">
                          <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
                         <ActionButton />
+                         <Button type="button" variant="outline" onClick={handlePrintParteHoras} disabled={isPrintingParte}>
+                             {isPrintingParte ? <Loader2 className="animate-spin" /> : <Printer />}
+                            <span className="ml-2">Imprimir Parte de Horas</span>
+                        </Button>
                          <Button type="button" onClick={handlePrintReport} disabled={isPrinting}>
-                             {isPrinting ? <Loader2 className="animate-spin" /> : <Printer />}
+                             {isPrinting ? <Loader2 className="animate-spin" /> : <Users />}
                             <span className="ml-2">Generar Informe PDF</span>
                         </Button>
                         <Button type="submit" disabled={isLoading || !formState.isDirty}>
@@ -778,62 +851,55 @@ export default function PersonalExternoPage() {
                     </TabsContent>
                 </Tabs>
                 
-                 <div className="mt-8">
+                 <div className="mt-8 grid lg:grid-cols-2 gap-8">
+                     <Card>
+                        <CardHeader className="py-2"><CardTitle className="text-lg">Hoja de Firmas</CardTitle></CardHeader>
+                        <CardContent>
+                             <div className="space-y-4">
+                                {personalExterno?.hojaFirmadaUrl ? (
+                                    <div className="relative group">
+                                        <Image src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" width={400} height={300} className="rounded-md w-full h-auto object-contain border"/>
+                                        <Button size="icon" variant="destructive" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleGlobalStatusAction('Asignado')}>
+                                            <Trash2/>
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <Label htmlFor="upload-photo">Adjuntar Parte de Horas Firmado</Label>
+                                        <Input id="upload-photo" type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} />
+                                    </div>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
                     <Card>
                         <CardHeader className="py-2"><CardTitle className="text-lg">Resumen de Costes</CardTitle></CardHeader>
-                        <CardContent className="grid grid-cols-2 gap-8 p-4">
-                            <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Coste Total Planificado:</span>
-                                    <span className="font-bold">{formatCurrency(totalPlanned)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Coste Final Planificado (Plan. + Ajustes):</span>
-                                    <span className="font-bold">{formatCurrency(costeFinalPlanificado)}</span>
-                                </div>
-                                <Separator className="my-2" />
-                                <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Coste Total Real (Horas):</span>
-                                    <span className="font-bold">{formatCurrency(totalReal)}</span>
-                                </div>
-                                <div className="flex justify-between font-bold text-base">
-                                    <span>Coste FINAL (Real + Ajustes):</span>
-                                    <span className={finalTotalReal > costeFinalPlanificado ? 'text-destructive' : 'text-green-600'}>
-                                        {formatCurrency(finalTotalReal)}
-                                    </span>
-                                </div>
-                                <Separator className="my-2" />
-                                 <div className="flex justify-between font-bold text-base">
-                                    <span>Desviación (FINAL vs Planificado):</span>
-                                    <span className={finalTotalReal > costeFinalPlanificado ? 'text-destructive' : 'text-green-600'}>
-                                        {formatCurrency(finalTotalReal - costeFinalPlanificado)}
-                                    </span>
-                                </div>
+                        <CardContent className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Coste Total Planificado:</span>
+                                <span className="font-bold">{formatCurrency(totalPlanned)}</span>
                             </div>
-                            <div className="space-y-2">
-                               <h4 className="text-xs font-semibold text-muted-foreground">AJUSTE DE COSTES (Facturas, dietas, etc.)</h4>
-                                {(ajusteFields || []).map((ajuste, index) => (
-                                    <div key={ajuste.id} className="flex gap-2 items-center">
-                                        <FormField control={control} name={`ajustes.${index}.proveedorId`} render={({field}) => (
-                                            <FormItem className="flex-grow">
-                                                <Combobox options={providerOptions} value={field.value} onChange={field.onChange} placeholder="Proveedor..."/>
-                                            </FormItem>
-                                        )} />
-                                        <FormField control={control} name={`ajustes.${index}.concepto`} render={({field}) => (
-                                            <Input placeholder="Concepto" {...field} className="h-9 flex-grow"/>
-                                        )} />
-                                        <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
-                                            <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-24 h-9"/>
-                                        )} />
-                                        <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
-                                    </div>
-                                ))}
-                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
-                                 <Separator className="my-2" />
-                                  <div className="flex justify-between font-bold">
-                                      <span>Total Ajustes:</span>
-                                      <span>{formatCurrency(totalAjustes)}</span>
-                                  </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Coste Final Planificado (Plan. + Ajustes):</span>
+                                <span className="font-bold">{formatCurrency(costeFinalPlanificado)}</span>
+                            </div>
+                            <Separator className="my-2" />
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Coste Total Real (Horas):</span>
+                                <span className="font-bold">{formatCurrency(totalReal)}</span>
+                            </div>
+                            <div className="flex justify-between font-bold text-base">
+                                <span>Coste FINAL (Real + Ajustes):</span>
+                                <span className={finalTotalReal > costeFinalPlanificado ? 'text-destructive' : 'text-green-600'}>
+                                    {formatCurrency(finalTotalReal)}
+                                </span>
+                            </div>
+                            <Separator className="my-2" />
+                                <div className="flex justify-between font-bold text-base">
+                                <span>Desviación (FINAL vs Planificado):</span>
+                                <span className={finalTotalReal > costeFinalPlanificado ? 'text-destructive' : 'text-green-600'}>
+                                    {formatCurrency(finalTotalReal - costeFinalPlanificado)}
+                                </span>
                             </div>
                         </CardContent>
                     </Card>

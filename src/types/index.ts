@@ -296,7 +296,6 @@ export type Espacio = {
   aforoAuditorio?: number;
   zonaExterior?: string;
   capacidadesPorSala?: string;
-  numeroDeSalas?: number;
   directorio?: string;
   comentariosVarios?: string;
   cocina?: string;
@@ -514,6 +513,7 @@ export type PersonalExterno = {
     turnos: PersonalExternoTurno[];
     status: EstadoPersonalExterno;
     observacionesGenerales?: string;
+    hojaFirmadaUrl?: string;
 };
 
 
