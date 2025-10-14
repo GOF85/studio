@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -179,20 +180,11 @@ export default function PersonalExternoPage() {
         const allProveedoresData = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
         setAllProveedores(allProveedoresData);
 
-        const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
-        const turnosDelPedido = allTurnos.filter(p => p.osId === osId);
-        
-        const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
-        
-        const personalData = {
-            osId,
-            turnos: turnosDelPedido.map(t => ({...t, fecha: new Date(t.fecha), asignaciones: t.asignaciones || []})),
-            status: 'Pendiente',
-        }
-
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
         const currentPersonalExterno = allPersonalExterno.find(p => p.osId === osId) || { osId, turnos: [], status: 'Pendiente' };
         setPersonalExterno(currentPersonalExterno);
+        
+        const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
         
         form.reset({ 
             turnos: currentPersonalExterno.turnos.map(t => ({...t, fecha: new Date(t.fecha)})),
@@ -421,12 +413,12 @@ export default function PersonalExternoPage() {
                 const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
                 const index = allPersonalExterno.findIndex(p => p.osId === osId);
                 if (index > -1) {
-                    allPersonalExterno[index] = updatedPersonalExterno as PersonalExterno;
+                    allPersonalExterno[index] = updatedPersonal as PersonalExterno;
                 } else {
-                    allPersonalExterno.push(updatedPersonalExterno as PersonalExterno);
+                    allPersonalExterno.push(updatedPersonal as PersonalExterno);
                 }
                 localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-                setPersonalExterno(updatedPersonalExterno as PersonalExterno);
+                setPersonalExterno(updatedPersonal as PersonalExterno);
                 toast({ title: "Imagen adjuntada" });
             }
         };
@@ -536,14 +528,16 @@ export default function PersonalExternoPage() {
 
             const summaryBoxWidth = (doc.internal.pageSize.getWidth() - margin * 2) / summaryData.length - 5;
             summaryData.forEach((item, index) => {
-                doc.setFontSize(9);
-                doc.setFont('helvetica', 'normal');
-                doc.setTextColor('#6b7280');
-                doc.text(item.title, margin + index * (summaryBoxWidth + 5) + 5, finalY + 5);
                 doc.setFontSize(12);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(item.color);
                 doc.text(item.value, margin + index * (summaryBoxWidth + 5) + 5, finalY + 14);
+                
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor('#6b7280');
+                doc.text(item.title, margin + index * (summaryBoxWidth + 5) + 5, finalY + 5);
+
             });
             finalY += 30;
 
@@ -553,7 +547,7 @@ export default function PersonalExternoPage() {
                      const horasReales = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal);
                      const costeReal = horasReales * turno.precioHora;
                      return [
-                        getValues('proveedorId'),
+                        allProveedores.find(p=>p.id === proveedoresDB.find(pdb => pdb.id === turno.proveedorId)?.proveedorId)?.nombreComercial || 'N/A',
                         turno.categoria,
                         asig.nombre,
                         formatDuration(horasReales),
@@ -615,54 +609,46 @@ export default function PersonalExternoPage() {
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
-                <div className="sticky top-[105px] z-20 bg-background/95 backdrop-blur-sm py-2 mb-4 flex items-center justify-between">
-                    <div>
-                        <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
-                    </div>
-                     <div className="flex items-center gap-2">
-                        <ActionButton />
-                        <Button type="submit" disabled={isLoading || !formState.isDirty}>
-                            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                            <span className="ml-2">Guardar Cambios</span>
-                        </Button>
-                    </div>
+                <div className="flex items-center justify-between mb-2">
                 </div>
-                
-                <Accordion type="single" collapsible className="w-full mb-4" >
-                    <AccordionItem value="item-1">
-                    <Card>
-                        <AccordionTrigger className="p-4">
-                            <h3 className="text-xl font-semibold">Servicios del Evento</h3>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                        <CardContent className="pt-0">
-                            <Table>
-                            <TableHeader>
-                                <TableRow>
-                                <TableHead className="py-2 px-3">Fecha</TableHead>
-                                <TableHead className="py-2 px-3">Descripción</TableHead>
-                                <TableHead className="py-2 px-3">Asistentes</TableHead>
-                                <TableHead className="py-2 px-3">Duración</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {briefingItems.length > 0 ? briefingItems.map(item => (
-                                <TableRow key={item.id}>
-                                    <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
-                                    <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
-                                    <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
-                                    <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
-                                </TableRow>
-                                )) : (
-                                    <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                            </Table>
-                        </CardContent>
-                        </AccordionContent>
-                    </Card>
-                    </AccordionItem>
-                </Accordion>
+
+                <div className="mb-4">
+                    <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="item-1">
+                        <Card>
+                            <AccordionTrigger className="p-4">
+                                <h3 className="text-xl font-semibold">Servicios del Evento</h3>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                            <CardContent className="pt-0">
+                                <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                    <TableHead className="py-2 px-3">Fecha</TableHead>
+                                    <TableHead className="py-2 px-3">Descripción</TableHead>
+                                    <TableHead className="py-2 px-3">Asistentes</TableHead>
+                                    <TableHead className="py-2 px-3">Duración</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {briefingItems.length > 0 ? briefingItems.map(item => (
+                                    <TableRow key={item.id}>
+                                        <TableCell className="py-2 px-3">{format(new Date(item.fecha), 'dd/MM/yyyy')} {item.horaInicio}</TableCell>
+                                        <TableCell className="py-2 px-3">{item.descripcion}</TableCell>
+                                        <TableCell className="py-2 px-3">{item.asistentes}</TableCell>
+                                        <TableCell className="py-2 px-3">{calculateHours(item.horaInicio, item.horaFin).toFixed(2)}h</TableCell>
+                                    </TableRow>
+                                    )) : (
+                                        <TableRow><TableCell colSpan={4} className="h-24 text-center">No hay servicios en el briefing.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                                </Table>
+                            </CardContent>
+                            </AccordionContent>
+                        </Card>
+                        </AccordionItem>
+                    </Accordion>
+                </div>
 
                 <Tabs defaultValue="planificacion">
                      <TabsList className="grid w-full grid-cols-3">
@@ -674,10 +660,18 @@ export default function PersonalExternoPage() {
                         <Card>
                             <CardHeader className="py-3 flex-row items-center justify-between">
                                 <CardTitle className="text-lg">Planificación de Turnos</CardTitle>
-                                <Button type="button" onClick={addRow} size="sm">
-                                    <PlusCircle className="mr-2" />
-                                    Añadir Turno
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                     <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
+                                    <ActionButton />
+                                    <Button type="button" onClick={addRow} size="sm">
+                                        <PlusCircle className="mr-2" />
+                                        Añadir Turno
+                                    </Button>
+                                    <Button type="submit" disabled={isLoading || !formState.isDirty}>
+                                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                                        <span className="ml-2">Guardar Cambios</span>
+                                    </Button>
+                                </div>
                             </CardHeader>
                             <CardContent className="p-2">
                                 <div className="border rounded-lg overflow-x-auto">
@@ -808,7 +802,7 @@ export default function PersonalExternoPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
-                    <TabsContent value="aprobados" className="mt-4">
+                    <TabsContent value="aprobados">
                          <Card>
                             <CardHeader className="py-3"><CardTitle className="text-lg">Cierre y Horas Reales</CardTitle></CardHeader>
                             <CardContent className="p-2">
@@ -869,7 +863,7 @@ export default function PersonalExternoPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
-                    <TabsContent value="documentacion" className="mt-4">
+                    <TabsContent value="documentacion">
                         <Card>
                             <CardHeader className="py-3 flex-row items-center justify-between">
                                 <CardTitle className="text-lg">Documentación</CardTitle>
@@ -994,3 +988,4 @@ export default function PersonalExternoPage() {
     </>
   );
 }
+
