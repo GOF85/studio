@@ -401,145 +401,162 @@ export default function PersonalExternoPage() {
     return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
   }, [watchedFields]);
 
-  const handlePrintInforme = async () => {
-    if (!serviceOrder) return;
-    setIsPrinting(true);
-    try {
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const margin = 15;
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const pageWidth = doc.internal.pageSize.getWidth();
-        let finalY = margin;
-        
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(22, 163, 74); // Corporate Green
-        doc.text('Informe de Rentabilidad de Personal Externo', margin, finalY);
-        finalY += 10;
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(55, 65, 81);
-        doc.text(`OS: ${serviceOrder.serviceNumber} - ${serviceOrder.client}`, margin, finalY);
-        finalY += 10;
+    const handlePrintInforme = async () => {
+        if (!serviceOrder) return;
+        setIsPrinting(true);
+        try {
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const margin = 15;
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            let finalY = margin;
+            
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor('#16a34a');
+            doc.text('Informe de Rentabilidad de Personal Externo', margin, finalY);
+            finalY += 10;
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor('#374151'); // Gris oscuro
+            doc.text(`OS: ${serviceOrder.serviceNumber} - ${serviceOrder.client}`, margin, finalY);
+            finalY += 10;
 
-        const kpiData = [
-            ['Coste Total Final:', formatCurrency(finalTotalReal)],
-            ['Desviación vs Planificado:', formatCurrency(finalTotalReal - costeFinalPlanificado)],
-            ['Coste Medio por Hora Real:', `${formatCurrency(finalTotalReal / (watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + (calculateHours(a.horaEntradaReal, a.horaSalidaReal) || calculateHours(t.horaEntrada, t.horaSalida)), 0), 0) || 1))} /h`],
-            ['Total Horas Reales:', `${formatNumber(watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + (calculateHours(a.horaEntradaReal, a.horaSalidaReal) || calculateHours(t.horaEntrada, t.horaSalida)), 0), 0), 2)} h`],
-        ];
-        
-        autoTable(doc, {
-            body: kpiData,
-            startY: finalY,
-            theme: 'plain',
-            styles: { fontSize: 8, cellPadding: 1 },
-            columnStyles: { 0: { fontStyle: 'bold' } }
-        });
-        finalY = (doc as any).lastAutoTable.finalY + 8;
+            const kpiData = [
+                ['Coste Total Final:', formatCurrency(finalTotalReal)],
+                ['Desviación vs Planificado:', formatCurrency(finalTotalReal - costeFinalPlanificado)],
+                ['Coste Medio por Hora Real:', `${formatCurrency(finalTotalReal / (watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + (calculateHours(a.horaEntradaReal, a.horaSalidaReal) || calculateHours(t.horaEntrada, t.horaSalida)), 0), 0) || 1))} /h`],
+                ['Total Horas Reales:', `${formatNumber(watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + (calculateHours(a.horaEntradaReal, a.horaSalidaReal) || calculateHours(t.horaEntrada, t.horaSalida)), 0), 0), 2)} h`],
+            ];
+            
+            autoTable(doc, {
+                body: kpiData,
+                startY: finalY,
+                theme: 'plain',
+                styles: { fontSize: 8, cellPadding: 1 },
+                columnStyles: { 0: { fontStyle: 'bold' } }
+            });
+            finalY = (doc as any).lastAutoTable.finalY + 8;
 
-        const totalTurnos = watchedFields.length;
-        const bySolicitante = watchedFields.reduce((acc, turno) => {
-            acc[turno.solicitadoPor] = (acc[turno.solicitadoPor] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
+            const totalTurnos = watchedFields.length;
+            const bySolicitante = watchedFields.reduce((acc, turno) => {
+                acc[turno.solicitadoPor] = (acc[turno.solicitadoPor] || 0) + 1;
+                return acc;
+            }, {} as Record<string, number>);
 
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Desglose de Solicitudes', margin, finalY);
-        finalY += 6;
-        autoTable(doc, {
-            head: [['Departamento', 'Nº Turnos', '% del Total']],
-            body: Object.entries(bySolicitante).map(([depto, count]) => [depto, count, `${formatPercentage(count / totalTurnos)}`]),
-            startY: finalY,
-            theme: 'striped',
-            styles: { fontSize: 8, cellPadding: 1.5 },
-            headStyles: { fillColor: [243, 244, 246] }
-        });
-        finalY = (doc as any).lastAutoTable.finalY + 8;
-
-        const costePorProveedor: Record<string, number> = {};
-        watchedFields.forEach(turno => {
-            const costeTurno = (turno.asignaciones || []).reduce((sum, asig) => {
-                 const horas = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || calculateHours(turno.horaEntrada, turno.horaSalida);
-                 return sum + horas * turno.precioHora;
-            }, 0);
-            const proveedor = allProveedores.find(p => p.id === proveedoresDB.find(pdb => pdb.id === turno.proveedorId)?.proveedorId);
-            const provName = proveedor?.nombreComercial || 'Desconocido';
-            costePorProveedor[provName] = (costePorProveedor[provName] || 0) + costeTurno;
-        });
-
-        doc.setFontSize(10);
-        doc.text('Coste por Proveedor (Horas Reales)', margin, finalY);
-        finalY += 6;
-        autoTable(doc, {
-            startY: finalY,
-            head: [['Proveedor', 'Coste Total']],
-            body: Object.entries(costePorProveedor).map(([name, cost]) => [name, formatCurrency(cost)]),
-            theme: 'striped',
-             styles: { fontSize: 8, cellPadding: 1.5 },
-            headStyles: { fillColor: [243, 244, 246] }
-        });
-        finalY = (doc as any).lastAutoTable.finalY + 8;
-
-        if (watchedAjustes && watchedAjustes.length > 0) {
             doc.setFontSize(10);
-            doc.text('Ajustes Manuales', margin, finalY);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Desglose de Solicitudes', margin, finalY);
             finalY += 6;
             autoTable(doc, {
+                head: [['Departamento', 'Nº Turnos', '% del Total']],
+                body: Object.entries(bySolicitante).map(([depto, count]) => [depto, count, `${formatPercentage(count / totalTurnos)}`]),
                 startY: finalY,
-                head: [['Proveedor', 'Concepto', 'Importe']],
-                body: watchedAjustes.map(aj => [
-                    allProveedores.find(p => p.id === aj.proveedorId)?.nombreComercial || 'N/A',
-                    aj.concepto,
-                    formatCurrency(aj.importe)
-                ]),
                 theme: 'striped',
                 styles: { fontSize: 8, cellPadding: 1.5 },
                 headStyles: { fillColor: [243, 244, 246] }
             });
+            finalY = (doc as any).lastAutoTable.finalY + 8;
+
+            const costePorProveedor: Record<string, number> = {};
+            watchedFields.forEach(turno => {
+                const costeTurno = (turno.asignaciones || []).reduce((sum, asig) => {
+                    const horas = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || calculateHours(turno.horaEntrada, turno.horaSalida);
+                    return sum + horas * turno.precioHora;
+                }, 0);
+                const proveedor = allProveedores.find(p => p.id === proveedoresDB.find(pdb => pdb.id === turno.proveedorId)?.proveedorId);
+                const provName = proveedor?.nombreComercial || 'Desconocido';
+                costePorProveedor[provName] = (costePorProveedor[provName] || 0) + costeTurno;
+            });
+
+            doc.setFontSize(10);
+            doc.text('Coste por Proveedor (Horas Reales)', margin, finalY);
+            finalY += 6;
+            autoTable(doc, {
+                startY: finalY,
+                head: [['Proveedor', 'Coste Total']],
+                body: Object.entries(costePorProveedor).map(([name, cost]) => [name, formatCurrency(cost)]),
+                theme: 'striped',
+                styles: { fontSize: 8, cellPadding: 1.5 },
+                headStyles: { fillColor: [243, 244, 246] }
+            });
+            finalY = (doc as any).lastAutoTable.finalY + 8;
+
+            if (watchedAjustes && watchedAjustes.length > 0) {
+                doc.setFontSize(10);
+                doc.text('Ajustes Manuales', margin, finalY);
+                finalY += 6;
+                autoTable(doc, {
+                    startY: finalY,
+                    head: [['Proveedor', 'Concepto', 'Importe']],
+                    body: watchedAjustes.map(aj => [
+                        allProveedores.find(p => p.id === aj.proveedorId)?.nombreComercial || 'N/A',
+                        aj.concepto,
+                        formatCurrency(aj.importe)
+                    ]),
+                    theme: 'striped',
+                    styles: { fontSize: 8, cellPadding: 1.5 },
+                    headStyles: { fillColor: [243, 244, 246] }
+                });
+            }
+            
+            doc.save(`Informe_Facturacion_Personal_${serviceOrder.serviceNumber}.pdf`);
+        } catch (e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: 'Error al generar PDF' });
+        } finally {
+            setIsPrinting(false);
         }
-        
-        doc.save(`Informe_Facturacion_Personal_${serviceOrder.serviceNumber}.pdf`);
-    } catch (e) {
-        console.error(e);
-        toast({ variant: 'destructive', title: 'Error al generar PDF' });
-    } finally {
-        setIsPrinting(false);
-    }
-  };
+    };
     
     const handlePrintParte = async () => {
         if (!serviceOrder) return;
         setIsPrinting(true);
         try {
             const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            let finalY = 15;
+            
             doc.setFontSize(16);
-            doc.text('Parte de Horas - Personal Externo', 15, 15);
-            doc.setFontSize(10);
-            doc.text(`OS: ${serviceOrder.serviceNumber}`, 15, 22);
-            doc.text(`Cliente: ${serviceOrder.client}`, 15, 27);
-            doc.text(`Fecha Evento: ${format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}`, 15, 32);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor('#16a34a');
+            doc.text('Parte de Horas - Personal Externo', 15, finalY);
+            finalY += 8;
+
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor('#374151');
+            autoTable(doc, {
+                body: [
+                    ['Nº Servicio:', serviceOrder.serviceNumber],
+                    ['Cliente:', serviceOrder.client],
+                    ['Fecha Evento:', format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
+                ],
+                startY: finalY,
+                theme: 'plain',
+                styles: { fontSize: 8, cellPadding: 0.5 },
+                columnStyles: { 0: { fontStyle: 'bold' } }
+            });
+            finalY = (doc as any).lastAutoTable.finalY + 8;
 
             autoTable(doc, {
-                startY: 40,
-                head: [['Fecha', 'Nombre y Apellidos', 'DNI', 'H. Entrada Plan.', 'H. Salida Plan.', 'H. Entrada Real', 'H. Salida Real', 'Firma']],
+                startY: finalY,
+                head: [['Fecha', 'Solicitado por', 'Tipo Servicio', 'Nombre y Apellidos', 'DNI', 'H. Entrada', 'H. Salida', 'Firma']],
                 body: watchedFields.flatMap(turno => 
-                    (turno.asignaciones?.length ? turno.asignaciones : [{id: 'temp', nombre: 'PENDIENTE DE ASIGNAR', dni: '', telefono: '', comentarios: ''}]).map(asig => [
+                    (turno.asignaciones?.length ? turno.asignaciones : [{id: 'temp', nombre: 'PENDIENTE DE ASIGNAR', dni: ''}]).map(asig => [
                         format(new Date(turno.fecha), 'dd/MM/yy'),
+                        turno.solicitadoPor,
+                        turno.tipoServicio,
                         asig.nombre,
                         asig.dni,
                         turno.horaEntrada,
                         turno.horaSalida,
-                        '',
-                        '',
                         ''
                     ])
                 ),
                 theme: 'grid',
-                headStyles: { fillColor: '#f3f4f6', textColor: '#374151' },
-                styles: { fontSize: 7, cellPadding: 1.5, minCellHeight: 12 },
-                columnStyles: { 7: { cellWidth: 25 } }
+                headStyles: { fillColor: '#059669', textColor: '#ffffff' },
+                styles: { fontSize: 7, cellPadding: 1.5, minCellHeight: 10 },
+                columnStyles: { 7: { cellWidth: 20 } }
             });
             
             doc.save(`Parte_Horas_${serviceOrder.serviceNumber}.pdf`);
@@ -982,3 +999,5 @@ export default function PersonalExternoPage() {
     </>
   );
 }
+
+    
