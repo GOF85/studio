@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 
 export type CateringItem = {
@@ -948,7 +947,7 @@ export const ESTADO_PERSONAL_EXTERNO = ['Pendiente', 'Solicitado', 'Asignado', '
 export type EstadoPersonalExterno = typeof ESTADO_PERSONAL_EXTERNO[number];
 
 export const AJUSTE_CONCEPTO_OPCIONES = ['Dietas', 'Transporte', 'Parking', 'Gastos Adicionales', 'Otros'] as const;
-export type AjusteConcepto = typeof AJUSTE_CONCEPTO_OPCIONES[number];
+export type AjusteConcepto = (typeof AJUSTE_CONCEPTO_OPCIONES)[number];
 
 export type PersonalExternoAjuste = {
     id: string;

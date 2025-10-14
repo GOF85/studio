@@ -1,11 +1,10 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Factory, Calendar as CalendarIcon, MessageSquare, Edit, Users, PlusCircle, Trash2, MapPin, Clock, Phone, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Building2 } from 'lucide-react';
-import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, startOfToday, endOfDay } from 'date-fns';
+import { format, isSameMonth, isSameDay, add, sub, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, startOfToday, isWithinInterval, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,11 +59,11 @@ type DayDetails = {
 
 function AsignacionDialog({ turno, onSave, children, isReadOnly }: { turno: TurnoConDetalles; onSave: (turnoId: string, asignaciones: AsignacionPersonal[]) => void; children: React.ReactNode, isReadOnly: boolean }) {
     const [isOpen, setIsOpen] = useState(false);
-    const [asignacion, setAsignacion] = useState<AsignacionPersonal>({ id: '1', nombre: '', dni: '', telefono: '', comentarios: '' });
+    const [asignacion, setAsignacion] = useState<AsignacionPersonal>({ id: '1', nombre: '', dni: '', telefono: '', comentarios: '', horaEntradaReal: '', horaSalidaReal: '' });
     
     useEffect(() => {
         if(isOpen) {
-             setAsignacion(turno.asignaciones?.[0] || { id: '1', nombre: '', dni: '', telefono: '', comentarios: '' });
+             setAsignacion(turno.asignaciones?.[0] || { id: '1', nombre: '', dni: '', telefono: '', comentarios: '', horaEntradaReal: '', horaSalidaReal: '' });
         }
     }, [isOpen, turno.asignaciones]);
 
@@ -133,7 +132,6 @@ export default function PartnerPersonalPortalPage() {
 
     const isReadOnly = useMemo(() => {
         if (!impersonatedUser) return true;
-        // True only if user is NOT a Partner Personal AND is NOT an Admin/Comercial
         const isPartner = impersonatedUser.roles?.includes('Partner Personal');
         return !isPartner && !isAdminOrComercial;
     }, [impersonatedUser, isAdminOrComercial]);
@@ -152,7 +150,6 @@ export default function PartnerPersonalPortalPage() {
             setProveedorNombre(proveedor?.nombreComercial || '');
         }
 
-
         const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
         const allPersonalExterno = (JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[]);
         const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
@@ -169,7 +166,7 @@ export default function PartnerPersonalPortalPage() {
             const briefing = briefingsMap.get(pedido.osId);
 
             (pedido.turnos || []).forEach(turno => {
-                const shouldInclude = !impersonatedUser?.proveedorId || turno.proveedorId === impersonatedUser.proveedorId;
+                const shouldInclude = isAdminOrComercial || !impersonatedUser?.proveedorId || turno.proveedorId === impersonatedUser.proveedorId;
 
                 if (shouldInclude) {
                     const hito = briefing?.items.find(h => new Date(h.fecha).toISOString().slice(0,10) === new Date(turno.fecha).toISOString().slice(0,10));
@@ -187,7 +184,7 @@ export default function PartnerPersonalPortalPage() {
         
         setTurnos(partnerTurnos);
         setIsMounted(true);
-    }, [impersonatedUser]);
+    }, [impersonatedUser, isAdminOrComercial]);
     
     useEffect(() => {
         if (impersonatedUser) {
@@ -238,14 +235,19 @@ export default function PartnerPersonalPortalPage() {
         const today = startOfToday();
         return turnos.filter(t => {
             const statusMatch = showCompleted || t.statusPartner !== 'Gestionado';
+            const deliveryDate = new Date(t.fechaEvento);
+
+            const isPast = isBefore(deliveryDate, today);
+            if (!showCompleted && isPast) {
+                return false;
+            }
 
             let dateMatch = true;
             if (dateRange?.from) {
-                const turnoDate = new Date(t.fechaEvento);
                 if (dateRange.to) {
-                    dateMatch = isWithinInterval(turnoDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+                    dateMatch = isWithinInterval(deliveryDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
                 } else {
-                    dateMatch = isSameDay(turnoDate, dateRange.from);
+                    dateMatch = isSameDay(deliveryDate, dateRange.from);
                 }
             }
             
@@ -427,7 +429,7 @@ export default function PartnerPersonalPortalPage() {
                             <CardContent className="py-12 text-center">
                                 <Users className="mx-auto h-12 w-12 text-muted-foreground" />
                                 <h3 className="mt-4 text-lg font-semibold">Todo al día</h3>
-                                <p className="mt-1 text-sm text-muted-foreground">No hay turnos de personal pendientes.</p>
+                                <p className="mt-1 text-sm text-muted-foreground">No hay turnos de personal pendientes que coincidan con los filtros.</p>
                             </CardContent>
                         </Card>
                     )}
@@ -503,5 +505,4 @@ export default function PartnerPersonalPortalPage() {
     );
 }
 
-    
     
