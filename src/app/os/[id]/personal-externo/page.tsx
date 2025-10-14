@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -9,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, FileText } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, FileText, Upload } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -381,211 +380,6 @@ export default function PersonalExternoPage() {
     }
   };
   
-    const handlePrintInforme = async () => {
-        if (!serviceOrder) return;
-        setIsPrinting(true);
-        try {
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            const margin = 15;
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const pageWidth = doc.internal.pageSize.getWidth();
-            let finalY = margin;
-            
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor('#16a34a');
-            doc.text('Informe de Rentabilidad de Personal Externo', margin, finalY);
-            finalY += 10;
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151'); // Gris oscuro
-            doc.text(`OS: ${serviceOrder.serviceNumber} - ${serviceOrder.client}`, margin, finalY);
-            finalY += 10;
-
-            const kpiData = [
-                ['Coste Total Final:', formatCurrency(finalTotalReal)],
-                ['Desviación vs Planificado:', formatCurrency(finalTotalReal - costeFinalPlanificado)],
-                ['Coste Medio por Hora Real:', `${formatCurrency(finalTotalReal / (watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + (calculateHours(a.horaEntradaReal, a.horaSalidaReal) || calculateHours(t.horaEntrada, t.horaSalida)), 0), 0) || 1))} /h`],
-                ['Total Horas Reales:', `${formatNumber(watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + (calculateHours(a.horaEntradaReal, a.horaSalidaReal) || calculateHours(t.horaEntrada, t.horaSalida)), 0), 0), 2)} h`],
-            ];
-            
-            autoTable(doc, {
-                body: kpiData,
-                startY: finalY,
-                theme: 'plain',
-                styles: { fontSize: 8, cellPadding: 1 },
-                columnStyles: { 0: { fontStyle: 'bold' } }
-            });
-            finalY = (doc as any).lastAutoTable.finalY + 8;
-
-            const totalTurnos = watchedFields.length;
-            const bySolicitante = watchedFields.reduce((acc, turno) => {
-                acc[turno.solicitadoPor] = (acc[turno.solicitadoPor] || 0) + 1;
-                return acc;
-            }, {} as Record<string, number>);
-
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Desglose de Solicitudes', margin, finalY);
-            finalY += 6;
-            autoTable(doc, {
-                head: [['Departamento', 'Nº Turnos', '% del Total']],
-                body: Object.entries(bySolicitante).map(([depto, count]) => [depto, count, `${formatPercentage(count / totalTurnos)}`]),
-                startY: finalY,
-                theme: 'striped',
-                styles: { fontSize: 8, cellPadding: 1.5 },
-                headStyles: { fillColor: [243, 244, 246] }
-            });
-            finalY = (doc as any).lastAutoTable.finalY + 8;
-
-            const costePorProveedor: Record<string, number> = {};
-            watchedFields.forEach(turno => {
-                const costeTurno = (turno.asignaciones || []).reduce((sum, asig) => {
-                    const horas = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || calculateHours(turno.horaEntrada, turno.horaSalida);
-                    return sum + horas * turno.precioHora;
-                }, 0);
-                const proveedor = allProveedores.find(p => p.id === proveedoresDB.find(pdb => pdb.id === turno.proveedorId)?.proveedorId);
-                const provName = proveedor?.nombreComercial || 'Desconocido';
-                costePorProveedor[provName] = (costePorProveedor[provName] || 0) + costeTurno;
-            });
-
-            doc.setFontSize(10);
-            doc.text('Coste por Proveedor (Horas Reales)', margin, finalY);
-            finalY += 6;
-            autoTable(doc, {
-                startY: finalY,
-                head: [['Proveedor', 'Coste Total']],
-                body: Object.entries(costePorProveedor).map(([name, cost]) => [name, formatCurrency(cost)]),
-                theme: 'striped',
-                styles: { fontSize: 8, cellPadding: 1.5 },
-                headStyles: { fillColor: [243, 244, 246] }
-            });
-            finalY = (doc as any).lastAutoTable.finalY + 8;
-
-            if (watchedAjustes && watchedAjustes.length > 0) {
-                doc.setFontSize(10);
-                doc.text('Ajustes Manuales', margin, finalY);
-                finalY += 6;
-                autoTable(doc, {
-                    startY: finalY,
-                    head: [['Proveedor', 'Concepto', 'Importe']],
-                    body: watchedAjustes.map(aj => [
-                        allProveedores.find(p => p.id === aj.proveedorId)?.nombreComercial || 'N/A',
-                        aj.concepto,
-                        formatCurrency(aj.importe)
-                    ]),
-                    theme: 'striped',
-                    styles: { fontSize: 8, cellPadding: 1.5 },
-                    headStyles: { fillColor: [243, 244, 246] }
-                });
-            }
-            
-            doc.save(`Informe_Facturacion_Personal_${serviceOrder.serviceNumber}.pdf`);
-        } catch (e) {
-            console.error(e);
-            toast({ variant: 'destructive', title: 'Error al generar PDF' });
-        } finally {
-            setIsPrinting(false);
-        }
-    };
-    
-    const handlePrintParte = async () => {
-        if (!serviceOrder) return;
-        setIsPrinting(true);
-        try {
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            const margin = 15;
-            let finalY = margin;
-            
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor('#16a34a');
-            doc.text('Parte de Horas - Personal Externo', 15, finalY);
-            finalY += 8;
-
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151');
-            autoTable(doc, {
-                body: [
-                    ['Nº Servicio:', serviceOrder.serviceNumber],
-                    ['Cliente:', serviceOrder.client],
-                    ['Fecha Evento:', format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
-                ],
-                startY: finalY,
-                theme: 'plain',
-                styles: { fontSize: 8, cellPadding: 0.5 },
-                columnStyles: { 0: { fontStyle: 'bold' } }
-            });
-            finalY = (doc as any).lastAutoTable.finalY + 8;
-
-            autoTable(doc, {
-                startY: finalY,
-                head: [['Fecha', 'Solicitado por', 'Tipo Servicio', 'Nombre y Apellidos', 'DNI', 'H. Entrada', 'H. Salida', 'Firma']],
-                body: watchedFields.flatMap(turno => 
-                    (turno.asignaciones?.length ? turno.asignaciones : [{id: 'temp', nombre: 'PENDIENTE DE ASIGNAR', dni: ''}]).map(asig => [
-                        format(new Date(turno.fecha), 'dd/MM/yy'),
-                        turno.solicitadoPor,
-                        turno.tipoServicio,
-                        asig.nombre,
-                        asig.dni,
-                        turno.horaEntrada,
-                        turno.horaSalida,
-                        ''
-                    ])
-                ),
-                theme: 'grid',
-                headStyles: { fillColor: '#059669', textColor: '#ffffff' },
-                styles: { fontSize: 7, cellPadding: 1.5, minCellHeight: 10 },
-                columnStyles: { 7: { cellWidth: 20 } }
-            });
-            
-            doc.save(`Parte_Horas_${serviceOrder.serviceNumber}.pdf`);
-        } catch (e) {
-            console.error(e);
-            toast({ variant: 'destructive', title: 'Error al generar PDF' });
-        } finally {
-            setIsPrinting(false);
-        }
-    };
-    
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file && personalExterno) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const result = event.target?.result;
-                if (typeof result === 'string') {
-                    const updatedData = { ...personalExterno, hojaFirmadaUrl: result };
-                    
-                    const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-                    const index = allPersonalExterno.findIndex(p => p.osId === osId);
-                    if (index > -1) {
-                        allPersonalExterno[index] = updatedData;
-                    } else {
-                        allPersonalExterno.push(updatedData);
-                    }
-                    localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-                    setPersonalExterno(updatedData);
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-    
-    const removeHojaFirmada = () => {
-         if (personalExterno) {
-            const updatedData = { ...personalExterno, hojaFirmadaUrl: undefined };
-            const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-            const index = allPersonalExterno.findIndex(p => p.osId === osId);
-            if(index > -1) {
-                allPersonalExterno[index] = updatedData;
-                localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-                setPersonalExterno(updatedData);
-            }
-        }
-    };
-
   const providerOptions = useMemo(() => 
     allProveedores.filter(p => p.tipos.includes('Personal')).map(p => ({
         value: p.id,
@@ -601,6 +395,184 @@ export default function PersonalExternoPage() {
         }
     });
   }, [proveedoresDB, allProveedores]);
+
+  const hitosConPersonal = useMemo(() => {
+    if (!briefingItems || !serviceOrder) return [];
+    return briefingItems
+        .map((hito, index) => ({...hito, expedicionNumero: `${serviceOrder.serviceNumber}.${(index + 1).toString().padStart(2, '0')}`}))
+  }, [briefingItems, serviceOrder]);
+
+  const turnosAprobados = useMemo(() => {
+    return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
+  }, [watchedFields]);
+
+  const handlePrintParte = async () => {
+    if (!serviceOrder) return;
+    setIsPrinting(true);
+    try {
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const margin = 15;
+        let finalY = margin;
+        
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor('#16a34a');
+        doc.text('Parte de Horas - Personal Externo', 15, finalY);
+        finalY += 8;
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor('#374151');
+        autoTable(doc, {
+            body: [
+                ['Nº Servicio:', serviceOrder.serviceNumber],
+                ['Cliente:', serviceOrder.client],
+                ['Fecha Evento:', format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
+            ],
+            startY: finalY,
+            theme: 'plain',
+            styles: { fontSize: 8, cellPadding: 0.5 },
+            columnStyles: { 0: { fontStyle: 'bold' } }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 8;
+
+        autoTable(doc, {
+            startY: finalY,
+            head: [['Fecha', 'Solicitado por', 'Tipo Servicio', 'Nombre y Apellidos', 'DNI', 'H. Entrada', 'H. Salida', 'Firma']],
+            body: watchedFields.flatMap(turno => 
+                (turno.asignaciones?.length ? turno.asignaciones : [{id: 'temp', nombre: 'PENDIENTE DE ASIGNAR', dni: ''}]).map(asig => [
+                    format(new Date(turno.fecha), 'dd/MM/yy'),
+                    turno.solicitadoPor,
+                    turno.tipoServicio,
+                    asig.nombre,
+                    asig.dni,
+                    turno.horaEntrada,
+                    turno.horaSalida,
+                    ''
+                ])
+            ),
+            theme: 'grid',
+            headStyles: { fillColor: '#059669', textColor: '#ffffff' },
+            styles: { fontSize: 7, cellPadding: 1.5, minCellHeight: 10 },
+            columnStyles: { 7: { cellWidth: 20 } }
+        });
+        
+        doc.save(`Parte_Horas_${serviceOrder.serviceNumber}.pdf`);
+    } catch (e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Error al generar PDF' });
+    } finally {
+        setIsPrinting(false);
+    }
+};
+
+  const handlePrintInforme = async () => {
+    if (!serviceOrder) return;
+    setIsPrinting(true);
+    try {
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const margin = 15;
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let finalY = margin;
+        
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor('#16a34a');
+        doc.text('Informe de Rentabilidad de Personal Externo', 15, finalY);
+        finalY += 10;
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor('#374151'); // Gris oscuro
+        doc.text(`OS: ${serviceOrder.serviceNumber} - ${serviceOrder.client}`, margin, finalY);
+        finalY += 10;
+
+        const kpiData = [
+            ['Coste Total Final:', formatCurrency(finalTotalReal)],
+            ['Desviación vs Planificado:', formatCurrency(finalTotalReal - costeFinalPlanificado)],
+            ['Coste Medio por Hora Real:', `${formatCurrency(finalTotalReal / (watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + (calculateHours(a.horaEntradaReal, a.horaSalidaReal) || calculateHours(t.horaEntrada, t.horaSalida)), 0), 0) || 1))} /h`],
+            ['Total Horas Reales:', `${formatNumber(watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + (calculateHours(a.horaEntradaReal, a.horaSalidaReal) || calculateHours(t.horaEntrada, t.horaSalida)), 0), 0), 2)} h`],
+        ];
+        
+        autoTable(doc, {
+            body: kpiData,
+            startY: finalY,
+            theme: 'plain',
+            styles: { fontSize: 8, cellPadding: 1 },
+            columnStyles: { 0: { fontStyle: 'bold' } }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 8;
+
+        const totalTurnos = watchedFields.length;
+        const bySolicitante = watchedFields.reduce((acc, turno) => {
+            acc[turno.solicitadoPor] = (acc[turno.solicitadoPor] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Desglose de Solicitudes', margin, finalY);
+        finalY += 6;
+        autoTable(doc, {
+            head: [['Departamento', 'Nº Turnos', '% del Total']],
+            body: Object.entries(bySolicitante).map(([depto, count]) => [depto, count, `${formatPercentage(count / totalTurnos)}`]),
+            startY: finalY,
+            theme: 'striped',
+            styles: { fontSize: 8, cellPadding: 1.5 },
+            headStyles: { fillColor: [243, 244, 246] }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 8;
+
+        const costePorProveedor: Record<string, number> = {};
+        watchedFields.forEach(turno => {
+            const costeTurno = (turno.asignaciones || []).reduce((sum, asig) => {
+                const horas = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || calculateHours(turno.horaEntrada, turno.horaSalida);
+                return sum + horas * turno.precioHora;
+            }, 0);
+            const proveedor = allProveedores.find(p => p.id === proveedoresDB.find(pdb => pdb.id === turno.proveedorId)?.proveedorId);
+            const provName = proveedor?.nombreComercial || 'Desconocido';
+            costePorProveedor[provName] = (costePorProveedor[provName] || 0) + costeTurno;
+        });
+
+        doc.setFontSize(10);
+        doc.text('Coste por Proveedor (Horas Reales)', margin, finalY);
+        finalY += 6;
+        autoTable(doc, {
+            startY: finalY,
+            head: [['Proveedor', 'Coste Total']],
+            body: Object.entries(costePorProveedor).map(([name, cost]) => [name, formatCurrency(cost)]),
+            theme: 'striped',
+            styles: { fontSize: 8, cellPadding: 1.5 },
+            headStyles: { fillColor: [243, 244, 246] }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 8;
+
+        if (watchedAjustes && watchedAjustes.length > 0) {
+            doc.setFontSize(10);
+            doc.text('Ajustes Manuales', margin, finalY);
+            finalY += 6;
+            autoTable(doc, {
+                startY: finalY,
+                head: [['Proveedor', 'Concepto', 'Importe']],
+                body: watchedAjustes.map(aj => [
+                    allProveedores.find(p => p.id === aj.proveedorId)?.nombreComercial || 'N/A',
+                    aj.concepto,
+                    formatCurrency(aj.importe)
+                ]),
+                theme: 'striped',
+                styles: { fontSize: 8, cellPadding: 1.5 },
+                headStyles: { fillColor: [243, 244, 246] }
+            });
+        }
+        
+        doc.save(`Informe_Facturacion_Personal_${serviceOrder.serviceNumber}.pdf`);
+    } catch (e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Error al generar PDF' });
+    } finally {
+        setIsPrinting(false);
+    }
+  };
 
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
@@ -684,7 +656,8 @@ export default function PersonalExternoPage() {
                                             <TableHead className="px-2 py-1">Solicitado Por</TableHead>
                                             <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
                                             <TableHead className="px-2 py-1">Tipo Servicio</TableHead>
-                                            <TableHead colSpan={4} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
+                                            <TableHead colSpan={3} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
+                                            <TableHead className="px-2 py-1">Obs. ETT</TableHead>
                                             <TableHead className="text-center px-2 py-1">Estado ETT</TableHead>
                                             <TableHead className="text-right px-2 py-1">Acción</TableHead>
                                         </TableRow>
@@ -695,8 +668,8 @@ export default function PersonalExternoPage() {
                                             <TableHead className="px-2 py-1"></TableHead>
                                             <TableHead className="border-l px-2 py-1 bg-muted/30 w-24">H. Entrada</TableHead>
                                             <TableHead className="px-2 py-1 bg-muted/30 w-24">H. Salida</TableHead>
-                                            <TableHead className="px-2 py-1 bg-muted/30 w-20">Horas</TableHead>
                                             <TableHead className="border-r px-2 py-1 bg-muted/30 w-20">€/Hora</TableHead>
+                                            <TableHead className="px-2 py-1"></TableHead>
                                             <TableHead className="px-2 py-1"></TableHead>
                                             <TableHead className="px-2 py-1"></TableHead>
                                         </TableRow>
@@ -761,16 +734,13 @@ export default function PersonalExternoPage() {
                                                 <TableCell className="px-2 py-1 bg-muted/30">
                                                     <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-9 text-xs" /></FormControl></FormItem>} />
                                                 </TableCell>
-                                                <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center text-xs">
-                                                  {formatDuration(calculateHours(watchedFields[index].horaEntrada, watchedFields[index].horaSalida))}h
-                                                </TableCell>
                                                 <TableCell className="border-r px-2 py-1 bg-muted/30">
                                                     <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-9 text-xs" readOnly /></FormControl></FormItem>} />
                                                 </TableCell>
-                                                <TableCell className="px-0 py-1 text-center">
+                                                <TableCell>
                                                     <CommentDialog turnoIndex={index} form={form} />
                                                 </TableCell>
-                                                <TableCell className="px-2 py-1">
+                                                <TableCell>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <div className="flex justify-center">
@@ -892,13 +862,13 @@ export default function PersonalExternoPage() {
                                     <CardContent>
                                         {personalExterno?.hojaFirmadaUrl ? (
                                              <div className="relative">
-                                                <Image src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" width={500} height={300} className="rounded-md w-full h-auto object-contain"/>
-                                                <Button size="sm" variant="destructive" className="absolute top-2 right-2" onClick={removeHojaFirmada}><Trash2/></Button>
+                                                <img src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" width={500} height={300} className="rounded-md w-full h-auto object-contain"/>
+                                                <Button size="sm" variant="destructive" className="absolute top-2 right-2"><Trash2/></Button>
                                             </div>
                                         ) : (
                                             <div>
                                                 <Label htmlFor="upload-photo">Subir hoja de firmas escaneada</Label>
-                                                <Input id="upload-photo" type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} />
+                                                <Input id="upload-photo" type="file" accept="image/*" />
                                             </div>
                                         )}
                                     </CardContent>
@@ -1001,3 +971,4 @@ export default function PersonalExternoPage() {
     </>
   );
 }
+
