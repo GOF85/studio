@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from "react"
@@ -70,7 +71,7 @@ export default function CtaExplotacionPage() {
   const { toast } = useToast();
   const [updateKey, setUpdateKey] = useState(Date.now());
 
-  const [ctaData, setCtaData = useState<{
+  const [ctaData, setCtaData] = useState<{
     serviceOrder: ServiceOrder | null;
     objetivosPlantillas: ObjetivosGasto[];
     objetivos: ObjetivosGasto;
@@ -78,9 +79,9 @@ export default function CtaExplotacionPage() {
     facturacionNeta: number;
   } | null>(null);
 
-  const [realCostInputs, setRealCostInputs = useState<Record<string, number | undefined>>({});
-  const [comentarios, setComentarios = useState<Record<string, string>>({});
-  const [editingComment, setEditingComment = useState<{label: string, text: string} | null>(null);
+  const [realCostInputs, setRealCostInputs] = useState<Record<string, number | undefined>>({});
+  const [comentarios, setComentarios] = useState<Record<string, string>>({});
+  const [editingComment, setEditingComment] = useState<{label: string, text: string} | null>(null);
 
   const loadData = useCallback(() => {
     if (!osId) return;
