@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -83,6 +84,14 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+const statusBadgeVariant: { [key in EstadoPersonalExterno]: 'success' | 'warning' | 'outline' } = {
+    'Pendiente': 'warning',
+    'Solicitado': 'outline',
+    'Asignado': 'success',
+    'Cerrado': 'default',
+};
+
 
 function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -365,15 +374,6 @@ export default function PersonalExternoPage() {
     });
   }
   
-    const addAjusteRow = () => {
-        appendAjuste({
-            id: Date.now().toString(),
-            proveedorId: '',
-            concepto: 'Otros',
-            importe: 0
-        })
-    }
-
   const handleDeleteRow = () => {
     if (rowToDelete !== null) {
       remove(rowToDelete);
@@ -402,226 +402,19 @@ export default function PersonalExternoPage() {
     return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
   }, [watchedFields]);
 
-  const removeHojaFirmada = () => {
-    if (!personalExterno) return;
-    const updatedPersonal = { ...personalExterno, hojaFirmadaUrl: undefined };
-    const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-    const index = allPersonalExterno.findIndex(p => p.osId === osId);
-    if (index > -1) {
-        allPersonalExterno[index] = updatedPersonal as PersonalExterno;
-    }
-    localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-    setPersonalExterno(updatedPersonal as PersonalExterno);
-  }
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const result = event.target?.result;
-            if (typeof result === 'string') {
-                const updatedPersonal = { ...personalExterno, hojaFirmadaUrl: result };
-                const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-                const index = allPersonalExterno.findIndex(p => p.osId === osId);
-                if (index > -1) {
-                    allPersonalExterno[index] = updatedPersonal as PersonalExterno;
-                } else {
-                    allPersonalExterno.push(updatedPersonal as PersonalExterno);
-                }
-                localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-                setPersonalExterno(updatedPersonal as PersonalExterno);
-                toast({ title: "Imagen adjuntada" });
-            }
-        };
-        reader.readAsDataURL(file);
-    }
-  };
-  
-    const handlePrintParte = () => {
-    if (!serviceOrder) return;
-    setIsPrinting(true);
-    try {
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const margin = 15;
-        const pageWidth = doc.internal.pageSize.getWidth();
-        let finalY = margin;
-        
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor('#059669');
-        doc.text('Parte de Horas - Personal Externo', margin, finalY);
-        finalY += 10;
-        
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor('#374151');
-        
-        const serviceData = [
-            ['Nº Servicio:', serviceOrder.serviceNumber],
-            ['Cliente:', serviceOrder.client],
-            ['Fecha Evento:', format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
-            ['Espacio:', serviceOrder.space || '-']
-        ];
-        
-        autoTable(doc, {
-            body: serviceData,
-            startY: finalY,
-            theme: 'plain',
-            styles: { fontSize: 9, cellPadding: 0.5 },
-            columnStyles: { 0: { fontStyle: 'bold' } }
-        });
-        finalY = (doc as any).lastAutoTable.finalY + 10;
-
-        const turnosToPrint = getValues('turnos').sort((a,b) => a.categoria.localeCompare(b.categoria));
-        
-        const tableBody = turnosToPrint.map(turno => {
-            const proveedor = allProveedores.find(p => p.id === proveedoresDB.find(pdb => pdb.id === turno.proveedorId)?.proveedorId);
-            return [
-                proveedor?.nombreComercial || 'N/A',
-                turno.categoria,
-                `${turno.horaEntrada}-${turno.horaSalida}`,
-                '', // H. Entrada Real
-                '', // H. Salida Real
-                ''  // Firma
-            ];
-        });
-
-        autoTable(doc, {
-            startY: finalY,
-            head: [['Proveedor', 'Categoría', 'H. Planificado', 'H. Entrada Real', 'H. Salida Real', 'Firma']],
-            body: tableBody,
-            theme: 'grid',
-            headStyles: { fillColor: '#00703C', textColor: '#ffffff', fontStyle: 'bold' },
-            styles: { fontSize: 8, cellPadding: 2, minCellHeight: 12 },
-        });
-
-        doc.save(`Parte_Horas_${serviceOrder.serviceNumber}.pdf`);
-
-    } catch (e) {
-        console.error("PDF generation failed", e);
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF del parte de horas.' });
-    } finally {
-        setIsPrinting(false);
-    }
-  }
-
-  const handlePrintInforme = () => {
-    if (!serviceOrder) return;
-    setIsPrinting(true);
-    try {
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const margin = 15;
-        const pageWidth = doc.internal.pageSize.getWidth();
-        let finalY = margin;
-        
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor('#059669');
-        doc.text('Informe de Personal Externo para Facturación', margin, finalY);
-        finalY += 10;
-        
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor('#374151');
-        
-        const serviceData = [
-            ['Nº Servicio:', serviceOrder.serviceNumber],
-            ['Cliente:', serviceOrder.client],
-            ['Fecha Evento:', format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
-        ];
-        
-        autoTable(doc, {
-            body: serviceData,
-            startY: finalY,
-            theme: 'plain',
-            styles: { fontSize: 9, cellPadding: 0.5 },
-            columnStyles: { 0: { fontStyle: 'bold' } }
-        });
-        finalY = (doc as any).lastAutoTable.finalY + 10;
-        
-        const allTurnos = getValues('turnos');
-
-        const groupedByProvider: Record<string, typeof allTurnos> = {};
-        allTurnos.forEach(turno => {
-            const cat = proveedoresDB.find(p => p.id === turno.proveedorId);
-            const provId = cat?.proveedorId || 'unknown';
-            if(!groupedByProvider[provId]) groupedByProvider[provId] = [];
-            groupedByProvider[provId].push(turno);
-        });
-
-        for(const provId in groupedByProvider) {
-             const proveedor = allProveedores.find(p => p.id === provId);
-             doc.setFontSize(12);
-             doc.setFont('helvetica', 'bold');
-             doc.text(`Proveedor: ${proveedor?.nombreComercial || 'Desconocido'}`, margin, finalY);
-             finalY += 8;
-
-            const tableBody = groupedByProvider[provId].flatMap(turno => 
-                (turno.asignaciones || []).map(asig => {
-                    const horasReales = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal);
-                    const costeReal = horasReales > 0 ? horasReales * turno.precioHora : calculateHours(turno.horaEntrada, turno.horaSalida) * turno.precioHora;
-                    return [
-                        asig.nombre,
-                        turno.categoria,
-                        format(new Date(turno.fecha), 'dd/MM/yyyy'),
-                        `${asig.horaEntradaReal || turno.horaEntrada} - ${asig.horaSalidaReal || turno.horaSalida}`,
-                        horasReales > 0 ? formatDuration(horasReales) : formatDuration(calculateHours(turno.horaEntrada, turno.horaSalida)),
-                        formatCurrency(turno.precioHora),
-                        formatCurrency(costeReal)
-                    ];
-                })
-            );
-
-            autoTable(doc, {
-                startY: finalY,
-                head: [['Nombre', 'Categoría', 'Fecha', 'Horario Real', 'Total Horas', 'Precio/h', 'Coste']],
-                body: tableBody,
-                theme: 'grid',
-                headStyles: { fillColor: '#e5e7eb', textColor: '#374151', fontStyle: 'bold' },
-                styles: { fontSize: 8, cellPadding: 1.5 },
-            });
-            finalY = (doc as any).lastAutoTable.finalY + 10;
-            
-            const ajustesProveedor = getValues('ajustes')?.filter(a => a.proveedorId === provId) || [];
-            if(ajustesProveedor.length > 0) {
-                 doc.setFontSize(10);
-                 doc.setFont('helvetica', 'bold');
-                 doc.text(`Ajustes Adicionales:`, margin, finalY);
-                 finalY += 6;
-                 autoTable(doc, {
-                    startY: finalY,
-                    head: [['Concepto', 'Importe']],
-                    body: ajustesProveedor.map(a => [a.concepto, formatCurrency(a.importe)]),
-                    theme: 'grid',
-                 });
-                 finalY = (doc as any).lastAutoTable.finalY + 10;
-            }
-             const totalProveedor = groupedByProvider[provId].reduce((acc, t) => acc + (t.asignaciones || []).reduce((sum, a) => {
-                 const h = calculateHours(a.horaEntradaReal, a.horaSalidaReal) || calculateHours(t.horaEntrada, t.horaSalida);
-                 return sum + (h * t.precioHora)
-             }, 0), 0) + (ajustesProveedor.reduce((s,a) => s + a.importe, 0));
-
-             doc.setFontSize(12);
-             doc.setFont('helvetica', 'bold');
-             doc.text(`Total a Facturar Proveedor: ${formatCurrency(totalProveedor)}`, pageWidth - margin, finalY, { align: 'right' });
-             finalY += 15;
-        }
-
-        doc.save(`Informe_Personal_Externo_${serviceOrder.serviceNumber}.pdf`);
-
-    } catch (e) {
-        console.error("PDF generation failed", e);
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF del informe.' });
-    } finally {
-        setIsPrinting(false);
-    }
-  }
 
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
   }
   
+  const statusVariant: { [key in EstadoPersonalExterno]: 'success' | 'warning' | 'outline' } = {
+    'Pendiente': 'warning',
+    'Solicitado': 'outline',
+    'Asignado': 'success',
+    'Cerrado': 'default',
+  };
+
+
   return (
     <>
       <main>
@@ -631,7 +424,7 @@ export default function PersonalExternoPage() {
                 <div className="flex items-start justify-between mb-2 sticky top-24 z-20 bg-background/95 backdrop-blur-sm py-2 -mt-2">
                     <div/>
                     <div className="flex items-center gap-2">
-                         <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
+                         <Badge variant={statusVariant[personalExterno?.status || 'Pendiente']} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
                         <ActionButton />
                         <Button type="submit" disabled={isLoading || !formState.isDirty}>
                             {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
@@ -890,30 +683,12 @@ export default function PersonalExternoPage() {
                                         {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
                                         Imprimir Parte de Horas
                                     </Button>
-                                     <Button type="button" variant="outline" onClick={handlePrintInforme} disabled={isPrinting}>
+                                    <Button type="button" variant="outline" onClick={handlePrintInforme} disabled={isPrinting}>
                                         {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <FileText className="mr-2" />}
                                         Generar Informe Facturación
                                     </Button>
                                 </div>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <Card>
-                                    <CardHeader><CardTitle className="text-base">Hoja de Firmas Adjunta</CardTitle></CardHeader>
-                                    <CardContent>
-                                        {personalExterno?.hojaFirmadaUrl ? (
-                                             <div className="relative">
-                                                <Image src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" width={500} height={300} className="rounded-md w-full h-auto object-contain"/>
-                                                <Button size="sm" variant="destructive" className="absolute top-2 right-2" onClick={removeHojaFirmada}><Trash2/></Button>
-                                            </div>
-                                        ) : (
-                                            <div>
-                                                <Label htmlFor="upload-photo">Subir hoja de firmas escaneada</Label>
-                                                <Input id="upload-photo" type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} />
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </CardContent>
                         </Card>
                     </TabsContent>
                 </Tabs>
@@ -965,7 +740,6 @@ export default function PersonalExternoPage() {
                                                 value={field.value}
                                                 onChange={field.onChange}
                                                 placeholder="Concepto..."
-                                                onCreated={(value) => field.onChange(value)}
                                                 />
                                         )} />
                                         <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
@@ -1012,4 +786,5 @@ export default function PersonalExternoPage() {
     </>
   );
 }
+
 
