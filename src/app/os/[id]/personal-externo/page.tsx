@@ -34,7 +34,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { FeedbackDialog } from '@/components/portal/feedback-dialog';
-import { calculateHours, formatCurrency, formatDuration } from '@/lib/utils';
+import { calculateHours, formatCurrency, formatDuration, formatNumber } from '@/lib/utils';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -400,24 +400,64 @@ export default function PersonalExternoPage() {
   const turnosAprobados = useMemo(() => {
     return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
   }, [watchedFields]);
-
-    const handlePrintInforme = async () => {
+  
+  const handlePrintInforme = async () => {
     if (!serviceOrder) return;
     setIsPrinting(true);
     try {
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const margin = 15;
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const pageWidth = doc.internal.pageSize.getWidth();
         let finalY = margin;
-
+        
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
-        doc.text('Informe de Personal para Facturación', margin, finalY);
+        doc.setTextColor(22, 163, 74); // Corporate Green
+        doc.text('Informe de Rentabilidad de Personal Externo', margin, finalY);
         finalY += 10;
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
+        doc.setTextColor(55, 65, 81);
         doc.text(`OS: ${serviceOrder.serviceNumber} - ${serviceOrder.client}`, margin, finalY);
-        finalY += 15;
+        finalY += 10;
+
+        const kpiData = [
+            ['Coste Total Final:', formatCurrency(finalTotalReal)],
+            ['Desviación vs Planificado:', formatCurrency(finalTotalReal - costeFinalPlanificado)],
+            ['Coste Medio por Hora Real:', `${formatCurrency(finalTotalReal / (watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + (calculateHours(a.horaEntradaReal, a.horaSalidaReal) || calculateHours(t.horaEntrada, t.horaSalida)), 0), 0) || 1))} /h`],
+            ['Total Horas Reales:', `${formatNumber(watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + (calculateHours(a.horaEntradaReal, a.horaSalidaReal) || calculateHours(t.horaEntrada, t.horaSalida)), 0), 0), 2)} h`],
+        ];
         
+        autoTable(doc, {
+            body: kpiData,
+            startY: finalY,
+            theme: 'plain',
+            styles: { fontSize: 8, cellPadding: 1 },
+            columnStyles: { 0: { fontStyle: 'bold' } }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 8;
+
+        const totalTurnos = watchedFields.length;
+        const bySolicitante = watchedFields.reduce((acc, turno) => {
+            acc[turno.solicitadoPor] = (acc[turno.solicitadoPor] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Desglose de Solicitudes', margin, finalY);
+        finalY += 6;
+        autoTable(doc, {
+            head: [['Departamento', 'Nº Turnos', '% del Total']],
+            body: Object.entries(bySolicitante).map(([depto, count]) => [depto, count, `${formatPercentage(count / totalTurnos)}`]),
+            startY: finalY,
+            theme: 'striped',
+            styles: { fontSize: 8, cellPadding: 1.5 },
+            headStyles: { fillColor: [243, 244, 246] }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 8;
+
         const costePorProveedor: Record<string, number> = {};
         watchedFields.forEach(turno => {
             const costeTurno = (turno.asignaciones || []).reduce((sum, asig) => {
@@ -429,7 +469,7 @@ export default function PersonalExternoPage() {
             costePorProveedor[provName] = (costePorProveedor[provName] || 0) + costeTurno;
         });
 
-        doc.setFontSize(12);
+        doc.setFontSize(10);
         doc.text('Coste por Proveedor (Horas Reales)', margin, finalY);
         finalY += 6;
         autoTable(doc, {
@@ -437,34 +477,13 @@ export default function PersonalExternoPage() {
             head: [['Proveedor', 'Coste Total']],
             body: Object.entries(costePorProveedor).map(([name, cost]) => [name, formatCurrency(cost)]),
             theme: 'striped',
+             styles: { fontSize: 8, cellPadding: 1.5 },
+            headStyles: { fillColor: [243, 244, 246] }
         });
-        finalY = (doc as any).lastAutoTable.finalY + 10;
-
-        doc.setFontSize(12);
-        doc.text('Desglose de Turnos', margin, finalY);
-        finalY += 6;
-        autoTable(doc, {
-            startY: finalY,
-            head: [['Fecha', 'Personal', 'Horas Plan.', 'Horas Real', 'Coste Real']],
-            body: watchedFields.flatMap(turno => 
-                (turno.asignaciones || []).map(asig => {
-                    const hPlan = calculateHours(turno.horaEntrada, turno.horaSalida);
-                    const hReal = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || hPlan;
-                    return [
-                        format(new Date(turno.fecha), 'dd/MM/yy'),
-                        asig.nombre,
-                        `${hPlan.toFixed(2)}h`,
-                        `${hReal.toFixed(2)}h`,
-                        formatCurrency(hReal * turno.precioHora)
-                    ];
-                })
-            ),
-            theme: 'striped',
-        });
-        finalY = (doc as any).lastAutoTable.finalY + 10;
+        finalY = (doc as any).lastAutoTable.finalY + 8;
 
         if (watchedAjustes && watchedAjustes.length > 0) {
-            doc.setFontSize(12);
+            doc.setFontSize(10);
             doc.text('Ajustes Manuales', margin, finalY);
             finalY += 6;
             autoTable(doc, {
@@ -476,14 +495,12 @@ export default function PersonalExternoPage() {
                     formatCurrency(aj.importe)
                 ]),
                 theme: 'striped',
+                styles: { fontSize: 8, cellPadding: 1.5 },
+                headStyles: { fillColor: [243, 244, 246] }
             });
-            finalY = (doc as any).lastAutoTable.finalY + 10;
         }
-
-        doc.setFontSize(14);
-        doc.text(`Coste Total Final: ${formatCurrency(finalTotalReal)}`, margin, finalY);
-
-        doc.save(`Informe_Personal_${serviceOrder.serviceNumber}.pdf`);
+        
+        doc.save(`Informe_Facturacion_Personal_${serviceOrder.serviceNumber}.pdf`);
     } catch (e) {
         console.error(e);
         toast({ variant: 'destructive', title: 'Error al generar PDF' });
@@ -491,7 +508,7 @@ export default function PersonalExternoPage() {
         setIsPrinting(false);
     }
   };
-  
+    
     const handlePrintParte = async () => {
         if (!serviceOrder) return;
         setIsPrinting(true);
@@ -842,7 +859,7 @@ export default function PersonalExternoPage() {
                                 <div className="flex gap-2">
                                     <Button type="button" variant="outline" onClick={handlePrintInforme} disabled={isPrinting}>
                                         {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <FileText className="mr-2" />}
-                                        Generar Informe
+                                        Generar Informe Facturación
                                     </Button>
                                     <Button type="button" variant="outline" onClick={handlePrintParte} disabled={isPrinting}>
                                         {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
@@ -965,4 +982,3 @@ export default function PersonalExternoPage() {
     </>
   );
 }
-
