@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -254,13 +253,12 @@ export default function PersonalExternoPage() {
             requiresUpdate = personalExterno.turnos.some(t => t.statusPartner !== 'Gestionado');
         }
 
-        const updatedTurnos = getValues('turnos').map(t => ({
+        const updatedTurnos = personalExterno.turnos.map(t => ({
             ...t,
-            fecha: format(t.fecha, 'yyyy-MM-dd'),
-            requiereActualizacion: newStatus === 'Solicitado' ? true : false,
+            requiereActualizacion: newStatus === 'Solicitado' ? true : t.requiereActualizacion,
         }));
         
-        const updatedPersonalExterno: PersonalExterno = { ...personalExterno, status: newStatus, turnos: updatedTurnos as any };
+        const updatedPersonalExterno = { ...personalExterno, status: newStatus, turnos: updatedTurnos };
         
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
         const index = allPersonalExterno.findIndex(p => p.osId === osId);
@@ -329,59 +327,38 @@ export default function PersonalExternoPage() {
         }
     }
   
-    const onSubmit = (data: FormValues) => {
-        setIsLoading(true);
-        if (!osId) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
-            setIsLoading(false);
-            return;
-        }
-    
-        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        const index = allPersonalExterno.findIndex(p => p.osId === osId);
-        
-        const currentStatus = personalExterno?.status || 'Pendiente';
-        
-        const newPersonalData: PersonalExterno = {
-            osId,
-            turnos: data.turnos.map(t => {
-                const existingTurno = personalExterno?.turnos.find(et => et.id === t.id);
-                return {
-                    ...t, 
-                    fecha: format(t.fecha, 'yyyy-MM-dd'),
-                    statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
-                    requiereActualizacion: true,
-                    asignaciones: (t.asignaciones || []).map(a => ({
-                        ...a,
-                        horaEntradaReal: a.horaEntradaReal || '',
-                        horaSalidaReal: a.horaSalidaReal || '',
-                    })),
-                }
-            }),
-            status: currentStatus,
-            observacionesGenerales: form.getValues('observacionesGenerales'),
-        };
-        
-        if (index > -1) {
-            allPersonalExterno[index] = newPersonalData;
-        } else {
-            allPersonalExterno.push(newPersonalData);
-        }
-    
-        localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-        
-        const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
-        allAjustes[osId] = data.ajustes || [];
-        localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
+  const onSubmit = (data: FormValues) => {
+    setIsLoading(true);
+    if (!osId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
+      setIsLoading(false);
+      return;
+    }
 
-        window.dispatchEvent(new Event('storage'));
+    const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
+    const otherOsTurnos = allTurnos.filter(t => t.osId !== osId);
     
-        setTimeout(() => {
-            toast({ title: 'Personal guardado', description: 'La planificación del personal ha sido guardada.' });
-            setIsLoading(false);
-            form.reset(data);
-        }, 500);
-      };
+    const currentOsTurnos = data.turnos.map(t => ({
+        ...t,
+        osId,
+        fecha: format(t.fecha, 'yyyy-MM-dd'),
+    }));
+    
+    localStorage.setItem('personalExternoOrders', JSON.stringify([...otherOsTurnos, ...currentOsTurnos]));
+
+    
+    const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
+    allAjustes[osId] = data.ajustes || [];
+    localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
+
+    window.dispatchEvent(new Event('storage'));
+
+    setTimeout(() => {
+        toast({ title: 'Personal guardado', description: 'La planificación del personal ha sido guardada.' });
+        setIsLoading(false);
+        form.reset(data);
+    }, 500);
+  };
   
   const addRow = () => {
     append({
@@ -421,7 +398,7 @@ export default function PersonalExternoPage() {
   const removeAjusteRow = (index: number) => {
     removeAjuste(index);
   }
-
+  
   const handlePrintReport = () => {
     if (!serviceOrder) return;
     setIsPrinting(true);
@@ -438,7 +415,7 @@ export default function PersonalExternoPage() {
             // Header
             doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
-            doc.setTextColor('#00703C'); // Verde Corporativo
+            doc.setTextColor('#00703C');
             doc.text(`Informe de Personal Externo - OS ${serviceOrder.serviceNumber}`, margin, finalY);
             finalY += 10;
             doc.setFontSize(10);
@@ -450,7 +427,7 @@ export default function PersonalExternoPage() {
             const summaryData = [
                 { title: 'Coste Final', value: formatCurrency(finalTotalReal), color: '#333' },
                 { title: 'Desviación Económica', value: formatCurrency(finalTotalReal - costeFinalPlanificado), color: (finalTotalReal - costeFinalPlanificado) > 0 ? '#E53E3E' : '#38A169' },
-                { title: 'Total Horas Reales', value: `${formatDuration(watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + calculateHours(a.horaEntradaReal, a.horaSalidaReal), 0), 0))}h` },
+                { title: 'Total Horas Reales', value: `${formatDuration(watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + calculateHours(a.horaEntradaReal, a.horaSalidaReal), 0), 0))}h`, color: '#333' },
             ];
             
             const summaryBoxWidth = (pageWidth - margin * 2) / summaryData.length - 5;
@@ -507,7 +484,7 @@ export default function PersonalExternoPage() {
             setIsPrinting(false);
         }
     }, 500); // Small delay to show loading state
-  }
+  };
 
 
   const providerOptions = useMemo(() => 
@@ -517,10 +494,13 @@ export default function PersonalExternoPage() {
     })), [allProveedores]);
 
   const categoriaOptions = useMemo(() => {
-    return proveedoresDB.map(p => ({
-        value: p.id,
-        label: `${allProveedores.find(prov => prov.id === p.proveedorId)?.nombreComercial} - ${p.categoria}`
-    }));
+    return proveedoresDB.map(p => {
+        const proveedor = allProveedores.find(prov => prov.id === p.proveedorId);
+        return {
+            value: p.id,
+            label: `${proveedor?.nombreComercial || 'Desconocido'} - ${p.categoria}`
+        }
+    });
   }, [proveedoresDB, allProveedores]);
 
   const turnosAprobados = useMemo(() => {
@@ -886,5 +866,3 @@ export default function PersonalExternoPage() {
     </>
   );
 }
-
-    
