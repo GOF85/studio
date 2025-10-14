@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -350,12 +351,13 @@ export default function PersonalExternoPage() {
       };
   
   const addRow = () => {
+    if (!osId || !serviceOrder) return;
     append({
         id: Date.now().toString(),
         proveedorId: '',
         categoria: '',
         precioHora: 0,
-        fecha: new Date(),
+        fecha: new Date(serviceOrder.startDate),
         horaEntrada: '09:00',
         horaSalida: '17:00',
         solicitadoPor: 'Sala',
@@ -392,9 +394,9 @@ export default function PersonalExternoPage() {
   }, [proveedoresDB, allProveedores]);
 
   const turnosAprobados = useMemo(() => {
-    return watchedFields.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
+    return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
   }, [watchedFields]);
-
+  
   const handlePrintParte = () => {
     if (!serviceOrder) return;
     setIsPrinting(true);
@@ -572,6 +574,7 @@ export default function PersonalExternoPage() {
     }
   }
 
+
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
   }
@@ -580,15 +583,9 @@ export default function PersonalExternoPage() {
 
 
   return (
+    <>
     <main>
-      <TooltipProvider>
-        <FormProvider {...form}>
-            <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
-            </form>
-        </FormProvider>
-      </TooltipProvider>
     </main>
+    </>
   );
 }
-
-    
