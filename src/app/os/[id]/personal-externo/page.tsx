@@ -40,7 +40,6 @@ import { Label } from '@/components/ui/label';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { logActivity } from '../activity-log/utils';
 
-
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
 
@@ -138,6 +137,7 @@ export default function PersonalExternoPage() {
   const [proveedoresDB, setProveedoresDB] = useState<CategoriaPersonal[]>([]);
   const [allProveedores, setAllProveedores] = useState<Proveedor[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [personalExterno, setPersonalExterno] = useState<PersonalExterno | null>(null);
@@ -397,12 +397,10 @@ export default function PersonalExternoPage() {
   }, [watchedFields]);
 
   const handlePrintInforme = () => {
-    // Implement PDF generation for invoice report
     toast({ title: "Función no implementada" });
   }
 
   const handlePrintParte = () => {
-    // Implement PDF generation for work hours report
     toast({ title: "Función no implementada" });
   }
   
@@ -450,7 +448,7 @@ export default function PersonalExternoPage() {
       <main>
       <TooltipProvider>
         <FormProvider {...form}>
-            <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
+            <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-start justify-between mb-2 sticky top-24 z-20 bg-background/95 backdrop-blur-sm py-2 -mt-2">
                     <div/>
                     <div className="flex items-center gap-2">
@@ -607,32 +605,28 @@ export default function PersonalExternoPage() {
                                                     <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-8 text-xs" readOnly /></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                          <div className="flex items-center justify-center">
-                                                            <CommentDialog turnoIndex={index} form={form} />
-                                                          </div>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p className="max-w-xs">{field.observaciones}</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <div className="flex justify-center">
-                                                            {field.statusPartner === 'Gestionado' ? (
-                                                                <CheckCircle className="h-5 w-5 text-green-600"/>
-                                                            ) : (
-                                                                <AlertTriangle className="h-5 w-5 text-amber-500" />
-                                                            )}
-                                                            </div>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            {field.statusPartner}
-                                                        </TooltipContent>
-                                                    </Tooltip>
+                                                    <div className="flex items-center justify-center">
+                                                        <CommentDialog turnoIndex={index} form={form} />
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <div>
+                                                                {field.statusPartner === 'Gestionado' ? (
+                                                                    <CheckCircle className="h-5 w-5 text-green-600"/>
+                                                                ) : (
+                                                                    <AlertTriangle className="h-5 w-5 text-amber-500" />
+                                                                )}
+                                                                </div>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p className="font-bold">Asignaciones:</p>
+                                                                {field.asignaciones && field.asignaciones.length > 0 ? (
+                                                                    <ul className="list-disc pl-4 text-xs">
+                                                                        {field.asignaciones.map(a => <li key={a.id}>{a.nombre} {a.dni && `(${a.dni})`}</li>)}
+                                                                    </ul>
+                                                                ) : <p>Pendiente de gestionar por ETT.</p>}
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="text-right px-2 py-1">
                                                     <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
@@ -669,7 +663,7 @@ export default function PersonalExternoPage() {
                                             <TableHead>Fecha-Horario</TableHead>
                                             <TableHead className="w-24">H. Entrada Real</TableHead>
                                             <TableHead className="w-24">H. Salida Real</TableHead>
-                                            <TableHead className="w-24 text-center">Desempeño</TableHead>
+                                            <TableHead className="w-[200px] text-center">Desempeño y Comentarios MICE</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -686,15 +680,15 @@ export default function PersonalExternoPage() {
                                                 <TableRow key={asignacion.id} className={cn(hasTimeMismatch && "bg-amber-50")}>
                                                     <TableCell className="font-semibold">
                                                         <Tooltip>
-                                                          <TooltipTrigger asChild>
-                                                              <span className="flex items-center gap-2 cursor-default">
-                                                                {hasTimeMismatch && <AlertTriangle className="h-4 w-4 text-amber-500" />}
-                                                                {asignacion.nombre}
-                                                              </span>
-                                                          </TooltipTrigger>
-                                                          <TooltipContent>
-                                                            <p>Desviación: {deviation > 0 ? '+' : ''}{formatDuration(deviation)} horas</p>
-                                                          </TooltipContent>
+                                                            <TooltipTrigger asChild>
+                                                                <div className="flex items-center gap-2 cursor-default">
+                                                                    {hasTimeMismatch && <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                                                                    {asignacion.nombre}
+                                                                </div>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Desviación: {deviation > 0 ? '+' : ''}{formatDuration(deviation)} horas</p>
+                                                            </TooltipContent>
                                                         </Tooltip>
                                                     </TableCell>
                                                     <TableCell>{asignacion.dni}</TableCell>
@@ -817,9 +811,8 @@ export default function PersonalExternoPage() {
                                 ))}
                                 <Button size="xs" variant="outline" className="w-full" type="button" onClick={() => appendAjuste({ id: Date.now().toString(), proveedorId: '', concepto: '', importe: 0 })}>Añadir Ajuste</Button>
                                  <Separator className="my-2" />
-                                  <div className="flex justify-between font-bold">
-                                      <span>Total Ajustes:</span>
-                                      <span>{formatCurrency(totalAjustes)}</span>
+                                  <div className="flex justify-end font-bold">
+                                      <span>Total Ajustes: {formatCurrency(totalAjustes)}</span>
                                   </div>
                             </div>
                         </CardContent>
@@ -853,5 +846,3 @@ export default function PersonalExternoPage() {
     </>
   );
 }
-
-    
