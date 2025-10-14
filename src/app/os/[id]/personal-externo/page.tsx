@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -85,7 +84,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const statusBadgeVariant: { [key in EstadoPersonalExterno]: 'success' | 'warning' | 'outline' } = {
+const statusBadgeVariant: { [key in EstadoPersonalExterno]: 'success' | 'warning' | 'outline' | 'default' } = {
     'Pendiente': 'warning',
     'Solicitado': 'outline',
     'Asignado': 'success',
@@ -402,18 +401,26 @@ export default function PersonalExternoPage() {
     return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
   }, [watchedFields]);
 
+    const handlePrintInforme = async () => {
+        // Implementar la lógica para imprimir el informe de facturación
+    };
+    
+    const handlePrintParte = async () => {
+        // Implementar la lógica para imprimir el parte de horas
+    };
+    
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        // Implementar la lógica para subir la hoja de firmas
+    };
+    
+    const removeHojaFirmada = () => {
+        // Implementar la lógica para eliminar la hoja de firmas
+    };
+
 
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
   }
-  
-  const statusVariant: { [key in EstadoPersonalExterno]: 'success' | 'warning' | 'outline' } = {
-    'Pendiente': 'warning',
-    'Solicitado': 'outline',
-    'Asignado': 'success',
-    'Cerrado': 'default',
-  };
-
 
   return (
     <>
@@ -424,7 +431,7 @@ export default function PersonalExternoPage() {
                 <div className="flex items-start justify-between mb-2 sticky top-24 z-20 bg-background/95 backdrop-blur-sm py-2 -mt-2">
                     <div/>
                     <div className="flex items-center gap-2">
-                         <Badge variant={statusVariant[personalExterno?.status || 'Pendiente']} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
+                         <Badge variant={statusBadgeVariant[personalExterno?.status || 'Pendiente']} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
                         <ActionButton />
                         <Button type="submit" disabled={isLoading || !formState.isDirty}>
                             {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
@@ -679,16 +686,34 @@ export default function PersonalExternoPage() {
                             <CardHeader className="py-3 flex-row items-center justify-between">
                                 <CardTitle className="text-lg">Documentación</CardTitle>
                                 <div className="flex gap-2">
-                                    <Button type="button" variant="outline" onClick={handlePrintParte} disabled={isPrinting}>
-                                        {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
-                                        Imprimir Parte de Horas
-                                    </Button>
                                     <Button type="button" variant="outline" onClick={handlePrintInforme} disabled={isPrinting}>
                                         {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <FileText className="mr-2" />}
                                         Generar Informe Facturación
                                     </Button>
+                                    <Button type="button" variant="outline" onClick={handlePrintParte} disabled={isPrinting}>
+                                        {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
+                                        Imprimir Parte de Horas
+                                    </Button>
                                 </div>
                             </CardHeader>
+                            <CardContent className="space-y-4">
+                                <Card>
+                                    <CardHeader><CardTitle className="text-base">Hoja de Firmas Adjunta</CardTitle></CardHeader>
+                                    <CardContent>
+                                        {personalExterno?.hojaFirmadaUrl ? (
+                                             <div className="relative">
+                                                <Image src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" width={500} height={300} className="rounded-md w-full h-auto object-contain"/>
+                                                <Button size="sm" variant="destructive" className="absolute top-2 right-2" onClick={removeHojaFirmada}><Trash2/></Button>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <Label htmlFor="upload-photo">Subir hoja de firmas escaneada</Label>
+                                                <Input id="upload-photo" type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} />
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </CardContent>
                         </Card>
                     </TabsContent>
                 </Tabs>
@@ -748,7 +773,7 @@ export default function PersonalExternoPage() {
                                         <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
                                 ))}
-                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
+                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={() => appendAjuste({ id: Date.now().toString(), proveedorId: '', concepto: 'Otros', importe: 0 })}>Añadir Ajuste</Button>
                                  <Separator className="my-2" />
                                   <div className="flex justify-between font-bold">
                                       <span>Total Ajustes:</span>
@@ -787,4 +812,4 @@ export default function PersonalExternoPage() {
   );
 }
 
-
+    
