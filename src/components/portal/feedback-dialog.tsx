@@ -3,13 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 
 export function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: number; asigIndex: number, form: any }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -36,27 +35,26 @@ export function FeedbackDialog({ turnoIndex, asigIndex, form }: { turnoIndex: nu
     };
 
     const handleOpenChange = (open: boolean) => {
-        if (!open) {
+        if (!open && isOpen) { // Only save on close if it was open
             handleSave();
         }
         setIsOpen(open);
     }
+    
+    const tooltipText = asignacion.comentariosMice || (asignacion.rating && asignacion.rating !== 3) ? `Valoración: ${'⭐'.repeat(asignacion.rating || 0)} - ${asignacion.comentariosMice || 'Sin comentarios'}` : 'Añadir valoración';
+
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                       <div className="flex items-center justify-center cursor-pointer">
-                            <Pencil className={cn("h-4 w-4", getValues(commentFieldName) && "text-primary")} />
-                        </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p className="font-bold">Valoración: {'⭐'.repeat(asignacion.rating || 0)}</p>
-                        {asignacion.comentariosMice && <p className="max-w-xs">{asignacion.comentariosMice}</p>}
-                        {!asignacion.comentariosMice && (!asignacion.rating || asignacion.rating === 3) && <p>Añadir valoración</p>}
-                    </TooltipContent>
-                </Tooltip>
+                <div className="relative group">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
+                        <Pencil className={cn("h-4 w-4", getValues(commentFieldName) && "text-primary")} />
+                    </Button>
+                    <span className="absolute bottom-full mb-2 w-max max-w-xs scale-0 group-hover:scale-100 transition-transform origin-bottom bg-gray-800 text-white text-xs rounded-md px-2 py-1 z-10">
+                        {tooltipText}
+                    </span>
+                </div>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
