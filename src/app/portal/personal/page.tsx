@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -132,7 +133,9 @@ export default function PartnerPersonalPortalPage() {
 
     const isReadOnly = useMemo(() => {
         if (!impersonatedUser) return true;
-        return isAdminOrComercial;
+        // True only if user is NOT a Partner Personal AND is NOT an Admin/Comercial
+        const isPartner = impersonatedUser.roles?.includes('Partner Personal');
+        return !isPartner && !isAdminOrComercial;
     }, [impersonatedUser, isAdminOrComercial]);
 
     const loadData = useCallback(() => {
@@ -202,8 +205,9 @@ export default function PartnerPersonalPortalPage() {
     }, [loadData]);
     
     const handleSaveAsignaciones = (turnoId: string, asignaciones: AsignacionPersonal[]) => {
+        if(!impersonatedUser) return;
         const turno = turnos.find(t => t.id === turnoId);
-        if(!turno || !impersonatedUser) return;
+        if(!turno) return;
 
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
         const pedidoIndex = allPersonalExterno.findIndex(p => p.osId === turno.osId);
@@ -499,4 +503,5 @@ export default function PartnerPersonalPortalPage() {
     );
 }
 
+    
     
