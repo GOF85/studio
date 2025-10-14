@@ -10,6 +10,9 @@ import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, FileText, Upload } from 'lucide-react';
 import Image from 'next/image';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 
 import type { PersonalExternoAjuste, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoPersonalExterno } from '@/types';
 import { ESTADO_PERSONAL_EXTERNO, AJUSTE_CONCEPTO_OPCIONES } from '@/types';
@@ -362,14 +365,14 @@ export default function PersonalExternoPage() {
     });
   }
   
-  const addAjusteRow = () => {
-    appendAjuste({
-        id: Date.now().toString(),
-        proveedorId: '',
-        concepto: '',
-        importe: 0,
-    });
-  }
+    const addAjusteRow = () => {
+        appendAjuste({
+            id: Date.now().toString(),
+            proveedorId: '',
+            concepto: 'Otros',
+            importe: 0
+        })
+    }
 
   const handleDeleteRow = () => {
     if (rowToDelete !== null) {
@@ -446,7 +449,7 @@ export default function PersonalExternoPage() {
         
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor('#00703C');
+        doc.setTextColor('#059669');
         doc.text('Parte de Horas - Personal Externo', margin, finalY);
         finalY += 10;
         
@@ -503,6 +506,117 @@ export default function PersonalExternoPage() {
     }
   }
 
+  const handlePrintInforme = () => {
+    if (!serviceOrder) return;
+    setIsPrinting(true);
+    try {
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const margin = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let finalY = margin;
+        
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor('#059669');
+        doc.text('Informe de Personal Externo para Facturación', margin, finalY);
+        finalY += 10;
+        
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor('#374151');
+        
+        const serviceData = [
+            ['Nº Servicio:', serviceOrder.serviceNumber],
+            ['Cliente:', serviceOrder.client],
+            ['Fecha Evento:', format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
+        ];
+        
+        autoTable(doc, {
+            body: serviceData,
+            startY: finalY,
+            theme: 'plain',
+            styles: { fontSize: 9, cellPadding: 0.5 },
+            columnStyles: { 0: { fontStyle: 'bold' } }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 10;
+        
+        const allTurnos = getValues('turnos');
+
+        const groupedByProvider: Record<string, typeof allTurnos> = {};
+        allTurnos.forEach(turno => {
+            const cat = proveedoresDB.find(p => p.id === turno.proveedorId);
+            const provId = cat?.proveedorId || 'unknown';
+            if(!groupedByProvider[provId]) groupedByProvider[provId] = [];
+            groupedByProvider[provId].push(turno);
+        });
+
+        for(const provId in groupedByProvider) {
+             const proveedor = allProveedores.find(p => p.id === provId);
+             doc.setFontSize(12);
+             doc.setFont('helvetica', 'bold');
+             doc.text(`Proveedor: ${proveedor?.nombreComercial || 'Desconocido'}`, margin, finalY);
+             finalY += 8;
+
+            const tableBody = groupedByProvider[provId].flatMap(turno => 
+                (turno.asignaciones || []).map(asig => {
+                    const horasReales = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal);
+                    const costeReal = horasReales > 0 ? horasReales * turno.precioHora : calculateHours(turno.horaEntrada, turno.horaSalida) * turno.precioHora;
+                    return [
+                        asig.nombre,
+                        turno.categoria,
+                        format(new Date(turno.fecha), 'dd/MM/yyyy'),
+                        `${asig.horaEntradaReal || turno.horaEntrada} - ${asig.horaSalidaReal || turno.horaSalida}`,
+                        horasReales > 0 ? formatDuration(horasReales) : formatDuration(calculateHours(turno.horaEntrada, turno.horaSalida)),
+                        formatCurrency(turno.precioHora),
+                        formatCurrency(costeReal)
+                    ];
+                })
+            );
+
+            autoTable(doc, {
+                startY: finalY,
+                head: [['Nombre', 'Categoría', 'Fecha', 'Horario Real', 'Total Horas', 'Precio/h', 'Coste']],
+                body: tableBody,
+                theme: 'grid',
+                headStyles: { fillColor: '#e5e7eb', textColor: '#374151', fontStyle: 'bold' },
+                styles: { fontSize: 8, cellPadding: 1.5 },
+            });
+            finalY = (doc as any).lastAutoTable.finalY + 10;
+            
+            const ajustesProveedor = getValues('ajustes')?.filter(a => a.proveedorId === provId) || [];
+            if(ajustesProveedor.length > 0) {
+                 doc.setFontSize(10);
+                 doc.setFont('helvetica', 'bold');
+                 doc.text(`Ajustes Adicionales:`, margin, finalY);
+                 finalY += 6;
+                 autoTable(doc, {
+                    startY: finalY,
+                    head: [['Concepto', 'Importe']],
+                    body: ajustesProveedor.map(a => [a.concepto, formatCurrency(a.importe)]),
+                    theme: 'grid',
+                 });
+                 finalY = (doc as any).lastAutoTable.finalY + 10;
+            }
+             const totalProveedor = groupedByProvider[provId].reduce((acc, t) => acc + (t.asignaciones || []).reduce((sum, a) => {
+                 const h = calculateHours(a.horaEntradaReal, a.horaSalidaReal) || calculateHours(t.horaEntrada, t.horaSalida);
+                 return sum + (h * t.precioHora)
+             }, 0), 0) + (ajustesProveedor.reduce((s,a) => s + a.importe, 0));
+
+             doc.setFontSize(12);
+             doc.setFont('helvetica', 'bold');
+             doc.text(`Total a Facturar Proveedor: ${formatCurrency(totalProveedor)}`, pageWidth - margin, finalY, { align: 'right' });
+             finalY += 15;
+        }
+
+        doc.save(`Informe_Personal_Externo_${serviceOrder.serviceNumber}.pdf`);
+
+    } catch (e) {
+        console.error("PDF generation failed", e);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF del informe.' });
+    } finally {
+        setIsPrinting(false);
+    }
+  }
 
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
@@ -517,6 +631,17 @@ export default function PersonalExternoPage() {
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
+                <div className="flex items-start justify-between mb-2 sticky top-24 z-20 bg-background/95 backdrop-blur-sm py-2 -mt-2">
+                    <div/>
+                    <div className="flex items-center gap-2">
+                         <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
+                        <ActionButton />
+                        <Button type="submit" disabled={isLoading || !formState.isDirty}>
+                            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                            <span className="ml-2">Guardar Cambios</span>
+                        </Button>
+                    </div>
+                </div>
                 
                 <Accordion type="single" collapsible className="w-full mb-4" >
                     <AccordionItem value="item-1">
@@ -553,17 +678,6 @@ export default function PersonalExternoPage() {
                     </Card>
                     </AccordionItem>
                 </Accordion>
-                <div className="flex items-center justify-between mb-4 sticky top-[60px] z-20 bg-background/95 backdrop-blur-sm py-2 -mt-2">
-                    <div/>
-                    <div className="flex items-center gap-2">
-                        <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
-                        <ActionButton />
-                        <Button type="submit" disabled={isLoading || !formState.isDirty}>
-                            {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                            <span className="ml-2">Guardar Cambios</span>
-                        </Button>
-                    </div>
-                </div>
 
                 <Tabs defaultValue="planificacion">
                      <TabsList className="grid w-full grid-cols-3">
@@ -778,6 +892,10 @@ export default function PersonalExternoPage() {
                                     <Button type="button" variant="outline" onClick={handlePrintParte} disabled={isPrinting}>
                                         {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
                                         Imprimir Parte de Horas
+                                    </Button>
+                                    <Button type="button" variant="outline" onClick={handlePrintInforme} disabled={isPrinting}>
+                                        {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <FileText className="mr-2" />}
+                                        Generar Informe
                                     </Button>
                                 </div>
                             </CardHeader>
