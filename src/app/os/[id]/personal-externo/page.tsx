@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -344,11 +345,18 @@ export default function PersonalExternoPage() {
         const newPersonalData: PersonalExterno = {
             osId,
             turnos: data.turnos.map(t => {
+                const existingTurno = personalExterno?.turnos.find(et => et.id === t.id);
                 return {
                     ...t, 
                     fecha: format(t.fecha, 'yyyy-MM-dd'),
+                    statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
                     requiereActualizacion: true,
-                } as PersonalExternoTurno;
+                    asignaciones: (t.asignaciones || []).map(a => ({
+                        ...a,
+                        horaEntradaReal: a.horaEntradaReal || '',
+                        horaSalidaReal: a.horaSalidaReal || '',
+                    })),
+                }
             }),
             status: currentStatus,
             observacionesGenerales: form.getValues('observacionesGenerales'),
@@ -409,78 +417,96 @@ export default function PersonalExternoPage() {
         importe: 0,
     })
   }
+  
+  const removeAjusteRow = (index: number) => {
+    removeAjuste(index);
+  }
 
   const handlePrintReport = () => {
     if (!serviceOrder) return;
     setIsPrinting(true);
+    toast({ title: 'Preparando informe...', description: 'El documento se descargará en breve.' });
 
-    try {
-        const doc = new jsPDF();
-        let finalY = 15;
+    setTimeout(() => {
+        try {
+            const doc = new jsPDF({ orientation: 'landscape' });
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 15;
+            let finalY = margin;
 
-        // Header
-        doc.setFontSize(18);
-        doc.text(`Informe de Personal Externo - OS ${serviceOrder.serviceNumber}`, 15, finalY);
-        finalY += 10;
-        doc.setFontSize(10);
-        doc.text(`${serviceOrder.client} - ${format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}`, 15, finalY);
-        finalY += 15;
+            // Header
+            doc.setFontSize(18);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor('#00703C'); // Verde Corporativo
+            doc.text(`Informe de Personal Externo - OS ${serviceOrder.serviceNumber}`, margin, finalY);
+            finalY += 10;
+            doc.setFontSize(10);
+            doc.setTextColor(40);
+            doc.text(`${serviceOrder.client} - ${format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}`, margin, finalY);
+            finalY += 12;
 
-        // Table
-        const head = [['Personal', 'Categoría', 'Horas Plan.', 'Horas Real', 'Desviación', 'Coste Real', 'Valoración', 'Comentarios']];
-        const body = watchedFields.flatMap(turno => 
-            (turno.asignaciones || []).map(asig => {
-                const plannedH = calculateHours(turno.horaEntrada, turno.horaSalida);
-                const realH = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || plannedH;
-                const deviation = realH - plannedH;
-                const coste = realH * (turno.precioHora || 0);
+            // Summary Box
+            const summaryData = [
+                { title: 'Coste Final', value: formatCurrency(finalTotalReal), color: '#333' },
+                { title: 'Desviación Económica', value: formatCurrency(finalTotalReal - costeFinalPlanificado), color: (finalTotalReal - costeFinalPlanificado) > 0 ? '#E53E3E' : '#38A169' },
+                { title: 'Total Horas Reales', value: `${formatDuration(watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + calculateHours(a.horaEntradaReal, a.horaSalidaReal), 0), 0))}h` },
+            ];
+            
+            const summaryBoxWidth = (pageWidth - margin * 2) / summaryData.length - 5;
+            summaryData.forEach((item, index) => {
+                doc.setDrawColor('#E2E8F0');
+                doc.setFillColor('#F7FAFC');
+                doc.rect(margin + index * (summaryBoxWidth + 5), finalY, summaryBoxWidth, 20, 'FD');
+                doc.setFontSize(8);
+                doc.setTextColor('#718096');
+                doc.text(item.title, margin + index * (summaryBoxWidth + 5) + 5, finalY + 7);
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(item.color);
+                doc.text(item.value, margin + index * (summaryBoxWidth + 5) + 5, finalY + 14);
+            });
+            finalY += 30;
 
-                return [
-                    asig.nombre,
-                    turno.categoria,
-                    formatDuration(plannedH),
-                    formatDuration(realH),
-                    `${deviation > 0 ? '+' : ''}${formatDuration(deviation)}`,
-                    formatCurrency(coste),
-                    '⭐'.repeat(asig.rating || 0),
-                    asig.comentariosMice || ''
-                ];
-            })
-        );
-        
-        autoTable(doc, {
-            head,
-            body,
-            startY: finalY,
-            headStyles: { fillColor: [41, 128, 185] },
-        });
+            // Table
+            const head = [['Personal', 'Categoría', 'H.Plan', 'H.Real', 'Desv.', 'Coste Real', 'Valoración', 'Comentarios']];
+            const body = watchedFields.flatMap(turno => 
+                (turno.asignaciones || []).map(asig => {
+                    const plannedH = calculateHours(turno.horaEntrada, turno.horaSalida);
+                    const realH = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || plannedH;
+                    const deviation = realH - plannedH;
+                    const coste = realH * (turno.precioHora || 0);
 
-        finalY = (doc as any).lastAutoTable.finalY + 15;
+                    return [
+                        asig.nombre,
+                        turno.categoria,
+                        formatDuration(plannedH),
+                        formatDuration(realH),
+                        `${deviation >= 0 ? '+' : ''}${formatDuration(deviation)}`,
+                        formatCurrency(coste),
+                        '⭐'.repeat(asig.rating || 0),
+                        asig.comentariosMice || ''
+                    ];
+                })
+            );
+            
+            autoTable(doc, {
+                head,
+                body,
+                startY: finalY,
+                headStyles: { fillColor: '#00703C' },
+            });
+            
+            doc.save(`Informe_Personal_${serviceOrder.serviceNumber}.pdf`);
+            toast({ title: 'Informe Generado', description: 'La descarga se ha completado.' });
 
-        // Summary
-        doc.setFontSize(12);
-        doc.text('Resumen de Costes', 15, finalY);
-        finalY += 8;
-
-        autoTable(doc, {
-            body: [
-                ['Coste Planificado', formatCurrency(totalPlanned)],
-                ['Coste Real (Horas)', formatCurrency(totalReal)],
-                ['Ajustes Manuales', formatCurrency(totalAjustes)],
-                [{ content: 'Coste Final', styles: { fontStyle: 'bold' } }, { content: formatCurrency(finalTotalReal), styles: { fontStyle: 'bold' } }]
-            ],
-            startY: finalY,
-            theme: 'plain',
-        });
-        
-        doc.save(`Informe_Personal_${serviceOrder.serviceNumber}.pdf`);
-
-    } catch (error) {
-        console.error("PDF Generation Error:", error);
-        toast({ variant: "destructive", title: "Error al generar PDF" });
-    } finally {
-        setIsPrinting(false);
-    }
+        } catch (error) {
+            console.error("PDF Generation Error:", error);
+            toast({ variant: "destructive", title: "Error al generar PDF" });
+        } finally {
+            setIsPrinting(false);
+        }
+    }, 500); // Small delay to show loading state
   }
 
 
@@ -519,8 +545,8 @@ export default function PersonalExternoPage() {
                     <div className="flex items-center gap-2">
                          <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
                         <ActionButton />
-                        <Button type="button" onClick={handlePrintReport} disabled={isPrinting}>
-                             {isPrinting ? <Loader2 className="animate-spin" /> : <Users />}
+                         <Button type="button" onClick={handlePrintReport} disabled={isPrinting}>
+                             {isPrinting ? <Loader2 className="animate-spin" /> : <Printer />}
                             <span className="ml-2">Generar Informe PDF</span>
                         </Button>
                         <Button type="submit" disabled={isLoading || !formState.isDirty}>
@@ -822,7 +848,7 @@ export default function PersonalExternoPage() {
                                         <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
                                 ))}
-                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={() => appendAjuste({id: Date.now().toString(), proveedorId: '', concepto: '', importe: 0})}>Añadir Ajuste</Button>
+                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
                                  <Separator className="my-2" />
                                   <div className="flex justify-between font-bold">
                                       <span>Total Ajustes:</span>

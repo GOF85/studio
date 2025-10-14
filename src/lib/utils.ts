@@ -57,3 +57,5 @@ export function formatDuration(hours: number) {
     const m = totalMinutes % 60;
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
+
+    
