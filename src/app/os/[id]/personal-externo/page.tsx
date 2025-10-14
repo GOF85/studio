@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -301,59 +300,59 @@ export default function PersonalExternoPage() {
         }
     }
   
-  const onSubmit = (data: FormValues) => {
-    setIsLoading(true);
-    if (!osId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
-      setIsLoading(false);
-      return;
-    }
-
-    const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-    const index = allPersonalExterno.findIndex(p => p.osId === osId);
+    const onSubmit = (data: FormValues) => {
+        setIsLoading(true);
+        if (!osId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Falta el ID de la Orden de Servicio.' });
+            setIsLoading(false);
+            return;
+        }
     
-    const currentStatus = personalExterno?.status || 'Pendiente';
+        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+        const index = allPersonalExterno.findIndex(p => p.osId === osId);
+        
+        const currentStatus = personalExterno?.status || 'Pendiente';
+        
+        const newPersonalData: PersonalExterno = {
+            osId,
+            turnos: data.turnos.map(t => {
+                const existingTurno = personalExterno?.turnos.find(et => et.id === t.id);
+                return {
+                    ...t, 
+                    fecha: format(t.fecha, 'yyyy-MM-dd'),
+                    statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
+                    requiereActualizacion: true,
+                    asignaciones: (t.asignaciones || []).map(a => ({
+                        ...a,
+                        horaEntradaReal: a.horaEntradaReal || '',
+                        horaSalidaReal: a.horaSalidaReal || '',
+                    })),
+                }
+            }),
+            status: currentStatus,
+            observacionesGenerales: getValues('observacionesGenerales'),
+        };
+        
+        if (index > -1) {
+            allPersonalExterno[index] = newPersonalData;
+        } else {
+            allPersonalExterno.push(newPersonalData);
+        }
     
-    const newPersonalData: PersonalExterno = {
-        osId,
-        turnos: data.turnos.map(t => {
-            const existingTurno = personalExterno?.turnos.find(et => et.id === t.id);
-            return {
-                ...t, 
-                fecha: format(t.fecha, 'yyyy-MM-dd'),
-                statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
-                requiereActualizacion: true,
-                asignaciones: (t.asignaciones || []).map(a => ({
-                    ...a,
-                    horaEntradaReal: a.horaEntradaReal || '',
-                    horaSalidaReal: a.horaSalidaReal || '',
-                })),
-            }
-        }),
-        status: currentStatus,
-        observacionesGenerales: form.getValues('observacionesGenerales'),
-    };
+        localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
+        
+        const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
+        allAjustes[osId] = data.ajustes || [];
+        localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
+
+        window.dispatchEvent(new Event('storage'));
     
-    if (index > -1) {
-        allPersonalExterno[index] = newPersonalData;
-    } else {
-        allPersonalExterno.push(newPersonalData);
-    }
-
-    localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-    
-    const allAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}');
-    allAjustes[osId] = data.ajustes || [];
-    localStorage.setItem('personalExternoAjustes', JSON.stringify(allAjustes));
-
-    window.dispatchEvent(new Event('storage'));
-
-    setTimeout(() => {
-        toast({ title: 'Personal guardado', description: 'La planificación del personal ha sido guardada.' });
-        setIsLoading(false);
-        form.reset(data);
-    }, 500);
-  };
+        setTimeout(() => {
+            toast({ title: 'Personal guardado', description: 'La planificación del personal ha sido guardada.' });
+            setIsLoading(false);
+            form.reset(data);
+        }, 500);
+      };
   
   const addRow = () => {
     append({
@@ -589,7 +588,7 @@ export default function PersonalExternoPage() {
       <main>
       <TooltipProvider>
         <FormProvider {...form}>
-            <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
+            <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-start justify-between mb-4">
                     <div/>
                     <div className="flex items-center gap-2">
@@ -866,9 +865,6 @@ export default function PersonalExternoPage() {
                                             {personalExterno?.hojaFirmadaUrl ? (
                                                 <div className="relative group">
                                                     <Image src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" width={400} height={300} className="rounded-md w-full h-auto object-contain border"/>
-                                                    <Button size="icon" variant="destructive" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleGlobalStatusAction('Asignado')}>
-                                                        <Trash2/>
-                                                    </Button>
                                                 </div>
                                             ) : (
                                                 <div>

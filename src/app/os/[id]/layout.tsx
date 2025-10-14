@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -106,8 +105,8 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
     return (
       <TooltipProvider>
       <div className="container mx-auto">
-          <div className="sticky top-[56px] z-30 bg-background py-2 border-b mb-4">
-            <div className="flex flex-col gap-2">
+          <div className="sticky top-[56px] z-30 bg-background py-2 border-b">
+            <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div>
