@@ -622,9 +622,6 @@ export default function PersonalExternoPage() {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
   }
   
-  const statusBadgeVariant = personalExterno?.status === 'Asignado' || personalExterno?.status === 'Cerrado' ? 'success' : personalExterno?.status === 'Solicitado' ? 'outline' : 'warning';
-
-
   return (
     <>
       <main>
@@ -893,9 +890,9 @@ export default function PersonalExternoPage() {
                                         {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
                                         Imprimir Parte de Horas
                                     </Button>
-                                    <Button type="button" variant="outline" onClick={handlePrintInforme} disabled={isPrinting}>
+                                     <Button type="button" variant="outline" onClick={handlePrintInforme} disabled={isPrinting}>
                                         {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <FileText className="mr-2" />}
-                                        Generar Informe
+                                        Generar Informe Facturación
                                     </Button>
                                 </div>
                             </CardHeader>
@@ -972,7 +969,7 @@ export default function PersonalExternoPage() {
                                                 />
                                         )} />
                                         <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
-                                            <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="w-24 h-9"/>
+                                            <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-24 h-9"/>
                                         )} />
                                         <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
@@ -1015,3 +1012,4 @@ export default function PersonalExternoPage() {
     </>
   );
 }
+
