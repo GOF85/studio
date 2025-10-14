@@ -2,15 +2,16 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, FileText, Upload } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, Upload, Image as ImageIcon } from 'lucide-react';
+import Image from 'next/image';
 
 import type { PersonalExternoAjuste, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoPersonalExterno } from '@/types';
 import { ESTADO_PERSONAL_EXTERNO } from '@/types';
@@ -37,7 +38,6 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import Image from 'next/image';
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
@@ -139,14 +139,12 @@ export default function PersonalExternoPage() {
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [personalExterno, setPersonalExterno] = useState<PersonalExterno | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
-  const [isPrintingParte, setIsPrintingParte] = useState(false);
-  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -189,16 +187,17 @@ export default function PersonalExternoPage() {
         const personalData = {
             osId,
             turnos: turnosDelPedido.map(t => ({...t, fecha: new Date(t.fecha), asignaciones: t.asignaciones || []})),
-            status: 'Pendiente', // This will be calculated later
+            status: 'Pendiente',
         }
 
+        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+        const currentPersonalExterno = allPersonalExterno.find(p => p.osId === osId) || { osId, turnos: [], status: 'Pendiente' };
+        setPersonalExterno(currentPersonalExterno);
+        
         form.reset({ 
-            turnos: personalData.turnos as any, // Cast because of Date vs string
+            turnos: currentPersonalExterno.turnos.map(t => ({...t, fecha: new Date(t.fecha)})),
             ajustes: storedAjustes[osId] || []
         });
-        
-        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        setPersonalExterno(allPersonalExterno.find(p => p.osId === osId) || { osId, turnos: [], status: 'Pendiente' });
         
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos de personal externo.' });
@@ -332,7 +331,7 @@ export default function PersonalExternoPage() {
                 }
             }),
             status: currentStatus,
-            observacionesGenerales: getValues('observacionesGenerales'),
+            observacionesGenerales: form.getValues('observacionesGenerales'),
         };
         
         if (index > -1) {
@@ -374,6 +373,15 @@ export default function PersonalExternoPage() {
     });
   }
   
+  const addAjusteRow = () => {
+    appendAjuste({
+        id: Date.now().toString(),
+        proveedorId: '',
+        concepto: '',
+        importe: 0,
+    });
+  }
+
   const handleDeleteRow = () => {
     if (rowToDelete !== null) {
       remove(rowToDelete);
@@ -382,19 +390,6 @@ export default function PersonalExternoPage() {
     }
   };
   
-  const addAjusteRow = () => {
-    appendAjuste({
-        id: Date.now().toString(),
-        proveedorId: '',
-        concepto: '',
-        importe: 0,
-    })
-  }
-  
-  const removeAjusteRow = (index: number) => {
-    removeAjuste(index);
-  }
-
   const providerOptions = useMemo(() => 
     allProveedores.filter(p => p.tipos.includes('Personal')).map(p => ({
         value: p.id,
@@ -415,166 +410,196 @@ export default function PersonalExternoPage() {
     return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
   }, [watchedFields]);
 
-    const handlePrintReport = () => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const result = event.target?.result;
+            if (typeof result === 'string') {
+                const updatedPersonal = { ...personalExterno, hojaFirmadaUrl: result };
+                const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+                const index = allPersonalExterno.findIndex(p => p.osId === osId);
+                if (index > -1) {
+                    allPersonalExterno[index] = updatedPersonalExterno as PersonalExterno;
+                } else {
+                    allPersonalExterno.push(updatedPersonalExterno as PersonalExterno);
+                }
+                localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
+                setPersonalExterno(updatedPersonalExterno as PersonalExterno);
+                toast({ title: "Imagen adjuntada" });
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+  };
+
+  const removeHojaFirmada = () => {
+    if (!personalExterno) return;
+    const updatedPersonal = { ...personalExterno, hojaFirmadaUrl: undefined };
+    const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+    const index = allPersonalExterno.findIndex(p => p.osId === osId);
+    if (index > -1) {
+        allPersonalExterno[index] = updatedPersonal as PersonalExterno;
+    }
+    localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
+    setPersonalExterno(updatedPersonal as PersonalExterno);
+  }
+  
+  const handlePrintParte = () => {
+    if (!serviceOrder) return;
+    setIsPrinting(true);
+    try {
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const margin = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        let finalY = margin;
+        
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor('#00703C');
+        doc.text('Parte de Horas - Personal Externo', margin, finalY);
+        finalY += 10;
+        
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor('#374151');
+        
+        const serviceData = [
+            ['Nº Servicio:', serviceOrder.serviceNumber],
+            ['Cliente:', serviceOrder.client],
+            ['Fecha Evento:', format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')],
+            ['Espacio:', serviceOrder.space || '-']
+        ];
+        
+        autoTable(doc, {
+            body: serviceData,
+            startY: finalY,
+            theme: 'plain',
+            styles: { fontSize: 9, cellPadding: 0.5 },
+            columnStyles: { 0: { fontStyle: 'bold' } }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 10;
+
+        const turnosToPrint = getValues('turnos').sort((a,b) => a.categoria.localeCompare(b.categoria));
+        
+        const tableBody = turnosToPrint.map(turno => {
+            const proveedor = allProveedores.find(p => p.id === proveedoresDB.find(pdb => pdb.id === turno.proveedorId)?.proveedorId);
+            return [
+                proveedor?.nombreComercial || 'N/A',
+                turno.categoria,
+                `${turno.horaEntrada}-${turno.horaSalida}`,
+                '', // H. Entrada Real
+                '', // H. Salida Real
+                ''  // Firma
+            ];
+        });
+
+        autoTable(doc, {
+            startY: finalY,
+            head: [['Proveedor', 'Categoría', 'H. Planificado', 'H. Entrada Real', 'H. Salida Real', 'Firma']],
+            body: tableBody,
+            theme: 'grid',
+            headStyles: { fillColor: '#00703C', textColor: '#ffffff', fontStyle: 'bold' },
+            styles: { fontSize: 8, cellPadding: 2, minCellHeight: 12 },
+        });
+
+        doc.save(`Parte_Horas_${serviceOrder.serviceNumber}.pdf`);
+
+    } catch (e) {
+        console.error("PDF generation failed", e);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF del parte de horas.' });
+    } finally {
+        setIsPrinting(false);
+    }
+  }
+
+  const handlePrintReport = () => {
         if (!serviceOrder) return;
         setIsPrinting(true);
-        toast({ title: 'Preparando informe...', description: 'El documento se descargará en breve.' });
+        try {
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const margin = 15;
+            let finalY = margin;
 
-        setTimeout(() => {
-            try {
-                const doc = new jsPDF({ orientation: 'landscape' });
-                const pageHeight = doc.internal.pageSize.getHeight();
-                const pageWidth = doc.internal.pageSize.getWidth();
-                const margin = 15;
-                let finalY = margin;
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor('#00703C');
+            doc.text('Informe de Costes de Personal Externo', margin, finalY);
+            finalY += 10;
 
-                doc.setFontSize(18);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor('#00703C');
-                doc.text(`Informe de Personal Externo - OS ${serviceOrder.serviceNumber}`, margin, finalY);
-                finalY += 10;
-                doc.setFontSize(10);
-                doc.setTextColor(40);
-                doc.text(`${serviceOrder.client} - ${format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}`, margin, finalY);
-                finalY += 12;
+            const summaryData = [
+                { title: 'Coste Final', value: formatCurrency(finalTotalReal), color: '#00703C'},
+                { title: 'Desviación vs. Plan', value: formatCurrency(finalTotalReal - costeFinalPlanificado), color: finalTotalReal > costeFinalPlanificado ? '#ef4444' : '#22c55e'},
+                { title: 'Total Horas Reales', value: `${formatDuration(watchedFields.reduce((acc, t) => acc + (t.asignaciones || []).reduce((s, a) => s + calculateHours(a.horaEntradaReal, a.horaSalidaReal), 0),0))}h` , color: '#333'},
+            ];
 
-                const summaryData = [
-                    { title: 'Coste Final', value: formatCurrency(finalTotalReal), color: '#333333' },
-                    { title: 'Desviación Económica', value: formatCurrency(finalTotalReal - costeFinalPlanificado), color: (finalTotalReal - costeFinalPlanificado) > 0 ? '#E53E3E' : '#38A169' },
-                    { title: 'Total Horas Reales', value: `${formatDuration(watchedFields.reduce((sum, t) => sum + (t.asignaciones || []).reduce((s, a) => s + calculateHours(a.horaEntradaReal, a.horaSalidaReal), 0), 0))}h`, color: '#333333' },
-                ];
-                
-                const summaryBoxWidth = (pageWidth - margin * 2) / summaryData.length - 5;
-                summaryData.forEach((item, index) => {
-                    doc.setDrawColor(226, 232, 240);
-                    doc.setFillColor(247, 250, 252);
-                    doc.rect(margin + index * (summaryBoxWidth + 5), finalY, summaryBoxWidth, 20, 'FD');
-                    doc.setFontSize(8);
-                    doc.setTextColor(113, 128, 150);
-                    doc.text(item.title, margin + index * (summaryBoxWidth + 5) + 5, finalY + 7);
-                    doc.setFontSize(12);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setTextColor(item.color);
-                    doc.text(item.value, margin + index * (summaryBoxWidth + 5) + 5, finalY + 14);
-                });
-                finalY += 30;
-
-                const head = [['Personal', 'Categoría', 'H.Plan', 'H.Real', 'Desv.', 'Coste Real', 'Valoración', 'Comentarios']];
-                const body = watchedFields.flatMap(turno => 
-                    (turno.asignaciones || []).map(asig => {
-                        const plannedH = calculateHours(turno.horaEntrada, turno.horaSalida);
-                        const realH = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal) || plannedH;
-                        const deviation = realH - plannedH;
-                        const coste = realH * (turno.precioHora || 0);
-
-                        return [
-                            asig.nombre,
-                            turno.categoria,
-                            formatDuration(plannedH),
-                            formatDuration(realH),
-                            `${deviation >= 0 ? '+' : ''}${formatDuration(deviation)}`,
-                            formatCurrency(coste),
-                            '⭐'.repeat(asig.rating || 0),
-                            asig.comentariosMice || ''
-                        ];
-                    })
-                );
-                
-                autoTable(doc, { head, body, startY: finalY, headStyles: { fillColor: '#00703C' } });
-                
-                doc.save(`Informe_Personal_${serviceOrder.serviceNumber}.pdf`);
-                toast({ title: 'Informe Generado', description: 'La descarga se ha completado.' });
-
-            } catch (error) {
-                console.error("PDF Generation Error:", error);
-                toast({ variant: "destructive", title: "Error al generar PDF" });
-            } finally {
-                setIsPrinting(false);
-            }
-        }, 500);
-    };
-
-    const handlePrintParteHoras = () => {
-        if (!serviceOrder) return;
-        setIsPrintingParte(true);
-        toast({ title: 'Preparando parte de horas...', description: 'El documento se descargará en breve.' });
-    
-        setTimeout(() => {
-            try {
-                const doc = new jsPDF({ orientation: 'portrait' });
-                const margin = 15;
-                let finalY = margin;
-    
-                doc.setFontSize(18);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor('#00703C');
-                doc.text(`Parte de Horas - Personal Externo`, margin, finalY);
-                finalY += 10;
+            const summaryBoxWidth = (doc.internal.pageSize.getWidth() - margin * 2) / summaryData.length - 5;
+            summaryData.forEach((item, index) => {
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor('#6b7280');
+                doc.text(item.title, margin + index * (summaryBoxWidth + 5) + 5, finalY + 5);
                 doc.setFontSize(12);
-                doc.setTextColor(40);
-                doc.text(`OS: ${serviceOrder.serviceNumber} - ${serviceOrder.client}`, margin, finalY);
-                finalY += 15;
-    
-                const head = [['Personal Asignado', 'Categoría', 'H. Planificado', 'H. Entrada Real', 'H. Salida Real', 'Firma']];
-                const body = watchedFields.map(turno => 
-                    (turno.asignaciones && turno.asignaciones.length > 0) ? turno.asignaciones.map(asig => [
-                        asig.nombre,
-                        turno.categoria,
-                        `${turno.horaEntrada} - ${turno.horaSalida}`,
-                        '', '', ''
-                    ]) : [[ 'Pendiente de Asignación', turno.categoria, `${turno.horaEntrada} - ${turno.horaSalida}`, '', '', '']]
-                ).flat();
-    
-                autoTable(doc, {
-                    head,
-                    body,
-                    startY: finalY,
-                    headStyles: { fillColor: '#00703C' },
-                    styles: { cellPadding: 3, fontSize: 9 },
-                    didParseCell: (data) => {
-                         if (data.column.index >= 3) { // Signature columns
-                            data.cell.styles.minCellHeight = 15;
-                        }
-                    }
-                });
-    
-                doc.save(`Parte_Horas_${serviceOrder.serviceNumber}.pdf`);
-                toast({ title: 'Parte de Horas Generado' });
-    
-            } catch (error) {
-                console.error("PDF Parte Horas Error:", error);
-                toast({ variant: "destructive", title: "Error al generar Parte de Horas" });
-            } finally {
-                setIsPrintingParte(false);
-            }
-        }, 500);
-    };
-    
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!personalExterno) return;
-        const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const result = event.target?.result;
-                if (typeof result === 'string') {
-                    const updatedPersonalExterno = { ...personalExterno, hojaFirmadaUrl: result };
-                    setPersonalExterno(updatedPersonalExterno);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(item.color);
+                doc.text(item.value, margin + index * (summaryBoxWidth + 5) + 5, finalY + 14);
+            });
+            finalY += 30;
 
-                    const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-                    const index = allPersonalExterno.findIndex(p => p.osId === osId);
-                    if (index > -1) {
-                        allPersonalExterno[index] = updatedPersonalExterno;
-                    } else {
-                        allPersonalExterno.push(updatedPersonalExterno);
-                    }
-                    localStorage.setItem('personalExterno', JSON.stringify(allPersonalExterno));
-                    toast({ title: 'Hoja de firmas adjuntada' });
-                }
-            };
-            reader.readAsDataURL(file);
+            const turnosToPrint = getValues('turnos');
+            const tableBody = turnosToPrint.flatMap(turno => 
+                (turno.asignaciones || []).map(asig => {
+                     const horasReales = calculateHours(asig.horaEntradaReal, asig.horaSalidaReal);
+                     const costeReal = horasReales * turno.precioHora;
+                     return [
+                        getValues('proveedorId'),
+                        turno.categoria,
+                        asig.nombre,
+                        formatDuration(horasReales),
+                        formatCurrency(costeReal),
+                        '⭐'.repeat(asig.rating || 0),
+                        asig.comentariosMice || ''
+                     ]
+                })
+            );
+
+            autoTable(doc, {
+                startY: finalY,
+                head: [['Proveedor', 'Categoría', 'Personal', 'Horas Reales', 'Coste Real', 'Valoración', 'Comentarios MICE']],
+                body: tableBody,
+                theme: 'grid',
+                headStyles: { fillColor: '#00703C', textColor: '#ffffff' },
+            });
+            
+            finalY = (doc as any).lastAutoTable.finalY + 10;
+            
+            const ajustesToPrint = getValues('ajustes') || [];
+            if(ajustesToPrint.length > 0) {
+                 doc.setFontSize(12);
+                 doc.setFont('helvetica', 'bold');
+                 doc.setTextColor('#333');
+                 doc.text('Ajustes Adicionales', margin, finalY);
+                 finalY += 8;
+
+                 autoTable(doc, {
+                    startY: finalY,
+                    head: [['Proveedor', 'Concepto', 'Importe']],
+                    body: ajustesToPrint.map(a => [allProveedores.find(p=>p.id === a.proveedorId)?.nombreComercial || 'N/A', a.concepto, formatCurrency(a.importe)]),
+                    theme: 'grid',
+                    headStyles: { fillColor: '#f3f4f6', textColor: '#374151' },
+                 });
+            }
+
+            doc.save(`Informe_Personal_Externo_${serviceOrder.serviceNumber}.pdf`);
+            toast({ title: 'Informe Generado', description: 'El informe PDF se ha descargado correctamente.'});
+        } catch (e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el informe PDF.' });
+        } finally {
+            setIsPrinting(false);
         }
-    };
+  }
 
 
   if (!isMounted || !serviceOrder) {
@@ -590,9 +615,11 @@ export default function PersonalExternoPage() {
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
-                <div className="flex items-start justify-end mb-4">
-                    <div className="flex items-center gap-2">
-                         <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
+                <div className="sticky top-[105px] z-20 bg-background/95 backdrop-blur-sm py-2 mb-4 flex items-center justify-between">
+                    <div>
+                        <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
+                    </div>
+                     <div className="flex items-center gap-2">
                         <ActionButton />
                         <Button type="submit" disabled={isLoading || !formState.isDirty}>
                             {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
@@ -845,34 +872,33 @@ export default function PersonalExternoPage() {
                     <TabsContent value="documentacion" className="mt-4">
                         <Card>
                             <CardHeader className="py-3 flex-row items-center justify-between">
-                                <CardTitle className="text-lg">Documentación y Reportes</CardTitle>
-                                <div className="flex items-center gap-2">
-                                    <Button type="button" variant="outline" onClick={handlePrintParteHoras} disabled={isPrintingParte}>
-                                        {isPrintingParte ? <Loader2 className="animate-spin" /> : <Printer />}
-                                        <span className="ml-2">Imprimir Parte de Horas</span>
+                                <CardTitle className="text-lg">Documentación</CardTitle>
+                                <div className="flex gap-2">
+                                    <Button type="button" variant="outline" onClick={handlePrintParte} disabled={isPrinting}>
+                                        {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
+                                        Imprimir Parte de Horas
                                     </Button>
                                     <Button type="button" onClick={handlePrintReport} disabled={isPrinting}>
-                                        {isPrinting ? <Loader2 className="animate-spin" /> : <Users />}
-                                        <span className="ml-2">Generar Informe PDF</span>
+                                        {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
+                                        Generar Informe PDF
                                     </Button>
                                 </div>
                             </CardHeader>
-                            <CardContent className="p-4">
+                            <CardContent className="space-y-4">
                                 <Card>
-                                    <CardHeader><CardTitle className="text-base">Hoja de Firmas</CardTitle></CardHeader>
+                                    <CardHeader><CardTitle className="text-base">Hoja de Firmas Adjunta</CardTitle></CardHeader>
                                     <CardContent>
-                                        <div className="space-y-4">
-                                            {personalExterno?.hojaFirmadaUrl ? (
-                                                <div className="relative group">
-                                                    <Image src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" width={400} height={300} className="rounded-md w-full h-auto object-contain border"/>
-                                                </div>
-                                            ) : (
-                                                <div>
-                                                    <Label htmlFor="upload-photo">Adjuntar Parte de Horas Firmado</Label>
-                                                    <Input id="upload-photo" type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} />
-                                                </div>
-                                            )}
-                                        </div>
+                                        {personalExterno?.hojaFirmadaUrl ? (
+                                             <div className="relative">
+                                                <Image src={personalExterno.hojaFirmadaUrl} alt="Hoja de firmas" width={500} height={300} className="rounded-md w-full h-auto object-contain"/>
+                                                <Button size="sm" variant="destructive" className="absolute top-2 right-2" onClick={removeHojaFirmada}><Trash2/></Button>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <Label htmlFor="upload-photo">Subir hoja de firmas escaneada</Label>
+                                                <Input id="upload-photo" type="file" accept="image/*" ref={fileInputRef} onChange={handleFileUpload} />
+                                            </div>
+                                        )}
                                     </CardContent>
                                 </Card>
                             </CardContent>
