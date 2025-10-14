@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -181,22 +181,24 @@ export default function PersonalExternoPage() {
         const allProveedoresData = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
         setAllProveedores(allProveedoresData);
 
-        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
-        const currentPersonalExterno = allPersonalExterno.find(p => p.osId === osId);
-        setPersonalExterno(currentPersonalExterno || { osId, turnos: [], status: 'Pendiente' });
+        const allTurnos = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
+        const turnosDelPedido = allTurnos.filter(p => p.osId === osId);
         
+        const storedAjustes = JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}') as {[key: string]: PersonalExternoAjuste[]};
+        
+        const personalData = {
+            osId,
+            turnos: turnosDelPedido.map(t => ({...t, fecha: new Date(t.fecha), asignaciones: t.asignaciones || []})),
+            status: 'Pendiente', // This will be calculated later
+        }
+
         form.reset({ 
-            turnos: currentPersonalExterno?.turnos.map(t => ({
-                ...t, 
-                fecha: new Date(t.fecha), 
-                asignaciones: (t.asignaciones || []).map(a => ({
-                    ...a,
-                    horaEntradaReal: a.horaEntradaReal || '',
-                    horaSalidaReal: a.horaSalidaReal || '',
-                }))
-            })) || [],
-            ajustes: (currentPersonalExterno as any)?.ajustes || []
+            turnos: personalData.turnos as any, // Cast because of Date vs string
+            ajustes: storedAjustes[osId] || []
         });
+        
+        const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+        setPersonalExterno(allPersonalExterno.find(p => p.osId === osId) || { osId, turnos: [], status: 'Pendiente' });
         
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos de personal externo.' });
@@ -392,7 +394,27 @@ export default function PersonalExternoPage() {
   const removeAjusteRow = (index: number) => {
     removeAjuste(index);
   }
-  
+
+  const providerOptions = useMemo(() => 
+    allProveedores.filter(p => p.tipos.includes('Personal')).map(p => ({
+        value: p.id,
+        label: p.nombreComercial
+    })), [allProveedores]);
+
+  const categoriaOptions = useMemo(() => {
+    return proveedoresDB.map(p => {
+        const proveedor = allProveedores.find(prov => prov.id === p.proveedorId);
+        return {
+            value: p.id,
+            label: `${proveedor?.nombreComercial || 'Desconocido'} - ${p.categoria}`
+        }
+    });
+  }, [proveedoresDB, allProveedores]);
+
+  const turnosAprobados = useMemo(() => {
+    return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
+  }, [watchedFields]);
+
     const handlePrintReport = () => {
         if (!serviceOrder) return;
         setIsPrinting(true);
@@ -555,27 +577,6 @@ export default function PersonalExternoPage() {
     };
 
 
-  const providerOptions = useMemo(() => 
-    allProveedores.filter(p => p.tipos.includes('Personal')).map(p => ({
-        value: p.id,
-        label: p.nombreComercial
-    })), [allProveedores]);
-
-  const categoriaOptions = useMemo(() => {
-    return proveedoresDB.map(p => {
-        const proveedor = allProveedores.find(prov => prov.id === p.proveedorId);
-        return {
-            value: p.id,
-            label: `${proveedor?.nombreComercial || 'Desconocido'} - ${p.categoria}`
-        }
-    });
-  }, [proveedoresDB, allProveedores]);
-
-  const turnosAprobados = useMemo(() => {
-    return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
-  }, [watchedFields]);
-
-
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
   }
@@ -588,9 +589,8 @@ export default function PersonalExternoPage() {
       <main>
       <TooltipProvider>
         <FormProvider {...form}>
-            <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
-                <div className="flex items-start justify-between mb-4">
-                    <div/>
+            <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
+                <div className="flex items-start justify-end mb-4">
                     <div className="flex items-center gap-2">
                          <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
                         <ActionButton />
@@ -781,7 +781,7 @@ export default function PersonalExternoPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
-                    <TabsContent value="aprobados">
+                    <TabsContent value="aprobados" className="mt-4">
                          <Card>
                             <CardHeader className="py-3"><CardTitle className="text-lg">Cierre y Horas Reales</CardTitle></CardHeader>
                             <CardContent className="p-2">
@@ -842,8 +842,8 @@ export default function PersonalExternoPage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
-                    <TabsContent value="documentacion">
-                         <Card>
+                    <TabsContent value="documentacion" className="mt-4">
+                        <Card>
                             <CardHeader className="py-3 flex-row items-center justify-between">
                                 <CardTitle className="text-lg">Documentación y Reportes</CardTitle>
                                 <div className="flex items-center gap-2">
