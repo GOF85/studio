@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, useFieldArray, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,7 +10,7 @@ import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send } from 'lucide-react';
+import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer } from 'lucide-react';
 
 import type { PersonalExternoAjuste, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoPersonalExterno } from '@/types';
 import { ESTADO_PERSONAL_EXTERNO } from '@/types';
@@ -137,6 +137,7 @@ export default function PersonalExternoPage() {
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
   const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [personalExterno, setPersonalExterno] = useState<PersonalExterno | null>(null);
+  const [ajustes, setAjustes] = useState<PersonalExternoAjuste[]>([]);
   const [isPrinting, setIsPrinting] = useState(false);
   
   const router = useRouter();
@@ -252,12 +253,13 @@ export default function PersonalExternoPage() {
             requiresUpdate = personalExterno.turnos.some(t => t.statusPartner !== 'Gestionado');
         }
 
-        const updatedTurnos = personalExterno.turnos.map(t => ({
+        const updatedTurnos = getValues('turnos').map(t => ({
             ...t,
-            requiereActualizacion: newStatus === 'Solicitado' ? true : t.requiereActualizacion,
+            fecha: format(t.fecha, 'yyyy-MM-dd'),
+            requiereActualizacion: newStatus === 'Solicitado' ? true : false,
         }));
         
-        const updatedPersonalExterno = { ...personalExterno, status: newStatus, turnos: updatedTurnos };
+        const updatedPersonalExterno: PersonalExterno = { ...personalExterno, status: newStatus, turnos: updatedTurnos as any };
         
         const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
         const index = allPersonalExterno.findIndex(p => p.osId === osId);
@@ -274,13 +276,30 @@ export default function PersonalExternoPage() {
 
     const isSolicitudDesactualizada = useMemo(() => {
         if (personalExterno?.status !== 'Solicitado') return false;
-        const currentTurnoIds = new Set(watchedFields?.map(f => f.id));
-        const savedTurnos = personalExterno?.turnos || [];
-        const savedTurnoIds = new Set(savedTurnos.map(t => t.id));
-        if(currentTurnoIds.size !== savedTurnoIds.size) return true;
         
-        return Array.from(currentTurnoIds).some(id => !savedTurnoIds.has(id));
-    }, [watchedFields, personalExterno]);
+        const currentTurnos = getValues('turnos');
+        const savedTurnos = personalExterno.turnos;
+
+        if (currentTurnos.length !== savedTurnos.length) return true;
+
+        for (let i = 0; i < currentTurnos.length; i++) {
+            const current = currentTurnos[i];
+            const saved = savedTurnos.find(t => t.id === current.id);
+            if (!saved || 
+                current.proveedorId !== saved.proveedorId ||
+                current.categoria !== saved.categoria ||
+                format(current.fecha, 'yyyy-MM-dd') !== saved.fecha ||
+                current.horaEntrada !== saved.horaEntrada ||
+                current.horaSalida !== saved.horaSalida ||
+                current.solicitadoPor !== saved.solicitadoPor ||
+                current.tipoServicio !== saved.tipoServicio
+            ) {
+                return true;
+            }
+        }
+        
+        return false;
+    }, [watchedFields, personalExterno, getValues]);
     
     const ActionButton = () => {
         if(!personalExterno) return null;
@@ -325,11 +344,9 @@ export default function PersonalExternoPage() {
         const newPersonalData: PersonalExterno = {
             osId,
             turnos: data.turnos.map(t => {
-                const existingTurno = personalExterno?.turnos.find(et => et.id === t.id);
                 return {
                     ...t, 
                     fecha: format(t.fecha, 'yyyy-MM-dd'),
-                    statusPartner: existingTurno?.statusPartner || 'Pendiente Asignación',
                     requiereActualizacion: true,
                 } as PersonalExternoTurno;
             }),
@@ -385,13 +402,14 @@ export default function PersonalExternoPage() {
   };
   
   const addAjusteRow = () => {
-      appendAjuste({ id: Date.now().toString(), proveedorId: '', concepto: '', importe: 0 });
-  };
+    appendAjuste({
+        id: Date.now().toString(),
+        proveedorId: '',
+        concepto: '',
+        importe: 0,
+    })
+  }
 
-  const removeAjusteRow = (index: number) => {
-      removeAjuste(index);
-  };
-  
   const handlePrintReport = () => {
     if (!serviceOrder) return;
     setIsPrinting(true);
@@ -497,8 +515,7 @@ export default function PersonalExternoPage() {
       <TooltipProvider>
         <FormProvider {...form}>
             <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
-                <div className="flex items-start justify-between mb-4">
-                    <div />
+                <div className="flex items-start justify-end mb-4">
                     <div className="flex items-center gap-2">
                          <Badge variant={statusBadgeVariant} className="text-sm px-4 py-2">{personalExterno?.status || 'Pendiente'}</Badge>
                         <ActionButton />
@@ -805,7 +822,7 @@ export default function PersonalExternoPage() {
                                         <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
                                 ))}
-                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
+                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={() => appendAjuste({id: Date.now().toString(), proveedorId: '', concepto: '', importe: 0})}>Añadir Ajuste</Button>
                                  <Separator className="my-2" />
                                   <div className="flex justify-between font-bold">
                                       <span>Total Ajustes:</span>
@@ -843,3 +860,5 @@ export default function PersonalExternoPage() {
     </>
   );
 }
+
+    
