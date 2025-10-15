@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -39,6 +40,7 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Label } from '@/components/ui/label';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { logActivity } from '../activity-log/utils';
+
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
@@ -436,7 +438,7 @@ export default function PersonalExternoPage() {
   }
 
 
-  if (!isMounted || !serviceOrder || !personalExterno) {
+  if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
   }
   
@@ -448,7 +450,7 @@ export default function PersonalExternoPage() {
       <main>
       <TooltipProvider>
         <FormProvider {...form}>
-            <form id="personal-externo-form" onSubmit={form.handleSubmit(onSubmit)}>
+            <form id="personal-externo-form" onSubmit={handleSubmit(onSubmit)}>
                 <div className="flex items-start justify-between mb-2 sticky top-24 z-20 bg-background/95 backdrop-blur-sm py-2 -mt-2">
                     <div/>
                     <div className="flex items-center gap-2">
@@ -517,25 +519,26 @@ export default function PersonalExternoPage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead className="px-1 py-1 w-36">Fecha</TableHead>
-                                            <TableHead className="px-1 py-1 w-32">Solicitado Por</TableHead>
-                                            <TableHead className="px-1 py-1 min-w-48">Proveedor - Categoría</TableHead>
-                                            <TableHead className="px-1 py-1 w-36">Tipo Servicio</TableHead>
-                                            <TableHead colSpan={4} className="text-center border-l border-r px-1 py-1 bg-muted/30">Planificado</TableHead>
-                                            <TableHead className="text-center px-1 py-1">Estado</TableHead>
-                                            <TableHead className="text-right px-1 py-1 w-20">Acciones</TableHead>
+                                            <TableHead className="px-2 py-1 w-36">Fecha</TableHead>
+                                            <TableHead className="px-2 py-1 w-32">Solicitado Por</TableHead>
+                                            <TableHead className="px-2 py-1 min-w-48">Proveedor - Categoría</TableHead>
+                                            <TableHead className="px-2 py-1 w-36">Tipo Servicio</TableHead>
+                                            <TableHead colSpan={3} className="text-center border-l border-r px-2 py-1 bg-muted/30">Planificado</TableHead>
+                                            <TableHead className="px-2 py-1">Obs. ETT</TableHead>
+                                            <TableHead className="text-center px-2 py-1">Estado ETT</TableHead>
+                                            <TableHead className="text-right px-2 py-1 w-20">Acciones</TableHead>
                                         </TableRow>
                                         <TableRow>
-                                            <TableHead className="px-1 py-1"></TableHead>
-                                            <TableHead className="px-1 py-1"></TableHead>
-                                            <TableHead className="px-1 py-1"></TableHead>
-                                            <TableHead className="px-1 py-1"></TableHead>
-                                            <TableHead className="border-l px-1 py-1 bg-muted/30 w-24">H. Entrada</TableHead>
-                                            <TableHead className="px-1 py-1 bg-muted/30 w-24">H. Salida</TableHead>
-                                            <TableHead className="px-1 py-1 bg-muted/30 w-24">H. Plan.</TableHead>
-                                            <TableHead className="border-r px-1 py-1 bg-muted/30 w-20">€/Hora</TableHead>
-                                            <TableHead className="px-1 py-1"></TableHead>
-                                            <TableHead className="px-1 py-1"></TableHead>
+                                            <TableHead className="px-2 py-1"></TableHead>
+                                            <TableHead className="px-2 py-1"></TableHead>
+                                            <TableHead className="px-2 py-1"></TableHead>
+                                            <TableHead className="px-2 py-1"></TableHead>
+                                            <TableHead className="border-l px-2 py-1 bg-muted/30 w-24">H. Entrada</TableHead>
+                                            <TableHead className="px-2 py-1 bg-muted/30 w-24">H. Salida</TableHead>
+                                            <TableHead className="border-r px-2 py-1 bg-muted/30 w-20">€/Hora</TableHead>
+                                            <TableHead className="px-2 py-1"></TableHead>
+                                            <TableHead className="px-2 py-1"></TableHead>
+                                            <TableHead className="px-2 py-1"></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -598,35 +601,27 @@ export default function PersonalExternoPage() {
                                                 <TableCell className="px-2 py-1 bg-muted/30">
                                                     <FormField control={control} name={`turnos.${index}.horaSalida`} render={({ field: f }) => <FormItem><FormControl><Input type="time" {...f} className="w-24 h-8 text-xs" /></FormControl></FormItem>} />
                                                 </TableCell>
-                                                <TableCell className="px-1 py-1 bg-muted/30 font-mono text-center text-xs">
-                                                    {formatDuration(calculateHours(watchedFields[index].horaEntrada, watchedFields[index].horaSalida))}h
-                                                </TableCell>
                                                 <TableCell className="border-r px-2 py-1 bg-muted/30">
                                                     <FormField control={control} name={`turnos.${index}.precioHora`} render={({ field: f }) => <FormItem><FormControl><Input type="number" step="0.01" {...f} className="w-20 h-8 text-xs" readOnly /></FormControl></FormItem>} />
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex items-center justify-center">
-                                                        <CommentDialog turnoIndex={index} form={form} />
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <div>
-                                                                {field.statusPartner === 'Gestionado' ? (
-                                                                    <CheckCircle className="h-5 w-5 text-green-600"/>
-                                                                ) : (
-                                                                    <AlertTriangle className="h-5 w-5 text-amber-500" />
-                                                                )}
-                                                                </div>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p className="font-bold">Asignaciones:</p>
-                                                                {field.asignaciones && field.asignaciones.length > 0 ? (
-                                                                    <ul className="list-disc pl-4 text-xs">
-                                                                        {field.asignaciones.map(a => <li key={a.id}>{a.nombre} {a.dni && `(${a.dni})`}</li>)}
-                                                                    </ul>
-                                                                ) : <p>Pendiente de gestionar por ETT.</p>}
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    </div>
+                                                    <CommentDialog turnoIndex={index} form={form} />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="flex justify-center">
+                                                            {field.statusPartner === 'Gestionado' ? (
+                                                                <CheckCircle className="h-5 w-5 text-green-600"/>
+                                                            ) : (
+                                                                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                                                            )}
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            {field.statusPartner}
+                                                        </TooltipContent>
+                                                    </Tooltip>
                                                 </TableCell>
                                                 <TableCell className="text-right px-2 py-1">
                                                     <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => setRowToDelete(index)}>
@@ -658,8 +653,6 @@ export default function PersonalExternoPage() {
                                         <TableRow>
                                             <TableHead>Nombre</TableHead>
                                             <TableHead>DNI</TableHead>
-                                            <TableHead>Teléfono</TableHead>
-                                            <TableHead>Email</TableHead>
                                             <TableHead>Fecha-Horario</TableHead>
                                             <TableHead className="w-24">H. Entrada Real</TableHead>
                                             <TableHead className="w-24">H. Salida Real</TableHead>
@@ -692,8 +685,6 @@ export default function PersonalExternoPage() {
                                                         </Tooltip>
                                                     </TableCell>
                                                     <TableCell>{asignacion.dni}</TableCell>
-                                                    <TableCell>{asignacion.telefono}</TableCell>
-                                                    <TableCell>{asignacion.email}</TableCell>
                                                     <TableCell>
                                                         <div className="font-semibold">{format(new Date(turno.fecha), 'dd/MM/yy')}</div>
                                                         <div className="text-xs">{turno.horaEntrada} - {turno.horaSalida}</div>
@@ -710,7 +701,7 @@ export default function PersonalExternoPage() {
                                                 </TableRow>
                                             )})
                                         }) : (
-                                            <TableRow><TableCell colSpan={8} className="h-24 text-center">No hay turnos gestionados por la ETT.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={6} className="h-24 text-center">No hay turnos gestionados por la ETT.</TableCell></TableRow>
                                         )}
                                     </TableBody>
                                 </Table>
@@ -721,16 +712,6 @@ export default function PersonalExternoPage() {
                         <Card>
                             <CardHeader className="py-3 flex-row items-center justify-between">
                                 <CardTitle className="text-lg">Documentación</CardTitle>
-                                <div className="flex gap-2">
-                                    <Button type="button" variant="outline" onClick={handlePrintInforme} disabled={isPrinting}>
-                                        {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <FileText className="mr-2" />}
-                                        Generar Informe Facturación
-                                    </Button>
-                                    <Button type="button" variant="outline" onClick={handlePrintParte} disabled={isPrinting}>
-                                        {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
-                                        Imprimir Parte de Horas
-                                    </Button>
-                                </div>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <Card>
@@ -804,7 +785,7 @@ export default function PersonalExternoPage() {
                                                 />
                                         )} />
                                         <FormField control={control} name={`ajustes.${index}.importe`} render={({field}) => (
-                                            <Input type="number" step="0.01" placeholder="Importe" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-24 h-9"/>
+                                            <Input type="number" step="0.01" placeholder="Importe" value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value))} className="w-24 h-9"/>
                                         )} />
                                         <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
@@ -846,3 +827,4 @@ export default function PersonalExternoPage() {
     </>
   );
 }
+
