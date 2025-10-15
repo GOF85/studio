@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { ServiceOrder, ObjetivosGasto, PersonalExternoOrder } from '@/types';
+import type { ServiceOrder, ObjetivosGasto, PersonalExterno } from '@/types';
 import { Target, Info, RefreshCw } from 'lucide-react';
 import { GASTO_LABELS } from '@/lib/constants';
 import { formatCurrency, formatPercentage, formatNumber, calculateHours } from '@/lib/utils';
@@ -69,16 +69,19 @@ export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDispl
       let budgetValue = 0;
       
       if (moduleName === 'personalExterno') {
-            const allPersonalExternoOrders = JSON.parse(localStorage.getItem('personalExternoOrders') || '[]') as PersonalExternoOrder[];
-            const allPersonalExternoAjustes = (JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}')[osId] || []) as {ajuste: number}[];
-            const costeTurnos = allPersonalExternoOrders.filter(o => o.osId === osId).reduce((sum, order) => {
-                 const realHours = calculateHours(order.horaEntradaReal, order.horaSalidaReal);
-                 const plannedHours = calculateHours(order.horaEntrada, order.horaSalida);
-                 const hoursToUse = realHours > 0 ? realHours : plannedHours;
-                 return sum + hoursToUse * (order.precioHora || 0) * (order.asignaciones?.length || 1);
-            }, 0);
+            const allPersonalExterno = JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[];
+            const personalExternoData = allPersonalExterno.find(p => p.osId === osId) || null;
+            const allPersonalExternoAjustes = (JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}')[osId] || []) as {importe: number}[];
+
+            const costeTurnos = personalExternoData?.turnos.reduce((sum, turno) => {
+                const plannedHours = calculateHours(turno.horaEntrada, turno.horaSalida);
+                const quantity = (turno.asignaciones || []).length > 0 ? turno.asignaciones.length : 1;
+                return sum + (plannedHours * (turno.precioHora || 0) * quantity);
+            }, 0) || 0;
+
             const costeAjustes = allPersonalExternoAjustes.reduce((sum: number, ajuste) => sum + ajuste.importe, 0);
             budgetValue = costeTurnos + costeAjustes;
+
       } else {
             const materialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as any[];
             switch(moduleName) {
@@ -181,3 +184,5 @@ export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDispl
 }
 
   
+
+    
