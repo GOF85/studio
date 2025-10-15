@@ -1,7 +1,6 @@
-
 'use client';
 
-import { Info, Palette, Database, GitBranch, Workflow, Package, Factory, ShieldCheck, BarChart3, Users, Code, BookOpen } from "lucide-react";
+import { Info, Palette, Database, GitBranch, Workflow, Package, Factory, ShieldCheck, BarChart3, Users, Code, BookOpen, Warehouse } from "lucide-react";
 
 export default function InfoIAPage() {
     return (
