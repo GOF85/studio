@@ -175,7 +175,8 @@ export default function PartnerPersonalPortalPage() {
             setProveedorNombre(proveedor?.nombreComercial || '');
         }
 
-        const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
+
+        const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]);
         const allPersonalExterno = (JSON.parse(localStorage.getItem('personalExterno') || '[]') as PersonalExterno[]);
         const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
 
@@ -186,7 +187,7 @@ export default function PartnerPersonalPortalPage() {
 
         allPersonalExterno.forEach(pedido => {
             const os = osMap.get(pedido.osId);
-            if (!os || os.status !== 'Confirmado') return; // <-- CORREGIDO AQUI
+            if (!os) return; // Removed filter os.status === 'Confirmado'
             
             const briefing = briefingsMap.get(pedido.osId);
 
@@ -412,6 +413,7 @@ export default function PartnerPersonalPortalPage() {
                                                         <Table>
                                                             <TableHeader>
                                                                 <TableRow>
+                                                                    <TableHead>Fecha</TableHead>
                                                                     <TableHead>Pedido (Cliente)</TableHead>
                                                                     <TableHead>Categoría</TableHead>
                                                                     <TableHead>Horario</TableHead>
@@ -422,6 +424,7 @@ export default function PartnerPersonalPortalPage() {
                                                             <TableBody>
                                                                 {dailyTurnos.map(turno => (
                                                                     <TableRow key={turno.id} className={cn("transition-colors", statusRowClass[turno.statusPartner])}>
+                                                                        <TableCell>{format(new Date(turno.fecha), 'dd/MM/yyyy')}</TableCell>
                                                                         <TableCell>
                                                                             <Badge variant="secondary">{turno.serviceNumber}</Badge>
                                                                             <p className="text-xs text-muted-foreground">{turno.cliente}</p>
@@ -529,8 +532,3 @@ export default function PartnerPersonalPortalPage() {
         </TooltipProvider>
     );
 }
-
-    
-
-    
-
