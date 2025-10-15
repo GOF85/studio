@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -12,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatUnit } from '@/lib/utils';
-import type { PersonalExternoTurno, AsignacionPersonal, Entrega, PedidoEntrega, Proveedor, ServiceOrder, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import type { PersonalExternoTurno, AsignacionPersonal, Entrega, PedidoEntrega, Proveedor, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExternoDB } from '@/types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -30,6 +31,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 import { logActivity } from '../activity-log/utils';
+import { Combobox } from '@/components/ui/combobox';
 
 
 type TurnoConDetalles = PersonalExternoTurno & {
@@ -59,9 +61,14 @@ type DayDetails = {
 
 function AsignacionDialog({ turno, onSave, children, isReadOnly }: { turno: TurnoConDetalles; onSave: (turnoId: string, asignaciones: AsignacionPersonal[]) => void; children: React.ReactNode, isReadOnly: boolean }) {
     const [isOpen, setIsOpen] = useState(false);
+    const [personalExternoDB, setPersonalExternoDB] = useState<PersonalExternoDB[]>([]);
+    
     const [asignacion, setAsignacion] = useState<AsignacionPersonal>({ id: '1', nombre: '', dni: '', telefono: '', comentarios: '', horaEntradaReal: '', horaSalidaReal: '' });
     
     useEffect(() => {
+        const storedDB = JSON.parse(localStorage.getItem('personalExternoDB') || '[]') as PersonalExternoDB[];
+        setPersonalExternoDB(storedDB);
+
         if(isOpen) {
              setAsignacion(turno.asignaciones?.[0] || { id: '1', nombre: '', dni: '', telefono: '', comentarios: '', horaEntradaReal: '', horaSalidaReal: '' });
         }
@@ -70,6 +77,17 @@ function AsignacionDialog({ turno, onSave, children, isReadOnly }: { turno: Turn
     const updateAsignacion = (field: keyof Omit<AsignacionPersonal, 'id'>, value: string) => {
         setAsignacion(prev => ({ ...prev, [field]: value }));
     };
+
+    const handleSelectPersonal = (personalId: string) => {
+        const personal = personalExternoDB.find(p => p.id === personalId);
+        if (personal) {
+            setAsignacion(prev => ({
+                ...prev,
+                nombre: personal.nombreCompleto,
+                dni: personal.id,
+            }));
+        }
+    }
 
     const handleSave = () => {
         if (!asignacion.nombre) {
@@ -94,6 +112,15 @@ function AsignacionDialog({ turno, onSave, children, isReadOnly }: { turno: Turn
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
+                    <div className="space-y-1">
+                        <Label>Buscar Personal Existente</Label>
+                        <Combobox
+                            options={personalExternoDB.map(p => ({ label: p.nombreCompleto, value: p.id }))}
+                            value={asignacion.dni || ''}
+                            onChange={(value) => handleSelectPersonal(value)}
+                            placeholder="Buscar por nombre o DNI..."
+                        />
+                    </div>
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1"><Label htmlFor={`nombre-${asignacion.id}`}>Nombre y Apellidos</Label><Input id={`nombre-${asignacion.id}`} placeholder="Nombre completo" value={asignacion.nombre} onChange={e => updateAsignacion('nombre', e.target.value)} /></div>
                         <div className="space-y-1"><Label htmlFor={`dni-${asignacion.id}`}>DNI</Label><Input id={`dni-${asignacion.id}`} placeholder="DNI" value={asignacion.dni} onChange={e => updateAsignacion('dni', e.target.value)} /></div>
@@ -132,8 +159,7 @@ export default function PartnerPersonalPortalPage() {
 
     const isReadOnly = useMemo(() => {
         if (!impersonatedUser) return true;
-        const isPartner = impersonatedUser.roles?.includes('Partner Personal');
-        return !isPartner && !isAdminOrComercial;
+        return isAdminOrComercial;
     }, [impersonatedUser, isAdminOrComercial]);
 
     const loadData = useCallback(() => {
@@ -161,7 +187,7 @@ export default function PartnerPersonalPortalPage() {
 
         allPersonalExterno.forEach(pedido => {
             const os = osMap.get(pedido.osId);
-            if (!os) return;
+            if (!os || os.status !== 'Solicitado') return;
             
             const briefing = briefingsMap.get(pedido.osId);
 
@@ -504,5 +530,7 @@ export default function PartnerPersonalPortalPage() {
         </TooltipProvider>
     );
 }
+
+    
 
     
