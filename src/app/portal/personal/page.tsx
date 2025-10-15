@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -187,7 +186,7 @@ export default function PartnerPersonalPortalPage() {
 
         allPersonalExterno.forEach(pedido => {
             const os = osMap.get(pedido.osId);
-            if (!os || os.status !== 'Solicitado') return;
+            if (!os || os.status !== 'Confirmado') return; // <-- CORREGIDO AQUI
             
             const briefing = briefingsMap.get(pedido.osId);
 
@@ -326,7 +325,7 @@ export default function PartnerPersonalPortalPage() {
 
 
     if (!isMounted) {
-        return <LoadingSkeleton title="Cargando Portal de Personal Externo..." />;
+        return <LoadingSkeleton title="Cargando Portal de Partner de Personal..." />;
     }
     
     if(impersonatedUser?.roles?.includes('Partner Personal') && !impersonatedUser?.proveedorId) {
@@ -534,3 +533,4 @@ export default function PartnerPersonalPortalPage() {
     
 
     
+
