@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -7,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Save, UserPlus, X } from 'lucide-react';
+import { Loader2, Save, UserPlus, X, Building2 } from 'lucide-react';
 import type { PersonalExternoDB, Proveedor } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -17,6 +16,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useLoadingStore } from '@/hooks/use-loading-store';
 import { Combobox } from '@/components/ui/combobox';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export const personalExternoDBSchema = z.object({
   id: z.string().min(1, 'El DNI es obligatorio.'),
@@ -24,6 +24,8 @@ export const personalExternoDBSchema = z.object({
   nombre: z.string().min(1, 'El nombre es obligatorio.'),
   apellido1: z.string().min(1, 'El primer apellido es obligatorio.'),
   apellido2: z.string().optional().default(''),
+  telefono: z.string().optional().default(''),
+  email: z.string().email("Debe ser un email válido").or(z.literal('')).optional(),
 });
 
 type FormValues = z.infer<typeof personalExternoDBSchema>;
@@ -34,6 +36,8 @@ const defaultValues: Partial<FormValues> = {
   apellido2: '',
   proveedorId: '',
   id: '',
+  telefono: '',
+  email: '',
 };
 
 export default function PersonalExternoDBFormPage() {
@@ -50,6 +54,11 @@ export default function PersonalExternoDBFormPage() {
     resolver: zodResolver(personalExternoDBSchema),
     defaultValues,
   });
+
+  const selectedProviderId = form.watch('proveedorId');
+  const selectedProviderData = useMemo(() => {
+    return proveedores.find(p => p.id === selectedProviderId);
+  }, [selectedProviderId, proveedores]);
 
   useEffect(() => {
     const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
@@ -143,7 +152,7 @@ export default function PersonalExternoDBFormPage() {
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               <FormField control={form.control} name="id" render={({ field }) => (
-                <FormItem><FormLabel>DNI</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>DNI</FormLabel><FormControl><Input {...field} disabled={isEditing} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="proveedorId" render={({ field }) => (
                 <FormItem className="lg:col-span-2">
@@ -165,6 +174,12 @@ export default function PersonalExternoDBFormPage() {
               )} />
               <FormField control={form.control} name="apellido2" render={({ field }) => (
                 <FormItem><FormLabel>Segundo Apellido</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+               <FormField control={form.control} name="telefono" render={({ field }) => (
+                <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+               <FormField control={form.control} name="email" render={({ field }) => (
+                <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
             </CardContent>
           </Card>

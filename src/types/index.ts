@@ -963,6 +963,8 @@ export type PersonalExternoDB = {
     apellido2: string;
     nombreCompleto: string;
     nombreCompacto: string;
+    telefono?: string;
+    email?: string;
 }
 
 export type PortalUserRole = 'Admin' | 'Comercial' | 'CPR' | 'Pase' | 'Dirección' | 'Almacen' | 'Operaciones' | 'Project Manager' | 'Partner Gastronomia' | 'Partner Personal' | 'Transporte';
