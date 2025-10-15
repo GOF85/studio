@@ -45,6 +45,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
     const isEntregasManual = pathname.includes('/entregas-manual');
     const isTechDocs = pathname.includes('/tech-docs');
     const isInfoIA = pathname.includes('/info-ia');
+    const isSuperPrompt = pathname.includes('/super-prompt');
 
     let activeNav: { title: string; path: string; icon: React.ElementType; }[] = [];
     if (isCateringManual) activeNav = cateringManualNav;
@@ -69,6 +70,9 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                                     <div>
                                         <h3 className="text-sm font-semibold text-primary mb-2">Guías Principales</h3>
                                         <nav className="space-y-1">
+                                            <Link href="/docs/super-prompt" className={cn("flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === '/docs/super-prompt' && "bg-accent")}>
+                                                <Bot /> Super Prompt
+                                            </Link>
                                              <Link href="/docs/info-ia" className={cn("flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === '/docs/info-ia' && "bg-accent")}>
                                                 <Info /> Info IA
                                             </Link>
