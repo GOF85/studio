@@ -11,7 +11,6 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, Save, FilePlus, Calendar as CalendarIcon, Loader2, X } from 'lucide-react';
 import type { ServiceOrder, AtipicoDBItem, AtipicoOrder } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -156,7 +155,6 @@ export default function PedidoAtipicoPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>

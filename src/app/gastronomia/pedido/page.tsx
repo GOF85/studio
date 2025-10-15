@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -13,7 +14,6 @@ import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSe
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -289,7 +289,6 @@ export default function PedidoGastronomiaPage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>

@@ -1,13 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Users, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Users, Menu, FileUp, FileDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { PersonalMiceOrder, ServiceOrder } from '@/types';
-import { Header } from '@/components/layout/header';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -36,12 +35,13 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { Badge } from '@/components/ui/badge';
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -117,7 +117,6 @@ export default function PersonalMicePage() {
 
   return (
     <>
-      <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Users />Gestión de Personal MICE</h1>
@@ -198,4 +197,3 @@ export default function PersonalMicePage() {
     </>
   );
 }
-

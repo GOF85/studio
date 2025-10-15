@@ -1,3 +1,5 @@
+
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -7,6 +9,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { ArrowLeft, Users, Building2, Save, Loader2, PlusCircle, Trash2, Calendar as CalendarIcon, Info, Clock, Phone, MapPin, RefreshCw, Star, MessageSquare, Pencil, AlertTriangle, CheckCircle, Send, Printer, FileText, Upload } from 'lucide-react';
 
 import type { PersonalExternoAjuste, ServiceOrder, ComercialBriefing, ComercialBriefingItem, PersonalExterno, CategoriaPersonal, Proveedor, PersonalExternoTurno, AsignacionPersonal, EstadoPersonalExterno } from '@/types';
@@ -34,6 +38,9 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/comp
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
+import { logActivity } from '../activity-log/utils';
+
 
 const solicitadoPorOptions = ['Sala', 'Pase', 'Otro'] as const;
 const tipoServicioOptions = ['Producción', 'Montaje', 'Servicio', 'Recogida', 'Descarga'] as const;
@@ -43,6 +50,7 @@ const asignacionSchema = z.object({
   nombre: z.string(),
   dni: z.string().optional(),
   telefono: z.string().optional(),
+  email: z.string().email().optional().or(z.literal('')),
   comentarios: z.string().optional(),
   rating: z.number().optional(),
   comentariosMice: z.string().optional(),
@@ -126,19 +134,22 @@ function CommentDialog({ turnoIndex, form }: { turnoIndex: number; form: any }) 
 }
 
 export default function PersonalExternoPage() {
-  const [serviceOrder, setServiceOrder = useState<ServiceOrder | null>(null);
-  const [isMounted, setIsMounted = useState(false);
-  const [proveedoresDB, setProveedoresDB = useState<CategoriaPersonal[]>([]);
-  const [allProveedores, setAllProveedores = useState<Proveedor[]>([]);
-  const [isLoading, setIsLoading = useState(false);
-  const [rowToDelete, setRowToDelete = useState<number | null>(null);
-  const [briefingItems, setBriefingItems = useState<ComercialBriefingItem[]>([]);
-  const [personalExterno, setPersonalExterno = useState<PersonalExterno | null>(null);
+  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+  const [proveedoresDB, setProveedoresDB] = useState<CategoriaPersonal[]>([]);
+  const [allProveedores, setAllProveedores] = useState<Proveedor[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [rowToDelete, setRowToDelete] = useState<number | null>(null);
+  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
+  const [personalExterno, setPersonalExterno] = useState<PersonalExterno | null>(null);
   
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const { toast } = useToast();
+  const { impersonatedUser } = useImpersonatedUser();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -158,6 +169,7 @@ export default function PersonalExternoPage() {
   });
   
   const loadData = useCallback(() => {
+    if (!osId || !impersonatedUser) return;
     try {
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const currentOS = allServiceOrders.find(os => os.id === osId);
@@ -189,7 +201,7 @@ export default function PersonalExternoPage() {
     } finally {
         setIsMounted(true);
     }
-  }, [osId, toast, form]);
+  }, [osId, toast, form, impersonatedUser]);
 
   useEffect(() => {
     loadData();
@@ -385,7 +397,6 @@ export default function PersonalExternoPage() {
   const turnosAprobados = useMemo(() => {
     return watchedFields?.filter(t => t.statusPartner === 'Gestionado' && t.asignaciones && t.asignaciones.length > 0) || [];
   }, [watchedFields]);
-
 
   if (!isMounted || !serviceOrder) {
     return <LoadingSkeleton title="Cargando Módulo de Personal Externo..." />;
@@ -620,14 +631,18 @@ export default function PersonalExternoPage() {
 
                                                 return (
                                                 <TableRow key={asignacion.id} className={cn(hasTimeMismatch && "bg-amber-50")}>
-                                                    <TableCell className="font-semibold flex items-center gap-2">
-                                                        {hasTimeMismatch && (
-                                                            <Tooltip>
-                                                                <TooltipTrigger><AlertTriangle className="h-4 w-4 text-amber-500" /></TooltipTrigger>
-                                                                <TooltipContent><p>Desviación: {deviation > 0 ? '+' : ''}{formatDuration(deviation)} horas</p></TooltipContent>
-                                                            </Tooltip>
-                                                        )}
-                                                        {asignacion.nombre}
+                                                    <TableCell className="font-semibold">
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <div className="flex items-center gap-2 cursor-default">
+                                                                    {hasTimeMismatch && <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                                                                    {asignacion.nombre}
+                                                                </div>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Desviación: {deviation > 0 ? '+' : ''}{formatDuration(deviation)} horas</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
                                                     </TableCell>
                                                     <TableCell>{asignacion.dni}</TableCell>
                                                     <TableCell>
@@ -657,12 +672,6 @@ export default function PersonalExternoPage() {
                         <Card>
                             <CardHeader className="py-3 flex-row items-center justify-between">
                                 <CardTitle className="text-lg">Documentación</CardTitle>
-                                <div className="flex gap-2">
-                                    <Button type="button" variant="outline" onClick={handlePrintParte} disabled={isPrinting}>
-                                        {isPrinting ? <Loader2 className="mr-2 animate-spin"/> : <Printer className="mr-2" />}
-                                        Imprimir Parte de Horas
-                                    </Button>
-                                </div>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <Card>
@@ -741,9 +750,9 @@ export default function PersonalExternoPage() {
                                         <Button type="button" variant="ghost" size="icon" className="text-destructive h-9" onClick={() => removeAjuste(index)}><Trash2 className="h-4 w-4"/></Button>
                                     </div>
                                 ))}
-                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={addAjusteRow}>Añadir Ajuste</Button>
+                                <Button size="xs" variant="outline" className="w-full" type="button" onClick={() => appendAjuste({ id: Date.now().toString(), proveedorId: '', concepto: '', importe: 0 })}>Añadir Ajuste</Button>
                                  <Separator className="my-2" />
-                                  <div className="flex justify-between font-bold">
+                                  <div className="flex justify-end font-bold">
                                       <span>Total Ajustes:</span>
                                       <span>{formatCurrency(totalAjustes)}</span>
                                   </div>
