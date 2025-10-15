@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Info, Palette, Database, GitBranch, Workflow, Package, Factory, ShieldCheck, BarChart3, Users, Code, BookOpen, Warehouse } from "lucide-react";

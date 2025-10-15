@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Award, Zap, ShieldCheck, Scale, GitBranch, Share2, BarChart3 } from "lucide-react";
@@ -54,7 +55,7 @@ export default function FeaturesPage() {
                 <ul>
                     <li><strong>Estados Claros:</strong> Cada Orden de Fabricación (OF) y Hoja de Picking pasa por estados definidos (Pendiente &rarr; En Proceso &rarr; Listo), ofreciendo visibilidad total del taller.</li>
                     <li><strong>Trazabilidad Total:</strong> Cada lote de producción y cada expedición de material están vinculados a los eventos que van a servir. Ante una incidencia, puedes trazar el camino completo.</li>
-                    <li><strong>Picking Guiado:</strong> Las hojas de picking digitales le dicen al equipo de logística y almacén exactamente qué elaboraciones o materiales recoger, para qué evento, y en qué cantidad, eliminando errores.</li>
+                     <li><strong>Picking Guiado:</strong> Las hojas de picking digitales le dicen al equipo de logística y almacén exactamente qué elaboraciones o materiales recoger, para qué evento, y en qué cantidad, eliminando errores.</li>
                      <li><strong>Gestión de Incidencias:</strong> Un módulo centralizado para gestionar discrepancias en el picking (mermas, roturas). Las decisiones tomadas (aceptar merma, sustituir) actualizan la información en el pedido original, manteniendo la coherencia de datos.</li>
                 </ul>
                 <p><strong>Valor:</strong> Control y seguridad operativa. Garantiza la calidad, cumple con la normativa de trazabilidad y reduce a mínimos los errores logísticos.</p>
