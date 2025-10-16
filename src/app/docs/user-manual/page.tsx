@@ -54,20 +54,20 @@ export default function UserManualPage() {
                 <h5>Desglose de la Entidad <code>IngredienteERP</code></h5>
                 <p>Esta entidad representa cada producto individual que se compra a un proveedor. Es la fuente de la verdad para los costes de materia prima.</p>
                 <ul>
-                    <li><strong><code>id</code></strong> (<code>string</code>): Identificador único para el producto dentro de nuestro sistema.</li>
-                    <li><strong><code>idProveedor</code></strong> (<code>string</code>, opcional): El ID del proveedor en nuestro sistema (`Proveedores`), si está disponible.</li>
-                    <li><strong><code>nombreProductoERP</code></strong> (<code>string</code>): El nombre oficial del producto, tal como aparece en las facturas del proveedor. Es un campo obligatorio.</li>
-                    <li><strong><code>referenciaProveedor</code></strong> (<code>string</code>, opcional): El código o referencia que el proveedor utiliza para este producto.</li>
-                    <li><strong><code>nombreProveedor</code></strong> (<code>string</code>, opcional): Nombre del proveedor al que se compra el producto.</li>
-                    <li><strong><code>familiaCategoria</code></strong> (<code>string</code>, opcional): Una categoría de alto nivel para agrupar productos (ej. "Lácteos", "Carnes", "Pescados").</li>
-                    <li><strong><code>precioCompra</code></strong> (<code>number</code>): El precio al que se compra el producto en su formato de compra. Por ejemplo, el precio de un saco de 25 kg de harina.</li>
-                    <li><strong><code>unidadConversion</code></strong> (<code>number</code>): Campo clave. Es el factor por el cual se divide el `precioCompra` para obtener el coste por la unidad base. Si compras un saco de 25 kg, la `unidadConversion` es `25`.</li>
-                    <li><strong><code>precio</code></strong> (<code>number</code>): **Campo calculado automáticamente**. Representa el coste real por la unidad base (`precio = precioCompra / unidadConversion`). Es el que se usará en los escandallos.</li>
-                    <li><strong><code>precioAlquiler</code></strong> (<code>number</code>, opcional): Para artículos que también se pueden alquilar.</li>
-                    <li><strong><code>unidad</code></strong> (<code>enum</code>): La unidad base del producto después de la conversión (KILO, LITRO, UNIDAD, etc.).</li>
-                    <li><strong><code>tipo</code></strong> (<code>string</code>, opcional): Una subcategoría más específica (ej. para "Lácteos", el tipo podría ser "Queso").</li>
-                    <li><strong><code>alquiler</code></strong> (<code>boolean</code>): Indica si este producto es apto para alquiler.</li>
-                    <li><strong><code>observaciones</code></strong> (<code>string</code>, opcional): Campo de texto libre para cualquier nota relevante.</li>
+                    <li><strong><code>id</code></strong> (`string`): Identificador único para el producto dentro de nuestro sistema.</li>
+                    <li><strong><code>idProveedor</code></strong> (`string`, opcional): El ID del proveedor en nuestro sistema (`Proveedores`), si está disponible.</li>
+                    <li><strong><code>nombreProductoERP</code></strong> (`string`): El nombre oficial del producto, tal como aparece en las facturas del proveedor. Es un campo obligatorio.</li>
+                    <li><strong><code>referenciaProveedor</code></strong> (`string`, opcional): El código o referencia que el proveedor utiliza para este producto.</li>
+                    <li><strong><code>nombreProveedor</code></strong> (`string`, opcional): Nombre del proveedor al que se compra el producto.</li>
+                    <li><strong><code>familiaCategoria</code></strong> (`string`, opcional): Una categoría de alto nivel para agrupar productos (ej. "Lácteos", "Carnes", "Pescados").</li>
+                    <li><strong><code>precioCompra</code></strong> (`number`): El precio al que se compra el producto en su formato de compra. Por ejemplo, el precio de un saco de 25 kg de harina.</li>
+                    <li><strong><code>unidadConversion</code></strong> (`number`): Campo clave. Es el factor por el cual se divide el `precioCompra` para obtener el coste por la unidad base. Si compras un saco de 25 kg, la `unidadConversion` es `25`.</li>
+                    <li><strong><code>precio</code></strong> (`number`): **Campo calculado automáticamente**. Representa el coste real por la unidad base (`precio = precioCompra / unidadConversion`). Es el que se usará en los escandallos.</li>
+                    <li><strong><code>precioAlquiler</code></strong> (`number`, opcional): Para artículos que también se pueden alquilar.</li>
+                    <li><strong><code>unidad</code></strong> (`enum`): La unidad base del producto después de la conversión (KILO, LITRO, UNIDAD, etc.).</li>
+                    <li><strong><code>tipo</code></strong> (`string`, opcional): Una subcategoría más específica (ej. para "Lácteos", el tipo podría ser "Queso").</li>
+                    <li><strong><code>alquiler</code></strong> (`boolean`): Indica si este producto es apto para alquiler.</li>
+                    <li><strong><code>observaciones</code></strong> (`string`, opcional): Campo de texto libre para cualquier nota relevante.</li>
                 </ul>
 
                 <h4>3.2. Nivel 2: Elaboraciones (Sub-recetas)</h4>
@@ -79,11 +79,13 @@ export default function UserManualPage() {
                 </ul>
                 
                 <h4>3.3. Nivel 3: Recetas (El Plato Final)</h4>
-                <p>La "Receta" es el plato que se vende al cliente y que aparece en las propuestas comerciales (ej. "Lasaña de Berenjenas").</p>
+                <p>La "Receta" es el plato que se vende al cliente y que aparece en las propuestas comerciales (ej. "Lasaña de Berenjenas a la Parmesana").</p>
                 <ul>
                     <li><strong>Composición:</strong> Se construyen combinando una o más Elaboraciones.</li>
                     <li><strong>Coste y Precio de Venta:</strong> El sistema suma el coste de cada elaboración para obtener el **Coste de Materia Prima** del plato. A partir de ahí, y usando el margen de beneficio definido, calcula el **Precio de Venta** recomendado.</li>
-                    <li><strong>Instrucciones y Atributos:</strong> Se añaden las instrucciones finales de emplatado, y se clasifica la receta con información para el equipo comercial (sabor, temporada, tipo de dieta, etc.).</li>
+                    <li><strong>Alérgenos Consolidados:</strong> De nuevo, se agregan automáticamente los alérgenos de todas las elaboraciones que la componen, proporcionando una ficha de alérgenos completa y fiable para el plato final.</li>
+                    <li><strong>Instrucciones de Pase:</strong> Aquí se añaden las instrucciones finales de mise-en-place, regeneración y emplatado para el equipo de servicio en el evento.</li>
+                    <li><strong>Atributos Gastronómicos:</strong> Puedes clasificar la receta con un montón de información útil para el equipo comercial, como el perfil de sabor, la estacionalidad, el tipo de dieta, la temperatura de servicio, etc.</li>
                 </ul>
 
                 <p className="font-semibold">Este flujo (`Materia Prima` &rarr; `Ingrediente` &rarr; `Elaboración` &rarr; `Receta`) garantiza un control total y en tiempo real sobre los costes y alérgenos de tu oferta gastronómica.</p>
@@ -122,11 +124,12 @@ export default function UserManualPage() {
 
             <section id="c6">
                 <h2 className="flex items-center gap-3"><GitBranch />Capítulo 6: Estructura Económica y Operativa</h2>
-                <p>La aplicación está diseñada para reflejar la estructura de centros de coste de la empresa, permitiendo un análisis financiero preciso y una imputación de costes correcta.</p>
                 <h3>6.1. Cálculo de Rentabilidad en la Cuenta de Explotación</h3>
                 <p>La Cta. de Explotación es la herramienta definitiva para entender la salud financiera de cada evento. La rentabilidad se calcula siguiendo estos pasos:</p>
                 <ol>
-                    <li><strong>Facturación Neta:</strong> Se calcula el total facturado en el briefing comercial y se le restan todas las comisiones (agencias) y cánones (espacios). Este es el ingreso real para MICE Catering.</li>
+                    <li><strong>Facturación Neta:</strong> Se calcula el total facturado en el briefing comercial y se le restan todas las comisiones (agencias) y cánones (espacios). Este es el ingreso real para MICE Catering.
+                        <code className="block text-center p-2 bg-muted rounded-md mt-1">Facturación Neta = (Total del Briefing + Ajustes) - Comisiones y Cánones</code>
+                    </li>
                     <li><strong>Total Costes Directos:</strong> Se suman todos los costes de los módulos asociados al evento (Gastronomía, Bodega, Personal, Transporte, etc.). La Cta. de Explotación muestra tres versiones de este coste:
                         <ul>
                             <li><strong>Presupuesto:</strong> El coste según los pedidos iniciales.</li>
@@ -134,19 +137,41 @@ export default function UserManualPage() {
                             <li><strong>Real:</strong> Un campo editable para introducir el coste final real si difiere de los anteriores.</li>
                         </ul>
                     </li>
-                    <li><strong>Rentabilidad Bruta (Margen Bruto):</strong> Es el primer nivel de beneficio. Se calcula como: <code className="block text-center p-2 bg-muted rounded-md">Facturación Neta - Total de Costes Directos</code></li>
-                    <li><strong>Repercusión HQ:</strong> Para cubrir los gastos de estructura (administración, marketing, etc.), se imputa un coste fijo del **25% sobre la Rentabilidad Bruta**. <code className="block text-center p-2 bg-muted rounded-md">Rentabilidad Bruta * 0.25</code></li>
-                    <li><strong>Rentabilidad Post-HQ (Beneficio Neto):</strong> Es el resultado final del evento. <code className="block text-center p-2 bg-muted rounded-md">Rentabilidad Bruta - Repercusión HQ</code></li>
+                    <li><strong>Rentabilidad Bruta (Margen Bruto):</strong> Es el primer nivel de beneficio, antes de considerar los costes de estructura.
+                        <code className="block text-center p-2 bg-muted rounded-md mt-1">Rentabilidad Bruta = Facturación Neta - Total de Costes Directos</code>
+                    </li>
+                    <li><strong>Repercusión HQ:</strong> Para cubrir los gastos de estructura (administración, marketing, etc.), se imputa un coste fijo del **25% sobre la Rentabilidad Bruta**.
+                        <code className="block text-center p-2 bg-muted rounded-md mt-1">Repercusión HQ = Rentabilidad Bruta * 0.25</code>
+                    </li>
+                    <li><strong>Rentabilidad Post-HQ (Beneficio Neto):</strong> Es el resultado final del evento.
+                        <code className="block text-center p-2 bg-muted rounded-md mt-1">Rentabilidad Post-HQ = Rentabilidad Bruta - Repercusión HQ</code>
+                    </li>
                 </ol>
-                <h3>6.2. Centros de Coste</h3>
+
+                <h3>6.2. Bases de Datos de Proveedores</h3>
+                <p>El sistema utiliza una estructura modular para gestionar los proveedores, basada en una entidad central y catálogos de servicios específicos.</p>
+                
+                <h4>Entidad Principal: <code>Proveedor</code></h4>
+                <p>Esta es la ficha maestra que contiene la información fiscal y de contacto de cualquier empresa que te presta un servicio.</p>
                 <ul>
-                    <li><strong>CPR (Centro de Producción):</strong> Responsable de toda la producción gastronómica (cocineros, director gastronómico). Sus ingresos provienen de las "compras" internas que le hace la unidad de Catering para cada evento. Su objetivo es cubrir sus costes operativos (materia prima, personal, etc.).</li>
-                    <li><strong>Catering (Sala y Pase):</strong> Es la unidad que factura al cliente final. Se encarga del servicio en el evento (maîtres, camareros, cocineros de pase). Sus costes son el personal, la gastronomía (que le compra a CPR), bebidas, transporte, etc.</li>
-                    <li><strong>Almacén:</strong> Centro logístico para material no gastronómico. Se financia a través de un % de cada referencia servida y por los servicios de transporte. Cubre sus propios gastos de personal, mantenimiento y reposición.</li>
-                    <li><strong>HQ (Administración):</strong> Engloba los departamentos transversales (administración, marketing, etc.). Se financia con un 25% de la rentabilidad final de cada evento para cubrir sus gastos operativos.</li>
+                    <li><strong>`id`, `cif`, `IdERP`</strong>: Identificadores únicos.</li>
+                    <li><strong>`nombreEmpresa`, `nombreComercial`</strong>: Nombres fiscal y comercial.</li>
+                    <li><strong>`direccionFacturacion`, `emailContacto`, etc.</strong>: Datos de contacto y facturación.</li>
+                    <li><strong>`tipos`</strong>: Campo crucial que define qué servicios ofrece (`Transporte`, `Personal`, `Alquiler`, etc.), permitiendo filtrar proveedores en cada módulo.</li>
                 </ul>
-                 <h3>6.3. Flujo de Personal y RRHH</h3>
-                <p>El responsable de producción de un evento propone una necesidad de personal (ej: 10 camareros) basada en ratios estándar. RRHH recibe esta propuesta, la valida, y es el departamento con la autoridad final para asignar el personal interno o solicitarlo a ETTs, optimizando los recursos de la empresa a nivel global.</p>
+
+                <h4>Catálogos de Servicios de Proveedores</h4>
+                <p>Una vez dado de alta un proveedor, defines sus servicios y tarifas en catálogos específicos:</p>
+                <ul>
+                    <li><strong>`CategoriaPersonal` (Personal Externo)</strong>: Define las tarifas por categoría (`Camarero`, `Cocinero`) para una ETT específica, vinculándose a través de `proveedorId`.</li>
+                    <li><strong>`TipoTransporte` (Transporte)</strong>: Define los vehículos y precios por servicio para una empresa de transporte, también vinculada por `proveedorId`.</li>
+                </ul>
+
+                <h4>Base de Datos de Trabajadores: <code>PersonalExternoDB</code></h4>
+                <p>Un registro de las **personas físicas** que las ETTs envían a tus eventos. Se identifica a cada trabajador por su DNI (`id`) y se le asocia a su ETT (`proveedorId`).</p>
+                
+                <h3>6.3. Centros de Coste y Flujo de Personal</h3>
+                <p>La aplicación refleja la estructura de centros de coste de la empresa (CPR, Catering, Almacén, HQ), permitiendo un análisis financiero preciso. En cuanto al personal, el responsable de producción propone una necesidad, y RRHH tiene la autoridad final para validar y asignar los recursos, ya sean internos o externos, optimizando la plantilla a nivel global.</p>
             </section>
             
             <section id="c7">
