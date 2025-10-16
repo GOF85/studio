@@ -1,7 +1,7 @@
 
 'use client';
 
-import { LifeBuoy, Users, Code, Package, Award, GitBranch, Bot } from "lucide-react";
+import { LifeBuoy, Users, Code, Package, Award, GitBranch, Bot, Info, Palette } from "lucide-react";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 
@@ -27,6 +27,30 @@ export default function DocsPage() {
             <CardContent>
               <CardDescription>
                 El prompt maestro con toda la información del proyecto para poner al día a la IA y asegurar la coherencia en el desarrollo.
+              </CardDescription>
+            </CardContent>
+          </Card>
+        </Link>
+         <Link href="/docs/info-ia" className="no-underline">
+          <Card className="hover:border-primary/50 hover:shadow-lg transition-all h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3"><Info />Info IA</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription>
+                Documentación integral del proyecto, incluyendo arquitectura, flujos de trabajo y estructura de datos.
+              </CardDescription>
+            </CardContent>
+          </Card>
+        </Link>
+         <Link href="/docs/design-info" className="no-underline">
+          <Card className="hover:border-primary/50 hover:shadow-lg transition-all h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3"><Palette />Información de Diseño</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription>
+                Guía visual y estructural de la interfaz de usuario de la aplicación, pantalla por pantalla.
               </CardDescription>
             </CardContent>
           </Card>
