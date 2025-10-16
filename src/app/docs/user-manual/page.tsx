@@ -40,13 +40,34 @@ export default function UserManualPage() {
             
             <section id="c3">
                 <h2 className="flex items-center gap-3"><BookOpen />Capítulo 3: El Corazón de la Cocina: El Book Gastronómico</h2>
-                <p>El Book Gastronómico es donde reside toda la inteligencia culinaria de la empresa. Desde aquí se gestionan ingredientes, elaboraciones y recetas finales.</p>
-                 <h3>3.1. Gestión de Materia Prima e Ingredientes</h3>
-                <p>Define los productos que compras a tus proveedores (Materia Prima ERP) y luego crea los "Ingredientes Internos" que usarás en tus recetas, vinculándolos a su coste y gestionando alérgenos.</p>
-                <h3>3.2. Creación y Escandallo de Elaboraciones</h3>
-                <p>Una elaboración es una preparación base (ej: una salsa, un caldo, un sofrito). Aquí se define su receta (escandallo), su coste, su **tipo de expedición** (refrigerado, seco) y su método de preparación.</p>
-                <h3>3.3. Creación de Recetas</h3>
-                <p>Una receta es el plato final. Se construye combinando elaboraciones. Aquí se define el gramaje de cada elaboración por ración, el menaje, las instrucciones de emplatado, el precio de venta recomendado y atributos gastronómicos clave.</p>
+                <p>El Book Gastronómico es el motor que calcula los costes, gestiona los alérgenos y asegura la consistencia desde la compra de materia prima hasta el plato que se sirve en el evento. Se organiza en una estructura jerárquica de tres niveles:</p>
+
+                <h4>3.1. Nivel 1: Ingredientes (Materia Prima)</h4>
+                <p>Esta es la base de todo. El sistema distingue entre dos conceptos:</p>
+                <ul>
+                    <li><strong>Materia Prima (ERP):</strong> Refleja cómo compras los productos a tus proveedores. Por ejemplo, "Saco de harina de 25 kg" o "Caja de 12 botellas de aceite". Cada entrada tiene su proveedor y precio de compra.</li>
+                    <li><strong>Ingredientes Internos:</strong> Es la capa de abstracción que usa la cocina (ej. "Harina", "Aceite de Oliva"). Cada ingrediente se vincula a un producto de la Materia Prima para obtener su coste por unidad base (kg, litro, etc.).</li>
+                </ul>
+                <p className="border-l-4 border-primary pl-4 py-2 bg-secondary/50"><strong>¿Por qué esta separación?</strong> Permite una flexibilidad total. Si cambias de proveedor de harina, solo tienes que actualizar el vínculo en el "Ingrediente Interno", y el coste se recalculará automáticamente en todas las recetas que lo usen.</p>
+                <p>Además, en el Ingrediente Interno se definen dos datos críticos: el **% de merma** (desperdicio al limpiar/preparar) y los **alérgenos**. Esta información se propaga automáticamente hacia arriba.</p>
+
+                <h4>3.2. Nivel 2: Elaboraciones (Sub-recetas)</h4>
+                <p>Una "Elaboración" es cualquier preparación que no es un plato final por sí misma, sino un componente (ej. "Salsa de Tomate", "Masa de Pizza").</p>
+                <ul>
+                    <li><strong>Composición:</strong> Se construyen combinando Ingredientes Internos.</li>
+                    <li><strong>Coste y Alérgenos Automáticos:</strong> El sistema suma el coste de cada ingrediente (ajustado por la merma) y agrega todos sus alérgenos para calcular el coste y el perfil de alérgenos de la elaboración.</li>
+                    <li><strong>Datos de Producción:</strong> Se define su partida (Frío, Caliente, Pastelería), las instrucciones y cómo se empaqueta.</li>
+                </ul>
+                
+                <h4>3.3. Nivel 3: Recetas (El Plato Final)</h4>
+                <p>La "Receta" es el plato que se vende al cliente y que aparece en las propuestas comerciales (ej. "Lasaña de Berenjenas").</p>
+                <ul>
+                    <li><strong>Composición:</strong> Se construyen combinando una o más Elaboraciones.</li>
+                    <li><strong>Coste y Precio de Venta:</strong> El sistema suma el coste de cada elaboración para obtener el **Coste de Materia Prima** del plato. A partir de ahí, y usando el margen de beneficio definido, calcula el **Precio de Venta** recomendado.</li>
+                    <li><strong>Instrucciones y Atributos:</strong> Se añaden las instrucciones finales de emplatado, y se clasifica la receta con información para el equipo comercial (sabor, temporada, tipo de dieta, etc.).</li>
+                </ul>
+
+                <p className="font-semibold">Este flujo (`Materia Prima` &rarr; `Ingrediente` &rarr; `Elaboración` &rarr; `Receta`) garantiza un control total y en tiempo real sobre los costes y alérgenos de tu oferta gastronómica.</p>
             </section>
 
             <section id="c4">
@@ -94,7 +115,7 @@ export default function UserManualPage() {
                             <li><strong>Real:</strong> Un campo editable para introducir el coste final real si difiere de los anteriores.</li>
                         </ul>
                     </li>
-                    <li><strong>Rentabilidad Bruta (Margen Bruto):</strong> Es el primer nivel de beneficio. Se calcula como: <code className="block text-center p-2 bg-muted rounded-md">Facturación Neta - Total Costes Directos</code></li>
+                    <li><strong>Rentabilidad Bruta (Margen Bruto):</strong> Es el primer nivel de beneficio. Se calcula como: <code className="block text-center p-2 bg-muted rounded-md">Facturación Neta - Total de Costes Directos</code></li>
                     <li><strong>Repercusión HQ:</strong> Para cubrir los gastos de estructura (administración, marketing, etc.), se imputa un coste fijo del **25% sobre la Rentabilidad Bruta**. <code className="block text-center p-2 bg-muted rounded-md">Rentabilidad Bruta * 0.25</code></li>
                     <li><strong>Rentabilidad Post-HQ (Beneficio Neto):</strong> Es el resultado final del evento. <code className="block text-center p-2 bg-muted rounded-md">Rentabilidad Bruta - Repercusión HQ</code></li>
                 </ol>
