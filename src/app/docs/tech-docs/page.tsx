@@ -21,7 +21,7 @@ export default function TechDocsPage() {
                 <Code className="w-10 h-10 text-primary" />
                 <div>
                     <h1 className="!m-0">Checklist de Funcionalidades</h1>
-                    <p className="lead !m-0">Un listado detallado de las capacidades técnicas y funcionales de la plataforma.</p>
+                    <p className="lead !m-0">Un listado técnico y detallado de todas las capacidades implementadas en la plataforma.</p>
                 </div>
             </div>
 
