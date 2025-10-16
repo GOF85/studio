@@ -53,22 +53,89 @@ export default function UserManualPage() {
 
                 <h5>Desglose de la Entidad <code>IngredienteERP</code></h5>
                 <p>Esta entidad representa cada producto individual que se compra a un proveedor. Es la fuente de la verdad para los costes de materia prima.</p>
-                <ul>
-                    <li><strong><code>id</code></strong> (`string`): Identificador único para el producto dentro de nuestro sistema.</li>
-                    <li><strong><code>idProveedor</code></strong> (`string`, opcional): El ID del proveedor en nuestro sistema (`Proveedores`), si está disponible.</li>
-                    <li><strong><code>nombreProductoERP</code></strong> (`string`): El nombre oficial del producto, tal como aparece en las facturas del proveedor. Es un campo obligatorio.</li>
-                    <li><strong><code>referenciaProveedor</code></strong> (`string`, opcional): El código o referencia que el proveedor utiliza para este producto.</li>
-                    <li><strong><code>nombreProveedor</code></strong> (`string`, opcional): Nombre del proveedor al que se compra el producto.</li>
-                    <li><strong><code>familiaCategoria</code></strong> (`string`, opcional): Una categoría de alto nivel para agrupar productos (ej. "Lácteos", "Carnes", "Pescados").</li>
-                    <li><strong><code>precioCompra</code></strong> (`number`): El precio al que se compra el producto en su formato de compra. Por ejemplo, el precio de un saco de 25 kg de harina.</li>
-                    <li><strong><code>unidadConversion</code></strong> (`number`): Campo clave. Es el factor por el cual se divide el `precioCompra` para obtener el coste por la unidad base. Si compras un saco de 25 kg, la `unidadConversion` es `25`.</li>
-                    <li><strong><code>precio</code></strong> (`number`): **Campo calculado automáticamente**. Representa el coste real por la unidad base (`precio = precioCompra / unidadConversion`). Es el que se usará en los escandallos.</li>
-                    <li><strong><code>precioAlquiler</code></strong> (`number`, opcional): Para artículos que también se pueden alquilar.</li>
-                    <li><strong><code>unidad</code></strong> (`enum`): La unidad base del producto después de la conversión (KILO, LITRO, UNIDAD, etc.).</li>
-                    <li><strong><code>tipo</code></strong> (`string`, opcional): Una subcategoría más específica (ej. para "Lácteos", el tipo podría ser "Queso").</li>
-                    <li><strong><code>alquiler</code></strong> (`boolean`): Indica si este producto es apto para alquiler.</li>
-                    <li><strong><code>observaciones</code></strong> (`string`, opcional): Campo de texto libre para cualquier nota relevante.</li>
-                </ul>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm my-4">
+                        <thead>
+                            <tr className="bg-muted">
+                                <th className="p-2 text-left">Campo</th>
+                                <th className="p-2 text-left">Tipo</th>
+                                <th className="p-2 text-left">Descripción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`id`</strong></td>
+                                <td className="p-2 font-mono">`string`</td>
+                                <td className="p-2">Identificador único para el producto dentro de nuestro sistema.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`idProveedor`</strong></td>
+                                <td className="p-2 font-mono">`string` (opcional)</td>
+                                <td className="p-2">El ID del proveedor en nuestro sistema (`Proveedores`), si está disponible.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`nombreProductoERP`</strong></td>
+                                <td className="p-2 font-mono">`string`</td>
+                                <td className="p-2">El nombre oficial del producto, tal como aparece en las facturas del proveedor. Es un campo obligatorio.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`referenciaProveedor`</strong></td>
+                                <td className="p-2 font-mono">`string` (opcional)</td>
+                                <td className="p-2">El código o referencia que el proveedor utiliza para este producto.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`nombreProveedor`</strong></td>
+                                <td className="p-2 font-mono">`string` (opcional)</td>
+                                <td className="p-2">Nombre del proveedor al que se compra el producto.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`familiaCategoria`</strong></td>
+                                <td className="p-2 font-mono">`string` (opcional)</td>
+                                <td className="p-2">Una categoría de alto nivel para agrupar productos (ej. "Lácteos", "Carnes", "Pescados").</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`precioCompra`</strong></td>
+                                <td className="p-2 font-mono">`number`</td>
+                                <td className="p-2">El precio al que se compra el producto en su formato de compra. Por ejemplo, el precio de un saco de 25 kg de harina.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`unidadConversion`</strong></td>
+                                <td className="p-2 font-mono">`number`</td>
+                                <td className="p-2">Campo clave. Es el factor por el cual se divide el `precioCompra` para obtener el coste por la unidad base. Si compras un saco de 25 kg, la `unidadConversion` es `25`.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`precio`</strong></td>
+                                <td className="p-2 font-mono">`number`</td>
+                                <td className="p-2"><strong>Campo calculado automáticamente</strong>. Representa el coste real por la unidad base (`precio = precioCompra / unidadConversion`). Es el que se usará en los escandallos.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`precioAlquiler`</strong></td>
+                                <td className="p-2 font-mono">`number` (opcional)</td>
+                                <td className="p-2">Para artículos que también se pueden alquilar.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`unidad`</strong></td>
+                                <td className="p-2 font-mono">`enum`</td>
+                                <td className="p-2">La unidad base del producto después de la conversión (KILO, LITRO, UNIDAD, etc.).</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`tipo`</strong></td>
+                                <td className="p-2 font-mono">`string` (opcional)</td>
+                                <td className="p-2">Una subcategoría más específica (ej. para "Lácteos", el tipo podría ser "Queso").</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`alquiler`</strong></td>
+                                <td className="p-2 font-mono">`boolean`</td>
+                                <td className="p-2">Indica si este producto es apto para alquiler.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`observaciones`</strong></td>
+                                <td className="p-2 font-mono">`string` (opcional)</td>
+                                <td className="p-2">Campo de texto libre para cualquier nota relevante.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
 
                 <h4>3.2. Nivel 2: Elaboraciones (Sub-recetas)</h4>
                 <p>Una "Elaboración" es cualquier preparación que no es un plato final por sí misma, sino un componente (ej. "Salsa de Tomate", "Masa de Pizza").</p>
@@ -153,12 +220,94 @@ export default function UserManualPage() {
                 
                 <h4>Entidad Principal: <code>Proveedor</code></h4>
                 <p>Esta es la ficha maestra que contiene la información fiscal y de contacto de cualquier empresa que te presta un servicio.</p>
-                <ul>
-                    <li><strong>`id`, `cif`, `IdERP`</strong>: Identificadores únicos.</li>
-                    <li><strong>`nombreEmpresa`, `nombreComercial`</strong>: Nombres fiscal y comercial.</li>
-                    <li><strong>`direccionFacturacion`, `emailContacto`, etc.</strong>: Datos de contacto y facturación.</li>
-                    <li><strong>`tipos`</strong>: Campo crucial que define qué servicios ofrece (`Transporte`, `Personal`, `Alquiler`, etc.), permitiendo filtrar proveedores en cada módulo.</li>
-                </ul>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm my-4">
+                        <thead>
+                            <tr className="bg-muted">
+                                <th className="p-2 text-left">Campo</th>
+                                <th className="p-2 text-left">Tipo</th>
+                                <th className="p-2 text-left">Descripción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`id`</strong></td>
+                                <td className="p-2 font-mono">`string`</td>
+                                <td className="p-2">Identificador único interno generado automáticamente para cada proveedor en nuestro sistema.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`cif`</strong></td>
+                                <td className="p-2 font-mono">`string`</td>
+                                <td className="p-2">**Clave**. El CIF/NIF del proveedor. Es un campo obligatorio y único para evitar duplicados.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`IdERP`</strong></td>
+                                <td className="p-2 font-mono">`string` (opcional)</td>
+                                <td className="p-2">El código identificador que este proveedor tiene en tu sistema ERP externo, para facilitar la integración contable.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`nombreEmpresa`</strong></td>
+                                <td className="p-2 font-mono">`string`</td>
+                                <td className="p-2">La razón social o nombre fiscal completo del proveedor, tal como aparecerá en las facturas.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`nombreComercial`</strong></td>
+                                <td className="p-2 font-mono">`string`</td>
+                                <td className="p-2">El nombre por el que conoces comúnmente al proveedor. Si no se especifica, se usa el nombre de la empresa.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`direccionFacturacion`</strong></td>
+                                <td className="p-2 font-mono">`string`</td>
+                                <td className="p-2">La dirección fiscal completa del proveedor.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`codigoPostal`</strong></td>
+                                <td className="p-2 font-mono">`string`</td>
+                                <td className="p-2">El código postal de la dirección de facturación.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`ciudad`</strong></td>
+                                <td className="p-2 font-mono">`string`</td>
+                                <td className="p-2">La ciudad de la dirección de facturación.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`provincia`</strong></td>
+                                <td className="p-2 font-mono">`string`</td>
+                                <td className="p-2">La provincia de la dirección de facturación.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`pais`</strong></td>
+                                <td className="p-2 font-mono">`string`</td>
+                                <td className="p-2">El país de la dirección de facturación.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`emailContacto`</strong></td>
+                                <td className="p-2 font-mono">`string`</td>
+                                <td className="p-2">La dirección de correo electrónico principal para contactar con el proveedor.</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`telefonoContacto`</strong></td>
+                                <td className="p-2 font-mono">`string` (opcional)</td>
+                                <td className="p-2">El número de teléfono principal del contacto en el proveedor.</td>
+                            </tr>
+                             <tr>
+                                <td className="p-2 font-mono"><strong>`iban`</strong></td>
+                                <td className="p-2 font-mono">`string` (opcional)</td>
+                                <td className="p-2">El número de cuenta bancaria (IBAN) del proveedor para realizar pagos.</td>
+                            </tr>
+                             <tr>
+                                <td className="p-2 font-mono"><strong>`formaDePagoHabitual`</strong></td>
+                                <td className="p-2 font-mono">`string` (opcional)</td>
+                                <td className="p-2">Describe el método de pago acordado (ej. "Transferencia a 30 días", "Confirming").</td>
+                            </tr>
+                            <tr>
+                                <td className="p-2 font-mono"><strong>`tipos`</strong></td>
+                                <td className="p-2 font-mono">`Array<TipoProveedor>`</td>
+                                <td className="p-2">**Campo crucial**. Es una lista que define qué tipo de servicios ofrece el proveedor. Las opciones son: `Transporte`, `Hielo`, `Gastronomia`, `Personal`, `Atipicos`, `Decoracion`, `Servicios`, `Otros`, `Alquiler`. Esto permite filtrar y mostrar solo los proveedores relevantes en cada módulo de la aplicación.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
 
                 <h4>Catálogos de Servicios de Proveedores</h4>
                 <p>Una vez dado de alta un proveedor, defines sus servicios y tarifas en catálogos específicos:</p>
@@ -189,3 +338,5 @@ export default function UserManualPage() {
         </>
     );
 }
+
+    
