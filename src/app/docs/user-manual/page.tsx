@@ -46,10 +46,29 @@ export default function UserManualPage() {
                 <p>Esta es la base de todo. El sistema distingue entre dos conceptos:</p>
                 <ul>
                     <li><strong>Materia Prima (ERP):</strong> Refleja cómo compras los productos a tus proveedores. Por ejemplo, "Saco de harina de 25 kg" o "Caja de 12 botellas de aceite". Cada entrada tiene su proveedor y precio de compra.</li>
-                    <li><strong>Ingredientes Internos:</strong> Es la capa de abstracción que usa la cocina (ej. "Harina", "Aceite de Oliva"). Cada ingrediente se vincula a un producto de la Materia Prima para obtener su coste por unidad base (kg, litro, etc.).</li>
+                    <li><strong>Ingredientes Internos:</strong> Es la capa de abstracción que usa la cocina (ej. "Harina", "Aceite de Oliva"). Cada ingrediente se vincula a un producto de la Materia Prima (ERP) para obtener su coste por unidad base (kg, litro, etc.).</li>
                 </ul>
                 <p className="border-l-4 border-primary pl-4 py-2 bg-secondary/50"><strong>¿Por qué esta separación?</strong> Permite una flexibilidad total. Si cambias de proveedor de harina, solo tienes que actualizar el vínculo en el "Ingrediente Interno", y el coste se recalculará automáticamente en todas las recetas que lo usen.</p>
                 <p>Además, en el Ingrediente Interno se definen dos datos críticos: el **% de merma** (desperdicio al limpiar/preparar) y los **alérgenos**. Esta información se propaga automáticamente hacia arriba.</p>
+
+                <h5>Desglose de la Entidad <code>IngredienteERP</code></h5>
+                <p>Esta entidad representa cada producto individual que se compra a un proveedor. Es la fuente de la verdad para los costes de materia prima.</p>
+                <ul>
+                    <li><strong><code>id</code></strong> (<code>string</code>): Identificador único para el producto dentro de nuestro sistema.</li>
+                    <li><strong><code>idProveedor</code></strong> (<code>string</code>, opcional): El ID del proveedor en nuestro sistema (`Proveedores`), si está disponible.</li>
+                    <li><strong><code>nombreProductoERP</code></strong> (<code>string</code>): El nombre oficial del producto, tal como aparece en las facturas del proveedor. Es un campo obligatorio.</li>
+                    <li><strong><code>referenciaProveedor</code></strong> (<code>string</code>, opcional): El código o referencia que el proveedor utiliza para este producto.</li>
+                    <li><strong><code>nombreProveedor</code></strong> (<code>string</code>, opcional): Nombre del proveedor al que se compra el producto.</li>
+                    <li><strong><code>familiaCategoria</code></strong> (<code>string</code>, opcional): Una categoría de alto nivel para agrupar productos (ej. "Lácteos", "Carnes", "Pescados").</li>
+                    <li><strong><code>precioCompra</code></strong> (<code>number</code>): El precio al que se compra el producto en su formato de compra. Por ejemplo, el precio de un saco de 25 kg de harina.</li>
+                    <li><strong><code>unidadConversion</code></strong> (<code>number</code>): Campo clave. Es el factor por el cual se divide el `precioCompra` para obtener el coste por la unidad base. Si compras un saco de 25 kg, la `unidadConversion` es `25`.</li>
+                    <li><strong><code>precio</code></strong> (<code>number</code>): **Campo calculado automáticamente**. Representa el coste real por la unidad base (`precio = precioCompra / unidadConversion`). Es el que se usará en los escandallos.</li>
+                    <li><strong><code>precioAlquiler</code></strong> (<code>number</code>, opcional): Para artículos que también se pueden alquilar.</li>
+                    <li><strong><code>unidad</code></strong> (<code>enum</code>): La unidad base del producto después de la conversión (KILO, LITRO, UNIDAD, etc.).</li>
+                    <li><strong><code>tipo</code></strong> (<code>string</code>, opcional): Una subcategoría más específica (ej. para "Lácteos", el tipo podría ser "Queso").</li>
+                    <li><strong><code>alquiler</code></strong> (<code>boolean</code>): Indica si este producto es apto para alquiler.</li>
+                    <li><strong><code>observaciones</code></strong> (<code>string</code>, opcional): Campo de texto libre para cualquier nota relevante.</li>
+                </ul>
 
                 <h4>3.2. Nivel 2: Elaboraciones (Sub-recetas)</h4>
                 <p>Una "Elaboración" es cualquier preparación que no es un plato final por sí misma, sino un componente (ej. "Salsa de Tomate", "Masa de Pizza").</p>
@@ -79,7 +98,7 @@ export default function UserManualPage() {
                 <h3>4.3. Paso 2: Producción y Control de Calidad</h3>
                 <p>En **"Órdenes de Fabricación"**, cada partida verá sus OF pendientes. El cocinero la tomará, cambiará su estado a "En Proceso" y, al finalizar, registrará la **cantidad real producida**. La OF pasará entonces a "Control de Calidad", donde un responsable la validará antes de que esté disponible para logística.</p>
                 <h3>4.4. Paso 3: Picking y Etiquetado</h3>
-                <p>En **"Picking y Logística"**, selecciona un evento. Verás todos los servicios (hitos) que requieren gastronomía. Dentro de cada hito, podrás asignar las elaboraciones validadas a contenedores isotérmicos. Una vez completado el picking para un hito, podrás generar e imprimir las **etiquetas** para cada contenedor, detallando su contenido y destino.</p>
+                <p>En **"Picking y Logística"**, selecciona un evento. Verás todos los servicios (hitos) que requieren gastronomía. Dentro de cada hito, podrás asignar las elaboraciones validadas a contenedores isotermos. Una vez completado el picking para un hito, podrás generar e imprimir las **etiquetas** para cada contenedor, detallando su contenido y destino.</p>
                 <h3>4.5. Paso 4: La Hoja de Pase en el Evento</h3>
                 <p>El equipo de sala, desde la OS, consultará la **"Hoja de Pase"** (Próximamente) para ver las instrucciones de emplatado, regeneración, **alérgenos** y en qué isotermo se encuentra cada kit de receta, asegurando un servicio eficiente y sin errores.</p>
             </section>
