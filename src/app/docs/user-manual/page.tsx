@@ -18,7 +18,7 @@ export default function UserManualPage() {
                 <h2 className="flex items-center gap-3"><BookOpen />Capítulo 1: Primeros Pasos</h2>
                 <p>Este capítulo introduce los conceptos básicos de la aplicación, su estructura y cómo empezar a trabajar con ella en el contexto de eventos de catering.</p>
                 <h3>1.1. Introducción a MICE Catering</h3>
-                <p>MICE Catering es una herramienta integral para la gestión de servicios de catering, desde la planificación comercial hasta la ejecución en cocina y la logística del evento. La aplicación ahora se divide en dos grandes verticales: **Catering de Eventos** (el flujo tradicional) y **Entregas MICE** (un nuevo flujo simplificado para pedidos directos).</p>
+                <p>MICE Catering es una herramienta integral para la gestión de servicios de catering, desde la planificación comercial hasta la ejecución en cocina y la logística del evento. La aplicación ahora se divide en dos grandes verticales: <strong>Catering de Eventos</strong> (el flujo tradicional) y <strong>Entregas MICE</strong> (un nuevo flujo simplificado para pedidos directos).</p>
                 <h3>1.2. Roles de Usuario</h3>
                 <p>La aplicación está diseñada para diferentes perfiles. Dependiendo de tu rol (Comercial, Jefe de Producción, Cocinero, etc.), verás las secciones y opciones relevantes para tu trabajo, simplificando la interfaz y protegiendo la información.</p>
                 <h3>1.3. Gestión de Bases de Datos</h3>
@@ -31,9 +31,9 @@ export default function UserManualPage() {
                 <h3>2.1. Creación y Gestión de una Orden de Servicio (OS)</h3>
                 <p>Todo comienza en "Previsión de Servicios". Desde aquí puedes crear una nueva OS o editar una existente. La ficha de la OS es el centro neurálgico que conecta todos los módulos relacionados con un evento de catering complejo.</p>
                 <h3>2.2. El Módulo Comercial: Creando el Briefing</h3>
-                <p>Dentro de una OS, el módulo "Comercial" permite detallar cada hito del evento (coffees, almuerzos, cena). Es crucial registrar aquí la **información sobre alergias y dietas especiales** (ej: "3 celiacos") para que cocina reciba el aviso.</p>
+                <p>Dentro de una OS, el módulo "Comercial" permite detallar cada hito del evento (coffees, almuerzos, cena). Es crucial registrar aquí la <strong>información sobre alergias y dietas especiales</strong> (ej: "3 celiacos") para que cocina reciba el aviso.</p>
                 <h3>2.3. Módulos Auxiliares</h3>
-                <p>Desde la barra lateral de la OS, puedes acceder a módulos específicos para solicitar material de almacén, bodega, alquiler, transporte, hielo, y registrar gastos atípicos o de decoración. Próximamente, se podrán usar **plantillas de pedidos** para agilizar la creación de solicitudes para servicios estándar (ej: "Coffee Break Básico").</p>
+                <p>Desde la barra lateral de la OS, puedes acceder a módulos específicos para solicitar material de almacén, bodega, alquiler, transporte, hielo, y registrar gastos atípicos o de decoración. Próximamente, se podrán usar <strong>plantillas de pedidos</strong> para agilizar la creación de solicitudes para servicios estándar (ej: "Coffee Break Básico").</p>
                 <h3>2.4. La Cuenta de Explotación</h3>
                 <p>El módulo "Cta. Explotación" ofrece una visión financiera completa del evento, comparando los costes presupuestados con los objetivos y los costes reales para analizar la rentabilidad.</p>
             </section>
@@ -188,7 +188,7 @@ export default function UserManualPage() {
                 <h3>5.4. Gestión de Retornos</h3>
                 <p>Después de un evento, desde el módulo de **"Gestión de Retornos"**, se puede procesar el material devuelto, registrando roturas o pérdidas, lo que también afectará al coste final del servicio.</p>
             </section>
-
+            
             <section id="c6">
                 <h2 className="flex items-center gap-3"><GitBranch />Capítulo 6: Estructura Económica y Operativa</h2>
                 <h3>6.1. Cálculo de Rentabilidad en la Cuenta de Explotación</h3>
@@ -220,7 +220,7 @@ export default function UserManualPage() {
                 
                 <h4>Entidad Principal: <code>Proveedor</code></h4>
                 <p>Esta es la ficha maestra que contiene la información fiscal y de contacto de cualquier empresa que te presta un servicio.</p>
-                <div className="overflow-x-auto">
+                 <div className="overflow-x-auto">
                     <table className="w-full text-sm my-4">
                         <thead>
                             <tr className="bg-muted">
@@ -285,7 +285,7 @@ export default function UserManualPage() {
                                 <td className="p-2 font-mono">`string`</td>
                                 <td className="p-2">La dirección de correo electrónico principal para contactar con el proveedor.</td>
                             </tr>
-                            <tr>
+                             <tr>
                                 <td className="p-2 font-mono"><strong>`telefonoContacto`</strong></td>
                                 <td className="p-2 font-mono">`string` (opcional)</td>
                                 <td className="p-2">El número de teléfono principal del contacto en el proveedor.</td>
@@ -338,5 +338,3 @@ export default function UserManualPage() {
         </>
     );
 }
-
-    
