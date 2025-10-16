@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Bot, Code, Database, GitBranch, Palette, Workflow } from "lucide-react";
+import { Bot } from "lucide-react";
 
 export default function SuperPromptPage() {
     return (
@@ -33,21 +33,30 @@ La plataforma se divide en dos flujos de trabajo principales que comparten bases
 ### 1.1. Vertical: Catering de Eventos
 Diseñada para eventos complejos que requieren servicio in situ.
 - **Flujo de Trabajo:**
-  1.  **Previsión de Servicios (PES):** Se crea una **Orden de Servicio (OS)** como contenedor principal del evento.
-  2.  **Módulo Comercial:** Se define el **briefing** del evento, que contiene múltiples **hitos** (servicios individuales como "cocktail", "cena", etc.).
-  3.  **Módulos de Pedidos:** Desde la OS, se generan pedidos específicos para cada departamento: Gastronomía, Bodega, Almacén, Alquiler, Personal, Transporte, etc.
-  4.  **Producción (CPR):** Las necesidades de gastronomía se agrupan en el módulo de **Planificación** y se convierten en **Órdenes de Fabricación (OF)**.
-  5.  **Logística (Almacén):** El material no gastronómico (bebidas, menaje, etc.) se prepara a través de **Hojas de Picking**.
-  6.  **Servicio y Cierre:** Ejecución del evento, gestión de retornos de material y análisis final en la **Cuenta de Explotación**.
+  1.  **Previsión de Servicios (PES):** Se crea una **Orden de Servicio (OS)** (`ServiceOrder`) como contenedor principal del evento. Contiene información global como cliente, fechas, lugar y responsables.
+  2.  **Módulo Comercial (`/os/[id]/comercial`):** Se define el **briefing** del evento (`ComercialBriefing`), que contiene múltiples **hitos** (`ComercialBriefingItem`), que son servicios individuales como "cocktail", "cena", etc. Aquí se especifica si un hito `conGastronomia`, lo que activa la producción.
+  3.  **Módulos de Pedidos:** Desde la OS, se generan pedidos específicos para cada departamento:
+      - **Gastronomía:** Se crea un `GastronomyOrder` por cada hito con gastronomía. Dentro se añaden las `Receta`s del Book.
+      - **Material:** Se crean `MaterialOrder` para Bodega, Bio (consumibles), Almacén y Alquiler.
+      - **Personal, Transporte, etc.:** Se crean `PersonalExterno`, `TransporteOrder`, etc.
+  4.  **Producción (CPR):**
+      - **Planificación:** El sistema agrega las necesidades de todas las `GastronomyOrder` y calcula las `Elaboracion`es necesarias.
+      - **Generación de OF:** Se generan **Órdenes de Fabricación (OF)** (`OrdenFabricacion`) para producir los lotes necesarios de cada elaboración.
+      - **Logística CPR:** En el módulo de picking de CPR, se asignan los lotes de OF validados a contenedores isotermos para cada hito.
+  5.  **Logística (Almacén):** Las necesidades de `MaterialOrder` se agrupan y se generan **Hojas de Picking** (`PickingSheet`) para que el almacén prepare el material.
+  6.  **Servicio y Cierre:** Tras el evento, se gestionan los retornos de material (`ReturnSheet`) y se analiza la rentabilidad en la **Cuenta de Explotación (`CtaExplotacion`)**.
 
 ### 1.2. Vertical: Entregas MICE
-Optimizada para pedidos de entrega directa sin servicio complejo (ej. coffee breaks, desayunos a oficinas).
+Optimizada para pedidos de entrega directa sin servicio complejo.
 - **Flujo de Trabajo:**
-  1.  **Creación de Pedido de Entrega:** Un formulario único y ágil centraliza toda la información.
-  2.  **Confección:** Se añaden al pedido **"Packs de Venta"** (productos compuestos) o productos individuales desde un catálogo unificado.
-  3.  **Distribución Automática:** El sistema envía las necesidades de producción a **CPR MICE** o a un **Partner Externo**, y las de material al **Almacén**.
+  1.  **Creación de Pedido de Entrega (`Entrega`):** Un formulario único y ágil centraliza toda la información de la entrega, que puede tener múltiples **hitos de entrega** (`EntregaHito`).
+  2.  **Confección:** Se añaden al pedido **"Packs de Venta"** (`ProductoVenta` que son compuestos) o productos individuales (`ProductoVenta`) desde un catálogo unificado.
+  3.  **Distribución Automática:**
+      - Si un `ProductoVenta` es de un **Partner Externo**, se envía la necesidad a su portal.
+      - Si está vinculado a una `Receta`, sus elaboraciones se envían a **CPR MICE**.
+      - Si es un pack, sus **componentes** se envían al `Picking` de Almacén.
   4.  **Portales Externos:** Los partners (producción, transporte) gestionan sus tareas desde portales web simplificados y seguros.
-  5.  **Entrega y Firma Digital:** El transportista completa la entrega y recoge la firma del cliente en su dispositivo móvil.
+  5.  **Entrega y Firma Digital:** El transportista completa la entrega y recoge la firma del cliente en su dispositivo móvil. El `TransporteOrder` se actualiza con la `firmaUrl`.
 
 ---
 ## 2. Identidad Visual y Diseño
@@ -67,139 +76,119 @@ Definidas en `src/lib/fonts.ts`.
 - **Cuerpo de texto (`--font-body`):** Roboto
 
 ---
-## 3. Estructura de Datos Completa (Glosario de Entidades)
+## 3. Estructura de Datos Completa y Relaciones
 
-A continuación se detallan todas las interfaces y tipos de datos del proyecto, definidos en `src/types/index.ts`.
+A continuación se detallan todas las entidades de datos del proyecto, definidas en `src/types/index.ts`, y sus relaciones.
 
 ### Entidades Fundamentales
 
 #### `ServiceOrder` / `Entrega`
-Es la entidad central que representa un evento de catering o un pedido de entrega. Funciona como el contenedor principal.
-- **id**: Identificador único.
-- **serviceNumber**: Número de servicio visible para el cliente.
-- **startDate, endDate**: Fechas del evento.
-- **client, finalClient**: Cliente que contrata y cliente final.
-- **contact, phone, email**: Datos de contacto.
-- **asistentes**: Número de personas.
-- **space, spaceAddress**: Información del lugar.
-- **resp...**: Campos para responsables internos (Metre, Pase, Cocina, etc.).
-- **comercialAsiste, rrhhAsiste**: Banderas para indicar asistencia de personal.
-- **...Percentage, ...CommissionValue**: Campos para cálculo de comisiones.
-- **facturacion, comisionesAgencia, comisionesCanon**: Totales financieros.
-- **status**: Estado del servicio ('Borrador', 'Confirmado', 'Anulado', etc.).
-- **vertical**: Distingue entre 'Catering' y 'Entregas'.
-- **isVip**: Marca un evento como de alta importancia.
+Contenedor principal para un evento (`Catering`) o pedido (`Entregas`). Es la entidad padre de la que cuelgan casi todas las demás.
+- **id**: Clave primaria.
+- **serviceNumber**: Identificador único legible.
+- **vertical**: 'Catering' o 'Entregas'.
+- **status**: 'Borrador', 'Confirmado', 'Anulado'. El estado 'Confirmado' es la señal para que los módulos de producción y logística consideren sus necesidades.
+- **Relaciones:** La `id` de `ServiceOrder` se usa como clave foránea (`osId`) en `ComercialBriefing`, `PedidoEntrega`, `GastronomyOrder`, `MaterialOrder`, `PersonalExterno`, `TransporteOrder`, etc.
 
 #### `ComercialBriefing` / `PedidoEntrega`
-Representa el desglose de servicios (hitos) dentro de una OS.
-- **osId**: Vínculo al `ServiceOrder` correspondiente.
-- **items` / `hitos**: Array de `ComercialBriefingItem` o `EntregaHito`.
+Desglose de servicios/entregas de una OS.
+- **osId**: FK a `ServiceOrder.id`.
+- **items` / `hitos**: Array de `ComercialBriefingItem` / `EntregaHito`.
 
 #### `ComercialBriefingItem` / `EntregaHito`
-Define un servicio o entrega específica.
-- **id**: Identificador único del hito.
-- **fecha, horaInicio, horaFin**: Temporalidad.
-- **conGastronomia**: (Catering) Booleano que activa los módulos de producción.
-- **descripcion**: Nombre del servicio (ej. "Cena de Gala").
-- **items**: (Entregas) Array de productos de venta directa.
+Un servicio o "hito" específico.
+- **id**: Clave primaria del hito.
+- **conGastronomia**: (Catering) Booleano que activa la creación de un `GastronomyOrder` con el mismo `id`.
+- **items**: (Entregas) Array de `PedidoEntregaItem`, que son los productos vendidos.
 
-### Entidades del Book Gastronómico
+### Entidades del Book Gastronómico (El Corazón del Sistema)
 
 #### `Receta`
-El plato final que se vende al cliente. Se compone de `ElaboracionEnReceta`.
-- **id, nombre, categoria**: Identificación.
-- **elaboraciones**: Array de elaboraciones necesarias.
-- **menajeAsociado**: Lista del menaje necesario.
-- **instrucciones...**: Pasos para mise en place, regeneración y emplatado.
-- **perfilSabor...**, **perfilTextura**: Atributos gastronómicos.
-- **costeMateriaPrima, precioVenta**: Campos calculados automáticamente.
-- **alergenos**: Lista consolidada de alérgenos.
-- **requiereRevision**: Bandera de alerta si un componente cambia.
+Plato final. Su coste y alérgenos se calculan automáticamente.
+- **id**: Clave primaria.
+- **elaboraciones**: Array de `ElaboracionEnReceta`. La `elaboracionId` es una FK a `Elaboracion.id`.
+- **costeMateriaPrima**: **Calculado**. Suma de `(elaboracion.coste * elaboracion.cantidad)`.
+- **precioVenta**: **Calculado**. `costeMateriaPrima * (1 + porcentajeCosteProduccion / 100)`.
+- **alergenos**: **Calculado**. Unión de todos los alérgenos de sus elaboraciones.
+- **requiereRevision**: Flag booleano. Se activa a `true` si una `Elaboracion` o `IngredienteInterno` subyacente es modificado o eliminado, alertando de que el coste y los alérgenos pueden ser incorrectos.
 
 #### `Elaboracion`
-Una preparación intermedia o "sub-receta" (ej. una salsa).
-- **id, nombre**: Identificación.
-- **produccionTotal, unidadProduccion**: Cantidad que se produce (ej. 1 KILO).
-- **partidaProduccion**: Departamento (FRIO, CALIENTE, etc.).
-- **componentes**: Array de `ComponenteElaboracion` (ingredientes).
-- **costePorUnidad**: Coste calculado.
-- **formatoExpedicion**: Cómo se empaqueta (ej. "Barqueta 1kg").
+Sub-receta.
+- **id**: Clave primaria.
+- **componentes**: Array de `ComponenteElaboracion`. La `componenteId` es una FK a `IngredienteInterno.id`.
+- **costePorUnidad**: **Calculado**. Suma de los costes de sus componentes, dividido por `produccionTotal`.
+- **alergenos**: **Calculado**. Unión de los alérgenos de sus `IngredienteInterno`.
 
 #### `IngredienteInterno`
-Puente entre la Materia Prima (ERP) y las recetas.
-- **id, nombreIngrediente**: Identificación.
-- **productoERPlinkId**: Vínculo al producto en `IngredienteERP`.
-- **mermaPorcentaje**: % de merma del ingrediente.
-- **alergenosPresentes, alergenosTrazas**: Listados de alérgenos.
+Representación interna de una materia prima.
+- **id**: Clave primaria.
+- **productoERPlinkId**: FK a `IngredienteERP.id`. Es el vínculo crucial para obtener el coste.
+- **alergenosPresentes / alergenosTrazas**: Fuente primaria de la información de alérgenos.
 
 #### `IngredienteERP`
-La materia prima tal como se compra al proveedor.
-- **id, nombreProductoERP, idProveedor**: Identificación.
-- **precioCompra, unidad**: Coste y unidad de medida.
+Materia prima comprada.
+- **id**: Clave primaria.
+- **precioCompra**: El coste base.
+- **unidadConversion**: Factor para convertir la unidad de compra a la unidad base (ej. una caja de 10kg tiene una `unidadConversion` de 10).
+- **precio**: **Calculado**. `precioCompra / unidadConversion`. Este es el precio real por unidad base (kg, litro, etc.) que se utiliza en toda la cadena de costes.
 
 ### Entidades de Producción y Logística
 
 #### `OrdenFabricacion (OF)`
-Un lote de producción para una elaboración.
-- **id**: Identificador único del lote (ej. "OF-2024-001").
-- **elaboracionId**: Qué se produce.
-- **cantidadTotal, cantidadReal**: Cantidad planificada vs. final.
-- **estado**: Ciclo de vida ('Pendiente', 'En Proceso', 'Finalizado', etc.).
-- **osIDs**: IDs de las OS que necesitan esta producción.
+Lote de producción de una `Elaboracion`.
+- **id**: Clave primaria (lote).
+- **elaboracionId**: FK a `Elaboracion.id`.
+- **osIDs**: Array de FKs a `ServiceOrder.id` que justifican esta producción.
+- **estado**: 'Pendiente' -> 'Asignada' -> 'En Proceso' -> 'Finalizado' -> 'Validado'. Solo los lotes 'Validados' pueden ser usados en el picking logístico.
 
 #### `PickingSheet`
-Documento para preparar material no gastronómico.
-- **id, osId, fechaNecesidad**: Identificación.
-- **items**: Listado de `OrderItem` a recoger.
-- **status**: Estado ('Pendiente', 'En Proceso', 'Listo').
-- **itemStates**: Registro del progreso y discrepancias.
+Expedición de material no gastronómico (Almacén, Bodega, Bio, Alquiler).
+- **id**: Clave primaria.
+- **osId**: FK a `ServiceOrder.id`.
+- **items**: Contiene una copia de los `OrderItem` de las `MaterialOrder` que agrupa.
+- **itemStates**: Objeto que registra el progreso del picking (`checked`, `pickedQuantity`, etc.) para cada `itemCode`.
 
-#### `PickingState`
-Estado de la logística de gastronomía para una OS.
-- **osId**: El evento al que pertenece.
-- **assignedContainers**: Array de contenedores isotermos a usar.
-- **itemStates**: Array de `LoteAsignado` (qué lote va en qué contenedor).
+#### `PickingState` (Logística CPR)
+Vincula lotes de OF (`LoteAsignado`) a contenedores (`ContenedorDinamico`) para una OS.
+- **osId**: FK a `ServiceOrder.id`.
+- **itemStates**: Array de `LoteAsignado`, donde `ofId` es FK a `OrdenFabricacion.id`.
 
 #### `ReturnSheet`
-Gestión de la devolución de material tras un evento.
+Devolución de material.
 - **id**: Coincide con el `osId`.
-- **items**: Lista de artículos enviados.
-- **itemStates**: Registro de cantidades devueltas e incidencias (roturas).
+- **itemStates**: Registra la `returnedQuantity` de cada `OrderItem`, permitiendo calcular mermas.
 
 ### Entidades de la Vertical de Entregas
 
 #### `ProductoVenta`
-Unidad de venta en el catálogo de Entregas.
-- **id, nombre, categoria**: Identificación.
-- **pvp, pvpIfema**: Precios de venta.
-- **producidoPorPartner**: Booleano que determina quién produce.
-- **recetaId**: Vínculo a una receta del Book.
-- **componentes**: Si es un "Pack", contiene el desglose de artículos para almacén.
+Unidad de venta del catálogo de Entregas.
+- **id**: Clave primaria.
+- **producidoPorPartner**: Booleano que determina el flujo de producción.
+- **recetaId**: FK opcional a `Receta.id` si es un producto gastronómico de CPR.
+- **componentes**: Si es un pack, contiene un array de `ProductoVentaComponente` con FKs a `IngredienteERP` (`erpId`), que son los artículos que el almacén debe preparar.
 
 ### Entidades de Portales Externos
 
 #### `PortalUser`
-Usuario que puede acceder a portales de colaboradores.
-- **id, nombre, email**: Datos del usuario.
-- **roles**: Array de roles ('Partner Gastronomia', 'Transporte', etc.).
-- **proveedorId**: Vínculo a la empresa en la BD de `Proveedores`.
+Usuario de un portal de colaborador.
+- **id**: Clave primaria.
+- **roles**: Define a qué portal(es) tiene acceso.
+- **proveedorId**: FK a `Proveedor.id`, vinculando al usuario con una empresa.
 
 #### `PersonalExterno`
-Solicitud de personal a una ETT para una OS.
-- **osId**: La OS a la que pertenece.
+Solicitud de personal a una ETT.
+- **osId**: FK a `ServiceOrder.id`.
 - **turnos**: Array de `PersonalExternoTurno`.
-- **status**: Estado ('Pendiente', 'Solicitado', 'Asignado', 'Cerrado').
+- **status**: 'Pendiente' -> 'Solicitado' -> 'Asignado' -> 'Cerrado'. 'Solicitado' es la señal para el partner.
 
 #### `TransporteOrder`
 Pedido de transporte.
-- **osId**: El pedido al que sirve.
-- **proveedorId**: Transportista asignado.
-- **status**: Estado ('Pendiente', 'En Ruta', 'Entregado').
-- **firmaUrl, firmadoPor**: Datos de la firma digital.
+- **osId**: FK a `ServiceOrder.id`.
+- **hitosIds**: Array de FKs a `EntregaHito.id` si agrupa varias entregas.
+- **firmaUrl**: Contiene la firma digital en formato Data URL.
 </pre>
                 </div>
             </section>
         </>
     );
 }
-
