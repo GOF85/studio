@@ -33,7 +33,7 @@ export default function UserManualPage() {
                 <h3>2.2. El Módulo Comercial: Creando el Briefing</h3>
                 <p>Dentro de una OS, el módulo "Comercial" permite detallar cada hito del evento (coffees, almuerzos, cena). Es crucial registrar aquí la **información sobre alergias y dietas especiales** (ej: "3 celiacos") para que cocina reciba el aviso.</p>
                 <h3>2.3. Módulos Auxiliares</h3>
-                <p>Desde la barra lateral de la OS, puedes acceder a módulos específicos para solicitar material de almacén, bodega, alquiler, transporte, hielo, y registrar gastos atípicos o de decoración. Próximamente, se podrán usar **plantillas de pedidos** para agilizar la creación de solicitudes para servicios estándar (ej. "Coffee Break Básico").</p>
+                <p>Desde la barra lateral de la OS, puedes acceder a módulos específicos para solicitar material de almacén, bodega, alquiler, transporte, hielo, y registrar gastos atípicos o de decoración. Próximamente, se podrán usar **plantillas de pedidos** para agilizar la creación de solicitudes para servicios estándar (ej: "Coffee Break Básico").</p>
                 <h3>2.4. La Cuenta de Explotación</h3>
                 <p>El módulo "Cta. Explotación" ofrece una visión financiera completa del evento, comparando los costes presupuestados con los objetivos y los costes reales para analizar la rentabilidad.</p>
             </section>
@@ -83,14 +83,29 @@ export default function UserManualPage() {
             <section id="c6">
                 <h2 className="flex items-center gap-3"><GitBranch />Capítulo 6: Estructura Económica y Operativa</h2>
                 <p>La aplicación está diseñada para reflejar la estructura de centros de coste de la empresa, permitiendo un análisis financiero preciso y una imputación de costes correcta.</p>
-                <h3>6.1. Centros de Coste</h3>
+                <h3>6.1. Cálculo de Rentabilidad en la Cuenta de Explotación</h3>
+                <p>La Cta. de Explotación es la herramienta definitiva para entender la salud financiera de cada evento. La rentabilidad se calcula siguiendo estos pasos:</p>
+                <ol>
+                    <li><strong>Facturación Neta:</strong> Se calcula el total facturado en el briefing comercial y se le restan todas las comisiones (agencias) y cánones (espacios). Este es el ingreso real para MICE Catering.</li>
+                    <li><strong>Total Costes Directos:</strong> Se suman todos los costes de los módulos asociados al evento (Gastronomía, Bodega, Personal, Transporte, etc.). La Cta. de Explotación muestra tres versiones de este coste:
+                        <ul>
+                            <li><strong>Presupuesto:</strong> El coste según los pedidos iniciales.</li>
+                            <li><strong>Cierre:</strong> El coste de presupuesto más las pérdidas o mermas registradas en la devolución de material.</li>
+                            <li><strong>Real:</strong> Un campo editable para introducir el coste final real si difiere de los anteriores.</li>
+                        </ul>
+                    </li>
+                    <li><strong>Rentabilidad Bruta (Margen Bruto):</strong> Es el primer nivel de beneficio. Se calcula como: <code className="block text-center p-2 bg-muted rounded-md">Facturación Neta - Total Costes Directos</code></li>
+                    <li><strong>Repercusión HQ:</strong> Para cubrir los gastos de estructura (administración, marketing, etc.), se imputa un coste fijo del **25% sobre la Rentabilidad Bruta**. <code className="block text-center p-2 bg-muted rounded-md">Rentabilidad Bruta * 0.25</code></li>
+                    <li><strong>Rentabilidad Post-HQ (Beneficio Neto):</strong> Es el resultado final del evento. <code className="block text-center p-2 bg-muted rounded-md">Rentabilidad Bruta - Repercusión HQ</code></li>
+                </ol>
+                <h3>6.2. Centros de Coste</h3>
                 <ul>
                     <li><strong>CPR (Centro de Producción):</strong> Responsable de toda la producción gastronómica (cocineros, director gastronómico). Sus ingresos provienen de las "compras" internas que le hace la unidad de Catering para cada evento. Su objetivo es cubrir sus costes operativos (materia prima, personal, etc.).</li>
                     <li><strong>Catering (Sala y Pase):</strong> Es la unidad que factura al cliente final. Se encarga del servicio en el evento (maîtres, camareros, cocineros de pase). Sus costes son el personal, la gastronomía (que le compra a CPR), bebidas, transporte, etc.</li>
                     <li><strong>Almacén:</strong> Centro logístico para material no gastronómico. Se financia a través de un % de cada referencia servida y por los servicios de transporte. Cubre sus propios gastos de personal, mantenimiento y reposición.</li>
                     <li><strong>HQ (Administración):</strong> Engloba los departamentos transversales (administración, marketing, etc.). Se financia con un 25% de la rentabilidad final de cada evento para cubrir sus gastos operativos.</li>
                 </ul>
-                 <h3>6.2. Flujo de Personal y RRHH</h3>
+                 <h3>6.3. Flujo de Personal y RRHH</h3>
                 <p>El responsable de producción de un evento propone una necesidad de personal (ej: 10 camareros) basada en ratios estándar. RRHH recibe esta propuesta, la valida, y es el departamento con la autoridad final para asignar el personal interno o solicitarlo a ETTs, optimizando los recursos de la empresa a nivel global.</p>
             </section>
             
