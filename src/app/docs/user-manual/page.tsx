@@ -50,7 +50,7 @@ export default function UserManualPage() {
                 </ul>
                 <p className="border-l-4 border-primary pl-4 py-2 bg-secondary/50"><strong>¿Por qué esta separación?</strong> Permite una flexibilidad total. Si cambias de proveedor de harina, solo tienes que actualizar el vínculo en el "Ingrediente Interno", y el coste se recalculará automáticamente en todas las recetas que lo usen.</p>
                 <p>Además, en el Ingrediente Interno se definen dos datos críticos: el **% de merma** (desperdicio al limpiar/preparar) y los **alérgenos**. Esta información se propaga automáticamente hacia arriba.</p>
-
+                
                 <h5>Desglose de la Entidad <code>IngredienteERP</code></h5>
                 <p>Esta entidad representa cada producto individual que se compra a un proveedor. Es la fuente de la verdad para los costes de materia prima.</p>
                 <div className="overflow-x-auto">
@@ -189,7 +189,7 @@ export default function UserManualPage() {
                 <p>Después de un evento, desde el módulo de **"Gestión de Retornos"**, se puede procesar el material devuelto, registrando roturas o pérdidas, lo que también afectará al coste final del servicio.</p>
             </section>
             
-            <section id="c6">
+             <section id="c6">
                 <h2 className="flex items-center gap-3"><GitBranch />Capítulo 6: Estructura Económica y Operativa</h2>
                 <h3>6.1. Cálculo de Rentabilidad en la Cuenta de Explotación</h3>
                 <p>La Cta. de Explotación es la herramienta definitiva para entender la salud financiera de cada evento. La rentabilidad se calcula siguiendo estos pasos:</p>
@@ -219,8 +219,7 @@ export default function UserManualPage() {
                 <p>El sistema utiliza una estructura modular para gestionar los proveedores, basada en una entidad central y catálogos de servicios específicos.</p>
                 
                 <h4>Entidad Principal: <code>Proveedor</code></h4>
-                <p>Esta es la ficha maestra que contiene la información fiscal y de contacto de cualquier empresa que te presta un servicio.</p>
-                 <div className="overflow-x-auto">
+                <div className="overflow-x-auto">
                     <table className="w-full text-sm my-4">
                         <thead>
                             <tr className="bg-muted">
@@ -321,19 +320,6 @@ export default function UserManualPage() {
                 
                 <h3>6.3. Centros de Coste y Flujo de Personal</h3>
                 <p>La aplicación refleja la estructura de centros de coste de la empresa (CPR, Catering, Almacén, HQ), permitiendo un análisis financiero preciso. En cuanto al personal, el responsable de producción propone una necesidad, y RRHH tiene la autoridad final para validar y asignar los recursos, ya sean internos o externos, optimizando la plantilla a nivel global.</p>
-            </section>
-            
-            <section id="c7">
-                <h2 className="flex items-center gap-3"><BarChart3 />Capítulo 7: Informes y Análisis</h2>
-                <p>MICE Catering no solo gestiona, sino que también proporciona inteligencia de negocio para tomar decisiones estratégicas.</p>
-                <h3>7.1. Informe de Productividad</h3>
-                <p>Analiza los tiempos de producción por responsable, desde que una OF es asignada hasta que se finaliza. Permite detectar cuellos de botella y optimizar flujos de trabajo.</p>
-                <h3>7.2. Gestión de Excedentes</h3>
-                <p>Controla el sobrante de producción, ajusta su cantidad real y define su vida útil para facilitar su reaprovechamiento y reducir mermas.</p>
-                <h3>7.3. Trazabilidad de Lotes</h3>
-                <p>Consulta el historial completo de cualquier lote de producción (OF), desde su creación hasta los eventos en los que fue servido, para una trazabilidad total.</p>
-                <h3>7.4. Informe de Incidencias</h3>
-                <p>Revisa un listado centralizado de todas las OF que han sido marcadas con incidencias, facilitando su seguimiento y resolución.</p>
             </section>
         </>
     );
