@@ -108,6 +108,32 @@ export default function InfoIAPage() {
                     <li><code>asistentes</code>: Pax específicos para este servicio.</li>
                     <li><code>items</code>: (Solo en `EntregaHito`) Array de productos de venta directa para la entrega.</li>
                 </ul>
+
+                <h4 className="!mt-6">Personal (Interno)</h4>
+                <p>Representa a los empleados y contactos internos de MICE Catering. Fundamental para la asignación de responsabilidades y el cálculo de costes de personal.</p>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm my-4">
+                        <thead>
+                            <tr className="bg-muted">
+                                <th className="p-2 text-left">Campo</th>
+                                <th className="p-2 text-left">Tipo</th>
+                                <th className="p-2 text-left">Descripción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td className="p-2 font-mono"><strong>`id`</strong></td><td className="p-2 font-mono">`string`</td><td className="p-2">Identificador único del empleado, generado automáticamente.</td></tr>
+                            <tr><td className="p-2 font-mono"><strong>`nombre`</strong></td><td className="p-2 font-mono">`string`</td><td className="p-2">Nombre de pila del empleado.</td></tr>
+                            <tr><td className="p-2 font-mono"><strong>`apellidos`</strong></td><td className="p-2 font-mono">`string`</td><td className="p-2">Apellidos del empleado.</td></tr>
+                            <tr><td className="p-2 font-mono"><strong>`iniciales`</strong></td><td className="p-2 font-mono">`string`</td><td className="p-2">Iniciales del empleado (ej. "JP"). Se auto-genera si no se proporciona.</td></tr>
+                            <tr><td className="p-2 font-mono"><strong>`departamento`</strong></td><td className="p-2 font-mono">`string`</td><td className="p-2">El departamento al que pertenece (Sala, Cocina, CPR, Comercial, etc.).</td></tr>
+                            <tr><td className="p-2 font-mono"><strong>`categoria`</strong></td><td className="p-2 font-mono">`string`</td><td className="p-2">El puesto o categoría profesional (ej. "Jefe de Cocina", "Camarero").</td></tr>
+                            <tr><td className="p-2 font-mono"><strong>`telefono`</strong></td><td className="p-2 font-mono">`string`</td><td className="p-2">Número de teléfono de contacto.</td></tr>
+                            <tr><td className="p-2 font-mono"><strong>`mail`</strong></td><td className="p-2 font-mono">`string`</td><td className="p-2">Dirección de correo electrónico.</td></tr>
+                            <tr><td className="p-2 font-mono"><strong>`dni`</strong></td><td className="p-2 font-mono">`string`</td><td className="p-2">DNI o documento de identidad.</td></tr>
+                            <tr><td className="p-2 font-mono"><strong>`precioHora`</strong></td><td className="p-2 font-mono">`number`</td><td className="p-2">El coste por hora del empleado para la empresa, usado en la Cta. de Explotación.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
                 
                 <h3 className="!mt-8">Entidades del Book Gastronómico</h3>
 
@@ -201,11 +227,11 @@ export default function InfoIAPage() {
                     <li><code>producidoPorPartner</code>: Booleano que determina si lo produce CPR o un partner.</li>
                     <li><code>partnerId</code>: ID del proveedor externo si aplica.</li>
                     <li><code>recetaId</code>: Vínculo a una receta del Book Gastronómico.</li>
-                    <li><code>componentes</code>: Si es un "Pack", contiene el desglose de artículos que lo componen para el picking de almacén.</li>
+                    <li><code>componentes</code>: Si es un pack, contiene el desglose de artículos que lo componen para el picking de almacén.</li>
                 </ul>
 
                 <h3 className="!mt-8">Entidades de Portales Externos</h3>
-
+                
                 <h4>PortalUser</h4>
                 <p>Define un usuario que puede acceder a los portales de colaboradores.</p>
                 <ul>
