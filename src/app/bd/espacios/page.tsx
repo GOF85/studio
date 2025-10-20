@@ -1,7 +1,7 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, Building, Menu, FileUp, FileDown, Search } from 'lucide-react';
 import type { Espacio } from '@/types';
