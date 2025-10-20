@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { MoreHorizontal, Pencil, Trash2, Search } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Search, PlusCircle, Menu, FileUp, FileDown } from 'lucide-react';
 import type { Espacio } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,16 +33,20 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import Papa from 'papaparse';
 
+const CSV_HEADERS = ["id", "nombreEspacio", "ciudad", "aforoMaximoBanquete", "aforoMaximoCocktail", "tipoDeEspacio", "relacionComercial"];
 
 export default function EspaciosPage() {
   const [items, setItems] = useState<Espacio[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-
+  
   const router = useRouter();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
   useEffect(() => {
     let storedData = localStorage.getItem('espacios');
@@ -65,6 +69,89 @@ export default function EspaciosPage() {
     toast({ title: 'Espacio eliminado' });
     setItemToDelete(null);
   };
+  
+    const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
+        const file = event.target.files?.[0];
+        if (!file) {
+          setIsImportAlertOpen(false);
+          return;
+        }
+
+        Papa.parse<any>(file, {
+          header: true,
+          skipEmptyLines: true,
+          delimiter,
+          complete: (results) => {
+            if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
+                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
+                return;
+            }
+            
+            const importedData: Espacio[] = results.data.map((item: any) => ({
+                id: item.id || Date.now().toString() + Math.random(),
+                identificacion: {
+                    nombreEspacio: item.nombreEspacio,
+                    ciudad: item.ciudad,
+                    tipoDeEspacio: item.tipoDeEspacio ? item.tipoDeEspacio.split(',') : [],
+                    estilos: [],
+                    tags: [],
+                    idealPara: [],
+                },
+                capacidades: {
+                    aforoMaximoBanquete: parseInt(item.aforoMaximoBanquete, 10) || 0,
+                    aforoMaximoCocktail: parseInt(item.aforoMaximoCocktail, 10) || 0,
+                    salas: [],
+                },
+                logistica: { tipoCocina: 'Sin cocina', montacargas: false, accesoServicioIndependiente: false, tomasAguaCocina: false, desaguesCocina: false, extraccionHumos: false, limitadorSonido: false, permiteMusicaExterior: false, puntosAnclaje: false },
+                evaluacionMICE: { relacionComercial: item.relacionComercial || 'Puntual', valoracionComercial: 3, puntosFuertes: [], puntosDebiles: [], exclusividadMusica: false, exclusividadAudiovisuales: false, valoracionOperaciones: 3, factoresCriticosExito: [], riesgosPotenciales: [] },
+                experienciaInvitado: { flow: { accesoPrincipal: '', recorridoInvitado: '', aparcamiento: '', transportePublico: '', accesibilidadAsistentes: '', guardarropa: false, seguridadPropia: false } },
+                contactos: [],
+                espacio: item.nombreEspacio, // Legacy compatibility
+            }));
+            
+            localStorage.setItem('espacios', JSON.stringify(importedData));
+            setItems(importedData);
+            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+            setIsImportAlertOpen(false);
+          },
+          error: (error) => {
+            toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+            setIsImportAlertOpen(false);
+          }
+        });
+        if(event.target) {
+            event.target.value = '';
+        }
+    };
+    
+    const handleExportCSV = () => {
+        if (items.length === 0) {
+            toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay registros para exportar.' });
+            return;
+        }
+
+        const dataToExport = items.map(item => ({
+          id: item.id,
+          nombreEspacio: item.identificacion.nombreEspacio,
+          ciudad: item.identificacion.ciudad,
+          aforoMaximoBanquete: item.capacidades.aforoMaximoBanquete,
+          aforoMaximoCocktail: item.capacidades.aforoMaximoCocktail,
+          tipoDeEspacio: item.identificacion.tipoDeEspacio.join(','),
+          relacionComercial: item.evaluacionMICE.relacionComercial
+        }));
+
+        const csv = Papa.unparse(dataToExport);
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `espacios.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: 'Exportación completada' });
+    };
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Espacios..." />;
@@ -80,6 +167,25 @@ export default function EspaciosPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+           <div className="flex-grow flex justify-end gap-2">
+              <Button onClick={() => router.push('/bd/espacios/nuevo')}>
+                  <PlusCircle className="mr-2" />
+                  Nuevo
+              </Button>
+              <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon"><Menu /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
+                          <FileUp size={16} className="mr-2"/>Importar CSV
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleExportCSV}>
+                          <FileDown size={16} className="mr-2"/>Exportar CSV
+                      </DropdownMenuItem>
+                  </DropdownMenuContent>
+              </DropdownMenu>
+          </div>
         </div>
 
         <div className="border rounded-lg">
@@ -154,6 +260,21 @@ export default function EspaciosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="!justify-center gap-4">
+                    <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </>
   );
 }

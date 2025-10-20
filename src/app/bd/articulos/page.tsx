@@ -31,8 +31,9 @@ import Papa from 'papaparse';
 import { ARTICULO_CATERING_CATEGORIAS } from '@/types';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown } from 'lucide-react';
 
+const CSV_HEADERS = ["id", "nombre", "categoria", "precioVenta", "precioAlquiler", "producidoPorPartner", "partnerId", "recetaId"];
 
 export default function ArticulosPage() {
   const [items, setItems] = useState<ArticuloCatering[]>([]);
@@ -44,6 +45,8 @@ export default function ArticulosPage() {
   
   const router = useRouter();
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
   useEffect(() => {
     let storedData = localStorage.getItem('articulos');
@@ -72,6 +75,63 @@ export default function ArticulosPage() {
     setItemToDelete(null);
   };
   
+    const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
+        const file = event.target.files?.[0];
+        if (!file) {
+          setIsImportAlertOpen(false);
+          return;
+        }
+
+        Papa.parse<any>(file, {
+          header: true,
+          skipEmptyLines: true,
+          delimiter,
+          complete: (results) => {
+            if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
+                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
+                return;
+            }
+            
+            const importedData: ArticuloCatering[] = results.data.map((item: any) => ({
+              ...item,
+              precioVenta: parseFloat(item.precioVenta) || 0,
+              precioAlquiler: parseFloat(item.precioAlquiler) || 0,
+              producidoPorPartner: item.producidoPorPartner === 'true'
+            }));
+            
+            localStorage.setItem('articulos', JSON.stringify(importedData));
+            setItems(importedData);
+            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+            setIsImportAlertOpen(false);
+          },
+          error: (error) => {
+            toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+            setIsImportAlertOpen(false);
+          }
+        });
+        if(event.target) {
+            event.target.value = '';
+        }
+    };
+    
+    const handleExportCSV = () => {
+        if (items.length === 0) {
+            toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay registros para exportar.' });
+            return;
+        }
+
+        const csv = Papa.unparse(items);
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `articulos.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: 'Exportación completada' });
+    };
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Artículos..." />;
@@ -100,6 +160,25 @@ export default function ArticulosPage() {
               <Checkbox id="partner-filter" checked={isPartnerFilter} onCheckedChange={(checked) => setIsPartnerFilter(Boolean(checked))} />
               <label htmlFor="partner-filter" className="text-sm font-medium">Producido por Partner</label>
            </div>
+           <div className="flex-grow flex justify-end gap-2">
+              <Button onClick={() => router.push('/bd/articulos/nuevo')}>
+                  <PlusCircle className="mr-2" />
+                  Nuevo
+              </Button>
+              <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon"><Menu /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
+                          <FileUp size={16} className="mr-2"/>Importar CSV
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleExportCSV}>
+                          <FileDown size={16} className="mr-2"/>Exportar CSV
+                      </DropdownMenuItem>
+                  </DropdownMenuContent>
+              </DropdownMenu>
+          </div>
         </div>
 
         <div className="border rounded-lg">
@@ -174,6 +253,22 @@ export default function ArticulosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+       <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="!justify-center gap-4">
+                    <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </>
   );
 }
