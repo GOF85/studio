@@ -1,9 +1,9 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Building, Menu, FileUp, FileDown, Search } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Search } from 'lucide-react';
 import type { Espacio } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,9 +33,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import Papa from 'papaparse';
-
-const CSV_HEADERS = [ "id", "nombreEspacio", "ciudad", "aforoMaximoBanquete", "aforoMaximoCocktail", "tipoDeEspacio", "relacionComercial" ];
 
 
 export default function EspaciosPage() {
@@ -43,11 +40,9 @@ export default function EspaciosPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
   const router = useRouter();
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let storedData = localStorage.getItem('espacios');
@@ -70,119 +65,6 @@ export default function EspaciosPage() {
     toast({ title: 'Espacio eliminado' });
     setItemToDelete(null);
   };
-  
-   const handleExportCSV = () => {
-    if (items.length === 0) {
-      toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay espacios para exportar.' });
-      return;
-    }
-    const dataToExport = items.map(item => ({
-        id: item.id,
-        nombreEspacio: item.identificacion.nombreEspacio,
-        ciudad: item.identificacion.ciudad,
-        aforoMaximoBanquete: item.capacidades.aforoMaximoBanquete,
-        aforoMaximoCocktail: item.capacidades.aforoMaximoCocktail,
-        tipoDeEspacio: item.identificacion.tipoDeEspacio.join(', '),
-        relacionComercial: item.evaluacionMICE.relacionComercial,
-    }));
-
-    const csv = Papa.unparse(dataToExport);
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'espacios.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast({ title: 'Exportación completada', description: 'El archivo espacios.csv se ha descargado.' });
-  };
-  
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setIsImportAlertOpen(false);
-      return;
-    }
-
-    Papa.parse<any>(file, {
-      header: true,
-      skipEmptyLines: true,
-      delimiter,
-      complete: (results) => {
-        const importedData: Espacio[] = results.data.map(item => ({
-            id: item.id || Date.now().toString() + Math.random(),
-            espacio: item.nombreEspacio, // Compatibility with old fields
-            identificacion: {
-                nombreEspacio: item.nombreEspacio,
-                ciudad: item.ciudad,
-                tipoDeEspacio: item.tipoDeEspacio?.split(',').map((s:string) => s.trim()) || [],
-                descripcionCorta: '',
-                descripcionLarga: '',
-                provincia: '',
-                calle: '',
-                codigoPostal: '',
-                estilos: [],
-                tags: [],
-                idealPara: [],
-            },
-            capacidades: {
-                aforoMaximoCocktail: Number(item.aforoMaximoCocktail) || 0,
-                aforoMaximoBanquete: Number(item.aforoMaximoBanquete) || 0,
-                salas: []
-            },
-            logistica: {
-                montacargas: false,
-                accesoServicioIndependiente: false,
-                tipoCocina: 'Sin cocina',
-                tomasAguaCocina: false,
-                desaguesCocina: false,
-                extraccionHumos: false,
-                limitadorSonido: false,
-                permiteMusicaExterior: false,
-                puntosAnclaje: false,
-            },
-            evaluacionMICE: {
-                relacionComercial: item.relacionComercial || 'Sin Relación',
-                valoracionComercial: 3,
-                puntosFuertes: [],
-                puntosDebiles: [],
-                exclusividadMusica: false,
-                exclusividadAudiovisuales: false,
-                valoracionOperaciones: 3,
-                factoresCriticosExito: [],
-                riesgosPotenciales: [],
-            },
-            experienciaInvitado: {
-                flow: {
-                    accesoPrincipal: '',
-                    recorridoInvitado: '',
-                    aparcamiento: '',
-                    transportePublico: '',
-                    accesibilidadAsistentes: '',
-                    guardarropa: false,
-                    seguridadPropia: false,
-                }
-            },
-            contactos: []
-        }));
-        
-        localStorage.setItem('espacios', JSON.stringify(importedData));
-        setItems(importedData);
-        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
-        setIsImportAlertOpen(false);
-      },
-      error: (error) => {
-        toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
-        setIsImportAlertOpen(false);
-      }
-    });
-     if(event.target) {
-        event.target.value = '';
-    }
-  };
-
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Espacios..." />;
@@ -190,34 +72,7 @@ export default function EspaciosPage() {
 
   return (
     <>
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Building />Gestión de Espacios</h1>
-          <div className="flex gap-2">
-            <Button asChild>
-              <Link href="/bd/espacios/nuevo">
-                <PlusCircle className="mr-2" />
-                Nuevo Espacio
-              </Link>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
-                      <Menu />
-                  </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
-                       <FileUp size={16} className="mr-2"/>Importar CSV
-                  </DropdownMenuItem>
-                   <DropdownMenuItem onClick={handleExportCSV}>
-                       <FileDown size={16} className="mr-2"/>Exportar CSV
-                  </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-        
+      <main className="container mx-auto px-4 py-8 pt-0">
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
             placeholder="Buscar por nombre o ciudad..."
@@ -299,21 +154,6 @@ export default function EspaciosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-        <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. Normalmente es una coma (,) para archivos de USA/UK o un punto y coma (;) para archivos de Europa.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="!justify-center gap-4">
-                     <input type="file" ref={fileInputRef} className="hidden" accept=".csv" />
-                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
-                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
     </>
   );
 }

@@ -2,11 +2,8 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Package, Menu, FileUp, FileDown, Search } from 'lucide-react';
 import type { ArticuloCatering } from '@/types';
-import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -15,12 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -38,8 +29,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import Papa from 'papaparse';
 import { ARTICULO_CATERING_CATEGORIAS } from '@/types';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 
-const CSV_HEADERS = ["id", "nombre", "categoria", "precioVenta", "precioAlquiler", "producidoPorPartner", "partnerId", "recetaId"];
 
 export default function ArticulosPage() {
   const [items, setItems] = useState<ArticuloCatering[]>([]);
@@ -48,11 +41,9 @@ export default function ArticulosPage() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [isPartnerFilter, setIsPartnerFilter] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
   
   const router = useRouter();
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let storedData = localStorage.getItem('articulos');
@@ -81,83 +72,6 @@ export default function ArticulosPage() {
     setItemToDelete(null);
   };
   
-  const handleExportCSV = () => {
-    if (items.length === 0) {
-      toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay artículos para exportar.' });
-      return;
-    }
-    const dataToExport = items.map(item => ({
-        id: item.id,
-        nombre: item.nombre,
-        categoria: item.categoria,
-        precioVenta: item.precioVenta,
-        precioAlquiler: item.precioAlquiler,
-        producidoPorPartner: item.producidoPorPartner || false,
-        partnerId: item.partnerId || '',
-        recetaId: item.recetaId || '',
-    }));
-
-    const csv = Papa.unparse(dataToExport, { header: true, columns: CSV_HEADERS });
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'articulos_catering.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast({ title: 'Exportación completada' });
-  };
-  
-  const parseBoolean = (value: any) => {
-    const s = String(value).toLowerCase().trim();
-    return s === 'true' || s === '1';
-  }
-
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setIsImportAlertOpen(false);
-      return;
-    }
-
-    Papa.parse<any>(file, {
-      header: true,
-      skipEmptyLines: true,
-      delimiter,
-      complete: (results) => {
-        const hasAllHeaders = CSV_HEADERS.every(field => results.meta.fields?.includes(field));
-        if (!hasAllHeaders) {
-            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas: ${CSV_HEADERS.join(', ')}`});
-            return;
-        }
-
-        const importedData: ArticuloCatering[] = results.data.map(item => ({
-            id: item.id || Date.now().toString() + Math.random(),
-            nombre: item.nombre || '',
-            categoria: ARTICULO_CATERING_CATEGORIAS.includes(item.categoria) ? item.categoria : 'Otros',
-            precioVenta: parseFloat(item.precioVenta) || 0,
-            precioAlquiler: parseFloat(item.precioAlquiler) || 0,
-            producidoPorPartner: parseBoolean(item.producidoPorPartner),
-            partnerId: item.partnerId || undefined,
-            recetaId: item.recetaId || undefined,
-        }));
-        
-        localStorage.setItem('articulos', JSON.stringify(importedData));
-        setItems(importedData);
-        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
-        setIsImportAlertOpen(false);
-      },
-      error: (error) => {
-        toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
-        setIsImportAlertOpen(false);
-      }
-    });
-     if(event.target) {
-        event.target.value = '';
-    }
-  };
 
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Artículos..." />;
@@ -165,34 +79,7 @@ export default function ArticulosPage() {
 
   return (
     <>
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Package />Gestión de Artículos MICE</h1>
-          <div className="flex gap-2">
-            <Button asChild>
-              <Link href="/bd/articulos/nuevo">
-                <PlusCircle className="mr-2" />
-                Nuevo Artículo
-              </Link>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
-                      <Menu />
-                  </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
-                       <FileUp size={16} className="mr-2"/>Importar CSV
-                  </DropdownMenuItem>
-                   <DropdownMenuItem onClick={handleExportCSV}>
-                       <FileDown size={16} className="mr-2"/>Exportar CSV
-                  </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-        
+      <main className="container mx-auto px-4 py-8 pt-0">
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
             placeholder="Buscar por nombre o ID..."
@@ -287,21 +174,6 @@ export default function ArticulosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-       <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. Normalmente es una coma (,) para archivos de USA/UK o un punto y coma (;) para archivos de Europa.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter className="!justify-center gap-4">
-                     <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
-                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
-                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
     </>
   );
 }
