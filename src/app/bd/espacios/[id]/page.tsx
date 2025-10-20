@@ -25,10 +25,10 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 const salaSchema = z.object({
   id: z.string(),
   nombreSala: z.string().min(1, 'El nombre es obligatorio'),
-  aforoTeatro: z.coerce.number().optional(),
-  aforoEscuela: z.coerce.number().optional(),
-  aforoCabaret: z.coerce.number().optional(),
-  aforoCocktailSala: z.coerce.number().optional(),
+  aforoTeatro: z.coerce.number().optional().default(0),
+  aforoEscuela: z.coerce.number().optional().default(0),
+  aforoCabaret: z.coerce.number().optional().default(0),
+  aforoCocktailSala: z.coerce.number().optional().default(0),
   esDiafana: z.boolean().default(false),
   tieneLuzNatural: z.boolean().default(false),
 });
@@ -36,8 +36,8 @@ const salaSchema = z.object({
 const contactoSchema = z.object({
   id: z.string(),
   nombre: z.string().min(1, 'El nombre es obligatorio'),
-  cargo: z.string().optional(),
-  telefono: z.string().optional(),
+  cargo: z.string().optional().default(''),
+  telefono: z.string().optional().default(''),
   email: z.string().email('Debe ser un email válido').optional().or(z.literal('')),
 });
 
@@ -50,16 +50,16 @@ const espacioFormSchema = z.object({
     provincia: z.string().min(1, "La provincia es obligatoria"),
     calle: z.string().min(1, "La calle es obligatoria"),
     codigoPostal: z.string().min(1, "El código postal es obligatorio"),
-    estilos: z.array(z.string()).optional(),
-    tags: z.array(z.string()).optional(),
-    idealPara: z.array(z.string()).optional(),
+    estilos: z.array(z.string()).optional().default([]),
+    tags: z.array(z.string()).optional().default([]),
+    idealPara: z.array(z.string()).optional().default([]),
   }),
   capacidades: z.object({
-    aforoMaximoCocktail: z.coerce.number().min(0),
-    aforoMaximoBanquete: z.coerce.number().min(0),
-    salas: z.array(salaSchema).optional(),
+    aforoMaximoCocktail: z.coerce.number().min(0).default(0),
+    aforoMaximoBanquete: z.coerce.number().min(0).default(0),
+    salas: z.array(salaSchema).optional().default([]),
   }),
-  contactos: z.array(contactoSchema).optional(),
+  contactos: z.array(contactoSchema).optional().default([]),
   evaluacionMICE: z.object({
       relacionComercial: z.enum(['Exclusividad', 'Homologado Preferente', 'Homologado', 'Puntual', 'Sin Relación']),
       exclusividadMusica: z.boolean().default(false),
@@ -94,10 +94,30 @@ export default function EditarEspacioPage() {
     if (item) {
       reset({
         ...item,
-        identificacion: item.identificacion || {},
-        capacidades: item.capacidades || { salas: [] },
+        identificacion: {
+          ...item.identificacion,
+          nombreEspacio: item.identificacion.nombreEspacio || '',
+          tipoDeEspacio: item.identificacion.tipoDeEspacio || [],
+          ciudad: item.identificacion.ciudad || '',
+          provincia: item.identificacion.provincia || '',
+          calle: item.identificacion.calle || '',
+          codigoPostal: item.identificacion.codigoPostal || '',
+          estilos: item.identificacion.estilos || [],
+          tags: item.identificacion.tags || [],
+          idealPara: item.identificacion.idealPara || [],
+        },
+        capacidades: {
+          aforoMaximoCocktail: item.capacidades.aforoMaximoCocktail || 0,
+          aforoMaximoBanquete: item.capacidades.aforoMaximoBanquete || 0,
+          salas: item.capacidades.salas || [],
+        },
         contactos: item.contactos || [],
-        evaluacionMICE: item.evaluacionMICE || {},
+        evaluacionMICE: {
+          ...item.evaluacionMICE,
+          relacionComercial: item.evaluacionMICE.relacionComercial || 'Sin Relación',
+          exclusividadMusica: item.evaluacionMICE.exclusividadMusica || false,
+          exclusividadAudiovisuales: item.evaluacionMICE.exclusividadAudiovisuales || false,
+        },
       });
     } else {
       toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el espacio.' });
