@@ -68,11 +68,6 @@ const mainMenuItems: MenuItem[] = [
         href: '/bd', 
         icon: Package, 
         description: 'Gestiona proveedores, personal y catálogos.',
-        sublinks: [
-            { title: 'Proveedores', href: '/proveedores', icon: Users },
-            { title: 'Personal Interno', href: '/personal', icon: Users },
-            { title: 'Tipos de Servicio', href: '/tipo-servicio', icon: ClipboardList },
-        ]
     },
      { 
         title: 'Configuración', 
