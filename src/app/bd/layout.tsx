@@ -26,7 +26,7 @@ export default function BdLayout({ children }: { children: React.ReactNode }) {
     }, [pathname]);
 
     if (!isMounted) {
-        return <div className="h-screen w-full" />;
+        return <div className="h-screen w-full bg-background" />;
     }
 
     return (
