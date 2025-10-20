@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { UtensilsCrossed, Leaf, Users, LogOut, Package, ClipboardList, Calendar } from 'lucide-react';
+import { UtensilsCrossed, Leaf, Users, LogOut, Package, ClipboardList, Calendar, Database } from 'lucide-react';
 import { Button } from '../ui/button';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -89,6 +89,14 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
                 <Link href="/entregas">
                   <Package className="mr-2 h-5 w-5"/>
                   Entregas MICE
+                </Link>
+              </Button>
+            )}
+            {process.env.NODE_ENV === 'development' && (
+              <Button asChild variant="destructive">
+                <Link href="/debug/db">
+                  <Database className="mr-2 h-4 w-4" />
+                  DEBUG
                 </Link>
               </Button>
             )}
