@@ -4,14 +4,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useState, useEffect, useRef, useMemo } from 'react';
-import type { ArticuloCatering, Personal, Espacio } from '@/types';
-import { PlusCircle, Menu, FileUp, FileDown, Database, Users, Package, Building, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction } from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
-import Papa from 'papaparse';
+import { useState, useEffect, useMemo } from 'react';
+import { Database, Users, Package, Building, ChevronRight } from 'lucide-react';
 
 const bdNavLinks = [
     { title: 'Gestión de Personal', path: '/bd/personal', icon: Users },
@@ -21,9 +15,6 @@ const bdNavLinks = [
 
 export default function BdLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const { toast } = useToast();
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
     
     useEffect(() => {
@@ -44,8 +35,10 @@ export default function BdLayout({ children }: { children: React.ReactNode }) {
                 <div className="container mx-auto px-4">
                     <div className="flex items-center justify-between py-2">
                         <div className="flex items-center gap-2 text-sm font-semibold">
-                            <Database className="h-5 w-5 text-muted-foreground"/>
-                            <span className="text-muted-foreground">Bases de datos</span>
+                            <Link href="/bd" className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                                <Database className="h-5 w-5"/>
+                                <span>Bases de datos</span>
+                            </Link>
                             {currentPage && (
                                 <>
                                     <ChevronRight className="h-4 w-4 text-muted-foreground"/>
@@ -57,7 +50,7 @@ export default function BdLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 </div>
             </div>
-             <main>
+             <main className="container mx-auto px-4 py-8">
                 {children}
             </main>
         </>
