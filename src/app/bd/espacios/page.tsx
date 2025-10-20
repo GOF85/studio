@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { MoreHorizontal, Pencil, Trash2, Search, PlusCircle, Menu, FileUp, FileDown } from 'lucide-react';
 import type { Espacio } from '@/types';
@@ -37,7 +37,7 @@ import Papa from 'papaparse';
 
 const CSV_HEADERS = ["id", "nombreEspacio", "ciudad", "aforoMaximoBanquete", "aforoMaximoCocktail", "tipoDeEspacio", "relacionComercial"];
 
-export default function EspaciosPage() {
+function EspaciosPageContent() {
   const [items, setItems] = useState<Espacio[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -275,4 +275,12 @@ export default function EspaciosPage() {
         </AlertDialog>
     </>
   );
+}
+
+export default function EspaciosPage() {
+    return (
+        <Suspense fallback={<LoadingSkeleton title="Cargando Espacios..." />}>
+            <EspaciosPageContent />
+        </Suspense>
+    )
 }

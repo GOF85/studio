@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -47,7 +46,7 @@ const formSchema = z.object({
 type IngredientesERPFormValues = z.infer<typeof formSchema>;
 const CSV_HEADERS = ["id", "idProveedor", "nombreProveedor", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
 
-export default function IngredientesERPPage() {
+function IngredientesERPPageContent() {
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
@@ -466,4 +465,12 @@ export default function IngredientesERPPage() {
         </AlertDialog>
     </>
   );
+}
+
+export default function IngredientesERPPage() {
+    return (
+        <Suspense fallback={<LoadingSkeleton title="Cargando Materia Prima..." />}>
+            <IngredientesERPPageContent />
+        </Suspense>
+    )
 }

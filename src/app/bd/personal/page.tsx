@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { MoreHorizontal, Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown } from 'lucide-react';
 import type { Personal } from '@/types';
@@ -38,7 +38,7 @@ import Papa from 'papaparse';
 
 const CSV_HEADERS = ["id", "nombre", "apellidos", "iniciales", "departamento", "categoria", "telefono", "mail", "dni", "precioHora"];
 
-export default function PersonalPage() {
+function PersonalPageContent() {
   const [items, setItems] = useState<Personal[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -268,4 +268,12 @@ export default function PersonalPage() {
         </AlertDialog>
     </>
   );
+}
+
+export default function PersonalPage() {
+    return (
+        <Suspense fallback={<LoadingSkeleton title="Cargando Personal..." />}>
+            <PersonalPageContent />
+        </Suspense>
+    )
 }

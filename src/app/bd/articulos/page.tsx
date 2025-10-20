@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ArticuloCatering } from '@/types';
 import {
@@ -35,7 +35,7 @@ import { MoreHorizontal, Pencil, Trash2, PlusCircle, Menu, FileUp, FileDown } fr
 
 const CSV_HEADERS = ["id", "nombre", "categoria", "precioVenta", "precioAlquiler", "producidoPorPartner", "partnerId", "recetaId"];
 
-export default function ArticulosPage() {
+function ArticulosPageContent() {
   const [items, setItems] = useState<ArticuloCatering[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -269,4 +269,12 @@ export default function ArticulosPage() {
         </AlertDialog>
     </>
   );
+}
+
+export default function ArticulosPage() {
+    return (
+        <Suspense fallback={<LoadingSkeleton title="Cargando Artículos..." />}>
+            <ArticulosPageContent />
+        </Suspense>
+    )
 }

@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import type { OrdenFabricacion, StockElaboracion, StockLote, Elaboracion } from '@/types';
@@ -28,7 +27,7 @@ type FormData = {
     motivoAjuste: string;
 };
 
-export default function ExcedenteDetailPage() {
+function ExcedenteDetailPageContent() {
     const [elaboracion, setElaboracion] = useState<Elaboracion | null>(null);
     const [stockItem, setStockItem] = useState<StockElaboracion | null>(null);
     const [isMounted, setIsMounted] = useState(false);
@@ -41,7 +40,7 @@ export default function ExcedenteDetailPage() {
     const elabId = params.id as string;
     
     const form = useForm<FormData>();
-    const { register, handleSubmit, setValue, getValues, control } = form;
+    const { register, handleSubmit, setValue, getValues, control, useFieldArray } = form;
     
     const { fields, update, remove } = useFieldArray({
         control,
@@ -106,7 +105,7 @@ export default function ExcedenteDetailPage() {
             if (index > -1) {
                 allOFs[index].estado = 'Incidencia';
                 allOFs[index].incidencia = true;
-                allOFs[index].incidenciaObservaciones = `MERMA DE EXCEDENTE: ${mermaAllMotivo}`;
+                allOFs[index].observacionesIncidencia = `MERMA DE EXCEDENTE: ${mermaAllMotivo}`;
             }
         });
         localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
@@ -242,7 +241,7 @@ export default function ExcedenteDetailPage() {
                                     <Textarea id="merma-motivo" placeholder="Motivo de la merma (ej: caducado, mal estado, contaminación...)" value={mermaAllMotivo} onChange={e => setMermaAllMotivo(e.target.value)} />
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleDeclareMermaTotal}>Confirmar Merma Total</AlertDialogAction>
+                                        <AlertDialogAction onClick={handleDeclareMermaTotal} className="bg-destructive hover:bg-destructive/80">Sí, reiniciar</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
@@ -252,4 +251,12 @@ export default function ExcedenteDetailPage() {
             </div>
         </div>
     );
+}
+
+export default function ExcedenteDetailPage() {
+    return (
+        <Suspense fallback={<LoadingSkeleton title="Cargando Stock..." />}>
+            <ExcedenteDetailPageContent />
+        </Suspense>
+    )
 }
