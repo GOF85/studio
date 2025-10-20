@@ -121,7 +121,6 @@ export default function AlquilerPage() {
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
-  const { toast } = useToast();
 
  const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
     if (typeof window === 'undefined') {
@@ -160,15 +159,13 @@ export default function AlquilerPage() {
             
             const uniqueKey = `${itemInSheet.orderId}-${itemInSheet.itemCode}`;
             const orderRef = relatedOrders.find(o => o.id === itemInSheet.orderId);
+            
+            // CRITICAL FIX: Always get the quantity from the source of truth (materialOrders)
             const originalItem = orderRef?.items.find(i => i.itemCode === itemInSheet.itemCode);
-
             if (!originalItem) return;
-
-            let cantidadReal = originalItem.quantity;
             
             const itemWithInfo: ItemWithOrderInfo = {
                 ...originalItem, 
-                quantity: cantidadReal,
                 orderId: sheet.id, 
                 orderContract: orderRef?.contractNumber || 'N/A', 
                 orderStatus: sheet.status, 
@@ -177,7 +174,6 @@ export default function AlquilerPage() {
 
             statusItems[targetStatus].push(itemWithInfo);
             sheetInfo.items.push(itemWithInfo);
-
             processedItemKeys.add(uniqueKey);
         });
 
@@ -190,7 +186,6 @@ export default function AlquilerPage() {
         order.items.map(item => {
             return {
                 ...item, 
-                quantity: item.quantity,
                 orderId: order.id, 
                 contractNumber: order.contractNumber, 
                 solicita: order.solicita, 
@@ -206,7 +201,7 @@ export default function AlquilerPage() {
       let cantidadAjustada = item.quantity;
       if (mermas[item.itemCode] && mermas[item.itemCode] > 0) {
           cantidadAjustada = Math.max(0, cantidadAjustada - mermas[item.itemCode]);
-          mermas[item.itemCode] = 0; // Consume la merma
+          mermas[item.itemCode] = 0;
       }
       return !processedItemKeys.has(uniqueKey) && cantidadAjustada > 0;
     }).map(item => {
@@ -410,4 +405,3 @@ export default function AlquilerPage() {
   );
 }
     
-

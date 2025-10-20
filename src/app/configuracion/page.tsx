@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -8,8 +9,8 @@ import { Button } from '@/components/ui/button';
 
 const configItems = [
     { title: 'Bases de Datos', href: '/bd', icon: Database, description: 'Gestiona personal, espacios, proveedores, etc.' },
-    { title: 'Objetivos de Gasto', href: '/objetivos-gasto', icon: Target, description: 'Crea y edita plantillas para el análisis de rentabilidad.' },
-    { title: 'Plantillas de Pedidos', href: '/plantillas-pedidos', icon: FilePlus2, description: 'Agiliza la creación de pedidos de material.' },
+    { title: 'Objetivos de Gasto', href: '/bd/objetivos-gasto', icon: Target, description: 'Crea y edita plantillas para el análisis de rentabilidad.' },
+    { title: 'Plantillas de Pedidos', href: '/bd/plantillas-pedidos', icon: FilePlus2, description: 'Agiliza la creación de pedidos de material.' },
 ];
 
 export default function ConfiguracionPage() {

@@ -333,7 +333,12 @@ export default function IngredientesERPPage() {
                   ref={fileInputRef}
                   className="hidden"
                   accept=".csv"
-                  onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as any)}
+                  onChange={(e) => {
+                    const delimiter = fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';';
+                    if (delimiter) {
+                        handleImportCSV(e, delimiter);
+                    }
+                  }}
                 />
 
                 <div className="border rounded-lg">
@@ -450,7 +455,7 @@ export default function IngredientesERPPage() {
                 <AlertDialogHeader>
                     <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. Normalmente es una coma (,) o un punto y coma (;).
+                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. Normalmente es una coma (,) para archivos de USA/UK o un punto y coma (;) para archivos de Europa.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="!justify-center gap-4">
