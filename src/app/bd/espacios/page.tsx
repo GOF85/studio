@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { MoreHorizontal, Pencil, Trash2, Search, PlusCircle, Menu, FileUp, FileDown } from 'lucide-react';
 import type { Espacio } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import Papa from 'papaparse';
-import Link from 'next/link';
 
 const CSV_HEADERS = ["id", "nombreEspacio", "ciudad", "aforoMaximoBanquete", "aforoMaximoCocktail", "tipoDeEspacio", "relacionComercial"];
 
