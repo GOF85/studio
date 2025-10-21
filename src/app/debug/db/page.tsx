@@ -22,7 +22,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 const ALL_DATABASE_KEYS = [
     'personal', 'espacios', 'precios', 'alquilerDB', 'tipoServicio', 'proveedoresTransporte', 
@@ -147,31 +146,33 @@ export default function DebugDbPage() {
           {Object.keys(dbData)
             .sort()
             .map((key) => (
-              <AccordionItem value={key} key={key}>
-                <AccordionTrigger className="p-4 bg-muted/50 rounded-lg hover:no-underline text-left">
-                  <div className="flex justify-between items-center w-full">
-                      <div className="flex items-baseline gap-4">
-                          <h3 className="text-lg font-semibold">{key}</h3>
-                          <span className="text-sm text-muted-foreground">
-                          (
-                          {Array.isArray(dbData[key])
-                              ? `${dbData[key].length} registros`
-                              : typeof dbData[key] === 'object' && dbData[key] !== null
-                              ? `${Object.keys(dbData[key]).length} claves`
-                              : dbData[key] === null ? 'Vacío' : 'Valor'}
-                          )
-                          </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground max-w-lg text-right pr-4">{KEY_DESCRIPTIONS[key] || 'Sin descripción.'}</p>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <ScrollArea className="h-[400px] mt-2 border rounded-md">
-                    <pre className="p-4 text-xs whitespace-pre-wrap break-all">
-                      {JSON.stringify(dbData[key], null, 2)}
-                    </pre>
-                  </ScrollArea>
-                </AccordionContent>
+              <AccordionItem value={key} key={key} className="border-none">
+                <div className="bg-muted/50 rounded-lg">
+                    <AccordionTrigger className="p-4 hover:no-underline text-left">
+                        <div className="flex justify-between items-center w-full">
+                            <div className="flex items-baseline gap-4">
+                                <h3 className="text-lg font-semibold">{key}</h3>
+                                <span className="text-sm text-muted-foreground">
+                                (
+                                {Array.isArray(dbData[key])
+                                    ? `${dbData[key].length} registros`
+                                    : typeof dbData[key] === 'object' && dbData[key] !== null
+                                    ? `${Object.keys(dbData[key]).length} claves`
+                                    : dbData[key] === null ? 'Vacío' : 'Valor'}
+                                )
+                                </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground max-w-xl text-right pr-4">{KEY_DESCRIPTIONS[key] || 'Sin descripción.'}</p>
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <ScrollArea className="h-[400px] mt-2 border-t bg-background">
+                        <pre className="p-4 text-xs whitespace-pre-wrap break-all">
+                          {JSON.stringify(dbData[key], null, 2)}
+                        </pre>
+                      </ScrollArea>
+                    </AccordionContent>
+                </div>
               </AccordionItem>
             ))}
         </Accordion>
