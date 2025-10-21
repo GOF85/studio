@@ -6,7 +6,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Save, X, Component, ChefHat, PlusCircle, Trash2, DollarSign, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
+import { Loader2, Save, X, Component, ChefHat, PlusCircle, Trash2, DollarSign, Image as ImageIcon, Link as LinkIcon, Component as SubElabIcon } from 'lucide-react';
 import type { Elaboracion, IngredienteInterno, UnidadMedida, IngredienteERP, PartidaProduccion, Receta, FormatoExpedicion } from '@/types';
 import { UNIDADES_MEDIDA } from '@/types';
 
@@ -23,10 +23,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { formatCurrency, formatUnit } from '@/lib/utils';
 import Image from 'next/image';
 import { Combobox } from '@/components/ui/combobox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const ingredienteSchema = z.object({
+
+const componenteSchema = z.object({
     id: z.string(),
-    tipo: z.literal('ingrediente'), // Por ahora solo ingredientes
+    tipo: z.enum(['ingrediente', 'elaboracion']),
     componenteId: z.string(),
     nombre: z.string(),
     cantidad: z.coerce.number().min(0.001, 'La cantidad debe ser mayor que 0'),
@@ -39,7 +41,7 @@ const elaboracionFormSchema = z.object({
   produccionTotal: z.coerce.number().min(0.001, 'La producción total es obligatoria'),
   unidadProduccion: z.enum(UNIDADES_MEDIDA),
   partidaProduccion: z.enum(['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION']),
-  componentes: z.array(ingredienteSchema).min(1, 'Debe tener al menos un ingrediente'),
+  componentes: z.array(componenteSchema).min(1, 'Debe tener al menos un componente'),
   instruccionesPreparacion: z.string().optional().default(''),
   fotosProduccionURLs: z.array(z.string().url("Debe ser una URL válida")).optional().default([]),
   videoProduccionURL: z.string().url().or(z.literal('')).optional(),
@@ -51,9 +53,10 @@ const elaboracionFormSchema = z.object({
 type ElaboracionFormValues = z.infer<typeof elaboracionFormSchema>;
 type IngredienteConERP = IngredienteInterno & { erp?: IngredienteERP };
 
-function IngredienteSelector({ onSelect }: { onSelect: (ingrediente: IngredienteConERP) => void }) {
+function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, allElaboraciones }: { onSelectIngrediente: (ing: IngredienteConERP) => void, onSelectElaboracion: (elab: Elaboracion) => void, allElaboraciones: Elaboracion[] }) {
     const [ingredientes, setIngredientes] = useState<IngredienteConERP[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [elabSearchTerm, setElabSearchTerm] = useState('');
 
     useEffect(() => {
         const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
@@ -67,33 +70,62 @@ function IngredienteSelector({ onSelect }: { onSelect: (ingrediente: Ingrediente
         setIngredientes(combined);
     }, []);
 
-    const filtered = useMemo(() => {
+    const filteredIngredientes = useMemo(() => {
         return ingredientes.filter(i => 
             i.nombreIngrediente.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (i.erp?.IdERP || '').toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [ingredientes, searchTerm]);
 
+    const filteredElaboraciones = useMemo(() => {
+        return allElaboraciones.filter(e => 
+            e.nombre.toLowerCase().includes(elabSearchTerm.toLowerCase())
+        );
+    }, [allElaboraciones, elabSearchTerm]);
+
     return (
-        <DialogContent className="max-w-2xl">
-            <DialogHeader><DialogTitle>Seleccionar Ingrediente</DialogTitle></DialogHeader>
-            <Input placeholder="Buscar ingrediente o Id. ERP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-            <div className="max-h-[60vh] overflow-y-auto border rounded-md">
-                <Table>
-                    <TableHeader><TableRow><TableHead>Ingrediente</TableHead><TableHead>Coste / Unidad</TableHead><TableHead></TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {filtered.map(ing => (
-                            <TableRow key={ing.id}>
-                                <TableCell>{ing.nombreIngrediente}</TableCell>
-                                <TableCell>{formatCurrency(ing.erp?.precio)} / {ing.erp ? formatUnit(ing.erp.unidad) : 'Ud'}</TableCell>
-                                <TableCell className="text-right">
-                                    <Button size="sm" type="button" onClick={() => onSelect(ing)}>Añadir</Button>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </div>
+        <DialogContent className="max-w-4xl">
+            <DialogHeader><DialogTitle>Seleccionar Componente</DialogTitle></DialogHeader>
+            <Tabs defaultValue="ingredientes">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="ingredientes">Ingredientes</TabsTrigger>
+                    <TabsTrigger value="elaboraciones">Elaboraciones (Sub-recetas)</TabsTrigger>
+                </TabsList>
+                <TabsContent value="ingredientes">
+                    <Input placeholder="Buscar ingrediente o Id. ERP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="my-2"/>
+                    <div className="max-h-[50vh] overflow-y-auto border rounded-md">
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Ingrediente</TableHead><TableHead>Coste / Unidad</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {filteredIngredientes.map(ing => (
+                                    <TableRow key={ing.id}>
+                                        <TableCell>{ing.nombreIngrediente}</TableCell>
+                                        <TableCell>{formatCurrency(ing.erp?.precio)} / {ing.erp ? formatUnit(ing.erp.unidad) : 'Ud'}</TableCell>
+                                        <TableCell className="text-right"><Button size="sm" type="button" onClick={() => onSelectIngrediente(ing)}>Añadir</Button></TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </TabsContent>
+                <TabsContent value="elaboraciones">
+                    <Input placeholder="Buscar elaboración..." value={elabSearchTerm} onChange={e => setElabSearchTerm(e.target.value)} className="my-2"/>
+                    <div className="max-h-[50vh] overflow-y-auto border rounded-md">
+                        <Table>
+                             <TableHeader><TableRow><TableHead>Elaboración</TableHead><TableHead>Coste / Unidad</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {filteredElaboraciones.map(elab => (
+                                    <TableRow key={elab.id}>
+                                        <TableCell>{elab.nombre}</TableCell>
+                                        <TableCell>{formatCurrency(elab.costePorUnidad)} / {formatUnit(elab.unidadProduccion)}</TableCell>
+                                        <TableCell className="text-right"><Button size="sm" type="button" onClick={() => onSelectElaboracion(elab)}>Añadir</Button></TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </TabsContent>
+            </Tabs>
         </DialogContent>
     );
 }
@@ -109,6 +141,7 @@ export default function ElaboracionFormPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
+  const [elaboracionesData, setElaboracionesData] = useState<Map<string, Elaboracion>>(new Map());
   const [affectedRecipes, setAffectedRecipes] = useState<Receta[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState('');
@@ -145,10 +178,12 @@ export default function ElaboracionFormPage() {
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
     const erpMap = new Map(storedErp.map(i => [i.id, i]));
-    const combined = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
-    setIngredientesData(new Map(combined.map(i => [i.id, i])));
+    const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
+    setIngredientesData(new Map(combinedIngredientes.map(i => [i.id, i])));
 
     const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    setElaboracionesData(new Map(allElaboraciones.map(e => [e.id, e])));
+    
     let initialData: Elaboracion | null = null;
     
     if (cloneId) {
@@ -187,6 +222,18 @@ export default function ElaboracionFormPage() {
       });
       setIsSelectorOpen(false);
   }
+
+  const handleSelectElaboracion = (elab: Elaboracion) => {
+    append({
+        id: `${elab.id}-${Date.now()}`,
+        tipo: 'elaboracion',
+        componenteId: elab.id,
+        nombre: elab.nombre,
+        cantidad: 1,
+        costePorUnidad: elab.costePorUnidad || 0,
+    });
+    setIsSelectorOpen(false);
+  }
   
   const handleAddImageUrl = () => {
     try {
@@ -209,9 +256,7 @@ export default function ElaboracionFormPage() {
   const { costeTotal, costePorUnidad } = useMemo(() => {
     let total = 0;
     watchedComponentes.forEach(componente => {
-        if (componente.tipo === 'ingrediente') {
-           total += (componente.costePorUnidad || 0) * componente.cantidad;
-        }
+        total += (componente.costePorUnidad || 0) * componente.cantidad;
     });
     const produccionTotal = watchedProduccionTotal > 0 ? watchedProduccionTotal : 1;
     const porUnidad = total / produccionTotal;
@@ -345,35 +390,52 @@ export default function ElaboracionFormPage() {
             
             <Card>
                 <CardHeader className="flex-row items-center justify-between py-3">
-                    <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><ChefHat/>Ingredientes</CardTitle>
-                    <CardDescription className="text-xs">Añade los ingredientes que forman parte de esta preparación.</CardDescription></div>
+                    <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><ChefHat/>Componentes</CardTitle>
+                    <CardDescription className="text-xs">Añade los ingredientes y sub-elaboraciones que forman parte de esta preparación.</CardDescription></div>
                     <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                         <DialogTrigger asChild>
-                             <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Ingrediente</Button>
+                             <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Componente</Button>
                         </DialogTrigger>
-                        <IngredienteSelector onSelect={handleSelectIngrediente} />
+                        <ComponenteSelector 
+                            onSelectIngrediente={handleSelectIngrediente} 
+                            onSelectElaboracion={handleSelectElaboracion} 
+                            allElaboraciones={Array.from(elaboracionesData.values())} 
+                        />
                     </Dialog>
                 </CardHeader>
                 <CardContent>
                      <div className="border rounded-lg">
                         <Table>
-                            <TableHeader><TableRow><TableHead className="py-2 px-3">Ingrediente</TableHead><TableHead className="w-40 py-2 px-3">Cantidad</TableHead><TableHead className="w-40 py-2 px-3">Unidad</TableHead><TableHead className="w-12 py-2 px-3"></TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead className="py-2 px-3">Componente</TableHead><TableHead className="w-40 py-2 px-3">Cantidad</TableHead><TableHead className="w-40 py-2 px-3">Unidad</TableHead><TableHead className="w-12 py-2 px-3"></TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {fields.length === 0 && <TableRow><TableCell colSpan={4} className="h-24 text-center">Añade un ingrediente para empezar.</TableCell></TableRow>}
-                                {fields.map((field, index) => (
-                                    <TableRow key={field.id}>
-                                        <TableCell className="font-medium py-1 px-3">{field.nombre}</TableCell>
-                                        <TableCell className="py-1 px-3">
-                                            <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
-                                                <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
-                                            )} />
-                                        </TableCell>
-                                        <TableCell className="py-1 px-3">
-                                            {formatUnit(ingredientesData.get(field.componenteId)?.erp?.unidad || 'UNIDAD')}
-                                        </TableCell>
-                                        <TableCell className="py-1 px-3"><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
-                                    </TableRow>
-                                ))}
+                                {fields.length === 0 && <TableRow><TableCell colSpan={4} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
+                                {fields.map((field, index) => {
+                                    const componenteData = field.tipo === 'ingrediente'
+                                        ? ingredientesData.get(field.componenteId)
+                                        : elaboracionesData.get(field.componenteId);
+                                    
+                                    const unidad = field.tipo === 'ingrediente'
+                                        ? (componenteData as IngredienteConERP)?.erp?.unidad || 'UNIDAD'
+                                        : (componenteData as Elaboracion)?.unidadProduccion || 'UNIDAD';
+
+                                    return (
+                                        <TableRow key={field.id}>
+                                            <TableCell className="font-medium py-1 px-3 flex items-center gap-2">
+                                                {field.tipo === 'ingrediente' ? <ChefHat size={16} className="text-muted-foreground"/> : <SubElabIcon size={16} className="text-muted-foreground"/>}
+                                                {field.nombre}
+                                            </TableCell>
+                                            <TableCell className="py-1 px-3">
+                                                <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
+                                                    <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
+                                                )} />
+                                            </TableCell>
+                                            <TableCell className="py-1 px-3">
+                                                {formatUnit(unidad)}
+                                            </TableCell>
+                                            <TableCell className="py-1 px-3"><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
+                                        </TableRow>
+                                    )
+                                })}
                             </TableBody>
                         </Table>
                      </div>
@@ -479,3 +541,5 @@ export default function ElaboracionFormPage() {
     </>
   );
 }
+
+    
