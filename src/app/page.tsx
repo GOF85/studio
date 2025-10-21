@@ -35,7 +35,6 @@ const mainMenuItems: MenuItem[] = [
             { title: 'Elaboraciones', href: '/book/elaboraciones', icon: Component },
             { title: 'Ingredientes', href: '/book/ingredientes', icon: ChefHat },
             { title: 'Materia Prima (ERP)', href: '/bd/erp', icon: Package },
-            { title: 'Menaje', href: '/menaje-db', icon: GlassWater },
             { title: 'Información de Alérgenos', href: '/book/alergenos', icon: Sprout },
         ]
     },
@@ -67,7 +66,7 @@ const mainMenuItems: MenuItem[] = [
         title: 'Bases de Datos', 
         href: '/bd', 
         icon: Package, 
-        description: 'Gestiona proveedores, personal y catálogos.',
+        description: 'Gestiona artículos, personal, espacios, etc.',
     },
      { 
         title: 'Configuración', 
@@ -80,7 +79,7 @@ const mainMenuItems: MenuItem[] = [
     },
 ]
 
-export default function DashboardPage() {
+export default function HomePage() {
   return (
     <TooltipProvider>
       <div className="flex flex-col min-h-screen">
@@ -177,7 +176,7 @@ export default function DashboardPage() {
                             <CardTitle className="flex items-center gap-3"><Truck className="text-orange-600"/>Portal de Transporte</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-sm text-muted-foreground">Consulta de rutas de entrega y gestión de albaranes digitales.</p>
+                            <p className="text-sm text-muted-foreground">Consulta tus rutas de entrega y gestiona albaranes digitales.</p>
                         </CardContent>
                     </Card>
                 </Link>
