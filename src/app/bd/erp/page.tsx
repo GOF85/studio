@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PlusCircle, Save, Trash2, Loader2, Menu, FileUp, FileDown, Database } from 'lucide-react';
-import type { IngredienteERP, UnidadMedida, Proveedor } from '@/types';
-import { UNIDADES_MEDIDA, ingredienteErpSchema } from '@/types';
+import type { ArticuloERP, UnidadMedida, Proveedor } from '@/types';
+import { UNIDADES_MEDIDA, articuloErpSchema } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -40,13 +40,13 @@ import Papa from 'papaparse';
 import { Label } from '@/components/ui/label';
 
 const formSchema = z.object({
-    items: z.array(ingredienteErpSchema)
+    items: z.array(articuloErpSchema)
 });
 
-type IngredientesERPFormValues = z.infer<typeof formSchema>;
+type ArticulosERPFormValues = z.infer<typeof formSchema>;
 const CSV_HEADERS = ["id", "idProveedor", "nombreProveedor", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
 
-function IngredientesERPPageContent() {
+function ArticulosERPPageContent() {
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
@@ -63,7 +63,7 @@ function IngredientesERPPageContent() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const form = useForm<IngredientesERPFormValues>({
+  const form = useForm<ArticulosERPFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
         items: []
@@ -84,10 +84,10 @@ function IngredientesERPPageContent() {
     });
     setProveedoresMap(pMap);
 
-    let storedData = localStorage.getItem('ingredientesERP');
+    let storedData = localStorage.getItem('articulosERP');
     const items = storedData ? JSON.parse(storedData) : [];
     
-    const enrichedItems = items.map((item: IngredienteERP) => ({
+    const enrichedItems = items.map((item: ArticuloERP) => ({
       ...item,
       nombreProveedor: pMap.get(item.idProveedor || '') || item.nombreProveedor || ''
     }));
@@ -136,11 +136,11 @@ function IngredientesERPPageContent() {
     });
   }, [watchedItems, searchTerm, categoryFilter, typeFilter, providerFilter, forRentFilter]);
 
-  function onSubmit(data: IngredientesERPFormValues) {
+  function onSubmit(data: ArticulosERPFormValues) {
     setIsLoading(true);
-    localStorage.setItem('ingredientesERP', JSON.stringify(data.items));
+    localStorage.setItem('articulosERP', JSON.stringify(data.items));
     setTimeout(() => {
-        toast({ title: 'Guardado', description: 'Todos los cambios en la materia prima han sido guardados.' });
+        toast({ title: 'Guardado', description: 'La base de datos de artículos ERP ha sido guardada.' });
         setIsLoading(false);
         form.reset(data); // Mark form as not dirty
     }, 500);
@@ -158,7 +158,7 @@ function IngredientesERPPageContent() {
       unidadConversion: 1,
       precio: 0,
       precioAlquiler: 0,
-      unidad: 'UNIDAD',
+      unidad: 'UD',
       tipo: '',
       alquiler: false,
       observaciones: '',
@@ -191,7 +191,7 @@ function IngredientesERPPageContent() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', 'materia_prima_erp.csv');
+    link.setAttribute('download', 'articulos_erp.csv');
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -234,7 +234,7 @@ function IngredientesERPPageContent() {
             return;
         }
         
-        const importedData: IngredienteERP[] = results.data.map(item => ({
+        const importedData: ArticuloERP[] = results.data.map(item => ({
             id: item.id || Date.now().toString() + Math.random(),
             idProveedor: item.idProveedor || '',
             nombreProductoERP: item.nombreProductoERP || '',
@@ -245,7 +245,7 @@ function IngredientesERPPageContent() {
             unidadConversion: Number(item.unidadConversion) || 1,
             precio: 0, 
             precioAlquiler: parseCurrency(item.precioAlquiler),
-            unidad: UNIDADES_MEDIDA.includes(item.unidad) ? item.unidad : 'UNIDAD',
+            unidad: UNIDADES_MEDIDA.includes(item.unidad) ? item.unidad : 'UD',
             tipo: item.tipo || '',
             alquiler: parseBoolean(item.alquiler),
             observaciones: item.observaciones || ''
@@ -266,7 +266,7 @@ function IngredientesERPPageContent() {
   };
   
   if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Materia Prima..." />;
+    return <LoadingSkeleton title="Cargando Artículos ERP..." />;
   }
 
   return (
@@ -275,7 +275,7 @@ function IngredientesERPPageContent() {
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-center justify-between mb-6">
-                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Database />Base de Datos ERP</h1>
+                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Database />Base de Datos de Artículos (ERP)</h1>
                 <div className="flex gap-2">
                     <Button type="button" variant="outline" onClick={handleAddNewRow}>
                         <PlusCircle className="mr-2" />
@@ -418,7 +418,7 @@ function IngredientesERPPageContent() {
                     ) : (
                         <TableRow>
                         <TableCell colSpan={12} className="h-24 text-center">
-                            No se encontraron ingredientes que coincidan con la búsqueda.
+                            No se encontraron artículos que coincidan con la búsqueda.
                         </TableCell>
                         </TableRow>
                     )}
@@ -467,10 +467,10 @@ function IngredientesERPPageContent() {
   );
 }
 
-export default function IngredientesERPPage() {
+export default function ArticulosERPPage() {
     return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando Materia Prima..." />}>
-            <IngredientesERPPageContent />
+        <Suspense fallback={<LoadingSkeleton title="Cargando Artículos ERP..." />}>
+            <ArticulosERPPageContent />
         </Suspense>
     )
 }

@@ -74,7 +74,7 @@ export default function BdPage() {
             if (db.path === '/bd/tipo-servicio') count = countItems('tipoServicio');
             if (db.path === '/bd/atipicos-db') count = countItems('atipicosDB');
             if (db.path === '/bd/decoracion-db') count = countItems('decoracionDB');
-            if (db.path === '/bd/erp') count = countItems('ingredientesERP');
+            if (db.path === '/bd/erp') count = countItems('articulosERP');
             if (db.path === '/bd/plantillas-pedidos') count = countItems('pedidoPlantillas');
             if (db.path === '/bd/formatos-expedicion') count = countItems('formatosExpedicionDB');
             if (db.path === '/bd/proveedores') count = countItems('proveedores');

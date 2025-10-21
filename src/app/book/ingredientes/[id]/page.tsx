@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -8,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, ChefHat, Link as LinkIcon, Check, CircleX, Trash2, AlertTriangle } from 'lucide-react';
-import type { IngredienteInterno, IngredienteERP, Alergeno, Elaboracion, Receta } from '@/types';
+import type { IngredienteInterno, ArticuloERP, Alergeno, Elaboracion, Receta } from '@/types';
 import { ALERGENOS } from '@/types';
 import * as React from 'react';
 
@@ -33,7 +32,7 @@ export const ingredienteFormSchema = z.object({
 
 type IngredienteFormValues = z.infer<typeof ingredienteFormSchema>;
 
-function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProducts }: { onSelect: (id: string) => void, searchTerm: string, setSearchTerm: (term: string) => void, filteredProducts: IngredienteERP[] }) {
+function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProducts }: { onSelect: (id: string) => void, searchTerm: string, setSearchTerm: (term: string) => void, filteredProducts: ArticuloERP[] }) {
     return (
         <DialogContent className="max-w-3xl">
             <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
@@ -73,7 +72,7 @@ export default function IngredienteFormPage() {
   const [affectedElaboraciones, setAffectedElaboraciones] = useState<Elaboracion[]>([]);
   const { toast } = useToast();
   
-  const [ingredientesERP, setIngredientesERP] = useState<IngredienteERP[]>([]);
+  const [articulosERP, setArticulosERP] = useState<ArticuloERP[]>([]);
   const [erpSearchTerm, setErpSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -83,15 +82,15 @@ export default function IngredienteFormPage() {
   });
   
   const selectedErpId = form.watch('productoERPlinkId');
-  const selectedErpProduct = ingredientesERP.find(p => p.id === selectedErpId);
+  const selectedErpProduct = articulosERP.find(p => p.id === selectedErpId);
 
   const filteredErpProducts = useMemo(() => {
-    return ingredientesERP.filter(p => 
+    return articulosERP.filter(p => 
         p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
         (p.nombreProveedor || '').toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
         (p.referenciaProveedor || '').toLowerCase().includes(erpSearchTerm.toLowerCase())
     );
-  }, [ingredientesERP, erpSearchTerm]);
+  }, [articulosERP, erpSearchTerm]);
   
   const alergenosColumns = React.useMemo(() => {
     const half = Math.ceil(ALERGENOS.length / 2);
@@ -101,8 +100,8 @@ export default function IngredienteFormPage() {
   }, []);
 
   useEffect(() => {
-    const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
-    setIngredientesERP(storedErp);
+    const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
+    setArticulosERP(storedErp);
 
     if (isEditing) {
       const ingredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
@@ -298,7 +297,7 @@ export default function IngredienteFormPage() {
                         </div>
                          <div className="col-span-7">
                              <FormItem>
-                                <FormLabel>Vínculo con Materia Prima (ERP)</FormLabel>
+                                <FormLabel>Vínculo con Artículo ERP</FormLabel>
                                 {selectedErpProduct ? (
                                     <div className="border rounded-md p-2 space-y-1">
                                         <div className="flex justify-between items-start">
@@ -313,7 +312,7 @@ export default function IngredienteFormPage() {
                                 ) : (
                                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                                         <DialogTrigger asChild>
-                                            <Button variant="secondary" className="w-full h-16 border-dashed border-2"><LinkIcon className="mr-2"/>Vincular Producto ERP</Button>
+                                            <Button variant="secondary" className="w-full h-16 border-dashed border-2"><LinkIcon className="mr-2"/>Vincular Artículo ERP</Button>
                                         </DialogTrigger>
                                         <ErpSelectorDialog 
                                             onSelect={handleErpSelect}

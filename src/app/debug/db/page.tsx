@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -31,7 +32,7 @@ const ALL_DATABASE_KEYS = [
     'hieloOrders', 'decoracionOrders', 'atipicoOrders', 'personalExternoOrders', 'pruebasMenu', 
     'pickingSheets', 'returnSheets', 'ordenesFabricacion', 'pickingStates',
     'pedidosEntrega', 'personalEntrega', 'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 
-    'ctaComentarios', 'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'ingredientesERP', 
+    'ctaComentarios', 'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'articulosERP', 
     'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
     'comercialAjustes', 'personalExternoAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones'
 ];
@@ -73,7 +74,7 @@ const KEY_DESCRIPTIONS: Record<string, string> = {
     ctaComentarios: 'Almacena los comentarios de cada partida de coste en la Cta. de Explotación.',
     objetivosGastoPlantillas: 'Plantillas para los objetivos de rentabilidad en la Cta. de Explotación.',
     defaultObjetivoGastoId: 'ID de la plantilla de objetivos de gasto por defecto.',
-    ingredientesERP: 'Base de datos maestra de materia prima, con precios de proveedor.',
+    articulosERP: 'Base de datos maestra de materia prima, con precios de proveedor.',
     ingredientesInternos: 'Base de datos que vincula la materia prima (ERP) con las elaboraciones.',
     elaboraciones: 'Base de datos maestra de las sub-recetas (ej. salsas, guarniciones).',
     recetas: 'Base de datos maestra de los platos finales que se venden.',

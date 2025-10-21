@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle, MoreHorizontal, Pencil } from 'lucide-react';
-import type { IngredienteInterno, IngredienteERP, Alergeno, Elaboracion } from '@/types';
+import type { IngredienteInterno, ArticuloERP, Alergeno, Elaboracion } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -25,11 +25,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 
 type IngredienteConERP = IngredienteInterno & {
-    erp?: IngredienteERP;
+    erp?: ArticuloERP;
     alergenos: Alergeno[];
 }
 
-const CSV_HEADERS = ["id", "nombreIngrediente", "productoERPlinkId", "mermaPorcentaje", "alergenosPresentes", "alergenosTrazas"];
+const CSV_HEADERS = ["id", "nombreIngrediente", "productoERPlinkId", "alergenosPresentes", "alergenosTrazas"];
 const ITEMS_PER_PAGE = 20;
 
 export default function IngredientesPage() {
@@ -45,13 +45,13 @@ export default function IngredientesPage() {
   const { toast } = useToast();
   
   useEffect(() => {
-    let storedErp = localStorage.getItem('ingredientesERP');
+    let storedErp = localStorage.getItem('articulosERP');
     if (!storedErp) {
-      localStorage.setItem('ingredientesERP', '[]')
+      localStorage.setItem('articulosERP', '[]')
       storedErp = '[]';
     }
-    const ingredientesERP = JSON.parse(storedErp) as IngredienteERP[];
-    const erpMap = new Map(ingredientesERP.map(item => [item.id, item]));
+    const articulosERP = JSON.parse(storedErp) as ArticuloERP[];
+    const erpMap = new Map(articulosERP.map(item => [item.id, item]));
 
     let storedIngredientes = localStorage.getItem('ingredientesInternos');
     if (!storedIngredientes) {
@@ -134,7 +134,6 @@ export default function IngredientesPage() {
                     id: item.id || Date.now().toString() + Math.random(),
                     nombreIngrediente: item.nombreIngrediente || '',
                     productoERPlinkId: item.productoERPlinkId || '',
-                    mermaPorcentaje: parseFloat(item.mermaPorcentaje) || 0,
                     alergenosPresentes,
                     alergenosTrazas,
                 };

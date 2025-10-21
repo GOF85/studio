@@ -584,7 +584,7 @@ export type Precio = {
 export const UNIDADES_MEDIDA = ['KG', 'L', 'UD'] as const;
 export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
 
-export const ingredienteErpSchema = z.object({
+export const articuloErpSchema = z.object({
   id: z.string(),
   idProveedor: z.string().optional(),
   nombreProductoERP: z.string().min(1, 'El nombre del producto es obligatorio'),
@@ -601,7 +601,7 @@ export const ingredienteErpSchema = z.object({
   observaciones: z.string().optional(),
 });
 
-export type IngredienteERP = z.infer<typeof ingredienteErpSchema>;
+export type ArticuloERP = z.infer<typeof articuloErpSchema>;
 
 export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS_DE_CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
 export type Alergeno = typeof ALERGENOS[number];

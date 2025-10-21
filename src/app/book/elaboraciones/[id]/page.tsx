@@ -8,7 +8,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, Save, X, Component, ChefHat, PlusCircle, Trash2, DollarSign, Image as ImageIcon, Link as LinkIcon, Component as SubElabIcon } from 'lucide-react';
-import type { Elaboracion, IngredienteInterno, UnidadMedida, IngredienteERP, PartidaProduccion, Receta, FormatoExpedicion } from '@/types';
+import type { Elaboracion, IngredienteInterno, UnidadMedida, ArticuloERP, PartidaProduccion, Receta, FormatoExpedicion } from '@/types';
 import { UNIDADES_MEDIDA } from '@/types';
 
 import { Button } from '@/components/ui/button';
@@ -53,7 +53,7 @@ const elaboracionFormSchema = z.object({
 });
 
 type ElaboracionFormValues = z.infer<typeof elaboracionFormSchema>;
-type IngredienteConERP = IngredienteInterno & { erp?: IngredienteERP };
+type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
 
 function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, allElaboraciones }: { onSelectIngrediente: (ing: IngredienteConERP) => void, onSelectElaboracion: (elab: Elaboracion) => void, allElaboraciones: Elaboracion[] }) {
     const [ingredientes, setIngredientes] = useState<IngredienteConERP[]>([]);
@@ -62,7 +62,7 @@ function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, allElabo
 
     useEffect(() => {
         const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-        const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
+        const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
         const erpMap = new Map(storedErp.map(i => [i.id, i]));
         
         const combined = storedInternos.map(ing => ({
@@ -178,7 +178,7 @@ export default function ElaboracionFormPage() {
     setFormatosExpedicion(storedFormatos);
 
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-    const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
+    const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
     const erpMap = new Map(storedErp.map(i => [i.id, i]));
     const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
     setIngredientesData(new Map(combinedIngredientes.map(i => [i.id, i])));
