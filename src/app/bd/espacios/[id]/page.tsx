@@ -92,33 +92,43 @@ export default function EditarEspacioPage() {
     const allItems = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
     const item = allItems.find(p => p.id === id);
     if (item) {
-      reset({
-        ...item,
-        identificacion: {
-          ...item.identificacion,
-          nombreEspacio: item.identificacion.nombreEspacio || '',
-          tipoDeEspacio: item.identificacion.tipoDeEspacio || [],
-          ciudad: item.identificacion.ciudad || '',
-          provincia: item.identificacion.provincia || '',
-          calle: item.identificacion.calle || '',
-          codigoPostal: item.identificacion.codigoPostal || '',
-          estilos: item.identificacion.estilos || [],
-          tags: item.identificacion.tags || [],
-          idealPara: item.identificacion.idealPara || [],
-        },
-        capacidades: {
-          aforoMaximoCocktail: item.capacidades.aforoMaximoCocktail || 0,
-          aforoMaximoBanquete: item.capacidades.aforoMaximoBanquete || 0,
-          salas: item.capacidades.salas || [],
-        },
-        contactos: item.contactos || [],
-        evaluacionMICE: {
-          ...item.evaluacionMICE,
-          relacionComercial: item.evaluacionMICE.relacionComercial || 'Sin Relación',
-          exclusividadMusica: item.evaluacionMICE.exclusividadMusica || false,
-          exclusividadAudiovisuales: item.evaluacionMICE.exclusividadAudiovisuales || false,
-        },
-      });
+        // Ensure all optional fields have default values to prevent uncontrolled to controlled error
+        const defaultEvaluacionMICE = {
+            relacionComercial: 'Sin Relación',
+            exclusividadMusica: false,
+            exclusividadAudiovisuales: false,
+            ...item.evaluacionMICE,
+        };
+
+        const defaultCapacidades = {
+            aforoMaximoCocktail: 0,
+            aforoMaximoBanquete: 0,
+            salas: [],
+            ...item.capacidades,
+        };
+        
+        const defaultIdentificacion = {
+            nombreEspacio: '',
+            tipoDeEspacio: [],
+            ciudad: '',
+            provincia: '',
+            calle: '',
+            codigoPostal: '',
+            estilos: [],
+            tags: [],
+            idealPara: [],
+            ...item.identificacion,
+        }
+
+        const dataToReset = {
+            ...item,
+            identificacion: defaultIdentificacion,
+            capacidades: defaultCapacidades,
+            contactos: item.contactos || [],
+            evaluacionMICE: defaultEvaluacionMICE,
+        };
+        
+        reset(dataToReset);
     } else {
       toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el espacio.' });
       router.push('/bd/espacios');
@@ -156,7 +166,7 @@ export default function EditarEspacioPage() {
 
   return (
     <>
-      <main className="container mx-auto px-4 py-8">
+      <main>
         <FormProvider {...form}>
           <form id="espacio-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="flex items-center justify-between mb-4">
