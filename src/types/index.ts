@@ -468,7 +468,7 @@ export type AtipicoOrder = {
 export type PersonalMiceOrder = {
     id: string;
     osId: string;
-    solicitadoPor: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
+    centroCoste: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
     nombre: string;
     dni: string;
     tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
@@ -592,6 +592,7 @@ export const articuloErpSchema = z.object({
   nombreProveedor: z.string().optional(),
   familiaCategoria: z.string().optional(),
   precioCompra: z.coerce.number().min(0, "Debe ser un valor positivo."),
+  descuento: z.coerce.number().min(0).max(100).optional(),
   unidadConversion: z.coerce.number().min(1, "Debe ser mayor que 0.").default(1),
   precio: z.coerce.number().min(0),
   precioAlquiler: z.coerce.number().min(0).optional(),
@@ -746,7 +747,7 @@ export type PickingSheet = {
     checkedItems?: string[];
     itemStates?: Record<string, Omit<PickingItemState, 'itemCode'>>;
     os?: ServiceOrder;
-    solicitante?: 'Sala' | 'Cocina';
+    solicita?: 'Sala' | 'Cocina';
 };
 
 export type ReturnItemState = {

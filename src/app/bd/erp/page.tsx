@@ -44,7 +44,7 @@ const formSchema = z.object({
 });
 
 type ArticulosERPFormValues = z.infer<typeof formSchema>;
-const CSV_HEADERS = ["id", "idProveedor", "nombreProveedor", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
+const CSV_HEADERS = ["id", "idProveedor", "nombreProveedor", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "descuento", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
 
 function ArticulosERPPageContent() {
   const [isMounted, setIsMounted] = useState(false);
@@ -53,7 +53,7 @@ function ArticulosERPPageContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [providerFilter, setProviderFilter] = useState('all');
+  const [providerFilter, setProviderFilter] useState('all');
   const [forRentFilter, setForRentFilter] = useState(false);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
@@ -155,6 +155,7 @@ function ArticulosERPPageContent() {
       nombreProveedor: '',
       familiaCategoria: '',
       precioCompra: 0,
+      descuento: 0,
       unidadConversion: 1,
       precio: 0,
       precioAlquiler: 0,
@@ -242,6 +243,7 @@ function ArticulosERPPageContent() {
             nombreProveedor: proveedoresMap.get(item.idProveedor || '') || item.nombreProveedor || '',
             familiaCategoria: item.familiaCategoria || '',
             precioCompra: parseCurrency(item.precioCompra),
+            descuento: parseCurrency(item.descuento),
             unidadConversion: Number(item.unidadConversion) || 1,
             precio: 0, 
             precioAlquiler: parseCurrency(item.precioAlquiler),
@@ -349,6 +351,7 @@ function ArticulosERPPageContent() {
                         <TableHead className="p-2 w-40">Proveedor</TableHead>
                         <TableHead className="p-2 w-32">Ref. Proveedor</TableHead>
                         <TableHead className="p-2 w-28">P. Compra</TableHead>
+                        <TableHead className="p-2 w-28">Desc. %</TableHead>
                         <TableHead className="p-2 w-28">Factor Conv.</TableHead>
                         <TableHead className="p-2 w-28">Precio/Unidad</TableHead>
                         <TableHead className="p-2 w-28">Precio Alquiler</TableHead>
@@ -362,8 +365,10 @@ function ArticulosERPPageContent() {
                     {filteredItems.length > 0 ? (
                         filteredItems.map(item => {
                             const precioCompra = watchedItems[item.originalIndex]?.precioCompra || 0;
+                            const descuento = watchedItems[item.originalIndex]?.descuento || 0;
                             const unidadConversion = watchedItems[item.originalIndex]?.unidadConversion || 1;
-                            const precioCalculado = unidadConversion > 0 ? precioCompra / unidadConversion : 0;
+                            const precioConDescuento = precioCompra * (1 - (descuento / 100));
+                            const precioCalculado = unidadConversion > 0 ? precioConDescuento / unidadConversion : 0;
                             return (
                         <TableRow key={item.id}>
                             <TableCell className="p-1">
@@ -380,6 +385,9 @@ function ArticulosERPPageContent() {
                             </TableCell>
                             <TableCell className="p-1">
                                  <FormField control={form.control} name={`items.${item.originalIndex}.precioCompra`} render={({ field }) => ( <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8"/> )} />
+                            </TableCell>
+                             <TableCell className="p-1">
+                                 <FormField control={form.control} name={`items.${item.originalIndex}.descuento`} render={({ field }) => ( <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8"/> )} />
                             </TableCell>
                             <TableCell className="p-1">
                                  <FormField control={form.control} name={`items.${item.originalIndex}.unidadConversion`} render={({ field }) => ( <Input type="number" step="1" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 1)} className="h-8"/> )} />
@@ -417,7 +425,7 @@ function ArticulosERPPageContent() {
                         )})
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={12} className="h-24 text-center">
+                        <TableCell colSpan={13} className="h-24 text-center">
                             No se encontraron artículos que coincidan con la búsqueda.
                         </TableCell>
                         </TableRow>
