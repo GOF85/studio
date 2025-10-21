@@ -39,7 +39,12 @@ export default function EditarPersonalPage() {
     const allItems = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     const item = allItems.find(p => p.id === id);
     if (item) {
-      form.reset(item);
+      form.reset({
+        ...item,
+        telefono: item.telefono || '',
+        dni: item.dni || '',
+        iniciales: item.iniciales || '',
+      });
     } else {
       toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el empleado.' });
       router.push('/bd/personal');
@@ -77,7 +82,7 @@ export default function EditarPersonalPage() {
 
   return (
     <>
-      <main className="container mx-auto px-4 py-8">
+      <main>
         <Form {...form}>
           <form id="personal-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="flex items-center justify-between mb-4">
