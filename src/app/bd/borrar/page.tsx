@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useRef } from 'react';
@@ -20,35 +19,30 @@ import { useToast } from '@/hooks/use-toast';
 import { Trash2, ShieldAlert, Download, Loader2, Upload, Search } from 'lucide-react';
 import Link from 'next/link';
 
-type DatabaseKey = 'personal' | 'espacios' | 'precios' | 'alquilerDB' | 'tipoServicio' | 'proveedoresTransporte' | 'proveedorHielo' | 'atipicosDB' | 'personalMiceOrders' | 'proveedoresPersonal' | 'decoracionDB' | 'tiposCocina' | 'pedidoPlantillas' | 'formatosExpedicionDB' | 'proveedores';
+type DatabaseKey = 'personal' | 'espacios' | 'articulos' | 'tipoServicio' | 'tiposPersonal' | 'tiposTransporte' | 'atipicosDB' | 'decoracionDB' | 'pedidoPlantillas' | 'formatosExpedicionDB' | 'proveedores';
 
 const ALL_DATABASE_KEYS = [
-    'personal', 'espacios', 'precios', 'alquilerDB', 'tipoServicio', 'proveedoresTransporte', 
-    'proveedorHielo', 'atipicosDB', 'personalMiceOrders', 'proveedoresPersonal', 'decoracionDB', 
+    'personal', 'espacios', 'articulos', 'tipoServicio', 'tiposPersonal', 'tiposTransporte',
+    'atipicosDB', 'personalMiceOrders', 'decoracionDB', 
     'tiposCocina', 'pedidoPlantillas', 'formatosExpedicionDB', 'proveedores', 'serviceOrders', 
     'entregas', 'comercialBriefings', 'gastronomyOrders', 'materialOrders', 'transporteOrders', 
     'hieloOrders', 'decoracionOrders', 'atipicoOrders', 'personalExternoOrders', 'pruebasMenu', 
     'pickingSheets', 'returnSheets', 'ordenesFabricacion', 'pickingStates', 'excedentesProduccion', 
     'pedidosEntrega', 'personalEntrega', 'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 
     'ctaComentarios', 'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'ingredientesERP', 
-    'ingredientesInternos', 'elaboraciones', 'recetas', 'menajeDB', 'categoriasRecetas', 'portalUsers',
+    'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
     'comercialAjustes', 'personalExternoAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones'
 ];
-
 
 const DATABASES: { key: DatabaseKey; name: string; description: string }[] = [
     { key: 'personal', name: 'Personal', description: 'Contiene todos los empleados y contactos.' },
     { key: 'espacios', name: 'Espacios', description: 'Contiene todos los espacios y sus detalles.' },
-    { key: 'precios', name: 'Precios', description: 'Contiene todos los productos con sus precios.' },
-    { key: 'alquilerDB', name: 'Alquiler', description: 'Contiene los artículos de alquiler de proveedores.' },
+    { key: 'articulos', name: 'Artículos MICE', description: 'Catálogo de artículos de Almacén, Bodega, Bio y Menaje.' },
     { key: 'tipoServicio', name: 'Tipo Servicio', description: 'Contiene los diferentes tipos de servicio para los eventos.' },
-    { key: 'proveedoresTransporte', name: 'Proveedores de Transporte', description: 'Contiene los proveedores de transporte.' },
-    { key: 'proveedorHielo', name: 'Proveedores de Hielo', description: 'Contiene los proveedores de hielo.' },
-    { key: 'atipicosDB', name: 'Atípicos (Gastos Varios)', description: 'Contiene los conceptos de gastos varios.' },
-    { key: 'decoracionDB', name: 'Decoración (Gastos Varios)', description: 'Contiene los conceptos de decoración.' },
-    { key: 'personalMiceOrders', name: 'Personal MICE', description: 'Contiene todas las asignaciones de personal MICE.' },
-    { key: 'proveedoresPersonal', name: 'Proveedores de Personal', description: 'Contiene las categorías y precios del personal externo.' },
-    { key: 'tiposCocina', name: 'Tipos de Cocina', description: 'Contiene los tipos de cocina para las recetas del book.' },
+    { key: 'tiposTransporte', name: 'Catálogo de Transporte', description: 'Vehículos y precios de las empresas de transporte.' },
+    { key: 'tiposPersonal', name: 'Catálogo de Personal Externo', description: 'Categorías y precios del personal de ETTs.' },
+    { key: 'atipicosDB', name: 'Atípicos (Conceptos)', description: 'Contiene los conceptos de gastos varios.' },
+    { key: 'decoracionDB', name: 'Decoración (Conceptos)', description: 'Contiene los conceptos de decoración.' },
     { key: 'pedidoPlantillas', name: 'Plantillas de Pedidos', description: 'Contiene las plantillas para agilizar la creación de pedidos.' },
     { key: 'formatosExpedicionDB', name: 'Formatos de Expedición', description: 'Contiene los formatos de empaquetado para producción.' },
     { key: 'proveedores', name: 'Proveedores', description: 'Contiene la información fiscal y de contacto de proveedores.' },
@@ -296,4 +290,3 @@ export default function BorrarBdPage() {
         </>
     );
 }
-

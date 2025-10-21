@@ -24,29 +24,27 @@ import {
 } from '@/components/ui/alert-dialog';
 
 const ALL_DATABASE_KEYS = [
-    'personal', 'espacios', 'precios', 'alquilerDB', 'tipoServicio', 'proveedoresTransporte', 
-    'proveedorHielo', 'atipicosDB', 'personalMiceOrders', 'proveedoresPersonal', 'decoracionDB', 
+    'personal', 'espacios', 'articulos', 'tipoServicio', 'tiposTransporte',
+    'atipicosDB', 'personalMiceOrders', 'tiposPersonal', 'decoracionDB', 
     'tiposCocina', 'pedidoPlantillas', 'formatosExpedicionDB', 'proveedores', 'serviceOrders', 
     'entregas', 'comercialBriefings', 'gastronomyOrders', 'materialOrders', 'transporteOrders', 
     'hieloOrders', 'decoracionOrders', 'atipicoOrders', 'personalExternoOrders', 'pruebasMenu', 
     'pickingSheets', 'returnSheets', 'ordenesFabricacion', 'pickingStates', 'excedentesProduccion', 
     'pedidosEntrega', 'personalEntrega', 'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 
     'ctaComentarios', 'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'ingredientesERP', 
-    'ingredientesInternos', 'elaboraciones', 'recetas', 'menajeDB', 'categoriasRecetas', 'portalUsers',
+    'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
     'comercialAjustes', 'personalExternoAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones'
 ];
 
 const KEY_DESCRIPTIONS: Record<string, string> = {
     personal: 'Base de datos maestra del personal interno de MICE.',
     espacios: 'Base de datos maestra de los espacios para eventos.',
-    precios: 'DEPRECADO. Catálogo de precios para artículos de Almacén, Bodega, Bio y Menaje.',
-    alquilerDB: 'DEPRECADO. Catálogo de artículos de alquiler.',
+    articulos: 'Catálogo maestro de artículos de Almacén, Bodega, Bio, Menaje y Alquiler.',
     tipoServicio: 'Configuración de los tipos de servicio para los briefings (ej. "Cocktail", "Cena").',
-    proveedoresTransporte: 'DEPRECADO. Usar `tiposTransporte`.',
-    proveedorHielo: 'DEPRECADO. Usar `proveedores`.',
+    tiposTransporte: 'Catálogo de vehículos y tarifas de las empresas de transporte.',
     atipicosDB: 'Catálogo de conceptos para gastos varios/atípicos.',
     personalMiceOrders: 'Datos transaccionales de las asignaciones de personal interno a eventos.',
-    proveedoresPersonal: 'DEPRECADO. Usar `tiposPersonal`.',
+    tiposPersonal: 'Catálogo de categorías y tarifas del personal externo (ETTs).',
     decoracionDB: 'Catálogo de conceptos para gastos de decoración.',
     tiposCocina: 'Configuración de los estilos de cocina para las recetas (ej. "Mediterránea", "Asiática").',
     pedidoPlantillas: 'Plantillas de pedidos de material para agilizar la creación.',
@@ -69,7 +67,7 @@ const KEY_DESCRIPTIONS: Record<string, string> = {
     pickingStates: 'Datos transaccionales del estado del picking de gastronomía para cada OS.',
     excedentesProduccion: 'DEPRECADO. Usar `stockElaboraciones`.',
     pedidosEntrega: 'Datos transaccionales con el desglose de productos de cada entrega.',
-    personalEntrega: 'Datos transaccionales de la asignación de personal para la vertical de Entregas.',
+    personalEntrega: 'Datos transaccionales de la asignación de personal para la vertical de entregas.',
     partnerPedidosStatus: 'Registro del estado de los pedidos gestionados por partners externos.',
     activityLogs: 'Registro de auditoría de las acciones realizadas en los portales de colaboradores.',
     ctaRealCosts: 'Almacena los costes reales introducidos manualmente en la Cta. de Explotación.',
@@ -80,7 +78,6 @@ const KEY_DESCRIPTIONS: Record<string, string> = {
     ingredientesInternos: 'Base de datos que vincula la materia prima (ERP) con las elaboraciones.',
     elaboraciones: 'Base de datos maestra de las sub-recetas (ej. salsas, guarniciones).',
     recetas: 'Base de datos maestra de los platos finales que se venden.',
-    menajeDB: 'DEPRECADO. Usar `articulos` con categoría "Menaje".',
     categoriasRecetas: 'Configuración de las categorías de las recetas (ej. "Aperitivos", "Postres").',
     portalUsers: 'Base de datos de usuarios externos con acceso a los portales.',
     comercialAjustes: 'Ajustes manuales a la facturación de una OS.',

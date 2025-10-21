@@ -10,7 +10,7 @@ import { z } from "zod";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, Save, Snowflake, Calendar as CalendarIcon, PlusCircle, Trash2, X } from 'lucide-react';
-import type { ServiceOrder, Proveedor, Precio, HieloOrder } from '@/types';
+import type { ServiceOrder, Proveedor, ArticuloCatering, HieloOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -42,7 +42,7 @@ const hieloOrderSchema = z.object({
   observaciones: z.string().optional(),
   status: z.enum(statusOptions).default('Pendiente'),
   items: z.array(z.object({
-      id: z.string(), // Corresponds to Precio.id
+      id: z.string(), // Corresponds to ArticuloCatering.id
       producto: z.string(),
       precio: z.number(),
       cantidad: z.coerce.number().min(1),
@@ -51,19 +51,19 @@ const hieloOrderSchema = z.object({
 
 type HieloOrderFormValues = z.infer<typeof hieloOrderSchema>;
 
-function ProductSelector({ onSelectProduct, providerId }: { onSelectProduct: (product: Precio) => void, providerId: string }) {
-  const [hieloProducts, setHieloProducts] = useState<Precio[]>([]);
+function ProductSelector({ onSelectProduct, providerId }: { onSelectProduct: (product: ArticuloCatering) => void, providerId: string }) {
+  const [hieloProducts, setHieloProducts] = useState<ArticuloCatering[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   
   useEffect(() => {
-    const allPrecios = JSON.parse(localStorage.getItem('precios') || '[]') as Precio[];
-    const productosDeHielo = allPrecios.filter(p => p.categoria === 'Hielo');
+    const allArticulos = JSON.parse(localStorage.getItem('articulos') || '[]') as ArticuloCatering[];
+    const productosDeHielo = allArticulos.filter(p => p.categoria === 'Hielo' && p.partnerId === providerId);
     setHieloProducts(productosDeHielo);
   }, [providerId]);
   
   const filteredItems = useMemo(() => {
     return hieloProducts.filter(item => 
-      item.producto.toLowerCase().includes(searchTerm.toLowerCase())
+      item.nombre.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [hieloProducts, searchTerm]);
 
@@ -87,8 +87,8 @@ function ProductSelector({ onSelectProduct, providerId }: { onSelectProduct: (pr
           <TableBody>
             {filteredItems.map(product => (
               <TableRow key={product.id}>
-                <TableCell className="font-medium">{product.producto}</TableCell>
-                <TableCell>{formatCurrency(product.precioUd)}</TableCell>
+                <TableCell className="font-medium">{product.nombre}</TableCell>
+                <TableCell>{formatCurrency(product.precioVenta)}</TableCell>
                 <TableCell><Button size="sm" onClick={() => onSelectProduct(product)}>Añadir</Button></TableCell>
               </TableRow>
             ))}
@@ -157,7 +157,7 @@ export default function PedidoHieloPage() {
 
   const selectedProviderId = form.watch('proveedorId');
   
-  const onSelectProduct = (product: Precio) => {
+  const onSelectProduct = (product: ArticuloCatering) => {
     const existingIndex = fields.findIndex(item => item.id === product.id);
     if (existingIndex > -1) {
       const existingItem = fields[existingIndex];
@@ -165,12 +165,12 @@ export default function PedidoHieloPage() {
     } else {
       append({
         id: product.id,
-        producto: product.producto,
-        precio: product.precioUd,
+        producto: product.nombre,
+        precio: product.precioVenta,
         cantidad: 1,
       });
     }
-    toast({ title: "Producto añadido", description: `${product.producto} ha sido añadido al pedido.` });
+    toast({ title: "Producto añadido", description: `${product.nombre} ha sido añadido al pedido.` });
   };
   
   const totalPedido = useMemo(() => {
