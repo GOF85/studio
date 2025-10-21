@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 
 export type CateringItem = {
@@ -623,7 +624,6 @@ export type IngredienteInterno = {
     id: string;
     nombreIngrediente: string;
     productoERPlinkId: string;
-    mermaPorcentaje: number;
     alergenosPresentes: Alergeno[];
     alergenosTrazas: Alergeno[];
 }
@@ -635,6 +635,7 @@ export type ComponenteElaboracion = {
     nombre: string;
     cantidad: number;
     costePorUnidad: number;
+    merma: number;
 }
 
 export type Elaboracion = {

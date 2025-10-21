@@ -33,6 +33,7 @@ const componenteSchema = z.object({
     nombre: z.string(),
     cantidad: z.coerce.number().min(0.001, 'La cantidad debe ser mayor que 0'),
     costePorUnidad: z.coerce.number().optional().default(0),
+    merma: z.coerce.number().optional().default(0),
 });
 
 const elaboracionFormSchema = z.object({
@@ -208,17 +209,14 @@ export default function ElaboracionFormPage() {
   }, [id, isEditing, cloneId, form]);
 
   const handleSelectIngrediente = (ingrediente: IngredienteConERP) => {
-      const costeConMerma = ingrediente.mermaPorcentaje > 0 && ingrediente.erp
-        ? (ingrediente.erp.precio / (1 - ingrediente.mermaPorcentaje / 100))
-        : ingrediente.erp?.precio || 0;
-      
       append({
           id: `${ingrediente.id}-${Date.now()}`,
           tipo: 'ingrediente',
           componenteId: ingrediente.id,
           nombre: ingrediente.nombreIngrediente,
           cantidad: 1,
-          costePorUnidad: costeConMerma
+          costePorUnidad: ingrediente.erp?.precio || 0,
+          merma: 0,
       });
       setIsSelectorOpen(false);
   }
@@ -231,6 +229,7 @@ export default function ElaboracionFormPage() {
         nombre: elab.nombre,
         cantidad: 1,
         costePorUnidad: elab.costePorUnidad || 0,
+        merma: 0,
     });
     setIsSelectorOpen(false);
   }
@@ -256,7 +255,8 @@ export default function ElaboracionFormPage() {
   const { costeTotal, costePorUnidad } = useMemo(() => {
     let total = 0;
     watchedComponentes.forEach(componente => {
-        total += (componente.costePorUnidad || 0) * componente.cantidad;
+        const costeConMerma = (componente.costePorUnidad || 0) * (1 + (componente.merma || 0) / 100);
+        total += costeConMerma * componente.cantidad;
     });
     const produccionTotal = watchedProduccionTotal > 0 ? watchedProduccionTotal : 1;
     const porUnidad = total / produccionTotal;
@@ -406,9 +406,9 @@ export default function ElaboracionFormPage() {
                 <CardContent>
                      <div className="border rounded-lg">
                         <Table>
-                            <TableHeader><TableRow><TableHead className="py-2 px-3">Componente</TableHead><TableHead className="w-40 py-2 px-3">Cantidad</TableHead><TableHead className="w-40 py-2 px-3">Unidad</TableHead><TableHead className="w-12 py-2 px-3"></TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead className="py-2 px-3">Componente</TableHead><TableHead className="w-40 py-2 px-3">Cantidad</TableHead><TableHead className="w-24 py-2 px-3">% Merma</TableHead><TableHead className="w-40 py-2 px-3">Unidad</TableHead><TableHead className="w-12 py-2 px-3"></TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {fields.length === 0 && <TableRow><TableCell colSpan={4} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
+                                {fields.length === 0 && <TableRow><TableCell colSpan={5} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
                                 {fields.map((field, index) => {
                                     const componenteData = field.tipo === 'ingrediente'
                                         ? ingredientesData.get(field.componenteId)
@@ -427,6 +427,11 @@ export default function ElaboracionFormPage() {
                                             <TableCell className="py-1 px-3">
                                                 <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
                                                     <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
+                                                )} />
+                                            </TableCell>
+                                            <TableCell className="py-1 px-3">
+                                                <FormField control={form.control} name={`componentes.${index}.merma`} render={({ field: mField }) => (
+                                                    <FormItem><FormControl><Input type="number" step="any" {...mField} className="h-8" /></FormControl></FormItem>
                                                 )} />
                                             </TableCell>
                                             <TableCell className="py-1 px-3">
@@ -461,7 +466,7 @@ export default function ElaboracionFormPage() {
                                 <Input value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="Pega una URL de imagen..."/>
                                 <Button type="button" variant="outline" onClick={handleAddImageUrl}><LinkIcon className="mr-2"/>Añadir URL</Button>
                             </div>
-                            {form.formState.errors.fotosProduccionURLs && <p className="text-sm font-medium text-destructive">{form.formState.errors.fotosProduccionURLs.message}</p>}
+                            {form.formState.errors.fotosProduccionURLs && <p className="text-sm font-medium text-destructive">{(form.formState.errors.fotosProduccionURLs as any).message}</p>}
                             <div className="grid grid-cols-3 gap-2 pt-2">
                                 {fotosFields.map((field, index) => (
                                     <div key={field.id} className="relative aspect-video rounded-md overflow-hidden group">
@@ -541,5 +546,3 @@ export default function ElaboracionFormPage() {
     </>
   );
 }
-
-    
