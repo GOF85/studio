@@ -15,34 +15,38 @@ import {
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu"
 import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
-import type { PortalUser } from '@/types';
+import type { PortalUser, Personal } from '@/types';
 import { Badge } from '@/components/ui/badge';
-
-const INTERNAL_USERS: Partial<PortalUser>[] = [
-    { id: 'internal-admin', nombre: 'Admin', roles: ['Admin'] },
-    { id: 'internal-comercial', nombre: 'Comercial', roles: ['Comercial'] },
-    { id: 'internal-cpr', nombre: 'CPR', roles: ['CPR'] },
-    { id: 'internal-pase', nombre: 'Pase', roles: ['Pase'] },
-    { id: 'internal-direccion', nombre: 'Dirección', roles: ['Dirección'] },
-    { id: 'internal-almacen', nombre: 'Almacen', roles: ['Almacen'] },
-    { id: 'internal-operaciones', nombre: 'Operaciones', roles: ['Operaciones'] },
-    { id: 'internal-pm', nombre: 'Project Manager', roles: ['Project Manager'] },
-];
 
 export function UserSwitcher() {
     const { impersonatedUser, setImpersonatedUser } = useImpersonatedUser();
+    const [internalUsers, setInternalUsers] = useState<PortalUser[]>([]);
     const [portalUsers, setPortalUsers] = useState<PortalUser[]>([]);
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
-        const storedUsers = localStorage.getItem('portalUsers');
-        if (storedUsers) {
-            setPortalUsers(JSON.parse(storedUsers));
+        // Load internal users from Personal DB
+        const storedPersonal = localStorage.getItem('personal');
+        if (storedPersonal) {
+            const personalData = JSON.parse(storedPersonal) as Personal[];
+            const mappedInternalUsers: PortalUser[] = personalData.map(p => ({
+                id: p.id,
+                nombre: `${p.nombre} ${p.apellidos}`,
+                email: p.mail,
+                roles: [p.departamento as PortalUser['roles'][0]], // Assume department is the role
+            }));
+            setInternalUsers(mappedInternalUsers);
+        }
+
+        // Load external users
+        const storedPortalUsers = localStorage.getItem('portalUsers');
+        if (storedPortalUsers) {
+            setPortalUsers(JSON.parse(storedPortalUsers));
         }
     }, []);
 
-    const allUsers = [...INTERNAL_USERS, ...portalUsers];
+    const allUsers = [...internalUsers, ...portalUsers];
     const currentUser = allUsers.find(u => u.id === impersonatedUser?.id);
 
     if (!isMounted) {
@@ -75,12 +79,12 @@ export function UserSwitcher() {
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                     <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">Usuarios Internos</DropdownMenuLabel>
-                    {INTERNAL_USERS.map(user => (
-                        <DropdownMenuItem key={user.id} onSelect={() => setImpersonatedUser(user as PortalUser)}>
+                    {internalUsers.length > 0 ? internalUsers.map(user => (
+                        <DropdownMenuItem key={user.id} onSelect={() => setImpersonatedUser(user)}>
                              <Check className={`mr-2 h-4 w-4 ${currentUser?.id === user.id ? 'opacity-100' : 'opacity-0'}`} />
                             {user.nombre} <span className="ml-auto text-xs text-muted-foreground">{user.roles?.join(', ')}</span>
                         </DropdownMenuItem>
-                    ))}
+                    )) : <DropdownMenuItem disabled>No hay usuarios internos</DropdownMenuItem>}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                  <DropdownMenuGroup>
