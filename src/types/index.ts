@@ -91,6 +91,9 @@ export type ServiceOrder = {
     direccionPrincipal?: string;
     isVip?: boolean;
     email?: string;
+    respProjectManager?: string;
+    respProjectManagerPhone?: string;
+    respProjectManagerMail?: string;
 };
 
 export type MaterialOrder = {
@@ -465,7 +468,7 @@ export type AtipicoOrder = {
 export type PersonalMiceOrder = {
     id: string;
     osId: string;
-    centroCoste: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
+    solicitadoPor: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
     nombre: string;
     dni: string;
     tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
@@ -578,24 +581,7 @@ export type Precio = {
     unidadVenta?: number;
 }
 
-export type MenajeDB = {
-    id: string;
-    descripcion: string;
-    categoria: string;
-    imagen: string;
-}
-
-export type TipoCocina = {
-    id: string;
-    nombre: string;
-}
-
-export type CategoriaReceta = {
-    id: string;
-    nombre: string;
-}
-
-export const UNIDADES_MEDIDA = ['UNIDAD', 'KILO', 'LITRO', 'GRAMO', 'BOTELLA', 'CAJA', 'PACK'] as const;
+export const UNIDADES_MEDIDA = ['KG', 'L', 'UD'] as const;
 export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
 
 export const ingredienteErpSchema = z.object({
@@ -663,7 +649,7 @@ export type ElaboracionEnReceta = {
   coste: number;
   gramaje: number;
   alergenos?: Alergeno[];
-  unidad: 'KILO' | 'LITRO' | 'UNIDAD';
+  unidad: UnidadMedida;
   merma: number;
 }
 

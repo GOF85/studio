@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -153,7 +154,7 @@ export default function ElaboracionFormPage() {
   const form = useForm<ElaboracionFormValues>({
     resolver: zodResolver(elaboracionFormSchema),
     defaultValues: { 
-        nombre: '', produccionTotal: 1, unidadProduccion: 'KILO', partidaProduccion: 'FRIO', componentes: [],
+        nombre: '', produccionTotal: 1, unidadProduccion: 'KG', partidaProduccion: 'FRIO', componentes: [],
         tipoExpedicion: 'REFRIGERADO', formatoExpedicion: '', ratioExpedicion: 0,
         instruccionesPreparacion: '', videoProduccionURL: '', fotosProduccionURLs: [],
     }
@@ -200,7 +201,7 @@ export default function ElaboracionFormPage() {
         form.reset(initialData);
     } else if (!isEditing) {
          form.reset({
-            id: Date.now().toString(), nombre: '', produccionTotal: 1, unidadProduccion: 'KILO', partidaProduccion: 'FRIO', componentes: [],
+            id: Date.now().toString(), nombre: '', produccionTotal: 1, unidadProduccion: 'KG', partidaProduccion: 'FRIO', componentes: [],
             tipoExpedicion: 'REFRIGERADO', formatoExpedicion: '', ratioExpedicion: 0,
             instruccionesPreparacion: '', videoProduccionURL: '', fotosProduccionURLs: [],
         });
@@ -415,8 +416,8 @@ export default function ElaboracionFormPage() {
                                         : elaboracionesData.get(field.componenteId);
                                     
                                     const unidad = field.tipo === 'ingrediente'
-                                        ? (componenteData as IngredienteConERP)?.erp?.unidad || 'UNIDAD'
-                                        : (componenteData as Elaboracion)?.unidadProduccion || 'UNIDAD';
+                                        ? (componenteData as IngredienteConERP)?.erp?.unidad || 'UD'
+                                        : (componenteData as Elaboracion)?.unidadProduccion || 'UD';
 
                                     return (
                                         <TableRow key={field.id}>

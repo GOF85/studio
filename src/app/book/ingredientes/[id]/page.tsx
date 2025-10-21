@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -87,8 +88,8 @@ export default function IngredienteFormPage() {
   const filteredErpProducts = useMemo(() => {
     return ingredientesERP.filter(p => 
         p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
-        p.nombreProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
-        p.referenciaProveedor.toLowerCase().includes(erpSearchTerm.toLowerCase())
+        (p.nombreProveedor || '').toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
+        (p.referenciaProveedor || '').toLowerCase().includes(erpSearchTerm.toLowerCase())
     );
   }, [ingredientesERP, erpSearchTerm]);
   

@@ -1,3 +1,4 @@
+
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { parse, differenceInMinutes } from "date-fns";
@@ -19,9 +20,9 @@ export function formatNumber(value: number, decimals: number = 2) {
 
 export function formatUnit(unit: string) {
     const unitMap: Record<string, string> = {
-        'KILO': 'kg',
-        'LITRO': 'l',
-        'UNIDAD': 'ud',
+        'KG': 'kg',
+        'L': 'l',
+        'UD': 'ud',
     }
     return unitMap[unit] || unit;
 }
