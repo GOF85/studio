@@ -22,6 +22,75 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+
+const ALL_DATABASE_KEYS = [
+    'personal', 'espacios', 'precios', 'alquilerDB', 'tipoServicio', 'proveedoresTransporte', 
+    'proveedorHielo', 'atipicosDB', 'personalMiceOrders', 'proveedoresPersonal', 'decoracionDB', 
+    'tiposCocina', 'pedidoPlantillas', 'formatosExpedicionDB', 'proveedores', 'serviceOrders', 
+    'entregas', 'comercialBriefings', 'gastronomyOrders', 'materialOrders', 'transporteOrders', 
+    'hieloOrders', 'decoracionOrders', 'atipicoOrders', 'personalExternoOrders', 'pruebasMenu', 
+    'pickingSheets', 'returnSheets', 'ordenesFabricacion', 'pickingStates', 'excedentesProduccion', 
+    'pedidosEntrega', 'personalEntrega', 'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 
+    'ctaComentarios', 'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'ingredientesERP', 
+    'ingredientesInternos', 'elaboraciones', 'recetas', 'menajeDB', 'categoriasRecetas', 'portalUsers',
+    'comercialAjustes', 'personalExternoAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones'
+];
+
+const KEY_DESCRIPTIONS: Record<string, string> = {
+    personal: 'Base de datos maestra del personal interno de MICE.',
+    espacios: 'Base de datos maestra de los espacios para eventos.',
+    precios: 'DEPRECADO. Catálogo de precios para artículos de Almacén, Bodega, Bio y Menaje.',
+    alquilerDB: 'DEPRECADO. Catálogo de artículos de alquiler.',
+    tipoServicio: 'Configuración de los tipos de servicio para los briefings (ej. "Cocktail", "Cena").',
+    proveedoresTransporte: 'DEPRECADO. Usar `tiposTransporte`.',
+    proveedorHielo: 'DEPRECADO. Usar `proveedores`.',
+    atipicosDB: 'Catálogo de conceptos para gastos varios/atípicos.',
+    personalMiceOrders: 'Datos transaccionales de las asignaciones de personal interno a eventos.',
+    proveedoresPersonal: 'DEPRECADO. Usar `tiposPersonal`.',
+    decoracionDB: 'Catálogo de conceptos para gastos de decoración.',
+    tiposCocina: 'Configuración de los estilos de cocina para las recetas (ej. "Mediterránea", "Asiática").',
+    pedidoPlantillas: 'Plantillas de pedidos de material para agilizar la creación.',
+    formatosExpedicionDB: 'Configuración de los formatos de empaquetado para producción (ej. "Barqueta 1kg").',
+    proveedores: 'Base de datos maestra de todos los proveedores y sus datos fiscales.',
+    serviceOrders: 'Datos transaccionales de las Órdenes de Servicio de Catering.',
+    entregas: 'Datos transaccionales de los Pedidos de la vertical de Entregas.',
+    comercialBriefings: 'Datos transaccionales que contienen los hitos (servicios) de cada OS.',
+    gastronomyOrders: 'Datos transaccionales de los pedidos de gastronomía para cada hito.',
+    materialOrders: 'Datos transaccionales de los pedidos de material (Almacén, Bodega, Bio, Alquiler).',
+    transporteOrders: 'Datos transaccionales de los pedidos de transporte.',
+    hieloOrders: 'Datos transaccionales de los pedidos de hielo.',
+    decoracionOrders: 'Datos transaccionales de los gastos de decoración asociados a eventos.',
+    atipicoOrders: 'Datos transaccionales de los gastos atípicos asociados a eventos.',
+    personalExternoOrders: 'Datos transaccionales de los turnos de personal externo (ETTs).',
+    pruebasMenu: 'Datos transaccionales de las pruebas de menú asociadas a una OS.',
+    pickingSheets: 'Datos transaccionales de las hojas de picking de almacén.',
+    returnSheets: 'Datos transaccionales de la gestión de retornos de material.',
+    ordenesFabricacion: 'Datos transaccionales de las órdenes de fabricación (lotes) del CPR.',
+    pickingStates: 'Datos transaccionales del estado del picking de gastronomía para cada OS.',
+    excedentesProduccion: 'DEPRECADO. Usar `stockElaboraciones`.',
+    pedidosEntrega: 'Datos transaccionales con el desglose de productos de cada entrega.',
+    personalEntrega: 'Datos transaccionales de la asignación de personal para la vertical de Entregas.',
+    partnerPedidosStatus: 'Registro del estado de los pedidos gestionados por partners externos.',
+    activityLogs: 'Registro de auditoría de las acciones realizadas en los portales de colaboradores.',
+    ctaRealCosts: 'Almacena los costes reales introducidos manualmente en la Cta. de Explotación.',
+    ctaComentarios: 'Almacena los comentarios de cada partida de coste en la Cta. de Explotación.',
+    objetivosGastoPlantillas: 'Plantillas para los objetivos de rentabilidad en la Cta. de Explotación.',
+    defaultObjetivoGastoId: 'ID de la plantilla de objetivos de gasto por defecto.',
+    ingredientesERP: 'Base de datos maestra de materia prima, con precios de proveedor.',
+    ingredientesInternos: 'Base de datos que vincula la materia prima (ERP) con las elaboraciones.',
+    elaboraciones: 'Base de datos maestra de las sub-recetas (ej. salsas, guarniciones).',
+    recetas: 'Base de datos maestra de los platos finales que se venden.',
+    menajeDB: 'DEPRECADO. Usar `articulos` con categoría "Menaje".',
+    categoriasRecetas: 'Configuración de las categorías de las recetas (ej. "Aperitivos", "Postres").',
+    portalUsers: 'Base de datos de usuarios externos con acceso a los portales.',
+    comercialAjustes: 'Ajustes manuales a la facturación de una OS.',
+    personalExternoAjustes: 'Ajustes manuales al coste del personal externo (dietas, etc.).',
+    productosVenta: 'Catálogo de productos para la vertical de Entregas, incluyendo "Packs".',
+    pickingEntregasState: 'Estado del picking para la vertical de Entregas.',
+    stockElaboraciones: 'Inventario en tiempo real de las elaboraciones producidas y validadas por calidad.'
+};
+
 
 export default function DebugDbPage() {
   const [dbData, setDbData] = useState<Record<string, any>>({});
@@ -31,16 +100,18 @@ export default function DebugDbPage() {
   useEffect(() => {
     setIsMounted(true);
     const data: Record<string, any> = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key) {
-        try {
-          data[key] = JSON.parse(localStorage.getItem(key) || '');
-        } catch (e) {
-          data[key] = localStorage.getItem(key);
+    ALL_DATABASE_KEYS.forEach(key => {
+        const storedData = localStorage.getItem(key);
+        if (storedData) {
+            try {
+                data[key] = JSON.parse(storedData);
+            } catch (e) {
+                data[key] = storedData;
+            }
+        } else {
+            data[key] = null;
         }
-      }
-    }
+    });
     setDbData(data);
   }, []);
 
@@ -60,6 +131,7 @@ export default function DebugDbPage() {
 
   return (
     <>
+    <TooltipProvider>
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
@@ -77,20 +149,27 @@ export default function DebugDbPage() {
             .sort()
             .map((key) => (
               <AccordionItem value={key} key={key}>
-                <AccordionTrigger className="p-4 bg-muted/50 rounded-lg hover:no-underline">
-                  <div className="flex items-center gap-4">
-                    <h3 className="text-lg font-semibold">{key}</h3>
-                    <span className="text-sm text-muted-foreground">
-                      (
-                      {Array.isArray(dbData[key])
-                        ? `${dbData[key].length} registros`
-                        : typeof dbData[key] === 'object' && dbData[key] !== null
-                        ? `${Object.keys(dbData[key]).length} claves`
-                        : 'Valor'}
-                      )
-                    </span>
-                  </div>
-                </AccordionTrigger>
+                 <Tooltip>
+                    <TooltipTrigger asChild>
+                        <AccordionTrigger className="p-4 bg-muted/50 rounded-lg hover:no-underline">
+                        <div className="flex items-center gap-4">
+                            <h3 className="text-lg font-semibold">{key}</h3>
+                            <span className="text-sm text-muted-foreground">
+                            (
+                            {Array.isArray(dbData[key])
+                                ? `${dbData[key].length} registros`
+                                : typeof dbData[key] === 'object' && dbData[key] !== null
+                                ? `${Object.keys(dbData[key]).length} claves`
+                                : dbData[key] === null ? 'Vacío' : 'Valor'}
+                            )
+                            </span>
+                        </div>
+                        </AccordionTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                        <p className="max-w-xs">{KEY_DESCRIPTIONS[key] || 'Sin descripción.'}</p>
+                    </TooltipContent>
+                </Tooltip>
                 <AccordionContent>
                   <ScrollArea className="h-[400px] mt-2 border rounded-md">
                     <pre className="p-4 text-xs whitespace-pre-wrap break-all">
@@ -102,6 +181,7 @@ export default function DebugDbPage() {
             ))}
         </Accordion>
       </main>
+      </TooltipProvider>
 
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
