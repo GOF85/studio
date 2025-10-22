@@ -688,7 +688,8 @@ export type Receta = {
     perfilSaborPrincipal?: SaborPrincipal;
     perfilSaborSecundario?: string[];
     perfilTextura?: string[];
-    tipoCocina?: string;
+    tipoCocina?: string[];
+    recetaOrigen?: string;
     temperaturaServicio?: 'CALIENTE' | 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO';
     tecnicaCoccionPrincipal?: string;
     potencialMiseEnPlace?: 'COMPLETO' | 'PARCIAL', 'AL_MOMENTO';
@@ -979,3 +980,20 @@ export type ActivityLog = {
   details: string;
   entityId: string; // e.g., osId, turnoId, etc.
 };
+
+
+export type MenajeDB = {
+    id: string;
+    descripcion: string;
+};
+
+export type CategoriaReceta = {
+    id: string;
+    nombre: string;
+};
+
+export type TipoCocina = {
+    id: string;
+    nombre: string;
+};
+

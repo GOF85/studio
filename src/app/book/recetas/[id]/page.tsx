@@ -88,7 +88,8 @@ const recetaFormSchema = z.object({
   perfilSaborPrincipal: z.enum(SABORES_PRINCIPALES).optional(),
   perfilSaborSecundario: z.array(z.string()).optional().default([]),
   perfilTextura: z.array(z.string()).optional().default([]),
-  tipoCocina: z.string().optional().default(''),
+  tipoCocina: z.array(z.string()).optional().default([]),
+  recetaOrigen: z.string().optional().default(''),
   temperaturaServicio: z.enum(['CALIENTE', 'TIBIO', 'AMBIENTE', 'FRIO', 'HELADO']).optional(),
   tecnicaCoccionPrincipal: z.string().optional().default(''),
   potencialMiseEnPlace: z.enum(['COMPLETO', 'PARCIAL', 'AL_MOMENTO']).optional(),
@@ -301,7 +302,7 @@ export default function RecetaFormPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
 
-  const [dbElaboraciones, setDbElaboraciones] = useState<ElaboracionConCoste[]>([]);
+  const [dbElaboraciones, setDbElaboraciones] = useState<ElaborationConCoste[]>([]);
   const [dbMenaje, setDbMenaje] = useState<MenajeDB[]>([]);
   const [dbCategorias, setDbCategorias] = useState<CategoriaReceta[]>([]);
   const [dbTiposCocina, setDbTiposCocina] = useState<TipoCocina[]>([]);
@@ -316,7 +317,7 @@ export default function RecetaFormPage() {
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
-    defaultValues: { id: '', nombre: '', nombre_en: '', visibleParaComerciales: true, descripcionComercial: '', descripcionComercial_en: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], fotosMiseEnPlaceURLs: [], fotosRegeneracionURLs: [], perfilSaborSecundario: [], perfilTextura: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] }
+    defaultValues: { id: '', nombre: '', nombre_en: '', visibleParaComerciales: true, descripcionComercial: '', descripcionComercial_en: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], fotosMiseEnPlaceURLs: [], fotosRegeneracionURLs: [], perfilSaborSecundario: [], perfilTextura: [], tipoCocina: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] }
   });
 
   const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab } = useFieldArray({ control: form.control, name: "elaboraciones" });
@@ -425,7 +426,11 @@ export default function RecetaFormPage() {
     }
 
     if (initialValues) {
-        form.reset(initialValues);
+        form.reset({
+            ...initialValues,
+            tipoCocina: initialValues.tipoCocina || [],
+            etiquetasTendencia: initialValues.etiquetasTendencia || [],
+        });
     } else if (!isEditing) {
         // Generate new numeroReceta
         const lastRecipe = allRecetas.reduce((last, current) => {
@@ -457,7 +462,9 @@ export default function RecetaFormPage() {
             fotosMiseEnPlaceURLs: [],
             fotosRegeneracionURLs: [],
             perfilSaborSecundario: [], 
-            perfilTextura: [], 
+            perfilTextura: [],
+            tipoCocina: [], 
+            recetaOrigen: '',
             equipamientoCritico: [], 
             formatoServicioIdeal: [], 
             etiquetasTendencia: [] 
@@ -514,7 +521,7 @@ export default function RecetaFormPage() {
         const formData = form.getValues();
         const description = await recipeDescriptionGenerator({
           nombre: formData.nombre,
-          tipoCocina: formData.tipoCocina,
+          tipoCocina: formData.tipoCocina?.join(', '),
           perfilSaborPrincipal: formData.perfilSaborPrincipal,
           perfilSaborSecundario: formData.perfilSaborSecundario,
           perfilTextura: formData.perfilTextura,
@@ -788,6 +795,33 @@ export default function RecetaFormPage() {
                         <AccordionTrigger className="p-4"><CardTitle className="flex items-center gap-2 text-lg"><Soup />Perfil Gastronómico</CardTitle></AccordionTrigger>
                         <AccordionContent>
                            <CardContent className="space-y-4 pt-2">
+                               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <FormField control={form.control} name="tipoCocina" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Tipo de Cocina / Influencias</FormLabel>
+                                            <MultiSelect
+                                                options={dbTiposCocina.map(t => ({label: t.nombre, value: t.nombre}))}
+                                                selected={field.value || []}
+                                                onChange={field.onChange}
+                                                placeholder="Selecciona o crea estilos..."
+                                                onCreated={(value) => setDbTiposCocina(prev => [...prev, {id: Date.now().toString(), nombre: value}])}
+                                            />
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="recetaOrigen" render={({ field }) => ( <FormItem><FormLabel>Origen / Inspiración</FormLabel><FormControl><Input {...field} placeholder="Ej: Clásica, El Bulli, MICE..." /></FormControl></FormItem> )} />
+                                    <FormField control={form.control} name="etiquetasTendencia" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Etiquetas de Tendencia</FormLabel>
+                                            <MultiSelect
+                                                options={etiquetasTendencia.map(t => ({label: t, value: t}))}
+                                                selected={field.value || []}
+                                                onChange={field.onChange}
+                                                placeholder="Selecciona o crea etiquetas..."
+                                                onCreated={(value) => setEtiquetasTendencia(prev => [...prev, value])}
+                                            />
+                                        </FormItem>
+                                    )} />
+                               </div>
                              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                                  <FormField control={form.control} name="estacionalidad" render={({ field }) => ( <FormItem className="flex flex-col">
                                         <FormLabel className="flex items-center gap-1.5">Estacionalidad <InfoTooltip text="Indica la temporada ideal para este plato, basado en la disponibilidad y calidad de sus ingredientes." /></FormLabel>
@@ -1010,6 +1044,7 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
+
 
 
 

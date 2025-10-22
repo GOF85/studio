@@ -22,7 +22,7 @@ import { formatCurrency } from '@/lib/utils';
 const ITEMS_PER_PAGE = 20;
 
 // Headers for CSV export/import, including all fields of a Receta
-const CSV_HEADERS = [ "id", "nombre", "visibleParaComerciales", "descripcionComercial", "responsableEscandallo", "categoria", "partidaProduccion", "estacionalidad", "tipoDieta", "porcentajeCosteProduccion", "elaboraciones", "menajeAsociado", "instruccionesMiseEnPlace", "instruccionesRegeneracion", "instruccionesEmplatado", "perfilSaborPrincipal", "perfilSaborSecundario", "perfilTextura", "tipoCocina", "temperaturaServicio", "tecnicaCoccionPrincipal", "potencialMiseEnPlace", "formatoServicioIdeal", "equipamientoCritico", "dificultadProduccion", "estabilidadBuffet", "escalabilidad", "etiquetasTendencia", "costeMateriaPrima", "gramajeTotal", "precioVenta", "alergenos", "requiereRevision" ];
+const CSV_HEADERS = [ "id", "nombre", "visibleParaComerciales", "descripcionComercial", "responsableEscandallo", "categoria", "partidaProduccion", "estacionalidad", "tipoDieta", "porcentajeCosteProduccion", "elaboraciones", "menajeAsociado", "instruccionesMiseEnPlace", "instruccionesRegeneracion", "instruccionesEmplatado", "perfilSaborPrincipal", "perfilSaborSecundario", "perfilTextura", "tipoCocina", "recetaOrigen", "temperaturaServicio", "tecnicaCoccionPrincipal", "potencialMiseEnPlace", "formatoServicioIdeal", "equipamientoCritico", "dificultadProduccion", "estabilidadBuffet", "escalabilidad", "etiquetasTendencia", "costeMateriaPrima", "gramajeTotal", "precioVenta", "alergenos", "requiereRevision" ];
 
 
 export default function RecetasPage() {
@@ -83,6 +83,7 @@ export default function RecetasPage() {
         menajeAsociado: JSON.stringify(item.menajeAsociado),
         perfilSaborSecundario: JSON.stringify(item.perfilSaborSecundario),
         perfilTextura: JSON.stringify(item.perfilTextura),
+        tipoCocina: JSON.stringify(item.tipoCocina),
         formatoServicioIdeal: JSON.stringify(item.formatoServicioIdeal),
         equipamientoCritico: JSON.stringify(item.equipamientoCritico),
         etiquetasTendencia: JSON.stringify(item.etiquetasTendencia),
@@ -144,6 +145,7 @@ export default function RecetasPage() {
           menajeAsociado: safeJsonParse(item.menajeAsociado),
           perfilSaborSecundario: safeJsonParse(item.perfilSaborSecundario),
           perfilTextura: safeJsonParse(item.perfilTextura),
+          tipoCocina: safeJsonParse(item.tipoCocina),
           formatoServicioIdeal: safeJsonParse(item.formatoServicioIdeal),
           equipamientoCritico: safeJsonParse(item.equipamientoCritico),
           etiquetasTendencia: safeJsonParse(item.etiquetasTendencia),
@@ -308,3 +310,4 @@ export default function RecetasPage() {
     </TooltipProvider>
   );
 }
+
