@@ -9,38 +9,46 @@ import { useState, useEffect, useMemo } from 'react';
 import { BookHeart, ChefHat, Component, Package, Sprout, CheckSquare, ChevronRight, Menu } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 
 const bookNavLinks = [
+    { title: 'Panel de Control', path: '/book', icon: BookHeart, exact: true },
     { title: 'Recetas', path: '/book/recetas', icon: BookHeart },
     { title: 'Elaboraciones', path: '/book/elaboraciones', icon: Component },
     { title: 'Ingredientes', path: '/book/ingredientes', icon: ChefHat },
     { title: 'Revisión de Ingredientes', path: '/book/revision-ingredientes', icon: CheckSquare },
     { title: 'Información de Alérgenos', path: '/book/alergenos', icon: Sprout },
-    { title: 'Materia Prima (ERP)', path: '/bd/erp', icon: Package },
 ];
 
 function NavContent({ closeSheet }: { closeSheet: () => void }) {
     const pathname = usePathname();
     return (
-         <nav className="grid items-start gap-1 p-4">
-            {bookNavLinks.map((item, index) => (
-                <Link
-                    key={index}
-                    href={item.path}
-                    onClick={closeSheet}
-                >
-                    <span
-                        className={cn(
-                            "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                            pathname.startsWith(item.path) ? "bg-accent" : "transparent"
-                        )}
+        <div className="w-full">
+             <SheetHeader className="p-4 border-b">
+                <SheetTitle className="flex items-center gap-2 text-lg"><BookHeart/>Book Gastronómico</SheetTitle>
+            </SheetHeader>
+            <nav className="grid items-start gap-1 p-4">
+                {bookNavLinks.map((item, index) => {
+                    const isActive = item.exact ? pathname === item.path : pathname.startsWith(item.path) && !item.exact;
+                    return (
+                    <Link
+                        key={index}
+                        href={item.path}
+                        onClick={closeSheet}
                     >
-                        <item.icon className="mr-2 h-4 w-4" />
-                        <span>{item.title}</span>
-                    </span>
-                </Link>
-            ))}
-        </nav>
+                        <span
+                            className={cn(
+                                "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                                isActive ? "bg-accent" : "transparent"
+                            )}
+                        >
+                            <item.icon className="mr-2 h-4 w-4" />
+                            <span>{item.title}</span>
+                        </span>
+                    </Link>
+                )})}
+            </nav>
+        </div>
     );
 }
 
@@ -52,7 +60,7 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
         if (pathname === '/book') {
             return { title: 'Panel de Control', icon: BookHeart };
         }
-        return bookNavLinks.find(link => pathname.startsWith(link.path));
+        return bookNavLinks.find(link => pathname.startsWith(link.path) && link.path !== '/book');
     }, [pathname]);
 
     return (
@@ -67,9 +75,6 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
                                 </Button>
                             </SheetTrigger>
                             <SheetContent side="left" className="w-[280px] p-0">
-                                <SheetHeader>
-                                    <SheetTitle className="sr-only">Menú de Navegación</SheetTitle>
-                                </SheetHeader>
                                 <NavContent closeSheet={() => setIsSheetOpen(false)} />
                             </SheetContent>
                         </Sheet>
