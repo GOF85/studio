@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -29,7 +30,7 @@ type IngredienteConERP = IngredienteInterno & {
     alergenos: Alergeno[];
 }
 
-const CSV_HEADERS = ["id", "nombreIngrediente", "productoERPlinkId", "alergenosPresentes", "alergenosTrazas"];
+const CSV_HEADERS = ["id", "nombreIngrediente", "productoERPlinkId", "alergenosPresentes", "alergenosTrazas", "lastRevision"];
 const ITEMS_PER_PAGE = 20;
 
 export default function IngredientesPage() {
@@ -86,6 +87,7 @@ export default function IngredientesPage() {
             ...rest,
             alergenosPresentes: JSON.stringify(item.alergenosPresentes),
             alergenosTrazas: JSON.stringify(item.alergenosTrazas),
+            lastRevision: item.lastRevision || '',
         };
     });
 
@@ -136,6 +138,7 @@ export default function IngredientesPage() {
                     productoERPlinkId: item.productoERPlinkId || '',
                     alergenosPresentes,
                     alergenosTrazas,
+                    lastRevision: item.lastRevision || new Date().toISOString(),
                 };
             });
             
@@ -303,7 +306,7 @@ export default function IngredientesPage() {
                         <span className="text-destructive text-sm font-semibold">No vinculado</span>
                       )}
                     </TableCell>
-                     <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>{item.erp?.IdERP}</TableCell>
+                     <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>{item.erp?.id}</TableCell>
                      <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>{item.erp?.familiaCategoria}</TableCell>
                     <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>
                         <div className="flex flex-wrap gap-1">
@@ -358,7 +361,7 @@ export default function IngredientesPage() {
                     <ul className="list-disc pl-5 mt-2 text-sm text-muted-foreground max-h-40 overflow-y-auto">
                         {affectedElaboraciones.map(e => <li key={e.id}>{e.nombre}</li>)}
                     </ul>
-                    <p className="mt-3">Si continúas, el ingrediente será eliminado. Deberás actualizar estas elaboraciones manualmente. Esta acción no se puede deshacer.</p>
+                    <p className="mt-3">Si continúas, el ingrediente será eliminado. Deberás actualizar estas elaboraciones manualmente.</p>
                 </div>
               ) : (
                 'Esta acción no se puede deshacer. Se eliminará permanentemente el ingrediente.'

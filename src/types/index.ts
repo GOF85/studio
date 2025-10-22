@@ -1,4 +1,5 @@
 
+
 import { z } from "zod";
 
 export type CateringItem = {
@@ -468,7 +469,7 @@ export type AtipicoOrder = {
 export type PersonalMiceOrder = {
     id: string;
     osId: string;
-    centroCoste: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
+    solicitadoPor: 'Sala' | 'Pase' | 'Otro';
     nombre: string;
     dni: string;
     tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
@@ -613,6 +614,7 @@ export type IngredienteInterno = {
     productoERPlinkId: string;
     alergenosPresentes: Alergeno[];
     alergenosTrazas: Alergeno[];
+    lastRevision?: string;
 }
 
 export type ComponenteElaboracion = {

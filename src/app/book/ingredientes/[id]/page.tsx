@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -28,6 +29,7 @@ export const ingredienteFormSchema = z.object({
   productoERPlinkId: z.string().min(1, 'Debe enlazar un producto ERP'),
   alergenosPresentes: z.array(z.string()).default([]),
   alergenosTrazas: z.array(z.string()).default([]),
+  lastRevision: z.string().optional(),
 });
 
 type IngredienteFormValues = z.infer<typeof ingredienteFormSchema>;
@@ -127,10 +129,15 @@ export default function IngredienteFormPage() {
     let allItems = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     let message = '';
     
+    const dataToSave = {
+        ...data,
+        lastRevision: new Date().toISOString()
+    }
+
     if (isEditing) {
       const index = allItems.findIndex(p => p.id === id);
       if (index !== -1) {
-        allItems[index] = data;
+        allItems[index] = dataToSave;
         message = 'Ingrediente actualizado correctamente.';
       }
     } else {
@@ -140,7 +147,7 @@ export default function IngredienteFormPage() {
             setIsLoading(false);
             return;
         }
-      allItems.push(data);
+      allItems.push(dataToSave);
       message = 'Ingrediente creado correctamente.';
     }
 
