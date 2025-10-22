@@ -40,6 +40,7 @@ import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatUnit, cn } from '@/lib/utils';
 import Image from 'next/image';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
+import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -231,6 +232,60 @@ function ImageUploadSection({ name, title, form }: { name: "fotosMiseEnPlaceURLs
                 </div>
             </div>
         </div>
+    );
+}
+
+function CreateElaborationModal({ onElaborationCreated, children }: { onElaborationCreated: (newElab: Elaboracion) => void, children: React.ReactNode }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSave = (data: ElaborationFormValues, costePorUnidad: number) => {
+        setIsSubmitting(true);
+        let allItems = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+        
+        const dataToSave: Elaboracion = { ...data, costePorUnidad };
+        allItems.push(dataToSave);
+        localStorage.setItem('elaboraciones', JSON.stringify(allItems));
+        
+        setTimeout(() => {
+            onElaborationCreated(dataToSave);
+            setIsSubmitting(false);
+            setIsOpen(false);
+        }, 500);
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>{children}</DialogTrigger>
+            <DialogContent className="max-w-4xl">
+                 <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2"><Component /> Nueva Elaboración</DialogTitle>
+                    <DialogDescription>
+                        Crea una sub-receta sin salir de la página. Se añadirá automáticamente a la receta actual al guardar.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[70vh] overflow-y-auto -mx-6 px-6">
+                    <ElaborationForm 
+                        initialData={{ 
+                            id: Date.now().toString(), nombre: '', produccionTotal: 1, unidadProduccion: 'KG', partidaProduccion: 'FRIO', componentes: [],
+                            tipoExpedicion: 'REFRIGERADO', formatoExpedicion: '', ratioExpedicion: 0,
+                            instruccionesPreparacion: '', videoProduccionURL: '', fotosProduccionURLs: [],
+                        }}
+                        onSave={handleSave}
+                        isSubmitting={isSubmitting}
+                    />
+                </div>
+                 <DialogFooter className="sm:justify-end">
+                    <DialogClose asChild>
+                        <Button type="button" variant="secondary">Cancelar</Button>
+                    </DialogClose>
+                    <Button type="submit" form="elaboration-form" disabled={isSubmitting}>
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : <Save />}
+                        <span className="ml-2">Crear y Añadir a Receta</span>
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -426,6 +481,22 @@ export default function RecetaFormPage() {
   const onAddMenaje = (menaje: MenajeDB) => {
     appendMenaje({ id: menaje.id, menajeId: menaje.id, descripcion: menaje.descripcion, ratio: 1 });
   }
+  
+  const handleElaborationCreated = (newElab: Elaboracion) => {
+        toast({ title: 'Elaboración Creada', description: `Se ha añadido "${newElab.nombre}" a la receta.` });
+        
+        const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+        const ingredientesMap = new Map(storedInternos.map(i => [i.id, i]));
+        const elabWithData = {
+            ...newElab,
+            costePorUnidad: newElab.costePorUnidad || 0,
+            alergenos: calculateElabAlergenos(newElab, ingredientesMap)
+        };
+        
+        // Add to the list of available elaboraciones and add to the current recipe
+        setDbElaboraciones(prev => [...prev, elabWithData]);
+        onAddElab(elabWithData);
+    };
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
@@ -625,7 +696,9 @@ export default function RecetaFormPage() {
                         <CardHeader className="pt-2 pb-3 flex-row items-center justify-between">
                              <div></div>
                             <div className="flex gap-2">
-                                <Button asChild variant="secondary" size="sm" type="button"><Link href="/book/elaboraciones/nuevo" target="_blank"><PlusCircle size={16} /> Crear Nueva</Link></Button>
+                                <CreateElaborationModal onElaborationCreated={handleElaborationCreated}>
+                                  <Button variant="secondary" size="sm" type="button"><PlusCircle size={16} /> Crear Nueva</Button>
+                                </CreateElaborationModal>
                                 <SelectorDialog trigger={<Button type="button" variant="outline" size="sm"><PlusCircle size={16} />Añadir Elaboración</Button>} title="Seleccionar Elaboración" items={dbElaboraciones} columns={[{ key: 'nombre', header: 'Nombre' }, { key: 'costePorUnidad', header: 'Coste/Unidad' }]} onSelect={onAddElab} />
                             </div>
                         </CardHeader>
@@ -939,3 +1012,4 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
+

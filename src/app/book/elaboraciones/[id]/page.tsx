@@ -25,112 +25,10 @@ import { formatCurrency, formatUnit } from '@/lib/utils';
 import Image from 'next/image';
 import { Combobox } from '@/components/ui/combobox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
 
 
-const componenteSchema = z.object({
-    id: z.string(),
-    tipo: z.enum(['ingrediente', 'elaboracion']),
-    componenteId: z.string(),
-    nombre: z.string(),
-    cantidad: z.coerce.number().min(0.001, 'La cantidad debe ser mayor que 0'),
-    costePorUnidad: z.coerce.number().optional().default(0),
-    merma: z.coerce.number().optional().default(0),
-});
-
-const elaboracionFormSchema = z.object({
-  id: z.string(),
-  nombre: z.string().min(1, 'El nombre es obligatorio'),
-  produccionTotal: z.coerce.number().min(0.001, 'La producción total es obligatoria'),
-  unidadProduccion: z.enum(UNIDADES_MEDIDA),
-  partidaProduccion: z.enum(['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION']),
-  componentes: z.array(componenteSchema).min(1, 'Debe tener al menos un componente'),
-  instruccionesPreparacion: z.string().optional().default(''),
-  fotosProduccionURLs: z.array(z.string().url("Debe ser una URL válida")).optional().default([]),
-  videoProduccionURL: z.string().url().or(z.literal('')).optional(),
-  formatoExpedicion: z.string().optional().default(''),
-  ratioExpedicion: z.coerce.number().optional().default(0),
-  tipoExpedicion: z.enum(['REFRIGERADO', 'CONGELADO', 'SECO']),
-});
-
-type ElaboracionFormValues = z.infer<typeof elaboracionFormSchema>;
 type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
-
-function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, allElaboraciones }: { onSelectIngrediente: (ing: IngredienteConERP) => void, onSelectElaboracion: (elab: Elaboracion) => void, allElaboraciones: Elaboracion[] }) {
-    const [ingredientes, setIngredientes] = useState<IngredienteConERP[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [elabSearchTerm, setElabSearchTerm] = useState('');
-
-    useEffect(() => {
-        const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-        const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-        const erpMap = new Map(storedErp.map(i => [i.id, i]));
-        
-        const combined = storedInternos.map(ing => ({
-            ...ing,
-            erp: erpMap.get(ing.productoERPlinkId),
-        }));
-        setIngredientes(combined);
-    }, []);
-
-    const filteredIngredientes = useMemo(() => {
-        return ingredientes.filter(i => 
-            i.nombreIngrediente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (i.erp?.IdERP || '').toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [ingredientes, searchTerm]);
-
-    const filteredElaboraciones = useMemo(() => {
-        return allElaboraciones.filter(e => 
-            e.nombre.toLowerCase().includes(elabSearchTerm.toLowerCase())
-        );
-    }, [allElaboraciones, elabSearchTerm]);
-
-    return (
-        <DialogContent className="max-w-4xl">
-            <DialogHeader><DialogTitle>Seleccionar Componente</DialogTitle></DialogHeader>
-            <Tabs defaultValue="ingredientes">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="ingredientes">Ingredientes</TabsTrigger>
-                    <TabsTrigger value="elaboraciones">Elaboraciones (Sub-recetas)</TabsTrigger>
-                </TabsList>
-                <TabsContent value="ingredientes">
-                    <Input placeholder="Buscar ingrediente o Id. ERP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="my-2"/>
-                    <div className="max-h-[50vh] overflow-y-auto border rounded-md">
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Ingrediente</TableHead><TableHead>Coste / Unidad</TableHead><TableHead></TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {filteredIngredientes.map(ing => (
-                                    <TableRow key={ing.id}>
-                                        <TableCell>{ing.nombreIngrediente}</TableCell>
-                                        <TableCell>{formatCurrency(ing.erp?.precio)} / {ing.erp ? formatUnit(ing.erp.unidad) : 'Ud'}</TableCell>
-                                        <TableCell className="text-right"><Button size="sm" type="button" onClick={() => onSelectIngrediente(ing)}>Añadir</Button></TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </TabsContent>
-                <TabsContent value="elaboraciones">
-                    <Input placeholder="Buscar elaboración..." value={elabSearchTerm} onChange={e => setElabSearchTerm(e.target.value)} className="my-2"/>
-                    <div className="max-h-[50vh] overflow-y-auto border rounded-md">
-                        <Table>
-                             <TableHeader><TableRow><TableHead>Elaboración</TableHead><TableHead>Coste / Unidad</TableHead><TableHead></TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {filteredElaboraciones.map(elab => (
-                                    <TableRow key={elab.id}>
-                                        <TableCell>{elab.nombre}</TableCell>
-                                        <TableCell>{formatCurrency(elab.costePorUnidad)} / {formatUnit(elab.unidadProduccion)}</TableCell>
-                                        <TableCell className="text-right"><Button size="sm" type="button" onClick={() => onSelectElaboracion(elab)}>Añadir</Button></TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </TabsContent>
-            </Tabs>
-        </DialogContent>
-    );
-}
 
 export default function ElaboracionFormPage() {
   const router = useRouter();
@@ -140,132 +38,39 @@ export default function ElaboracionFormPage() {
   const isEditing = id !== 'nuevo';
   const cloneId = searchParams.get('cloneId');
   
+  const [initialData, setInitialData] = useState<Partial<ElaborationFormValues> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
-  const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
-  const [elaboracionesData, setElaboracionesData] = useState<Map<string, Elaboracion>>(new Map());
   const [affectedRecipes, setAffectedRecipes] = useState<Receta[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [newImageUrl, setNewImageUrl] = useState('');
-  const [formatosExpedicion, setFormatosExpedicion] = useState<FormatoExpedicion[]>([]);
 
   const { toast } = useToast();
 
-  const form = useForm<ElaboracionFormValues>({
-    resolver: zodResolver(elaboracionFormSchema),
-    defaultValues: { 
-        nombre: '', produccionTotal: 1, unidadProduccion: 'KG', partidaProduccion: 'FRIO', componentes: [],
-        tipoExpedicion: 'REFRIGERADO', formatoExpedicion: '', ratioExpedicion: 0,
-        instruccionesPreparacion: '', videoProduccionURL: '', fotosProduccionURLs: [],
-    }
-  });
-
-  const { fields, append, remove, control } = useFieldArray({
-      control: form.control,
-      name: 'componentes',
-  });
-  
-  const { fields: fotosFields, append: appendFoto, remove: removeFoto } = useFieldArray({
-      control: form.control,
-      name: 'fotosProduccionURLs',
-  });
-
-  const watchedComponentes = form.watch('componentes');
-  const watchedProduccionTotal = form.watch('produccionTotal');
-
   useEffect(() => {
-    const storedFormatos = JSON.parse(localStorage.getItem('formatosExpedicionDB') || '[]') as FormatoExpedicion[];
-    setFormatosExpedicion(storedFormatos);
-
-    const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-    const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-    const erpMap = new Map(storedErp.map(i => [i.id, i]));
-    const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
-    setIngredientesData(new Map(combinedIngredientes.map(i => [i.id, i])));
-
+    let elabToLoad: Partial<ElaborationFormValues> | null = null;
     const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    setElaboracionesData(new Map(allElaboraciones.map(e => [e.id, e])));
-    
-    let initialData: Elaboracion | null = null;
     
     if (cloneId) {
         const elabToClone = allElaboraciones.find(e => e.id === cloneId);
         if (elabToClone) {
-            initialData = { ...elabToClone, id: Date.now().toString(), nombre: `${elabToClone.nombre} (Copia)` };
+            elabToLoad = { ...elabToClone, id: Date.now().toString(), nombre: `${elabToClone.nombre} (Copia)` };
         }
     } else if (isEditing) {
-        initialData = allElaboraciones.find(e => e.id === id) || null;
-    }
-
-    if (initialData) {
-        form.reset(initialData);
-    } else if (!isEditing) {
-         form.reset({
+        elabToLoad = allElaboraciones.find(e => e.id === id) || null;
+    } else {
+        elabToLoad = { 
             id: Date.now().toString(), nombre: '', produccionTotal: 1, unidadProduccion: 'KG', partidaProduccion: 'FRIO', componentes: [],
             tipoExpedicion: 'REFRIGERADO', formatoExpedicion: '', ratioExpedicion: 0,
             instruccionesPreparacion: '', videoProduccionURL: '', fotosProduccionURLs: [],
-        });
+        };
     }
 
-  }, [id, isEditing, cloneId, form]);
-
-  const handleSelectIngrediente = (ingrediente: IngredienteConERP) => {
-      append({
-          id: `${ingrediente.id}-${Date.now()}`,
-          tipo: 'ingrediente',
-          componenteId: ingrediente.id,
-          nombre: ingrediente.nombreIngrediente,
-          cantidad: 1,
-          costePorUnidad: ingrediente.erp?.precio || 0,
-          merma: 0,
-      });
-      setIsSelectorOpen(false);
-  }
-
-  const handleSelectElaboracion = (elab: Elaboracion) => {
-    append({
-        id: `${elab.id}-${Date.now()}`,
-        tipo: 'elaboracion',
-        componenteId: elab.id,
-        nombre: elab.nombre,
-        cantidad: 1,
-        costePorUnidad: elab.costePorUnidad || 0,
-        merma: 0,
-    });
-    setIsSelectorOpen(false);
-  }
-  
-  const handleAddImageUrl = () => {
-    try {
-        const url = new URL(newImageUrl);
-        appendFoto({value: url.href});
-        setNewImageUrl('');
-    } catch(e) {
-        toast({ variant: 'destructive', title: 'URL inválida', description: 'Por favor, introduce una URL de imagen válida.'});
+    if (elabToLoad) {
+        setInitialData(elabToLoad);
     }
-  }
 
-  const handleCreateFormato = (nombre: string) => {
-    const newFormato = { id: Date.now().toString(), nombre };
-    const updatedFormatos = [...formatosExpedicion, newFormato];
-    setFormatosExpedicion(updatedFormatos);
-    localStorage.setItem('formatosExpedicionDB', JSON.stringify(updatedFormatos));
-    toast({ title: 'Formato Creado', description: `Se ha añadido "${nombre}" a la base de datos.` });
-  };
+  }, [id, isEditing, cloneId]);
 
-  const { costeTotal, costePorUnidad } = useMemo(() => {
-    let total = 0;
-    watchedComponentes.forEach(componente => {
-        const costeConMerma = (componente.costePorUnidad || 0) * (1 + (componente.merma || 0) / 100);
-        total += costeConMerma * componente.cantidad;
-    });
-    const produccionTotal = watchedProduccionTotal > 0 ? watchedProduccionTotal : 1;
-    const porUnidad = total / produccionTotal;
-    return { costeTotal: total, costePorUnidad: porUnidad };
-  }, [watchedComponentes, watchedProduccionTotal]);
-
-
-  function onSubmit(data: ElaboracionFormValues) {
+  function onSubmit(data: ElaborationFormValues, costePorUnidad: number) {
     setIsLoading(true);
     let allItems = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     let message = '';
@@ -321,208 +126,31 @@ export default function ElaboracionFormPage() {
     toast({ title: 'Elaboración eliminada' });
     router.push('/book/elaboraciones');
   };
+  
+  if (!initialData) return <div/>;
 
   return (
     <>
       <main className="container mx-auto px-4 py-8">
-        <Form {...form}>
-          <form id="elaboracion-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-             <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <Component className="h-8 w-8" />
-                    <h1 className="text-3xl font-headline font-bold">{isEditing && !cloneId ? 'Editar' : 'Nueva'} Elaboración {cloneId && <span className="text-xl text-muted-foreground">(Clonada)</span>}</h1>
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" type="button" onClick={() => router.push('/book/elaboraciones')}> <X className="mr-2"/> Cancelar</Button>
-                    {isEditing && !cloneId && <Button variant="destructive" type="button" onClick={handleAttemptDelete}><Trash2 className="mr-2"/>Borrar</Button>}
-                    <Button type="submit" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                    <span className="ml-2">{isEditing && !cloneId ? 'Guardar Cambios' : 'Guardar Elaboración'}</span>
-                    </Button>
-                </div>
+        <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+                <Component className="h-8 w-8" />
+                <h1 className="text-3xl font-headline font-bold">{isEditing && !cloneId ? 'Editar' : 'Nueva'} Elaboración {cloneId && <span className="text-xl text-muted-foreground">(Clonada)</span>}</h1>
             </div>
-            
-            <Card>
-                <CardHeader className="flex flex-row justify-between items-start py-3">
-                    <div>
-                        <CardTitle className="text-lg">Información General</CardTitle>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Coste / {formatUnit(form.watch('unidadProduccion'))}</p>
-                        <p className="font-bold text-xl text-primary">{formatCurrency(costePorUnidad)}</p>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                     <div className="flex items-center gap-4">
-                        <FormField control={form.control} name="nombre" render={({ field }) => (
-                            <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name="partidaProduccion" render={({ field }) => (
-                            <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Partida de Producción</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="FRIO">FRIO</SelectItem>
-                                        <SelectItem value="CALIENTE">CALIENTE</SelectItem>
-                                        <SelectItem value="PASTELERIA">PASTELERIA</SelectItem>
-                                        <SelectItem value="EXPEDICION">EXPEDICION</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            <FormMessage /></FormItem>
-                        )} />
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <FormField control={form.control} name="produccionTotal" render={({ field }) => (
-                            <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Producción Total</FormLabel><FormControl><Input type="number" step="any" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                            <FormField control={form.control} name="unidadProduccion" render={({ field }) => (
-                            <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Unidad</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        {UNIDADES_MEDIDA.map(u => <SelectItem key={u} value={u}>{formatUnit(u)}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            <FormMessage /></FormItem>
-                        )} />
-                    </div>
-                </CardContent>
-            </Card>
-            
-            <Card>
-                <CardHeader className="flex-row items-center justify-between py-3">
-                    <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><ChefHat/>Componentes</CardTitle>
-                    <CardDescription className="text-xs">Añade los ingredientes y sub-elaboraciones que forman parte de esta preparación.</CardDescription></div>
-                    <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                        <DialogTrigger asChild>
-                             <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Componente</Button>
-                        </DialogTrigger>
-                        <ComponenteSelector 
-                            onSelectIngrediente={handleSelectIngrediente} 
-                            onSelectElaboracion={handleSelectElaboracion} 
-                            allElaboraciones={Array.from(elaboracionesData.values())} 
-                        />
-                    </Dialog>
-                </CardHeader>
-                <CardContent>
-                     <div className="border rounded-lg">
-                        <Table>
-                            <TableHeader><TableRow><TableHead className="py-2 px-3">Componente</TableHead><TableHead className="w-40 py-2 px-3">Cantidad</TableHead><TableHead className="w-24 py-2 px-3">% Merma</TableHead><TableHead className="w-40 py-2 px-3">Unidad</TableHead><TableHead className="w-12 py-2 px-3"></TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {fields.length === 0 && <TableRow><TableCell colSpan={5} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
-                                {fields.map((field, index) => {
-                                    const componenteData = field.tipo === 'ingrediente'
-                                        ? ingredientesData.get(field.componenteId)
-                                        : elaboracionesData.get(field.componenteId);
-                                    
-                                    const unidad = field.tipo === 'ingrediente'
-                                        ? (componenteData as IngredienteConERP)?.erp?.unidad || 'UD'
-                                        : (componenteData as Elaboracion)?.unidadProduccion || 'UD';
-
-                                    return (
-                                        <TableRow key={field.id}>
-                                            <TableCell className="font-medium py-1 px-3 flex items-center gap-2">
-                                                {field.tipo === 'ingrediente' ? <ChefHat size={16} className="text-muted-foreground"/> : <SubElabIcon size={16} className="text-muted-foreground"/>}
-                                                {field.nombre}
-                                            </TableCell>
-                                            <TableCell className="py-1 px-3">
-                                                <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
-                                                    <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
-                                                )} />
-                                            </TableCell>
-                                            <TableCell className="py-1 px-3">
-                                                <FormField control={form.control} name={`componentes.${index}.merma`} render={({ field: mField }) => (
-                                                    <FormItem><FormControl><Input type="number" step="any" {...mField} className="h-8" /></FormControl></FormItem>
-                                                )} />
-                                            </TableCell>
-                                            <TableCell className="py-1 px-3">
-                                                {formatUnit(unidad)}
-                                            </TableCell>
-                                            <TableCell className="py-1 px-3"><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
-                                        </TableRow>
-                                    )
-                                })}
-                            </TableBody>
-                        </Table>
-                     </div>
-                     {form.formState.errors.componentes && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.componentes.message}</p>}
-                </CardContent>
-            </Card>
-
-            <div className="grid lg:grid-cols-2 gap-4 items-start">
-                 <Card>
-                    <CardHeader className="py-3">
-                        <CardTitle className="text-lg">Instrucciones y Medios</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <FormField control={form.control} name="instruccionesPreparacion" render={({ field }) => (
-                            <FormItem><FormLabel>Instrucciones de Preparación</FormLabel><FormControl><Textarea {...field} rows={6} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name="videoProduccionURL" render={({ field }) => (
-                            <FormItem><FormLabel>URL Vídeo Producción</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <div className="space-y-2">
-                            <FormLabel>Fotos de Producción</FormLabel>
-                            <div className="flex gap-2">
-                                <Input value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="Pega una URL de imagen..."/>
-                                <Button type="button" variant="outline" onClick={handleAddImageUrl}><LinkIcon className="mr-2"/>Añadir URL</Button>
-                            </div>
-                            {form.formState.errors.fotosProduccionURLs && <p className="text-sm font-medium text-destructive">{(form.formState.errors.fotosProduccionURLs as any).message}</p>}
-                            <div className="grid grid-cols-3 gap-2 pt-2">
-                                {fotosFields.map((field, index) => (
-                                    <div key={field.id} className="relative aspect-video rounded-md overflow-hidden group">
-                                        <Image src={(field as any).value} alt={`Foto de producción ${index+1}`} fill className="object-cover" />
-                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                            <Button type="button" variant="destructive" size="icon" onClick={() => removeFoto(index)}><Trash2/></Button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="py-3">
-                        <CardTitle className="text-lg">Datos de Expedición</CardTitle>
-                        <CardDescription className="text-xs">Define cómo se empaqueta y conserva esta elaboración.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <FormField control={form.control} name="formatoExpedicion" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Formato Expedición</FormLabel>
-                                <Combobox
-                                    options={formatosExpedicion.map(f => ({ value: f.nombre, label: f.nombre }))}
-                                    value={field.value || ''}
-                                    onChange={field.onChange}
-                                    onCreated={handleCreateFormato}
-                                    placeholder="Ej: Barqueta 1kg"
-                                />
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                        <div className="grid grid-cols-2 gap-4">
-                             <FormField control={form.control} name="ratioExpedicion" render={({ field }) => (
-                                <FormItem><FormLabel>Ratio Expedición</FormLabel><FormControl><Input type="number" step="any" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
-                             <FormField control={form.control} name="tipoExpedicion" render={({ field }) => (
-                                <FormItem><FormLabel>Tipo de Expedición</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="REFRIGERADO">Refrigerado</SelectItem>
-                                            <SelectItem value="CONGELADO">Congelado</SelectItem>
-                                            <SelectItem value="SECO">Seco</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                <FormMessage /></FormItem>
-                            )} />
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="flex gap-2">
+                <Button variant="outline" type="button" onClick={() => router.push('/book/elaboraciones')}> <X className="mr-2"/> Cancelar</Button>
+                {isEditing && !cloneId && <Button variant="destructive" type="button" onClick={handleAttemptDelete}><Trash2 className="mr-2"/>Borrar</Button>}
+                <Button type="submit" form="elaboration-form" disabled={isLoading}>
+                {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                <span className="ml-2">{isEditing && !cloneId ? 'Guardar Cambios' : 'Guardar Elaboración'}</span>
+                </Button>
             </div>
-          </form>
-        </Form>
+        </div>
+        <ElaborationForm
+            initialData={initialData}
+            onSave={onSubmit}
+            isSubmitting={isLoading}
+        />
         <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
             <AlertDialogContent>
               <AlertDialogHeader>
