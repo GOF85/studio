@@ -593,7 +593,7 @@ export const articuloErpSchema = z.object({
   familiaCategoria: z.string().optional(),
   precioCompra: z.coerce.number().min(0, "Debe ser un valor positivo."),
   descuento: z.coerce.number().min(0).max(100).optional(),
-  unidadConversion: z.coerce.number().min(1, "Debe ser mayor que 0.").default(1),
+  unidadConversion: z.coerce.number().min(1).default(1),
   precio: z.coerce.number().min(0),
   precioAlquiler: z.coerce.number().min(0).optional(),
   unidad: z.enum(UNIDADES_MEDIDA),
@@ -604,7 +604,7 @@ export const articuloErpSchema = z.object({
 
 export type ArticuloERP = z.infer<typeof articuloErpSchema>;
 
-export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS_DE_CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
+export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS DE CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
 export type Alergeno = typeof ALERGENOS[number];
 
 export type IngredienteInterno = {

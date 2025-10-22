@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import Papa from 'papaparse';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-
+import { AllergenBadge } from '@/components/icons/allergen-badge';
 
 type IngredienteConERP = IngredienteInterno & {
     erp?: ArticuloERP;
@@ -306,15 +306,11 @@ export default function IngredientesPage() {
                      <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>{item.erp?.IdERP}</TableCell>
                      <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>{item.erp?.familiaCategoria}</TableCell>
                     <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>
-                      <div className="flex flex-wrap gap-1">
-                        {item.alergenos?.length > 0 && item.alergenos.map(alergeno => {
-                           const isPresente = (item.alergenosPresentes || []).includes(alergeno);
-                           const isTraza = (item.alergenosTrazas || []).includes(alergeno);
-                           if (isPresente) return <Badge key={alergeno} variant="destructive" className="text-xs">{alergeno}</Badge>
-                           if (isTraza) return <Badge key={alergeno} variant="outline" className="text-xs">{alergeno} (T)</Badge>
-                           return null;
-                        })}
-                      </div>
+                        <div className="flex flex-wrap gap-1">
+                            {item.alergenos?.length > 0 && item.alergenos.map(alergeno => (
+                                <AllergenBadge key={alergeno} allergen={alergeno as Alergeno} />
+                            ))}
+                        </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
