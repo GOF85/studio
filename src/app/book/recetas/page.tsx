@@ -171,13 +171,15 @@ export default function RecetasPage() {
   return (
     <TooltipProvider>
       <div className="flex items-center justify-between mb-6">
-          <div></div>
+          <Input 
+            placeholder="Buscar recetas por nombre o categoría..."
+            className="flex-grow max-w-lg"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
           <div className="flex gap-2">
             <Button asChild>
-              <Link href="/book/recetas/nueva">
-                <PlusCircle className="mr-2" />
-                Nueva Receta
-              </Link>
+              <Link href="/book/recetas/nueva"><PlusCircle className="mr-2"/>Nueva Receta</Link>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -206,14 +208,6 @@ export default function RecetasPage() {
         
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 items-center">
             <div className="lg:col-span-1">
-                <Input 
-                    placeholder="Buscar por nombre o categoría..."
-                    className="w-full"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-            </div>
-            <div className="lg:col-span-2 flex items-center justify-between gap-4">
                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                     <SelectTrigger className="w-full max-w-xs">
                         <SelectValue placeholder="Filtrar por categoría" />
@@ -223,6 +217,8 @@ export default function RecetasPage() {
                         {categories.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
                     </SelectContent>
                 </Select>
+            </div>
+            <div className="lg:col-span-2 flex items-center justify-between gap-4">
                 <div className="flex items-center space-x-2 whitespace-nowrap">
                     <Checkbox id="visible-comerciales" checked={showVisibleOnly} onCheckedChange={(checked) => setShowVisibleOnly(Boolean(checked))} />
                     <label htmlFor="visible-comerciales" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"><Eye size={16}/>Mostrar solo visibles</label>

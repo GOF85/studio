@@ -228,8 +228,13 @@ export default function ElaboracionesPage() {
   return (
     <>
     <TooltipProvider>
-      <div className="flex items-center justify-between mb-6">
-          <div></div>
+       <div className="flex items-center justify-between gap-4 mb-6">
+          <Input 
+            placeholder="Buscar por nombre..."
+            className="flex-grow max-w-lg"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/book/elaboraciones/nuevo">
@@ -262,15 +267,6 @@ export default function ElaboracionesPage() {
           </div>
         </div>
         
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <Input 
-            placeholder="Buscar por nombre..."
-            className="flex-grow max-w-lg"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
         <div className="border rounded-lg">
           <Table>
             <TableHeader>

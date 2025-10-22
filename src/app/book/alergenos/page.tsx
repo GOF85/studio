@@ -51,30 +51,33 @@ export default function AlergenosPage() {
 
   return (
     <TooltipProvider>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-          <Input 
-            placeholder="Buscar por nombre de receta..."
-            className="lg:col-span-1"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger>
-              <SelectValue placeholder="Filtrar por categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las Categorías</SelectItem>
-              {categorias.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <MultiSelect
-            options={allergenOptions}
-            selected={excludedAllergens}
-            onChange={setExcludedAllergens}
-            placeholder="Excluir alérgenos..."
-            searchPlaceholder="Buscar alérgeno a excluir..."
-            emptyPlaceholder="No se encontraron alérgenos."
-          />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Input 
+              placeholder="Buscar por nombre de receta..."
+              className="max-w-xs"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Filtrar por categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las Categorías</SelectItem>
+                {categorias.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <MultiSelect
+              options={allergenOptions}
+              selected={excludedAllergens}
+              onChange={setExcludedAllergens}
+              placeholder="Excluir alérgenos..."
+              searchPlaceholder="Buscar alérgeno a excluir..."
+              emptyPlaceholder="No se encontraron alérgenos."
+              className="w-[300px]"
+            />
+          </div>
         </div>
 
         <div className="border rounded-lg">

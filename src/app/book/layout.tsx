@@ -62,7 +62,7 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
                     <div className="flex items-center gap-2 py-2 text-sm font-semibold">
                          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                             <SheetTrigger asChild>
-                                <Button variant="outline" size="icon" className="lg:hidden mr-2">
+                                <Button variant="outline" size="icon" className="mr-2">
                                     <Menu className="h-5 w-5"/>
                                 </Button>
                             </SheetTrigger>
@@ -85,16 +85,10 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
                 </div>
             </div>
              <div className="container mx-auto">
-                <div className="grid lg:grid-cols-[250px_1fr] gap-12">
-                    <aside className="lg:sticky top-28 self-start h-[calc(100vh-8rem)] hidden lg:block">
-                         <NavContent closeSheet={() => {}} />
-                    </aside>
-                    <main className="py-8">
-                        {children}
-                    </main>
+                <div className="py-8">
+                    {children}
                 </div>
             </div>
         </>
     );
 }
-
