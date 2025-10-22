@@ -50,7 +50,7 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
     
     const currentPage = useMemo(() => {
         if (pathname === '/book') {
-            return { title: 'Dashboard', icon: BookHeart };
+            return { title: 'Panel de Control', icon: BookHeart };
         }
         return bookNavLinks.find(link => pathname.startsWith(link.path));
     }, [pathname]);
