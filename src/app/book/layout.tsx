@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import { BookHeart, ChefHat, Component, Package, Sprout, CheckSquare, ChevronRight, Menu } from 'lucide-react';
-import { Sheet, SheetTrigger, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 
 const bookNavLinks = [
@@ -67,6 +67,9 @@ export default function BookLayout({ children }: { children: React.ReactNode }) 
                                 </Button>
                             </SheetTrigger>
                             <SheetContent side="left" className="w-[280px] p-0">
+                                <SheetHeader>
+                                    <SheetTitle className="sr-only">Menú de Navegación</SheetTitle>
+                                </SheetHeader>
                                 <NavContent closeSheet={() => setIsSheetOpen(false)} />
                             </SheetContent>
                         </Sheet>
