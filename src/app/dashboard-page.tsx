@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
-import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck } from 'lucide-react';
+import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 type MenuItem = {
@@ -12,7 +12,7 @@ type MenuItem = {
     icon: LucideIcon;
 }
 
-const menuItems: MenuItem[] = [
+const planningItems: MenuItem[] = [
     { 
         title: 'Previsión de Servicios', 
         href: '/pes', 
@@ -23,6 +23,9 @@ const menuItems: MenuItem[] = [
         href: '/entregas',
         icon: Truck,
     },
+];
+
+const coreOpsItems: MenuItem[] = [
     { 
         title: 'Book Gastronómico', 
         href: '/book', 
@@ -38,11 +41,17 @@ const menuItems: MenuItem[] = [
         href: '/almacen', 
         icon: Warehouse, 
     },
-     { 
+];
+
+const externalItems: MenuItem[] = [
+    { 
         title: 'Portales Externos', 
         href: '/portal', 
         icon: Users, 
     },
+];
+
+const adminItems: MenuItem[] = [
     { 
         title: 'Bases de Datos', 
         href: '/bd', 
@@ -53,7 +62,28 @@ const menuItems: MenuItem[] = [
         href: '/configuracion', 
         icon: Settings, 
     },
-]
+];
+
+
+function Section({ title, items }: { title: string, items: MenuItem[] }) {
+    return (
+        <section>
+            <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4">{title}</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {items.map(item => (
+                    <Link href={item.href} key={item.href}>
+                        <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
+                            <CardHeader className="flex-row items-center gap-4">
+                                <item.icon className="w-8 h-8 text-primary flex-shrink-0" />
+                                <CardTitle>{item.title}</CardTitle>
+                            </CardHeader>
+                        </Card>
+                    </Link>
+                ))}
+            </div>
+        </section>
+    )
+}
 
 export function DashboardPage() {
   return (
@@ -64,17 +94,11 @@ export function DashboardPage() {
             <p className="text-lg text-muted-foreground mt-2">Plataforma de gestión integral para catering.</p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {menuItems.map(item => (
-                  <Link href={item.href} key={item.href}>
-                    <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
-                        <CardHeader className="flex-row items-center gap-4">
-                            <item.icon className="w-8 h-8 text-primary flex-shrink-0" />
-                            <CardTitle>{item.title}</CardTitle>
-                        </CardHeader>
-                    </Card>
-                  </Link>
-              ))}
+          <div className="space-y-12">
+            <Section title="Planificación" items={planningItems} />
+            <Section title="Operaciones Centrales" items={coreOpsItems} />
+            <Section title="Colaboradores" items={externalItems} />
+            <Section title="Administración" items={adminItems} />
           </div>
         </main>
         <footer className="py-4 border-t mt-auto">
