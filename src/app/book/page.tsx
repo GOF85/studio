@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useRouter } from 'next/navigation';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 type StatCardProps = {
@@ -168,4 +169,3 @@ export default function BookDashboardPage() {
     </div>
   );
 }
-
