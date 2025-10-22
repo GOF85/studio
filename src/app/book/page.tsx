@@ -1,66 +1,100 @@
 
-
 'use client';
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { BookHeart, ChefHat, Component, Package, GlassWater, ChevronRight, ChevronLeft, PlusCircle, Menu, Sprout } from 'lucide-react';
+import { BookHeart, ChefHat, Component, Package, PlusCircle, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
-import type { Receta } from '@/types';
-import { Input } from '@/components/ui/input';
+import type { Receta, Elaboracion, IngredienteInterno } from '@/types';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useRouter } from 'next/navigation';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { formatCurrency } from '@/lib/utils';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
-const ITEMS_PER_PAGE = 20;
+type StatCardProps = {
+    title: string;
+    value: number;
+    icon: React.ElementType;
+    bgColorClass: string;
+    href?: string;
+}
+
+function StatCard({ title, value, icon: Icon, bgColorClass, href }: StatCardProps) {
+    const router = useRouter();
+    const content = (
+         <Card className={cn('hover:shadow-lg transition-all', href && 'cursor-pointer', bgColorClass)} onClick={() => href && router.push(href)}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                <Icon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{value}</div>
+            </CardContent>
+        </Card>
+    );
+
+    return href ? <Link href={href}>{content}</Link> : content;
+}
 
 export default function BookDashboardPage() {
-  const [allRecipes, setAllRecipes] = useState<Receta[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [stats, setStats] = useState({
+    totalRecetas: 0,
+    totalElaboraciones: 0,
+    totalIngredientes: 0,
+    recetasParaRevisar: 0,
+  });
+  const [topCostRecipes, setTopCostRecipes] = useState<Receta[]>([]);
+  const [mostUsedElaborations, setMostUsedElaborations] = useState<{ nombre: string, count: number }[]>([]);
   const [isMounted, setIsMounted] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
   
   useEffect(() => {
-    const storedRecipes = localStorage.getItem('recetas');
-    setAllRecipes(storedRecipes ? JSON.parse(storedRecipes) : []);
+    const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+    const storedElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    const storedIngredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+
+    setStats({
+      totalRecetas: storedRecetas.length,
+      totalElaboraciones: storedElaboraciones.length,
+      totalIngredientes: storedIngredientes.length,
+      recetasParaRevisar: storedRecetas.filter(r => r.requiereRevision).length,
+    });
+    
+    const sortedByCost = [...storedRecetas].sort((a, b) => (b.costeMateriaPrima || 0) - (a.costeMateriaPrima || 0));
+    setTopCostRecipes(sortedByCost.slice(0, 5));
+
+    const elabUsageCount = new Map<string, number>();
+    storedRecetas.forEach(receta => {
+        receta.elaboraciones.forEach(elabEnReceta => {
+            const elabId = elabEnReceta.elaboracionId;
+            elabUsageCount.set(elabId, (elabUsageCount.get(elabId) || 0) + 1);
+        });
+    });
+    
+    const sortedElabs = Array.from(elabUsageCount.entries())
+        .sort(([, countA], [, countB]) => countB - countA)
+        .slice(0, 5)
+        .map(([elabId, count]) => {
+            const elab = storedElaboraciones.find(e => e.id === elabId);
+            return { nombre: elab?.nombre || 'Desconocido', count };
+        });
+    setMostUsedElaborations(sortedElabs);
+
     setIsMounted(true);
   }, []);
 
-  const filteredRecipes = useMemo(() => {
-    if (!searchTerm) {
-      return allRecipes;
-    }
-    return allRecipes.filter(recipe => 
-        recipe.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (recipe.categoria || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [allRecipes, searchTerm]);
-  
-  const totalPages = Math.ceil(filteredRecipes.length / ITEMS_PER_PAGE);
-  const paginatedItems = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredRecipes.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredRecipes, currentPage]);
-
-  const handlePreviousPage = () => {
-    setCurrentPage(prev => Math.max(1, prev - 1));
-  };
-
-  const handleNextPage = () => {
-    setCurrentPage(prev => Math.min(totalPages, prev + 1));
-  };
 
   if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Book Gastronómico..." />;
+    return <LoadingSkeleton title="Cargando Panel de Control del Book..." />;
   }
 
   return (
     <div className="flex flex-col min-h-screen">
       <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-4">
-            <div></div>
+        <div className="flex items-center justify-between mb-8">
+            <h1 className="text-3xl font-headline font-bold">Panel de Control Gastronómico</h1>
             <div className="flex gap-2">
                 <Button asChild>
                     <Link href="/book/recetas/nueva"><PlusCircle className="mr-2"/>Nueva Receta</Link>
@@ -68,69 +102,67 @@ export default function BookDashboardPage() {
             </div>
         </div>
         
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <Input 
-            placeholder="Buscar recetas por nombre o categoría..."
-            className="flex-grow max-w-lg"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-           <div className="flex items-center justify-end gap-2">
-            <span className="text-sm text-muted-foreground">
-                Página {currentPage} de {totalPages || 1}
-            </span>
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-            >
-                <ChevronLeft className="h-4 w-4" />
-                Anterior
-            </Button>
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextPage}
-                disabled={currentPage >= totalPages}
-            >
-                Siguiente
-                <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+            <StatCard title="Total Recetas" value={stats.totalRecetas} icon={BookHeart} bgColorClass="bg-blue-50" href="/book/recetas" />
+            <StatCard title="Total Elaboraciones" value={stats.totalElaboraciones} icon={Component} bgColorClass="bg-indigo-50" href="/book/elaboraciones"/>
+            <StatCard title="Total Ingredientes" value={stats.totalIngredientes} icon={ChefHat} bgColorClass="bg-violet-50" href="/book/ingredientes" />
+            <StatCard title="Recetas para Revisar" value={stats.recetasParaRevisar} icon={AlertTriangle} bgColorClass={stats.recetasParaRevisar > 0 ? "bg-amber-100 text-amber-800" : "bg-green-50"} />
         </div>
+        
+        <div className="grid lg:grid-cols-2 gap-8 items-start">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Top 5 Elaboraciones más Utilizadas</CardTitle>
+                    <CardDescription>Identifica las preparaciones clave para optimizar la producción.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={mostUsedElaborations} layout="vertical" margin={{ left: 10, right: 30 }}>
+                            <XAxis type="number" hide />
+                            <YAxis type="category" dataKey="nombre" width={120} stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                            <Tooltip
+                                cursor={{fill: 'hsl(var(--accent))'}}
+                                content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                    return (
+                                    <div className="rounded-lg border bg-background p-2 shadow-sm">
+                                        <p className="font-bold">{`${payload[0].payload.nombre}: ${payload[0].value} veces`}</p>
+                                    </div>
+                                    )
+                                }
+                                return null
+                                }}
+                            />
+                            <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
 
-        <div className="border rounded-lg">
-           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="py-2">Nombre Receta</TableHead>
-                <TableHead className="py-2">Categoría</TableHead>
-                <TableHead className="py-2">Partida Producción</TableHead>
-                <TableHead className="py-2">Coste M.P.</TableHead>
-                <TableHead className="py-2">Precio Venta</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedItems.length > 0 ? (
-                paginatedItems.map(item => (
-                  <TableRow key={item.id} onClick={() => router.push(`/book/recetas/${item.id}`)} className="cursor-pointer">
-                    <TableCell className="font-medium py-2">{item.nombre}</TableCell>
-                    <TableCell className="py-2">{item.categoria}</TableCell>
-                    <TableCell className="py-2">{item.partidaProduccion}</TableCell>
-                    <TableCell className="py-2">{(item.costeMateriaPrima || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                    <TableCell className="font-bold text-primary py-2">{(item.precioVenta || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    {searchTerm ? 'No se encontraron recetas.' : 'Aún no se ha creado ninguna receta.'}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Top 5 Recetas con Mayor Coste</CardTitle>
+                     <CardDescription>Analiza las recetas con mayor coste de materia prima.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Nombre de la Receta</TableHead>
+                                <TableHead className="text-right">Coste M.P.</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {topCostRecipes.map(receta => (
+                                <TableRow key={receta.id} onClick={() => router.push(`/book/recetas/${receta.id}`)} className="cursor-pointer">
+                                    <TableCell className="font-medium">{receta.nombre}</TableCell>
+                                    <TableCell className="text-right font-mono">{formatCurrency(receta.costeMateriaPrima || 0)}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
         </div>
       </main>
     </div>
