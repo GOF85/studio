@@ -53,7 +53,7 @@ function ArticulosERPPageContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [providerFilter, setProviderFilter] useState('all');
+  const [providerFilter, setProviderFilter] = useState('all');
   const [forRentFilter, setForRentFilter] = useState(false);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
@@ -235,7 +235,7 @@ function ArticulosERPPageContent() {
             return;
         }
         
-        const importedData: ArticuloERP[] = results.data.map(item => ({
+        const importedData: ArticuloERP[] = results.data.map((item: any) => ({
             id: item.id || Date.now().toString() + Math.random(),
             idProveedor: item.idProveedor || '',
             nombreProductoERP: item.nombreProductoERP || '',
@@ -378,7 +378,7 @@ function ArticulosERPPageContent() {
                                  <FormField control={form.control} name={`items.${item.originalIndex}.idProveedor`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
                             </TableCell>
                             <TableCell className="p-1">
-                                 <Input value={proveedoresMap.get(item.idProveedor || '') || item.nombreProveedor || ''} readOnly className="h-8 bg-muted/50"/>
+                                 <Input value={proveedoresMap.get(item.idProveedor || '') || ''} readOnly className="h-8 bg-muted/50"/>
                             </TableCell>
                             <TableCell className="p-1">
                                  <FormField control={form.control} name={`items.${item.originalIndex}.referenciaProveedor`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
