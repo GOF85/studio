@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, Component, FileDown, FileUp, Menu, AlertTriangle, Copy } from 'lucide-react';
-import type { Elaboracion, Receta, IngredienteInterno } from '@/types';
+import type { Elaboracion, Receta, IngredienteInterno, ArticuloERP } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -41,7 +41,7 @@ import autoTable from 'jspdf-autotable';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency, formatUnit } from '@/lib/utils';
 
-const CSV_HEADERS = [ "id", "nombre", "produccionTotal", "unidadProduccion", "componentes", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad" ];
+const CSV_HEADERS = [ "id", "nombre", "produccionTotal", "unidadProduccion", "componentes", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion" ];
 
 
 export default function ElaboracionesPage() {
@@ -191,7 +191,10 @@ export default function ElaboracionesPage() {
                     const parsedComponentes = JSON.parse(item.componentes || '[]');
                     componentes = parsedComponentes.map((comp: any) => {
                         const ing = ingredientesInternos.get(comp.componenteId);
-                        if (!ing) return { ...comp, nombre: 'INGREDIENTE NO ENCONTRADO', costePorUnidad: 0 };
+                        // FIX: Check if ing exists before trying to access its properties
+                        if (!ing) {
+                            return { ...comp, nombre: 'INGREDIENTE NO ENCONTRADO', costePorUnidad: 0 };
+                        }
                         
                         const erpItem = allArticulosERP.get(ing.productoERPlinkId);
                         const precioErp = erpItem ? (erpItem.precioCompra / (erpItem.unidadConversion || 1)) * (1 - (erpItem.descuento || 0) / 100) : 0;
@@ -211,7 +214,8 @@ export default function ElaboracionesPage() {
                     id: item.id || Date.now().toString() + Math.random(),
                     nombre: item.nombre || '',
                     produccionTotal: parseFloat(item.produccionTotal) || 0,
-                    unidadProduccion: item.unidadProduccion || 'UNIDAD',
+                    unidadProduccion: item.unidadProduccion || 'UD',
+                    partidaProduccion: item.partidaProduccion || 'FRIO',
                     componentes: componentes,
                     instruccionesPreparacion: item.instruccionesPreparacion || '',
                     fotosProduccionURLs: fotos,
