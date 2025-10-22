@@ -30,7 +30,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Combobox } from '@/components/ui/combobox';
@@ -80,11 +80,11 @@ const recetaFormSchema = z.object({
   elaboraciones: z.array(elaboracionEnRecetaSchema).default([]),
   menajeAsociado: z.array(menajeEnRecetaSchema).default([]),
   instruccionesMiseEnPlace: z.string().optional().default(''),
-  fotosMiseEnPlaceURLs: z.array(z.string().url("Debe ser una URL válida")).optional().default([]),
+  fotosMiseEnPlaceURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
   instruccionesRegeneracion: z.string().optional().default(''),
-  fotosRegeneracionURLs: z.array(z.string().url("Debe ser una URL válida")).optional().default([]),
+  fotosRegeneracionURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
   instruccionesEmplatado: z.string().optional().default(''),
-  fotosEmplatadoURLs: z.array(z.string().url("Debe ser una URL válida")).optional().default([]),
+  fotosEmplatadoURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
   perfilSaborPrincipal: z.enum(SABORES_PRINCIPALES).optional(),
   perfilSaborSecundario: z.array(z.string()).optional().default([]),
   perfilTextura: z.array(z.string()).optional().default([]),
@@ -1010,6 +1010,7 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
+
 
 
 
