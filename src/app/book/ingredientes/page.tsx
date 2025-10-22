@@ -209,9 +209,8 @@ export default function IngredientesPage() {
 
   return (
     <>
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><ChefHat />Gestión de Ingredientes</h1>
+      <div className="flex items-center justify-between mb-6">
+          <div></div>
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/book/ingredientes/nuevo">
@@ -345,7 +344,6 @@ export default function IngredientesPage() {
             </TableBody>
           </Table>
         </div>
-      </main>
 
       <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
         <AlertDialogContent>

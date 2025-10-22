@@ -58,40 +58,13 @@ export default function BookDashboardPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <main className="flex-grow container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-headline font-bold flex items-center gap-3"><BookHeart size={24}/>Book Gastronómico</h1>
+            <div></div>
             <div className="flex gap-2">
                 <Button asChild>
                     <Link href="/book/recetas/nueva"><PlusCircle className="mr-2"/>Nueva Receta</Link>
                 </Button>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="icon">
-                            <Menu />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                             <Link href="/book/recetas"><BookHeart size={16} className="mr-2"/>Recetas</Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                             <Link href="/book/elaboraciones"><Component size={16} className="mr-2"/>Elaboraciones</Link>
-                        </DropdownMenuItem>
-                         <DropdownMenuItem asChild>
-                             <Link href="/book/ingredientes"><ChefHat size={16} className="mr-2"/>Ingredientes</Link>
-                        </DropdownMenuItem>
-                         <DropdownMenuItem asChild>
-                             <Link href="/bd/erp"><Package size={16} className="mr-2"/>Materia Prima (ERP)</Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                             <Link href="/menaje-db"><GlassWater size={16} className="mr-2"/>Menaje</Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                             <Link href="/book/alergenos"><Sprout size={16} className="mr-2"/>Información de Alérgenos</Link>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
             </div>
         </div>
         
@@ -119,7 +92,7 @@ export default function BookDashboardPage() {
                 variant="outline"
                 size="sm"
                 onClick={handleNextPage}
-                disabled={currentPage === totalPages}
+                disabled={currentPage >= totalPages}
             >
                 Siguiente
                 <ChevronRight className="h-4 w-4" />
@@ -163,3 +136,4 @@ export default function BookDashboardPage() {
     </div>
   );
 }
+

@@ -78,12 +78,7 @@ export default function RevisionIngredientesPage() {
 
   return (
     <TooltipProvider>
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><ChefHat />Revisión Periódica de Ingredientes</h1>
-        </div>
-        
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
             placeholder="Buscar por ingrediente, producto ERP o proveedor..."
             className="flex-grow max-w-lg"
@@ -168,8 +163,6 @@ export default function RevisionIngredientesPage() {
             </TableBody>
           </Table>
         </div>
-      </main>
     </TooltipProvider>
   );
 }
-

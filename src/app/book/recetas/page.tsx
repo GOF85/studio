@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -169,9 +170,8 @@ export default function RecetasPage() {
 
   return (
     <TooltipProvider>
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><BookHeart />Gestión de Recetas</h1>
+      <div className="flex items-center justify-between mb-6">
+          <div></div>
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/book/recetas/nueva">
@@ -243,7 +243,7 @@ export default function RecetasPage() {
                         variant="outline"
                         size="sm"
                         onClick={handleNextPage}
-                        disabled={currentPage === totalPages}
+                        disabled={currentPage >= totalPages}
                     >
                         <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -309,7 +309,6 @@ export default function RecetasPage() {
             </TableBody>
           </Table>
         </div>
-      </main>
     </TooltipProvider>
   );
 }

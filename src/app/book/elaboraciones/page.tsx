@@ -228,9 +228,8 @@ export default function ElaboracionesPage() {
   return (
     <>
     <TooltipProvider>
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Component />Gestión de Elaboraciones</h1>
+      <div className="flex items-center justify-between mb-6">
+          <div></div>
           <div className="flex gap-2">
             <Button asChild>
               <Link href="/book/elaboraciones/nuevo">
@@ -313,7 +312,6 @@ export default function ElaboracionesPage() {
             </TableBody>
           </Table>
         </div>
-      </main>
 
        <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
         <AlertDialogContent>
