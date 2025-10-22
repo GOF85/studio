@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, Component, FileDown, FileUp, Menu, AlertTriangle, Copy } from 'lucide-react';
-import type { Elaboracion, Receta } from '@/types';
+import type { Elaboracion, Receta, IngredienteInterno } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -169,6 +169,9 @@ export default function ElaboracionesPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const ingredientesInternos = new Map((JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[]).map(i => [i.id, i]));
+    const allArticulosERP = new Map((JSON.parse(localStorage.getItem('articulosERP') || '[]') as any[]).map(i => [i.id, i]));
+
     Papa.parse<any>(file, {
         header: true,
         skipEmptyLines: true,
@@ -181,11 +184,24 @@ export default function ElaboracionesPage() {
                 return;
             }
             
-            const importedData: Elaboracion[] = results.data.map(item => {
+            const importedData: Elaboracion[] = results.data.map((item: any) => {
                 let componentes = [];
                 let fotos = [];
                 try {
-                    componentes = JSON.parse(item.componentes || '[]');
+                    const parsedComponentes = JSON.parse(item.componentes || '[]');
+                    componentes = parsedComponentes.map((comp: any) => {
+                        const ing = ingredientesInternos.get(comp.componenteId);
+                        if (!ing) return { ...comp, nombre: 'INGREDIENTE NO ENCONTRADO', costePorUnidad: 0 };
+                        
+                        const erpItem = allArticulosERP.get(ing.productoERPlinkId);
+                        const precioErp = erpItem ? (erpItem.precioCompra / (erpItem.unidadConversion || 1)) * (1 - (erpItem.descuento || 0) / 100) : 0;
+
+                        return {
+                            ...comp,
+                            nombre: ing.nombreIngrediente,
+                            costePorUnidad: precioErp,
+                        }
+                    });
                     fotos = JSON.parse(item.fotosProduccionURLs || '[]');
                 } catch(e) {
                     console.error("Error parsing JSON fields for item:", item.id);
