@@ -18,6 +18,11 @@ const menuItems: MenuItem[] = [
         href: '/pes', 
         icon: ClipboardList, 
     },
+    {
+        title: 'Entregas MICE',
+        href: '/entregas',
+        icon: Truck,
+    },
     { 
         title: 'Book Gastronómico', 
         href: '/book', 
@@ -32,11 +37,6 @@ const menuItems: MenuItem[] = [
         title: 'Almacén', 
         href: '/almacen', 
         icon: Warehouse, 
-    },
-    {
-        title: 'Entregas MICE',
-        href: '/entregas',
-        icon: Truck,
     },
      { 
         title: 'Portales Externos', 
