@@ -178,16 +178,10 @@ export default function PickingSheetPage() {
     return (
         <TooltipProvider>
         <div>
-            <div className="flex items-center justify-between mb-4 -mt-8 lg:mt-0">
-                <div className="hidden lg:block">
-                    <Button variant="ghost" size="sm" onClick={() => router.push('/almacen/picking')} className="mb-2">
-                        <ArrowLeft className="mr-2" /> Volver al listado
-                    </Button>
-                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                        Hoja de Picking 
-                        <Badge className="text-2xl">{sheet.id}</Badge>
-                    </h1>
-                </div>
+            <div className="flex items-center justify-between mb-4">
+                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
+                    Hoja de Picking <Badge variant="outline" className="text-2xl">{sheet.id}</Badge>
+                </h1>
                  <div className="flex items-center gap-3">
                     {sheet.solicitante && (
                         <Badge variant={sheet.solicitante === 'Sala' ? 'default' : 'outline'} className={cn("text-lg", sheet.solicitante === 'Sala' ? 'bg-blue-600' : 'bg-orange-500')}>

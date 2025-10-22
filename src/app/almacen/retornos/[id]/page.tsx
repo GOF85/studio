@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -63,7 +64,7 @@ export default function RetornoSheetPage() {
     const osId = params.id as string;
     const { toast } = useToast();
 
-    const loadSheet = useCallback(() => {
+    const loadData = useCallback(() => {
         const allSheets = JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>;
         let currentSheet = allSheets[osId];
 
@@ -114,7 +115,7 @@ export default function RetornoSheetPage() {
     }, [osId]);
 
     useEffect(() => {
-        loadSheet();
+        loadData();
     }, [loadData]);
     
     const saveSheet = useCallback((newSheetData: Partial<ReturnSheet>) => {
