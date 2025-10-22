@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { OrdenFabricacion, Personal, Elaboracion, ComponenteElaboracion, IngredienteInterno, IngredienteERP, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta } from '@/types';
+import type { OrdenFabricacion, Personal, Elaboracion, ComponenteElaboracion, IngredienteInterno, ArticuloERP, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { ArrowLeft, Save, Factory, Info, Check, X, AlertTriangle, Trash2, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -64,7 +64,7 @@ type FormData = {
     desgloseProduccion: DesgloseProduccionItem[];
 }
 
-type IngredienteConERP = IngredienteInterno & { erp?: IngredienteERP };
+type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
 
 export default function OfDetailPage() {
     const [orden, setOrden] = useState<OrdenFabricacion | null>(null);
@@ -179,7 +179,7 @@ export default function OfDetailPage() {
         setDbElaboraciones(allElaboraciones);
         
         const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-        const storedErp = JSON.parse(localStorage.getItem('ingredientesERP') || '[]') as IngredienteERP[];
+        const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
         const erpMap = new Map(storedErp.map(i => [i.id, i]));
         const combined = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
         setIngredientesData(new Map(combined.map(i => [i.id, i])));
@@ -325,7 +325,7 @@ export default function OfDetailPage() {
         return formatNumber(num, 2);
     }
     
-    const pageTitle = isEditing ? `Orden de Fabricación: ${orden?.id}` : 'Nueva Orden de Fabricación Manual';
+    const pageTitle = isEditing ? `Orden de Fabricación` : 'Nueva Orden de Fabricación Manual';
     const elabNombre = isEditing ? orden?.elaboracionNombre : selectedElaboracion?.nombre;
     const elabPartida = isEditing ? orden?.partidaAsignada : selectedElaboracion?.partidaProduccion;
     const elabUnidad = isEditing ? orden?.unidad : selectedElaboracion?.unidadProduccion;
@@ -333,16 +333,8 @@ export default function OfDetailPage() {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <Button variant="ghost" size="sm" onClick={() => router.push('/cpr/of')} className="mb-2">
-                        <ArrowLeft className="mr-2" /> Volver al listado
-                    </Button>
-                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                        <Factory />
-                        {pageTitle}
-                    </h1>
-                </div>
+            <div className="flex items-center justify-between mb-2">
+                <div></div>
                 <div className="flex items-center gap-2">
                     {isEditing && orden && <Badge variant={statusVariant[orden.estado]} className="text-base px-4 py-2">{orden.estado}</Badge>}
                     {isEditing && <Button onClick={() => setShowDeleteConfirm(true)} variant="destructive"><Trash2 className="mr-2"/>Eliminar OF</Button>}
@@ -579,5 +571,3 @@ export default function OfDetailPage() {
         </div>
     );
 }
-
-    

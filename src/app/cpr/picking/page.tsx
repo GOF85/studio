@@ -105,16 +105,6 @@ export default function PickingPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-            <Package />
-            Picking y Logística
-            </h1>
-            <p className="text-muted-foreground mt-1">Selecciona un evento para preparar su picking.</p>
-        </div>
-      </div>
-
        <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-grow">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -67,16 +66,6 @@ export default function CprDashboardPage() {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                    <LayoutDashboard />
-                    Panel de control de Producción
-                </h1>
-                <p className="text-muted-foreground mt-1">Visión general del estado actual del taller de producción.</p>
-                </div>
-            </div>
-
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
                 {statsCards.map(card => (
                     <Link href={card.href} key={card.title}>

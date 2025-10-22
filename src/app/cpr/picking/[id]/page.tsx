@@ -1,12 +1,11 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Package, ArrowLeft, Thermometer, Box, Snowflake, PlusCircle, Printer, Loader2, Trash2, Check, Utensils, Building, Phone, Sprout } from 'lucide-react';
 import { format } from 'date-fns';
-import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio, ComercialBriefingItem, ContenedorDinamico, Alergeno, IngredienteInterno, IngredienteERP } from '@/types';
+import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio, ComercialBriefingItem, ContenedorDinamico, Alergeno, IngredienteInterno, ArticuloERP } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -123,7 +122,7 @@ function AllocationDialog({ lote, containers, onAllocate, onAddContainer }: { lo
                     </div>
                 </div>
                  <DialogFooter>
-                    <Button variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
+                    <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
                     <Button onClick={handleAllocate}>Confirmar Asignación</Button>
                 </DialogFooter>
             </DialogContent>
@@ -495,19 +494,8 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
     return (
         <TooltipProvider>
             <div>
-                <div className="flex items-start justify-between mb-6">
-                    <div>
-                        <Button variant="ghost" size="sm" onClick={() => router.push('/cpr/picking')} className="mb-2 no-print">
-                            <ArrowLeft className="mr-2" /> Volver al listado
-                        </Button>
-                        <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                            <Package />
-                            Hoja de Picking: {serviceOrder.serviceNumber}
-                        </h1>
-                        <CardDescription>
-                        Cliente: {serviceOrder.client} | Espacio: {serviceOrder.space} | Fecha: {format(new Date(serviceOrder.startDate), 'dd/MM/yyyy')}
-                        </CardDescription>
-                    </div>
+                <div className="flex items-start justify-between mb-2">
+                    <div></div>
                     <div className="flex gap-2 no-print">
                         <Select onValueChange={(value: PickingStatus) => handleStatusChange(value)} value={pickingState.status}>
                             <SelectTrigger className="w-[180px]">

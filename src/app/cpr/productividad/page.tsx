@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -107,16 +106,6 @@ export default function ProductividadPage() {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-                        <BarChart3 />
-                        Informe de Productividad
-                    </h1>
-                    <p className="text-muted-foreground mt-1">Analiza los tiempos de producción y las incidencias por responsable.</p>
-                </div>
-            </div>
-
             <div className="flex flex-col md:flex-row gap-4 mb-6 p-4 border rounded-lg bg-card">
                 <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                     <PopoverTrigger asChild>

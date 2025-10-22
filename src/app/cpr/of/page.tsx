@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -156,13 +155,7 @@ export default function OfPage() {
   return (
     <>
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-              <Factory />
-              Órdenes de Fabricación
-            </h1>
-          </div>
+        <div className="flex items-center justify-end mb-4">
           <Button asChild>
               <Link href="/cpr/of/nuevo">
                 <PlusCircle className="mr-2"/>
@@ -294,4 +287,3 @@ export default function OfPage() {
     </>
   );
 }
-

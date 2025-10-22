@@ -1,10 +1,9 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { differenceInDays, format, startOfToday, addDays } from 'date-fns';
+import { differenceInDays, format, startOfToday, addDays, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PackagePlus, Search, AlertTriangle } from 'lucide-react';
 import type { OrdenFabricacion, Elaboracion, ServiceOrder, Receta, GastronomyOrder, ExcedenteProduccion, StockElaboracion } from '@/types';
@@ -91,16 +90,6 @@ export default function ExcedentesPage() {
   return (
     <TooltipProvider>
       <div>
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-headline font-bold flex items-center gap-3">
-              <PackagePlus />
-              Stock de Elaboraciones
-            </h1>
-            <p className="text-muted-foreground mt-1">Inventario en tiempo real de las elaboraciones producidas y validadas.</p>
-          </div>
-        </div>
-
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <Input 
             placeholder="Buscar por elaboración..."
