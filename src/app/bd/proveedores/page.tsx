@@ -85,7 +85,7 @@ function ProveedoresPageContent() {
         toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay proveedores para exportar.' });
         return;
     }
-    const dataToExport = items.map(item => ({...item, tipos: item.tipos.join(',')}));
+    const dataToExport = items.map(item => ({...item, tipos: (item.tipos || []).join(',')}));
     const csv = Papa.unparse(dataToExport);
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -201,7 +201,7 @@ function ProveedoresPageContent() {
                   <TableCell>{item.ciudad}</TableCell>
                   <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {item.tipos.map(t => <Badge key={t} variant="secondary">{t}</Badge>)}
+                        {(item.tipos || []).map(t => <Badge key={t} variant="secondary">{t}</Badge>)}
                       </div>
                   </TableCell>
                   <TableCell className="text-right">

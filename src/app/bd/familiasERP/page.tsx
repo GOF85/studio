@@ -46,6 +46,7 @@ function FamiliasERPPageContent() {
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
   useEffect(() => {
     let storedData = localStorage.getItem('familiasERP');
@@ -73,33 +74,39 @@ function FamiliasERPPageContent() {
     setItemToDelete(null);
   };
   
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    Papa.parse<any>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
-            toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
-            return;
+    const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
+        const file = event.target.files?.[0];
+        if (!file) {
+          setIsImportAlertOpen(false);
+          return;
         }
-        
-        const importedData: FamiliaERP[] = results.data.map((item: any) => ({
-          ...item,
-        }));
-        
-        localStorage.setItem('familiasERP', JSON.stringify(importedData));
-        setItems(importedData);
-        toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
-      },
-      error: (error) => {
-        toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
-      }
-    });
-    if(event.target) event.target.value = '';
-  };
+
+        Papa.parse<any>(file, {
+          header: true,
+          skipEmptyLines: true,
+          delimiter,
+          complete: (results) => {
+            if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
+                toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
+                return;
+            }
+            
+            const importedData: FamiliaERP[] = results.data.map((item: any) => ({
+              ...item,
+            }));
+            
+            localStorage.setItem('familiasERP', JSON.stringify(importedData));
+            setItems(importedData);
+            toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+            setIsImportAlertOpen(false);
+          },
+          error: (error) => {
+            toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+            setIsImportAlertOpen(false);
+          }
+        });
+        if(event.target) event.target.value = '';
+    };
     
     const handleExportCSV = () => {
         if (items.length === 0) {
@@ -143,9 +150,8 @@ function FamiliasERPPageContent() {
                     <Button variant="outline" size="icon"><Menu /></Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
+                    <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
                         <FileUp size={16} className="mr-2"/>Importar CSV
-                         <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleImportCSV} />
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleExportCSV}>
                         <FileDown size={16} className="mr-2"/>Exportar CSV
@@ -222,6 +228,21 @@ function FamiliasERPPageContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="!justify-center gap-4">
+                    <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </>
   );
 }
