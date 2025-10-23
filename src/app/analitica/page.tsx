@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -93,10 +94,10 @@ export default function AnaliticaDashboardPage() {
         setIsMounted(true);
     }, []);
 
-    const { cateringData, entregasData, totals } = useMemo(() => {
+    const { cateringData, entregasData, totals, cateringVerticalsData } = useMemo(() => {
         const fromDate = dateRange?.from;
         const toDate = dateRange?.to || fromDate;
-        if (!fromDate) return { cateringData: null, entregasData: null, totals: {} };
+        if (!fromDate) return { cateringData: null, entregasData: null, totals: {}, cateringVerticalsData: {} };
         
         const dateFilter = (dateStr: string) => isWithinInterval(new Date(dateStr), { start: startOfDay(fromDate), end: endOfDay(toDate) });
         
@@ -104,24 +105,38 @@ export default function AnaliticaDashboardPage() {
         const cateringOrders = allServiceOrders.filter(os => os.vertical !== 'Entregas' && os.status === 'Confirmado' && dateFilter(os.startDate));
         let cateringFacturacion = 0;
         let cateringCoste = 0;
+
+        const verticalsData: Record<string, { facturacion: number; coste: number }> = {
+            Recurrente: { facturacion: 0, coste: 0 },
+            'Grandes Eventos': { facturacion: 0, coste: 0 },
+            'Gran Cuenta': { facturacion: 0, coste: 0 },
+        };
         
         cateringOrders.forEach(os => {
             const comisiones = (os.comisionesAgencia || 0) + (os.comisionesCanon || 0);
-            cateringFacturacion += (os.facturacion || 0) - comisiones;
+            const facturacionOS = (os.facturacion || 0) - comisiones;
+            cateringFacturacion += facturacionOS;
 
-            cateringCoste += allGastroOrders.filter(o => o.osId === os.id).reduce((s, o) => s + (o.total || 0), 0);
-            cateringCoste += allMaterialOrders.filter(o => o.osId === os.id).reduce((s, o) => s + o.total, 0);
-            cateringCoste += allTransporteOrders.filter(o => o.osId === os.id).reduce((s, o) => s + o.precio, 0);
-            cateringCoste += allHieloOrders.filter(o => o.osId === os.id).reduce((s, o) => s + o.total, 0);
-            cateringCoste += allDecoracionOrders.filter(o => o.osId === os.id).reduce((s, o) => s + o.precio, 0);
-            cateringCoste += allAtipicoOrders.filter(o => o.osId === os.id).reduce((s, o) => s + o.precio, 0);
-            cateringCoste += allPersonalMiceOrders.filter(o => o.osId === os.id).reduce((s, o) => s + calculateHours(o.horaEntradaReal || o.horaEntrada, o.horaSalidaReal || o.horaSalida) * (o.precioHora || 0), 0);
+            let costeOS = 0;
+            costeOS += allGastroOrders.filter(o => o.osId === os.id).reduce((s, o) => s + (o.total || 0), 0);
+            costeOS += allMaterialOrders.filter(o => o.osId === os.id).reduce((s, o) => s + o.total, 0);
+            costeOS += allTransporteOrders.filter(o => o.osId === os.id).reduce((s, o) => s + o.precio, 0);
+            costeOS += allHieloOrders.filter(o => o.osId === os.id).reduce((s, o) => s + o.total, 0);
+            costeOS += allDecoracionOrders.filter(o => o.osId === os.id).reduce((s, o) => s + o.precio, 0);
+            costeOS += allAtipicoOrders.filter(o => o.osId === os.id).reduce((s, o) => s + o.precio, 0);
+            costeOS += allPersonalMiceOrders.filter(o => o.osId === os.id).reduce((s, o) => s + calculateHours(o.horaEntradaReal || o.horaEntrada, o.horaSalidaReal || o.horaSalida) * (o.precioHora || 0), 0);
             
             const personalExterno = allPersonalExterno.find(p => p.osId === os.id);
             if (personalExterno) {
                const costeTurnos = personalExterno.turnos.reduce((s, turno) => s + (turno.asignaciones || []).reduce((sA, a) => sA + calculateHours(a.horaEntradaReal || turno.horaEntrada, a.horaSalidaReal || turno.horaSalida) * (turno.precioHora || 0), 0), 0);
                const costeAjustes = (allAjustesPersonal[os.id] || []).reduce((s, a) => s + a.importe, 0);
-               cateringCoste += costeTurnos + costeAjustes;
+               costeOS += costeTurnos + costeAjustes;
+            }
+            cateringCoste += costeOS;
+
+            if (os.cateringVertical && verticalsData[os.cateringVertical]) {
+                verticalsData[os.cateringVertical].facturacion += facturacionOS;
+                verticalsData[os.cateringVertical].coste += costeOS;
             }
         });
 
@@ -168,7 +183,8 @@ export default function AnaliticaDashboardPage() {
         return {
             cateringData: { facturacion: cateringFacturacion, coste: cateringCoste, rentabilidad: cateringFacturacion - cateringCoste, eventos: cateringOrders.length },
             entregasData: { facturacion: entregasFacturacion, coste: entregasCoste, rentabilidad: entregasFacturacion - entregasCoste, entregas: entregasHitos, contratos: entregaOrders.length },
-            totals: { totalFacturacion, totalCoste, rentabilidad, margen }
+            totals: { totalFacturacion, totalCoste, rentabilidad, margen },
+            cateringVerticalsData: verticalsData,
         };
 
     }, [dateRange, allServiceOrders, allEntregas, allGastroOrders, allMaterialOrders, allTransporteOrders, allHieloOrders, allDecoracionOrders, allAtipicoOrders, allPersonalMiceOrders, allPersonalExterno, allAjustesPersonal, allPedidosEntrega, allPersonalEntrega]);
@@ -245,19 +261,28 @@ export default function AnaliticaDashboardPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            <TableRow>
-                                <TableCell className="font-semibold">Catering</TableCell>
+                            {Object.entries(cateringVerticalsData).map(([vertical, data]) => (
+                                <TableRow key={vertical}>
+                                    <TableCell className="font-semibold pl-8">Catering - {vertical}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(data.facturacion)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(data.coste)}</TableCell>
+                                    <TableCell className="text-right font-bold">{formatCurrency(data.facturacion - data.coste)}</TableCell>
+                                    <TableCell className="text-right font-bold">{formatPercentage((data.facturacion - data.coste) / data.facturacion)}</TableCell>
+                                </TableRow>
+                            ))}
+                             <TableRow className="bg-muted/50 font-bold">
+                                <TableCell>Total Catering</TableCell>
                                 <TableCell className="text-right">{formatCurrency(cateringData?.facturacion || 0)}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(cateringData?.coste || 0)}</TableCell>
-                                <TableCell className="text-right font-bold">{formatCurrency(cateringData?.rentabilidad || 0)}</TableCell>
-                                <TableCell className="text-right font-bold">{(cateringData?.facturacion || 0) > 0 ? `${((cateringData.rentabilidad / cateringData.facturacion) * 100).toFixed(2)}%` : '0.00%'}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(cateringData?.rentabilidad || 0)}</TableCell>
+                                <TableCell className="text-right">{formatPercentage((cateringData?.rentabilidad || 0) / (cateringData?.facturacion || 1))}</TableCell>
                             </TableRow>
                              <TableRow>
                                 <TableCell className="font-semibold">Entregas</TableCell>
                                 <TableCell className="text-right">{formatCurrency(entregasData?.facturacion || 0)}</TableCell>
                                 <TableCell className="text-right">{formatCurrency(entregasData?.coste || 0)}</TableCell>
                                 <TableCell className="text-right font-bold">{formatCurrency(entregasData?.rentabilidad || 0)}</TableCell>
-                                <TableCell className="text-right font-bold">{(entregasData?.facturacion || 0) > 0 ? `${((entregasData.rentabilidad / entregasData.facturacion) * 100).toFixed(2)}%` : '0.00%'}</TableCell>
+                                <TableCell className="text-right font-bold">{formatPercentage((entregasData?.rentabilidad || 0) / (entregasData?.facturacion || 1))}</TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>

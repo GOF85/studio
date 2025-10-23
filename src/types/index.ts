@@ -37,6 +37,8 @@ export type OrderCompletionAssistantOutput = {
   quantity: number;
 }[];
 
+export const CATERING_VERTICALES = ['Recurrente', 'Grandes Eventos', 'Gran Cuenta'] as const;
+export type CateringVertical = typeof CATERING_VERTICALES[number];
 
 export type ServiceOrder = {
     id: string;
@@ -49,6 +51,7 @@ export type ServiceOrder = {
     contact: string;
     phone: string;
     asistentes: number;
+    cateringVertical?: CateringVertical;
     space: string;
     spaceAddress: string;
     spaceContact: string;
@@ -697,7 +700,7 @@ export type Receta = {
     equipamientoCritico?: string[];
     dificultadProduccion?: number; // 1-5
     estabilidadBuffet?: number; // 1-5
-    escalabilidad?: 'FACIL' | 'MEDIA' | 'DIFICIL';
+    escalabilidad?: 'FACIL' | 'MEDIA', 'DIFICIL';
     etiquetasTendencia?: string[];
     // Calculated fields
     costeMateriaPrima?: number;
@@ -996,4 +999,3 @@ export type TipoCocina = {
     id: string;
     nombre: string;
 };
-

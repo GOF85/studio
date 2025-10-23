@@ -13,6 +13,7 @@ import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon, FileDown, Loader2, Warehouse, ChevronRight, PanelLeft, Wine, FilePenLine, Trash2, Leaf, Briefcase, Utensils, Truck, Archive, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, Star, Save, AlertTriangle, Phone, Mail } from 'lucide-react';
 
 import type { ServiceOrder, Personal, Espacio, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import { CATERING_VERTICALES } from '@/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -64,6 +65,7 @@ export const osFormSchema = z.object({
   client: z.string().min(1, 'El cliente es obligatorio.'),
   tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
   asistentes: z.coerce.number().min(1, 'El número de asistentes es obligatorio.'),
+  cateringVertical: z.enum(CATERING_VERTICALES, { required_error: 'La vertical de catering es obligatoria.' }).optional(),
   contact: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
@@ -464,70 +466,28 @@ export default function InfoPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3 pt-2">
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                       <FormField control={form.control} name="serviceNumber" render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Nº Servicio</FormLabel>
-                          <FormControl><Input {...field} readOnly={isEditing} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
+                        <FormItem className="flex flex-col"><FormLabel>Nº Servicio</FormLabel><FormControl><Input {...field} readOnly={isEditing} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={form.control} name="startDate" render={({ field }) => (
-                          <FormItem className="flex flex-col">
-                            <FormLabel>Fecha Inicio</FormLabel>
-                            <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
-                              <PopoverTrigger asChild>
-                                <FormControl>
-                                  <Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>
-                                    {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </Button>
-                                </FormControl>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar 
-                                  mode="single" 
-                                  selected={field.value} 
-                                  onSelect={(date) => {field.onChange(date); setStartDateOpen(false);}}
-                                  initialFocus 
-                                  locale={es} 
-                                />
-                              </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                          </FormItem>
+                          <FormItem className="flex flex-col"><FormLabel>Fecha Inicio</FormLabel><Popover open={startDateOpen} onOpenChange={setStartDateOpen}><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={(date) => {field.onChange(date); setStartDateOpen(false);}} initialFocus locale={es} /></PopoverContent></Popover><FormMessage /></FormItem>
                       )} />
                       <FormField control={form.control} name="endDate" render={({ field }) => (
-                          <FormItem className="flex flex-col">
-                            <FormLabel>Fecha Fin</FormLabel>
-                            <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
-                              <PopoverTrigger asChild>
-                                <FormControl>
-                                  <Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>
-                                    {field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </Button>
-                                </FormControl>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                 <Calendar 
-                                  mode="single" 
-                                  selected={field.value} 
-                                  onSelect={(date) => {field.onChange(date); setEndDateOpen(false);}}
-                                  initialFocus 
-                                  locale={es} 
-                                />
-                              </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                          </FormItem>
+                          <FormItem className="flex flex-col"><FormLabel>Fecha Fin</FormLabel><Popover open={endDateOpen} onOpenChange={setEndDateOpen}><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal h-9", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP", { locale: es }) : <span>Elige fecha</span>}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={(date) => {field.onChange(date); setEndDateOpen(false);}} initialFocus locale={es} /></PopoverContent></Popover><FormMessage /></FormItem>
                       )} />
                       <FormField control={form.control} name="asistentes" render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Asistentes</FormLabel>
-                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
-                            <FormMessage />
-                            </FormItem>
+                            <FormItem><FormLabel>Asistentes</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="cateringVertical" render={({ field }) => (
+                            <FormItem><FormLabel>Vertical Catering</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    {CATERING_VERTICALES.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                </SelectContent>
+                                </Select>
+                            <FormMessage /></FormItem>
                         )} />
                     </div>
                     
@@ -535,48 +495,7 @@ export default function InfoPage() {
                           <AccordionItem value="cliente" className="border-none">
                           <Card>
                             <AccordionTrigger className="p-0"><ClienteTitle /></AccordionTrigger>
-                            <AccordionContent>
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 px-4 pb-4">
-                                <FormField control={form.control} name="client" render={({ field }) => (
-                                <FormItem className="md:col-span-2">
-                                    <FormLabel>Cliente</FormLabel>
-                                    <FormControl><Input {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )} />
-                                <FormField control={form.control} name="tipoCliente" render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Tipo Cliente</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="Empresa">Empresa</SelectItem>
-                                            <SelectItem value="Agencia">Agencia</SelectItem>
-                                            <SelectItem value="Particular">Particular</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="finalClient" render={({ field }) => (
-                                <FormItem className="md:col-span-3">
-                                    <FormLabel>Cliente Final</FormLabel>
-                                    <FormControl><Input {...field} /></FormControl>
-                                </FormItem>
-                                )} />
-                                <FormField control={form.control} name="contact" render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Contacto</FormLabel>
-                                    <FormControl><Input {...field} /></FormControl>
-                                  </FormItem>
-                                )} />
-                                <FormField control={form.control} name="phone" render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Teléfono</FormLabel>
-                                    <FormControl><Input {...field} /></FormControl>
-                                  </FormItem>
-                                )} />
-                              </div>
-                            </AccordionContent>
+                            <ClientInfo />
                           </Card>
                           </AccordionItem>
 
@@ -809,4 +728,3 @@ export default function InfoPage() {
     </>
   );
 }
-
