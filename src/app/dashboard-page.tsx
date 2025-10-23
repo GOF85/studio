@@ -82,14 +82,14 @@ const adminItems: MenuItem[] = [
 export function Section({ title, items }: { title: string, items: MenuItem[] }) {
     return (
         <section>
-            <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4">{title}</h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <h2 className="text-xl font-headline font-semibold tracking-tight mb-3">{title}</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {items.map(item => (
                     <Link href={item.href} key={item.href}>
-                        <Card className={`hover:border-primary/80 hover:shadow-lg transition-all h-full ${item.className || ''}`}>
-                            <CardHeader className="flex-row items-center gap-4">
-                                <item.icon className="w-8 h-8 text-primary flex-shrink-0" />
-                                <CardTitle>{item.title}</CardTitle>
+                        <Card className={`hover:border-primary/80 hover:shadow-md transition-all h-full ${item.className || ''}`}>
+                            <CardHeader className="flex-row items-center gap-3 p-4">
+                                <item.icon className="w-6 h-6 text-primary flex-shrink-0" />
+                                <CardTitle className="text-base">{item.title}</CardTitle>
                             </CardHeader>
                         </Card>
                     </Link>
@@ -102,8 +102,8 @@ export function Section({ title, items }: { title: string, items: MenuItem[] }) 
 export function DashboardPage() {
   return (
       <div className="flex flex-col min-h-screen">
-        <main className="flex-grow container mx-auto px-4 py-8">
-          <div className="space-y-12">
+        <main className="flex-grow container mx-auto px-4 py-6">
+          <div className="space-y-8">
             <Section title="Planificación" items={planningItems} />
             <Section title="Operaciones Centrales" items={coreOpsItems} />
             <Section title="Análisis y Reportes" items={reportingItems} />
