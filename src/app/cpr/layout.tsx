@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -22,6 +21,7 @@ function NavContent({ closeSheet }: { closeSheet: () => void }) {
             <nav className="grid items-start gap-1 p-4">
                 {cprNav.map((item, index) => {
                     const isActive = pathname.startsWith(item.href);
+                    const Icon = item.icon;
                     return (
                     <Link
                         key={index}
@@ -34,7 +34,7 @@ function NavContent({ closeSheet }: { closeSheet: () => void }) {
                                 isActive ? "bg-accent" : "transparent"
                             )}
                         >
-                            <item.icon className="mr-2 h-4 w-4" />
+                            <Icon className="mr-2 h-4 w-4" />
                             <span>{item.title}</span>
                         </span>
                     </Link>
