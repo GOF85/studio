@@ -116,9 +116,9 @@ function ProveedoresPageContent() {
                 return;
             }
             
-            const importedData: Proveedor[] = results.data.map((item: any) => ({
+            const importedData: Proveedor[] = results.data.map((item: any, index: number) => ({
               ...item,
-              id: item.id || Date.now().toString() + Math.random(),
+              id: item.id || `${Date.now()}-${index}`,
               tipos: typeof item.tipos === 'string' ? item.tipos.split(',').map((t: string) => t.trim()).filter(Boolean) : []
             }));
             
