@@ -40,6 +40,7 @@ export default function IngredientesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemToDelete, setItemToDelete] = useState<IngredienteConERP | null>(null);
   const [affectedElaboraciones, setAffectedElaboraciones] = useState<Elaboracion[]>([]);
+  const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -98,23 +99,32 @@ export default function IngredientesPage() {
     toast({ title: 'Exportación completada', description: 'El archivo ingredientes.csv se ha descargado.' });
   };
   
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-  
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const safeJsonParse = (jsonString: string, fallback: any = []) => {
+    try {
+        return JSON.parse(jsonString);
+    } catch (e) {
+        return fallback;
+    }
+  }
+
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      setIsImportAlertOpen(false);
+      return;
+    }
 
     Papa.parse<any>(file, {
         header: true,
         skipEmptyLines: true,
+        delimiter,
         complete: (results) => {
             const headers = results.meta.fields || [];
             const hasAllHeaders = CSV_HEADERS.every(field => headers.includes(field));
 
             if (!hasAllHeaders) {
                 toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
+                setIsImportAlertOpen(false);
                 return;
             }
             
@@ -122,8 +132,8 @@ export default function IngredientesPage() {
                 let alergenosPresentes = [];
                 let alergenosTrazas = [];
                 try {
-                    alergenosPresentes = JSON.parse(item.alergenosPresentes || '[]');
-                    alergenosTrazas = JSON.parse(item.alergenosTrazas || '[]');
+                    alergenosPresentes = safeJsonParse(item.alergenosPresentes);
+                    alergenosTrazas = safeJsonParse(item.alergenosTrazas);
                 } catch(e) { console.error("Error parsing JSON fields for item:", item.id); }
 
                 return {
@@ -140,9 +150,11 @@ export default function IngredientesPage() {
             // Reload data after import
              window.location.reload();
             toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros. La página se recargará.` });
+            setIsImportAlertOpen(false);
         },
         error: (error) => {
             toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+            setIsImportAlertOpen(false);
         }
     });
     if(event.target) {
@@ -219,15 +231,8 @@ export default function IngredientesPage() {
                   </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleImportClick}>
+                  <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
                        <FileUp size={16} className="mr-2"/>Importar CSV
-                       <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        accept=".csv"
-                        onChange={handleImportCSV}
-                      />
                   </DropdownMenuItem>
                    <DropdownMenuItem onClick={handleExportCSV}>
                        <FileDown size={16} className="mr-2"/>Exportar CSV
@@ -371,6 +376,22 @@ export default function IngredientesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+        <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="!justify-center gap-4">
+                    <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </>
   );
 }
