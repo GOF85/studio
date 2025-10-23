@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -37,6 +36,12 @@ type IngredienteFormValues = z.infer<typeof ingredienteFormSchema>;
 type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
 
 function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProducts }: { onSelect: (id: string) => void, searchTerm: string, setSearchTerm: (term: string) => void, filteredProducts: ArticuloERP[] }) {
+    
+    const calculatePrice = (p: ArticuloERP) => {
+        if (!p || !p.precioCompra || !p.unidadConversion) return 0;
+        return (p.precioCompra / p.unidadConversion) * (1 - (p.descuento || 0) / 100);
+    }
+    
     return (
         <DialogContent className="max-w-3xl">
             <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
@@ -49,7 +54,7 @@ function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProduc
                             <TableRow key={p.id}>
                                 <TableCell>{p.nombreProductoERP}</TableCell>
                                 <TableCell>{p.nombreProveedor}</TableCell>
-                                <TableCell>{(p.precio || 0).toLocaleString('es-ES', {style:'currency', currency: 'EUR'})}/{p.unidad}</TableCell>
+                                <TableCell>{(calculatePrice(p) || 0).toLocaleString('es-ES', {style:'currency', currency: 'EUR'})}/{p.unidad}</TableCell>
                                 <TableCell>
                                     <Button size="sm" onClick={() => onSelect(p.id)}>
                                         <Check className="mr-2" />
@@ -79,10 +84,11 @@ export default function IngredienteFormPage() {
   const [articulosERP, setArticulosERP] = useState<ArticuloERP[]>([]);
   const [erpSearchTerm, setErpSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   const form = useForm<IngredienteFormValues>({
     resolver: zodResolver(ingredienteFormSchema),
-    defaultValues: { id: Date.now().toString(), nombreIngrediente: '', productoERPlinkId: '', alergenosPresentes: [], alergenosTrazas: [] },
+    defaultValues: { id: '', nombreIngrediente: '', productoERPlinkId: '', alergenosPresentes: [], alergenosTrazas: [] },
   });
   
   const selectedErpId = form.watch('productoERPlinkId');
@@ -102,11 +108,11 @@ export default function IngredienteFormPage() {
     const secondHalf = ALERGENOS.slice(half);
     return [firstHalf, secondHalf];
   }, []);
-
-  useEffect(() => {
+  
+  const loadAndSetData = useCallback(() => {
     const storedErpData = localStorage.getItem('articulosERP') || '[]';
     setArticulosERP(JSON.parse(storedErpData));
-
+    
     if (isEditing) {
         const storedIngredientesData = localStorage.getItem('ingredientesInternos') || '[]';
         const ingredientes = JSON.parse(storedIngredientesData) as IngredienteInterno[];
@@ -121,8 +127,9 @@ export default function IngredienteFormPage() {
         } else {
             toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el ingrediente.' });
             router.push('/book/ingredientes');
+            return;
         }
-    } else { // Modo Creación
+    } else { // Creation mode
         form.reset({
             id: Date.now().toString(),
             nombreIngrediente: '',
@@ -131,7 +138,13 @@ export default function IngredienteFormPage() {
             alergenosTrazas: [],
         });
     }
+    setIsDataLoaded(true);
   }, [id, isEditing, form, router, toast]);
+
+  useEffect(() => {
+    loadAndSetData();
+  }, [loadAndSetData]);
+
 
   function onSubmit(data: IngredienteFormValues) {
     setIsLoading(true);
@@ -285,6 +298,10 @@ export default function IngredienteFormPage() {
         </Table>
     </div>
 );
+  
+  if (!isDataLoaded) {
+    return <div>Cargando...</div>
+  }
 
   return (
     <>
