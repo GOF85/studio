@@ -305,7 +305,7 @@ export default function AnaliticaCateringPage() {
         })).filter(item => item.value > 0);
     }, [rentabilidadPorEvento]);
 
-    const objetivoGasto = { 'Almacén': 0.0523, 'Alquiler': 0.0378, 'Bodega': 0.0392, 'Consumibles': 0.0067, 'Decoración': 0.0073, 'Gastronomía': 0.233, 'Hielo': 0.0026, 'Otros gastos': 0.01, 'Personal MICE': 0.0563, 'Personal externo': 0.1241, 'Prueba de menú': 0, 'Transporte': 0.0265, 'Rentabilidad': 0.4041 };
+    const objetivoGasto = { 'Almacén': 0.0523, 'Alquiler': 0.0378, 'Bodega': 0.0392, 'Consumibles': 0.0067, 'Decoración': 0.0073, 'Gastronomía': 0.233, 'Hielo': 0.0026, 'Otros gastos': 0.01, 'Personal MICE': 0.0563, 'Personal externo': 0.1241, 'Prueba de menú': 0, 'Rentabilidad': 0.4041 };
     
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
         const now = new Date();
@@ -380,8 +380,8 @@ export default function AnaliticaCateringPage() {
                     <TabsTrigger value="detalle">Análisis Detallado</TabsTrigger>
                     <TabsTrigger value="agregado">Vista Agregada</TabsTrigger>
                     <TabsTrigger value="rentabilidad">Rentabilidad por Evento</TabsTrigger>
-                    <TabsTrigger value="comercial">Rentabilidad por Comercial</TabsTrigger>
-                    <TabsTrigger value="metre">Rentabilidad por Metre</TabsTrigger>
+                    <TabsTrigger value="comercial"><Briefcase className="mr-2 h-4 w-4"/>Rentabilidad por Comercial</TabsTrigger>
+                    <TabsTrigger value="metre"><Users className="mr-2 h-4 w-4"/>Rentabilidad por Metre</TabsTrigger>
                 </TabsList>
                 <TabsContent value="detalle" className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-2">
@@ -436,7 +436,7 @@ export default function AnaliticaCateringPage() {
                                             <TableBody>
                                                 {pedidosFiltrados.map(p => (
                                                     <TableRow key={p.os.id} className="cursor-pointer">
-                                                        <TableCell className="font-medium"><Link href={`/os/${p.os.id}/cta-explotacion`} className="text-primary hover:underline">{p.os.serviceNumber}</Link></TableCell>
+                                                        <TableCell className="font-medium"><Link href={`/os/${p.os.id}/cta-explotacion`} className="text-primary hover:underline font-mono text-xs">{p.os.serviceNumber}</Link></TableCell>
                                                         <TableCell>{p.os.client}</TableCell>
                                                         <TableCell>{format(new Date(p.os.startDate), 'dd/MM/yyyy')}</TableCell>
                                                         <TableCell className="text-right">{formatCurrency(p.pvpFinal)}</TableCell>
@@ -595,19 +595,17 @@ export default function AnaliticaCateringPage() {
                     <Card>
                         <CardHeader><CardTitle>Rendimiento por Metre</CardTitle></CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Metre</TableHead><TableHead className="text-right">Eventos</TableHead><TableHead className="text-right">Facturación</TableHead><TableHead className="text-right">Margen</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {analisisMetres.map(m => (
-                                    <TableRow key={m.name}>
-                                        <TableCell className="font-medium">{m.name}</TableCell>
-                                        <TableCell className="text-right">{m.eventos}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(m.facturacion)}</TableCell>
-                                        <TableCell className={cn("text-right font-bold", m.margen < 0 && 'text-destructive')}>{formatPercentage(m.margenPct)}</TableCell>
-                                    </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                           <ResponsiveContainer width="100%" height={analisisMetres.length * 60}>
+                             <BarChart data={analisisMetres} layout="vertical" margin={{ left: 100 }}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
+                                <YAxis type="category" dataKey="name" width={100} stroke="#888888" fontSize={12} />
+                                <Tooltip formatter={(value:any) => formatCurrency(value)} />
+                                <Legend />
+                                <Bar dataKey="facturacion" name="Facturación" fill="#8884d8" />
+                                <Bar dataKey="margen" name="Margen Bruto" fill="#82ca9d" />
+                            </BarChart>
+                          </ResponsiveContainer>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -615,4 +613,6 @@ export default function AnaliticaCateringPage() {
         </main>
     )
 }
+    
+
     
