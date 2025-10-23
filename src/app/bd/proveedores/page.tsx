@@ -63,9 +63,7 @@ function ProveedoresPageContent() {
     return items.filter(item => {
         const term = searchTerm.toLowerCase();
         const searchMatch = 
-          (item.nombreComercial || '').toLowerCase().includes(term) ||
-          (item.nombreEmpresa || '').toLowerCase().includes(term) ||
-          (item.cif || '').toLowerCase().includes(term);
+          (item.nombreComercial || '').toLowerCase().includes(term);
         
         const tipoMatch = tipoFilter === 'all' || (item.tipos || []).includes(tipoFilter as TipoProveedor);
         
@@ -148,7 +146,7 @@ function ProveedoresPageContent() {
     <>
        <div className="flex flex-col md:flex-row gap-4 mb-6">
         <Input 
-          placeholder="Buscar por nombre, empresa o CIF..."
+          placeholder="Buscar por nombre comercial..."
           className="flex-grow max-w-lg"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
