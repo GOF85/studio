@@ -131,18 +131,21 @@ export default function AnaliticaCateringPage() {
     }, [allPedidos, dateRange, espacioFilter, comercialFilter, clienteFilter, metreFilter, clienteTipoFilter]);
 
     const analisisGlobal = useMemo(() => {
-        if (pedidosFiltrados.length === 0) return { pvpNeto: 0, costeTotal: 0, numEventos: 0, numServicios: 0, numPruebasMenu: 0 };
+        if (pedidosFiltrados.length === 0) return { pvpNeto: 0, costeTotal: 0, numEventos: 0, numServicios: 0, numPruebasMenu: 0, paxTotalesOS: 0, paxTotalesHitos: 0 };
         
         const pvpNeto = pedidosFiltrados.reduce((sum, p) => sum + p.pvpFinal, 0);
         const costeTotal = pedidosFiltrados.reduce((sum, p) => sum + p.costeTotal, 0);
+        const paxTotalesOS = pedidosFiltrados.reduce((sum, p) => sum + (p.os.asistentes || 0), 0);
 
         let numServicios = 0;
         let numPruebasMenu = 0;
+        let paxTotalesHitos = 0;
 
         pedidosFiltrados.forEach(p => {
             const briefing = allBriefings.find(b => b.osId === p.os.id);
             if (briefing) {
                 briefing.items.forEach(item => {
+                    paxTotalesHitos += item.asistentes || 0;
                     if (item.descripcion.toLowerCase() === 'prueba de menu') {
                         numPruebasMenu++;
                     } else {
@@ -152,7 +155,7 @@ export default function AnaliticaCateringPage() {
             }
         });
 
-        return { pvpNeto, costeTotal, numEventos: pedidosFiltrados.length, numServicios, numPruebasMenu };
+        return { pvpNeto, costeTotal, numEventos: pedidosFiltrados.length, numServicios, numPruebasMenu, paxTotalesOS, paxTotalesHitos };
     }, [pedidosFiltrados, allBriefings]);
     
     const margenFinal = analisisGlobal.pvpNeto - analisisGlobal.costeTotal;
@@ -164,6 +167,8 @@ export default function AnaliticaCateringPage() {
         { title: "Nº de Eventos", value: formatNumber(analisisGlobal.numEventos, 0), icon: BookOpen },
         { title: "Nº de Servicios", value: formatNumber(analisisGlobal.numServicios, 0), icon: Hand },
         { title: "Pruebas de Menu", value: formatNumber(analisisGlobal.numPruebasMenu, 0), icon: Hand },
+        { title: "Asistentes OS", value: formatNumber(analisisGlobal.paxTotalesOS, 0), icon: Users },
+        { title: "Asistentes Servicios", value: formatNumber(analisisGlobal.paxTotalesHitos, 0), icon: Users },
         { title: "Facturación Neta", value: formatCurrency(analisisGlobal.pvpNeto), icon: Euro },
         { title: "Coste Directo Total", value: formatCurrency(analisisGlobal.costeTotal), icon: TrendingDown },
         { title: "Rentabilidad Bruta", value: formatCurrency(margenFinal), icon: TrendingUp },
@@ -330,7 +335,7 @@ export default function AnaliticaCateringPage() {
                     <TabsTrigger value="agregado">Vista Agregada</TabsTrigger>
                 </TabsList>
                 <TabsContent value="detalle" className="space-y-8">
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
                         {kpis.map(kpi => (
                             <Card key={kpi.title}>
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">{kpi.title}</CardTitle><kpi.icon className="h-4 w-4 text-muted-foreground" /></CardHeader>
@@ -524,3 +529,5 @@ export default function AnaliticaCateringPage() {
         </main>
     )
 }
+
+    
