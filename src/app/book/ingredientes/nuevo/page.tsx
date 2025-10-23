@@ -1,10 +1,14 @@
 
 'use client';
 
-import IngredienteFormPage from '../[id]/page';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
+// This page just redirects to the main ingredients page, as creation is now handled by a modal.
 export default function NuevoIngredientePage() {
-    // Reutilizamos el componente del formulario de edición,
-    // que ya maneja el caso de 'nuevo' o 'clone'.
-    return <IngredienteFormPage />;
+    const router = useRouter();
+    useEffect(() => {
+        router.replace('/book/ingredientes');
+    }, [router]);
+    return null;
 }
