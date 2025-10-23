@@ -92,12 +92,22 @@ function ArticulosPageContent() {
                 return;
             }
             
-            const importedData: ArticuloCatering[] = results.data.map((item: any) => ({
-              ...item,
-              precioVenta: parseFloat(item.precioVenta) || 0,
-              precioAlquiler: parseFloat(item.precioAlquiler) || 0,
-              producidoPorPartner: item.producidoPorPartner === 'true'
-            }));
+            const existingIds = new Set(items.map(item => item.id));
+            const importedData: ArticuloCatering[] = results.data.map((item: any, index: number) => {
+                let id = item.id;
+                if (!id || id.trim() === '' || existingIds.has(id)) {
+                    id = `${Date.now()}-${index}-${Math.random().toString(36).substring(2, 9)}`;
+                }
+                existingIds.add(id);
+
+                return {
+                  ...item,
+                  id,
+                  precioVenta: parseFloat(item.precioVenta) || 0,
+                  precioAlquiler: parseFloat(item.precioAlquiler) || 0,
+                  producidoPorPartner: item.producidoPorPartner === 'true'
+                };
+            });
             
             localStorage.setItem('articulos', JSON.stringify(importedData));
             setItems(importedData);
@@ -120,7 +130,7 @@ function ArticulosPageContent() {
             return;
         }
 
-        const csv = Papa.unparse(items);
+        const csv = Papa.unparse(items, { columns: CSV_HEADERS });
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);

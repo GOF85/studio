@@ -46,6 +46,7 @@ function FormatosExpedicionPageContent() {
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
   useEffect(() => {
     let storedData = localStorage.getItem('formatosExpedicionDB');
@@ -68,29 +69,42 @@ function FormatosExpedicionPageContent() {
     setItemToDelete(null);
   };
   
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      setIsImportAlertOpen(false);
+      return;
+    }
 
     Papa.parse<any>(file, {
       header: true,
       skipEmptyLines: true,
+      delimiter,
       complete: (results) => {
         if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
             toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas: ${CSV_HEADERS.join(', ')}`});
+            setIsImportAlertOpen(false);
             return;
         }
         
-        const importedData: FormatoExpedicion[] = results.data.map((item: any) => ({
-          ...item,
-        }));
+        const existingIds = new Set(items.map(item => item.id));
+        const importedData: FormatoExpedicion[] = results.data.map((item: any, index: number) => {
+          let id = item.id;
+          if (!id || id.trim() === '' || existingIds.has(id)) {
+            id = `${Date.now()}-${index}-${Math.random().toString(36).substring(2, 9)}`;
+          }
+          existingIds.add(id);
+          return { ...item, id };
+        });
         
         localStorage.setItem('formatosExpedicionDB', JSON.stringify(importedData));
         setItems(importedData);
         toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+        setIsImportAlertOpen(false);
       },
       error: (error) => {
         toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+        setIsImportAlertOpen(false);
       }
     });
     if(event.target) event.target.value = '';
@@ -102,7 +116,7 @@ function FormatosExpedicionPageContent() {
             return;
         }
 
-        const csv = Papa.unparse(items);
+        const csv = Papa.unparse(items, { columns: CSV_HEADERS });
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
@@ -138,9 +152,8 @@ function FormatosExpedicionPageContent() {
                     <Button variant="outline" size="icon"><Menu /></Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
+                    <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
                         <FileUp size={16} className="mr-2"/>Importar CSV
-                         <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleImportCSV} />
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleExportCSV}>
                         <FileDown size={16} className="mr-2"/>Exportar CSV
@@ -213,6 +226,22 @@ function FormatosExpedicionPageContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+        <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="!justify-center gap-4">
+                    <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </>
   );
 }

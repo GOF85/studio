@@ -86,7 +86,7 @@ function ProveedoresPageContent() {
         return;
     }
     const dataToExport = items.map(item => ({...item, tipos: (item.tipos || []).join(',')}));
-    const csv = Papa.unparse(dataToExport);
+    const csv = Papa.unparse(dataToExport, { columns: CSV_HEADERS });
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -116,11 +116,20 @@ function ProveedoresPageContent() {
                 return;
             }
             
-            const importedData: Proveedor[] = results.data.map((item: any, index: number) => ({
-              ...item,
-              id: item.id && item.id.trim() ? item.id : `${Date.now()}-${index}-${Math.random()}`,
-              tipos: typeof item.tipos === 'string' ? item.tipos.split(',').map((t: string) => t.trim()).filter(Boolean) : []
-            }));
+            const existingIds = new Set(items.map(item => item.id));
+            const importedData: Proveedor[] = results.data.map((item: any, index: number) => {
+                let id = item.id;
+                if (!id || id.trim() === '' || existingIds.has(id)) {
+                    id = `${Date.now()}-${index}-${Math.random().toString(36).substring(2, 9)}`;
+                }
+                existingIds.add(id);
+
+                return {
+                    ...item,
+                    id,
+                    tipos: typeof item.tipos === 'string' ? item.tipos.split(',').map((t: string) => t.trim()).filter(Boolean) : []
+                };
+            });
             
             localStorage.setItem('proveedores', JSON.stringify(importedData));
             setItems(importedData);
