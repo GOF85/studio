@@ -1,16 +1,10 @@
 
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
+import IngredienteFormPage from '../[id]/page';
 
 export default function NuevoIngredientePage() {
-    const router = useRouter();
-
-    useEffect(() => {
-        router.replace('/book/ingredientes/nuevo');
-    }, [router]);
-
-    return null;
+    // Reutilizamos el componente del formulario de edición,
+    // que ya maneja el caso de 'nuevo' o 'clone'.
+    return <IngredienteFormPage />;
 }
