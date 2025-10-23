@@ -114,28 +114,25 @@ function StatusCard({ title, items, totalQuantity, totalValue, onClick }: { titl
 }
 
 export default function AlmacenPage() {
-  const [isMounted, setIsMounted] = useState(false);
-  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
-  const [updateTrigger, setUpdateTrigger] = useState(0);
-  
-  const router = useRouter();
-  const params = useParams();
-  const osId = params.id as string;
-  const { toast } = useToast();
+    const [isMounted, setIsMounted] = useState(false);
+    const [activeModal, setActiveModal] = useState<StatusColumn | null>(null);
+    const [updateTrigger, setUpdateTrigger] = useState(0);
+    
+    const router = useRouter();
+    const params = useParams();
+    const osId = params.id as string;
 
    const { allItems, blockedOrders, pendingItems, itemsByStatus, totalValoracionPendiente } = useMemo(() => {
     if (typeof window === 'undefined') {
         return { allItems: [], blockedOrders: [], pendingItems: [], itemsByStatus: { Asignado: [], 'En Preparación': [], Listo: [] }, totalValoracionPendiente: 0 };
     }
-
+    
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const relatedOrders = allMaterialOrders.filter(order => order.osId === osId && order.type === 'Almacen');
 
     const allPickingSheets = Object.values(JSON.parse(localStorage.getItem('pickingSheets') || '{}')) as PickingSheet[];
     const relatedPickingSheets = allPickingSheets.filter(sheet => sheet.osId === osId);
-    
+
     const allReturnSheets = Object.values(JSON.parse(localStorage.getItem('returnSheets') || '{}') as Record<string, ReturnSheet>).filter(s => s.osId === osId);
     
     const mermas: Record<string, number> = {};
@@ -239,14 +236,6 @@ export default function AlmacenPage() {
         return () => window.removeEventListener('storage', forceUpdate);
     }, []);
 
-  const handleDeleteOrder = (orderId: string) => {
-    let allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
-    const updatedOrders = allMaterialOrders.filter((o: MaterialOrder) => o.id !== orderId);
-    localStorage.setItem('materialOrders', JSON.stringify(updatedOrders));
-    setUpdateTrigger(prev => prev + 1); // Forzar re-cálculo
-    toast({ title: 'Pedido de material eliminado' });
-  };
-  
   const renderStatusModal = (status: StatusColumn) => {
     const items = itemsByStatus[status];
     return (
@@ -419,4 +408,3 @@ export default function AlmacenPage() {
     </Dialog>
   );
 }
-
