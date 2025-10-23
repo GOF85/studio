@@ -103,27 +103,33 @@ export default function IngredienteFormPage() {
   }, []);
 
   useEffect(() => {
+    // Cargar siempre los datos de soporte (ERP)
     const storedErpData = localStorage.getItem('articulosERP');
-    const storedErp = storedErpData ? JSON.parse(storedErpData) : [];
-    setArticulosERP(storedErp);
+    setArticulosERP(storedErpData ? JSON.parse(storedErpData) : []);
 
     if (isEditing) {
-      const storedIngredientes = localStorage.getItem('ingredientesInternos');
-      const ingredientes = storedIngredientes ? JSON.parse(storedIngredientes) : [];
-      const ingrediente = ingredientes.find((p: IngredienteInterno) => p.id === id);
-      
-      if (ingrediente) {
+        const storedIngredientesData = localStorage.getItem('ingredientesInternos');
+        const ingredientes = storedIngredientesData ? JSON.parse(storedIngredientesData) : [];
+        const ingrediente = ingredientes.find((p: IngredienteInterno) => p.id === id);
+        
+        if (ingrediente) {
+            form.reset({
+                ...ingrediente,
+                alergenosPresentes: ingrediente.alergenosPresentes || [],
+                alergenosTrazas: ingrediente.alergenosTrazas || [],
+            });
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el ingrediente.' });
+            router.push('/book/ingredientes');
+        }
+    } else { // Modo Creación
         form.reset({
-          ...ingrediente,
-          alergenosPresentes: ingrediente.alergenosPresentes || [],
-          alergenosTrazas: ingrediente.alergenosTrazas || [],
+            id: Date.now().toString(),
+            nombreIngrediente: '',
+            productoERPlinkId: '',
+            alergenosPresentes: [],
+            alergenosTrazas: [],
         });
-      } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el ingrediente.' });
-        router.push('/book/ingredientes');
-      }
-    } else {
-        form.reset({ id: Date.now().toString(), nombreIngrediente: '', productoERPlinkId: '', alergenosPresentes: [], alergenosTrazas: [] });
     }
   }, [id, isEditing, form, router, toast]);
 
