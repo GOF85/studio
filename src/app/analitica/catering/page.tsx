@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -20,7 +19,7 @@ import { cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import Link from 'next/link';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from "recharts"
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell, CartesianGrid } from "recharts"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type AnaliticaCateringItem = {
@@ -65,6 +64,20 @@ type MonthlyData = {
   rentabilidad: number;
   ingresosPorPax: number;
 };
+
+function KpiCard({ title, value, icon: Icon }: { title: string, value: string, icon: React.ElementType }) {
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-3 pt-2">
+                <CardTitle className="text-xs font-medium">{title}</CardTitle>
+                <Icon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="px-3 pb-2">
+                <div className="text-xl font-bold">{value}</div>
+            </CardContent>
+        </Card>
+    )
+}
 
 export default function AnaliticaCateringPage() {
     const [isMounted, setIsMounted] = useState(false);
@@ -314,51 +327,51 @@ export default function AnaliticaCateringPage() {
     return (
         <main>
             <Card className="mb-6">
-                <CardContent className="p-4 flex flex-wrap items-center gap-4 justify-between">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                            <PopoverTrigger asChild>
-                                <Button id="date" variant={"outline"} className={cn("w-full md:w-[300px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
-                            </PopoverContent>
-                        </Popover>
-                        <Button size="sm" variant="outline" onClick={() => setDatePreset('month')}>Mes en curso</Button>
-                        <Button size="sm" variant="outline" onClick={() => setDatePreset('year')}>Año en curso</Button>
-                        <Button size="sm" variant="outline" onClick={() => setDatePreset('q1')}>Q1</Button>
-                        <Button size="sm" variant="outline" onClick={() => setDatePreset('q2')}>Q2</Button>
-                        <Button size="sm" variant="outline" onClick={() => setDatePreset('q3')}>Q3</Button>
-                        <Button size="sm" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
-                    </div>
-                     <div className="flex flex-wrap items-center gap-2">
-                        <Select value={clienteTipoFilter} onValueChange={(value) => setClienteTipoFilter(value as any)}>
-                            <SelectTrigger className="w-full md:w-auto"><div className="flex items-center gap-2"><Briefcase className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos los Tipos</SelectItem>
-                                <SelectItem value="Empresa">Empresa</SelectItem>
-                                <SelectItem value="Agencia">Agencia</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Select value={comercialFilter} onValueChange={setComercialFilter}>
-                            <SelectTrigger className="w-full md:w-auto"><div className="flex items-center gap-2"><Briefcase className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
-                            <SelectContent><SelectItem value="all">Todos los Comerciales</SelectItem>{allComerciales.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                        </Select>
-                        <Select value={metreFilter} onValueChange={setMetreFilter}>
-                            <SelectTrigger className="w-full md:w-auto"><div className="flex items-center gap-2"><Users className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
-                            <SelectContent><SelectItem value="all">Todos los Metres</SelectItem>{allMetres.map(m=><SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-                        </Select>
-                        <Select value={clienteFilter} onValueChange={setClienteFilter}>
-                            <SelectTrigger className="w-full md:w-auto"><div className="flex items-center gap-2"><Users className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
-                            <SelectContent><SelectItem value="all">Todos los Clientes</SelectItem>{allClientes.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                        </Select>
-                        <Select value={espacioFilter} onValueChange={setEspacioFilter}>
-                            <SelectTrigger className="w-full md:w-auto"><div className="flex items-center gap-2"><Building className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
-                            <SelectContent><SelectItem value="all">Todos los Espacios</SelectItem>{allEspacios.map(e=><SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
-                        </Select>
+                <CardContent className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div className="flex flex-wrap items-center gap-2 xl:col-span-2">
+                             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button id="date" variant={"outline"} className={cn("w-full md:w-auto justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
+                                </PopoverContent>
+                            </Popover>
+                             <div className="flex gap-1">
+                                <Button size="xs" variant="outline" onClick={() => setDatePreset('month')}>Mes</Button>
+                                <Button size="xs" variant="outline" onClick={() => setDatePreset('year')}>Año</Button>
+                                <Button size="xs" variant="outline" onClick={() => setDatePreset('q1')}>Q1</Button>
+                                <Button size="xs" variant="outline" onClick={() => setDatePreset('q2')}>Q2</Button>
+                                <Button size="xs" variant="outline" onClick={() => setDatePreset('q3')}>Q3</Button>
+                                <Button size="xs" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
+                            </div>
+                        </div>
+                         <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-2 gap-2 xl:col-span-2">
+                            <Select value={clienteTipoFilter} onValueChange={(value) => setClienteTipoFilter(value as any)}>
+                                <SelectTrigger><div className="flex items-center gap-2 text-xs"><Briefcase /> <SelectValue /></div></SelectTrigger>
+                                <SelectContent><SelectItem value="all">Todos los Tipos</SelectItem><SelectItem value="Empresa">Empresa</SelectItem><SelectItem value="Agencia">Agencia</SelectItem></SelectContent>
+                            </Select>
+                            <Select value={comercialFilter} onValueChange={setComercialFilter}>
+                                <SelectTrigger><div className="flex items-center gap-2 text-xs"><Briefcase /> <SelectValue /></div></SelectTrigger>
+                                <SelectContent><SelectItem value="all">Todos los Comerciales</SelectItem>{allComerciales.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Select value={metreFilter} onValueChange={setMetreFilter}>
+                                <SelectTrigger><div className="flex items-center gap-2 text-xs"><Users /> <SelectValue /></div></SelectTrigger>
+                                <SelectContent><SelectItem value="all">Todos los Metres</SelectItem>{allMetres.map(m=><SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Select value={clienteFilter} onValueChange={setClienteFilter}>
+                                <SelectTrigger><div className="flex items-center gap-2 text-xs"><Users /> <SelectValue /></div></SelectTrigger>
+                                <SelectContent><SelectItem value="all">Todos los Clientes</SelectItem>{allClientes.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                            </Select>
+                             <Select value={espacioFilter} onValueChange={setEspacioFilter}>
+                                <SelectTrigger><div className="flex items-center gap-2 text-xs"><Building /> <SelectValue /></div></SelectTrigger>
+                                <SelectContent><SelectItem value="all">Todos los Espacios</SelectItem>{allEspacios.map(e=><SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -371,14 +384,9 @@ export default function AnaliticaCateringPage() {
                     <TabsTrigger value="comercial">Rentabilidad por Comercial</TabsTrigger>
                     <TabsTrigger value="metre">Rentabilidad por Metre</TabsTrigger>
                 </TabsList>
-                <TabsContent value="detalle" className="space-y-8">
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-                        {kpis.map(kpi => (
-                            <Card key={kpi.title}>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">{kpi.title}</CardTitle><kpi.icon className="h-4 w-4 text-muted-foreground" /></CardHeader>
-                                <CardContent><div className={cn("text-2xl font-bold", kpi.title.includes('Rentabilidad') && margenFinal < 0 && "text-destructive", kpi.title.includes('Rentabilidad') && margenFinal > 0 && "text-green-600")}>{kpi.value}</div></CardContent>
-                            </Card>
-                        ))}
+                <TabsContent value="detalle" className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-2">
+                        {kpis.map(kpi => <KpiCard key={kpi.title} title={kpi.title} value={kpi.value} icon={kpi.icon} />)}
                     </div>
 
                     <Card>
@@ -406,7 +414,7 @@ export default function AnaliticaCateringPage() {
                         </CardContent>
                     </Card>
                     
-                    <Accordion type="single" collapsible className="w-full mt-8">
+                    <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="item-1" className="border-none">
                             <Card>
                                 <AccordionTrigger className="py-2 px-4">
@@ -446,7 +454,7 @@ export default function AnaliticaCateringPage() {
                         </AccordionItem>
                     </Accordion>
                 </TabsContent>
-                <TabsContent value="agregado" className="space-y-8">
+                <TabsContent value="agregado" className="space-y-4">
                     <Card>
                         <CardHeader><CardTitle>Vista Agregada Mensual (€)</CardTitle></CardHeader>
                         <CardContent>
@@ -521,7 +529,7 @@ export default function AnaliticaCateringPage() {
                         </CardContent>
                      </Card>
                 </TabsContent>
-                 <TabsContent value="rentabilidad" className="space-y-8">
+                 <TabsContent value="rentabilidad" className="space-y-4">
                      <div className="grid lg:grid-cols-5 gap-8 items-start">
                         <div className="lg:col-span-2">
                              <Card>
@@ -566,27 +574,25 @@ export default function AnaliticaCateringPage() {
                         </div>
                     </div>
                 </TabsContent>
-                 <TabsContent value="comercial" className="space-y-8">
+                 <TabsContent value="comercial" className="space-y-4">
                      <Card>
                         <CardHeader><CardTitle>Rendimiento por Comercial</CardTitle></CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Comercial</TableHead><TableHead className="text-right">Eventos</TableHead><TableHead className="text-right">Facturación</TableHead><TableHead className="text-right">Margen</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {analisisComerciales.map(c => (
-                                    <TableRow key={c.name}>
-                                        <TableCell className="font-medium">{c.name}</TableCell>
-                                        <TableCell className="text-right">{c.eventos}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(c.facturacion)}</TableCell>
-                                        <TableCell className={cn("text-right font-bold", c.margen < 0 && 'text-destructive')}>{formatPercentage(c.margenPct)}</TableCell>
-                                    </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                           <ResponsiveContainer width="100%" height={analisisComerciales.length * 60}>
+                             <BarChart data={analisisComerciales} layout="vertical" margin={{ left: 100 }}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
+                                <YAxis type="category" dataKey="name" width={100} stroke="#888888" fontSize={12} />
+                                <Tooltip formatter={(value:any) => formatCurrency(value)} />
+                                <Legend />
+                                <Bar dataKey="facturacion" name="Facturación" fill="#8884d8" />
+                                <Bar dataKey="margen" name="Margen Bruto" fill="#82ca9d" />
+                            </BarChart>
+                          </ResponsiveContainer>
                         </CardContent>
                     </Card>
                 </TabsContent>
-                <TabsContent value="metre" className="space-y-8">
+                <TabsContent value="metre" className="space-y-4">
                     <Card>
                         <CardHeader><CardTitle>Rendimiento por Metre</CardTitle></CardHeader>
                         <CardContent>
@@ -610,4 +616,6 @@ export default function AnaliticaCateringPage() {
         </main>
     )
 }
+    
+
     
