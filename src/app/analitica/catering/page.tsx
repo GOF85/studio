@@ -53,6 +53,7 @@ export default function AnaliticaCateringPage() {
     const [allEspacios, setAllEspacios] = useState<string[]>([]);
     const [allComerciales, setAllComerciales] = useState<string[]>([]);
     const [allClientes, setAllClientes] = useState<string[]>([]);
+    const [allMetres, setAllMetres] = useState<string[]>([]);
 
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: startOfMonth(new Date()),
@@ -63,6 +64,7 @@ export default function AnaliticaCateringPage() {
     const [espacioFilter, setEspacioFilter] = useState('all');
     const [comercialFilter, setComercialFilter] = useState('all');
     const [clienteFilter, setClienteFilter] = useState('all');
+    const [metreFilter, setMetreFilter] = useState('all');
     const [clienteTipoFilter, setClienteTipoFilter] = useState<'all' | 'Empresa' | 'Agencia'>('all');
 
 
@@ -93,6 +95,9 @@ export default function AnaliticaCateringPage() {
         const clientes = new Set(data.map(p => p.os.client).filter(Boolean));
         setAllClientes(Array.from(clientes));
 
+        const metres = new Set(data.map(p => p.os.respMetre).filter(Boolean));
+        setAllMetres(Array.from(metres));
+
         setIsMounted(true);
     }, []);
     
@@ -105,10 +110,11 @@ export default function AnaliticaCateringPage() {
             const matchesEspacio = espacioFilter === 'all' || p.os.space === espacioFilter;
             const matchesComercial = comercialFilter === 'all' || p.os.comercial === comercialFilter;
             const matchesCliente = clienteFilter === 'all' || p.os.client === clienteFilter;
+            const matchesMetre = metreFilter === 'all' || p.os.respMetre === metreFilter;
             const matchesTipoCliente = clienteTipoFilter === 'all' || p.os.tipoCliente === clienteTipoFilter;
-            return isInDateRange && matchesEspacio && matchesComercial && matchesCliente && matchesTipoCliente;
+            return isInDateRange && matchesEspacio && matchesComercial && matchesCliente && matchesMetre && matchesTipoCliente;
         });
-    }, [allPedidos, dateRange, espacioFilter, comercialFilter, clienteFilter, clienteTipoFilter]);
+    }, [allPedidos, dateRange, espacioFilter, comercialFilter, clienteFilter, metreFilter, clienteTipoFilter]);
 
     const analisisGlobal = useMemo(() => {
         if (pedidosFiltrados.length === 0) return { pvpNeto: 0, costeTotal: 0, numEventos: 0, numHitos: 0 };
@@ -184,10 +190,10 @@ export default function AnaliticaCateringPage() {
     return (
         <main>
             <Card className="mb-6">
-                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                         <PopoverTrigger asChild>
-                            <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                            <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal col-span-1 md:col-span-3 lg:col-span-1", !dateRange && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
                             </Button>
@@ -207,6 +213,10 @@ export default function AnaliticaCateringPage() {
                     <Select value={comercialFilter} onValueChange={setComercialFilter}>
                         <SelectTrigger><div className="flex items-center gap-2"><Briefcase className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
                         <SelectContent><SelectItem value="all">Todos los Comerciales</SelectItem>{allComerciales.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select value={metreFilter} onValueChange={setMetreFilter}>
+                        <SelectTrigger><div className="flex items-center gap-2"><Users className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
+                        <SelectContent><SelectItem value="all">Todos los Metres</SelectItem>{allMetres.map(m=><SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                     </Select>
                     <Select value={clienteFilter} onValueChange={setClienteFilter}>
                         <SelectTrigger><div className="flex items-center gap-2"><Users className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
@@ -336,5 +346,3 @@ export default function AnaliticaCateringPage() {
         </main>
     )
 }
-
-    
