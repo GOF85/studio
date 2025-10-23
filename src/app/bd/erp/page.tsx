@@ -1,12 +1,11 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusCircle, Save, Trash2, Loader2, Menu, FileUp, FileDown, Database } from 'lucide-react';
+import { PlusCircle, Save, Trash2, Loader2, Menu, FileUp, FileDown, Database, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ArticuloERP, UnidadMedida, Proveedor } from '@/types';
 import { UNIDADES_MEDIDA, articuloErpSchema } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -47,6 +46,8 @@ const formSchema = z.object({
 type ArticulosERPFormValues = z.infer<typeof formSchema>;
 const CSV_HEADERS = ["id", "idreferenciaerp", "idProveedor", "nombreProveedor", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "descuento", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
 
+const ITEMS_PER_PAGE = 20;
+
 function ArticulosERPPageContent() {
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,6 +59,7 @@ function ArticulosERPPageContent() {
   const [forRentFilter, setForRentFilter] = useState(false);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
 
   const router = useRouter();
@@ -136,6 +138,15 @@ function ArticulosERPPageContent() {
         return searchMatch && categoryMatch && typeMatch && providerMatch && forRentMatch;
     });
   }, [watchedItems, searchTerm, categoryFilter, typeFilter, providerFilter, forRentFilter]);
+  
+  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredItems, currentPage]);
+
+  const handlePreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
+  const handleNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
 
   function onSubmit(data: ArticulosERPFormValues) {
     setIsLoading(true);
@@ -330,6 +341,13 @@ function ArticulosERPPageContent() {
                         <Label htmlFor="for-rent-filter">Apto Alquiler</Label>
                     </div>
                 </div>
+                
+                 <div className="flex items-center justify-end gap-2 mb-4">
+                    <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages}</span>
+                    <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
+                </div>
+
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -364,8 +382,8 @@ function ArticulosERPPageContent() {
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {filteredItems.length > 0 ? (
-                        filteredItems.map(item => {
+                    {paginatedItems.length > 0 ? (
+                        paginatedItems.map(item => {
                             const precioCompra = watchedItems[item.originalIndex]?.precioCompra || 0;
                             const descuento = watchedItems[item.originalIndex]?.descuento || 0;
                             const unidadConversion = watchedItems[item.originalIndex]?.unidadConversion || 1;
@@ -487,3 +505,5 @@ export default function ArticulosERPPage() {
         </Suspense>
     )
 }
+
+    
