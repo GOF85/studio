@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Hand, Users, Building, Briefcase, BookOpen, Ticket } from 'lucide-react';
+import { Hand, Users, Building, Briefcase, BookOpen, Ticket, HandCoins } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { ServiceOrder, Espacio, Personal, ComercialBriefing, GastronomyOrder, MaterialOrder, ComercialBriefingItem } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -194,7 +194,7 @@ export default function AnaliticaCateringPage() {
         { title: "Rentabilidad Bruta", value: formatCurrency(margenFinal), icon: TrendingUp },
         { title: "Margen Bruto (%)", value: formatPercentage(margenPct), icon: Euro },
         { title: "Ticket Medio / Evento", value: formatCurrency(ticketMedioEvento), icon: Ticket },
-        { title: "Ticket Medio / Servicio", value: formatCurrency(ticketMedioServicio), icon: Ticket },
+        { title: "Ticket Medio / Servicio", value: formatCurrency(ticketMedioServicio), icon: HandCoins },
     ];
 
     const analisisCostes = useMemo(() => {
@@ -254,7 +254,7 @@ export default function AnaliticaCateringPage() {
             data.numContratos += 1;
             data.pax += p.os.asistentes || 0;
             const briefing = allBriefings.find(b => b.osId === p.os.id);
-            data.asistentesHitos += briefing?.items.reduce((sum, item) => sum + item.asistentes, 0) || 0;
+            data.asistentesHitos += briefing?.items.reduce((sum, item) => sum + (item.asistentes || 0), 0) || 0;
             data.facturacion += p.pvpFinal;
             for (const partida in p.costesPorPartida) {
                 data.costes[partida] = (data.costes[partida] || 0) + p.costesPorPartida[partida];
@@ -317,6 +317,7 @@ export default function AnaliticaCateringPage() {
             case 'q3': setDateRange({ from: startOfQuarter(new Date(now.getFullYear(), 6, 1)), to: endOfQuarter(new Date(now.getFullYear(), 8, 30)) }); break;
             case 'q4': setDateRange({ from: startOfQuarter(new Date(now.getFullYear(), 9, 1)), to: endOfQuarter(new Date(now.getFullYear(), 11, 31)) }); break;
         }
+        setIsDatePickerOpen(false);
     };
 
 
@@ -331,7 +332,7 @@ export default function AnaliticaCateringPage() {
                     <div className="flex flex-wrap items-center gap-2">
                          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                             <PopoverTrigger asChild>
-                                <Button id="date" variant={"outline"} className={cn("w-full md:w-auto justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                <Button id="date" variant={"outline"} className={cn("w-full md:w-[260px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
                                 </Button>
@@ -341,12 +342,12 @@ export default function AnaliticaCateringPage() {
                             </PopoverContent>
                         </Popover>
                          <div className="flex gap-1">
-                            <Button size="xs" variant="outline" onClick={() => setDatePreset('month')}>Mes</Button>
-                            <Button size="xs" variant="outline" onClick={() => setDatePreset('year')}>Año</Button>
-                            <Button size="xs" variant="outline" onClick={() => setDatePreset('q1')}>Q1</Button>
-                            <Button size="xs" variant="outline" onClick={() => setDatePreset('q2')}>Q2</Button>
-                            <Button size="xs" variant="outline" onClick={() => setDatePreset('q3')}>Q3</Button>
-                            <Button size="xs" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('month')}>Mes</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('year')}>Año</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q1')}>Q1</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q2')}>Q2</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q3')}>Q3</Button>
+                            <Button size="sm" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
                         </div>
                     </div>
                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 flex-1">
