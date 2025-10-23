@@ -46,11 +46,7 @@ export default function IngredientesPage() {
   const { toast } = useToast();
   
   useEffect(() => {
-    let storedErp = localStorage.getItem('articulosERP');
-    if (!storedErp) {
-      localStorage.setItem('articulosERP', '[]')
-      storedErp = '[]';
-    }
+    let storedErp = localStorage.getItem('articulosERP') || '[]';
     const articulosERP = JSON.parse(storedErp) as ArticuloERP[];
     const erpMap = new Map(articulosERP.map(item => [item.id, item]));
 
@@ -76,11 +72,6 @@ export default function IngredientesPage() {
   }, []);
   
   const handleExportCSV = () => {
-    if (ingredientes.length === 0) {
-        toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay ingredientes para exportar.' });
-        return;
-    }
-    
     const dataToExport = ingredientes.map(item => {
         const { erp, alergenos, ...rest } = item;
         return {
@@ -91,7 +82,10 @@ export default function IngredientesPage() {
         };
     });
 
-    const csv = Papa.unparse(dataToExport);
+    const csv = Papa.unparse(dataToExport.length > 0 ? dataToExport : [{}], {
+        columns: CSV_HEADERS
+    });
+    
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -267,7 +261,7 @@ export default function IngredientesPage() {
                 variant="outline"
                 size="sm"
                 onClick={handleNextPage}
-                disabled={currentPage === totalPages}
+                disabled={currentPage >= totalPages}
             >
                 Siguiente
                 <ChevronRight className="h-4 w-4" />
@@ -349,7 +343,7 @@ export default function IngredientesPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-                {affectedElaboraciones.length > 0 && <AlertTriangle className="text-destructive" />}
+                {affectedElaboraciones.length > 0 && <AlertTriangle className="text-destructive"/>}
                 ¿Estás seguro?
             </AlertDialogTitle>
             <AlertDialogDescription>

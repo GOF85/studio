@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -103,13 +104,12 @@ export default function IngredienteFormPage() {
   }, []);
 
   useEffect(() => {
-    // Cargar siempre los datos de soporte (ERP)
-    const storedErpData = localStorage.getItem('articulosERP');
-    setArticulosERP(storedErpData ? JSON.parse(storedErpData) : []);
+    const storedErpData = localStorage.getItem('articulosERP') || '[]';
+    setArticulosERP(JSON.parse(storedErpData));
 
     if (isEditing) {
-        const storedIngredientesData = localStorage.getItem('ingredientesInternos');
-        const ingredientes = storedIngredientesData ? JSON.parse(storedIngredientesData) : [];
+        const storedIngredientesData = localStorage.getItem('ingredientesInternos') || '[]';
+        const ingredientes = JSON.parse(storedIngredientesData) as IngredienteInterno[];
         const ingrediente = ingredientes.find((p: IngredienteInterno) => p.id === id);
         
         if (ingrediente) {
@@ -136,8 +136,8 @@ export default function IngredienteFormPage() {
   function onSubmit(data: IngredienteFormValues) {
     setIsLoading(true);
 
-    const storedItems = localStorage.getItem('ingredientesInternos');
-    let allItems: IngredienteInterno[] = storedItems ? JSON.parse(storedItems) : [];
+    const storedItems = localStorage.getItem('ingredientesInternos') || '[]';
+    let allItems: IngredienteInterno[] = JSON.parse(storedItems);
     let message = '';
     
     const dataToSave = {
@@ -172,11 +172,11 @@ export default function IngredienteFormPage() {
   }
 
   const handleAttemptDelete = () => {
-    const storedElaboraciones = localStorage.getItem('elaboraciones');
-    const allElaboraciones: Elaboracion[] = storedElaboraciones ? JSON.parse(storedElaboraciones) : [];
+    const storedElaboraciones = localStorage.getItem('elaboraciones') || '[]';
+    const allElaboraciones: Elaboracion[] = JSON.parse(storedElaboraciones);
     
     const elaborationsUsingIngredient = allElaboraciones.filter(elab => 
-      elab.componentes.some(c => c.componenteId === id)
+      elab.componentes.some(c => c.tipo === 'ingrediente' && c.componenteId === id)
     );
     setAffectedElaboraciones(elaborationsUsingIngredient);
     setShowDeleteConfirm(true);
@@ -187,8 +187,8 @@ export default function IngredienteFormPage() {
     if (!isEditing) return;
 
     if (affectedElaboraciones.length > 0) {
-        const storedRecetas = localStorage.getItem('recetas');
-        let allRecetas: Receta[] = storedRecetas ? JSON.parse(storedRecetas) : [];
+        const storedRecetas = localStorage.getItem('recetas') || '[]';
+        let allRecetas: Receta[] = JSON.parse(storedRecetas);
         const affectedElabIds = new Set(affectedElaboraciones.map(e => e.id));
         const recipesToFlag = allRecetas.filter(receta =>
             receta.elaboraciones.some(e => affectedElabIds.has(e.elaboracionId))
@@ -206,8 +206,8 @@ export default function IngredienteFormPage() {
         });
     }
 
-    const storedItems = localStorage.getItem('ingredientesInternos');
-    let allItems: IngredienteInterno[] = storedItems ? JSON.parse(storedItems) : [];
+    const storedItems = localStorage.getItem('ingredientesInternos') || '[]';
+    let allItems: IngredienteInterno[] = JSON.parse(storedItems);
     const updatedItems = allItems.filter(p => p.id !== id);
     localStorage.setItem('ingredientesInternos', JSON.stringify(updatedItems));
     toast({ title: 'Ingrediente eliminado' });
