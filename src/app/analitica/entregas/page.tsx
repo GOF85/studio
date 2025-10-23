@@ -186,7 +186,7 @@ export default function AnaliticaEntregasPage() {
                     const horas = calculateHours(turno.horaEntradaReal || turno.horaEntrada, turno.horaSalidaReal || turno.horaSalida);
                     return sum + horas * (turno.precioHora || 0);
                 }, 0);
-                const ajustes = (allAjustesData[os.id] || []).reduce((sum, aj) => sum + aj.ajuste, 0);
+                const ajustes = (allAjustesData[os.id] || []).reduce((sum, aj) => sum + aj.importe, 0);
                 costesPorCategoria['Personal'] = (costesPorCategoria['Personal'] || 0) + costePersonalOs + ajustes;
                 costeTotal += costePersonalOs + ajustes;
             }
@@ -481,7 +481,7 @@ export default function AnaliticaEntregasPage() {
                     ajustesFiltrados.push({ ...ajuste, os});
                  }
             });
-            totalAjustes += osAjustes.reduce((sum, aj) => sum + aj.ajuste, 0);
+            totalAjustes += osAjustes.reduce((sum, aj) => sum + aj.importe, 0);
         });
         
         const pieData = Object.entries(costePorProveedor).map(([name, value]) => ({ name, value }));

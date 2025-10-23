@@ -36,7 +36,7 @@ export const proveedorSchema = z.object({
   tipos: z.array(z.string()).min(1, "Debe seleccionar al menos un tipo de servicio."),
 });
 
-type ProveedorFormValues = z.infer<typeof proveedorSchema>;
+export type ProveedorFormValues = z.infer<typeof proveedorSchema>;
 
 export default function NuevoProveedorPage() {
   const router = useRouter();
