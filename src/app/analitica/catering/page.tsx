@@ -201,19 +201,6 @@ export default function AnaliticaCateringPage() {
         { title: "Ticket Medio / Servicio / Pax", value: formatCurrency(ticketMedioServicioAsistente), icon: HandCoins },
     ];
 
-    const analisisCostes = useMemo(() => {
-        const costesAgregados: Record<string, number> = {};
-        pedidosFiltrados.forEach(pedido => {
-            for (const partida in pedido.costesPorPartida) {
-                costesAgregados[partida] = (costesAgregados[partida] || 0) + pedido.costesPorPartida[partida];
-            }
-        });
-        return Object.entries(costesAgregados)
-            .map(([name, value]) => ({ name, value }))
-            .filter(item => item.value > 0)
-            .sort((a,b) => b.value - a.value);
-    }, [pedidosFiltrados]);
-
     const analisisComerciales = useMemo(() => {
         const porComercial: Record<string, { facturacion: number; coste: number; eventos: AnaliticaCateringItem[] }> = {};
         pedidosFiltrados.forEach(p => {
@@ -438,7 +425,7 @@ export default function AnaliticaCateringPage() {
 
              <Tabs defaultValue="detalle">
                 <TabsList className="grid w-full grid-cols-8 mb-4">
-                    <TabsTrigger value="detalle">Análisis Detallado</TabsTrigger>
+                    <TabsTrigger value="detalle">Análisis</TabsTrigger>
                     <TabsTrigger value="agregado">Vista Agregada</TabsTrigger>
                     <TabsTrigger value="rentabilidad">Rentabilidad por Evento</TabsTrigger>
                     <TabsTrigger value="comercial"><Briefcase className="mr-2 h-4 w-4"/>Por Comercial</TabsTrigger>
