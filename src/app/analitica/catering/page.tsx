@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -30,7 +31,13 @@ type AnaliticaCateringItem = {
     costesPorPartida: Record<string, number>;
 };
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF6666', '#A0E7E5', '#B4F8C8', '#FBE7C6'];
+const COLORS = ['#00C49F', '#0088FE', '#FFBB28', '#FF8042', '#AF19FF', '#FF6666', '#A0E7E5', '#B4F8C8', '#FBE7C6'];
+const RENTABILIDAD_COLORS = {
+    'Más rentables': '#22c55e', // green-500
+    '38% - 40%': '#84cc16',      // lime-500
+    '30% - 38%': '#facc15',      // yellow-400
+    'Menos rentables': '#ef4444', // red-500
+};
 
 const calculateAllCosts = (osId: string): Record<string, number> => {
     const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
@@ -258,6 +265,33 @@ export default function AnaliticaCateringPage() {
         return Array.from(set);
     }, [pedidosFiltrados]);
 
+    const rentabilidadPorEvento = useMemo(() => {
+        const eventosConRentabilidad = pedidosFiltrados.map(p => {
+            const rentabilidad = p.pvpFinal > 0 ? (p.pvpFinal - p.costeTotal) / p.pvpFinal : 0;
+            return { ...p, rentabilidad };
+        });
+
+        const categorias = {
+            'Más rentables': eventosConRentabilidad.filter(p => p.rentabilidad > 0.4),
+            '38% - 40%': eventosConRentabilidad.filter(p => p.rentabilidad >= 0.38 && p.rentabilidad <= 0.4),
+            '30% - 38%': eventosConRentabilidad.filter(p => p.rentabilidad >= 0.3 && p.rentabilidad < 0.38),
+            'Menos rentables': eventosConRentabilidad.filter(p => p.rentabilidad < 0.3),
+        };
+        
+        for (const cat in categorias) {
+            (categorias as any)[cat].sort((a:any, b:any) => b.rentabilidad - a.rentabilidad);
+        }
+
+        return categorias;
+    }, [pedidosFiltrados]);
+
+    const dataGraficoRentabilidad = useMemo(() => {
+        return Object.entries(rentabilidadPorEvento).map(([name, value]) => ({
+            name,
+            value: value.length,
+        })).filter(item => item.value > 0);
+    }, [rentabilidadPorEvento]);
+
     const objetivoGasto = { 'Almacén': 0.0523, 'Alquiler': 0.0378, 'Bodega': 0.0392, 'Consumibles': 0.0067, 'Decoración': 0.0073, 'Gastronomía': 0.233, 'Hielo': 0.0026, 'Otros gastos': 0.01, 'Personal MICE': 0.0563, 'Personal externo': 0.1241, 'Prueba de menú': 0, 'Transporte': 0.0265, 'Rentabilidad': 0.4041 };
     
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
@@ -333,6 +367,7 @@ export default function AnaliticaCateringPage() {
                 <TabsList className="mb-4">
                     <TabsTrigger value="detalle">Análisis Detallado</TabsTrigger>
                     <TabsTrigger value="agregado">Vista Agregada</TabsTrigger>
+                    <TabsTrigger value="rentabilidad">Rentabilidad por Evento</TabsTrigger>
                 </TabsList>
                 <TabsContent value="detalle" className="space-y-8">
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -525,9 +560,53 @@ export default function AnaliticaCateringPage() {
                         </CardContent>
                      </Card>
                 </TabsContent>
+                 <TabsContent value="rentabilidad" className="space-y-8">
+                     <div className="grid lg:grid-cols-5 gap-8">
+                        <div className="lg:col-span-2">
+                             <Card>
+                                <CardHeader><CardTitle>Distribución de Rentabilidad por Evento</CardTitle></CardHeader>
+                                <CardContent>
+                                    <ResponsiveContainer width="100%" height={300}>
+                                    <PieChart>
+                                        <Pie data={dataGraficoRentabilidad} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({ name, percent }) => `${name} (${formatPercentage(percent)})`} >
+                                            {dataGraficoRentabilidad.map((entry) => (
+                                                <Cell key={`cell-${entry.name}`} fill={RENTABILIDAD_COLORS[entry.name as keyof typeof RENTABILIDAD_COLORS]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip formatter={(value, name) => [`${value} eventos`, name]}/>
+                                    </PieChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                        </div>
+                        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {Object.entries(rentabilidadPorEvento).map(([categoria, eventos]) => {
+                                if (eventos.length === 0) return null;
+                                const colorClass = categoria === 'Más rentables' ? 'bg-green-100 border-green-200' : categoria === 'Menos rentables' ? 'bg-red-100 border-red-200' : categoria === '30% - 38%' ? 'bg-yellow-100 border-yellow-200' : 'bg-lime-100 border-lime-200';
+                                return (
+                                <Card key={categoria} className={colorClass}>
+                                    <CardHeader className="py-3 px-4">
+                                        <CardTitle className="text-base">{categoria} ({formatPercentage(eventos.length / pedidosFiltrados.length)})</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="px-2 pt-0 max-h-80 overflow-y-auto">
+                                        <Table>
+                                            <TableBody>
+                                                {eventos.map(p => (
+                                                    <TableRow key={p.os.id}>
+                                                        <TableCell className="p-1"><Link href={`/os/${p.os.id}/cta-explotacion`} className="text-primary hover:underline font-mono text-xs">{p.os.serviceNumber}</Link></TableCell>
+                                                        <TableCell className="text-right p-1 font-semibold">{formatPercentage(p.rentabilidad)}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </CardContent>
+                                </Card>
+                            )})}
+                        </div>
+                    </div>
+                </TabsContent>
             </Tabs>
         </main>
     )
 }
-
     
