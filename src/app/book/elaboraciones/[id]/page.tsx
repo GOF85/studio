@@ -2,14 +2,19 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, FieldErrors, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Save, X, Component, ChefHat, PlusCircle, Trash2, DollarSign, Image as ImageIcon, Link as LinkIcon, Component as SubElabIcon } from 'lucide-react';
-import type { Elaboracion, IngredienteInterno, UnidadMedida, ArticuloERP, PartidaProduccion, Receta, FormatoExpedicion } from '@/types';
-import { UNIDADES_MEDIDA } from '@/types';
+import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
+
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component } from 'lucide-react';
+import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, ArticuloERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina, PartidaProduccion, ElaboracionEnReceta } from '@/types';
+import { SABORES_PRINCIPALES } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -18,13 +23,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { formatCurrency, formatUnit } from '@/lib/utils';
-import Image from 'next/image';
+import { Checkbox } from '@/components/ui/checkbox';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { Combobox } from '@/components/ui/combobox';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Slider } from '@/components/ui/slider';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { formatCurrency, formatUnit, cn } from '@/lib/utils';
+import Image from 'next/image';
+import { AllergenBadge } from '@/components/icons/allergen-badge';
 import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
 
 
@@ -42,6 +57,7 @@ export default function ElaboracionFormPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [affectedRecipes, setAffectedRecipes] = useState<Receta[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   const { toast } = useToast();
 
@@ -57,16 +73,25 @@ export default function ElaboracionFormPage() {
     } else if (isEditing) {
         elabToLoad = allElaboraciones.find(e => e.id === id) || null;
     } else {
+        // This is for a new elaboration, so we set default values
         elabToLoad = { 
-            id: Date.now().toString(), nombre: '', produccionTotal: 1, unidadProduccion: 'KG', partidaProduccion: 'FRIO', componentes: [],
-            tipoExpedicion: 'REFRIGERADO', formatoExpedicion: '', ratioExpedicion: 0,
-            instruccionesPreparacion: '', videoProduccionURL: '', fotosProduccionURLs: [],
+            id: Date.now().toString(), 
+            nombre: '', 
+            produccionTotal: 1, 
+            unidadProduccion: 'KG', 
+            partidaProduccion: 'FRIO', 
+            componentes: [],
+            tipoExpedicion: 'REFRIGERADO', 
+            formatoExpedicion: '', 
+            ratioExpedicion: 0,
+            instruccionesPreparacion: '', 
+            videoProduccionURL: '', 
+            fotosProduccionURLs: [],
         };
     }
 
-    if (elabToLoad) {
-        setInitialData(elabToLoad);
-    }
+    setInitialData(elabToLoad);
+    setIsDataLoaded(true);
 
   }, [id, isEditing, cloneId]);
 
@@ -127,7 +152,7 @@ export default function ElaboracionFormPage() {
     router.push('/book/elaboraciones');
   };
   
-  if (!initialData) return <div/>;
+  if (!isDataLoaded || !initialData) return <LoadingSkeleton title="Cargando elaboración..." />;
 
   return (
     <>
