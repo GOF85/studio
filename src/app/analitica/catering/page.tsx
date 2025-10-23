@@ -182,6 +182,8 @@ export default function AnaliticaCateringPage() {
     const margenPct = analisisGlobal.pvpNeto > 0 ? (margenFinal / analisisGlobal.pvpNeto) : 0;
     const ticketMedioEvento = analisisGlobal.numEventos > 0 ? analisisGlobal.pvpNeto / analisisGlobal.numEventos : 0;
     const ticketMedioServicio = (analisisGlobal.numServicios + analisisGlobal.numPruebasMenu) > 0 ? analisisGlobal.pvpNeto / (analisisGlobal.numServicios + analisisGlobal.numPruebasMenu) : 0;
+    const ticketMedioEventoAsistente = analisisGlobal.paxTotalesOS > 0 ? analisisGlobal.pvpNeto / analisisGlobal.paxTotalesOS : 0;
+    const ticketMedioServicioAsistente = analisisGlobal.paxTotalesHitos > 0 ? analisisGlobal.pvpNeto / analisisGlobal.paxTotalesHitos : 0;
 
     const kpis = [
         { title: "Nº de Eventos", value: formatNumber(analisisGlobal.numEventos, 0), icon: BookOpen },
@@ -195,6 +197,8 @@ export default function AnaliticaCateringPage() {
         { title: "Margen Bruto (%)", value: formatPercentage(margenPct), icon: Euro },
         { title: "Ticket Medio / Evento", value: formatCurrency(ticketMedioEvento), icon: Ticket },
         { title: "Ticket Medio / Servicio", value: formatCurrency(ticketMedioServicio), icon: HandCoins },
+        { title: "Ticket Medio / Evento / Pax", value: formatCurrency(ticketMedioEventoAsistente), icon: HandCoins },
+        { title: "Ticket Medio / Servicio / Pax", value: formatCurrency(ticketMedioServicioAsistente), icon: HandCoins },
     ];
 
     const analisisCostes = useMemo(() => {
@@ -386,7 +390,7 @@ export default function AnaliticaCateringPage() {
         <main>
             <Card className="mb-6">
                 <CardContent className="p-4 flex flex-col xl:flex-row gap-4">
-                    <div className="flex flex-wrap items-center gap-2">
+                     <div className="flex flex-wrap items-center gap-2">
                          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                             <PopoverTrigger asChild>
                                 <Button id="date" variant={"outline"} className={cn("w-full md:w-[260px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
@@ -444,7 +448,7 @@ export default function AnaliticaCateringPage() {
                     <TabsTrigger value="tipo_servicio"><Hand className="mr-2 h-4 w-4"/>Por Tipo de Servicio</TabsTrigger>
                 </TabsList>
                 <TabsContent value="detalle" className="space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-2">
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2">
                         {kpis.map(kpi => <KpiCard key={kpi.title} title={kpi.title} value={kpi.value} icon={kpi.icon} />)}
                     </div>
                     
@@ -814,3 +818,4 @@ export default function AnaliticaCateringPage() {
     
 
     
+
