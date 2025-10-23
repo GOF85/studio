@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -39,21 +40,24 @@ interface MultiSelectProps {
 export function MultiSelect({ options, selected, onChange, onCreated, placeholder, searchPlaceholder, emptyPlaceholder, className }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState('');
+  
+  const safeSelected = selected || [];
 
   const handleSelect = (value: string) => {
-    if (selected.includes(value)) {
-        onChange(selected.filter((item) => item !== value));
+    if (safeSelected.includes(value)) {
+        onChange(safeSelected.filter((item) => item !== value));
     } else {
-        onChange([...selected, value]);
+        onChange([...safeSelected, value]);
     }
   }
   
   const handleCreate = () => {
-    if (query && !options.some(opt => opt.value.toLowerCase() === query.toLowerCase())) {
-        if(onCreated) onCreated(query);
-        onChange([...selected, query]);
+    if (query && onCreated && !options.some(opt => opt.value.toLowerCase() === query.toLowerCase())) {
+        onCreated(query);
+        onChange([...safeSelected, query]);
         setQuery('');
     }
+    setOpen(false);
   }
 
   return (
@@ -67,8 +71,8 @@ export function MultiSelect({ options, selected, onChange, onCreated, placeholde
                 className="w-full justify-start font-normal h-auto min-h-9"
             >
                 <div className="flex gap-1 flex-wrap">
-                    {selected.length === 0 && <span className="text-muted-foreground">{placeholder || "Seleccionar..."}</span>}
-                    {selected.map((value) => {
+                    {safeSelected.length === 0 && <span className="text-muted-foreground">{placeholder || "Seleccionar..."}</span>}
+                    {safeSelected.map((value) => {
                         const label = options.find(o => o.value === value)?.label || value;
                         return <Badge key={value} variant="secondary">{label}</Badge>
                     })}
@@ -86,7 +90,7 @@ export function MultiSelect({ options, selected, onChange, onCreated, placeholde
             <CommandList>
                 <CommandEmpty>
                     <div className="p-2">
-                        {query ? (
+                        {query && onCreated ? (
                             <Button variant="ghost" size="sm" className="w-full justify-start" onClick={handleCreate}>
                                 <PlusCircle className="mr-2"/>
                                 Añadir "{query}"
@@ -105,7 +109,7 @@ export function MultiSelect({ options, selected, onChange, onCreated, placeholde
                     <Check
                         className={cn(
                         "mr-2 h-4 w-4",
-                        selected.includes(option.value) ? "opacity-100" : "opacity-0"
+                        safeSelected.includes(option.value) ? "opacity-100" : "opacity-0"
                         )}
                     />
                     {option.label}
