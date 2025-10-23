@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -143,15 +142,6 @@ export default function BookDashboardPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-headline font-bold">Panel de Control Gastronómico</h1>
-            <div className="flex gap-2">
-                <Button asChild>
-                    <Link href="/book/recetas/nueva"><PlusCircle className="mr-2"/>Nueva Receta</Link>
-                </Button>
-            </div>
-        </div>
-        
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
             <StatCard title="Total Recetas" value={stats.totalRecetas} icon={BookHeart} bgColorClass="bg-blue-50" href="/book/recetas" />
             <StatCard title="Total Elaboraciones" value={stats.totalElaboraciones} icon={Component} bgColorClass="bg-indigo-50" href="/book/elaboraciones"/>
