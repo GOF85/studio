@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -37,7 +37,12 @@ export default function EditarProveedorPage() {
     const allItems = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
     const item = allItems.find(p => p.id === id);
     if (item) {
-        form.reset(item);
+        form.reset({
+            ...item,
+            IdERP: item.IdERP || '',
+            iban: item.iban || '',
+            formaDePagoHabitual: item.formaDePagoHabitual || '',
+        });
     } else {
       toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el proveedor.' });
       router.push('/bd/proveedores');
