@@ -43,7 +43,6 @@ function ArticulosERPPageContent() {
   const [items, setItems] = useState<ArticuloERP[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [providerFilter, setProviderFilter] = useState('all');
   const [forRentFilter, setForRentFilter] = useState(false);
@@ -82,18 +81,15 @@ function ArticulosERPPageContent() {
     setIsMounted(true);
   }, []);
 
-  const { categories, types, providers } = useMemo(() => {
-    if (!items) return { categories: [], types: [], providers: [] };
-    const catSet = new Set<string>();
+  const { types, providers } = useMemo(() => {
+    if (!items) return { types: [], providers: [] };
     const typeSet = new Set<string>();
     const provSet = new Set<string>();
     items.forEach(item => {
-      if (item.familiaCategoria) catSet.add(item.familiaCategoria);
       if (item.tipo) typeSet.add(item.tipo);
       if (item.nombreProveedor) provSet.add(item.nombreProveedor);
     });
     return {
-      categories: ['all', ...Array.from(catSet).sort()],
       types: ['all', ...Array.from(typeSet).sort()],
       providers: ['all', ...Array.from(provSet).sort()],
     };
@@ -110,14 +106,13 @@ function ArticulosERPPageContent() {
           (item.idreferenciaerp || '').toLowerCase().includes(term) ||
           (item.tipo || '').toLowerCase().includes(term);
 
-        const categoryMatch = categoryFilter === 'all' || item.familiaCategoria === categoryFilter;
         const typeMatch = typeFilter === 'all' || item.tipo === typeFilter;
         const providerMatch = providerFilter === 'all' || item.nombreProveedor === providerFilter;
         const forRentMatch = !forRentFilter || item.alquiler;
 
-        return searchMatch && categoryMatch && typeMatch && providerMatch && forRentMatch;
+        return searchMatch && typeMatch && providerMatch && forRentMatch;
     });
-  }, [items, searchTerm, categoryFilter, typeFilter, providerFilter, forRentFilter]);
+  }, [items, searchTerm, typeFilter, providerFilter, forRentFilter]);
   
   const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
   const paginatedItems = useMemo(() => {
@@ -237,10 +232,6 @@ function ArticulosERPPageContent() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
-              <SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'Todas las Categorías' : c}</SelectItem>)}</SelectContent>
-          </Select>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
               <SelectContent>{types.map(t => <SelectItem key={t} value={t}>{t === 'all' ? 'Todos los Tipos' : t}</SelectItem>)}</SelectContent>
