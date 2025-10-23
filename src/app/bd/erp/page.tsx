@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PlusCircle, Save, Trash2, Loader2, Menu, FileUp, FileDown, Database, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { ArticuloERP, UnidadMedida, Proveedor } from '@/types';
+import type { ArticuloERP, UnidadMedida, Proveedor, FamiliaERP } from '@/types';
 import { UNIDADES_MEDIDA, articuloErpSchema } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,7 +44,7 @@ const formSchema = z.object({
 });
 
 type ArticulosERPFormValues = z.infer<typeof formSchema>;
-const CSV_HEADERS = ["id", "idreferenciaerp", "idProveedor", "nombreProveedor", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "descuento", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
+const CSV_HEADERS = ["id", "idreferenciaerp", "idProveedor", "nombreProveedor", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "descuento", "unidadConversion", "precioAlquiler", "unidad", "tipo", "categoriaMice", "alquiler", "observaciones"];
 
 const ITEMS_PER_PAGE = 20;
 
@@ -87,13 +87,21 @@ function ArticulosERPPageContent() {
     });
     setProveedoresMap(pMap);
 
+    const allFamilias = JSON.parse(localStorage.getItem('familiasERP') || '[]') as FamiliaERP[];
+    const familiasMap = new Map(allFamilias.map(f => [f.familiaCategoria, { tipo: f.Familia, categoriaMice: f.Categoria }]));
+
     let storedData = localStorage.getItem('articulosERP');
     const items = storedData ? JSON.parse(storedData) : [];
     
-    const enrichedItems = items.map((item: ArticuloERP) => ({
-      ...item,
-      nombreProveedor: pMap.get(item.idProveedor || '') || item.nombreProveedor || 'Proveedor no identificado'
-    }));
+    const enrichedItems = items.map((item: ArticuloERP) => {
+      const familiaInfo = familiasMap.get(item.familiaCategoria || '');
+      return {
+        ...item,
+        nombreProveedor: pMap.get(item.idProveedor || '') || item.nombreProveedor || 'Proveedor no identificado',
+        tipo: familiaInfo?.tipo || item.tipo,
+        categoriaMice: familiaInfo?.categoriaMice || item.categoriaMice,
+      };
+    });
 
     form.reset({ items: enrichedItems });
     setIsMounted(true);
@@ -173,6 +181,7 @@ function ArticulosERPPageContent() {
       precioAlquiler: 0,
       unidad: 'UD',
       tipo: '',
+      categoriaMice: '',
       alquiler: false,
       observaciones: '',
     });
@@ -261,6 +270,7 @@ function ArticulosERPPageContent() {
             precioAlquiler: parseCurrency(item.precioAlquiler),
             unidad: UNIDADES_MEDIDA.includes(item.unidad) ? item.unidad : 'UD',
             tipo: item.tipo || '',
+            categoriaMice: item.categoriaMice || '',
             alquiler: parseBoolean(item.alquiler),
             observaciones: item.observaciones || ''
         }));
@@ -367,17 +377,14 @@ function ArticulosERPPageContent() {
                     <TableRow>
                         <TableHead className="p-2 w-48">Producto</TableHead>
                         <TableHead className="p-2 w-28">Ref. ERP</TableHead>
-                        <TableHead className="p-2 w-28">Id. Proveedor</TableHead>
                         <TableHead className="p-2 w-40">Proveedor</TableHead>
-                        <TableHead className="p-2 w-32">Ref. Proveedor</TableHead>
                         <TableHead className="p-2 w-28">P. Compra</TableHead>
                         <TableHead className="p-2 w-28">Desc. %</TableHead>
                         <TableHead className="p-2 w-28">Factor Conv.</TableHead>
                         <TableHead className="p-2 w-28">Precio/Unidad</TableHead>
-                        <TableHead className="p-2 w-28">Precio Alquiler</TableHead>
                         <TableHead className="p-2 w-32">Unidad</TableHead>
-                        <TableHead className="p-2 w-28 text-center">Apto Alquiler</TableHead>
-                        <TableHead className="p-2 w-48">Observaciones</TableHead>
+                        <TableHead className="p-2 w-32">Tipo (Familia)</TableHead>
+                        <TableHead className="p-2 w-32">Categoría MICE</TableHead>
                         <TableHead className="p-2 w-16 text-right">Acciones</TableHead>
                     </TableRow>
                     </TableHeader>
@@ -397,14 +404,8 @@ function ArticulosERPPageContent() {
                             <TableCell className="p-1">
                                  <FormField control={form.control} name={`items.${item.originalIndex}.idreferenciaerp`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
                             </TableCell>
-                            <TableCell className="p-1">
-                                 <FormField control={form.control} name={`items.${item.originalIndex}.idProveedor`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
-                            </TableCell>
-                            <TableCell className="p-1">
+                             <TableCell className="p-1">
                                  <Input value={proveedoresMap.get(item.idProveedor || '') || 'Proveedor no identificado'} readOnly className="h-8 bg-muted/50"/>
-                            </TableCell>
-                            <TableCell className="p-1">
-                                 <FormField control={form.control} name={`items.${item.originalIndex}.referenciaProveedor`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
                             </TableCell>
                             <TableCell className="p-1">
                                  <FormField control={form.control} name={`items.${item.originalIndex}.precioCompra`} render={({ field }) => ( <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8"/> )} />
@@ -419,9 +420,6 @@ function ArticulosERPPageContent() {
                                 <Input value={formatCurrency(precioCalculado)} readOnly className="h-8 bg-muted/50 font-semibold" />
                             </TableCell>
                             <TableCell className="p-1">
-                                 <FormField control={form.control} name={`items.${item.originalIndex}.precioAlquiler`} render={({ field }) => ( <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8"/> )} />
-                            </TableCell>
-                            <TableCell className="p-1">
                                 <FormField control={form.control} name={`items.${item.originalIndex}.unidad`} render={({ field }) => ( 
                                     <Select onValueChange={field.onChange} value={field.value}>
                                         <FormControl><SelectTrigger className="h-8"><SelectValue/></SelectTrigger></FormControl>
@@ -431,13 +429,11 @@ function ArticulosERPPageContent() {
                                     </Select>
                                 )} />
                             </TableCell>
-                            <TableCell className="p-1 text-center">
-                                 <FormField control={form.control} name={`items.${item.originalIndex}.alquiler`} render={({ field }) => (
-                                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                 )} />
+                             <TableCell className="p-1">
+                                <FormField control={form.control} name={`items.${item.originalIndex}.tipo`} render={({ field }) => ( <Input {...field} readOnly className="h-8 bg-muted/50"/> )} />
                             </TableCell>
                              <TableCell className="p-1">
-                                <FormField control={form.control} name={`items.${item.originalIndex}.observaciones`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
+                                <FormField control={form.control} name={`items.${item.originalIndex}.categoriaMice`} render={({ field }) => ( <Input {...field} readOnly className="h-8 bg-muted/50"/> )} />
                             </TableCell>
                             <TableCell className="text-right p-1">
                                 <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" type="button" onClick={() => setItemToDelete(item.originalIndex)}>
@@ -448,7 +444,7 @@ function ArticulosERPPageContent() {
                         )})
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={14} className="h-24 text-center">
+                        <TableCell colSpan={11} className="h-24 text-center">
                             No se encontraron artículos que coincidan con la búsqueda.
                         </TableCell>
                         </TableRow>
@@ -505,5 +501,7 @@ export default function ArticulosERPPage() {
         </Suspense>
     )
 }
+
+    
 
     

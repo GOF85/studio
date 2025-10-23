@@ -603,6 +603,7 @@ export const articuloErpSchema = z.object({
   precioAlquiler: z.coerce.number().min(0).optional(),
   unidad: z.enum(UNIDADES_MEDIDA),
   tipo: z.string().optional(),
+  categoriaMice: z.string().optional(),
   alquiler: z.boolean().default(false),
   observaciones: z.string().optional(),
 });
@@ -1007,3 +1008,5 @@ export type TipoCocina = {
     id: string;
     nombre: string;
 };
+
+    
