@@ -364,10 +364,12 @@ export default function AnaliticaCateringPage() {
             </Card>
 
              <Tabs defaultValue="detalle">
-                <TabsList className="mb-4">
+                <TabsList className="grid w-full grid-cols-5 mb-4">
                     <TabsTrigger value="detalle">Análisis Detallado</TabsTrigger>
                     <TabsTrigger value="agregado">Vista Agregada</TabsTrigger>
                     <TabsTrigger value="rentabilidad">Rentabilidad por Evento</TabsTrigger>
+                    <TabsTrigger value="comercial">Rentabilidad por Comercial</TabsTrigger>
+                    <TabsTrigger value="metre">Rentabilidad por Metre</TabsTrigger>
                 </TabsList>
                 <TabsContent value="detalle" className="space-y-8">
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -379,71 +381,30 @@ export default function AnaliticaCateringPage() {
                         ))}
                     </div>
 
-                    <div className="grid lg:grid-cols-2 gap-8">
-                        <Card>
-                            <CardHeader><CardTitle>Desglose de Costes Agregados</CardTitle></CardHeader>
-                            <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <PieChart>
-                                        <Pie data={analisisCostes} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-                                                const RADIAN = Math.PI / 180;
-                                                const radius = innerRadius + (outerRadius - innerRadius) * 1.2;
-                                                const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                                                const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                                                return (
-                                                <text x={x} y={y} fill="black" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12}>
-                                                    {`${analisisCostes[index].name} (${formatPercentage(percent)})`}
-                                                </text>
-                                                );
-                                            }}>
-                                            {analisisCostes.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                                        </Pie>
-                                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                                        <Legend />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
-                         <Card>
-                            <CardHeader><CardTitle>Rendimiento por Comercial</CardTitle></CardHeader>
-                            <CardContent>
-                                <Table>
-                                    <TableHeader><TableRow><TableHead>Comercial</TableHead><TableHead className="text-right">Eventos</TableHead><TableHead className="text-right">Facturación</TableHead><TableHead className="text-right">Margen</TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {analisisComerciales.map(c => (
-                                        <TableRow key={c.name}>
-                                            <TableCell className="font-medium">{c.name}</TableCell>
-                                            <TableCell className="text-right">{c.eventos}</TableCell>
-                                            <TableCell className="text-right">{formatCurrency(c.facturacion)}</TableCell>
-                                            <TableCell className={cn("text-right font-bold", c.margen < 0 && 'text-destructive')}>{formatPercentage(c.margenPct)}</TableCell>
-                                        </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
-                        </Card>
-                    </div>
-                    
-                    <div className="mb-8">
-                        <Card>
-                            <CardHeader><CardTitle>Rendimiento por Metre</CardTitle></CardHeader>
-                            <CardContent>
-                                <Table>
-                                    <TableHeader><TableRow><TableHead>Metre</TableHead><TableHead className="text-right">Eventos</TableHead><TableHead className="text-right">Facturación</TableHead><TableHead className="text-right">Margen</TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {analisisMetres.map(m => (
-                                        <TableRow key={m.name}>
-                                            <TableCell className="font-medium">{m.name}</TableCell>
-                                            <TableCell className="text-right">{m.eventos}</TableCell>
-                                            <TableCell className="text-right">{formatCurrency(m.facturacion)}</TableCell>
-                                            <TableCell className={cn("text-right font-bold", m.margen < 0 && 'text-destructive')}>{formatPercentage(m.margenPct)}</TableCell>
-                                        </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
-                        </Card>
-                    </div>
+                    <Card>
+                        <CardHeader><CardTitle>Desglose de Costes Agregados</CardTitle></CardHeader>
+                        <CardContent>
+                            <ResponsiveContainer width="100%" height={300}>
+                                <PieChart>
+                                    <Pie data={analisisCostes} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                                            const RADIAN = Math.PI / 180;
+                                            const radius = innerRadius + (outerRadius - innerRadius) * 1.2;
+                                            const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                            const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                            return (
+                                            <text x={x} y={y} fill="black" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12}>
+                                                {`${analisisCostes[index].name} (${formatPercentage(percent)})`}
+                                            </text>
+                                            );
+                                        }}>
+                                        {analisisCostes.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                    </Pie>
+                                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                    <Legend />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
                     
                     <Accordion type="single" collapsible className="w-full mt-8">
                         <AccordionItem value="item-1" className="border-none">
@@ -561,7 +522,7 @@ export default function AnaliticaCateringPage() {
                      </Card>
                 </TabsContent>
                  <TabsContent value="rentabilidad" className="space-y-8">
-                     <div className="grid lg:grid-cols-5 gap-8">
+                     <div className="grid lg:grid-cols-5 gap-8 items-start">
                         <div className="lg:col-span-2">
                              <Card>
                                 <CardHeader><CardTitle>Distribución de Rentabilidad por Evento</CardTitle></CardHeader>
@@ -604,6 +565,46 @@ export default function AnaliticaCateringPage() {
                             )})}
                         </div>
                     </div>
+                </TabsContent>
+                 <TabsContent value="comercial" className="space-y-8">
+                     <Card>
+                        <CardHeader><CardTitle>Rendimiento por Comercial</CardTitle></CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Comercial</TableHead><TableHead className="text-right">Eventos</TableHead><TableHead className="text-right">Facturación</TableHead><TableHead className="text-right">Margen</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {analisisComerciales.map(c => (
+                                    <TableRow key={c.name}>
+                                        <TableCell className="font-medium">{c.name}</TableCell>
+                                        <TableCell className="text-right">{c.eventos}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(c.facturacion)}</TableCell>
+                                        <TableCell className={cn("text-right font-bold", c.margen < 0 && 'text-destructive')}>{formatPercentage(c.margenPct)}</TableCell>
+                                    </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="metre" className="space-y-8">
+                    <Card>
+                        <CardHeader><CardTitle>Rendimiento por Metre</CardTitle></CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Metre</TableHead><TableHead className="text-right">Eventos</TableHead><TableHead className="text-right">Facturación</TableHead><TableHead className="text-right">Margen</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {analisisMetres.map(m => (
+                                    <TableRow key={m.name}>
+                                        <TableCell className="font-medium">{m.name}</TableCell>
+                                        <TableCell className="text-right">{m.eventos}</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(m.facturacion)}</TableCell>
+                                        <TableCell className={cn("text-right font-bold", m.margen < 0 && 'text-destructive')}>{formatPercentage(m.margenPct)}</TableCell>
+                                    </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
                 </TabsContent>
             </Tabs>
         </main>
