@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -56,18 +57,16 @@ const ITEMS_PER_PAGE = 20;
 
 function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, initialData: Partial<IngredienteInterno> | null, onSave: (data: IngredienteFormValues) => void }) {
     const [articulosERP, setArticulosERP] = useState<ArticuloERP[]>([]);
-    const [erpSearchTerm, setErpSearchTerm] = useState('');
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
     
     const form = useForm<IngredienteFormValues>({
         resolver: zodResolver(ingredienteFormSchema),
-        defaultValues: {
-            id: initialData?.id || Date.now().toString(),
-            nombreIngrediente: initialData?.nombreIngrediente || '',
-            productoERPlinkId: initialData?.productoERPlinkId || '',
-            alergenosPresentes: initialData?.alergenosPresentes || [],
-            alergenosTrazas: initialData?.alergenosTrazas || [],
-            lastRevision: initialData?.lastRevision,
+        defaultValues: initialData || {
+            id: Date.now().toString(),
+            nombreIngrediente: '',
+            productoERPlinkId: '',
+            alergenosPresentes: [],
+            alergenosTrazas: [],
         }
     });
 
@@ -77,26 +76,19 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
     }, []);
 
     useEffect(() => {
-        form.reset({
-            id: initialData?.id || Date.now().toString(),
-            nombreIngrediente: initialData?.nombreIngrediente || '',
-            productoERPlinkId: initialData?.productoERPlinkId || '',
-            alergenosPresentes: initialData?.alergenosPresentes || [],
-            alergenosTrazas: initialData?.alergenosTrazas || [],
-            lastRevision: initialData?.lastRevision,
-        });
-    }, [initialData, form]);
+        if(open) {
+            form.reset(initialData || {
+                id: Date.now().toString(),
+                nombreIngrediente: '',
+                productoERPlinkId: '',
+                alergenosPresentes: [],
+                alergenosTrazas: [],
+            });
+        }
+    }, [initialData, form, open]);
 
     const selectedErpId = form.watch('productoERPlinkId');
     const selectedErpProduct = useMemo(() => articulosERP.find(p => p.idreferenciaerp === selectedErpId), [articulosERP, selectedErpId]);
-
-    const filteredErpProducts = useMemo(() => {
-        return articulosERP.filter(p => 
-            (p.nombreProductoERP || '').toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
-            (p.nombreProveedor || '').toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
-            (p.referenciaProveedor || '').toLowerCase().includes(erpSearchTerm.toLowerCase())
-        );
-    }, [articulosERP, erpSearchTerm]);
 
     const handleErpSelect = (erpId: string) => {
         form.setValue('productoERPlinkId', erpId, { shouldDirty: true });
@@ -157,7 +149,7 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-4xl">
-                <DialogHeader><DialogTitle>{initialData?.id ? 'Editar' : 'Nuevo'} Ingrediente</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>{initialData ? 'Editar' : 'Nuevo'} Ingrediente</DialogTitle></DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSave)} id="ingrediente-form-modal" className="space-y-4">
                         <Card>
@@ -178,30 +170,17 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
                                                             <p className="font-semibold text-sm leading-tight">{selectedErpProduct.nombreProductoERP}</p>
                                                             <p className="text-xs text-muted-foreground">{selectedErpProduct.nombreProveedor} ({selectedErpProduct.referenciaProveedor})</p>
                                                         </div>
-                                                        <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" onClick={() => form.setValue('productoERPlinkId', '')}><CircleX className="mr-1 h-3 w-3"/>Desvincular</Button>
+                                                        <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" type="button" onClick={() => form.setValue('productoERPlinkId', '', {shouldDirty: true})}><CircleX className="mr-1 h-3 w-3"/>Desvincular</Button>
                                                     </div>
                                                      <p className="font-bold text-primary text-sm">{calculatePrice(selectedErpProduct).toLocaleString('es-ES',{style:'currency', currency:'EUR'})} / {selectedErpProduct.unidad}</p>
                                                 </div>
                                             ) : (
                                                 <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                                                     <DialogTrigger asChild><Button variant="secondary" className="w-full h-16 border-dashed border-2"><LinkIcon className="mr-2"/>Vincular Artículo ERP</Button></DialogTrigger>
-                                                    <DialogContent className="max-w-3xl">
-                                                        <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
-                                                        <Input placeholder="Buscar..." value={erpSearchTerm} onChange={e => setErpSearchTerm(e.target.value)} />
-                                                        <div className="max-h-[60vh] overflow-y-auto border rounded-md">
-                                                            <Table>
-                                                                <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Proveedor</TableHead><TableHead>Precio</TableHead><TableHead></TableHead></TableRow></TableHeader>
-                                                                <TableBody>{filteredErpProducts.map(p => (
-                                                                    <TableRow key={p.idreferenciaerp}>
-                                                                        <TableCell>{p.nombreProductoERP}</TableCell>
-                                                                        <TableCell>{p.nombreProveedor}</TableCell>
-                                                                        <TableCell>{calculatePrice(p).toLocaleString('es-ES',{style:'currency', currency:'EUR'})}/{p.unidad}</TableCell>
-                                                                        <TableCell><Button size="sm" onClick={() => handleErpSelect(p.idreferenciaerp)}><Check className="mr-2"/>Seleccionar</Button></TableCell>
-                                                                    </TableRow>
-                                                                ))}</TableBody>
-                                                            </Table>
-                                                        </div>
-                                                    </DialogContent>
+                                                    <ErpSelectorDialog 
+                                                        onSelect={handleErpSelect}
+                                                        articulosERP={articulosERP}
+                                                    />
                                                 </Dialog>
                                             )}
                                             <FormMessage className="mt-2 text-red-500">{form.formState.errors.productoERPlinkId?.message}</FormMessage>
@@ -228,6 +207,45 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
     )
 }
 
+function ErpSelectorDialog({ onSelect, articulosERP }: { onSelect: (erpId: string) => void; articulosERP: ArticuloERP[] }) {
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredErpProducts = useMemo(() => {
+        return articulosERP.filter(p => 
+            (p.nombreProductoERP || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (p.nombreProveedor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (p.referenciaProveedor || '').toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [articulosERP, searchTerm]);
+
+    const calculatePrice = (p: ArticuloERP) => {
+        if (!p || typeof p.precioCompra !== 'number' || typeof p.unidadConversion !== 'number') return 0;
+        const basePrice = p.precioCompra / (p.unidadConversion || 1);
+        const discount = p.descuento || 0;
+        return basePrice * (1 - discount / 100);
+    }
+    
+    return (
+        <DialogContent className="max-w-3xl">
+            <DialogHeader><DialogTitle>Seleccionar Producto ERP</DialogTitle></DialogHeader>
+            <Input placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <div className="max-h-[60vh] overflow-y-auto border rounded-md">
+                <Table>
+                    <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Proveedor</TableHead><TableHead>Precio</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                    <TableBody>{filteredErpProducts.map(p => (
+                        <TableRow key={p.idreferenciaerp || p.id}>
+                            <TableCell>{p.nombreProductoERP}</TableCell>
+                            <TableCell>{p.nombreProveedor}</TableCell>
+                            <TableCell>{calculatePrice(p).toLocaleString('es-ES',{style:'currency', currency:'EUR'})}/{p.unidad}</TableCell>
+                            <TableCell><Button size="sm" onClick={() => onSelect(p.idreferenciaerp)}><Check className="mr-2"/>Seleccionar</Button></TableCell>
+                        </TableRow>
+                    ))}</TableBody>
+                </Table>
+            </div>
+        </DialogContent>
+    )
+}
+
 export default function IngredientesPage() {
   const [ingredientes, setIngredientes] = useState<IngredienteConERP[]>([]);
   const [isMounted, setIsMounted] = useState(false);
@@ -236,7 +254,7 @@ export default function IngredientesPage() {
   const [itemToDelete, setItemToDelete] = useState<IngredienteConERP | null>(null);
   const [affectedElaboraciones, setAffectedElaboraciones] = useState<Elaboracion[]>([]);
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
-  const [editingIngredient, setEditingIngredient] = useState<Partial<IngredienteInterno> | null>(null);
+  const [editingIngredient, setEditingIngredient] = useState<Partial<IngredienteInterno> | 'new' | null>(null);
 
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -418,7 +436,7 @@ export default function IngredientesPage() {
 
   if (!isMounted) return <LoadingSkeleton title="Cargando Ingredientes..." />;
 
-  const initialData = editingIngredient === 'new' ? { id: Date.now().toString(), nombreIngrediente: '', productoERPlinkId: '', alergenosPresentes: [], alergenosTrazas: [] } : editingIngredient;
+  const initialDataForModal = editingIngredient === 'new' ? null : editingIngredient;
 
   return (
     <>
@@ -484,7 +502,7 @@ export default function IngredientesPage() {
           <IngredienteFormModal 
               open={!!editingIngredient}
               onOpenChange={(isOpen) => !isOpen && setEditingIngredient(null)}
-              initialData={editingIngredient === 'new' ? null : editingIngredient}
+              initialData={initialDataForModal}
               onSave={handleSave}
           />
       )}
