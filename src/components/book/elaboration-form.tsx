@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -72,7 +73,7 @@ function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, allElabo
     const filteredIngredientes = useMemo(() => {
         return ingredientes.filter(i => 
             i.nombreIngrediente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (i.erp?.IdERP || '').toLowerCase().includes(searchTerm.toLowerCase())
+            (i.erp?.idreferenciaerp || '').toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [ingredientes, searchTerm]);
 
@@ -130,7 +131,7 @@ function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, allElabo
 }
 
 
-export function ElaborationForm({ initialData, onSave, isSubmitting }: { initialData: Partial<ElaborationFormValues>, onSave: (data: ElaborationFormValues, costePorUnidad: number) => void, isSubmitting: boolean }) {
+export function ElaborationForm({ initialData, onSave, isSubmitting }: { initialData: Partial<ElaborationFormValues> | null, onSave: (data: ElaborationFormValues, costePorUnidad: number) => void, isSubmitting: boolean }) {
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
   const [elaboracionesData, setElaboracionesData] = useState<Map<string, Elaboracion>>(new Map());
@@ -140,7 +141,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
 
   const form = useForm<ElaborationFormValues>({
     resolver: zodResolver(elaboracionFormSchema),
-    defaultValues: initialData
+    defaultValues: initialData || {}
   });
 
   const { fields, append, remove, control } = useFieldArray({
@@ -157,7 +158,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
   const watchedProduccionTotal = form.watch('produccionTotal');
 
   useEffect(() => {
-    form.reset(initialData);
+    form.reset(initialData || {});
   }, [initialData, form]);
 
   useEffect(() => {
@@ -166,7 +167,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
 
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-    const erpMap = new Map(storedErp.map(i => [i.id, i]));
+    const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
     const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
     setIngredientesData(new Map(combinedIngredientes.map(i => [i.id, i])));
 

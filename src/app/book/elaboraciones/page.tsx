@@ -247,7 +247,7 @@ export default function ElaboracionesPage() {
 
   return (
     <>
-    <TooltipProvider>
+      <TooltipProvider>
        <div className="flex items-center justify-between gap-4 mb-6">
           <Input 
             placeholder="Buscar por nombre..."
