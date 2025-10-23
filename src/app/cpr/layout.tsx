@@ -75,7 +75,7 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
                             <Factory className="h-5 w-5"/>
                             <span>Panel de Producción</span>
                         </Link>
-                        {currentPage && (
+                        {currentPage && currentPage.icon && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
                                 <currentPage.icon className="h-5 w-5 text-muted-foreground"/>
