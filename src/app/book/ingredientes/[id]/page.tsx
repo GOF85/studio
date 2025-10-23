@@ -95,7 +95,10 @@ export default function IngredienteFormPage() {
   });
   
   const selectedErpId = form.watch('productoERPlinkId');
-  const selectedErpProduct = articulosERP.find(p => p.idreferenciaerp === selectedErpId);
+  
+  const selectedErpProduct = useMemo(() => {
+      return articulosERP.find(p => p.idreferenciaerp === selectedErpId);
+  }, [articulosERP, selectedErpId]);
 
   const filteredErpProducts = useMemo(() => {
     return articulosERP.filter(p => 
@@ -112,12 +115,32 @@ export default function IngredienteFormPage() {
     return [firstHalf, secondHalf];
   }, []);
   
-  useEffect(() => {
+useEffect(() => {
     const storedErpData = localStorage.getItem('articulosERP') || '[]';
-    const erpData = JSON.parse(storedErpData) as ArticuloERP[];
-    setArticulosERP(erpData);
+    setArticulosERP(JSON.parse(storedErpData));
 
-    if (id === 'nuevo') {
+    if (isEditing) {
+        const storedIngredientesData = localStorage.getItem('ingredientesInternos') || '[]';
+        try {
+            const ingredientes = JSON.parse(storedIngredientesData) as IngredienteInterno[];
+            const ingrediente = ingredientes.find((p: IngredienteInterno) => p.id === id);
+            
+            if (ingrediente) {
+                form.reset({
+                    ...ingrediente,
+                    alergenosPresentes: ingrediente.alergenosPresentes || [],
+                    alergenosTrazas: ingrediente.alergenosTrazas || [],
+                });
+            } else {
+                toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el ingrediente.' });
+                router.push('/book/ingredientes');
+                return;
+            }
+        } catch (e) {
+            console.error("Failed to parse ingredientesInternos", e);
+            toast({ variant: 'destructive', title: 'Error', description: 'Error al cargar los ingredientes.' });
+        }
+    } else { // Handle creation of new ingredient
         form.reset({
             id: Date.now().toString(),
             nombreIngrediente: '',
@@ -125,25 +148,9 @@ export default function IngredienteFormPage() {
             alergenosPresentes: [],
             alergenosTrazas: [],
         });
-    } else {
-        const storedIngredientesData = localStorage.getItem('ingredientesInternos') || '[]';
-        const ingredientes = JSON.parse(storedIngredientesData) as IngredienteInterno[];
-        const ingrediente = ingredientes.find((p: IngredienteInterno) => p.id === id);
-        
-        if (ingrediente) {
-            form.reset({
-                ...ingrediente,
-                alergenosPresentes: ingrediente.alergenosPresentes || [],
-                alergenosTrazas: ingrediente.alergenosTrazas || [],
-            });
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el ingrediente.' });
-            router.push('/book/ingredientes');
-            return;
-        }
     }
     setIsDataLoaded(true);
-}, [id, form, router, toast]);
+}, [id, isEditing, form, router, toast]);
 
 
   function onSubmit(data: IngredienteFormValues) {
