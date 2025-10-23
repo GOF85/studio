@@ -89,7 +89,7 @@ export function DashboardPage() {
       <div className="flex flex-col min-h-screen">
         <main className="flex-grow container mx-auto px-4 py-8">
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-headline font-bold tracking-tight">CateringStock</h1>
+            <h1 className="text-4xl font-headline font-bold tracking-tight">MICE Catering</h1>
             <p className="text-lg text-muted-foreground mt-2">Plataforma de gestión integral para catering.</p>
           </div>
 

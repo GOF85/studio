@@ -8,7 +8,7 @@ import { ImpersonatedUserProvider } from '@/hooks/use-impersonated-user';
 import { Header } from '@/components/layout/header';
 
 export const metadata: Metadata = {
-  title: 'CateringStock',
+  title: 'MICE Catering',
   description: 'Soluciones de alquiler para tus eventos',
 };
 
