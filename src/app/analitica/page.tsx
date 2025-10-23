@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { BarChart3, Euro, TrendingUp, TrendingDown, ClipboardList, Package, Calendar as CalendarIcon, Factory } from 'lucide-react';
 import { formatCurrency, formatPercentage } from '@/lib/utils';
-import type { Entrega, ServiceOrder, MaterialOrder, GastronomyOrder, TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExterno, PersonalExternoAjuste, PedidoEntrega, PedidoEntregaItem } from '@/types';
+import type { Entrega, ServiceOrder, MaterialOrder, GastronomyOrder, TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExterno, PersonalExternoAjuste, PedidoEntrega, PedidoEntregaItem, PruebaMenuData } from '@/types';
 import { DateRange } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -74,6 +74,7 @@ export default function AnaliticaDashboardPage() {
     const [allAjustesPersonal, setAllAjustesPersonal] = useState<Record<string, PersonalExternoAjuste[]>>({});
     const [allPedidosEntrega, setAllPedidosEntrega] = useState<PedidoEntrega[]>([]);
     const [allPersonalEntrega, setAllPersonalEntrega] = useState<PersonalEntrega[]>([]);
+    const [allPruebasMenu, setAllPruebasMenu] = useState<PruebaMenuData[]>([]);
 
     useEffect(() => {
         // Load all data from localStorage once
@@ -90,6 +91,7 @@ export default function AnaliticaDashboardPage() {
         setAllAjustesPersonal(JSON.parse(localStorage.getItem('personalExternoAjustes') || '{}'));
         setAllPedidosEntrega(JSON.parse(localStorage.getItem('pedidosEntrega') || '[]'));
         setAllPersonalEntrega(JSON.parse(localStorage.getItem('personalEntrega') || '[]'));
+        setAllPruebasMenu(JSON.parse(localStorage.getItem('pruebasMenu') || '[]'));
         setIsMounted(true);
     }, []);
 
@@ -124,7 +126,8 @@ export default function AnaliticaDashboardPage() {
             costeOS += allDecoracionOrders.filter(o => o.osId === os.id).reduce((s, o) => s + o.precio, 0);
             costeOS += allAtipicoOrders.filter(o => o.osId === os.id).reduce((s, o) => s + o.precio, 0);
             costeOS += allPersonalMiceOrders.filter(o => o.osId === os.id).reduce((s, o) => s + calculateHours(o.horaEntradaReal || o.horaEntrada, o.horaSalidaReal || o.horaSalida) * (o.precioHora || 0), 0);
-            
+            costeOS += (allPruebasMenu.find(p => p.osId === os.id)?.costePruebaMenu || 0);
+
             const personalExterno = allPersonalExterno.find(p => p.osId === os.id);
             if (personalExterno) {
                const costeTurnos = personalExterno.turnos.reduce((s, turno) => s + (turno.asignaciones || []).reduce((sA, a) => sA + calculateHours(a.horaEntradaReal || turno.horaEntrada, a.horaSalidaReal || turno.horaSalida) * (turno.precioHora || 0), 0), 0);
@@ -177,7 +180,7 @@ export default function AnaliticaDashboardPage() {
         const totalFacturacion = cateringFacturacion + entregasFacturacion;
         const totalCoste = cateringCoste + entregasCoste;
         const rentabilidad = totalFacturacion - totalCoste;
-        const margen = totalFacturacion > 0 ? (rentabilidad / totalFacturacion) : 0;
+        const margen = totalFacturacion > 0 ? (rentabilidad / totalFacturacion) * 100 : 0;
         
         return {
             cateringData: { facturacion: cateringFacturacion, coste: cateringCoste, rentabilidad: cateringFacturacion - cateringCoste, eventos: cateringOrders.length },
@@ -186,7 +189,7 @@ export default function AnaliticaDashboardPage() {
             cateringVerticalsData: verticalsData,
         };
 
-    }, [dateRange, allServiceOrders, allEntregas, allGastroOrders, allMaterialOrders, allTransporteOrders, allHieloOrders, allDecoracionOrders, allAtipicoOrders, allPersonalMiceOrders, allPersonalExterno, allAjustesPersonal, allPedidosEntrega, allPersonalEntrega]);
+    }, [dateRange, allServiceOrders, allEntregas, allGastroOrders, allMaterialOrders, allTransporteOrders, allHieloOrders, allDecoracionOrders, allAtipicoOrders, allPersonalMiceOrders, allPersonalExterno, allAjustesPersonal, allPedidosEntrega, allPersonalEntrega, allPruebasMenu]);
 
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
         const now = new Date();
@@ -243,52 +246,8 @@ export default function AnaliticaDashboardPage() {
                 <KpiCard title="Eventos de Catering" value={(cateringData?.eventos || 0).toString()} icon={Factory} description="Nº de OS de catering confirmadas" />
                 <KpiCard title="Nº de Entregas MICE" value={(entregasData?.entregas || 0).toString()} icon={Package} description="Nº de hitos de entrega individuales" />
             </div>
-            
-            <Card className="mb-8">
-                <CardHeader>
-                    <CardTitle>Rendimiento por Vertical de Negocio</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Vertical</TableHead>
-                                <TableHead className="text-right">Facturación Neta</TableHead>
-                                <TableHead className="text-right">Coste Estimado</TableHead>
-                                <TableHead className="text-right">Rentabilidad Bruta</TableHead>
-                                <TableHead className="text-right">Margen</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {Object.entries(cateringVerticalsData).map(([vertical, data]) => (
-                                <TableRow key={vertical}>
-                                    <TableCell className="font-semibold pl-8">Catering - {vertical}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(data.facturacion)}</TableCell>
-                                    <TableCell className="text-right">{formatCurrency(data.coste)}</TableCell>
-                                    <TableCell className="text-right font-bold">{formatCurrency(data.facturacion - data.coste)}</TableCell>
-                                    <TableCell className="text-right font-bold">{formatPercentage((data.facturacion - data.coste) / data.facturacion)}</TableCell>
-                                </TableRow>
-                            ))}
-                             <TableRow className="bg-muted/50 font-bold">
-                                <TableCell>Total Catering</TableCell>
-                                <TableCell className="text-right">{formatCurrency(cateringData?.facturacion || 0)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(cateringData?.coste || 0)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(cateringData?.rentabilidad || 0)}</TableCell>
-                                <TableCell className="text-right">{formatPercentage((cateringData?.rentabilidad || 0) / (cateringData?.facturacion || 1))}</TableCell>
-                            </TableRow>
-                             <TableRow>
-                                <TableCell className="font-semibold">Entregas</TableCell>
-                                <TableCell className="text-right">{formatCurrency(entregasData?.facturacion || 0)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(entregasData?.coste || 0)}</TableCell>
-                                <TableCell className="text-right font-bold">{formatCurrency(entregasData?.rentabilidad || 0)}</TableCell>
-                                <TableCell className="text-right font-bold">{formatPercentage((entregasData?.rentabilidad || 0) / (entregasData?.facturacion || 1))}</TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
 
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-2 gap-8 mb-8">
                 <Link href="/analitica/catering">
                     <Card className="hover:border-primary hover:shadow-lg transition-all h-full">
                         <CardHeader>
@@ -310,6 +269,51 @@ export default function AnaliticaDashboardPage() {
                     </Card>
                 </Link>
             </div>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle>Rendimiento por Vertical de Negocio</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Vertical</TableHead>
+                                <TableHead className="text-right">Facturación Neta</TableHead>
+                                <TableHead className="text-right">Coste Estimado</TableHead>
+                                <TableHead className="text-right">Rentabilidad Bruta</TableHead>
+                                <TableHead className="text-right">Margen</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {Object.entries(cateringVerticalsData).map(([vertical, data]) => (
+                                <TableRow key={vertical}>
+                                    <TableCell className="font-semibold pl-8">Catering - {vertical}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(data.facturacion)}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(data.coste)}</TableCell>
+                                    <TableCell className="text-right font-bold">{formatCurrency(data.facturacion - data.coste)}</TableCell>
+                                    <TableCell className="text-right font-bold">{formatPercentage((data.facturacion - data.coste) / (data.facturacion || 1))}</TableCell>
+                                </TableRow>
+                            ))}
+                             <TableRow className="bg-muted/50 font-bold">
+                                <TableCell>Total Catering</TableCell>
+                                <TableCell className="text-right">{formatCurrency(cateringData?.facturacion || 0)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(cateringData?.coste || 0)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(cateringData?.rentabilidad || 0)}</TableCell>
+                                <TableCell className="text-right">{formatPercentage((cateringData?.rentabilidad || 0) / (cateringData?.facturacion || 1))}</TableCell>
+                            </TableRow>
+                             <TableRow>
+                                <TableCell className="font-semibold">Entregas</TableCell>
+                                <TableCell className="text-right">{formatCurrency(entregasData?.facturacion || 0)}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(entregasData?.coste || 0)}</TableCell>
+                                <TableCell className="text-right font-bold">{formatCurrency(entregasData?.rentabilidad || 0)}</TableCell>
+                                <TableCell className="text-right font-bold">{formatPercentage((entregasData?.rentabilidad || 0) / (entregasData?.facturacion || 1))}</TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+
         </div>
     );
 }
