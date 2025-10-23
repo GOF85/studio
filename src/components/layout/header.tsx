@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -83,14 +84,6 @@ export function Header({ user, onLogout }: { user?: User | null, onLogout?: () =
           </h1>
         </Link>
         <nav className="flex flex-1 items-center justify-end space-x-2">
-            {isMounted && isHomePage && (
-              <Button asChild variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700">
-                <Link href="/entregas">
-                  <Package className="mr-2 h-5 w-5"/>
-                  Entregas MICE
-                </Link>
-              </Button>
-            )}
             {process.env.NODE_ENV === 'development' && (
               <Button asChild variant="destructive">
                 <Link href="/debug/db">
