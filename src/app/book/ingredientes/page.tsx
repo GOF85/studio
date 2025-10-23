@@ -79,13 +79,9 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
 
     useEffect(() => {
         if (open) {
-            if (initialData) {
-                form.reset(initialData);
-            } else {
-                form.reset(defaultFormValues);
-            }
+            form.reset(initialData ? { ...initialData } : defaultFormValues);
         }
-    }, [initialData, open, form, defaultFormValues]);
+    }, [initialData, open, form]);
 
 
     const selectedErpId = form.watch('productoERPlinkId');
@@ -446,8 +442,6 @@ function IngredientesPageContent() {
 
   if (!isMounted) return <LoadingSkeleton title="Cargando Ingredientes..." />;
 
-  const initialDataForModal = editingIngredient || null;
-
   return (
     <>
       <div className="flex items-center justify-between mb-6">
@@ -512,7 +506,7 @@ function IngredientesPageContent() {
           <IngredienteFormModal 
               open={!!editingIngredient}
               onOpenChange={(isOpen) => !isOpen && setEditingIngredient(null)}
-              initialData={initialDataForModal}
+              initialData={editingIngredient}
               onSave={handleSave}
           />
       )}
