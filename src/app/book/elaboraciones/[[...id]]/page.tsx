@@ -1,9 +1,8 @@
-
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, Component, FileDown, FileUp, Menu, AlertTriangle, Copy, Download, Upload } from 'lucide-react';
 import type { Elaboracion, Receta, IngredienteInterno, ArticuloERP, ComponenteElaboracion } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -20,8 +19,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
     AlertDialog,
@@ -42,12 +41,13 @@ import autoTable from 'jspdf-autotable';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency, formatUnit } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
 
 const CSV_HEADERS_ELABORACIONES = [ "id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion" ];
 const CSV_HEADERS_COMPONENTES = [ "id_elaboracion_padre", "tipo_componente", "id_componente", "cantidad", "merma" ];
 
 
-export default function ElaboracionesPage() {
+function ElaboracionesListPage() {
   const [items, setItems] = useState<Elaboracion[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -120,7 +120,6 @@ export default function ElaboracionesPage() {
 
     if (affectedRecipes.length > 0) {
         generateReportAndToast(itemToDelete.nombre);
-        // Marcar recetas afectadas para revisión
         let allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
         const affectedRecipeIds = new Set(affectedRecipes.map(r => r.id));
         const updatedRecetas = allRecetas.map(r => {
@@ -198,7 +197,7 @@ export default function ElaboracionesPage() {
                     produccionTotal: parseFloat(item.produccionTotal) || 0,
                     costePorUnidad: parseFloat(item.costePorUnidad) || 0,
                     ratioExpedicion: parseFloat(item.ratioExpedicion) || 0,
-                    componentes: [], // Initialize with empty components
+                    componentes: [],
                     fotosProduccionURLs: JSON.parse(item.fotosProduccionURLs || '[]'),
                 }));
                 localStorage.setItem('elaboraciones', JSON.stringify(importedData));
@@ -215,17 +214,16 @@ export default function ElaboracionesPage() {
                             id: `${compData.id_componente}-${Date.now()}`,
                             tipo: compData.tipo_componente,
                             componenteId: compData.id_componente,
-                            nombre: 'temp', // This should be enriched after
+                            nombre: 'temp', 
                             cantidad: parseFloat(compData.cantidad) || 0,
                             merma: parseFloat(compData.merma) || 0,
-                            costePorUnidad: 0, // This should be enriched after
+                            costePorUnidad: 0,
                         };
                         if (!elab.componentes) elab.componentes = [];
                         elab.componentes.push(newComponent);
                     }
                 });
                 
-                // Here you would typically re-enrich names and costs, for simplicity we just save
                 localStorage.setItem('elaboraciones', JSON.stringify(Array.from(elabMap.values())));
                 setItems(Array.from(elabMap.values()));
                 toast({ title: 'Importación de Componentes completada', description: `Se procesaron ${results.data.length} componentes.` });
@@ -381,4 +379,173 @@ export default function ElaboracionesPage() {
     </AlertDialog>
     </TooltipProvider>
   );
+}
+
+
+function ElaboracionFormPage() {
+    const router = useRouter();
+    const { toast } = useToast();
+    const params = useParams();
+    const searchParams = useSearchParams();
+
+    const id = params?.id ? params.id[0] : 'nuevo';
+    const isEditing = id !== 'nuevo';
+    const cloneId = searchParams.get('cloneId');
+
+    const [initialData, setInitialData] = useState<Partial<ElaborationFormValues> | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [affectedRecipes, setAffectedRecipes] = useState<Receta[]>([]);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+    useEffect(() => {
+        let elabToLoad: Partial<ElaborationFormValues> | null = null;
+        const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+        
+        if (cloneId) {
+            const elabToClone = allElaboraciones.find(e => e.id === cloneId);
+            if (elabToClone) {
+                elabToLoad = { ...elabToClone, id: Date.now().toString(), nombre: `${elabToClone.nombre} (Copia)` };
+            }
+        } else if (isEditing) {
+            elabToLoad = allElaboraciones.find(e => e.id === id) || null;
+        } else {
+            elabToLoad = { 
+                id: Date.now().toString(), 
+                nombre: '', 
+                produccionTotal: 1, 
+                unidadProduccion: 'KG', 
+                partidaProduccion: 'FRIO', 
+                componentes: [],
+                tipoExpedicion: 'REFRIGERADO', 
+                formatoExpedicion: '', 
+                ratioExpedicion: 0,
+                instruccionesPreparacion: '', 
+                videoProduccionURL: '', 
+                fotosProduccionURLs: [],
+            };
+        }
+
+        setInitialData(elabToLoad);
+        setIsDataLoaded(true);
+
+    }, [id, isEditing, cloneId]);
+
+    function onSubmit(data: ElaborationFormValues, costePorUnidad: number) {
+        setIsLoading(true);
+        let allItems = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+        let message = '';
+        
+        const dataToSave: Elaboracion = { 
+          ...data, 
+          costePorUnidad 
+        };
+
+        if (isEditing && !cloneId) {
+          const index = allItems.findIndex(p => p.id === id);
+          if (index !== -1) {
+            allItems[index] = dataToSave;
+            message = 'Elaboración actualizada correctamente.';
+          }
+        } else {
+          allItems.push(dataToSave);
+          message = cloneId ? 'Elaboración clonada correctamente.' : 'Elaboración creada correctamente.';
+        }
+
+        localStorage.setItem('elaboraciones', JSON.stringify(allItems));
+        
+        setTimeout(() => {
+          toast({ description: message });
+          setIsLoading(false);
+          router.push('/book/elaboraciones');
+        }, 1000);
+    }
+
+    const handleAttemptDelete = () => {
+        const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+        const recipesUsingElaboracion = allRecetas.filter(receta => 
+          receta.elaboraciones.some(e => e.elaboracionId === id)
+        );
+        setAffectedRecipes(recipesUsingElaboracion);
+        setShowDeleteConfirm(true);
+    };
+
+    const handleDelete = () => {
+        if (affectedRecipes.length > 0) {
+            let allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+            const affectedRecipeIds = new Set(affectedRecipes.map(r => r.id));
+            const updatedRecetas = allRecetas.map(r => 
+                affectedRecipeIds.has(r.id) ? { ...r, requiereRevision: true } : r
+            );
+            localStorage.setItem('recetas', JSON.stringify(updatedRecetas));
+        }
+
+        let allItems = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+        const updatedItems = allItems.filter(p => p.id !== id);
+        localStorage.setItem('elaboraciones', JSON.stringify(updatedItems));
+        
+        toast({ title: 'Elaboración eliminada' });
+        router.push('/book/elaboraciones');
+    };
+    
+    if (!isDataLoaded || (isEditing && !initialData)) {
+      return <LoadingSkeleton title="Cargando elaboración..." />;
+    }
+
+    return (
+        <main className="container mx-auto px-4 py-8">
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                    <Component className="h-8 w-8" />
+                    <h1 className="text-3xl font-headline font-bold">{isEditing && !cloneId ? 'Editar' : 'Nueva'} Elaboración {cloneId && <span className="text-xl text-muted-foreground">(Clonada)</span>}</h1>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" type="button" onClick={() => router.push('/book/elaboraciones')}> <X className="mr-2"/> Cancelar</Button>
+                    {isEditing && !cloneId && <Button variant="destructive" type="button" onClick={handleAttemptDelete}><Trash2 className="mr-2"/>Borrar</Button>}
+                    <Button type="submit" form="elaboration-form" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                    <span className="ml-2">{isEditing && !cloneId ? 'Guardar Cambios' : 'Guardar Elaboración'}</span>
+                    </Button>
+                </div>
+            </div>
+            {initialData && (
+                 <ElaborationForm
+                    initialData={initialData}
+                    onSave={onSubmit}
+                    isSubmitting={isLoading}
+                />
+            )}
+            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {affectedRecipes.length > 0 ? (
+                        <span>¡Atención! Esta elaboración se usa en <strong>{affectedRecipes.length} receta(s)</strong>. Si la eliminas, estas recetas quedarán incompletas y se marcarán para su revisión.</span>
+                      ) : (
+                        'Esta acción no se puede deshacer. Se eliminará permanentemente la elaboración.'
+                      )}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleDelete}>
+                        {affectedRecipes.length > 0 ? 'Eliminar y Marcar Recetas' : 'Eliminar Elaboración'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+      </main>
+    );
+}
+
+export default function ElaboracionesPage() {
+    const params = useParams();
+    const isListPage = !params || !params.id || params.id.length === 0;
+
+    return (
+        <Suspense fallback={<LoadingSkeleton title="Cargando elaboraciones..." />}>
+            {isListPage ? <ElaboracionesListPage /> : <ElaboracionFormPage />}
+        </Suspense>
+    );
 }
