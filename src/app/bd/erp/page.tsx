@@ -195,7 +195,7 @@ function ArticulosERPPageContent() {
             familiaCategoria: item.familiaCategoria || '',
             precioCompra: parseCurrency(item.precioCompra),
             descuento: parseCurrency(item.descuento),
-            unidadConversion: Number(item.unidadConversion) || 1,
+            unidadConversion: parseCurrency(item.unidadConversion) || 1,
             precioAlquiler: parseCurrency(item.precioAlquiler),
             unidad: UNIDADES_MEDIDA.includes(item.unidad) ? item.unidad : 'UD',
             tipo: item.tipo || '',
@@ -247,7 +247,7 @@ function ArticulosERPPageContent() {
       </div>
       
       <div className="flex items-center justify-end gap-2 mb-4">
-          <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages}</span>
+          <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
           <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
           <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
           <DropdownMenu>
