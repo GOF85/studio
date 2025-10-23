@@ -33,6 +33,8 @@ export const ingredienteFormSchema = z.object({
 
 type IngredienteFormValues = z.infer<typeof ingredienteFormSchema>;
 
+type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
+
 function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProducts }: { onSelect: (id: string) => void, searchTerm: string, setSearchTerm: (term: string) => void, filteredProducts: ArticuloERP[] }) {
     return (
         <DialogContent className="max-w-3xl">
@@ -46,7 +48,7 @@ function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProduc
                             <TableRow key={p.id}>
                                 <TableCell>{p.nombreProductoERP}</TableCell>
                                 <TableCell>{p.nombreProveedor}</TableCell>
-                                <TableCell>{p.precio.toLocaleString('es-ES', {style:'currency', currency: 'EUR'})}/{p.unidad}</TableCell>
+                                <TableCell>{(p.precio || 0).toLocaleString('es-ES', {style:'currency', currency: 'EUR'})}/{p.unidad}</TableCell>
                                 <TableCell>
                                     <Button size="sm" onClick={() => onSelect(p.id)}>
                                         <Check className="mr-2" />
@@ -79,7 +81,7 @@ export default function IngredienteFormPage() {
 
   const form = useForm<IngredienteFormValues>({
     resolver: zodResolver(ingredienteFormSchema),
-    defaultValues: { nombreIngrediente: '', productoERPlinkId: '', alergenosPresentes: [], alergenosTrazas: [] },
+    defaultValues: { id: Date.now().toString(), nombreIngrediente: '', productoERPlinkId: '', alergenosPresentes: [], alergenosTrazas: [] },
   });
   
   const selectedErpId = form.watch('productoERPlinkId');
@@ -87,7 +89,7 @@ export default function IngredienteFormPage() {
 
   const filteredErpProducts = useMemo(() => {
     return articulosERP.filter(p => 
-        p.nombreProductoERP.toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
+        (p.nombreProductoERP || '').toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
         (p.nombreProveedor || '').toLowerCase().includes(erpSearchTerm.toLowerCase()) ||
         (p.referenciaProveedor || '').toLowerCase().includes(erpSearchTerm.toLowerCase())
     );
@@ -101,12 +103,15 @@ export default function IngredienteFormPage() {
   }, []);
 
   useEffect(() => {
-    const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
+    const storedErpData = localStorage.getItem('articulosERP');
+    const storedErp = storedErpData ? JSON.parse(storedErpData) : [];
     setArticulosERP(storedErp);
 
     if (isEditing) {
-      const ingredientes = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
-      const ingrediente = ingredientes.find(p => p.id === id);
+      const storedIngredientes = localStorage.getItem('ingredientesInternos');
+      const ingredientes = storedIngredientes ? JSON.parse(storedIngredientes) : [];
+      const ingrediente = ingredientes.find((p: IngredienteInterno) => p.id === id);
+      
       if (ingrediente) {
         form.reset({
           ...ingrediente,
@@ -117,7 +122,7 @@ export default function IngredienteFormPage() {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el ingrediente.' });
         router.push('/book/ingredientes');
       }
-    } else { // This is the case for 'nuevo'
+    } else {
         form.reset({ id: Date.now().toString(), nombreIngrediente: '', productoERPlinkId: '', alergenosPresentes: [], alergenosTrazas: [] });
     }
   }, [id, isEditing, form, router, toast]);
@@ -125,7 +130,8 @@ export default function IngredienteFormPage() {
   function onSubmit(data: IngredienteFormValues) {
     setIsLoading(true);
 
-    let allItems = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+    const storedItems = localStorage.getItem('ingredientesInternos');
+    let allItems: IngredienteInterno[] = storedItems ? JSON.parse(storedItems) : [];
     let message = '';
     
     const dataToSave = {
@@ -160,7 +166,9 @@ export default function IngredienteFormPage() {
   }
 
   const handleAttemptDelete = () => {
-    const allElaboraciones: Elaboracion[] = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    const storedElaboraciones = localStorage.getItem('elaboraciones');
+    const allElaboraciones: Elaboracion[] = storedElaboraciones ? JSON.parse(storedElaboraciones) : [];
+    
     const elaborationsUsingIngredient = allElaboraciones.filter(elab => 
       elab.componentes.some(c => c.componenteId === id)
     );
@@ -173,7 +181,8 @@ export default function IngredienteFormPage() {
     if (!isEditing) return;
 
     if (affectedElaboraciones.length > 0) {
-        let allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+        const storedRecetas = localStorage.getItem('recetas');
+        let allRecetas: Receta[] = storedRecetas ? JSON.parse(storedRecetas) : [];
         const affectedElabIds = new Set(affectedElaboraciones.map(e => e.id));
         const recipesToFlag = allRecetas.filter(receta =>
             receta.elaboraciones.some(e => affectedElabIds.has(e.elaboracionId))
@@ -191,7 +200,8 @@ export default function IngredienteFormPage() {
         });
     }
 
-    let allItems = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+    const storedItems = localStorage.getItem('ingredientesInternos');
+    let allItems: IngredienteInterno[] = storedItems ? JSON.parse(storedItems) : [];
     const updatedItems = allItems.filter(p => p.id !== id);
     localStorage.setItem('ingredientesInternos', JSON.stringify(updatedItems));
     toast({ title: 'Ingrediente eliminado' });
@@ -313,7 +323,7 @@ export default function IngredienteFormPage() {
                                             </div>
                                             <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" onClick={() => form.setValue('productoERPlinkId', '')}><CircleX className="mr-1 h-3 w-3"/>Desvincular</Button>
                                         </div>
-                                        <p className="font-bold text-primary text-sm">{selectedErpProduct.precio.toLocaleString('es-ES', {style:'currency', currency: 'EUR'})} / {selectedErpProduct.unidad}</p>
+                                        <p className="font-bold text-primary text-sm">{(selectedErpProduct.precio || 0).toLocaleString('es-ES', {style:'currency', currency: 'EUR'})} / {selectedErpProduct.unidad}</p>
                                     </div>
                                 ) : (
                                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
