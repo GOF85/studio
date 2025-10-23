@@ -33,6 +33,9 @@ export default function NuevaFamiliaERPPage() {
     resolver: zodResolver(familiaERPSchema),
     defaultValues: {
       id: Date.now().toString(),
+      familiaCategoria: '',
+      Familia: '',
+      Categoria: '',
     },
   });
 
