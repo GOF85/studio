@@ -120,6 +120,7 @@ function ProveedoresPageContent() {
             
             const importedData: Proveedor[] = results.data.map((item: any) => ({
               ...item,
+              id: item.id || Date.now().toString() + Math.random(),
               tipos: typeof item.tipos === 'string' ? item.tipos.split(',').map((t: string) => t.trim()).filter(Boolean) : []
             }));
             
