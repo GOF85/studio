@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle, MoreHorizontal, Pencil, Check, CircleX } from 'lucide-react';
 import type { IngredienteInterno, ArticuloERP, Alergeno, Elaboracion, Receta } from '@/types';
 import { ALERGENOS } from '@/types';
@@ -389,7 +390,7 @@ export default function IngredientesPage() {
   const handleSave = (data: IngredienteFormValues) => {
     const allItems = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     let message = '';
-    const isEditing = !!initialData?.id;
+    const isEditing = !!(editingIngredient && editingIngredient !== 'new' && editingIngredient.id);
 
     const finalData = { ...data, lastRevision: new Date().toISOString() };
     
