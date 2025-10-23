@@ -54,7 +54,7 @@ function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProduc
                     <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Proveedor</TableHead><TableHead>Precio</TableHead><TableHead></TableHead></TableRow></TableHeader>
                     <TableBody>
                         {filteredProducts.map(p => (
-                            <TableRow key={p.idreferenciaerp}>
+                            <TableRow key={p.idreferenciaerp || p.id}>
                                 <TableCell>{p.nombreProductoERP}</TableCell>
                                 <TableCell>{p.nombreProveedor}</TableCell>
                                 <TableCell>{(calculatePrice(p) || 0).toLocaleString('es-ES', {style:'currency', currency: 'EUR'})}/{p.unidad}</TableCell>
@@ -117,7 +117,15 @@ export default function IngredienteFormPage() {
     const erpData = JSON.parse(storedErpData) as ArticuloERP[];
     setArticulosERP(erpData);
 
-    if (isEditing) {
+    if (id === 'nuevo') {
+        form.reset({
+            id: Date.now().toString(),
+            nombreIngrediente: '',
+            productoERPlinkId: '',
+            alergenosPresentes: [],
+            alergenosTrazas: [],
+        });
+    } else {
         const storedIngredientesData = localStorage.getItem('ingredientesInternos') || '[]';
         const ingredientes = JSON.parse(storedIngredientesData) as IngredienteInterno[];
         const ingrediente = ingredientes.find((p: IngredienteInterno) => p.id === id);
@@ -133,17 +141,9 @@ export default function IngredienteFormPage() {
             router.push('/book/ingredientes');
             return;
         }
-    } else { // Creation mode
-        form.reset({
-            id: Date.now().toString(),
-            nombreIngrediente: '',
-            productoERPlinkId: '',
-            alergenosPresentes: [],
-            alergenosTrazas: [],
-        });
     }
     setIsDataLoaded(true);
-}, [id, isEditing, form, router, toast]);
+}, [id, form, router, toast]);
 
 
   function onSubmit(data: IngredienteFormValues) {
