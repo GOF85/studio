@@ -45,7 +45,6 @@ function ArticulosERPPageContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [providerFilter, setProviderFilter] = useState('all');
-  const [forRentFilter, setForRentFilter] = useState(false);
   const [proveedoresMap, setProveedoresMap] = useState<Map<string, string>>(new Map());
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -108,11 +107,10 @@ function ArticulosERPPageContent() {
 
         const typeMatch = typeFilter === 'all' || item.tipo === typeFilter;
         const providerMatch = providerFilter === 'all' || item.nombreProveedor === providerFilter;
-        const forRentMatch = !forRentFilter || item.alquiler;
 
-        return searchMatch && typeMatch && providerMatch && forRentMatch;
+        return searchMatch && typeMatch && providerMatch;
     });
-  }, [items, searchTerm, typeFilter, providerFilter, forRentFilter]);
+  }, [items, searchTerm, typeFilter, providerFilter]);
   
   const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
   const paginatedItems = useMemo(() => {
@@ -231,7 +229,7 @@ function ArticulosERPPageContent() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-4 mb-4">
+       <div className="flex flex-wrap items-center gap-4 mb-4">
           <Input 
               placeholder="Buscar..."
               className="flex-grow max-w-xs"
@@ -246,10 +244,6 @@ function ArticulosERPPageContent() {
               <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
               <SelectContent>{providers.map(p => <SelectItem key={p} value={p}>{p === 'all' ? 'Todos los Proveedores' : p}</SelectItem>)}</SelectContent>
           </Select>
-          <div className="flex items-center space-x-2">
-              <Checkbox id="for-rent-filter" checked={forRentFilter} onCheckedChange={(checked) => setForRentFilter(Boolean(checked))} />
-              <Label htmlFor="for-rent-filter">Apto Alquiler</Label>
-          </div>
           <div className="flex-grow flex justify-end items-center gap-2">
             <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
             <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
