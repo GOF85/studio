@@ -89,7 +89,7 @@ function ArticulosERPPageContent() {
     
     const enrichedItems = items.map((item: ArticuloERP) => ({
       ...item,
-      nombreProveedor: pMap.get(item.idProveedor || '') || item.nombreProveedor || ''
+      nombreProveedor: pMap.get(item.idProveedor || '') || item.nombreProveedor || 'Proveedor no identificado'
     }));
 
     form.reset({ items: enrichedItems });
@@ -240,7 +240,7 @@ function ArticulosERPPageContent() {
             idProveedor: item.idProveedor || '',
             nombreProductoERP: item.nombreProductoERP || '',
             referenciaProveedor: item.referenciaProveedor || '',
-            nombreProveedor: proveedoresMap.get(item.idProveedor || '') || item.nombreProveedor || '',
+            nombreProveedor: proveedoresMap.get(item.idProveedor || '') || item.nombreProveedor || 'Proveedor no identificado',
             familiaCategoria: item.familiaCategoria || '',
             precioCompra: parseCurrency(item.precioCompra),
             descuento: parseCurrency(item.descuento),
@@ -378,7 +378,7 @@ function ArticulosERPPageContent() {
                                  <FormField control={form.control} name={`items.${item.originalIndex}.idProveedor`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
                             </TableCell>
                             <TableCell className="p-1">
-                                 <Input value={proveedoresMap.get(item.idProveedor || '') || ''} readOnly className="h-8 bg-muted/50"/>
+                                 <Input value={proveedoresMap.get(item.idProveedor || '') || 'Proveedor no identificado'} readOnly className="h-8 bg-muted/50"/>
                             </TableCell>
                             <TableCell className="p-1">
                                  <FormField control={form.control} name={`items.${item.originalIndex}.referenciaProveedor`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
@@ -462,7 +462,7 @@ function ArticulosERPPageContent() {
                 <AlertDialogHeader>
                     <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. Normalmente es una coma (,) para archivos de USA/UK o un punto y coma (;) para archivos de Europa.
+                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter className="!justify-center gap-4">
