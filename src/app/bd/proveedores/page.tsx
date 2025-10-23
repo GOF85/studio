@@ -51,6 +51,7 @@ function ProveedoresPageContent() {
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
 
   useEffect(() => {
     let storedData = localStorage.getItem('proveedores');
@@ -100,13 +101,17 @@ function ProveedoresPageContent() {
     toast({ title: 'Exportación completada' });
   };
   
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+        setIsImportAlertOpen(false);
+        return;
+    }
 
     Papa.parse<any>(file, {
         header: true,
         skipEmptyLines: true,
+        delimiter,
         complete: (results) => {
             if (!results.meta.fields || !CSV_HEADERS.every(field => results.meta.fields?.includes(field))) {
                 toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
@@ -115,15 +120,17 @@ function ProveedoresPageContent() {
             
             const importedData: Proveedor[] = results.data.map((item: any) => ({
               ...item,
-              tipos: item.tipos ? item.tipos.split(',') : []
+              tipos: typeof item.tipos === 'string' ? item.tipos.split(',').map((t: string) => t.trim()).filter(Boolean) : []
             }));
             
             localStorage.setItem('proveedores', JSON.stringify(importedData));
             setItems(importedData);
             toast({ title: 'Importación completada', description: `Se han importado ${importedData.length} registros.` });
+            setIsImportAlertOpen(false);
         },
         error: (error) => {
             toast({ variant: 'destructive', title: 'Error de importación', description: error.message });
+            setIsImportAlertOpen(false);
         }
     });
     
@@ -164,9 +171,8 @@ function ProveedoresPageContent() {
                     <Button variant="outline" size="icon"><Menu /></Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuItem onSelect={() => fileInputRef.current?.click()}>
+                    <DropdownMenuItem onSelect={() => setIsImportAlertOpen(true)}>
                         <FileUp size={16} className="mr-2"/>Importar CSV
-                         <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleImportCSV} />
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleExportCSV}>
                         <FileDown size={16} className="mr-2"/>Exportar CSV
@@ -249,6 +255,21 @@ function ProveedoresPageContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Importar Archivo CSV</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Selecciona el tipo de delimitador que utiliza tu archivo CSV. El fichero debe tener cabeceras que coincidan con el modelo de datos.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="!justify-center gap-4">
+                    <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => handleImportCSV(e, fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';')} />
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ','); fileInputRef.current?.click(); }}>Delimitado por Comas (,)</Button>
+                    <Button onClick={() => { fileInputRef.current?.setAttribute('data-delimiter', ';'); fileInputRef.current?.click(); }}>Delimitado por Punto y Coma (;)</Button>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </>
   );
 }
