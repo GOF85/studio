@@ -63,6 +63,8 @@ export default function AnaliticaCateringPage() {
     const [espacioFilter, setEspacioFilter] = useState('all');
     const [comercialFilter, setComercialFilter] = useState('all');
     const [clienteFilter, setClienteFilter] = useState('all');
+    const [clienteTipoFilter, setClienteTipoFilter] = useState<'all' | 'Empresa' | 'Agencia'>('all');
+
 
     useEffect(() => {
         const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical !== 'Entregas' && os.status === 'Confirmado');
@@ -103,9 +105,10 @@ export default function AnaliticaCateringPage() {
             const matchesEspacio = espacioFilter === 'all' || p.os.space === espacioFilter;
             const matchesComercial = comercialFilter === 'all' || p.os.comercial === comercialFilter;
             const matchesCliente = clienteFilter === 'all' || p.os.client === clienteFilter;
-            return isInDateRange && matchesEspacio && matchesComercial && matchesCliente;
+            const matchesTipoCliente = clienteTipoFilter === 'all' || p.os.tipoCliente === clienteTipoFilter;
+            return isInDateRange && matchesEspacio && matchesComercial && matchesCliente && matchesTipoCliente;
         });
-    }, [allPedidos, dateRange, espacioFilter, comercialFilter, clienteFilter]);
+    }, [allPedidos, dateRange, espacioFilter, comercialFilter, clienteFilter, clienteTipoFilter]);
 
     const analisisGlobal = useMemo(() => {
         if (pedidosFiltrados.length === 0) return { pvpNeto: 0, costeTotal: 0, numEventos: 0, numHitos: 0 };
@@ -158,6 +161,20 @@ export default function AnaliticaCateringPage() {
             name, ...data, margen: data.facturacion - data.coste, margenPct: data.facturacion > 0 ? (data.facturacion - data.coste) / data.facturacion : 0
         })).sort((a, b) => b.margen - a.margen);
     }, [pedidosFiltrados]);
+    
+    const analisisMetres = useMemo(() => {
+        const porMetre: Record<string, { facturacion: number; coste: number; eventos: number }> = {};
+        pedidosFiltrados.forEach(p => {
+            const metre = p.os.respMetre || 'Sin Asignar';
+            if (!porMetre[metre]) porMetre[metre] = { facturacion: 0, coste: 0, eventos: 0 };
+            porMetre[metre].facturacion += p.pvpFinal;
+            porMetre[metre].coste += p.costeTotal;
+            porMetre[metre].eventos += 1;
+        });
+        return Object.entries(porMetre).map(([name, data]) => ({
+            name, ...data, margen: data.facturacion - data.coste, margenPct: data.facturacion > 0 ? (data.facturacion - data.coste) / data.facturacion : 0
+        })).sort((a, b) => b.margen - a.margen);
+    }, [pedidosFiltrados]);
 
 
     if (!isMounted) {
@@ -167,7 +184,7 @@ export default function AnaliticaCateringPage() {
     return (
         <main>
             <Card className="mb-6">
-                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                         <PopoverTrigger asChild>
                             <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
@@ -179,6 +196,14 @@ export default function AnaliticaCateringPage() {
                             <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
                         </PopoverContent>
                     </Popover>
+                     <Select value={clienteTipoFilter} onValueChange={(value) => setClienteTipoFilter(value as any)}>
+                        <SelectTrigger><div className="flex items-center gap-2"><Briefcase className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos los Tipos de Cliente</SelectItem>
+                            <SelectItem value="Empresa">Empresa</SelectItem>
+                            <SelectItem value="Agencia">Agencia</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <Select value={comercialFilter} onValueChange={setComercialFilter}>
                         <SelectTrigger><div className="flex items-center gap-2"><Briefcase className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
                         <SelectContent><SelectItem value="all">Todos los Comerciales</SelectItem>{allComerciales.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
@@ -228,7 +253,7 @@ export default function AnaliticaCateringPage() {
                         </ResponsiveContainer>
                     </CardContent>
                 </Card>
-                <Card>
+                 <Card>
                     <CardHeader><CardTitle>Rendimiento por Comercial</CardTitle></CardHeader>
                     <CardContent>
                         <Table>
@@ -240,6 +265,27 @@ export default function AnaliticaCateringPage() {
                                     <TableCell className="text-right">{c.eventos}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(c.facturacion)}</TableCell>
                                     <TableCell className={cn("text-right font-bold", c.margen < 0 && 'text-destructive')}>{formatPercentage(c.margenPct)}</TableCell>
+                                </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </div>
+            
+             <div className="mb-8">
+                <Card>
+                    <CardHeader><CardTitle>Rendimiento por Metre</CardTitle></CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Metre</TableHead><TableHead className="text-right">Eventos</TableHead><TableHead className="text-right">Facturación</TableHead><TableHead className="text-right">Margen</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {analisisMetres.map(m => (
+                                <TableRow key={m.name}>
+                                    <TableCell className="font-medium">{m.name}</TableCell>
+                                    <TableCell className="text-right">{m.eventos}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(m.facturacion)}</TableCell>
+                                    <TableCell className={cn("text-right font-bold", m.margen < 0 && 'text-destructive')}>{formatPercentage(m.margenPct)}</TableCell>
                                 </TableRow>
                                 ))}
                             </TableBody>
@@ -290,3 +336,5 @@ export default function AnaliticaCateringPage() {
         </main>
     )
 }
+
+    
