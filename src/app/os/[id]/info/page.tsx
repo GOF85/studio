@@ -65,7 +65,7 @@ export const osFormSchema = z.object({
   client: z.string().min(1, 'El cliente es obligatorio.'),
   tipoCliente: z.enum(['Empresa', 'Agencia', 'Particular']).optional(),
   asistentes: z.coerce.number().min(1, 'El número de asistentes es obligatorio.'),
-  cateringVertical: z.enum(CATERING_VERTICALES, { required_error: 'La vertical de catering es obligatoria.' }).optional(),
+  cateringVertical: z.enum(CATERING_VERTICALES, { required_error: 'La vertical de catering es obligatoria.' }),
   contact: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   finalClient: z.string().optional().default(''),
@@ -151,6 +151,56 @@ const ClienteTitle = () => {
         )}
     </div>
   );
+};
+
+const ClientInfo = () => {
+    const { control } = useFormContext();
+    return (
+        <AccordionContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 pt-2">
+                 <FormField control={control} name="client" render={({ field }) => (
+                    <FormItem><FormLabel>Cliente</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={control} name="tipoCliente" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Tipo Cliente</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger></FormControl>
+                        <SelectContent>
+                            <SelectItem value="Empresa">Empresa</SelectItem>
+                            <SelectItem value="Agencia">Agencia</SelectItem>
+                            <SelectItem value="Particular">Particular</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    </FormItem>
+                )} />
+                 <FormField control={control} name="finalClient" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Cliente Final</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
+                    </FormItem>
+                )} />
+                <FormField control={control} name="contact" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contacto Principal</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                  </FormItem>
+                )} />
+                <FormField control={control} name="phone" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Teléfono Principal</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                  </FormItem>
+                )} />
+                 <FormField control={control} name="email" render={({ field }) => (
+                    <FormItem><FormLabel>Email Principal</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={control} name="direccionPrincipal" render={({ field }) => (
+                    <FormItem className="col-span-full"><FormLabel>Dirección Principal de Entrega</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                )} />
+            </div>
+        </AccordionContent>
+    );
 };
 
 const EspacioTitle = () => {
@@ -509,7 +559,7 @@ export default function InfoPage() {
                                         <FormLabel>Espacio</FormLabel>
                                         <Combobox
                                             options={espacioOptions}
-                                            value={field.value}
+                                            value={field.value || ''}
                                             onChange={(value) => { field.onChange(value); handleEspacioChange(value); }}
                                             placeholder="Busca o selecciona un espacio..."
                                         />
