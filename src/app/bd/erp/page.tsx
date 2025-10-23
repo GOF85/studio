@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
@@ -44,7 +45,7 @@ const formSchema = z.object({
 });
 
 type ArticulosERPFormValues = z.infer<typeof formSchema>;
-const CSV_HEADERS = ["id", "idProveedor", "nombreProveedor", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "descuento", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
+const CSV_HEADERS = ["id", "idreferenciaerp", "idProveedor", "nombreProveedor", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "descuento", "unidadConversion", "precioAlquiler", "unidad", "tipo", "alquiler", "observaciones"];
 
 function ArticulosERPPageContent() {
   const [isMounted, setIsMounted] = useState(false);
@@ -149,6 +150,7 @@ function ArticulosERPPageContent() {
   const handleAddNewRow = () => {
     append({
       id: Date.now().toString(),
+      idreferenciaerp: '',
       idProveedor: '',
       nombreProductoERP: '',
       referenciaProveedor: '',
@@ -237,6 +239,7 @@ function ArticulosERPPageContent() {
         
         const importedData: ArticuloERP[] = results.data.map((item: any) => ({
             id: item.id || Date.now().toString() + Math.random(),
+            idreferenciaerp: item.idreferenciaerp || '',
             idProveedor: item.idProveedor || '',
             nombreProductoERP: item.nombreProductoERP || '',
             referenciaProveedor: item.referenciaProveedor || '',
@@ -347,6 +350,7 @@ function ArticulosERPPageContent() {
                     <TableHeader>
                     <TableRow>
                         <TableHead className="p-2 w-48">Producto</TableHead>
+                        <TableHead className="p-2 w-28">Ref. ERP</TableHead>
                         <TableHead className="p-2 w-28">Id. Proveedor</TableHead>
                         <TableHead className="p-2 w-40">Proveedor</TableHead>
                         <TableHead className="p-2 w-32">Ref. Proveedor</TableHead>
@@ -373,6 +377,9 @@ function ArticulosERPPageContent() {
                         <TableRow key={item.id}>
                             <TableCell className="p-1">
                                 <FormField control={form.control} name={`items.${item.originalIndex}.nombreProductoERP`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
+                            </TableCell>
+                            <TableCell className="p-1">
+                                 <FormField control={form.control} name={`items.${item.originalIndex}.idreferenciaerp`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
                             </TableCell>
                             <TableCell className="p-1">
                                  <FormField control={form.control} name={`items.${item.originalIndex}.idProveedor`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
@@ -425,7 +432,7 @@ function ArticulosERPPageContent() {
                         )})
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={13} className="h-24 text-center">
+                        <TableCell colSpan={14} className="h-24 text-center">
                             No se encontraron artículos que coincidan con la búsqueda.
                         </TableCell>
                         </TableRow>

@@ -472,7 +472,7 @@ export type AtipicoOrder = {
 export type PersonalMiceOrder = {
     id: string;
     osId: string;
-    solicitadoPor: 'Sala' | 'Pase' | 'Otro';
+    centroCoste: 'SALA' | 'COCINA' | 'LOGISTICA' | 'RRHH';
     nombre: string;
     dni: string;
     tipoServicio: 'Producción' | 'Montaje' | 'Servicio' | 'Recogida' | 'Descarga';
@@ -590,6 +590,7 @@ export type UnidadMedida = typeof UNIDADES_MEDIDA[number];
 
 export const articuloErpSchema = z.object({
   id: z.string(),
+  idreferenciaerp: z.string().optional(),
   idProveedor: z.string().optional(),
   nombreProductoERP: z.string().min(1, 'El nombre del producto es obligatorio'),
   referenciaProveedor: z.string().optional(),
