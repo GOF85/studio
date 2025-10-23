@@ -3,7 +3,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -116,7 +116,7 @@ export default function IngredienteFormPage() {
     const storedErpData = localStorage.getItem('articulosERP') || '[]';
     const erpData = JSON.parse(storedErpData) as ArticuloERP[];
     setArticulosERP(erpData);
-    
+
     if (isEditing) {
         const storedIngredientesData = localStorage.getItem('ingredientesInternos') || '[]';
         const ingredientes = JSON.parse(storedIngredientesData) as IngredienteInterno[];
@@ -143,7 +143,7 @@ export default function IngredienteFormPage() {
         });
     }
     setIsDataLoaded(true);
-  }, [id, isEditing, form, router, toast]);
+}, [id, isEditing, form, router, toast]);
 
 
   function onSubmit(data: IngredienteFormValues) {
