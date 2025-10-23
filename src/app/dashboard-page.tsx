@@ -58,15 +58,12 @@ const reportingItems: MenuItem[] = [
     }
 ];
 
-const externalItems: MenuItem[] = [
+const adminItems: MenuItem[] = [
     { 
         title: 'Portales Externos', 
         href: '/portal', 
         icon: Users, 
     },
-];
-
-const adminItems: MenuItem[] = [
     { 
         title: 'Bases de Datos', 
         href: '/bd', 
@@ -80,6 +77,7 @@ const adminItems: MenuItem[] = [
 ];
 
 export function Section({ title, items }: { title: string, items: MenuItem[] }) {
+    if (items.length === 0) return null;
     return (
         <section>
             <h2 className="text-xl font-headline font-semibold tracking-tight mb-3">{title}</h2>
@@ -107,8 +105,7 @@ export function DashboardPage() {
             <Section title="Planificación" items={planningItems} />
             <Section title="Operaciones Centrales" items={coreOpsItems} />
             <Section title="Análisis y Reportes" items={reportingItems} />
-            <Section title="Colaboradores" items={externalItems} />
-            <Section title="Administración" items={adminItems} />
+            <Section title="Administración y Colaboradores" items={adminItems} />
           </div>
         </main>
         <footer className="py-4 border-t mt-auto">
