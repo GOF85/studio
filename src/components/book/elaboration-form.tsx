@@ -61,7 +61,7 @@ function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, allElabo
     useEffect(() => {
         const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
         const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-        const erpMap = new Map(storedErp.map(i => [i.id, i]));
+        const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
         
         const combined = storedInternos.map(ing => ({
             ...ing,
@@ -83,6 +83,15 @@ function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, allElabo
         );
     }, [allElaboraciones, elabSearchTerm]);
 
+    const calculateCosteReal = (erpItem: ArticuloERP | undefined): number => {
+        if (!erpItem) return 0;
+        const precioCompra = erpItem.precioCompra || 0;
+        const unidadConversion = erpItem.unidadConversion || 1;
+        const descuento = erpItem.descuento || 0;
+        const costePorUnidadBase = unidadConversion > 0 ? precioCompra / unidadConversion : 0;
+        return costePorUnidadBase * (1 - descuento / 100);
+    };
+
     return (
         <DialogContent className="max-w-4xl">
             <DialogHeader><DialogTitle>Seleccionar Componente</DialogTitle></DialogHeader>
@@ -100,7 +109,7 @@ function ComponenteSelector({ onSelectIngrediente, onSelectElaboracion, allElabo
                                 {filteredIngredientes.map(ing => (
                                     <TableRow key={ing.id}>
                                         <TableCell>{ing.nombreIngrediente}</TableCell>
-                                        <TableCell>{formatCurrency(ing.erp?.precio)} / {ing.erp ? formatUnit(ing.erp.unidad) : 'Ud'}</TableCell>
+                                        <TableCell>{formatCurrency(calculateCosteReal(ing.erp))} / {ing.erp ? formatUnit(ing.erp.unidad) : 'Ud'}</TableCell>
                                         <TableCell className="text-right"><Button size="sm" type="button" onClick={() => onSelectIngrediente(ing)}>Añadir</Button></TableCell>
                                     </TableRow>
                                 ))}
@@ -176,13 +185,16 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
   }, []);
 
   const handleSelectIngrediente = (ingrediente: IngredienteConERP) => {
+      const erpItem = ingrediente.erp;
+      const costeReal = erpItem ? (erpItem.precioCompra / (erpItem.unidadConversion || 1)) * (1 - (erpItem.descuento || 0) / 100) : 0;
+      
       append({
           id: `${ingrediente.id}-${Date.now()}`,
           tipo: 'ingrediente',
           componenteId: ingrediente.id,
           nombre: ingrediente.nombreIngrediente,
           cantidad: 1,
-          costePorUnidad: ingrediente.erp?.precio || 0,
+          costePorUnidad: costeReal,
           merma: 0,
       });
       setIsSelectorOpen(false);
