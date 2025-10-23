@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -7,7 +6,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle, MoreHorizontal, Pencil, Check, CircleX } from 'lucide-react';
 import type { IngredienteInterno, ArticuloERP, Alergeno, Elaboracion, Receta } from '@/types';
 import { ALERGENOS } from '@/types';
@@ -59,15 +57,17 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
     const [articulosERP, setArticulosERP] = useState<ArticuloERP[]>([]);
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
     
+    const defaultFormValues = {
+        id: Date.now().toString(),
+        nombreIngrediente: '',
+        productoERPlinkId: '',
+        alergenosPresentes: [],
+        alergenosTrazas: [],
+    };
+    
     const form = useForm<IngredienteFormValues>({
         resolver: zodResolver(ingredienteFormSchema),
-        defaultValues: initialData || {
-            id: Date.now().toString(),
-            nombreIngrediente: '',
-            productoERPlinkId: '',
-            alergenosPresentes: [],
-            alergenosTrazas: [],
-        }
+        defaultValues: initialData || defaultFormValues
     });
 
     useEffect(() => {
@@ -77,13 +77,8 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
 
     useEffect(() => {
         if(open) {
-            form.reset(initialData || {
-                id: Date.now().toString(),
-                nombreIngrediente: '',
-                productoERPlinkId: '',
-                alergenosPresentes: [],
-                alergenosTrazas: [],
-            });
+            const valuesToReset = initialData || defaultFormValues;
+            form.reset(valuesToReset);
         }
     }, [initialData, form, open]);
 
