@@ -3,8 +3,6 @@
 
 import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { PlusCircle, Save, Trash2, Loader2, Menu, FileUp, FileDown, Database, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ArticuloERP, UnidadMedida, Proveedor, FamiliaERP } from '@/types';
 import { UNIDADES_MEDIDA, articuloErpSchema } from '@/types';
@@ -31,27 +29,20 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { formatCurrency, formatUnit } from '@/lib/utils';
-import { z } from 'zod';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import Papa from 'papaparse';
 import { Label } from '@/components/ui/label';
 
-const formSchema = z.object({
-    items: z.array(articuloErpSchema)
-});
-
-type ArticulosERPFormValues = z.infer<typeof formSchema>;
 const CSV_HEADERS = ["id", "idreferenciaerp", "idProveedor", "nombreProveedor", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "descuento", "unidadConversion", "precioAlquiler", "unidad", "tipo", "categoriaMice", "alquiler", "observaciones"];
 
 const ITEMS_PER_PAGE = 20;
 
 function ArticulosERPPageContent() {
+  const [items, setItems] = useState<ArticuloERP[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [itemToDelete, setItemToDelete] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -61,23 +52,9 @@ function ArticulosERPPageContent() {
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
-
   const router = useRouter();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const form = useForm<ArticulosERPFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-        items: []
-    }
-  });
-
-  const { control, getValues, watch } = form;
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "items"
-  });
 
   useEffect(() => {
     const allProveedores = JSON.parse(localStorage.getItem('proveedores') || '[]') as Proveedor[];
@@ -103,18 +80,16 @@ function ArticulosERPPageContent() {
       };
     });
 
-    form.reset({ items: enrichedItems });
+    setItems(enrichedItems);
     setIsMounted(true);
-  }, [form]);
-  
-  const watchedItems = watch('items');
+  }, []);
 
   const { categories, types, providers } = useMemo(() => {
-    if (!watchedItems) return { categories: [], types: [], providers: [] };
+    if (!items) return { categories: [], types: [], providers: [] };
     const catSet = new Set<string>();
     const typeSet = new Set<string>();
     const provSet = new Set<string>();
-    watchedItems.forEach(item => {
+    items.forEach(item => {
       if (item.familiaCategoria) catSet.add(item.familiaCategoria);
       if (item.tipo) typeSet.add(item.tipo);
       if (item.nombreProveedor) provSet.add(item.nombreProveedor);
@@ -124,12 +99,11 @@ function ArticulosERPPageContent() {
       types: ['all', ...Array.from(typeSet).sort()],
       providers: ['all', ...Array.from(provSet).sort()],
     };
-  }, [watchedItems]);
+  }, [items]);
 
   const filteredItems = useMemo(() => {
-    if (!watchedItems) return [];
-    return watchedItems.map((item, index) => ({...item, originalIndex: index}))
-      .filter(item => {
+    if (!items) return [];
+    return items.filter(item => {
         const term = searchTerm.toLowerCase();
         const searchMatch =
           (item.nombreProductoERP || '').toLowerCase().includes(term) ||
@@ -145,7 +119,7 @@ function ArticulosERPPageContent() {
 
         return searchMatch && categoryMatch && typeMatch && providerMatch && forRentMatch;
     });
-  }, [watchedItems, searchTerm, categoryFilter, typeFilter, providerFilter, forRentFilter]);
+  }, [items, searchTerm, categoryFilter, typeFilter, providerFilter, forRentFilter]);
   
   const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
   const paginatedItems = useMemo(() => {
@@ -156,51 +130,13 @@ function ArticulosERPPageContent() {
   const handlePreviousPage = () => setCurrentPage(prev => Math.max(1, prev - 1));
   const handleNextPage = () => setCurrentPage(prev => Math.min(totalPages, prev + 1));
 
-  function onSubmit(data: ArticulosERPFormValues) {
-    setIsLoading(true);
-    localStorage.setItem('articulosERP', JSON.stringify(data.items));
-    setTimeout(() => {
-        toast({ title: 'Guardado', description: 'La base de datos de artículos ERP ha sido guardada.' });
-        setIsLoading(false);
-        form.reset(data); // Mark form as not dirty
-    }, 500);
-  }
-
-  const handleAddNewRow = () => {
-    append({
-      id: Date.now().toString(),
-      idreferenciaerp: '',
-      idProveedor: '',
-      nombreProductoERP: '',
-      referenciaProveedor: '',
-      nombreProveedor: '',
-      familiaCategoria: '',
-      precioCompra: 0,
-      descuento: 0,
-      unidadConversion: 1,
-      precioAlquiler: 0,
-      unidad: 'UD',
-      tipo: '',
-      categoriaMice: '',
-      alquiler: false,
-      observaciones: '',
-    });
-  };
-  
-  const handleDeleteRow = () => {
-    if (itemToDelete !== null) {
-      remove(itemToDelete);
-      setItemToDelete(null);
-      toast({title: 'Fila eliminada', description: 'La fila se eliminará permanentemente al guardar los cambios.'})
-    }
-  }
 
   const handleExportCSV = () => {
-    if (fields.length === 0) {
+    if (items.length === 0) {
       toast({ variant: 'destructive', title: 'No hay datos', description: 'No hay artículos para exportar.' });
       return;
     }
-    const dataToExport = getValues('items').map(item => {
+    const dataToExport = items.map(item => {
         const exportItem: any = {};
         CSV_HEADERS.forEach(header => {
             exportItem[header] = (item as any)[header] ?? '';
@@ -275,8 +211,9 @@ function ArticulosERPPageContent() {
             observaciones: item.observaciones || ''
         }));
         
-        form.reset({items: importedData})
-        toast({ title: 'Importación preparada', description: `Se han cargado ${importedData.length} registros. Haz clic en "Guardar Cambios" para confirmar.` });
+        localStorage.setItem('articulosERP', JSON.stringify(importedData));
+        setItems(importedData);
+        toast({ title: 'Importación completada', description: `Se han cargado ${importedData.length} registros.` });
         setIsImportAlertOpen(false);
       },
       error: (error) => {
@@ -296,185 +233,116 @@ function ArticulosERPPageContent() {
   return (
     <>
       <main className="container mx-auto px-4 py-8">
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
-                <div className="flex items-center justify-between mb-6">
-                    <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Database />Base de Datos de Artículos (ERP)</h1>
-                <div className="flex gap-2">
-                    <Button type="button" variant="outline" onClick={handleAddNewRow}>
-                        <PlusCircle className="mr-2" />
-                        Añadir Fila
+        <div className="flex items-center justify-end mb-6">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon">
+                        <Menu />
                     </Button>
-                     <Button type="submit" disabled={isLoading || !form.formState.isDirty}>
-                        {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                        <span className="ml-2">Guardar Cambios</span>
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="icon">
-                              <Menu />
-                          </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                          <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsImportAlertOpen(true); }}>
-                               <FileUp size={16} className="mr-2"/>Importar CSV
-                          </DropdownMenuItem>
-                           <DropdownMenuItem onClick={handleExportCSV}>
-                               <FileDown size={16} className="mr-2"/>Exportar CSV
-                          </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-                </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsImportAlertOpen(true); }}>
+                        <FileUp size={16} className="mr-2"/>Importar CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportCSV}>
+                        <FileDown size={16} className="mr-2"/>Exportar CSV
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
 
-                <div className="flex flex-wrap items-center gap-4 mb-6">
-                    <Input 
-                        placeholder="Buscar..."
-                        className="flex-grow max-w-xs"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                        <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'Todas las Categorías' : c}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Select value={typeFilter} onValueChange={setTypeFilter}>
-                        <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>{types.map(t => <SelectItem key={t} value={t}>{t === 'all' ? 'Todos los Tipos' : t}</SelectItem>)}</SelectContent>
-                    </Select>
-                     <Select value={providerFilter} onValueChange={setProviderFilter}>
-                        <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>{providers.map(p => <SelectItem key={p} value={p}>{p === 'all' ? 'Todos los Proveedores' : p}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <div className="flex items-center space-x-2">
-                        <Checkbox id="for-rent-filter" checked={forRentFilter} onCheckedChange={(checked) => setForRentFilter(Boolean(checked))} />
-                        <Label htmlFor="for-rent-filter">Apto Alquiler</Label>
-                    </div>
-                </div>
-                
-                 <div className="flex items-center justify-end gap-2 mb-4">
-                    <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages}</span>
-                    <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
-                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
-                </div>
+        <div className="flex flex-wrap items-center gap-4 mb-6">
+            <Input 
+                placeholder="Buscar..."
+                className="flex-grow max-w-xs"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
+                <SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'Todas las Categorías' : c}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
+                <SelectContent>{types.map(t => <SelectItem key={t} value={t}>{t === 'all' ? 'Todos los Tipos' : t}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={providerFilter} onValueChange={setProviderFilter}>
+                <SelectTrigger className="w-full md:w-auto flex-grow md:flex-grow-0 md:w-[180px]"><SelectValue /></SelectTrigger>
+                <SelectContent>{providers.map(p => <SelectItem key={p} value={p}>{p === 'all' ? 'Todos los Proveedores' : p}</SelectItem>)}</SelectContent>
+            </Select>
+            <div className="flex items-center space-x-2">
+                <Checkbox id="for-rent-filter" checked={forRentFilter} onCheckedChange={(checked) => setForRentFilter(Boolean(checked))} />
+                <Label htmlFor="for-rent-filter">Apto Alquiler</Label>
+            </div>
+        </div>
+        
+        <div className="flex items-center justify-end gap-2 mb-4">
+            <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages}</span>
+            <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
+        </div>
 
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  accept=".csv"
-                  onChange={(e) => {
-                    const delimiter = fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';';
-                    if (delimiter) {
-                        handleImportCSV(e, delimiter);
-                    }
-                  }}
-                />
+        <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept=".csv"
+            onChange={(e) => {
+            const delimiter = fileInputRef.current?.getAttribute('data-delimiter') as ',' | ';';
+            if (delimiter) {
+                handleImportCSV(e, delimiter);
+            }
+            }}
+        />
 
-                <div className="border rounded-lg">
-                <Table>
-                    <TableHeader>
+        <div className="border rounded-lg">
+            <Table>
+                <TableHeader>
                     <TableRow>
-                        <TableHead className="p-2 w-48">Producto</TableHead>
-                        <TableHead className="p-2 w-28">Ref. ERP</TableHead>
-                        <TableHead className="p-2 w-40">Proveedor</TableHead>
-                        <TableHead className="p-2 w-28">P. Compra</TableHead>
-                        <TableHead className="p-2 w-28">Desc. %</TableHead>
-                        <TableHead className="p-2 w-28">Factor Conv.</TableHead>
-                        <TableHead className="p-2 w-28">Precio/Unidad</TableHead>
-                        <TableHead className="p-2 w-32">Unidad</TableHead>
-                        <TableHead className="p-2 w-32">Tipo (Familia)</TableHead>
-                        <TableHead className="p-2 w-32">Categoría MICE</TableHead>
-                        <TableHead className="p-2 w-16 text-right">Acciones</TableHead>
+                        <TableHead className="p-2">Producto</TableHead>
+                        <TableHead className="p-2">Ref. ERP</TableHead>
+                        <TableHead className="p-2">Proveedor</TableHead>
+                        <TableHead className="p-2 text-right">P. Compra</TableHead>
+                        <TableHead className="p-2 text-right">Desc. %</TableHead>
+                        <TableHead className="p-2 text-right">Factor Conv.</TableHead>
+                        <TableHead className="p-2 text-right">Precio/Unidad</TableHead>
+                        <TableHead className="p-2">Unidad</TableHead>
+                        <TableHead className="p-2">Tipo (Familia)</TableHead>
+                        <TableHead className="p-2">Categoría MICE</TableHead>
                     </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                </TableHeader>
+                <TableBody>
                     {paginatedItems.length > 0 ? (
                         paginatedItems.map(item => {
-                            const precioCompra = watchedItems[item.originalIndex]?.precioCompra || 0;
-                            const descuento = watchedItems[item.originalIndex]?.descuento || 0;
-                            const unidadConversion = watchedItems[item.originalIndex]?.unidadConversion || 1;
+                            const precioCompra = item.precioCompra || 0;
+                            const descuento = item.descuento || 0;
+                            const unidadConversion = item.unidadConversion || 1;
                             const precioConDescuento = precioCompra * (1 - (descuento / 100));
                             const precioCalculado = unidadConversion > 0 ? precioConDescuento / unidadConversion : 0;
                             return (
-                        <TableRow key={item.id}>
-                            <TableCell className="p-1">
-                                <FormField control={form.control} name={`items.${item.originalIndex}.nombreProductoERP`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
-                            </TableCell>
-                            <TableCell className="p-1">
-                                 <FormField control={form.control} name={`items.${item.originalIndex}.idreferenciaerp`} render={({ field }) => ( <Input {...field} className="h-8"/> )} />
-                            </TableCell>
-                             <TableCell className="p-1">
-                                 <Input value={proveedoresMap.get(item.idProveedor || '') || 'Proveedor no identificado'} readOnly className="h-8 bg-muted/50"/>
-                            </TableCell>
-                            <TableCell className="p-1">
-                                 <FormField control={form.control} name={`items.${item.originalIndex}.precioCompra`} render={({ field }) => ( <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8"/> )} />
-                            </TableCell>
-                             <TableCell className="p-1">
-                                 <FormField control={form.control} name={`items.${item.originalIndex}.descuento`} render={({ field }) => ( <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} className="h-8"/> )} />
-                            </TableCell>
-                            <TableCell className="p-1">
-                                 <FormField control={form.control} name={`items.${item.originalIndex}.unidadConversion`} render={({ field }) => ( <Input type="number" step="1" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 1)} className="h-8"/> )} />
-                            </TableCell>
-                             <TableCell className="p-1">
-                                <Input value={formatCurrency(precioCalculado)} readOnly className="h-8 bg-muted/50 font-semibold" />
-                            </TableCell>
-                            <TableCell className="p-1">
-                                <FormField control={form.control} name={`items.${item.originalIndex}.unidad`} render={({ field }) => ( 
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger className="h-8"><SelectValue/></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            {UNIDADES_MEDIDA.map(u => <SelectItem key={u} value={u}>{formatUnit(u)}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                )} />
-                            </TableCell>
-                             <TableCell className="p-1">
-                                <FormField control={form.control} name={`items.${item.originalIndex}.tipo`} render={({ field }) => ( <Input {...field} readOnly className="h-8 bg-muted/50"/> )} />
-                            </TableCell>
-                             <TableCell className="p-1">
-                                <FormField control={form.control} name={`items.${item.originalIndex}.categoriaMice`} render={({ field }) => ( <Input {...field} readOnly className="h-8 bg-muted/50"/> )} />
-                            </TableCell>
-                            <TableCell className="text-right p-1">
-                                <Button variant="ghost" size="icon" className="text-destructive h-8 w-8" type="button" onClick={() => setItemToDelete(item.originalIndex)}>
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </TableCell>
-                        </TableRow>
-                        )})
+                                <TableRow key={item.id}>
+                                    <TableCell className="p-2 text-xs font-medium">{item.nombreProductoERP}</TableCell>
+                                    <TableCell className="p-2 text-xs">{item.idreferenciaerp}</TableCell>
+                                    <TableCell className="p-2 text-xs">{item.nombreProveedor}</TableCell>
+                                    <TableCell className="p-2 text-xs text-right">{formatCurrency(precioCompra)}</TableCell>
+                                    <TableCell className="p-2 text-xs text-right">{descuento}%</TableCell>
+                                    <TableCell className="p-2 text-xs text-right">{unidadConversion}</TableCell>
+                                    <TableCell className="p-2 text-xs text-right font-semibold">{formatCurrency(precioCalculado)}</TableCell>
+                                    <TableCell className="p-2 text-xs">{formatUnit(item.unidad)}</TableCell>
+                                    <TableCell className="p-2 text-xs">{item.tipo}</TableCell>
+                                    <TableCell className="p-2 text-xs">{item.categoriaMice}</TableCell>
+                                </TableRow>
+                            );
+                        })
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={11} className="h-24 text-center">
-                            No se encontraron artículos que coincidan con la búsqueda.
-                        </TableCell>
+                            <TableCell colSpan={10} className="h-24 text-center">No se encontraron artículos que coincidan con la búsqueda.</TableCell>
                         </TableRow>
                     )}
-                    </TableBody>
-                </Table>
-                </div>
-            </form>
-        </Form>
+                </TableBody>
+            </Table>
+        </div>
       </main>
-
-      <AlertDialog open={itemToDelete !== null} onOpenChange={(open) => !open && setItemToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. La fila se eliminará permanentemente cuando guardes los cambios.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
-              onClick={handleDeleteRow}
-            >
-              Eliminar Fila
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <AlertDialog open={isImportAlertOpen} onOpenChange={setIsImportAlertOpen}>
             <AlertDialogContent>
@@ -501,7 +369,3 @@ export default function ArticulosERPPage() {
         </Suspense>
     )
 }
-
-    
-
-    

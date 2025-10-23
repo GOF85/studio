@@ -12,6 +12,7 @@ const bdNavLinks = [
     { title: 'Gestión de Personal', path: '/bd/personal', icon: Users },
     { title: 'Gestión de Espacios', path: '/bd/espacios', icon: Building },
     { title: 'Gestión de Artículos MICE', path: '/bd/articulos', icon: Package },
+    { title: 'Base de Datos ERP', path: '/bd/erp', icon: Database },
     { title: 'Gestión de Familias ERP', path: '/bd/familiasERP', icon: Layers },
     { title: 'Formatos de Expedición', path: '/bd/formatos-expedicion', icon: Box },
 ];
