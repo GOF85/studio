@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -38,8 +39,10 @@ type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
 function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProducts }: { onSelect: (id: string) => void, searchTerm: string, setSearchTerm: (term: string) => void, filteredProducts: ArticuloERP[] }) {
     
     const calculatePrice = (p: ArticuloERP) => {
-        if (!p || !p.precioCompra || !p.unidadConversion) return 0;
-        return (p.precioCompra / p.unidadConversion) * (1 - (p.descuento || 0) / 100);
+        if (!p || typeof p.precioCompra !== 'number' || typeof p.unidadConversion !== 'number') return 0;
+        const basePrice = p.precioCompra / (p.unidadConversion || 1);
+        const discount = p.descuento || 0;
+        return basePrice * (1 - discount / 100);
     }
     
     return (
@@ -51,12 +54,12 @@ function ErpSelectorDialog({ onSelect, searchTerm, setSearchTerm, filteredProduc
                     <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Proveedor</TableHead><TableHead>Precio</TableHead><TableHead></TableHead></TableRow></TableHeader>
                     <TableBody>
                         {filteredProducts.map(p => (
-                            <TableRow key={p.id}>
+                            <TableRow key={p.idreferenciaerp}>
                                 <TableCell>{p.nombreProductoERP}</TableCell>
                                 <TableCell>{p.nombreProveedor}</TableCell>
                                 <TableCell>{(calculatePrice(p) || 0).toLocaleString('es-ES', {style:'currency', currency: 'EUR'})}/{p.unidad}</TableCell>
                                 <TableCell>
-                                    <Button size="sm" onClick={() => onSelect(p.id)}>
+                                    <Button size="sm" onClick={() => onSelect(p.idreferenciaerp)}>
                                         <Check className="mr-2" />
                                         Seleccionar
                                     </Button>
@@ -92,7 +95,7 @@ export default function IngredienteFormPage() {
   });
   
   const selectedErpId = form.watch('productoERPlinkId');
-  const selectedErpProduct = articulosERP.find(p => p.id === selectedErpId);
+  const selectedErpProduct = articulosERP.find(p => p.idreferenciaerp === selectedErpId);
 
   const filteredErpProducts = useMemo(() => {
     return articulosERP.filter(p => 
@@ -109,9 +112,10 @@ export default function IngredienteFormPage() {
     return [firstHalf, secondHalf];
   }, []);
   
-  const loadAndSetData = useCallback(() => {
+  useEffect(() => {
     const storedErpData = localStorage.getItem('articulosERP') || '[]';
-    setArticulosERP(JSON.parse(storedErpData));
+    const erpData = JSON.parse(storedErpData) as ArticuloERP[];
+    setArticulosERP(erpData);
     
     if (isEditing) {
         const storedIngredientesData = localStorage.getItem('ingredientesInternos') || '[]';
@@ -140,10 +144,6 @@ export default function IngredienteFormPage() {
     }
     setIsDataLoaded(true);
   }, [id, isEditing, form, router, toast]);
-
-  useEffect(() => {
-    loadAndSetData();
-  }, [loadAndSetData]);
 
 
   function onSubmit(data: IngredienteFormValues) {
@@ -346,7 +346,15 @@ export default function IngredienteFormPage() {
                                             </div>
                                             <Button variant="ghost" size="sm" className="h-7 text-muted-foreground" onClick={() => form.setValue('productoERPlinkId', '')}><CircleX className="mr-1 h-3 w-3"/>Desvincular</Button>
                                         </div>
-                                        <p className="font-bold text-primary text-sm">{(selectedErpProduct.precio || 0).toLocaleString('es-ES', {style:'currency', currency: 'EUR'})} / {selectedErpProduct.unidad}</p>
+                                        <p className="font-bold text-primary text-sm">
+                                            {
+                                                (() => {
+                                                    const price = (selectedErpProduct.precioCompra / (selectedErpProduct.unidadConversion || 1)) * (1 - (selectedErpProduct.descuento || 0) / 100);
+                                                    return (price || 0).toLocaleString('es-ES', {style:'currency', currency: 'EUR'})
+                                                })()
+                                            }
+                                             / {selectedErpProduct.unidad}
+                                        </p>
                                     </div>
                                 ) : (
                                     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

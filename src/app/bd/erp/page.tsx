@@ -125,7 +125,7 @@ function ArticulosERPPageContent() {
           (item.nombreProductoERP || '').toLowerCase().includes(term) ||
           (item.nombreProveedor || '').toLowerCase().includes(term) ||
           (item.referenciaProveedor || '').toLowerCase().includes(term) ||
-          (item.idProveedor || '').toLowerCase().includes(term) ||
+          (item.idreferenciaerp || '').toLowerCase().includes(term) ||
           (item.tipo || '').toLowerCase().includes(term);
 
         const categoryMatch = categoryFilter === 'all' || item.familiaCategoria === categoryFilter;
@@ -159,7 +159,6 @@ function ArticulosERPPageContent() {
       precioCompra: 0,
       descuento: 0,
       unidadConversion: 1,
-      precio: 0,
       precioAlquiler: 0,
       unidad: 'UD',
       tipo: '',
@@ -248,7 +247,6 @@ function ArticulosERPPageContent() {
             precioCompra: parseCurrency(item.precioCompra),
             descuento: parseCurrency(item.descuento),
             unidadConversion: Number(item.unidadConversion) || 1,
-            precio: 0, 
             precioAlquiler: parseCurrency(item.precioAlquiler),
             unidad: UNIDADES_MEDIDA.includes(item.unidad) ? item.unidad : 'UD',
             tipo: item.tipo || '',
