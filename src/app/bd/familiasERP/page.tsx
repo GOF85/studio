@@ -94,8 +94,8 @@ function FamiliasERPPageContent() {
             const existingIds = new Set(items.map(item => item.id));
             const importedData: FamiliaERP[] = results.data.map((item: any, index: number) => {
                 let id = item.id;
-                if (!id || existingIds.has(id)) {
-                    id = `${Date.now()}-${index}`;
+                if (!id || id.trim() === '' || existingIds.has(id)) {
+                    id = `${Date.now()}-${index}-${Math.random()}`;
                 }
                 existingIds.add(id);
                 return {
