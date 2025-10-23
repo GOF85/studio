@@ -61,10 +61,6 @@ export default function AnaliticaDashboardPage() {
 
     return (
         <div className="space-y-8">
-             <div className="text-center mb-8">
-                <h1 className="text-4xl font-headline font-bold tracking-tight">Panel de Analítica</h1>
-                <p className="text-lg text-muted-foreground mt-2">Visión global del rendimiento del negocio.</p>
-            </div>
             
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <KpiCard title="Facturación Neta Total" value={formatCurrency(totalFacturacion)} icon={Euro} description="Suma de Catering y Entregas" />
