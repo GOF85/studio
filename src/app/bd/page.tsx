@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -145,10 +144,6 @@ export default function BdPage() {
             <Database className="h-8 w-8" />
             <h1 className="text-3xl font-headline font-bold">Gestión de Bases de Datos</h1>
           </div>
-          <Button disabled>
-            <PlusCircle className="mr-2" />
-            Nueva Base de Datos
-          </Button>
         </div>
 
         <div className="grid md:grid-cols-2 gap-8">
