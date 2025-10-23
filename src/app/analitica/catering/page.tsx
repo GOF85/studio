@@ -2,14 +2,14 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Hand, Users, Building, Briefcase, BookOpen, Ticket, HandCoins } from 'lucide-react';
+import { Hand, Users, Building, Briefcase, BookOpen, Ticket, HandCoins, BarChart3, TrendingUp, TrendingDown, Euro } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import type { ServiceOrder, Espacio, Personal, ComercialBriefing, GastronomyOrder, MaterialOrder, ComercialBriefingItem } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrency, formatPercentage, formatNumber, calculateHours } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, BarChart3, TrendingUp, TrendingDown, Euro } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
@@ -266,6 +266,35 @@ export default function AnaliticaCateringPage() {
         })).sort((a, b) => b.facturacion - a.facturacion);
     }, [pedidosFiltrados]);
 
+    const analisisTipoServicio = useMemo(() => {
+        const porTipo: Record<string, { count: number; facturacion: number; costeAsignado: number }> = {};
+
+        pedidosFiltrados.forEach(p => {
+            const briefing = allBriefings.find(b => b.osId === p.os.id);
+            if (!briefing || briefing.items.length === 0) return;
+
+            const facturacionTotalOS = briefing.items.reduce((sum, item) => sum + (item.asistentes || 0) * (item.precioUnitario || 0) + (item.importeFijo || 0), 0);
+            
+            briefing.items.forEach(item => {
+                const tipo = item.descripcion || 'Sin Descripción';
+                if (!porTipo[tipo]) porTipo[tipo] = { count: 0, facturacion: 0, costeAsignado: 0 };
+
+                const facturacionHito = (item.asistentes || 0) * (item.precioUnitario || 0) + (item.importeFijo || 0);
+                const pesoHito = facturacionTotalOS > 0 ? facturacionHito / facturacionTotalOS : 0;
+                
+                porTipo[tipo].count += 1;
+                porTipo[tipo].facturacion += facturacionHito;
+                porTipo[tipo].costeAsignado += p.costeTotal * pesoHito;
+            });
+        });
+
+        return Object.entries(porTipo).map(([name, data]) => {
+            const margen = data.facturacion - data.costeAsignado;
+            const margenPct = data.facturacion > 0 ? margen / data.facturacion : 0;
+            return { name, ...data, margen, margenPct };
+        }).sort((a, b) => b.facturacion - a.facturacion);
+    }, [pedidosFiltrados, allBriefings]);
+
     const analisisAgregado = useMemo(() => {
         const byMonth: Record<string, MonthlyData> = {};
 
@@ -404,7 +433,7 @@ export default function AnaliticaCateringPage() {
             </Card>
 
              <Tabs defaultValue="detalle">
-                <TabsList className="grid w-full grid-cols-7 mb-4">
+                <TabsList className="grid w-full grid-cols-8 mb-4">
                     <TabsTrigger value="detalle">Análisis Detallado</TabsTrigger>
                     <TabsTrigger value="agregado">Vista Agregada</TabsTrigger>
                     <TabsTrigger value="rentabilidad">Rentabilidad por Evento</TabsTrigger>
@@ -412,6 +441,7 @@ export default function AnaliticaCateringPage() {
                     <TabsTrigger value="metre"><Users className="mr-2 h-4 w-4"/>Por Metre</TabsTrigger>
                     <TabsTrigger value="cliente"><Users className="mr-2 h-4 w-4"/>Por Cliente</TabsTrigger>
                     <TabsTrigger value="espacio"><Building className="mr-2 h-4 w-4"/>Por Espacio</TabsTrigger>
+                    <TabsTrigger value="tipo_servicio"><Hand className="mr-2 h-4 w-4"/>Por Tipo de Servicio</TabsTrigger>
                 </TabsList>
                 <TabsContent value="detalle" className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-2">
@@ -769,12 +799,41 @@ export default function AnaliticaCateringPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+                <TabsContent value="tipo_servicio" className="space-y-4">
+                    <Card>
+                        <CardHeader><CardTitle>Rentabilidad por Tipo de Servicio</CardTitle></CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Tipo de Servicio</TableHead>
+                                        <TableHead className="text-right">Nº de Ventas</TableHead>
+                                        <TableHead className="text-right">Facturación Total</TableHead>
+                                        <TableHead className="text-right">Coste Asignado</TableHead>
+                                        <TableHead className="text-right">Margen Bruto</TableHead>
+                                        <TableHead className="text-right">Margen %</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {analisisTipoServicio.map(s => (
+                                        <TableRow key={s.name}>
+                                            <TableCell className="font-semibold">{s.name}</TableCell>
+                                            <TableCell className="text-right">{s.count}</TableCell>
+                                            <TableCell className="text-right">{formatCurrency(s.facturacion)}</TableCell>
+                                            <TableCell className="text-right">{formatCurrency(s.costeAsignado)}</TableCell>
+                                            <TableCell className={cn("text-right font-bold", s.margen < 0 ? "text-destructive" : "text-green-600")}>{formatCurrency(s.margen)}</TableCell>
+                                            <TableCell className={cn("text-right font-bold", s.margenPct < 0 ? "text-destructive" : "text-green-600")}>{formatPercentage(s.margenPct)}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
             </Tabs>
         </main>
     )
 }
-    
-
     
 
     
