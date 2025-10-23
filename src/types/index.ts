@@ -609,6 +609,13 @@ export const articuloErpSchema = z.object({
 
 export type ArticuloERP = z.infer<typeof articuloErpSchema>;
 
+export type FamiliaERP = {
+    id: string;
+    familiaCategoria: string;
+    Familia: string;
+    Categoria: string;
+}
+
 export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS DE CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
 export type Alergeno = typeof ALERGENOS[number];
 

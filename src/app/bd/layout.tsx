@@ -1,16 +1,18 @@
 
+
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
-import { Database, Users, Package, Building, ChevronRight } from 'lucide-react';
+import { Database, Users, Package, Building, ChevronRight, Layers } from 'lucide-react';
 
 const bdNavLinks = [
     { title: 'Gestión de Personal', path: '/bd/personal', icon: Users },
     { title: 'Gestión de Espacios', path: '/bd/espacios', icon: Building },
     { title: 'Gestión de Artículos MICE', path: '/bd/articulos', icon: Package },
+    { title: 'Gestión de Familias ERP', path: '/bd/familiasERP', icon: Layers },
 ];
 
 export default function BdLayout({ children }: { children: React.ReactNode }) {

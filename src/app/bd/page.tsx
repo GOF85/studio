@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, AlertTriangle, Target, FilePlus2, UserPlus, Flower2 } from 'lucide-react';
+import { Database, PlusCircle, ArrowRight, ShoppingBag, Percent, Package, Soup, Users, Truck, AlertTriangle, Target, FilePlus2, UserPlus, Flower2, Layers } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
@@ -35,6 +35,7 @@ const generalDatabasesList: Omit<DatabaseEntry, 'itemCount'>[] = [
     { id: '10', name: 'Objetivos de Gasto', description: 'Plantillas para el análisis de rentabilidad.', path: '/bd/objetivos-gasto', icon: Target },
     { id: '12', name: 'Decoración (Conceptos)', description: 'Gestión de conceptos de decoración.', path: '/bd/decoracion-db', icon: Flower2 },
     { id: '13', name: 'Base de Datos ERP', description: 'Gestión de precios y productos de proveedores.', path: '/bd/erp', icon: Package },
+    { id: '14', name: 'Familias ERP', description: 'Relaciona códigos de familia ERP con Familia y Categoría.', path: '/bd/familiasERP', icon: Layers },
     { id: '17', name: 'Plantillas de Pedidos', description: 'Crea y gestiona plantillas para agilizar pedidos.', path: '/bd/plantillas-pedidos', icon: FilePlus2 },
     { id: '19', name: 'Formatos de Expedición', description: 'Define los formatos de empaquetado para producción.', path: '/bd/formatos-expedicion', icon: Package },
 ];
@@ -74,6 +75,7 @@ export default function BdPage() {
             if (db.path === '/bd/atipicos-db') count = countItems('atipicosDB');
             if (db.path === '/bd/decoracion-db') count = countItems('decoracionDB');
             if (db.path === '/bd/erp') count = countItems('articulosERP');
+            if (db.path === '/bd/familiasERP') count = countItems('familiasERP');
             if (db.path === '/bd/plantillas-pedidos') count = countItems('pedidoPlantillas');
             if (db.path === '/bd/formatos-expedicion') count = countItems('formatosExpedicionDB');
             if (db.path === '/bd/proveedores') count = countItems('proveedores');
