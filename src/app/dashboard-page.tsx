@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -65,7 +64,7 @@ const adminItems: MenuItem[] = [
 ];
 
 
-function Section({ title, items }: { title: string, items: MenuItem[] }) {
+export function Section({ title, items }: { title: string, items: MenuItem[] }) {
     return (
         <section>
             <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4">{title}</h2>
