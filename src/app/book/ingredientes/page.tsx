@@ -49,7 +49,7 @@ export default function IngredientesPage() {
   useEffect(() => {
     let storedErp = localStorage.getItem('articulosERP') || '[]';
     const articulosERP = JSON.parse(storedErp) as ArticuloERP[];
-    const erpMap = new Map(articulosERP.map(item => [item.id, item]));
+    const erpMap = new Map(articulosERP.map(item => [item.idreferenciaerp, item]));
 
     let storedIngredientes = localStorage.getItem('ingredientesInternos');
     if (!storedIngredientes) {
@@ -77,8 +77,8 @@ export default function IngredientesPage() {
         const { erp, alergenos, ...rest } = item;
         return {
             ...rest,
-            alergenosPresentes: JSON.stringify(item.alergenosPresentes),
-            alergenosTrazas: JSON.stringify(item.alergenosTrazas),
+            alergenosPresentes: JSON.stringify(item.alergenosPresentes || []),
+            alergenosTrazas: JSON.stringify(item.alergenosTrazas || []),
             lastRevision: item.lastRevision || '',
         };
     });
@@ -101,7 +101,8 @@ export default function IngredientesPage() {
   
   const safeJsonParse = (jsonString: string, fallback: any = []) => {
     try {
-        return JSON.parse(jsonString);
+        const parsed = JSON.parse(jsonString);
+        return Array.isArray(parsed) ? parsed : fallback;
     } catch (e) {
         return fallback;
     }
@@ -129,19 +130,12 @@ export default function IngredientesPage() {
             }
             
             const importedData: IngredienteInterno[] = results.data.map(item => {
-                let alergenosPresentes = [];
-                let alergenosTrazas = [];
-                try {
-                    alergenosPresentes = safeJsonParse(item.alergenosPresentes);
-                    alergenosTrazas = safeJsonParse(item.alergenosTrazas);
-                } catch(e) { console.error("Error parsing JSON fields for item:", item.id); }
-
                 return {
                     id: item.id || Date.now().toString() + Math.random(),
                     nombreIngrediente: item.nombreIngrediente || '',
                     productoERPlinkId: item.productoERPlinkId || '',
-                    alergenosPresentes,
-                    alergenosTrazas,
+                    alergenosPresentes: safeJsonParse(item.alergenosPresentes),
+                    alergenosTrazas: safeJsonParse(item.alergenosTrazas),
                     lastRevision: item.lastRevision || new Date().toISOString(),
                 };
             });
@@ -168,7 +162,7 @@ export default function IngredientesPage() {
       return (
         item.nombreIngrediente.toLowerCase().includes(term) ||
         (item.erp?.nombreProductoERP || '').toLowerCase().includes(term) ||
-        (item.erp?.IdERP || '').toLowerCase().includes(term) ||
+        (item.erp?.idreferenciaerp || '').toLowerCase().includes(term) ||
         (item.erp?.familiaCategoria || '').toLowerCase().includes(term)
       );
     });
@@ -304,7 +298,7 @@ export default function IngredientesPage() {
                         <span className="text-destructive text-sm font-semibold">No vinculado</span>
                       )}
                     </TableCell>
-                     <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>{item.erp?.id}</TableCell>
+                     <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>{item.erp?.idreferenciaerp}</TableCell>
                      <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>{item.erp?.familiaCategoria}</TableCell>
                     <TableCell className="py-2 cursor-pointer" onClick={() => router.push(`/book/ingredientes/${item.id}`)}>
                         <div className="flex flex-wrap gap-1">
