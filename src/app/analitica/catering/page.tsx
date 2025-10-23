@@ -2,14 +2,12 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { BarChart3, TrendingUp, TrendingDown, Euro, Users, Building, Briefcase } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, Euro, Users, Building, Briefcase, BookOpen, Ticket } from 'lucide-react';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import type { ServiceOrder, Espacio, Personal } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { ServiceOrder, Espacio, Personal, ComercialBriefing, GastronomyOrder, MaterialOrder } from '@/types';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Checkbox } from '@/components/ui/checkbox';
-import { formatCurrency, formatPercentage } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
+import { formatCurrency, formatPercentage, formatNumber, calculateHours } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -21,11 +19,32 @@ import { cn } from '@/lib/utils';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import Link from 'next/link';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from "recharts"
 
 type AnaliticaCateringItem = {
     os: ServiceOrder;
     costeTotal: number;
     pvpFinal: number;
+    numHitos: number;
+    costesPorPartida: Record<string, number>;
+};
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF6666', '#A0E7E5', '#B4F8C8', '#FBE7C6'];
+
+const calculateAllCosts = (osId: string): Record<string, number> => {
+    const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+    const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
+    // Add other order types as needed...
+    
+    const costes: Record<string, number> = {};
+    
+    costes['Gastronomía'] = allGastroOrders.filter(o => o.osId === osId).reduce((sum, o) => sum + (o.total || 0), 0);
+    costes['Bodega'] = allMaterialOrders.filter(o => o.osId === osId && o.type === 'Bodega').reduce((sum, o) => sum + o.total, 0);
+    costes['Bio'] = allMaterialOrders.filter(o => o.osId === osId && o.type === 'Bio').reduce((sum, o) => sum + o.total, 0);
+    costes['Almacén'] = allMaterialOrders.filter(o => o.osId === osId && o.type === 'Almacen').reduce((sum, o) => sum + o.total, 0);
+    costes['Alquiler'] = allMaterialOrders.filter(o => o.osId === osId && o.type === 'Alquiler').reduce((sum, o) => sum + o.total, 0);
+
+    return costes;
 };
 
 export default function AnaliticaCateringPage() {
@@ -40,32 +59,25 @@ export default function AnaliticaCateringPage() {
         to: endOfMonth(new Date()),
     });
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-    const [selectedPedidos, setSelectedPedidos] = useState<Set<string>>(new Set());
     
-    // Filtros
     const [espacioFilter, setEspacioFilter] = useState('all');
     const [comercialFilter, setComercialFilter] = useState('all');
     const [clienteFilter, setClienteFilter] = useState('all');
 
-
     useEffect(() => {
         const allServiceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.vertical !== 'Entregas' && os.status === 'Confirmado');
-        
+        const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+
         const data: AnaliticaCateringItem[] = allServiceOrders.map(os => {
+            const briefing = allBriefings.find(b => b.osId === os.id);
+            const numHitos = briefing?.items.length || 0;
+            const costesPorPartida = calculateAllCosts(os.id);
+            const costeTotal = Object.values(costesPorPartida).reduce((sum, cost) => sum + cost, 0);
+            
             const facturacionBruta = os.facturacion || 0;
             const comisiones = (os.comisionesAgencia || 0) + (os.comisionesCanon || 0);
-            
-            // Simplified cost calculation for this view. A full CtaExplotacion would be needed for perfect accuracy.
-            const costeGastronomia = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as any[]).filter(o => o.osId === os.id).reduce((s,o) => s + (o.total || 0), 0);
-            const costeMaterial = (JSON.parse(localStorage.getItem('materialOrders') || '[]') as any[]).filter(o => o.osId === os.id).reduce((s,o) => s + o.total, 0);
-            const costeHielo = (JSON.parse(localStorage.getItem('hieloOrders') || '[]') as any[]).filter(o => o.osId === os.id).reduce((s,o) => s + o.total, 0);
-            const costeTransporte = (JSON.parse(localStorage.getItem('transporteOrders') || '[]') as any[]).filter(o => o.osId === os.id).reduce((s,o) => s + o.precio, 0);
-            const costeDecoracion = (JSON.parse(localStorage.getItem('decoracionOrders') || '[]') as any[]).filter(o => o.osId === os.id).reduce((s,o) => s + o.precio, 0);
-            const costeAtipicos = (JSON.parse(localStorage.getItem('atipicosOrders') || '[]') as any[]).filter(o => o.osId === os.id).reduce((s,o) => s + o.precio, 0);
-            
-            const costeTotal = costeGastronomia + costeMaterial + costeHielo + costeTransporte + costeDecoracion + costeAtipicos;
 
-            return { os, costeTotal, pvpFinal: facturacionBruta - comisiones };
+            return { os, costeTotal, pvpFinal: facturacionBruta - comisiones, numHitos, costesPorPartida };
         });
 
         setAllPedidos(data);
@@ -95,36 +107,57 @@ export default function AnaliticaCateringPage() {
         });
     }, [allPedidos, dateRange, espacioFilter, comercialFilter, clienteFilter]);
 
+    const analisisGlobal = useMemo(() => {
+        if (pedidosFiltrados.length === 0) return { pvpNeto: 0, costeTotal: 0, numEventos: 0, numHitos: 0 };
+        
+        const pvpNeto = pedidosFiltrados.reduce((sum, p) => sum + p.pvpFinal, 0);
+        const costeTotal = pedidosFiltrados.reduce((sum, p) => sum + p.costeTotal, 0);
+        const numHitos = pedidosFiltrados.reduce((sum, p) => sum + p.numHitos, 0);
 
-    useEffect(() => {
-        setSelectedPedidos(new Set(pedidosFiltrados.map(p => p.os.id)));
+        return { pvpNeto, costeTotal, numEventos: pedidosFiltrados.length, numHitos };
+    }, [pedidosFiltrados]);
+    
+    const margenFinal = analisisGlobal.pvpNeto - analisisGlobal.costeTotal;
+    const margenPct = analisisGlobal.pvpNeto > 0 ? (margenFinal / analisisGlobal.pvpNeto) : 0;
+    const ticketMedioEvento = analisisGlobal.numEventos > 0 ? analisisGlobal.pvpNeto / analisisGlobal.numEventos : 0;
+    const ticketMedioServicio = analisisGlobal.numHitos > 0 ? analisisGlobal.pvpNeto / analisisGlobal.numHitos : 0;
+
+    const kpis = [
+        { title: "Nº de Eventos", value: formatNumber(analisisGlobal.numEventos, 0), icon: BookOpen },
+        { title: "Facturación Neta", value: formatCurrency(analisisGlobal.pvpNeto), icon: Euro },
+        { title: "Coste Directo Total", value: formatCurrency(analisisGlobal.costeTotal), icon: TrendingDown },
+        { title: "Rentabilidad Bruta", value: formatCurrency(margenFinal), icon: TrendingUp },
+        { title: "Margen Bruto (%)", value: formatPercentage(margenPct), icon: Euro },
+        { title: "Ticket Medio / Evento", value: formatCurrency(ticketMedioEvento), icon: Ticket },
+        { title: "Ticket Medio / Servicio", value: formatCurrency(ticketMedioServicio), icon: Ticket },
+    ];
+
+    const analisisCostes = useMemo(() => {
+        const costesAgregados: Record<string, number> = {};
+        pedidosFiltrados.forEach(pedido => {
+            for (const partida in pedido.costesPorPartida) {
+                costesAgregados[partida] = (costesAgregados[partida] || 0) + pedido.costesPorPartida[partida];
+            }
+        });
+        return Object.entries(costesAgregados)
+            .map(([name, value]) => ({ name, value }))
+            .filter(item => item.value > 0)
+            .sort((a,b) => b.value - a.value);
     }, [pedidosFiltrados]);
 
-    const handleSelect = (osId: string) => {
-        setSelectedPedidos(prev => {
-            const newSelection = new Set(prev);
-            if (newSelection.has(osId)) newSelection.delete(osId);
-            else newSelection.add(osId);
-            return newSelection;
+    const analisisComerciales = useMemo(() => {
+        const porComercial: Record<string, { facturacion: number, coste: number, eventos: number }> = {};
+        pedidosFiltrados.forEach(p => {
+            const comercial = p.os.comercial || 'Sin Asignar';
+            if (!porComercial[comercial]) porComercial[comercial] = { facturacion: 0, coste: 0, eventos: 0 };
+            porComercial[comercial].facturacion += p.pvpFinal;
+            porComercial[comercial].coste += p.costeTotal;
+            porComercial[comercial].eventos += 1;
         });
-    }
-    
-    const handleSelectAll = (checked: boolean) => {
-        setSelectedPedidos(checked ? new Set(pedidosFiltrados.map(p => p.os.id)) : new Set());
-    }
-    
-    const analisisSeleccion = useMemo(() => {
-        const seleccion = pedidosFiltrados.filter(p => selectedPedidos.has(p.os.id));
-        if (seleccion.length === 0) return { pvpNeto: 0, costeTotal: 0 };
-        
-        const pvpNeto = seleccion.reduce((sum, p) => sum + p.pvpFinal, 0);
-        const costeTotal = seleccion.reduce((sum, p) => sum + p.costeTotal, 0);
-
-        return { pvpNeto, costeTotal };
-    }, [pedidosFiltrados, selectedPedidos]);
-    
-    const margenFinal = analisisSeleccion.pvpNeto - analisisSeleccion.costeTotal;
-    const margenPct = analisisSeleccion.pvpNeto > 0 ? (margenFinal / analisisSeleccion.pvpNeto) * 100 : 0;
+        return Object.entries(porComercial).map(([name, data]) => ({
+            name, ...data, margen: data.facturacion - data.coste, margenPct: data.facturacion > 0 ? (data.facturacion - data.coste) / data.facturacion : 0
+        })).sort((a, b) => b.margen - a.margen);
+    }, [pedidosFiltrados]);
 
 
     if (!isMounted) {
@@ -132,11 +165,7 @@ export default function AnaliticaCateringPage() {
     }
 
     return (
-        <main className="container mx-auto px-4 py-8">
-            <div className="flex items-center gap-4 mb-6">
-                <h1 className="text-3xl font-headline font-bold">Analítica de Rentabilidad de Catering</h1>
-            </div>
-            
+        <main>
             <Card className="mb-6">
                 <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
@@ -151,36 +180,71 @@ export default function AnaliticaCateringPage() {
                         </PopoverContent>
                     </Popover>
                     <Select value={comercialFilter} onValueChange={setComercialFilter}>
-                        <SelectTrigger><div className="flex items-center gap-2"><Briefcase/> <SelectValue /></div></SelectTrigger>
+                        <SelectTrigger><div className="flex items-center gap-2"><Briefcase className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
                         <SelectContent><SelectItem value="all">Todos los Comerciales</SelectItem>{allComerciales.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                     </Select>
                     <Select value={clienteFilter} onValueChange={setClienteFilter}>
-                        <SelectTrigger><div className="flex items-center gap-2"><Users/> <SelectValue /></div></SelectTrigger>
+                        <SelectTrigger><div className="flex items-center gap-2"><Users className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
                         <SelectContent><SelectItem value="all">Todos los Clientes</SelectItem>{allClientes.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                     </Select>
                     <Select value={espacioFilter} onValueChange={setEspacioFilter}>
-                        <SelectTrigger><div className="flex items-center gap-2"><Building/> <SelectValue /></div></SelectTrigger>
+                        <SelectTrigger><div className="flex items-center gap-2"><Building className="h-4 w-4" /> <SelectValue /></div></SelectTrigger>
                         <SelectContent><SelectItem value="all">Todos los Espacios</SelectItem>{allEspacios.map(e=><SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
                     </Select>
                 </CardContent>
             </Card>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
+                {kpis.map(kpi => (
+                    <Card key={kpi.title}>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">{kpi.title}</CardTitle><kpi.icon className="h-4 w-4 text-muted-foreground" /></CardHeader>
+                        <CardContent><div className={cn("text-2xl font-bold", kpi.title.includes('Rentabilidad') && margenFinal < 0 && "text-destructive", kpi.title.includes('Rentabilidad') && margenFinal > 0 && "text-green-600")}>{kpi.value}</div></CardContent>
+                    </Card>
+                ))}
+            </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid lg:grid-cols-2 gap-8 mb-8">
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Facturación Neta</CardTitle><Euro className="h-4 w-4 text-muted-foreground" /></CardHeader>
-                    <CardContent><div className="text-2xl font-bold text-green-600">{formatCurrency(analisisSeleccion.pvpNeto)}</div></CardContent>
+                    <CardHeader><CardTitle>Desglose de Costes Agregados</CardTitle></CardHeader>
+                    <CardContent>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                                <Pie data={analisisCostes} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+                                        const RADIAN = Math.PI / 180;
+                                        const radius = innerRadius + (outerRadius - innerRadius) * 1.2;
+                                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                                        return (
+                                        <text x={x} y={y} fill="black" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12}>
+                                            {`${analisisCostes[index].name} (${formatPercentage(percent)})`}
+                                        </text>
+                                        );
+                                    }}>
+                                    {analisisCostes.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                </Pie>
+                                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Costes Directos</CardTitle><TrendingDown className="h-4 w-4 text-muted-foreground" /></CardHeader>
-                    <CardContent><div className="text-2xl font-bold">{formatCurrency(analisisSeleccion.costeTotal)}</div></CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Rentabilidad Bruta</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader>
-                    <CardContent><div className={cn("text-2xl font-bold", margenFinal >= 0 ? "text-green-600" : "text-destructive")}>{formatCurrency(margenFinal)}</div></CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Margen Bruto (%)</CardTitle><Euro className="h-4 w-4 text-muted-foreground" /></CardHeader>
-                    <CardContent><div className={cn("text-2xl font-bold", margenPct >= 20 ? "text-green-600" : "text-amber-600")}>{formatPercentage(margenPct / 100)}</div></CardContent>
+                    <CardHeader><CardTitle>Rendimiento por Comercial</CardTitle></CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Comercial</TableHead><TableHead className="text-right">Eventos</TableHead><TableHead className="text-right">Facturación</TableHead><TableHead className="text-right">Margen</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {analisisComerciales.map(c => (
+                                <TableRow key={c.name}>
+                                    <TableCell className="font-medium">{c.name}</TableCell>
+                                    <TableCell className="text-right">{c.eventos}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(c.facturacion)}</TableCell>
+                                    <TableCell className={cn("text-right font-bold", c.margen < 0 && 'text-destructive')}>{formatPercentage(c.margenPct)}</TableCell>
+                                </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
                 </Card>
             </div>
             
@@ -196,7 +260,6 @@ export default function AnaliticaCateringPage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead className="w-12"><Checkbox onCheckedChange={handleSelectAll} checked={selectedPedidos.size === pedidosFiltrados.length && pedidosFiltrados.length > 0} /></TableHead>
                                             <TableHead>Nº OS</TableHead>
                                             <TableHead>Cliente</TableHead>
                                             <TableHead>Fecha</TableHead>
@@ -207,8 +270,7 @@ export default function AnaliticaCateringPage() {
                                     </TableHeader>
                                     <TableBody>
                                         {pedidosFiltrados.map(p => (
-                                            <TableRow key={p.os.id} onClick={() => handleSelect(p.os.id)} className="cursor-pointer">
-                                                <TableCell><Checkbox checked={selectedPedidos.has(p.os.id)} /></TableCell>
+                                            <TableRow key={p.os.id} className="cursor-pointer">
                                                 <TableCell className="font-medium"><Link href={`/os/${p.os.id}/cta-explotacion`} className="text-primary hover:underline">{p.os.serviceNumber}</Link></TableCell>
                                                 <TableCell>{p.os.client}</TableCell>
                                                 <TableCell>{format(new Date(p.os.startDate), 'dd/MM/yyyy')}</TableCell>
@@ -228,5 +290,3 @@ export default function AnaliticaCateringPage() {
         </main>
     )
 }
-
-    

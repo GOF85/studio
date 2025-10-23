@@ -12,7 +12,7 @@ export default function EntregasLayout({
 }) {
   return (
     <div className="theme-orange">
-        <div className="bg-background text-foreground min-h-[calc(100vh-4rem)]">
+        <div className="bg-background text-foreground min-h-[calc(100vh-3rem)]">
           {children}
         </div>
     </div>

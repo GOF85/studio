@@ -3,16 +3,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, ChevronRight, Menu } from 'lucide-react';
+import { BarChart3, ChevronRight, Menu, ClipboardList, Package } from 'lucide-react';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 
 const analiticaNav = [
-    { title: 'Panel de Analítica', href: '/analitica', exact: true },
-    { title: 'Analítica de Catering', href: '/analitica/catering', exact: true },
-    { title: 'Analítica de Entregas', href: '/analitica/entregas', exact: true },
+    { title: 'Panel de Analítica', href: '/analitica', exact: true, icon: BarChart3 },
+    { title: 'Analítica de Catering', href: '/analitica/catering', exact: true, icon: ClipboardList },
+    { title: 'Analítica de Entregas', href: '/analitica/entregas', exact: true, icon: Package },
 ];
 
 function NavContent({ closeSheet }: { closeSheet: () => void }) {
@@ -37,6 +37,7 @@ function NavContent({ closeSheet }: { closeSheet: () => void }) {
                                 isActive ? "bg-accent" : "transparent"
                             )}
                         >
+                            <item.icon className="mr-2 h-4 w-4" />
                             <span>{item.title}</span>
                         </span>
                     </Link>
@@ -50,9 +51,8 @@ export default function AnaliticaLayout({ children }: { children: React.ReactNod
     const pathname = usePathname();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     
-    const currentPageTitle = useMemo(() => {
-        const current = analiticaNav.find(item => item.href === pathname);
-        return current ? current.title : 'Analítica';
+    const currentPage = useMemo(() => {
+        return analiticaNav.find(item => item.href === pathname);
     }, [pathname]);
 
     return (
@@ -74,19 +74,18 @@ export default function AnaliticaLayout({ children }: { children: React.ReactNod
                             <BarChart3 className="h-5 w-5"/>
                             <span>Analítica</span>
                         </Link>
-                        {pathname !== '/analitica' && (
+                        {currentPage && currentPage.href !== '/analitica' && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                <span>{currentPageTitle}</span>
+                                <currentPage.icon className="h-5 w-5 text-muted-foreground"/>
+                                <span>{currentPage.title}</span>
                             </>
                         )}
                     </div>
                 </div>
             </div>
-             <div className="container mx-auto">
-                <div className="py-8">
-                    {children}
-                </div>
+             <div className="py-8">
+                {children}
             </div>
         </>
     );

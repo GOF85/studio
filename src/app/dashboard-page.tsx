@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -43,6 +43,14 @@ const coreOpsItems: MenuItem[] = [
     },
 ];
 
+const reportingItems: MenuItem[] = [
+    {
+        title: 'Analítica',
+        href: '/analitica',
+        icon: BarChart3,
+    }
+];
+
 const externalItems: MenuItem[] = [
     { 
         title: 'Portales Externos', 
@@ -62,14 +70,6 @@ const adminItems: MenuItem[] = [
         href: '/configuracion', 
         icon: Settings, 
     },
-];
-
-const reportingItems: MenuItem[] = [
-    {
-        title: 'Analítica',
-        href: '/analitica',
-        icon: BarChart3,
-    }
 ];
 
 export function Section({ title, items }: { title: string, items: MenuItem[] }) {
