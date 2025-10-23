@@ -327,51 +327,49 @@ export default function AnaliticaCateringPage() {
     return (
         <main>
             <Card className="mb-6">
-                <CardContent className="p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        <div className="flex flex-wrap items-center gap-2 xl:col-span-2">
-                             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button id="date" variant={"outline"} className={cn("w-full md:w-auto justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
-                                </PopoverContent>
-                            </Popover>
-                             <div className="flex gap-1">
-                                <Button size="xs" variant="outline" onClick={() => setDatePreset('month')}>Mes</Button>
-                                <Button size="xs" variant="outline" onClick={() => setDatePreset('year')}>Año</Button>
-                                <Button size="xs" variant="outline" onClick={() => setDatePreset('q1')}>Q1</Button>
-                                <Button size="xs" variant="outline" onClick={() => setDatePreset('q2')}>Q2</Button>
-                                <Button size="xs" variant="outline" onClick={() => setDatePreset('q3')}>Q3</Button>
-                                <Button size="xs" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
-                            </div>
+                <CardContent className="p-4 flex flex-col xl:flex-row gap-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                         <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                            <PopoverTrigger asChild>
+                                <Button id="date" variant={"outline"} className={cn("w-full md:w-auto justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
+                            </PopoverContent>
+                        </Popover>
+                         <div className="flex gap-1">
+                            <Button size="xs" variant="outline" onClick={() => setDatePreset('month')}>Mes</Button>
+                            <Button size="xs" variant="outline" onClick={() => setDatePreset('year')}>Año</Button>
+                            <Button size="xs" variant="outline" onClick={() => setDatePreset('q1')}>Q1</Button>
+                            <Button size="xs" variant="outline" onClick={() => setDatePreset('q2')}>Q2</Button>
+                            <Button size="xs" variant="outline" onClick={() => setDatePreset('q3')}>Q3</Button>
+                            <Button size="xs" variant="outline" onClick={() => setDatePreset('q4')}>Q4</Button>
                         </div>
-                         <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-2 gap-2 xl:col-span-2">
-                            <Select value={clienteTipoFilter} onValueChange={(value) => setClienteTipoFilter(value as any)}>
-                                <SelectTrigger><div className="flex items-center gap-2 text-xs"><Briefcase /> <SelectValue /></div></SelectTrigger>
-                                <SelectContent><SelectItem value="all">Todos los Tipos</SelectItem><SelectItem value="Empresa">Empresa</SelectItem><SelectItem value="Agencia">Agencia</SelectItem></SelectContent>
-                            </Select>
-                            <Select value={comercialFilter} onValueChange={setComercialFilter}>
-                                <SelectTrigger><div className="flex items-center gap-2 text-xs"><Briefcase /> <SelectValue /></div></SelectTrigger>
-                                <SelectContent><SelectItem value="all">Todos los Comerciales</SelectItem>{allComerciales.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <Select value={metreFilter} onValueChange={setMetreFilter}>
-                                <SelectTrigger><div className="flex items-center gap-2 text-xs"><Users /> <SelectValue /></div></SelectTrigger>
-                                <SelectContent><SelectItem value="all">Todos los Metres</SelectItem>{allMetres.map(m=><SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <Select value={clienteFilter} onValueChange={setClienteFilter}>
-                                <SelectTrigger><div className="flex items-center gap-2 text-xs"><Users /> <SelectValue /></div></SelectTrigger>
-                                <SelectContent><SelectItem value="all">Todos los Clientes</SelectItem>{allClientes.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                            </Select>
-                             <Select value={espacioFilter} onValueChange={setEspacioFilter}>
-                                <SelectTrigger><div className="flex items-center gap-2 text-xs"><Building /> <SelectValue /></div></SelectTrigger>
-                                <SelectContent><SelectItem value="all">Todos los Espacios</SelectItem>{allEspacios.map(e=><SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
+                    </div>
+                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 flex-1">
+                        <Select value={clienteTipoFilter} onValueChange={(value) => setClienteTipoFilter(value as any)}>
+                            <SelectTrigger><div className="flex items-center gap-2 text-xs truncate"><Briefcase /> <SelectValue /></div></SelectTrigger>
+                            <SelectContent><SelectItem value="all">Todos los Tipos</SelectItem><SelectItem value="Empresa">Empresa</SelectItem><SelectItem value="Agencia">Agencia</SelectItem></SelectContent>
+                        </Select>
+                        <Select value={comercialFilter} onValueChange={setComercialFilter}>
+                            <SelectTrigger><div className="flex items-center gap-2 text-xs truncate"><Briefcase /> <SelectValue /></div></SelectTrigger>
+                            <SelectContent><SelectItem value="all">Todos los Comerciales</SelectItem>{allComerciales.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Select value={metreFilter} onValueChange={setMetreFilter}>
+                            <SelectTrigger><div className="flex items-center gap-2 text-xs truncate"><Users /> <SelectValue /></div></SelectTrigger>
+                            <SelectContent><SelectItem value="all">Todos los Metres</SelectItem>{allMetres.map(m=><SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Select value={clienteFilter} onValueChange={setClienteFilter}>
+                            <SelectTrigger><div className="flex items-center gap-2 text-xs truncate"><Users /> <SelectValue /></div></SelectTrigger>
+                            <SelectContent><SelectItem value="all">Todos los Clientes</SelectItem>{allClientes.map(c=><SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                        </Select>
+                         <Select value={espacioFilter} onValueChange={setEspacioFilter}>
+                            <SelectTrigger><div className="flex items-center gap-2 text-xs truncate"><Building /> <SelectValue /></div></SelectTrigger>
+                            <SelectContent><SelectItem value="all">Todos los Espacios</SelectItem>{allEspacios.map(e=><SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
+                        </Select>
                     </div>
                 </CardContent>
             </Card>
@@ -616,6 +614,4 @@ export default function AnaliticaCateringPage() {
         </main>
     )
 }
-    
-
     
