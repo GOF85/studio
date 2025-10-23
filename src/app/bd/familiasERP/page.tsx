@@ -91,9 +91,18 @@ function FamiliasERPPageContent() {
                 return;
             }
             
-            const importedData: FamiliaERP[] = results.data.map((item: any) => ({
-              ...item,
-            }));
+            const existingIds = new Set(items.map(item => item.id));
+            const importedData: FamiliaERP[] = results.data.map((item: any, index: number) => {
+                let id = item.id;
+                if (!id || existingIds.has(id)) {
+                    id = `${Date.now()}-${index}`;
+                }
+                existingIds.add(id);
+                return {
+                  ...item,
+                  id,
+                };
+            });
             
             localStorage.setItem('familiasERP', JSON.stringify(importedData));
             setItems(importedData);
@@ -114,7 +123,7 @@ function FamiliasERPPageContent() {
             return;
         }
 
-        const csv = Papa.unparse(items);
+        const csv = Papa.unparse(items, { columns: CSV_HEADERS });
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
