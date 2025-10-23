@@ -117,7 +117,7 @@ export default function IngredienteFormPage() {
         toast({ variant: 'destructive', title: 'Error', description: 'No se encontró el ingrediente.' });
         router.push('/book/ingredientes');
       }
-    } else {
+    } else { // This is the case for 'nuevo'
         form.reset({ id: Date.now().toString(), nombreIngrediente: '', productoERPlinkId: '', alergenosPresentes: [], alergenosTrazas: [] });
     }
   }, [id, isEditing, form, router, toast]);
