@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -223,14 +222,6 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
     }
   }
 
-  const handleCreateFormato = (nombre: string) => {
-    const newFormato = { id: Date.now().toString(), nombre };
-    const updatedFormatos = [...formatosExpedicion, newFormato];
-    setFormatosExpedicion(updatedFormatos);
-    localStorage.setItem('formatosExpedicionDB', JSON.stringify(updatedFormatos));
-    toast({ title: 'Formato Creado', description: `Se ha añadido "${nombre}" a la base de datos.` });
-  };
-
   const { costeTotal, costePorUnidad } = useMemo(() => {
     let total = 0;
     (watchedComponentes || []).forEach(componente => {
@@ -402,7 +393,6 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                 options={formatosExpedicion.map(f => ({ value: f.nombre, label: f.nombre }))}
                                 value={field.value || ''}
                                 onChange={field.onChange}
-                                onCreated={handleCreateFormato}
                                 placeholder="Ej: Barqueta 1kg"
                             />
                             <FormMessage />
