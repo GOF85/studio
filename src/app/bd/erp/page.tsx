@@ -184,25 +184,31 @@ function ArticulosERPPageContent() {
             toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
             return;
         }
+
+        const allFamilias = JSON.parse(localStorage.getItem('familiasERP') || '[]') as FamiliaERP[];
+        const familiasMap = new Map(allFamilias.map(f => [f.familiaCategoria, { tipo: f.Familia, categoriaMice: f.Categoria }]));
         
-        const importedData: ArticuloERP[] = results.data.map((item: any) => ({
-            id: item.id || Date.now().toString() + Math.random(),
-            idreferenciaerp: item.idreferenciaerp || '',
-            idProveedor: item.idProveedor || '',
-            nombreProductoERP: item.nombreProductoERP || '',
-            referenciaProveedor: item.referenciaProveedor || '',
-            nombreProveedor: proveedoresMap.get(item.idProveedor || '') || item.nombreProveedor || 'Proveedor no identificado',
-            familiaCategoria: item.familiaCategoria || '',
-            precioCompra: parseCurrency(item.precioCompra),
-            descuento: parseCurrency(item.descuento),
-            unidadConversion: parseCurrency(item.unidadConversion) || 1,
-            precioAlquiler: parseCurrency(item.precioAlquiler),
-            unidad: UNIDADES_MEDIDA.includes(item.unidad) ? item.unidad : 'UD',
-            tipo: item.tipo || '',
-            categoriaMice: item.categoriaMice || '',
-            alquiler: parseBoolean(item.alquiler),
-            observaciones: item.observaciones || ''
-        }));
+        const importedData: ArticuloERP[] = results.data.map((item: any) => {
+            const familiaInfo = familiasMap.get(item.familiaCategoria || '');
+            return {
+                id: item.id || Date.now().toString() + Math.random(),
+                idreferenciaerp: item.idreferenciaerp || '',
+                idProveedor: item.idProveedor || '',
+                nombreProductoERP: item.nombreProductoERP || '',
+                referenciaProveedor: item.referenciaProveedor || '',
+                nombreProveedor: proveedoresMap.get(item.idProveedor || '') || item.nombreProveedor || 'Proveedor no identificado',
+                familiaCategoria: item.familiaCategoria || '',
+                precioCompra: parseCurrency(item.precioCompra),
+                descuento: parseCurrency(item.descuento),
+                unidadConversion: parseCurrency(item.unidadConversion) || 1,
+                precioAlquiler: parseCurrency(item.precioAlquiler),
+                unidad: UNIDADES_MEDIDA.includes(item.unidad) ? item.unidad : 'UD',
+                tipo: familiaInfo?.tipo || item.tipo || '',
+                categoriaMice: familiaInfo?.categoriaMice || item.categoriaMice || '',
+                alquiler: parseBoolean(item.alquiler),
+                observaciones: item.observaciones || ''
+            }
+        });
         
         localStorage.setItem('articulosERP', JSON.stringify(importedData));
         setItems(importedData);
@@ -244,28 +250,28 @@ function ArticulosERPPageContent() {
               <Checkbox id="for-rent-filter" checked={forRentFilter} onCheckedChange={(checked) => setForRentFilter(Boolean(checked))} />
               <Label htmlFor="for-rent-filter">Apto Alquiler</Label>
           </div>
+          <div className="flex-grow flex justify-end items-center gap-2">
+            <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
+            <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon">
+                        <Menu />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsImportAlertOpen(true); }}>
+                        <FileUp size={16} className="mr-2"/>Importar CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportCSV}>
+                        <FileDown size={16} className="mr-2"/>Exportar CSV
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
       </div>
       
-      <div className="flex items-center justify-end gap-2 mb-4">
-          <span className="text-sm text-muted-foreground">Página {currentPage} de {totalPages || 1}</span>
-          <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4" /></Button>
-          <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages}><ChevronRight className="h-4 w-4" /></Button>
-          <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
-                      <Menu />
-                  </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setIsImportAlertOpen(true); }}>
-                      <FileUp size={16} className="mr-2"/>Importar CSV
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleExportCSV}>
-                      <FileDown size={16} className="mr-2"/>Exportar CSV
-                  </DropdownMenuItem>
-              </DropdownMenuContent>
-          </DropdownMenu>
-      </div>
 
       <input
           type="file"
