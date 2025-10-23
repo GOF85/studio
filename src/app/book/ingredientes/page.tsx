@@ -1,11 +1,12 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { PlusCircle, ChefHat, Link as LinkIcon, Menu, FileUp, FileDown, ChevronLeft, ChevronRight, Trash2, AlertTriangle, MoreHorizontal, Pencil, Check, CircleX } from 'lucide-react';
 import type { IngredienteInterno, ArticuloERP, Alergeno, Elaboracion, Receta } from '@/types';
 import { ALERGENOS } from '@/types';
@@ -55,14 +56,15 @@ const ITEMS_PER_PAGE = 20;
 
 function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, initialData: Partial<IngredienteInterno> | null, onSave: (data: IngredienteFormValues) => void }) {
     const [articulosERP, setArticulosERP] = useState<ArticuloERP[]>([]);
-    const [isSelectorOpen, setIsSelectorOpen] = useState(false);
-    
-    const defaultFormValues = {
+    const [erpSearchTerm, setErpSearchTerm] = useState('');
+
+    const defaultFormValues: IngredienteFormValues = {
         id: Date.now().toString(),
         nombreIngrediente: '',
         productoERPlinkId: '',
         alergenosPresentes: [],
         alergenosTrazas: [],
+        lastRevision: '',
     };
     
     const form = useForm<IngredienteFormValues>({
@@ -76,18 +78,22 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
     }, []);
 
     useEffect(() => {
-        if(open) {
-            const valuesToReset = initialData || defaultFormValues;
-            form.reset(valuesToReset);
+        if (open) {
+            if (initialData) {
+                form.reset(initialData);
+            } else {
+                form.reset(defaultFormValues);
+            }
         }
-    }, [initialData, form, open]);
+    }, [initialData, open, form, defaultFormValues]);
+
 
     const selectedErpId = form.watch('productoERPlinkId');
     const selectedErpProduct = useMemo(() => articulosERP.find(p => p.idreferenciaerp === selectedErpId), [articulosERP, selectedErpId]);
 
     const handleErpSelect = (erpId: string) => {
         form.setValue('productoERPlinkId', erpId, { shouldDirty: true });
-        setIsSelectorOpen(false);
+        form.trigger('productoERPlinkId'); // Manually trigger validation
     };
 
     const AlergenosTable = ({ alergenosList }: { alergenosList: readonly Alergeno[] }) => (
@@ -170,15 +176,19 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
                                                      <p className="font-bold text-primary text-sm">{calculatePrice(selectedErpProduct).toLocaleString('es-ES',{style:'currency', currency:'EUR'})} / {selectedErpProduct.unidad}</p>
                                                 </div>
                                             ) : (
-                                                <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                                                    <DialogTrigger asChild><Button variant="secondary" className="w-full h-16 border-dashed border-2"><LinkIcon className="mr-2"/>Vincular Artículo ERP</Button></DialogTrigger>
+                                                <Dialog>
+                                                    <DialogTrigger asChild>
+                                                        <Button variant="secondary" className="w-full h-16 border-dashed border-2"><LinkIcon className="mr-2"/>Vincular Artículo ERP</Button>
+                                                    </DialogTrigger>
                                                     <ErpSelectorDialog 
                                                         onSelect={handleErpSelect}
                                                         articulosERP={articulosERP}
+                                                        searchTerm={erpSearchTerm}
+                                                        setSearchTerm={setErpSearchTerm}
                                                     />
                                                 </Dialog>
                                             )}
-                                            <FormMessage className="mt-2 text-red-500">{form.formState.errors.productoERPlinkId?.message}</FormMessage>
+                                            <FormMessage className="mt-2">{form.formState.errors.productoERPlinkId?.message}</FormMessage>
                                         </FormItem>
                                     </div>
                                 </div>
@@ -202,14 +212,15 @@ function IngredienteFormModal({ open, onOpenChange, initialData, onSave }: { ope
     )
 }
 
-function ErpSelectorDialog({ onSelect, articulosERP }: { onSelect: (erpId: string) => void; articulosERP: ArticuloERP[] }) {
-    const [searchTerm, setSearchTerm] = useState('');
-
+function ErpSelectorDialog({ onSelect, articulosERP, searchTerm, setSearchTerm }: { onSelect: (erpId: string) => void; articulosERP: ArticuloERP[]; searchTerm: string, setSearchTerm: (term: string) => void }) {
+    
     const filteredErpProducts = useMemo(() => {
         return articulosERP.filter(p => 
+            p && (
             (p.nombreProductoERP || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (p.nombreProveedor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (p.referenciaProveedor || '').toLowerCase().includes(searchTerm.toLowerCase())
+            )
         );
     }, [articulosERP, searchTerm]);
 
@@ -232,7 +243,11 @@ function ErpSelectorDialog({ onSelect, articulosERP }: { onSelect: (erpId: strin
                             <TableCell>{p.nombreProductoERP}</TableCell>
                             <TableCell>{p.nombreProveedor}</TableCell>
                             <TableCell>{calculatePrice(p).toLocaleString('es-ES',{style:'currency', currency:'EUR'})}/{p.unidad}</TableCell>
-                            <TableCell><Button size="sm" onClick={() => onSelect(p.idreferenciaerp)}><Check className="mr-2"/>Seleccionar</Button></TableCell>
+                            <TableCell>
+                                <DialogClose asChild>
+                                    <Button size="sm" onClick={() => onSelect(p.idreferenciaerp)}><Check className="mr-2"/>Seleccionar</Button>
+                                </DialogClose>
+                            </TableCell>
                         </TableRow>
                     ))}</TableBody>
                 </Table>
@@ -241,7 +256,7 @@ function ErpSelectorDialog({ onSelect, articulosERP }: { onSelect: (erpId: strin
     )
 }
 
-export default function IngredientesPage() {
+function IngredientesPageContent() {
   const [ingredientes, setIngredientes] = useState<IngredienteConERP[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -249,7 +264,7 @@ export default function IngredientesPage() {
   const [itemToDelete, setItemToDelete] = useState<IngredienteConERP | null>(null);
   const [affectedElaboraciones, setAffectedElaboraciones] = useState<Elaboracion[]>([]);
   const [isImportAlertOpen, setIsImportAlertOpen] = useState(false);
-  const [editingIngredient, setEditingIngredient] = useState<Partial<IngredienteInterno> | 'new' | null>(null);
+  const [editingIngredient, setEditingIngredient] = useState<Partial<IngredienteInterno> | null>(null);
 
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -403,7 +418,7 @@ export default function IngredientesPage() {
   const handleSave = (data: IngredienteFormValues) => {
     const allItems = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     let message = '';
-    const isEditing = !!(editingIngredient && editingIngredient !== 'new' && editingIngredient.id);
+    const isEditing = !!(editingIngredient && editingIngredient.id);
 
     const finalData = { ...data, lastRevision: new Date().toISOString() };
     
@@ -431,14 +446,14 @@ export default function IngredientesPage() {
 
   if (!isMounted) return <LoadingSkeleton title="Cargando Ingredientes..." />;
 
-  const initialDataForModal = editingIngredient === 'new' ? null : editingIngredient;
+  const initialDataForModal = editingIngredient || null;
 
   return (
     <>
       <div className="flex items-center justify-between mb-6">
           <div></div>
           <div className="flex gap-2">
-            <Button onClick={() => setEditingIngredient('new')}><PlusCircle className="mr-2" />Nuevo Ingrediente</Button>
+            <Button onClick={() => setEditingIngredient({})}><PlusCircle className="mr-2" />Nuevo Ingrediente</Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild><Button variant="outline" size="icon"><Menu /></Button></DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -534,4 +549,12 @@ export default function IngredientesPage() {
         </AlertDialog>
     </>
   );
+}
+
+export default function IngredientesPageWrapper() {
+    return (
+        <Suspense fallback={<LoadingSkeleton title="Cargando Ingredientes..." />}>
+            <IngredientesPageContent />
+        </Suspense>
+    )
 }
