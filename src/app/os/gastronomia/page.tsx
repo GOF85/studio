@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSearchParams, useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { Utensils, ArrowLeft } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing, GastronomyOrder, GastronomyOrderStatus } from '@/types';
@@ -29,7 +29,6 @@ const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' |
 };
 
 export default function GastronomiaPage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [gastronomyOrders, setGastronomyOrders] = useState<GastronomyOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   
@@ -80,7 +79,6 @@ export default function GastronomiaPage() {
         const updatedAllOrders = [...otherOsGastroOrders, ...finalOrders];
         localStorage.setItem('gastronomyOrders', JSON.stringify(updatedAllOrders));
         setGastronomyOrders(finalOrders);
-        toast({ title: "Sincronizado", description: "Los pedidos de gastronomía se han actualizado desde el briefing comercial." });
     } else {
         setGastronomyOrders(osGastroOrders);
     }
@@ -89,16 +87,10 @@ export default function GastronomiaPage() {
 
   useEffect(() => {
     if (osId) {
-      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      const currentOS = allServiceOrders.find(os => os.id === osId);
-      setServiceOrder(currentOS || null);
       loadAndSyncOrders();
-    } else {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio.' });
-      router.push('/pes');
     }
     setIsMounted(true);
-  }, [osId, router, toast, loadAndSyncOrders]);
+  }, [osId, loadAndSyncOrders]);
 
   const sortedGastronomyOrders = useMemo(() => {
     return [...gastronomyOrders].sort((a, b) => {
@@ -110,7 +102,7 @@ export default function GastronomiaPage() {
     });
   }, [gastronomyOrders]);
   
-  if (!isMounted || !serviceOrder) {
+  if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Gastronomía..." />;
   }
 
