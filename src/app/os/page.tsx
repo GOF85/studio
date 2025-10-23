@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-// This page just redirects to the first page of the CPR module.
+// This page just redirects to the main service order overview page.
 export default function OsRedirectPage() {
     const router = useRouter();
     useEffect(() => {
