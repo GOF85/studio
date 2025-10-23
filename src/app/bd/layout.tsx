@@ -54,7 +54,7 @@ export default function BdLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 </div>
             </div>
-             <main className="container mx-auto px-4 py-8">
+             <main className="container mx-auto px-4 py-4">
                 {children}
             </main>
         </>
