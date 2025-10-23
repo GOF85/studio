@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -7,7 +6,7 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { BarChart3, Euro, TrendingUp, TrendingDown, ClipboardList, Package, Calendar as CalendarIcon, Factory } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatPercentage } from '@/lib/utils';
 import type { Entrega, ServiceOrder, MaterialOrder, GastronomyOrder, TransporteOrder, HieloOrder, DecoracionOrder, AtipicoOrder, PersonalMiceOrder, PersonalExterno, PersonalExternoAjuste, PedidoEntrega, PedidoEntregaItem } from '@/types';
 import { DateRange } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
@@ -178,7 +177,7 @@ export default function AnaliticaDashboardPage() {
         const totalFacturacion = cateringFacturacion + entregasFacturacion;
         const totalCoste = cateringCoste + entregasCoste;
         const rentabilidad = totalFacturacion - totalCoste;
-        const margen = totalFacturacion > 0 ? (rentabilidad / totalFacturacion) * 100 : 0;
+        const margen = totalFacturacion > 0 ? (rentabilidad / totalFacturacion) : 0;
         
         return {
             cateringData: { facturacion: cateringFacturacion, coste: cateringCoste, rentabilidad: cateringFacturacion - cateringCoste, eventos: cateringOrders.length },
