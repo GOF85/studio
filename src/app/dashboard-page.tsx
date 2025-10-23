@@ -3,13 +3,14 @@
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3 } from 'lucide-react';
+import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3, Calendar } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 type MenuItem = {
     title: string;
     href: string;
     icon: LucideIcon;
+    className?: string;
 }
 
 const planningItems: MenuItem[] = [
@@ -19,9 +20,15 @@ const planningItems: MenuItem[] = [
         icon: ClipboardList, 
     },
     {
+        title: 'Calendario de Servicios',
+        href: '/calendario',
+        icon: Calendar,
+    },
+    {
         title: 'Entregas MICE',
         href: '/entregas',
         icon: Truck,
+        className: "theme-orange"
     },
 ];
 
@@ -79,7 +86,7 @@ export function Section({ title, items }: { title: string, items: MenuItem[] }) 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {items.map(item => (
                     <Link href={item.href} key={item.href}>
-                        <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
+                        <Card className={`hover:border-primary/80 hover:shadow-lg transition-all h-full ${item.className || ''}`}>
                             <CardHeader className="flex-row items-center gap-4">
                                 <item.icon className="w-8 h-8 text-primary flex-shrink-0" />
                                 <CardTitle>{item.title}</CardTitle>
