@@ -211,13 +211,13 @@ export default function AnaliticaCateringPage() {
     }, [pedidosFiltrados]);
 
     const analisisComerciales = useMemo(() => {
-        const porComercial: Record<string, { facturacion: number, coste: number, eventos: number }> = {};
+        const porComercial: Record<string, { facturacion: number; coste: number; eventos: AnaliticaCateringItem[] }> = {};
         pedidosFiltrados.forEach(p => {
             const comercial = p.os.comercial || 'Sin Asignar';
-            if (!porComercial[comercial]) porComercial[comercial] = { facturacion: 0, coste: 0, eventos: 0 };
+            if (!porComercial[comercial]) porComercial[comercial] = { facturacion: 0, coste: 0, eventos: [] };
             porComercial[comercial].facturacion += p.pvpFinal;
             porComercial[comercial].coste += p.costeTotal;
-            porComercial[comercial].eventos += 1;
+            porComercial[comercial].eventos.push(p);
         });
         return Object.entries(porComercial).map(([name, data]) => ({
             name, ...data, margen: data.facturacion - data.coste, margenPct: data.facturacion > 0 ? (data.facturacion - data.coste) / data.facturacion : 0
@@ -225,13 +225,13 @@ export default function AnaliticaCateringPage() {
     }, [pedidosFiltrados]);
     
     const analisisMetres = useMemo(() => {
-        const porMetre: Record<string, { facturacion: number; coste: number; eventos: number }> = {};
+        const porMetre: Record<string, { facturacion: number; coste: number; eventos: AnaliticaCateringItem[] }> = {};
         pedidosFiltrados.forEach(p => {
             const metre = p.os.respMetre || 'Sin Asignar';
-            if (!porMetre[metre]) porMetre[metre] = { facturacion: 0, coste: 0, eventos: 0 };
+            if (!porMetre[metre]) porMetre[metre] = { facturacion: 0, coste: 0, eventos: [] };
             porMetre[metre].facturacion += p.pvpFinal;
             porMetre[metre].coste += p.costeTotal;
-            porMetre[metre].eventos += 1;
+            porMetre[metre].eventos.push(p);
         });
         return Object.entries(porMetre).map(([name, data]) => ({
             name, ...data, margen: data.facturacion - data.coste, margenPct: data.facturacion > 0 ? (data.facturacion - data.coste) / data.facturacion : 0
@@ -380,8 +380,8 @@ export default function AnaliticaCateringPage() {
                     <TabsTrigger value="detalle">Análisis Detallado</TabsTrigger>
                     <TabsTrigger value="agregado">Vista Agregada</TabsTrigger>
                     <TabsTrigger value="rentabilidad">Rentabilidad por Evento</TabsTrigger>
-                    <TabsTrigger value="comercial"><Briefcase className="mr-2 h-4 w-4"/>Rentabilidad por Comercial</TabsTrigger>
-                    <TabsTrigger value="metre"><Users className="mr-2 h-4 w-4"/>Rentabilidad por Metre</TabsTrigger>
+                    <TabsTrigger value="comercial"><Briefcase className="mr-2 h-4 w-4"/>Por Comercial</TabsTrigger>
+                    <TabsTrigger value="metre"><Users className="mr-2 h-4 w-4"/>Por Metre</TabsTrigger>
                 </TabsList>
                 <TabsContent value="detalle" className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-2">
@@ -577,35 +577,93 @@ export default function AnaliticaCateringPage() {
                      <Card>
                         <CardHeader><CardTitle>Rendimiento por Comercial</CardTitle></CardHeader>
                         <CardContent>
-                           <ResponsiveContainer width="100%" height={analisisComerciales.length * 60}>
-                             <BarChart data={analisisComerciales} layout="vertical" margin={{ left: 100 }}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
-                                <YAxis type="category" dataKey="name" width={100} stroke="#888888" fontSize={12} />
-                                <Tooltip formatter={(value:any) => formatCurrency(value)} />
-                                <Legend />
-                                <Bar dataKey="facturacion" name="Facturación" fill="#8884d8" />
-                                <Bar dataKey="margen" name="Margen Bruto" fill="#82ca9d" />
-                            </BarChart>
-                          </ResponsiveContainer>
+                            <div className="grid md:grid-cols-[1fr_auto] gap-8">
+                                <ResponsiveContainer width="100%" height={analisisComerciales.length * 60}>
+                                    <BarChart data={analisisComerciales} layout="vertical" margin={{ left: 100 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
+                                        <YAxis type="category" dataKey="name" width={100} stroke="#888888" fontSize={12} />
+                                        <Tooltip formatter={(value:any) => formatCurrency(value)} />
+                                        <Legend />
+                                        <Bar dataKey="facturacion" name="Facturación" fill="#8884d8" />
+                                        <Bar dataKey="margen" name="Margen Bruto" fill="#82ca9d" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                                 <Accordion type="single" collapsible className="w-full max-w-lg">
+                                    {analisisComerciales.map(c => (
+                                        <AccordionItem key={c.name} value={c.name}>
+                                            <AccordionTrigger className="font-semibold">{c.name}</AccordionTrigger>
+                                            <AccordionContent>
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>Nº OS</TableHead>
+                                                            <TableHead>Cliente</TableHead>
+                                                            <TableHead className="text-right">Margen</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {c.eventos.map(p => (
+                                                            <TableRow key={p.os.id}>
+                                                                <TableCell><Link href={`/os/${p.os.id}/cta-explotacion`} className="text-primary hover:underline font-mono text-xs">{p.os.serviceNumber}</Link></TableCell>
+                                                                <TableCell>{p.os.client}</TableCell>
+                                                                <TableCell className={cn("text-right font-bold", p.pvpFinal - p.costeTotal < 0 && 'text-destructive')}>{formatPercentage((p.pvpFinal - p.costeTotal) / p.pvpFinal)}</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    ))}
+                                </Accordion>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
                 <TabsContent value="metre" className="space-y-4">
                     <Card>
                         <CardHeader><CardTitle>Rendimiento por Metre</CardTitle></CardHeader>
-                        <CardContent>
-                           <ResponsiveContainer width="100%" height={analisisMetres.length * 60}>
-                             <BarChart data={analisisMetres} layout="vertical" margin={{ left: 100 }}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
-                                <YAxis type="category" dataKey="name" width={100} stroke="#888888" fontSize={12} />
-                                <Tooltip formatter={(value:any) => formatCurrency(value)} />
-                                <Legend />
-                                <Bar dataKey="facturacion" name="Facturación" fill="#8884d8" />
-                                <Bar dataKey="margen" name="Margen Bruto" fill="#82ca9d" />
-                            </BarChart>
-                          </ResponsiveContainer>
+                         <CardContent>
+                             <div className="grid md:grid-cols-[1fr_auto] gap-8">
+                                <ResponsiveContainer width="100%" height={analisisMetres.length * 60}>
+                                    <BarChart data={analisisMetres} layout="vertical" margin={{ left: 100 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
+                                        <YAxis type="category" dataKey="name" width={100} stroke="#888888" fontSize={12} />
+                                        <Tooltip formatter={(value:any) => formatCurrency(value)} />
+                                        <Legend />
+                                        <Bar dataKey="facturacion" name="Facturación" fill="#8884d8" />
+                                        <Bar dataKey="margen" name="Margen Bruto" fill="#82ca9d" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                                <Accordion type="single" collapsible className="w-full max-w-lg">
+                                    {analisisMetres.map(m => (
+                                        <AccordionItem key={m.name} value={m.name}>
+                                            <AccordionTrigger className="font-semibold">{m.name}</AccordionTrigger>
+                                            <AccordionContent>
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>Nº OS</TableHead>
+                                                            <TableHead>Cliente</TableHead>
+                                                            <TableHead className="text-right">Margen</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {m.eventos.map(p => (
+                                                            <TableRow key={p.os.id}>
+                                                                <TableCell><Link href={`/os/${p.os.id}/cta-explotacion`} className="text-primary hover:underline font-mono text-xs">{p.os.serviceNumber}</Link></TableCell>
+                                                                <TableCell>{p.os.client}</TableCell>
+                                                                <TableCell className={cn("text-right font-bold", p.pvpFinal - p.costeTotal < 0 && 'text-destructive')}>{formatPercentage((p.pvpFinal - p.costeTotal) / p.pvpFinal)}</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    ))}
+                                </Accordion>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -613,6 +671,8 @@ export default function AnaliticaCateringPage() {
         </main>
     )
 }
+    
+
     
 
     
