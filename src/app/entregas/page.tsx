@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -90,7 +89,7 @@ export default function EntregasDashboardPage() {
 
             <Separator />
             
-            <Link href="/entregas/analitica">
+            <Link href="/analitica/entregas">
                 <Card className="hover:border-primary/80 hover:shadow-lg transition-all h-full">
                         <CardHeader className="flex-row items-center gap-4">
                         <BarChart3 className="w-10 h-10 text-primary flex-shrink-0" />

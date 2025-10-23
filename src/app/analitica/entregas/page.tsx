@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -524,10 +523,7 @@ export default function AnaliticaEntregasPage() {
     return (
         <main className="container mx-auto px-4 py-8">
             <div className="flex items-center gap-4 mb-6">
-                <BarChart3 className="w-10 h-10 text-primary" />
-                <div>
-                    <h1 className="text-3xl font-headline font-bold">Analítica de Rentabilidad de Entregas</h1>
-                </div>
+                <h1 className="text-3xl font-headline font-bold">Analítica de Rentabilidad de Entregas</h1>
             </div>
             
             <Card className="mb-6">
@@ -927,5 +923,3 @@ export default function AnaliticaEntregasPage() {
         </main>
     )
 }
-
-    

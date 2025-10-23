@@ -1,8 +1,9 @@
+
 'use client';
 
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
-import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy } from 'lucide-react';
+import { ClipboardList, BookHeart, Factory, Settings, Package, Warehouse, Users, Truck, LifeBuoy, BarChart3 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 type MenuItem = {
@@ -63,6 +64,13 @@ const adminItems: MenuItem[] = [
     },
 ];
 
+const reportingItems: MenuItem[] = [
+    {
+        title: 'Analítica',
+        href: '/analitica',
+        icon: BarChart3,
+    }
+];
 
 export function Section({ title, items }: { title: string, items: MenuItem[] }) {
     return (
@@ -96,6 +104,7 @@ export function DashboardPage() {
           <div className="space-y-12">
             <Section title="Planificación" items={planningItems} />
             <Section title="Operaciones Centrales" items={coreOpsItems} />
+            <Section title="Análisis y Reportes" items={reportingItems} />
             <Section title="Colaboradores" items={externalItems} />
             <Section title="Administración" items={adminItems} />
           </div>
