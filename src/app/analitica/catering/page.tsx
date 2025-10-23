@@ -355,6 +355,27 @@ export default function AnaliticaCateringPage() {
 
     const objetivoGasto = { 'Almacén': 0.0523, 'Alquiler': 0.0378, 'Bodega': 0.0392, 'Consumibles': 0.0067, 'Decoración': 0.0073, 'Gastronomía': 0.233, 'Hielo': 0.0026, 'Otros gastos': 0.01, 'Personal MICE': 0.0563, 'Personal externo': 0.1241, 'Prueba de menú': 0, 'Rentabilidad': 0.4041 };
     
+    const analisisDesviaciones = useMemo(() => {
+        const totalCostes: Record<string, number> = {};
+        let totalFacturacion = 0;
+
+        analisisAgregado.forEach(monthData => {
+            totalFacturacion += monthData.facturacion;
+            for(const partida in monthData.costes) {
+                totalCostes[partida] = (totalCostes[partida] || 0) + monthData.costes[partida];
+            }
+        });
+        
+        return Object.entries(totalCostes).map(([partida, costeReal]) => {
+            const costeObjetivo = totalFacturacion * ((objetivoGasto as any)[partida] || 0);
+            return {
+                name: partida,
+                desviacion: costeReal - costeObjetivo
+            }
+        });
+
+    }, [analisisAgregado, objetivoGasto]);
+    
     const setDatePreset = (preset: 'month' | 'year' | 'q1' | 'q2' | 'q3' | 'q4') => {
         const now = new Date();
         switch(preset) {
@@ -423,9 +444,9 @@ export default function AnaliticaCateringPage() {
                 </CardContent>
             </Card>
 
-             <Tabs defaultValue="detalle">
+             <Tabs defaultValue="analisis">
                 <TabsList className="grid w-full grid-cols-8 mb-4">
-                    <TabsTrigger value="detalle">Análisis</TabsTrigger>
+                    <TabsTrigger value="analisis">Análisis</TabsTrigger>
                     <TabsTrigger value="agregado">Vista Agregada</TabsTrigger>
                     <TabsTrigger value="rentabilidad">Rentabilidad por Evento</TabsTrigger>
                     <TabsTrigger value="comercial"><Briefcase className="mr-2 h-4 w-4"/>Por Comercial</TabsTrigger>
@@ -434,7 +455,7 @@ export default function AnaliticaCateringPage() {
                     <TabsTrigger value="espacio"><Building className="mr-2 h-4 w-4"/>Por Espacio</TabsTrigger>
                     <TabsTrigger value="tipo_servicio"><Hand className="mr-2 h-4 w-4"/>Por Tipo de Servicio</TabsTrigger>
                 </TabsList>
-                <TabsContent value="detalle" className="space-y-4">
+                <TabsContent value="analisis" className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-2">
                         {kpis.map(kpi => <KpiCard key={kpi.title} title={kpi.title} value={kpi.value} icon={kpi.icon} />)}
                     </div>
@@ -480,39 +501,59 @@ export default function AnaliticaCateringPage() {
                     </Accordion>
                 </TabsContent>
                 <TabsContent value="agregado" className="space-y-4">
-                    <Card>
-                        <CardHeader><CardTitle>Vista Agregada Mensual (€)</CardTitle></CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Concepto</TableHead>
-                                        {analisisAgregado.map(m => <TableHead key={m.month} className="text-right">{m.month}</TableHead>)}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    <TableRow><TableCell className="font-bold">Nº Contratos</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{m.numContratos}</TableCell>)}</TableRow>
-                                    <TableRow><TableCell className="font-bold">PAX</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{m.pax}</TableCell>)}</TableRow>
-                                    <TableRow><TableCell className="font-bold">Facturación</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{formatCurrency(m.facturacion)}</TableCell>)}</TableRow>
-                                    <TableRow className="bg-muted/30"><TableCell colSpan={analisisAgregado.length + 1} className="font-bold pl-8">Costes</TableCell></TableRow>
-                                    {partidasCostes.map(partida => (
-                                        <TableRow key={partida}>
-                                            <TableCell className="pl-8">{partida}</TableCell>
-                                            {analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{formatCurrency(m.costes[partida] || 0)}</TableCell>)}
+                    <div className="grid lg:grid-cols-2 gap-4 items-start">
+                        <Card>
+                            <CardHeader><CardTitle>Vista Agregada Mensual (€)</CardTitle></CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Concepto</TableHead>
+                                            {analisisAgregado.map(m => <TableHead key={m.month} className="text-right">{m.month}</TableHead>)}
                                         </TableRow>
-                                    ))}
-                                    <TableRow className="bg-muted/30"><TableCell colSpan={analisisAgregado.length + 1}></TableCell></TableRow>
-                                    <TableRow><TableCell className="font-bold">Rentabilidad</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className={cn("text-right font-bold", m.rentabilidad < 0 ? 'text-destructive':'text-green-600')}>{formatCurrency(m.rentabilidad)}</TableCell>)}</TableRow>
-                                    <TableRow><TableCell className="font-bold">Ingresos / PAX</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{formatCurrency(m.ingresosPorPax)}</TableCell>)}</TableRow>
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
+                                    </TableHeader>
+                                    <TableBody>
+                                        <TableRow><TableCell className="font-bold">Nº Contratos</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{m.numContratos}</TableCell>)}</TableRow>
+                                        <TableRow><TableCell className="font-bold">PAX</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{m.pax}</TableCell>)}</TableRow>
+                                        <TableRow><TableCell className="font-bold">Facturación</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{formatCurrency(m.facturacion)}</TableCell>)}</TableRow>
+                                        <TableRow className="bg-muted/30"><TableCell colSpan={analisisAgregado.length + 1} className="font-bold pl-8">Costes</TableCell></TableRow>
+                                        {partidasCostes.map(partida => (
+                                            <TableRow key={partida}>
+                                                <TableCell className="pl-8">{partida}</TableCell>
+                                                {analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{formatCurrency(m.costes[partida] || 0)}</TableCell>)}
+                                            </TableRow>
+                                        ))}
+                                        <TableRow className="bg-muted/30"><TableCell colSpan={analisisAgregado.length + 1}></TableCell></TableRow>
+                                        <TableRow><TableCell className="font-bold">Rentabilidad</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className={cn("text-right font-bold", m.rentabilidad < 0 ? 'text-destructive':'text-green-600')}>{formatCurrency(m.rentabilidad)}</TableCell>)}</TableRow>
+                                        <TableRow><TableCell className="font-bold">Ingresos / PAX</TableCell>{analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{formatCurrency(m.ingresosPorPax)}</TableCell>)}</TableRow>
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader><CardTitle>Desviación de Costes vs Objetivo</CardTitle></CardHeader>
+                            <CardContent>
+                                <ResponsiveContainer width="100%" height={350}>
+                                    <BarChart data={analisisDesviaciones} layout="vertical">
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
+                                        <YAxis type="category" dataKey="name" width={100} fontSize={12} />
+                                        <Tooltip formatter={(value:any) => formatCurrency(value)} />
+                                        <Bar dataKey="desviacion" name="Desviación">
+                                            {analisisDesviaciones.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.desviacion > 0 ? '#ef4444' : '#22c55e'} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
+                    </div>
                     
                     <Card>
                         <CardHeader><CardTitle>Vista Agregada Mensual (%)</CardTitle></CardHeader>
                         <CardContent>
-                             <Table>
+                            <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>%</TableHead>
@@ -521,38 +562,40 @@ export default function AnaliticaCateringPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {partidasCostes.map(partida => (
-                                        <TableRow key={partida}>
-                                            <TableCell>{partida}</TableCell>
-                                            <TableCell>{formatPercentage((objetivoGasto as any)[partida] || 0)}</TableCell>
-                                            {analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{formatPercentage((m.costes[partida] || 0) / m.facturacion)}</TableCell>)}
-                                        </TableRow>
-                                    ))}
-                                     <TableRow className="font-bold bg-muted/30">
+                                    {partidasCostes.map(partida => {
+                                        const objetivo = (objetivoGasto as any)[partida] || 0;
+                                        return (
+                                            <TableRow key={partida}>
+                                                <TableCell>{partida}</TableCell>
+                                                <TableCell>{formatPercentage(objetivo)}</TableCell>
+                                                {analisisAgregado.map(m => {
+                                                    const realPct = m.facturacion > 0 ? (m.costes[partida] || 0) / m.facturacion : 0;
+                                                    return (
+                                                        <TableCell key={m.month} className={cn("text-right", realPct > objetivo ? 'text-destructive font-semibold' : 'text-green-600')}>
+                                                            {formatPercentage(realPct)}
+                                                        </TableCell>
+                                                    );
+                                                })}
+                                            </TableRow>
+                                        )
+                                    })}
+                                    <TableRow className="font-bold bg-muted/30">
                                         <TableCell>Rentabilidad</TableCell>
                                         <TableCell>{formatPercentage(objetivoGasto['Rentabilidad'] || 0)}</TableCell>
-                                        {analisisAgregado.map(m => <TableCell key={m.month} className="text-right">{formatPercentage(m.rentabilidad / m.facturacion)}</TableCell>)}
+                                        {analisisAgregado.map(m => {
+                                             const rentabilidadPct = m.facturacion > 0 ? m.rentabilidad / m.facturacion : 0;
+                                             return (
+                                                 <TableCell key={m.month} className={cn("text-right", rentabilidadPct < objetivoGasto['Rentabilidad'] ? 'text-destructive' : 'text-green-600')}>
+                                                     {formatPercentage(rentabilidadPct)}
+                                                 </TableCell>
+                                             )
+                                        })}
                                     </TableRow>
                                 </TableBody>
                             </Table>
                         </CardContent>
                     </Card>
 
-                     <Card>
-                        <CardHeader><CardTitle>Asistentes por Mes</CardTitle></CardHeader>
-                        <CardContent>
-                             <ResponsiveContainer width="100%" height={350}>
-                                <BarChart data={analisisAgregado}>
-                                    <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false}/>
-                                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`}/>
-                                    <Tooltip formatter={(value) => `${formatNumber(value as number, 0)}`} />
-                                    <Legend />
-                                    <Bar dataKey="pax" name="PAX (Nº Asistentes OS)" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="asistentesHitos" name="Asistentes Hitos (Suma)" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </CardContent>
-                     </Card>
                 </TabsContent>
                  <TabsContent value="rentabilidad" className="space-y-4">
                      <div className="grid lg:grid-cols-5 gap-8 items-start">
@@ -805,4 +848,3 @@ export default function AnaliticaCateringPage() {
     
 
     
-
