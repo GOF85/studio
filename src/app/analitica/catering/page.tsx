@@ -238,6 +238,34 @@ export default function AnaliticaCateringPage() {
         })).sort((a, b) => b.margen - a.margen);
     }, [pedidosFiltrados]);
 
+    const analisisClientes = useMemo(() => {
+        const porCliente: Record<string, { facturacion: number; coste: number; eventos: AnaliticaCateringItem[] }> = {};
+        pedidosFiltrados.forEach(p => {
+            const cliente = p.os.client || 'Sin Cliente';
+            if (!porCliente[cliente]) porCliente[cliente] = { facturacion: 0, coste: 0, eventos: [] };
+            porCliente[cliente].facturacion += p.pvpFinal;
+            porCliente[cliente].coste += p.costeTotal;
+            porCliente[cliente].eventos.push(p);
+        });
+        return Object.entries(porCliente).map(([name, data]) => ({
+            name, ...data, margen: data.facturacion - data.coste, margenPct: data.facturacion > 0 ? (data.facturacion - data.coste) / data.facturacion : 0
+        })).sort((a, b) => b.facturacion - a.facturacion);
+    }, [pedidosFiltrados]);
+
+    const analisisEspacios = useMemo(() => {
+        const porEspacio: Record<string, { facturacion: number; coste: number; eventos: AnaliticaCateringItem[] }> = {};
+        pedidosFiltrados.forEach(p => {
+            const espacio = p.os.space || 'Sin Espacio';
+            if (!porEspacio[espacio]) porEspacio[espacio] = { facturacion: 0, coste: 0, eventos: [] };
+            porEspacio[espacio].facturacion += p.pvpFinal;
+            porEspacio[espacio].coste += p.costeTotal;
+            porEspacio[espacio].eventos.push(p);
+        });
+        return Object.entries(porEspacio).map(([name, data]) => ({
+            name, ...data, margen: data.facturacion - data.coste, margenPct: data.facturacion > 0 ? (data.facturacion - data.coste) / data.facturacion : 0
+        })).sort((a, b) => b.facturacion - a.facturacion);
+    }, [pedidosFiltrados]);
+
     const analisisAgregado = useMemo(() => {
         const byMonth: Record<string, MonthlyData> = {};
 
@@ -376,12 +404,14 @@ export default function AnaliticaCateringPage() {
             </Card>
 
              <Tabs defaultValue="detalle">
-                <TabsList className="grid w-full grid-cols-5 mb-4">
+                <TabsList className="grid w-full grid-cols-7 mb-4">
                     <TabsTrigger value="detalle">Análisis Detallado</TabsTrigger>
                     <TabsTrigger value="agregado">Vista Agregada</TabsTrigger>
                     <TabsTrigger value="rentabilidad">Rentabilidad por Evento</TabsTrigger>
                     <TabsTrigger value="comercial"><Briefcase className="mr-2 h-4 w-4"/>Por Comercial</TabsTrigger>
                     <TabsTrigger value="metre"><Users className="mr-2 h-4 w-4"/>Por Metre</TabsTrigger>
+                    <TabsTrigger value="cliente"><Users className="mr-2 h-4 w-4"/>Por Cliente</TabsTrigger>
+                    <TabsTrigger value="espacio"><Building className="mr-2 h-4 w-4"/>Por Espacio</TabsTrigger>
                 </TabsList>
                 <TabsContent value="detalle" className="space-y-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-2">
@@ -667,10 +697,84 @@ export default function AnaliticaCateringPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+                <TabsContent value="cliente" className="space-y-4">
+                    <Card>
+                        <CardHeader><CardTitle>Rendimiento por Cliente</CardTitle></CardHeader>
+                        <CardContent>
+                            <Accordion type="single" collapsible className="w-full">
+                                {analisisClientes.map(c => (
+                                    <AccordionItem key={c.name} value={c.name}>
+                                        <AccordionTrigger className="font-semibold">{c.name}</AccordionTrigger>
+                                        <AccordionContent>
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Nº OS</TableHead>
+                                                        <TableHead>Fecha</TableHead>
+                                                        <TableHead className="text-right">Facturación</TableHead>
+                                                        <TableHead className="text-right">Margen</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {c.eventos.map(p => (
+                                                        <TableRow key={p.os.id}>
+                                                            <TableCell><Link href={`/os/${p.os.id}/cta-explotacion`} className="text-primary hover:underline font-mono text-xs">{p.os.serviceNumber}</Link></TableCell>
+                                                            <TableCell>{format(new Date(p.os.startDate), 'dd/MM/yyyy')}</TableCell>
+                                                            <TableCell className="text-right">{formatCurrency(p.pvpFinal)}</TableCell>
+                                                            <TableCell className={cn("text-right font-bold", p.pvpFinal - p.costeTotal < 0 && 'text-destructive')}>{formatPercentage((p.pvpFinal - p.costeTotal) / p.pvpFinal)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="espacio" className="space-y-4">
+                     <Card>
+                        <CardHeader><CardTitle>Rendimiento por Espacio</CardTitle></CardHeader>
+                        <CardContent>
+                             <Accordion type="single" collapsible className="w-full">
+                                {analisisEspacios.map(e => (
+                                    <AccordionItem key={e.name} value={e.name}>
+                                        <AccordionTrigger className="font-semibold">{e.name}</AccordionTrigger>
+                                        <AccordionContent>
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Nº OS</TableHead>
+                                                        <TableHead>Cliente</TableHead>
+                                                        <TableHead className="text-right">Facturación</TableHead>
+                                                        <TableHead className="text-right">Margen</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {e.eventos.map(p => (
+                                                        <TableRow key={p.os.id}>
+                                                            <TableCell><Link href={`/os/${p.os.id}/cta-explotacion`} className="text-primary hover:underline font-mono text-xs">{p.os.serviceNumber}</Link></TableCell>
+                                                            <TableCell>{p.os.client}</TableCell>
+                                                            <TableCell className="text-right">{formatCurrency(p.pvpFinal)}</TableCell>
+                                                            <TableCell className={cn("text-right font-bold", p.pvpFinal - p.costeTotal < 0 && 'text-destructive')}>{formatPercentage((p.pvpFinal - p.costeTotal) / p.pvpFinal)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
             </Tabs>
         </main>
     )
 }
+    
+
     
 
     
