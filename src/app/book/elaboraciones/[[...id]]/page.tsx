@@ -411,7 +411,7 @@ function ElaborationFormPage() {
             }
         } else if (id) {
             elabToLoad = allElaboraciones.find(e => e.id === id) || null;
-        } else { // This is the 'nuevo' case
+        } else if (isNew) {
             elabToLoad = { 
                 id: Date.now().toString(), 
                 nombre: '', 
@@ -431,7 +431,7 @@ function ElaborationFormPage() {
         setInitialData(elabToLoad);
         setIsDataLoaded(true);
 
-    }, [id, cloneId]);
+    }, [id, isNew, cloneId]);
 
     function onSubmit(data: ElaborationFormValues, costePorUnidad: number) {
         setIsLoading(true);
@@ -463,22 +463,29 @@ function ElaborationFormPage() {
         }, 1000);
     }
     
-    if (!isDataLoaded || (!isNew && !cloneId && !initialData)) {
+    if (!isDataLoaded) {
       return <LoadingSkeleton title="Cargando elaboración..." />;
     }
+
+    if (!initialData && !isNew) {
+        // This case handles when an invalid ID is provided, and it's not a new elaboration.
+        return <p>Elaboración no encontrada.</p>;
+    }
+    
+    const pageTitle = cloneId ? 'Clonar Elaboración' : (isNew ? 'Nueva Elaboración' : 'Editar Elaboración');
 
     return (
         <main className="container mx-auto px-4 py-8">
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <Component className="h-8 w-8" />
-                    <h1 className="text-3xl font-headline font-bold">{id ? 'Editar' : 'Nueva'} Elaboración {cloneId && <span className="text-xl text-muted-foreground">(Clonando)</span>}</h1>
+                    <h1 className="text-3xl font-headline font-bold">{pageTitle}</h1>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" type="button" onClick={() => router.push('/book/elaboraciones')}> <X className="mr-2"/> Cancelar</Button>
                     <Button type="submit" form="elaboration-form" disabled={isLoading}>
                     {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
-                    <span className="ml-2">{id ? 'Guardar Cambios' : 'Guardar Elaboración'}</span>
+                    <span className="ml-2">{isNew || cloneId ? 'Guardar Elaboración' : 'Guardar Cambios'}</span>
                     </Button>
                 </div>
             </div>
