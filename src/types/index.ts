@@ -384,10 +384,10 @@ export type ComercialBriefingItem = {
     matBebida?: string;
     materialGastro?: string;
     manteleria?: string;
-    // --- CAMPOS DE GASTRONOMÍA INTEGRADOS ---
-    items?: GastronomyOrderItem[];
-    total?: number;
-    status?: GastronomyOrderStatus;
+    // --- NUEVOS CAMPOS DE GASTRONOMÍA INTEGRADOS ---
+    gastro_items?: GastronomyOrderItem[];
+    gastro_total?: number;
+    gastro_status?: GastronomyOrderStatus;
 };
 
 export type ComercialBriefing = {

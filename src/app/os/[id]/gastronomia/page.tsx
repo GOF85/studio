@@ -7,7 +7,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Utensils } from 'lucide-react';
-import type { ServiceOrder, ComercialBriefing, GastronomyOrder, GastronomyOrderStatus } from '@/types';
+import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, GastronomyOrderStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -31,7 +31,7 @@ const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' |
 };
 
 export default function GastronomiaPage() {
-  const [gastronomyOrders, setGastronomyOrders] = useState<GastronomyOrder[]>([]);
+  const [briefingItems, setBriefingItems] = useState<ComercialBriefingItem[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   
   const router = useRouter();
@@ -45,74 +45,29 @@ export default function GastronomiaPage() {
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const currentBriefing = allBriefings.find(b => b.osId === osId);
     
-    const briefingItemsWithGastro = currentBriefing?.items.filter(item => item.conGastronomia) || [];
-    
-    let allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-    let osGastroOrders = allGastroOrders.filter(order => order.osId === osId);
-
-    let needsUpdate = false;
-    
-    // Sync: Add new orders from briefing if they don't exist
-    briefingItemsWithGastro.forEach(briefingItem => {
-        const existingOrder = osGastroOrders.find(o => o.id === briefingItem.id);
-        if (!existingOrder) {
-            const newOrder: GastronomyOrder = {
-                id: briefingItem.id,
-                osId: osId,
-                status: 'Pendiente',
-                descripcion: briefingItem.descripcion,
-                fecha: briefingItem.fecha,
-                horaInicio: briefingItem.horaInicio,
-                asistentes: briefingItem.asistentes,
-                comentarios: briefingItem.comentarios,
-                sala: briefingItem.sala,
-                items: [],
-                total: 0,
-            };
-            osGastroOrders.push(newOrder);
-            needsUpdate = true;
-        }
-    });
-    
-    // Sync: Update existing orders with briefing data
-    osGastroOrders.forEach(order => {
-        const briefingItem = briefingItemsWithGastro.find(item => item.id === order.id);
-        if (briefingItem) {
-            const hasChanged = 
-              order.descripcion !== briefingItem.descripcion ||
-              order.fecha !== briefingItem.fecha ||
-              order.horaInicio !== briefingItem.horaInicio ||
-              order.asistentes !== briefingItem.asistentes ||
-              order.comentarios !== briefingItem.comentarios ||
-              order.sala !== briefingItem.sala;
-            
-            if (hasChanged) {
-                 Object.assign(order, {
-                    descripcion: briefingItem.descripcion,
-                    fecha: briefingItem.fecha,
-                    horaInicio: briefingItem.horaInicio,
-                    asistentes: briefingItem.asistentes,
-                    comentarios: briefingItem.comentarios,
-                    sala: briefingItem.sala,
-                });
-                needsUpdate = true;
+    if (currentBriefing) {
+        const itemsWithDefaultGastro = currentBriefing.items.map(item => {
+            if (item.conGastronomia && !item.gastro_status) {
+                return {
+                    ...item,
+                    gastro_status: 'Pendiente' as GastronomyOrderStatus,
+                    gastro_items: [],
+                };
             }
+            return item;
+        });
+
+        if (JSON.stringify(itemsWithDefaultGastro) !== JSON.stringify(currentBriefing.items)) {
+            const newBriefing = { ...currentBriefing, items: itemsWithDefaultGastro };
+            const index = allBriefings.findIndex(b => b.osId === osId);
+            if (index !== -1) {
+                allBriefings[index] = newBriefing;
+                localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
+            }
+            setBriefingItems(itemsWithDefaultGastro.filter(item => item.conGastronomia));
+        } else {
+            setBriefingItems(currentBriefing.items.filter(item => item.conGastronomia));
         }
-    });
-
-    const briefingItemIds = new Set(briefingItemsWithGastro.map(i => i.id));
-    const finalOsGastroOrders = osGastroOrders.filter(order => briefingItemIds.has(order.id));
-    if(osGastroOrders.length !== finalOsGastroOrders.length) {
-        needsUpdate = true;
-    }
-
-    if (needsUpdate) {
-        const otherOsGastroOrders = allGastroOrders.filter(order => order.osId !== osId);
-        const updatedAllOrders = [...otherOsGastroOrders, ...finalOsGastroOrders];
-        localStorage.setItem('gastronomyOrders', JSON.stringify(updatedAllOrders));
-        setGastronomyOrders(finalOsGastroOrders);
-    } else {
-        setGastronomyOrders(osGastroOrders);
     }
     
     setIsMounted(true);
@@ -122,8 +77,8 @@ export default function GastronomiaPage() {
     loadAndSyncData();
   }, [loadAndSyncData]);
 
-  const sortedGastronomyOrders = useMemo(() => {
-    return [...gastronomyOrders]
+  const sortedBriefingItems = useMemo(() => {
+    return [...briefingItems]
         .sort((a, b) => {
             const dateA = new Date(a.fecha);
             const dateB = new Date(b.fecha);
@@ -131,7 +86,7 @@ export default function GastronomiaPage() {
             if (dateComparison !== 0) return dateComparison;
             return a.horaInicio.localeCompare(b.horaInicio);
     });
-  }, [gastronomyOrders]);
+  }, [briefingItems]);
   
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Gastronomía..." />;
@@ -155,23 +110,23 @@ export default function GastronomiaPage() {
                         </TableRow>
                         </TableHeader>
                         <TableBody>
-                        {sortedGastronomyOrders.length > 0 ? (
-                            sortedGastronomyOrders.map(order => (
+                        {sortedBriefingItems.length > 0 ? (
+                            sortedBriefingItems.map(item => (
                             <TableRow 
-                                key={order.id} 
-                                onClick={() => router.push(`/os/${osId}/gastronomia/${order.id}`)} 
+                                key={item.id} 
+                                onClick={() => router.push(`/os/${osId}/gastronomia/${item.id}`)} 
                                 className={cn(
                                     "cursor-pointer", 
-                                    order.descripcion.toLowerCase() === 'prueba de menu' && "bg-muted hover:bg-muted/80"
+                                    item.descripcion.toLowerCase() === 'prueba de menu' && "bg-muted hover:bg-muted/80"
                                 )}
                             >
-                                <TableCell>{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
-                                <TableCell>{order.horaInicio}</TableCell>
-                                <TableCell className="min-w-[200px] font-medium">{order.descripcion}</TableCell>
-                                <TableCell>{order.asistentes}</TableCell>
-                                <TableCell className="min-w-[200px]">{order.comentarios}</TableCell>
+                                <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
+                                <TableCell>{item.horaInicio}</TableCell>
+                                <TableCell className="min-w-[200px] font-medium">{item.descripcion}</TableCell>
+                                <TableCell>{item.asistentes}</TableCell>
+                                <TableCell className="min-w-[200px]">{item.comentarios}</TableCell>
                                 <TableCell>
-                                    <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
+                                    <Badge variant={statusVariant[item.gastro_status || 'Pendiente']}>{item.gastro_status || 'Pendiente'}</Badge>
                                 </TableCell>
                             </TableRow>
                             ))
