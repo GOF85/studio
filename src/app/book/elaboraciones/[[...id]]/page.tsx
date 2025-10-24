@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, MoreHorizontal, Copy, Download, Upload, Menu, AlertTriangle, CheckCircle, RefreshCw, Pencil } from 'lucide-react';
 import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, ArticuloERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina, PartidaProduccion, ElaboracionEnReceta } from '@/types';
@@ -43,14 +44,6 @@ import { ElaborationForm, type ElaborationFormValues } from '@/components/book/e
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Papa from 'papaparse';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 
 const CSV_HEADERS_ELABORACIONES = [ "id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion" ];
@@ -433,10 +426,9 @@ function ElaborationFormPage() {
     const params = useParams();
     const searchParams = useSearchParams();
 
-    const idParam = Array.isArray(params.id) ? params.id[0] : params.id || 'nuevo';
-    const isNew = idParam === 'nuevo';
-    const id = isNew ? null : idParam;
-    
+    // Correctly determine the action based on URL
+    const isNew = params.id?.[0] === 'nuevo';
+    const id = !isNew && params.id ? params.id[0] : null;
     const cloneId = searchParams.get('cloneId');
 
     const [initialData, setInitialData] = useState<Partial<ElaborationFormValues> | null>(null);
@@ -454,9 +446,7 @@ function ElaborationFormPage() {
             }
         } else if (id) {
             elabToLoad = allElaboraciones.find(e => e.id === id) || null;
-        }
-        
-        if (isNew) {
+        } else if (isNew) {
             elabToLoad = { 
                 id: Date.now().toString(), 
                 nombre: '', 
@@ -513,12 +503,13 @@ function ElaborationFormPage() {
     }
 
     if (!initialData) {
+        // This case should ideally not be hit if logic is correct, but it's a safeguard
+        toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la elaboración." });
         router.push('/book/elaboraciones');
         return <LoadingSkeleton title="Redirigiendo..." />;
     }
     
     const pageTitle = cloneId ? 'Clonar Elaboración' : (isNew ? 'Nueva Elaboración' : 'Editar Elaboración');
-    const isSubmitting = isLoading;
 
     return (
         <main className="container mx-auto px-4 py-8">
@@ -529,8 +520,8 @@ function ElaborationFormPage() {
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" type="button" onClick={() => router.push('/book/elaboraciones')}> <X className="mr-2"/> Cancelar</Button>
-                    <Button type="submit" form="elaboration-form" disabled={isSubmitting}>
-                    {isSubmitting ? <Loader2 className="animate-spin" /> : <Save />}
+                    <Button type="submit" form="elaboration-form" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                     <span className="ml-2">{isNew || cloneId ? 'Guardar Elaboración' : 'Guardar Cambios'}</span>
                     </Button>
                 </div>
@@ -548,11 +539,14 @@ function ElaborationFormPage() {
 
 export default function ElaboracionesPage() {
     const params = useParams();
+    const searchParams = useSearchParams();
     
-    const isListPage = !params.id || params.id[0] === 'nuevo';
-    const isFormPage = params.id && params.id[0] !== 'nuevo';
+    // Check if `params.id` exists and is an array. If so, it's a dynamic route.
+    // If not, it's the list page. `nuevo` is also a form page.
+    const isForm = params.id && Array.isArray(params.id) && params.id.length > 0;
+    const isClone = searchParams.get('cloneId');
 
-    if(params.id && params.id.length > 0 && params.id[0] !== 'nuevo') {
+    if (isForm || isClone) {
         return <ElaborationFormPage />
     }
     
