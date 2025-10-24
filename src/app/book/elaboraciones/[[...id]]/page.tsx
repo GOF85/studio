@@ -341,8 +341,8 @@ function ElaboracionesListPage() {
           </TableHeader>
           <TableBody>
             {filteredItems.length > 0 ? (
-              filteredItems.map(item => (
-                <TableRow key={item.id} >
+              filteredItems.map((item, index) => (
+                <TableRow key={`${item.id}-${index}`} >
                   <TableCell className="font-medium cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{item.nombre}</TableCell>
                   <TableCell className="cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{formatCurrency(item.costePorUnidad)} / {formatUnit(item.unidadProduccion)}</TableCell>
                   <TableCell>
@@ -504,9 +504,9 @@ function ElaborationFormPage() {
       return <LoadingSkeleton title="Cargando elaboración..." />;
     }
 
-    if (!initialData && !isNew) {
-        // This case handles when an invalid ID is provided, and it's not a new elaboration.
-        return <p>Elaboración no encontrada.</p>;
+    if (!initialData) {
+        router.push('/book/elaboraciones');
+        return <LoadingSkeleton title="Redirigiendo..." />;
     }
     
     const pageTitle = cloneId ? 'Clonar Elaboración' : (isNew ? 'Nueva Elaboración' : 'Editar Elaboración');
