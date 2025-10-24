@@ -194,7 +194,7 @@ function ElaboracionesListPage() {
         skipEmptyLines: true,
         complete: (results) => {
             if (importType === 'elaboraciones') {
-                const importedData: Elaboracion[] = results.data.map(item => ({
+                const importedData: Elaboracion[] = results.data.map((item:any) => ({
                     ...item,
                     produccionTotal: parseFloat(item.produccionTotal) || 0,
                     costePorUnidad: parseFloat(item.costePorUnidad) || 0,
@@ -390,7 +390,7 @@ function ElaboracionFormPage() {
     const params = useParams();
     const searchParams = useSearchParams();
 
-    const id = params?.id ? params.id[0] : 'nuevo';
+    const id = params?.id?.[0];
     const isEditing = id !== 'nuevo';
     const cloneId = searchParams.get('cloneId');
 
@@ -400,23 +400,6 @@ function ElaboracionFormPage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
     
-    const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteInterno>): Alergeno[] => {
-        if (!elaboracion || !elaboracion.componentes) {
-          return [];
-        }
-        const elabAlergenos = new Set<Alergeno>();
-        elaboracion.componentes.forEach(comp => {
-            if(comp.tipo === 'ingrediente') {
-                const ingData = ingredientesMap.get(comp.componenteId);
-                if (ingData) {
-                  (ingData.alergenosPresentes || []).forEach(a => elabAlergenos.add(a));
-                  (ingData.alergenosTrazas || []).forEach(a => elabAlergenos.add(a));
-                }
-            }
-        });
-        return Array.from(elabAlergenos);
-    };
-
     useEffect(() => {
         let elabToLoad: Partial<ElaborationFormValues> | null = null;
         const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
@@ -481,6 +464,7 @@ function ElaboracionFormPage() {
     }
 
     const handleAttemptDelete = () => {
+        if(!id) return;
         const allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
         const recipesUsingElaboracion = allRecetas.filter(receta => 
           receta.elaboraciones.some(e => e.elaboracionId === id)
@@ -490,6 +474,7 @@ function ElaboracionFormPage() {
     };
 
     const handleDelete = () => {
+        if(!id) return;
         if (affectedRecipes.length > 0) {
             let allRecetas: Receta[] = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
             const affectedRecipeIds = new Set(affectedRecipes.map(r => r.id));
