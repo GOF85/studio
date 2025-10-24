@@ -1,4 +1,5 @@
 
+
 import { z } from "zod";
 
 export type CateringItem = {
@@ -356,6 +357,17 @@ export type CategoriaPersonal = {
   precioHora: number;
 };
 
+export type GastronomyOrderItem = {
+    id: string; // Receta ID
+    type: 'item' | 'separator';
+    nombre: string;
+    categoria?: string;
+    costeMateriaPrima?: number;
+    precioVenta?: number;
+    quantity?: number;
+}
+export type GastronomyOrderStatus = 'Pendiente' | 'En preparación' | 'Listo' | 'Incidencia';
+
 export type ComercialBriefingItem = {
     id: string;
     fecha: string;
@@ -372,22 +384,15 @@ export type ComercialBriefingItem = {
     matBebida?: string;
     materialGastro?: string;
     manteleria?: string;
+    // --- CAMPOS DE GASTRONOMÍA INTEGRADOS ---
+    items?: GastronomyOrderItem[];
+    total?: number;
+    status?: GastronomyOrderStatus;
 };
 
 export type ComercialBriefing = {
     osId: string;
     items: ComercialBriefingItem[];
-}
-
-export type GastronomyOrderStatus = 'Pendiente' | 'En preparación' | 'Listo' | 'Incidencia';
-
-export type GastronomyOrderItem = {
-    id: string; // Receta ID
-    type: 'item' | 'separator';
-    nombre: string;
-    categoria?: string;
-    costeMateriaPrima?: number;
-    quantity?: number;
 }
 
 export type GastronomyOrder = {
@@ -617,7 +622,7 @@ export type FamiliaERP = {
     Categoria: string;
 }
 
-export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS_DE_CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
+export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS DE CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
 export type Alergeno = typeof ALERGENOS[number];
 
 export type IngredienteInterno = {
@@ -692,11 +697,12 @@ export type Receta = {
     elaboraciones: ElaboracionEnReceta[];
     menajeAsociado: { id: string; menajeId: string; descripcion: string; ratio: number }[];
     instruccionesMiseEnPlace: string;
-    fotosMiseEnPlaceURLs?: string[];
+    fotosMiseEnPlaceURLs?: { value: string }[];
     instruccionesRegeneracion: string;
-    fotosRegeneracionURLs?: string[];
+    fotosRegeneracionURLs?: { value: string }[];
     instruccionesEmplatado: string;
-    fotosEmplatadoURLs?: string[];
+    fotosEmplatadoURLs?: { value: string }[];
+    fotosComercialesURLs?: { value: string }[];
     perfilSaborPrincipal?: SaborPrincipal;
     perfilSaborSecundario?: string[];
     perfilTextura?: string[];

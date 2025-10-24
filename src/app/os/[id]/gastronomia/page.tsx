@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
-import { Utensils } from 'lucide-react';
-import type { ServiceOrder, ComercialBriefing, GastronomyOrder, GastronomyOrderStatus } from '@/types';
+import { Utensils, ArrowLeft } from 'lucide-react';
+import type { ServiceOrder, ComercialBriefing, GastronomyOrderItem, GastronomyOrderStatus, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -29,7 +30,7 @@ const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' |
 };
 
 export default function GastronomiaPage() {
-  const [gastronomyOrders, setGastronomyOrders] = useState<GastronomyOrder[]>([]);
+  const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   
   const router = useRouter();
@@ -37,70 +38,46 @@ export default function GastronomiaPage() {
   const osId = params.id as string;
   const { toast } = useToast();
 
-  const loadAndSyncOrders = useCallback(() => {
+  const loadBriefing = useCallback(() => {
     if (!osId) return;
 
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const currentBriefing = allBriefings.find(b => b.osId === osId);
-    const briefingItemsWithGastro = currentBriefing?.items.filter(item => item.conGastronomia) || [];
     
-    let allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-    let osGastroOrders = allGastroOrders.filter(order => order.osId === osId);
-
-    let needsUpdate = false;
-    
-    // Sync: Add new orders from briefing, update existing ones
-    const syncedOrders = briefingItemsWithGastro.map(briefingItem => {
-        const existingOrder = osGastroOrders.find(o => o.id === briefingItem.id);
-        if (existingOrder) {
-            // Update if data differs, but keep status
-            if (JSON.stringify({ ...existingOrder, status: null }) !== JSON.stringify({ ...briefingItem, osId, status: null })) {
-                needsUpdate = true;
-                return { ...existingOrder, ...briefingItem, osId };
-            }
-            return existingOrder;
-        } else {
-            // Add new order
-            needsUpdate = true;
-            return { ...briefingItem, osId, status: 'Pendiente' as GastronomyOrderStatus, items: [], total: 0 };
-        }
-    });
-
-    // Sync: Remove orders that are no longer in the briefing
-    const briefingItemIds = new Set(briefingItemsWithGastro.map(i => i.id));
-    const finalOrders = syncedOrders.filter(order => briefingItemIds.has(order.id));
-    if (osGastroOrders.length !== finalOrders.length) {
-        needsUpdate = true;
-    }
-
-    const otherOsGastroOrders = allGastroOrders.filter(order => order.osId !== osId);
-    
-    if (needsUpdate) {
-        const updatedAllOrders = [...otherOsGastroOrders, ...finalOrders];
-        localStorage.setItem('gastronomyOrders', JSON.stringify(updatedAllOrders));
-        setGastronomyOrders(finalOrders);
+    if (currentBriefing) {
+        setBriefing(currentBriefing);
     } else {
-        setGastronomyOrders(osGastroOrders);
+        // If no briefing exists, create one, assuming OS exists.
+        const newBriefing = { osId, items: [] };
+        allBriefings.push(newBriefing);
+        localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
+        setBriefing(newBriefing);
     }
-
-  }, [osId, toast]);
+    
+  }, [osId]);
 
   useEffect(() => {
-    if (osId) {
-      loadAndSyncOrders();
-    }
+    loadBriefing();
     setIsMounted(true);
-  }, [osId, loadAndSyncOrders]);
+    
+    const handleStorageChange = () => loadBriefing();
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [loadBriefing]);
 
-  const sortedGastronomyOrders = useMemo(() => {
-    return [...gastronomyOrders].sort((a, b) => {
-      const dateA = new Date(a.fecha);
-      const dateB = new Date(b.fecha);
-      const dateComparison = dateA.getTime() - dateB.getTime();
-      if (dateComparison !== 0) return dateComparison;
-      return a.horaInicio.localeCompare(b.horaInicio);
+  const sortedGastronomyItems = useMemo(() => {
+    if (!briefing?.items) return [];
+    
+    return [...briefing.items]
+        .filter(item => item.conGastronomia)
+        .sort((a, b) => {
+            const dateA = new Date(a.fecha);
+            const dateB = new Date(b.fecha);
+            const dateComparison = dateA.getTime() - dateB.getTime();
+            if (dateComparison !== 0) return dateComparison;
+            return a.horaInicio.localeCompare(b.horaInicio);
     });
-  }, [gastronomyOrders]);
+  }, [briefing]);
   
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Gastronomía..." />;
@@ -124,23 +101,23 @@ export default function GastronomiaPage() {
                         </TableRow>
                         </TableHeader>
                         <TableBody>
-                        {sortedGastronomyOrders.length > 0 ? (
-                            sortedGastronomyOrders.map(order => (
+                        {sortedGastronomyItems.length > 0 ? (
+                            sortedGastronomyItems.map(item => (
                             <TableRow 
-                                key={order.id} 
-                                onClick={() => router.push(`/os/${osId}/gastronomia/${order.id}`)} 
+                                key={item.id} 
+                                onClick={() => router.push(`/os/${osId}/gastronomia/${item.id}`)} 
                                 className={cn(
                                     "cursor-pointer", 
-                                    order.descripcion.toLowerCase() === 'prueba de menu' && "bg-muted hover:bg-muted/80"
+                                    item.descripcion.toLowerCase() === 'prueba de menu' && "bg-muted hover:bg-muted/80"
                                 )}
                             >
-                                <TableCell>{format(new Date(order.fecha), 'dd/MM/yyyy')}</TableCell>
-                                <TableCell>{order.horaInicio}</TableCell>
-                                <TableCell className="min-w-[200px] font-medium">{order.descripcion}</TableCell>
-                                <TableCell>{order.asistentes}</TableCell>
-                                <TableCell className="min-w-[200px]">{order.comentarios}</TableCell>
+                                <TableCell>{format(new Date(item.fecha), 'dd/MM/yyyy')}</TableCell>
+                                <TableCell>{item.horaInicio}</TableCell>
+                                <TableCell className="min-w-[200px] font-medium">{item.descripcion}</TableCell>
+                                <TableCell>{item.asistentes}</TableCell>
+                                <TableCell className="min-w-[200px]">{item.comentarios}</TableCell>
                                 <TableCell>
-                                    <Badge variant={statusVariant[order.status]}>{order.status}</Badge>
+                                    <Badge variant={statusVariant[item.status || 'Pendiente']}>{item.status || 'Pendiente'}</Badge>
                                 </TableCell>
                             </TableRow>
                             ))
