@@ -205,11 +205,11 @@ function ImageUploadSection({ name, title, form }: { name: "fotosMiseEnPlaceURLs
                 </div>
                 {form.formState.errors[name] && <p className="text-sm font-medium text-destructive">{(form.formState.errors[name] as any).message}</p>}
                 <div className="grid grid-cols-3 gap-2 pt-2">
-                    {fotosFields.map((field, index) => (
+                    {fields.map((field, index) => (
                         <div key={field.id} className="relative aspect-video rounded-md overflow-hidden group">
                             <Image src={(field as any).value} alt={`Foto ${index + 1}`} fill className="object-cover" />
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <Button type="button" variant="destructive" size="icon" onClick={() => removeFoto(index)}><Trash2 /></Button>
+                                <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}><Trash2 /></Button>
                             </div>
                         </div>
                     ))}
@@ -337,7 +337,7 @@ export default function RecetaFormPage() {
   const { precioVenta, margenBruto, margenPct } = useMemo(() => {
     const costeProduccion = costeMateriaPrima * ((watchedPorcentajeCoste || 0) / 100);
     const pvp = costeMateriaPrima + costeProduccion;
-    const margen = pvp - costeMateriaPrima; // Esto es igual al coste de producción
+    const margen = pvp - costeMateriaPrima;
     const margenPorcentual = pvp > 0 ? (margen / pvp) : 0;
     return { precioVenta: pvp, margenBruto: margen, margenPct: margenPorcentual };
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
@@ -687,12 +687,9 @@ export default function RecetaFormPage() {
                     </Card>
 
                     <Card>
-                        <CardHeader className="py-3 flex-row items-center justify-between">
-                            <div>
-                                <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
-                                <CardDescription className="text-xs">Costes, márgenes y precio de venta recomendado.</CardDescription>
-                            </div>
-                             <div className="text-right">
+                        <CardHeader className="flex-row items-center justify-between py-3">
+                            <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
+                            <div className="text-right">
                                 <div className="flex items-center gap-2">
                                     <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
                                         <RefreshCw className="h-4 w-4" />
@@ -703,24 +700,24 @@ export default function RecetaFormPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-                            <div>
-                                <Label>Coste Materia Prima</Label>
-                                <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
-                            </div>
-                            <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
-                                <FormItem>
-                                <Label>Imputación CPR (%)</Label>
-                                <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
-                                </FormItem>
-                            )} />
-                            <div>
-                                <Label>Margen Bruto</Label>
-                                <p className="font-bold text-lg">{formatCurrency(margenBruto)}</p>
-                            </div>
-                            <div>
-                                <Label>Margen %</Label>
-                                <p className="font-bold text-lg">{formatPercentage(margenPct)}</p>
-                            </div>
+                          <div>
+                            <Label>Coste Materia Prima</Label>
+                            <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
+                          </div>
+                          <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
+                            <FormItem>
+                              <Label>Imputación CPR (%)</Label>
+                              <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
+                            </FormItem>
+                          )} />
+                          <div>
+                            <Label>Margen Bruto</Label>
+                            <p className="font-bold text-lg">{formatCurrency(margenBruto)}</p>
+                          </div>
+                          <div>
+                            <Label>Margen %</Label>
+                            <p className="font-bold text-lg">{formatPercentage(margenPct)}</p>
+                          </div>
                         </CardContent>
                     </Card>
                     
