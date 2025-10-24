@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -43,8 +44,8 @@ import { AllergenBadge } from '@/components/icons/allergen-badge';
 import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Label } from '@/components/ui/label';
 import { ComponenteSelector } from '@/components/book/componente-selector';
+import { Label } from '@/components/ui/label';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -583,96 +584,95 @@ export default function RecetaFormPage() {
                   </div>
               </div>
               
-            <div className="grid lg:grid-cols-[1fr_400px] gap-8 items-start">
-              <div className="space-y-4">
-                  <Card>
-                      <CardHeader>
-                          <CardTitle className="text-lg">Información General y Clasificación</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3 pt-2">
-                          <div className="grid md:grid-cols-2 gap-3">
-                              <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                              <FormField control={form.control} name="responsableEscandallo" render={({ field }) => (
-                              <FormItem className="flex flex-col">
-                                  <FormLabel className="flex items-center gap-1.5">Responsable del Escandallo <InfoTooltip text="Persona encargada de definir y mantener los costes y componentes de esta receta." /></FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                  <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un responsable..." /></SelectTrigger></FormControl>
-                                  <SelectContent>{personalCPR.map((p) => (<SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>))}</SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                              </FormItem>
-                              )} />
-                          </div>
-                          
-                          <div className="flex items-start gap-4">
-                              <div className="flex-grow">
-                              <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem>
-                                  <FormLabel className="flex items-center gap-2">Descripción Comercial 
-                                      <Button size="sm" variant="ghost" type="button" onClick={handleGenerateDescription} disabled={isGenerating} className="h-auto px-1 py-0 text-accent-foreground hover:text-accent-foreground/80">
-                                          {isGenerating ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <Sparkles className="h-3.5 w-3.5"/>}
-                                      </Button>
-                                  </FormLabel>
-                                  <FormControl><Textarea {...field} placeholder="Descripción para la carta..." rows={2} /></FormControl>
-                              </FormItem> )} />
-                              </div>
-                              <FormField control={form.control} name="visibleParaComerciales" render={({ field }) => (
-                                  <FormItem className="flex flex-row items-center space-x-2 pt-9">
-                                      <FormControl>
-                                          <Checkbox checked={field.value} onCheckedChange={field.onChange} id="visible-check" />
-                                      </FormControl>
-                                      <FormLabel htmlFor="visible-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Eye /><InfoTooltip text="Marca esta casilla si la receta debe aparecer en las propuestas y herramientas para el equipo comercial." /></FormLabel>
-                                  </FormItem>
-                              )} />
-                          </div>
+            <div className="space-y-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg">Información General y Clasificación</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 pt-2">
+                        <div className="grid md:grid-cols-2 gap-3">
+                            <FormField control={form.control} name="nombre" render={({ field }) => ( <FormItem className="flex flex-col"><FormLabel>Nombre de la Receta</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={form.control} name="responsableEscandallo" render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                                <FormLabel className="flex items-center gap-1.5">Responsable del Escandallo <InfoTooltip text="Persona encargada de definir y mantener los costes y componentes de esta receta." /></FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Selecciona un responsable..." /></SelectTrigger></FormControl>
+                                <SelectContent>{personalCPR.map((p) => (<SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>))}</SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                            )} />
+                        </div>
+                        
+                        <div className="flex items-start gap-4">
+                            <div className="flex-grow">
+                            <FormField control={form.control} name="descripcionComercial" render={({ field }) => ( <FormItem>
+                                <FormLabel className="flex items-center gap-2">Descripción Comercial 
+                                    <Button size="sm" variant="ghost" type="button" onClick={handleGenerateDescription} disabled={isGenerating} className="h-auto px-1 py-0 text-accent-foreground hover:text-accent-foreground/80">
+                                        {isGenerating ? <Loader2 className="animate-spin h-3.5 w-3.5"/> : <Sparkles className="h-3.5 w-3.5"/>}
+                                    </Button>
+                                </FormLabel>
+                                <FormControl><Textarea {...field} placeholder="Descripción para la carta..." rows={2} /></FormControl>
+                            </FormItem> )} />
+                            </div>
+                            <FormField control={form.control} name="visibleParaComerciales" render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2 pt-9">
+                                    <FormControl>
+                                        <Checkbox checked={field.value} onCheckedChange={field.onChange} id="visible-check" />
+                                    </FormControl>
+                                    <FormLabel htmlFor="visible-check" className="flex items-center gap-2 !mt-0 whitespace-nowrap"><Eye /><InfoTooltip text="Marca esta casilla si la receta debe aparecer en las propuestas y herramientas para el equipo comercial." /></FormLabel>
+                                </FormItem>
+                            )} />
+                        </div>
 
-                          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                              <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem className="flex flex-col">
-                                  <FormLabel>Categoría</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                      <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
-                                      <SelectContent>
-                                          {dbCategorias.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
-                                      </SelectContent>
-                                  </Select>
-                              <FormMessage /></FormItem> )} />
-                              <FormItem className="flex flex-col">
-                                  <FormLabel className="flex items-center gap-1.5">Partida de Producción <InfoTooltip text="Se calcula automáticamente a partir de las elaboraciones añadidas." /></FormLabel>
-                                  <div className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm">
-                                      <div className="flex flex-wrap gap-1">
-                                          {partidasProduccion.length > 0 ? (
-                                              partidasProduccion.map(p => <Badge key={p} variant="secondary">{p}</Badge>)
-                                          ) : (
-                                              <span className="text-muted-foreground">N/A</span>
-                                          )}
-                                      </div>
-                                  </div>
-                              </FormItem>
-                              <FormField control={form.control} name="gramajeTotal" render={({ field }) => ( <FormItem className="flex flex-col">
-                                  <FormLabel>Gramaje Total (g)</FormLabel>
-                                  <FormControl><Input type="number" {...field} /></FormControl>
-                                  <FormMessage />
-                              </FormItem>)} />
-                          </div>
-                      </CardContent>
-                  </Card>
-                  
-                  <Card>
-                      <CardHeader className="py-3 flex-row items-center justify-between">
-                          <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
-                          <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={() => setUpdateTrigger(Date.now())}>
-                                  <RefreshCw className="h-4 w-4" />
-                              </Button>
-                              <div className="text-right">
-                                  <p className="text-sm font-semibold text-muted-foreground">PVP Teórico</p>
-                                  <p className="font-bold text-2xl text-green-600">{formatCurrency(precioVenta)}</p>
-                              </div>
-                          </div>
-                      </CardHeader>
-                      <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <FormField control={form.control} name="categoria" render={({ field }) => ( <FormItem className="flex flex-col">
+                                <FormLabel>Categoría</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Selecciona..."/></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {dbCategorias.map(c => <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            <FormMessage /></FormItem> )} />
+                            <FormItem className="flex flex-col">
+                                <FormLabel className="flex items-center gap-1.5">Partida de Producción <InfoTooltip text="Se calcula automáticamente a partir de las elaboraciones añadidas." /></FormLabel>
+                                <div className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm">
+                                    <div className="flex flex-wrap gap-1">
+                                        {partidasProduccion.length > 0 ? (
+                                            partidasProduccion.map(p => <Badge key={p} variant="secondary">{p}</Badge>)
+                                        ) : (
+                                            <span className="text-muted-foreground">N/A</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </FormItem>
+                            <FormField control={form.control} name="gramajeTotal" render={({ field }) => ( <FormItem className="flex flex-col">
+                                <FormLabel>Gramaje Total (g)</FormLabel>
+                                <FormControl><Input type="number" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>)} />
+                        </div>
+                    </CardContent>
+                </Card>
+                
+                <Card>
+                    <CardHeader className="py-3 flex-row items-center justify-between">
+                        <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
+                        <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={() => setUpdateTrigger(Date.now())}>
+                                <RefreshCw className="h-4 w-4" />
+                            </Button>
+                            <div className="text-right">
+                                <p className="text-sm font-semibold text-muted-foreground">PVP Teórico</p>
+                                <p className="font-bold text-2xl text-green-600">{formatCurrency(precioVenta)}</p>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
                       <div>
-                          <Label>Coste Materia Prima</Label>
-                          <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
+                        <Label>Coste Materia Prima</Label>
+                        <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
                       </div>
                       <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
                           <FormItem>
@@ -685,81 +685,78 @@ export default function RecetaFormPage() {
                           <div className="flex justify-between"><span>Margen %:</span><span>{formatPercentage(margenPct)}</span></div>
                       </div>
                   </CardContent>
-                  </Card>
+                </Card>
 
-
-                  <Card>
-                      <CardHeader className="flex-row items-center justify-between py-3">
-                          <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><Utensils />Elaboraciones</CardTitle>
-                          <CardDescription className="text-xs">Añade los componentes que forman parte de esta receta.</CardDescription></div>
-                          <div className="flex gap-2">
-                              <CreateElaborationModal onElaborationCreated={handleElaborationCreated}>
-                                  <Button variant="secondary" size="sm" type="button"><PlusCircle size={16} /> Crear Nueva</Button>
-                              </CreateElaborationModal>
-                              <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
+                <Card>
+                    <CardHeader className="flex-row items-center justify-between py-3">
+                        <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><Utensils />Elaboraciones</CardTitle>
+                        <CardDescription className="text-xs">Añade los componentes que forman parte de esta receta.</CardDescription></div>
+                        <div className="flex gap-2">
+                            <CreateElaborationModal onElaborationCreated={handleElaborationCreated}>
+                                <Button variant="secondary" size="sm" type="button"><PlusCircle size={16} /> Crear Nueva</Button>
+                            </CreateElaborationModal>
+                            <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                                 <DialogTrigger asChild>
                                   <Button type="button" variant="outline" size="sm"><PlusCircle size={16} />Añadir Elaboración</Button>
                                 </DialogTrigger>
                                 <ComponenteSelector onSelectIngrediente={() => {}} onSelectElaboracion={onAddElab} allElaboraciones={Array.from(dbElaboraciones.values())} />
                               </Dialog>
-                          </div>
-                      </CardHeader>
-                      <CardContent>
-                          <div className="border rounded-lg">
-                        <DndContext sensors={sensors} onDragEnd={(e) => handleDragEnd(e, 'elab')} collisionDetection={closestCenter}>
-                          <Table>
-                              <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-10"></TableHead>
-                                    <TableHead>Nombre</TableHead>
-                                    <TableHead className="w-40">Cantidad</TableHead>
-                                    <TableHead className="w-24">% Merma</TableHead>
-                                    <TableHead className="w-40">Unidad</TableHead>
-                                    <TableHead className="w-12"></TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                                  <TableBody>
-                                  {(elabFields || []).map((field, index) => (
-                                      <SortableItem key={field.id} id={field.id}>
-                                          <div className="grid grid-cols-12 items-center gap-4 flex-1">
-                                              <span className="font-semibold col-span-5">{field.nombre}</span>
-                                              <div className="flex items-center gap-2 col-span-3">
-                                                  <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (
-                                                      <FormItem className="flex items-center gap-2"><FormLabel className="text-xs">Cantidad:</FormLabel><FormControl><Input type="number" step="any" {...qField} className="h-8 w-20" /></FormControl></FormItem>
-                                                  )} />
-                                                  
-                                              </div>
-                                              <div className="flex items-center gap-2 col-span-2">
-                                                  <FormField control={form.control} name={`elaboraciones.${index}.merma`} render={({ field: mField }) => (
-                                                      <FormItem className="flex items-center gap-2"><FormLabel className="text-xs">% Merma:</FormLabel><FormControl><Input type="number" {...mField} value={mField.value ?? 0} className="h-8 w-20" /></FormControl></FormItem>
-                                                  )} />
-                                              </div>
-                                              <span className="text-xs text-muted-foreground col-span-1">{formatUnit(field.unidad)}</span>
-                                              <div className="col-span-1 text-right">
-                                                  <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeElab(index)}><Trash2 className="h-4 w-4" /></Button>
-                                              </div>
-                                          </div>
-                                      </SortableItem>
-                                  ))}
-                                  </TableBody>
-                              </SortableContext>
-                          </Table>
-                        </DndContext>
                         </div>
-                      </CardContent>
-                  </Card>
-                  <Card>
-                      <CardHeader className="py-3">
-                          <CardTitle className="flex items-center gap-2 text-lg"><FilePenLine/>Instrucciones y Medios</CardTitle>
-                      </CardHeader>
-                      <CardContent className="grid lg:grid-cols-3 gap-6 pt-2">
-                          <ImageUploadSection name="fotosMiseEnPlaceURLs" title="Instrucciones Mise en Place" form={form} />
-                          <ImageUploadSection name="fotosRegeneracionURLs" title="Instrucciones Regeneración" form={form} />
-                          <ImageUploadSection name="fotosEmplatadoURLs" title="Instrucciones Emplatado" form={form} />
-                      </CardContent>
-                  </Card>
-              </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="border rounded-lg">
+                      <DndContext sensors={sensors} onDragEnd={(e) => handleDragEnd(e, 'elab')} collisionDetection={closestCenter}>
+                        <Table>
+                            <TableHeader>
+                              <TableRow>
+                                  <TableHead className="w-10"></TableHead>
+                                  <TableHead>Nombre</TableHead>
+                                  <TableHead className="w-32">Cantidad</TableHead>
+                                  <TableHead className="w-32">% Merma</TableHead>
+                                  <TableHead className="w-40">Unidad</TableHead>
+                                  <TableHead className="w-12"></TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                                <TableBody>
+                                {(elabFields || []).map((field, index) => (
+                                    <SortableItem key={field.id} id={field.id}>
+                                        <div className="grid grid-cols-12 items-center gap-4 flex-1">
+                                            <span className="font-semibold col-span-5">{field.nombre}</span>
+                                            <div className="col-span-2">
+                                                <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (
+                                                    <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
+                                                )} />
+                                            </div>
+                                            <div className="col-span-2">
+                                                <FormField control={form.control} name={`elaboraciones.${index}.merma`} render={({ field: mField }) => (
+                                                    <FormItem><FormControl><Input type="number" {...mField} value={mField.value ?? 0} className="h-8" /></FormControl></FormItem>
+                                                )} />
+                                            </div>
+                                            <span className="text-xs text-muted-foreground col-span-2">{formatUnit(field.unidad)}</span>
+                                            <div className="col-span-1 text-right">
+                                                <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeElab(index)}><Trash2 className="h-4 w-4" /></Button>
+                                            </div>
+                                        </div>
+                                    </SortableItem>
+                                ))}
+                                </TableBody>
+                            </SortableContext>
+                        </Table>
+                      </DndContext>
+                      </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="py-3">
+                        <CardTitle className="flex items-center gap-2 text-lg"><FilePenLine/>Instrucciones y Medios</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid lg:grid-cols-3 gap-6 pt-2">
+                        <ImageUploadSection name="fotosMiseEnPlaceURLs" title="Instrucciones Mise en Place" form={form} />
+                        <ImageUploadSection name="fotosRegeneracionURLs" title="Instrucciones Regeneración" form={form} />
+                        <ImageUploadSection name="fotosEmplatadoURLs" title="Instrucciones Emplatado" form={form} />
+                    </CardContent>
+                </Card>
             </div>
           </form>
         </FormProvider>
