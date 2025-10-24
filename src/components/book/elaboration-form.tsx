@@ -303,242 +303,239 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
     <Form {...form}>
       <form id="elaboration-form" onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
         <div className="grid lg:grid-cols-[1fr_320px] gap-4 items-start">
-        <div className="space-y-4">
-        <Card>
-            <CardHeader className="flex flex-row justify-between items-start py-3">
-                <div>
-                    <CardTitle className="text-lg">Información General</CardTitle>
-                </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                 <div className="flex items-center gap-4">
-                    <FormField control={form.control} name="nombre" render={({ field }) => (
-                        <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="partidaProduccion" render={({ field }) => (
-                        <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Partida</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                <SelectContent>
-                                    <SelectItem value="FRIO">FRIO</SelectItem>
-                                    <SelectItem value="CALIENTE">CALIENTE</SelectItem>
-                                    <SelectItem value="PASTELERIA">PASTELERIA</SelectItem>
-                                    <SelectItem value="EXPEDICION">EXPEDICION</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        <FormMessage /></FormItem>
-                    )} />
-                </div>
-                <div className="flex items-center gap-4">
-                    <FormField control={form.control} name="produccionTotal" render={({ field }) => (
-                        <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Producción Total</FormLabel><FormControl><Input type="number" step="any" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                        <FormField control={form.control} name="unidadProduccion" render={({ field }) => (
-                        <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Unidad</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                <SelectContent>
-                                    {UNIDADES_MEDIDA.map(u => <SelectItem key={u} value={u}>{formatUnit(u)}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        <FormMessage /></FormItem>
-                    )} />
-                </div>
-            </CardContent>
-        </Card>
-        
-        <Card>
-            <CardHeader className="flex-row items-center justify-between py-3">
-                <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><ChefHat/>Componentes</CardTitle>
-                <CardDescription className="text-xs">Añade los ingredientes y sub-elaboraciones que forman parte de esta preparación.</CardDescription></div>
-                <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                    <DialogTrigger asChild>
-                         <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Componente</Button>
-                    </DialogTrigger>
-                    <ComponenteSelector 
-                        onSelectIngrediente={handleSelectIngrediente} 
-                        onSelectElaboracion={handleSelectElaboracion} 
-                        allElaboraciones={Array.from(elaboracionesData.values())} 
-                    />
-                </Dialog>
-            </CardHeader>
-            <CardContent>
-                 <div className="border rounded-lg">
-                    <Table>
-                        <TableHeader><TableRow><TableHead className="py-2 px-3">Componente</TableHead><TableHead className="w-40 py-2 px-3">Cantidad</TableHead><TableHead className="w-24 py-2 px-3">% Merma</TableHead><TableHead className="w-40 py-2 px-3">Unidad</TableHead><TableHead className="w-12 py-2 px-3"></TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {fields.length === 0 && <TableRow><TableCell colSpan={5} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
-                            {fields.map((field, index) => {
-                                const componenteData = field.tipo === 'ingrediente'
-                                    ? ingredientesData.get(field.componenteId)
-                                    : elaboracionesData.get(field.componenteId);
-                                
-                                const unidad = field.tipo === 'ingrediente'
-                                    ? (componenteData as IngredienteConERP)?.erp?.unidad || 'UD'
-                                    : (componenteData as Elaboracion)?.unidadProduccion || 'UD';
-                                
-                                let tooltipText = `Coste unitario: ${formatCurrency(field.costePorUnidad)} / ${formatUnit(unidad)}`;
-                                if (field.tipo === 'ingrediente') {
-                                    const erpData = (componenteData as IngredienteConERP)?.erp;
-                                    if(erpData?.nombreProveedor) tooltipText += ` | ${erpData.nombreProveedor}`;
-                                    if(erpData?.referenciaProveedor) tooltipText += ` (Ref: ${erpData.referenciaProveedor})`;
-                                }
-
-                                return (
-                                    <TableRow key={field.id}>
-                                        <TableCell className="font-medium py-1 px-3">
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <div className="flex items-center gap-2">
-                                                        {field.tipo === 'ingrediente' ? <ChefHat size={16} className="text-muted-foreground"/> : <SubElabIcon size={16} className="text-muted-foreground"/>}
-                                                        {field.nombre}
-                                                    </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p className="max-w-sm">{tooltipText}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TableCell>
-                                        <TableCell className="py-1 px-3">
-                                            <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
-                                                <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
-                                            )} />
-                                        </TableCell>
-                                        <TableCell className="py-1 px-3">
-                                            <FormField control={form.control} name={`componentes.${index}.merma`} render={({ field: mField }) => (
-                                                <FormItem><FormControl><Input type="number" step="any" {...mField} className="h-8" /></FormControl></FormItem>
-                                            )} />
-                                        </TableCell>
-                                        <TableCell className="py-1 px-3">
-                                            {formatUnit(unidad)}
-                                        </TableCell>
-                                        <TableCell className="py-1 px-3"><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
-                                    </TableRow>
-                                )
-                            })}
-                        </TableBody>
-                    </Table>
-                 </div>
-                 {form.formState.errors.componentes && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.componentes.message}</p>}
-            </CardContent>
-        </Card>
-
-        <div className="grid lg:grid-cols-2 gap-4 items-start">
-             <Card>
-                <CardHeader className="py-3">
-                    <CardTitle className="text-lg">Instrucciones y Medios</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <FormField control={form.control} name="instruccionesPreparacion" render={({ field }) => (
-                        <FormItem><FormLabel>Instrucciones de Preparación</FormLabel><FormControl><Textarea {...field} rows={6} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="videoProduccionURL" render={({ field }) => (
-                        <FormItem><FormLabel>URL Vídeo Producción</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <div className="space-y-2">
-                        <FormLabel>Fotos de Producción</FormLabel>
-                        <div className="flex gap-2">
-                            <Input value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="Pega una URL de imagen..."/>
-                            <Button type="button" variant="outline" onClick={handleAddImageUrl}><LinkIcon className="mr-2"/>Añadir URL</Button>
+            <div className="space-y-4">
+                <Card>
+                    <CardHeader className="flex flex-row justify-between items-start py-3">
+                        <div>
+                            <CardTitle className="text-lg">Información General</CardTitle>
                         </div>
-                        {form.formState.errors.fotosProduccionURLs && <p className="text-sm font-medium text-destructive">{(form.formState.errors.fotosProduccionURLs as any).message}</p>}
-                        <div className="grid grid-cols-3 gap-2 pt-2">
-                            {fotosFields.map((field, index) => (
-                                <div key={field.id} className="relative aspect-video rounded-md overflow-hidden group">
-                                    <Image src={(field as any).value} alt={`Foto de producción ${index+1}`} fill className="object-cover" />
-                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <Button type="button" variant="destructive" size="icon" onClick={() => removeFoto(index)}><Trash2/></Button>
-                                    </div>
-                                </div>
-                            ))}
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center gap-4">
+                            <FormField control={form.control} name="nombre" render={({ field }) => (
+                                <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="partidaProduccion" render={({ field }) => (
+                                <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Partida</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="FRIO">FRIO</SelectItem>
+                                            <SelectItem value="CALIENTE">CALIENTE</SelectItem>
+                                            <SelectItem value="PASTELERIA">PASTELERIA</SelectItem>
+                                            <SelectItem value="EXPEDICION">EXPEDICION</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                <FormMessage /></FormItem>
+                            )} />
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader className="py-3">
-                    <CardTitle className="text-lg">Datos de Expedición</CardTitle>
-                    <CardDescription className="text-xs">Define cómo se empaqueta y conserva esta elaboración.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <FormField control={form.control} name="formatoExpedicion" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Formato Expedición</FormLabel>
-                            <Combobox
-                                options={formatosExpedicion.map(f => ({ value: f.nombre, label: f.nombre }))}
-                                value={field.value || ''}
-                                onChange={field.onChange}
-                                placeholder="Ej: Barqueta 1kg"
+                        <div className="flex items-center gap-4">
+                            <FormField control={form.control} name="produccionTotal" render={({ field }) => (
+                                <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Producción Total</FormLabel><FormControl><Input type="number" step="any" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                                <FormField control={form.control} name="unidadProduccion" render={({ field }) => (
+                                <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Unidad</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            {UNIDADES_MEDIDA.map(u => <SelectItem key={u} value={u}>{formatUnit(u)}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                <FormMessage /></FormItem>
+                            )} />
+                        </div>
+                    </CardContent>
+                </Card>
+                
+                <Card>
+                    <CardHeader className="flex-row items-center justify-between py-3">
+                        <div className="space-y-1"><CardTitle className="flex items-center gap-2 text-lg"><ChefHat/>Componentes</CardTitle>
+                        <CardDescription className="text-xs">Añade los ingredientes y sub-elaboraciones que forman parte de esta preparación.</CardDescription></div>
+                        <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir Componente</Button>
+                            </DialogTrigger>
+                            <ComponenteSelector 
+                                onSelectIngrediente={handleSelectIngrediente} 
+                                onSelectElaboracion={handleSelectElaboracion} 
+                                allElaboraciones={Array.from(elaboracionesData.values())} 
                             />
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-                    <div className="grid grid-cols-2 gap-4">
-                         <FormField control={form.control} name="ratioExpedicion" render={({ field }) => (
-                            <FormItem><FormLabel>Ratio Expedición</FormLabel><FormControl><Input type="number" step="any" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                         <FormField control={form.control} name="tipoExpedicion" render={({ field }) => (
-                            <FormItem><FormLabel>Tipo de Expedición</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="REFRIGERADO">Refrigerado</SelectItem>
-                                        <SelectItem value="CONGELADO">Congelado</SelectItem>
-                                        <SelectItem value="SECO">Seco</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            <FormMessage /></FormItem>
-                        )} />
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-        </div>
-        <div className="space-y-4">
-             <Card className="sticky top-24">
-                <CardHeader className="flex-row items-start justify-between">
-                    <CardTitle className="text-lg">Coste de la Elaboración</CardTitle>
-                    <div className="text-right">
-                        <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
-                                <RefreshCw className="h-4 w-4" />
-                            </Button>
-                            <p className="text-xs text-muted-foreground">Coste / {formatUnit(form.watch('unidadProduccion'))}</p>
+                        </Dialog>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="border rounded-lg">
+                            <Table>
+                                <TableHeader><TableRow><TableHead className="py-2 px-3">Componente</TableHead><TableHead className="w-40 py-2 px-3">Cantidad</TableHead><TableHead className="w-24 py-2 px-3">% Merma</TableHead><TableHead className="w-40 py-2 px-3">Unidad</TableHead><TableHead className="w-12 py-2 px-3"></TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {fields.length === 0 && <TableRow><TableCell colSpan={5} className="h-24 text-center">Añade un componente para empezar.</TableCell></TableRow>}
+                                    {fields.map((field, index) => {
+                                        const componenteData = field.tipo === 'ingrediente'
+                                            ? ingredientesData.get(field.componenteId)
+                                            : elaboracionesData.get(field.componenteId);
+                                        
+                                        const unidad = field.tipo === 'ingrediente'
+                                            ? (componenteData as IngredienteConERP)?.erp?.unidad || 'UD'
+                                            : (componenteData as Elaboracion)?.unidadProduccion || 'UD';
+                                        
+                                        let tooltipText = `Coste unitario: ${formatCurrency(field.costePorUnidad)} / ${formatUnit(unidad)}`;
+                                        if (field.tipo === 'ingrediente') {
+                                            const erpData = (componenteData as IngredienteConERP)?.erp;
+                                            if(erpData?.nombreProveedor) tooltipText += ` | ${erpData.nombreProveedor}`;
+                                            if(erpData?.referenciaProveedor) tooltipText += ` (Ref: ${erpData.referenciaProveedor})`;
+                                        }
+
+                                        return (
+                                            <TableRow key={field.id}>
+                                                <TableCell className="font-medium py-1 px-3">
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <div className="flex items-center gap-2">
+                                                                {field.tipo === 'ingrediente' ? <ChefHat size={16} className="text-muted-foreground"/> : <SubElabIcon size={16} className="text-muted-foreground"/>}
+                                                                {field.nombre}
+                                                            </div>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p className="max-w-sm">{tooltipText}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TableCell>
+                                                <TableCell className="py-1 px-3">
+                                                    <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
+                                                        <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
+                                                    )} />
+                                                </TableCell>
+                                                <TableCell className="py-1 px-3">
+                                                    <FormField control={form.control} name={`componentes.${index}.merma`} render={({ field: mField }) => (
+                                                        <FormItem><FormControl><Input type="number" step="any" {...mField} className="h-8" /></FormControl></FormItem>
+                                                    )} />
+                                                </TableCell>
+                                                <TableCell className="py-1 px-3">
+                                                    {formatUnit(unidad)}
+                                                </TableCell>
+                                                <TableCell className="py-1 px-3"><Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4"/></Button></TableCell>
+                                            </TableRow>
+                                        )
+                                    })}
+                                </TableBody>
+                            </Table>
                         </div>
-                        <p className="font-bold text-xl text-primary">{formatCurrency(costePorUnidad)}</p>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-sm text-muted-foreground">Coste total de materia prima: {formatCurrency(costeTotal)}</p>
-                </CardContent>
-                 <CardFooter className="flex-col items-start gap-3">
-                    <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm"><Sprout/>Resumen de Alérgenos</h4>
-                    <div className="w-full space-y-2">
-                        <div>
-                            <p className="text-xs font-bold text-muted-foreground mb-1">Presentes:</p>
-                            <div className="border rounded-md p-2 w-full bg-background min-h-8">
-                                {alergenosPresentes.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {alergenosPresentes.map(a => <AllergenBadge key={a} allergen={a}/>)}
+                        {form.formState.errors.componentes && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.componentes.message}</p>}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="py-3">
+                        <CardTitle className="text-lg">Instrucciones y Medios</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <FormField control={form.control} name="instruccionesPreparacion" render={({ field }) => (
+                            <FormItem><FormLabel>Instrucciones de Preparación</FormLabel><FormControl><Textarea {...field} rows={6} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="videoProduccionURL" render={({ field }) => (
+                            <FormItem><FormLabel>URL Vídeo Producción</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <div className="space-y-2">
+                            <FormLabel>Fotos de Producción</FormLabel>
+                            <div className="flex gap-2">
+                                <Input value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="Pega una URL de imagen..."/>
+                                <Button type="button" variant="outline" onClick={handleAddImageUrl}><LinkIcon className="mr-2"/>Añadir URL</Button>
+                            </div>
+                            {form.formState.errors.fotosProduccionURLs && <p className="text-sm font-medium text-destructive">{(form.formState.errors.fotosProduccionURLs as any).message}</p>}
+                            <div className="grid grid-cols-3 gap-2 pt-2">
+                                {fotosFields.map((field, index) => (
+                                    <div key={field.id} className="relative aspect-video rounded-md overflow-hidden group">
+                                        <Image src={(field as any).value} alt={`Foto de producción ${index+1}`} fill className="object-cover" />
+                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <Button type="button" variant="destructive" size="icon" onClick={() => removeFoto(index)}><Trash2/></Button>
+                                        </div>
                                     </div>
-                                ) : <p className="text-xs text-muted-foreground italic">Ninguno</p>}
+                                ))}
                             </div>
                         </div>
-                        <div>
-                            <p className="text-xs font-bold text-muted-foreground mb-1">Trazas:</p>
-                            <div className="border rounded-md p-2 w-full bg-background min-h-8">
-                                {alergenosTrazas.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {alergenosTrazas.map(a => <AllergenBadge key={a} allergen={a} isTraza/>)}
-                                    </div>
-                                ) : <p className="text-xs text-muted-foreground italic">Ninguna</p>}
+                    </CardContent>
+                </Card>
+            </div>
+            <div className="space-y-4">
+                <Card className="sticky top-24">
+                    <CardHeader className="flex-row items-start justify-between">
+                        <CardTitle className="text-lg">Coste de la Elaboración</CardTitle>
+                        <div className="text-right">
+                            <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
+                                    <RefreshCw className="h-4 w-4" />
+                                </Button>
+                                <p className="text-xs text-muted-foreground">Coste / {formatUnit(form.watch('unidadProduccion'))}</p>
+                            </div>
+                            <p className="font-bold text-xl text-primary">{formatCurrency(costePorUnidad)}</p>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground">Coste total de materia prima: {formatCurrency(costeTotal)}</p>
+                    </CardContent>
+                    <CardFooter className="flex-col items-start gap-3">
+                        <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm"><Sprout/>Resumen de Alérgenos</h4>
+                        <div className="w-full space-y-2">
+                            <div>
+                                <p className="text-xs font-bold text-muted-foreground mb-1">Presentes:</p>
+                                <div className="border rounded-md p-2 w-full bg-background min-h-8">
+                                    {alergenosPresentes.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {alergenosPresentes.map(a => <AllergenBadge key={a} allergen={a}/>)}
+                                        </div>
+                                    ) : <p className="text-xs text-muted-foreground italic">Ninguno</p>}
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-muted-foreground mb-1">Trazas:</p>
+                                <div className="border rounded-md p-2 w-full bg-background min-h-8">
+                                    {alergenosTrazas.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {alergenosTrazas.map(a => <AllergenBadge key={a} allergen={a} isTraza/>)}
+                                        </div>
+                                    ) : <p className="text-xs text-muted-foreground italic">Ninguna</p>}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                 </CardFooter>
-            </Card>
-        </div>
+                    </CardFooter>
+                </Card>
+                <Card>
+                    <CardHeader className="py-3">
+                        <CardTitle className="text-lg">Datos de Expedición</CardTitle>
+                        <CardDescription className="text-xs">Define cómo se empaqueta y conserva esta elaboración.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <FormField control={form.control} name="formatoExpedicion" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Formato Expedición</FormLabel>
+                                <Combobox
+                                    options={formatosExpedicion.map(f => ({ value: f.nombre, label: f.nombre }))}
+                                    value={field.value || ''}
+                                    onChange={field.onChange}
+                                    placeholder="Ej: Barqueta 1kg"
+                                />
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={form.control} name="ratioExpedicion" render={({ field }) => (
+                                <FormItem><FormLabel>Ratio Expedición</FormLabel><FormControl><Input type="number" step="any" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="tipoExpedicion" render={({ field }) => (
+                                <FormItem><FormLabel>Tipo de Expedición</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="REFRIGERADO">Refrigerado</SelectItem>
+                                            <SelectItem value="CONGELADO">Congelado</SelectItem>
+                                            <SelectItem value="SECO">Seco</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                <FormMessage /></FormItem>
+                            )} />
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
       </form>
     </Form>
