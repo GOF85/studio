@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useRef, Suspense, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Component, FileDown, FileUp, Menu, AlertTriangle, Copy, Download, Upload } from 'lucide-react';
-import type { Elaboracion, Receta, IngredienteInterno, ArticuloERP, ComponenteElaboracion } from '@/types';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { PlusCircle, MoreHorizontal, Pencil, Trash2, Component, FileDown, FileUp, Menu, AlertTriangle, Copy, Download, Upload, Save, X } from 'lucide-react';
+import type { Elaboracion, Receta, IngredienteInterno, ArticuloERP, ComponenteElaboracion, Alergeno } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -42,6 +43,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { formatCurrency, formatUnit } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
+import { Loader2 } from 'lucide-react';
 
 const CSV_HEADERS_ELABORACIONES = [ "id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion" ];
 const CSV_HEADERS_COMPONENTES = [ "id_elaboracion_padre", "tipo_componente", "id_componente", "cantidad", "merma" ];
@@ -397,6 +399,23 @@ function ElaboracionFormPage() {
     const [affectedRecipes, setAffectedRecipes] = useState<Receta[]>([]);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
+    
+    const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteInterno>): Alergeno[] => {
+        if (!elaboracion || !elaboracion.componentes) {
+          return [];
+        }
+        const elabAlergenos = new Set<Alergeno>();
+        elaboracion.componentes.forEach(comp => {
+            if(comp.tipo === 'ingrediente') {
+                const ingData = ingredientesMap.get(comp.componenteId);
+                if (ingData) {
+                  (ingData.alergenosPresentes || []).forEach(a => elabAlergenos.add(a));
+                  (ingData.alergenosTrazas || []).forEach(a => elabAlergenos.add(a));
+                }
+            }
+        });
+        return Array.from(elabAlergenos);
+    };
 
     useEffect(() => {
         let elabToLoad: Partial<ElaborationFormValues> | null = null;
