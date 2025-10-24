@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -10,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, differenceInMinutes, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, MessageSquare, Users, Loader2, DollarSign } from 'lucide-react';
+import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, MessageSquare, Users, Loader2 } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, Receta, GastronomyOrderStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -149,11 +148,10 @@ function PedidoGastronomiaForm() {
   };
   
   const handleQuantityChange = (index: number, newQuantity: number) => {
-      const parsedQuantity = parseInt(newQuantity.toString(), 10);
-      if (isNaN(parsedQuantity) || parsedQuantity < 0) {
-        return;
+      const currentItem = getValues(`gastro_items.${index}`);
+      if (currentItem) {
+        update(index, { ...currentItem, quantity: newQuantity });
       }
-      setValue(`gastro_items.${index}.quantity`, parsedQuantity, { shouldDirty: true });
   };
 
   const onSubmit = (data: FormValues) => {
@@ -197,13 +195,13 @@ function PedidoGastronomiaForm() {
       <Form {...form}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="flex items-center justify-between p-2 bg-muted rounded-md text-sm text-muted-foreground">
-            <div className="flex items-center gap-4 text-sm">
-                <span>Para el servicio: <strong>{briefingItem.descripcion}</strong></span>
-                <span className="h-4 border-l"></span>
-                <span>{format(new Date(briefingItem.fecha), 'dd/MM/yyyy')} a las {briefingItem.horaInicio}h</span>
-                <span className="h-4 border-l"></span>
-                <span className="flex items-center gap-1.5"><Users size={16}/>{briefingItem.asistentes} asistentes</span>
-            </div>
+                <div className="flex items-center gap-4 text-sm">
+                    <span>Para el servicio: <strong>{briefingItem.descripcion}</strong></span>
+                    <span className="h-4 border-l"></span>
+                    <span>{format(new Date(briefingItem.fecha), 'dd/MM/yyyy')} a las {briefingItem.horaInicio}h</span>
+                    <span className="h-4 border-l"></span>
+                    <span className="flex items-center gap-1.5"><Users size={16}/>{briefingItem.asistentes} asistentes</span>
+                </div>
           </div>
           
           <Card>
@@ -237,7 +235,7 @@ function PedidoGastronomiaForm() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Referencia</TableHead>
-                            <TableHead className="w-32">Cantidad</TableHead>
+                            <TableHead className="w-48">Cantidad</TableHead>
                             <TableHead className="w-32">PVP</TableHead>
                             <TableHead className="w-40 text-right">Total</TableHead>
                             <TableHead className="w-28 text-right">Acciones</TableHead>
@@ -266,12 +264,31 @@ function PedidoGastronomiaForm() {
                                 <TableRow key={field.id}>
                                     <TableCell>{field.nombre}</TableCell>
                                      <TableCell>
-                                        <Input
-                                            type="number"
-                                            defaultValue={field.quantity}
-                                            onBlur={(e) => handleQuantityChange(index, parseInt(e.target.value, 10) || 0)}
-                                            className="w-24 h-8"
-                                        />
+                                         <div className="flex items-center gap-1">
+                                            <Input
+                                                type="number"
+                                                defaultValue={field.quantity}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleQuantityChange(index, parseInt((e.target as HTMLInputElement).value, 10) || 0);
+                                                    }
+                                                }}
+                                                className="w-24 h-8"
+                                            />
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                className="h-8 w-8" 
+                                                type="button" 
+                                                onClick={(e) => {
+                                                    const input = (e.currentTarget.previousSibling as HTMLInputElement);
+                                                    handleQuantityChange(index, parseInt(input.value, 10) || 0);
+                                                }}
+                                            >
+                                                <Check className="h-4 w-4 text-green-600"/>
+                                            </Button>
+                                         </div>
                                     </TableCell>
                                     <TableCell>{formatCurrency(field.precioVenta || 0)}</TableCell>
                                     <TableCell className="text-right font-semibold">{formatCurrency((field.precioVenta || 0) * (field.quantity || 0))}</TableCell>
