@@ -487,6 +487,7 @@ export type AsignacionPersonal = {
   nombre: string;
   dni: string;
   telefono: string;
+  email?: string;
   comentarios: string;
   comentariosMice?: string;
   rating?: number;
@@ -1001,6 +1002,7 @@ export type MenajeDB = {
 export type CategoriaReceta = {
     id: string;
     nombre: string;
+    snack?: boolean;
 };
 
 export type TipoCocina = {
