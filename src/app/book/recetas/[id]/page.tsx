@@ -44,6 +44,7 @@ import { ElaborationForm, type ElaborationFormValues } from '@/components/book/e
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Label } from '@/components/ui/label';
+import { ComponenteSelector } from '@/components/book/componente-selector';
 
 
 const elaboracionEnRecetaSchema = z.object({
@@ -107,51 +108,6 @@ const recetaFormSchema = z.object({
 type RecetaFormValues = z.infer<typeof recetaFormSchema>;
 type ElaboracionConCoste = Elaboracion & { costePorUnidad?: number; alergenos?: Alergeno[] };
 type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
-
-function SelectorDialog({ trigger, title, items, columns, onSelect }: { trigger: React.ReactNode; title: string; items: any[]; columns: { key: string; header: string }[]; onSelect: (item: any) => void; }) {
-    const [open, setOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-
-    const filteredItems = useMemo(() => {
-        if (!searchTerm) return items;
-        const term = searchTerm.toLowerCase();
-        return items.filter(item => 
-            (item.nombre || item.descripcion || '').toLowerCase().includes(term)
-        );
-    }, [items, searchTerm]);
-
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>{trigger}</DialogTrigger>
-            <DialogContent className="max-w-2xl">
-                <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
-                <Input 
-                    placeholder="Buscar..." 
-                    value={searchTerm} 
-                    onChange={(e) => setSearchTerm(e.target.value)} 
-                    className="my-2"
-                />
-                <div className="max-h-[60vh] overflow-y-auto border rounded-md">
-                    <Table>
-                        <TableHeader><TableRow>{columns.map(c => <TableHead key={c.key as string}>{c.header}</TableHead>)}<TableHead></TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {filteredItems.map((item: any) => (
-                                <TableRow key={item.id}>
-                                    {columns.map(c => <TableCell key={c.key as string}>{
-                                        c.key === 'costePorUnidad' && typeof item[c.key] === 'number'
-                                          ? formatCurrency(item[c.key])
-                                          : String(item[c.key])
-                                    }</TableCell>)}
-                                    <TableCell><Button size="sm" onClick={() => { onSelect(item); setOpen(false); }}>Añadir</Button></TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
-            </DialogContent>
-        </Dialog>
-    )
-}
 
 function SortableItem({ id, children }: { id: string, children: React.ReactNode }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
@@ -627,6 +583,7 @@ export default function RecetaFormPage() {
                   </div>
               </div>
               
+            <div className="grid lg:grid-cols-[1fr_400px] gap-8 items-start">
               <div className="space-y-4">
                   <Card>
                       <CardHeader>
@@ -803,8 +760,9 @@ export default function RecetaFormPage() {
                       </CardContent>
                   </Card>
               </div>
-            </form>
-          </FormProvider>
+            </div>
+          </form>
+        </FormProvider>
           <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
               <AlertDialogContent>
               <AlertDialogHeader>

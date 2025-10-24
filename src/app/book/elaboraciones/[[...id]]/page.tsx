@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -43,7 +44,7 @@ import { AllergenBadge } from '@/components/icons/allergen-badge';
 import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import Papa from 'papaparse';
+import { ComponenteSelector } from '@/components/book/componente-selector';
 
 
 const CSV_HEADERS_ELABORACIONES = [ "id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion" ];
@@ -544,4 +545,3 @@ export default function ElaboracionesPage() {
         </Suspense>
     );
 }
-
