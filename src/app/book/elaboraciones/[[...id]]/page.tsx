@@ -11,7 +11,7 @@ import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSe
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
 
-import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, MoreHorizontal, Copy, Download, Upload, Menu, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, MoreHorizontal, Copy, Download, Upload, Menu, AlertTriangle, CheckCircle, RefreshCw, Pencil } from 'lucide-react';
 import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, ArticuloERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina, PartidaProduccion, ElaboracionEnReceta } from '@/types';
 import { SABORES_PRINCIPALES } from '@/types';
 
@@ -433,7 +433,7 @@ function ElaborationFormPage() {
     const params = useParams();
     const searchParams = useSearchParams();
 
-    const idParam = Array.isArray(params.id) ? params.id[0] : 'nuevo';
+    const idParam = Array.isArray(params.id) ? params.id[0] : params.id || 'nuevo';
     const isNew = idParam === 'nuevo';
     const id = isNew ? null : idParam;
     
@@ -456,7 +456,7 @@ function ElaborationFormPage() {
             elabToLoad = allElaboraciones.find(e => e.id === id) || null;
         }
         
-        if (!id && !cloneId) { // This is the /nuevo case
+        if (isNew) {
             elabToLoad = { 
                 id: Date.now().toString(), 
                 nombre: '', 
@@ -518,6 +518,7 @@ function ElaborationFormPage() {
     }
     
     const pageTitle = cloneId ? 'Clonar Elaboración' : (isNew ? 'Nueva Elaboración' : 'Editar Elaboración');
+    const isSubmitting = isLoading;
 
     return (
         <main className="container mx-auto px-4 py-8">
@@ -548,11 +549,16 @@ function ElaborationFormPage() {
 export default function ElaboracionesPage() {
     const params = useParams();
     
-    const isListPage = !params.id || params.id.length === 0;
+    const isListPage = !params.id || params.id[0] === 'nuevo';
+    const isFormPage = params.id && params.id[0] !== 'nuevo';
 
+    if(params.id && params.id.length > 0 && params.id[0] !== 'nuevo') {
+        return <ElaborationFormPage />
+    }
+    
     return (
         <Suspense fallback={<LoadingSkeleton title="Cargando..." />}>
-            {isListPage ? <ElaboracionesListPage /> : <ElaborationFormPage />}
+            <ElaboracionesListPage />
         </Suspense>
     );
 }
