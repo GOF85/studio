@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,9 +18,10 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency, formatNumber } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 import { RecetaSelector } from '@/components/os/gastronomia/receta-selector';
 
 const gastroItemSchema = z.object({
@@ -168,8 +169,8 @@ function PedidoGastronomiaForm() {
     <main>
       <Form {...form}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="flex items-center justify-between p-2 bg-muted rounded-md text-muted-foreground">
-                <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center justify-between p-2 bg-muted rounded-md text-sm text-muted-foreground">
+                <div className="flex items-center gap-4">
                     <span>Para el servicio: <strong>{briefingItem.descripcion}</strong></span>
                     <span className="h-4 border-l"></span>
                     <span>{format(new Date(briefingItem.fecha), 'dd/MM/yyyy')} a las {briefingItem.horaInicio}h</span>
