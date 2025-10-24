@@ -2,18 +2,18 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { useForm, useFieldArray, useWatch } from 'react-hook-form';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import Link from 'next/link';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, Save, ArrowLeft, GripVertical } from 'lucide-react';
-import { format, parse } from 'date-fns';
-import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, Euro } from 'lucide-react';
+import { format, differenceInMinutes, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
 
-import type { ServiceOrder, Receta, GastronomyOrderItem, GastronomyOrderStatus, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import type { ServiceOrder, Receta, GastronomyOrderItem, GastronomyOrderStatus, ComercialBriefing, ComercialBriefingItem, TipoServicio } from '@/types';
+import { osFormSchema, type OsFormValues } from '@/app/os/[id]/info/page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -23,22 +23,29 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form } from '@/components/ui/form';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from 'lucide-react';
 
-const statusOptions: GastronomyOrderStatus[] = ['Pendiente', 'En preparación', 'Listo', 'Incidencia'];
-const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
-  Pendiente: 'secondary',
-  'En preparación': 'outline',
-  Listo: 'default',
-  Incidencia: 'destructive',
-};
 
 const gastronomyOrderItemSchema = z.object({
   id: z.string(),
@@ -51,8 +58,8 @@ const gastronomyOrderItemSchema = z.object({
 });
 
 const formSchema = z.object({
-    status: z.enum(statusOptions),
-    items: z.array(gastronomyOrderItemSchema).default([]),
+    gastro_status: z.enum(['Pendiente', 'En preparación', 'Listo', 'Incidencia']),
+    gastro_items: z.array(gastronomyOrderItemSchema).default([]),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -141,16 +148,16 @@ function SortableTableRow({ field, index, remove, form }: { field: GastronomyOrd
                             type="number" 
                             min="1" 
                             className="w-20"
-                            {...form.register(`items.${index}.quantity`)}
+                            {...form.register(`gastro_items.${index}.quantity`)}
                         />
                     </TableCell>
-                    <TableCell>{((field.precioVenta || 0) * (form.watch(`items.${index}.quantity`) || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell>{((field.precioVenta || 0) * (form.watch(`gastro_items.${index}.quantity`) || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                 </>
             ) : (
                 <TableCell colSpan={5} className="font-bold bg-muted/50">
                     <Input 
                         className="border-none bg-transparent h-auto p-0 text-base"
-                        {...form.register(`items.${index}.nombre`)}
+                        {...form.register(`gastro_items.${index}.nombre`)}
                     />
                 </TableCell>
             )}
@@ -162,6 +169,15 @@ function SortableTableRow({ field, index, remove, form }: { field: GastronomyOrd
         </TableRow>
     );
 }
+
+const statusOptions: GastronomyOrderStatus[] = ['Pendiente', 'En preparación', 'Listo', 'Incidencia'];
+const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
+  Pendiente: 'secondary',
+  'En preparación': 'outline',
+  Listo: 'default',
+  Incidencia: 'destructive',
+};
+
 
 export default function PedidoGastronomiaPage() {
   const router = useRouter();
@@ -183,7 +199,7 @@ export default function PedidoGastronomiaPage() {
 
   const { fields, append, remove, update, move } = useFieldArray({
     control: form.control,
-    name: "items",
+    name: "gastro_items",
     keyName: "key",
   });
   
@@ -217,8 +233,8 @@ export default function PedidoGastronomiaPage() {
         if (currentHito) {
             setBriefingItem(currentHito);
             form.reset({
-                status: currentHito.gastro_status || 'Pendiente',
-                items: currentHito.gastro_items || [],
+                gastro_status: currentHito.gastro_status || 'Pendiente',
+                gastro_items: currentHito.gastro_items || [],
             });
         }
     }
@@ -263,7 +279,7 @@ export default function PedidoGastronomiaPage() {
         }
         return acc;
     }, 0);
-  }, [fields, form.watch('items')]); 
+  }, [fields, form.watch('gastro_items')]); 
 
   const onSubmit = (data: FormValues) => {
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
@@ -274,9 +290,8 @@ export default function PedidoGastronomiaPage() {
       if (hitoIndex !== -1) {
         allBriefings[briefingIndex].items[hitoIndex] = {
             ...allBriefings[briefingIndex].items[hitoIndex],
-            gastro_status: data.status,
-            gastro_items: data.items,
-            gastro_total: totalPedido,
+            gastro_status: data.gastro_status,
+            gastro_items: data.gastro_items,
         };
 
         localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
@@ -304,7 +319,7 @@ export default function PedidoGastronomiaPage() {
                     <div className="flex items-center gap-2">
                         <FormField
                             control={form.control}
-                            name="status"
+                            name="gastro_status"
                             render={({ field }) => (
                                 <FormItem>
                                 <Select onValueChange={field.onChange} value={field.value}>
