@@ -3,11 +3,11 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, Euro } from 'lucide-react';
+import { PlusCircle, Trash2, Save, Pencil, Check, Utensils } from 'lucide-react';
 import { format, differenceInMinutes, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -21,7 +21,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableFooter,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -216,13 +215,7 @@ export default function PedidoGastronomiaPage() {
     if (osId && briefingItemId) {
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const currentOS = allServiceOrders.find(os => os.id === osId);
-        
-        if (!currentOS) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Orden de Servicio no encontrada.'});
-            router.push('/pes');
-            return;
-        }
-        setServiceOrder(currentOS);
+        setServiceOrder(currentOS || null);
 
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
         const currentBriefing = allBriefings.find(b => b.osId === osId);
@@ -234,13 +227,10 @@ export default function PedidoGastronomiaPage() {
                 gastro_status: currentHito.gastro_status || 'Pendiente',
                 gastro_items: currentHito.gastro_items || [],
             });
-        } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'Hito de briefing no encontrado.'});
-            router.push(`/os/${osId}/gastronomia`);
         }
     }
     setIsMounted(true);
-  }, [osId, briefingItemId, form, router, toast]);
+  }, [osId, briefingItemId, form]);
 
   const onSelectReceta = (receta: Receta) => {
     const existingIndex = fields.findIndex(item => item.id === receta.id);
@@ -304,118 +294,142 @@ export default function PedidoGastronomiaPage() {
     }
   };
 
-  if (!isMounted || !serviceOrder || !briefingItem) {
+  if (!isMounted) {
     return <LoadingSkeleton title="Cargando Pedido de Gastronomía..." />;
   }
 
   return (
     <main>
-        <Form {...form}>
-            <form onSubmit={handleSubmit(onSubmit)}>
-                <div className="flex items-center justify-between mb-8">
-                     <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/gastronomia`)} className="mb-2">
-                        <ArrowLeft className="mr-2" />
-                        Volver al listado
-                    </Button>
-                    <div className="flex items-center gap-2">
-                        <FormField
-                            control={form.control}
-                            name="gastro_status"
-                            render={({ field }) => (
-                                <FormItem>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                    <SelectTrigger className="w-[180px]">
-                                        <SelectValue placeholder="Estado" />
-                                    </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                    {statusOptions.map(status => (
-                                        <SelectItem key={status} value={status}>
-                                        <Badge variant={statusVariant[status]}>{status}</Badge>
-                                        </SelectItem>
-                                    ))}
-                                    </SelectContent>
-                                </Select>
-                                </FormItem>
-                            )}
-                            />
-                        <Button type="submit"><Save className="mr-2" /> Guardar Pedido</Button>
-                    </div>
-                </div>
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 my-4 rounded-md">
+            <h3 className="font-bold">Información de Depuración</h3>
+            <pre className="text-xs whitespace-pre-wrap font-mono">
+                osId: {osId ?? 'No encontrado'}\n
+                briefingItemId: {briefingItemId ?? 'No encontrado'}\n
+                Service Order Encontrado: {serviceOrder ? 'Sí' : 'No'}\n
+                Hito del Briefing Encontrado: {briefingItem ? 'Sí' : 'No'}\n
+                Datos del Hito: {JSON.stringify(briefingItem, null, 2)}
+            </pre>
+        </div>
 
-                <Card className="mb-8">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-3">{briefingItem.descripcion}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid md:grid-cols-4 gap-x-4 gap-y-1 text-sm pt-0">
-                        <div><span className="font-semibold text-muted-foreground">Fecha: </span>{format(new Date(briefingItem.fecha), 'dd/MM/yyyy')}</div>
-                        <div><span className="font-semibold text-muted-foreground">Hora: </span>{briefingItem.horaInicio}</div>
-                        <div><span className="font-semibold text-muted-foreground">Sala: </span>{briefingItem.sala}</div>
-                        <div><span className="font-semibold text-muted-foreground">Asistentes: </span>{briefingItem.asistentes}</div>
-                        {briefingItem.comentarios && (
-                            <div className="md:col-span-4"><span className="font-semibold text-muted-foreground">Comentarios: </span>{briefingItem.comentarios}</div>
-                        )}
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>Platos del pedido</CardTitle>
-                        <div className="flex gap-2">
-                            <Button variant="secondary" type="button" onClick={addSeparator}><PlusCircle className="mr-2"/>+ Separador</Button>
-                            <Dialog open={isRecetaSelectorOpen} onOpenChange={setIsRecetaSelectorOpen}>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir plato</Button>
-                                </DialogTrigger>
-                                <RecetaSelector onSelectReceta={onSelectReceta} />
-                            </Dialog>
+        {!briefingItem ? (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-destructive">Error de Carga</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p>No se han podido cargar los datos para este pedido de gastronomía. La información de depuración de arriba puede ayudar a identificar el problema.</p>
+                     <Button onClick={() => router.push(`/os/${osId}/gastronomia`)} className="mt-4">Volver al listado</Button>
+                </CardContent>
+            </Card>
+        ) : (
+            <Form {...form}>
+                <form onSubmit={handleSubmit(onSubmit)}>
+                    <div className="flex items-center justify-between mb-8">
+                        <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/gastronomia`)} className="mb-2">
+                            <ArrowLeft className="mr-2" />
+                            Volver al listado
+                        </Button>
+                        <div className="flex items-center gap-2">
+                            <FormField
+                                control={form.control}
+                                name="gastro_status"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl>
+                                        <SelectTrigger className="w-[180px]">
+                                            <SelectValue placeholder="Estado" />
+                                        </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                        {statusOptions.map(status => (
+                                            <SelectItem key={status} value={status}>
+                                            <Badge variant={statusVariant[status]}>{status}</Badge>
+                                            </SelectItem>
+                                        ))}
+                                        </SelectContent>
+                                    </Select>
+                                    </FormItem>
+                                )}
+                                />
+                            <Button type="submit"><Save className="mr-2" /> Guardar Pedido</Button>
                         </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="border rounded-lg">
-                        <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
-                          <Table>
-                              <TableHeader>
-                                  <TableRow>
-                                      <TableHead className="w-10"></TableHead>
-                                      <TableHead>Nombre del Plato</TableHead>
-                                      <TableHead>Categoría</TableHead>
-                                      <TableHead>PVP (Ud.)</TableHead>
-                                      <TableHead>Cantidad</TableHead>
-                                      <TableHead>Subtotal</TableHead>
-                                      <TableHead className="text-right">Acciones</TableHead>
-                                  </TableRow>
-                              </TableHeader>
-                              <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                                  <TableBody>
-                                      {fields.length > 0 ? (
-                                          fields.map((field, index) => (
-                                              <SortableTableRow key={field.key} field={{...field, key: field.id}} index={index} remove={remove} form={form} />
-                                          ))
-                                      ) : (
-                                          <TableRow>
-                                              <TableCell colSpan={7} className="h-24 text-center">
-                                              No hay platos en este pedido.
-                                              </TableCell>
-                                          </TableRow>
-                                      )}
-                                  </TableBody>
-                              </SortableContext>
-                          </Table>
-                        </DndContext>
-                      </div>
-                    </CardContent>
-                    {fields.length > 0 && (
-                         <CardFooter className="flex justify-end">
-                            <div className="text-xl font-bold">
-                                Total Pedido: {totalPedido.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                    </div>
+
+                    <Card className="mb-8">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-3">{briefingItem.descripcion}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid md:grid-cols-4 gap-x-4 gap-y-1 text-sm pt-0">
+                            <div><span className="font-semibold text-muted-foreground">Fecha: </span>{format(new Date(briefingItem.fecha), 'dd/MM/yyyy')}</div>
+                            <div><span className="font-semibold text-muted-foreground">Hora: </span>{briefingItem.horaInicio}</div>
+                            <div><span className="font-semibold text-muted-foreground">Sala: </span>{briefingItem.sala}</div>
+                            <div><span className="font-semibold text-muted-foreground">Asistentes: </span>{briefingItem.asistentes}</div>
+                            {briefingItem.comentarios && (
+                                <div className="md:col-span-4"><span className="font-semibold text-muted-foreground">Comentarios: </span>{briefingItem.comentarios}</div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <CardTitle>Platos del pedido</CardTitle>
+                            <div className="flex gap-2">
+                                <Button variant="secondary" type="button" onClick={addSeparator}><PlusCircle className="mr-2"/>+ Separador</Button>
+                                <Dialog open={isRecetaSelectorOpen} onOpenChange={setIsRecetaSelectorOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir plato</Button>
+                                    </DialogTrigger>
+                                    <RecetaSelector onSelectReceta={onSelectReceta} />
+                                </Dialog>
                             </div>
-                        </CardFooter>
-                    )}
-                </Card>
-            </form>
-        </Form>
+                        </CardHeader>
+                        <CardContent>
+                        <div className="border rounded-lg">
+                            <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-10"></TableHead>
+                                        <TableHead>Nombre del Plato</TableHead>
+                                        <TableHead>Categoría</TableHead>
+                                        <TableHead>PVP (Ud.)</TableHead>
+                                        <TableHead>Cantidad</TableHead>
+                                        <TableHead>Subtotal</TableHead>
+                                        <TableHead className="text-right">Acciones</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                                    <TableBody>
+                                        {fields.length > 0 ? (
+                                            fields.map((field, index) => (
+                                                <SortableTableRow key={field.key} field={{...field, key: field.id}} index={index} remove={remove} form={form} />
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={7} className="h-24 text-center">
+                                                No hay platos en este pedido.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </SortableContext>
+                            </Table>
+                            </DndContext>
+                        </div>
+                        </CardContent>
+                        {fields.length > 0 && (
+                            <CardFooter className="flex justify-end">
+                                <div className="text-xl font-bold">
+                                    Total Pedido: {totalPedido.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                                </div>
+                            </CardFooter>
+                        )}
+                    </Card>
+                </form>
+            </Form>
+        )}
     </main>
   );
 }
+
