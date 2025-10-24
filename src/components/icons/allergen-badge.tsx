@@ -20,6 +20,7 @@ export const AllergenBadge = ({ allergen, isTraza = false }: { allergen: Alergen
                         info.color,
                         isTraza && "opacity-60"
                     )}
+                    style={{ backgroundColor: info.color.startsWith('bg-') ? undefined : info.color }}
                 >
                     {info.abbr}
                 </Badge>
