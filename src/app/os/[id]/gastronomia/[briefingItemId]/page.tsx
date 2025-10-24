@@ -1,8 +1,9 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import * as React from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,7 +24,6 @@ import { Separator } from '@/components/ui/separator';
 import { formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-
 
 const gastroItemSchema = z.object({
   id: z.string(),
@@ -95,6 +95,7 @@ function PedidoGastronomiaForm() {
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [briefingItem, setBriefingItem] = useState<ComercialBriefingItem | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
   const router = useRouter();
@@ -143,8 +144,17 @@ function PedidoGastronomiaForm() {
     setIsSelectorOpen(false);
     toast({title: "Receta añadida"});
   }
+  
+  const addSeparator = (name: string) => {
+    append({
+      id: `sep-${Date.now()}`,
+      type: 'separator',
+      nombre: name,
+    });
+  };
 
   const onSubmit = (data: FormValues) => {
+    setIsLoading(true);
     let allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const briefingIndex = allBriefings.findIndex(b => b.osId === osId);
 
@@ -153,13 +163,15 @@ function PedidoGastronomiaForm() {
       if (hitoIndex !== -1) {
         allBriefings[briefingIndex].items[hitoIndex] = {
           ...allBriefings[briefingIndex].items[hitoIndex],
-          ...data,
+          gastro_items: data.gastro_items,
+          gastro_status: data.gastro_status,
         };
         localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
         toast({ title: 'Pedido de Gastronomía Guardado' });
         router.push(`/os/${osId}/gastronomia`);
       }
     }
+    setIsLoading(false);
   };
   
   if (!isMounted || !briefingItem) {
@@ -167,7 +179,7 @@ function PedidoGastronomiaForm() {
   }
 
   return (
-    <main className="container mx-auto px-4 py-8">
+    <main>
       <Form {...form}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="flex items-center justify-between mb-4">
@@ -178,20 +190,24 @@ function PedidoGastronomiaForm() {
                 <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Utensils />Pedido de Gastronomía</h1>
                 <CardDescription>Para el servicio: {briefingItem.descripcion} - {format(new Date(briefingItem.fecha), 'dd/MM/yyyy')}</CardDescription>
             </div>
-            <Button type="submit">
-                <Save className="mr-2" /> Guardar Pedido
+            <Button type="submit" disabled={isLoading}>
+                {isLoading ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2" />} 
+                Guardar Pedido
             </Button>
           </div>
           
           <Card>
             <CardHeader className="flex-row justify-between items-center">
                 <CardTitle>Platos del Pedido</CardTitle>
-                 <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="outline"><PlusCircle className="mr-2"/>Añadir Plato</Button>
-                    </DialogTrigger>
-                    <RecetaSelector onSelect={onAddReceta} />
-                </Dialog>
+                <div className="flex gap-2">
+                    <Button type="button" variant="secondary" onClick={() => addSeparator('Nuevo Separador')}>Añadir Separador</Button>
+                    <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
+                        <DialogTrigger asChild>
+                            <Button type="button" variant="outline"><PlusCircle className="mr-2"/>Añadir Plato</Button>
+                        </DialogTrigger>
+                        <RecetaSelector onSelect={onAddReceta} />
+                    </Dialog>
+                </div>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -206,25 +222,44 @@ function PedidoGastronomiaForm() {
                     </TableHeader>
                     <TableBody>
                         {fields.length > 0 ? fields.map((field, index) => (
-                             <TableRow key={field.id}>
-                                <TableCell>{field.nombre}</TableCell>
-                                <TableCell>{field.categoria}</TableCell>
-                                <TableCell>{formatCurrency(field.precioVenta || 0)}</TableCell>
-                                <TableCell>
-                                    <FormField
-                                        control={control}
-                                        name={`gastro_items.${index}.quantity`}
-                                        render={({ field: qtyField }) => (
-                                            <Input type="number" {...qtyField} className="w-24 h-8" />
-                                        )}
-                                    />
-                                </TableCell>
-                                <TableCell>
-                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
-                                        <Trash2 className="h-4 w-4"/>
-                                    </Button>
-                                </TableCell>
-                            </TableRow>
+                            field.type === 'separator' ? (
+                                <TableRow key={field.id} className="bg-muted/50">
+                                    <TableCell colSpan={4}>
+                                        <FormField
+                                            control={control}
+                                            name={`gastro_items.${index}.nombre`}
+                                            render={({ field: separatorField }) => (
+                                                <Input {...separatorField} className="border-none bg-transparent font-bold text-lg focus-visible:ring-1" />
+                                            )}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
+                                            <Trash2 className="h-4 w-4"/>
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                <TableRow key={field.id}>
+                                    <TableCell>{field.nombre}</TableCell>
+                                    <TableCell>{field.categoria}</TableCell>
+                                    <TableCell>{formatCurrency(field.precioVenta || 0)}</TableCell>
+                                    <TableCell>
+                                        <FormField
+                                            control={control}
+                                            name={`gastro_items.${index}.quantity`}
+                                            render={({ field: qtyField }) => (
+                                                <Input type="number" {...qtyField} className="w-24 h-8" />
+                                            )}
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
+                                            <Trash2 className="h-4 w-4"/>
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            )
                         )) : (
                             <TableRow><TableCell colSpan={5} className="text-center h-24">No hay platos en este pedido.</TableCell></TableRow>
                         )}
