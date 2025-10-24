@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -58,7 +59,6 @@ const getInitials = (name: string) => {
     return name.substring(0, 2).toUpperCase();
 }
 
-
 function OsHeaderContent({ osId }: { osId: string }) {
     const pathname = usePathname();
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
@@ -75,16 +75,27 @@ function OsHeaderContent({ osId }: { osId: string }) {
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
     }, [osId, updateKey]);
+    
+    const {currentModule, isSubPage} = useMemo(() => {
+        const pathSegments = pathname.split('/').filter(Boolean); // e.g., ['os', '123', 'gastronomia', '456']
+        const osIndex = pathSegments.indexOf('os');
+        const moduleSegment = pathSegments[osIndex + 2];
+        const subPageSegment = pathSegments[osIndex + 3];
 
-    const currentModule = useMemo(() => {
-        const pathSegment = pathname.split('/').pop();
-        if (pathname === `/os/${osId}`) {
-            return { title: 'Panel de Control', icon: LayoutDashboard };
+        const module = navLinks.find(link => link.path === moduleSegment);
+        
+        if (module) {
+            return { currentModule: module, isSubPage: !!subPageSegment };
         }
-        return navLinks.find(link => pathname.includes(`/${link.path}`));
-    }, [pathname, osId]);
 
-    if (!serviceOrder || !currentModule) {
+        if (moduleSegment === 'info' || !moduleSegment) {
+            return { currentModule: { title: 'Información OS', icon: FileText, path: 'info'}, isSubPage: false};
+        }
+
+        return { currentModule: { title: 'Panel de Control', icon: LayoutDashboard, path: '' }, isSubPage: false };
+    }, [pathname]);
+
+    if (!serviceOrder) {
         return (
              <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-3">
@@ -118,14 +129,27 @@ function OsHeaderContent({ osId }: { osId: string }) {
                         <ClipboardList className="h-5 w-5"/>
                         <span>{serviceOrder.serviceNumber}</span>
                     </Link>
-                     <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                     <div className="flex items-center gap-2">
-                        <currentModule.icon className="h-5 w-5"/>
-                        <span>{currentModule.title}</span>
-                     </div>
+                    {currentModule && (
+                        <>
+                         <ChevronRight className="h-4 w-4 text-muted-foreground"/>
+                         <Link href={`/os/${osId}/${currentModule.path}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+                            <currentModule.icon className="h-5 w-5"/>
+                            <span>{currentModule.title}</span>
+                         </Link>
+                        </>
+                    )}
+                    {isSubPage && (
+                         <>
+                             <ChevronRight className="h-4 w-4 text-muted-foreground"/>
+                             <span className="flex items-center gap-2 font-bold text-primary">
+                                 <FilePenLine className="h-5 w-5"/>
+                                 <span>Edición</span>
+                             </span>
+                         </>
+                    )}
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  {('moduleName' in currentModule) && currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
+                  {(currentModule?.moduleName) && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
                   {serviceOrder.isVip && <Badge variant="default" className="bg-amber-400 text-black hover:bg-amber-500"><Star className="h-4 w-4 mr-1"/> VIP</Badge>}
                 </div>
               </div>
@@ -136,7 +160,7 @@ function OsHeaderContent({ osId }: { osId: string }) {
                                 <TooltipTrigger className="flex items-center gap-2 cursor-default">
                                     <span className="font-semibold">{resp.label}:</span>
                                     <Avatar className="h-6 w-6 text-xs">
-                                        <AvatarFallback>{getInitials(resp.name)}</AvatarFallback>
+                                        <AvatarFallback>{getInitials(resp.name || '')}</AvatarFallback>
                                     </Avatar>
                                 </TooltipTrigger>
                                 <TooltipContent>

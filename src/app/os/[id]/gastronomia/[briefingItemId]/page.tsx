@@ -2,14 +2,14 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Save, Trash2, PlusCircle, Utensils, Loader2 } from 'lucide-react';
+import { Save, Trash2, PlusCircle, Utensils, Loader2, MessageSquare, User } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, Receta, GastronomyOrderStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -17,13 +17,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { RecetaSelector } from '@/components/os/gastronomia/receta-selector';
 
 const gastroItemSchema = z.object({
   id: z.string(),
@@ -33,6 +32,7 @@ const gastroItemSchema = z.object({
   costeMateriaPrima: z.number().optional(),
   precioVenta: z.number().optional(),
   quantity: z.number().optional(),
+  comentarios: z.string().optional(),
 });
 
 const formSchema = z.object({
@@ -41,51 +41,6 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
-
-function RecetaSelector({ onSelect }: { onSelect: (receta: Receta) => void }) {
-    const [recetas, setRecetas] = useState<Receta[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
-
-    useEffect(() => {
-        const storedRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-        setRecetas(storedRecetas);
-    }, []);
-    
-    const filteredRecetas = useMemo(() => {
-        return recetas.filter(r => r.nombre.toLowerCase().includes(searchTerm.toLowerCase()));
-    }, [recetas, searchTerm]);
-
-    return (
-        <DialogContent className="max-w-3xl">
-            <DialogHeader><DialogTitle>Seleccionar Receta</DialogTitle></DialogHeader>
-            <Input placeholder="Buscar receta..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-            <div className="max-h-[60vh] overflow-y-auto border rounded-md">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Nombre</TableHead>
-                            <TableHead>Categoría</TableHead>
-                            <TableHead className="text-right">Coste</TableHead>
-                            <TableHead className="text-right">PVP</TableHead>
-                            <TableHead></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredRecetas.map(receta => (
-                            <TableRow key={receta.id}>
-                                <TableCell>{receta.nombre}</TableCell>
-                                <TableCell>{receta.categoria}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(receta.costeMateriaPrima || 0)}</TableCell>
-                                <TableCell className="text-right">{formatCurrency(receta.precioVenta || 0)}</TableCell>
-                                <TableCell className="text-right"><Button size="sm" onClick={() => onSelect(receta)}>Añadir</Button></TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </div>
-        </DialogContent>
-    );
-}
 
 function PedidoGastronomiaForm() {
   const params = useParams();
@@ -97,6 +52,7 @@ function PedidoGastronomiaForm() {
   const [isMounted, setIsMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [editingComment, setEditingComment] = useState<{ index: number; text: string } | null>(null);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -110,7 +66,8 @@ function PedidoGastronomiaForm() {
   });
 
   const { control, handleSubmit, reset } = form;
-  const { fields, append, remove } = useFieldArray({ control, name: "gastro_items" });
+  const { fields, append, remove, update } = useFieldArray({ control, name: "gastro_items" });
+  const watchedItems = form.watch('gastro_items');
 
   useEffect(() => {
     if (osId && briefingItemId) {
@@ -139,7 +96,8 @@ function PedidoGastronomiaForm() {
         categoria: receta.categoria,
         costeMateriaPrima: receta.costeMateriaPrima,
         precioVenta: receta.precioVenta,
-        quantity: serviceOrder?.asistentes || 1,
+        quantity: briefingItem?.asistentes || 1,
+        comentarios: '',
     });
     setIsSelectorOpen(false);
     toast({title: "Receta añadida"});
@@ -174,6 +132,14 @@ function PedidoGastronomiaForm() {
     setIsLoading(false);
   };
   
+  const handleSaveComment = () => {
+    if (editingComment) {
+        update(editingComment.index, { ...watchedItems[editingComment.index], comentarios: editingComment.text });
+        setEditingComment(null);
+        toast({title: 'Comentario guardado.'});
+    }
+  };
+
   if (!isMounted || !briefingItem) {
     return <LoadingSkeleton title="Cargando pedido de gastronomía..." />;
   }
@@ -182,23 +148,22 @@ function PedidoGastronomiaForm() {
     <main>
       <Form {...form}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-                <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/gastronomia`)} className="mb-2">
-                    <ArrowLeft className="mr-2" /> Volver al listado
+            <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-4 text-muted-foreground text-sm">
+                    <span>Para el servicio: <strong>{briefingItem.descripcion}</strong></span>
+                    <Separator orientation="vertical" className="h-4"/>
+                    <span>{format(new Date(briefingItem.fecha), 'dd/MM/yyyy')} a las {briefingItem.horaInicio}h</span>
+                    <Separator orientation="vertical" className="h-4"/>
+                    <span className="flex items-center gap-1.5"><Users size={16}/>{briefingItem.asistentes} asistentes</span>
+                </div>
+                <Button type="submit" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2" />} 
+                    Guardar Pedido
                 </Button>
-                <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Utensils />Pedido de Gastronomía</h1>
-                <CardDescription>Para el servicio: {briefingItem.descripcion} - {format(new Date(briefingItem.fecha), 'dd/MM/yyyy')}</CardDescription>
             </div>
-            <Button type="submit" disabled={isLoading}>
-                {isLoading ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2" />} 
-                Guardar Pedido
-            </Button>
-          </div>
           
           <Card>
-            <CardHeader className="flex-row justify-between items-center">
-                <CardTitle>Platos del Pedido</CardTitle>
+            <CardHeader className="flex-row justify-between items-center py-3">
                 <div className="flex gap-2">
                     <Button type="button" variant="secondary" onClick={() => addSeparator('Nuevo Separador')}>Añadir Separador</Button>
                     <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
@@ -209,7 +174,7 @@ function PedidoGastronomiaForm() {
                     </Dialog>
                 </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -217,14 +182,15 @@ function PedidoGastronomiaForm() {
                             <TableHead>Categoría</TableHead>
                             <TableHead>PVP</TableHead>
                             <TableHead>Cantidad</TableHead>
-                            <TableHead>Acciones</TableHead>
+                            <TableHead>Total</TableHead>
+                            <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {fields.length > 0 ? fields.map((field, index) => (
                             field.type === 'separator' ? (
                                 <TableRow key={field.id} className="bg-muted/50">
-                                    <TableCell colSpan={4}>
+                                    <TableCell colSpan={5}>
                                         <FormField
                                             control={control}
                                             name={`gastro_items.${index}.nombre`}
@@ -242,26 +208,32 @@ function PedidoGastronomiaForm() {
                             ) : (
                                 <TableRow key={field.id}>
                                     <TableCell>{field.nombre}</TableCell>
-                                    <TableCell>{field.categoria}</TableCell>
+                                    <TableCell><Badge variant="outline">{field.categoria}</Badge></TableCell>
                                     <TableCell>{formatCurrency(field.precioVenta || 0)}</TableCell>
                                     <TableCell>
                                         <FormField
                                             control={control}
                                             name={`gastro_items.${index}.quantity`}
                                             render={({ field: qtyField }) => (
-                                                <Input type="number" {...qtyField} className="w-24 h-8" />
+                                                <Input type="number" {...qtyField} onChange={(e) => qtyField.onChange(parseInt(e.target.value, 10) || 0)} className="w-24 h-8" />
                                             )}
                                         />
                                     </TableCell>
-                                    <TableCell>
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
-                                            <Trash2 className="h-4 w-4"/>
-                                        </Button>
+                                    <TableCell className="font-semibold">{formatCurrency((field.precioVenta || 0) * (watchedItems[index].quantity || 0))}</TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex items-center justify-end">
+                                            <Button variant="ghost" size="icon" className="text-muted-foreground" onClick={() => setEditingComment({ index, text: field.comentarios || '' })}>
+                                                <MessageSquare className={`h-4 w-4 ${field.comentarios ? 'text-primary' : ''}`} />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)}>
+                                                <Trash2 className="h-4 w-4"/>
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             )
                         )) : (
-                            <TableRow><TableCell colSpan={5} className="text-center h-24">No hay platos en este pedido.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={6} className="text-center h-24">No hay platos en este pedido.</TableCell></TableRow>
                         )}
                     </TableBody>
                 </Table>
@@ -269,16 +241,32 @@ function PedidoGastronomiaForm() {
           </Card>
         </form>
       </Form>
+      
+       <Dialog open={!!editingComment} onOpenChange={(isOpen) => !isOpen && setEditingComment(null)}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Observaciones para: {editingComment ? watchedItems[editingComment.index].nombre : ''}</DialogTitle>
+                </DialogHeader>
+                <Textarea 
+                    value={editingComment?.text || ''}
+                    onChange={(e) => setEditingComment(prev => prev ? {...prev, text: e.target.value} : null)}
+                    rows={4}
+                    placeholder="Añade aquí cualquier comentario sobre este plato..."
+                />
+                <DialogFooter>
+                    <Button variant="secondary" onClick={() => setEditingComment(null)}>Cancelar</Button>
+                    <Button onClick={handleSaveComment}>Guardar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </main>
   );
 }
 
 export default function PedidoGastronomiaPage() {
     return (
-        // Suspense is important for pages using dynamic params
         <React.Suspense fallback={<LoadingSkeleton title="Cargando..." />}>
             <PedidoGastronomiaForm />
         </React.Suspense>
     );
 }
-
