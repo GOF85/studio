@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { Utensils, ArrowLeft } from 'lucide-react';
-import type { ServiceOrder, ComercialBriefing, GastronomyOrder, GastronomyOrderStatus, ComercialBriefingItem } from '@/types';
+import type { ServiceOrder, ComercialBriefing, GastronomyOrderStatus, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -45,7 +45,6 @@ export default function GastronomiaPage() {
     const currentBriefing = allBriefings.find(b => b.osId === osId);
     
     if (!currentBriefing) {
-        // If no briefing, create one. This case should ideally be handled when an OS is created.
         const newBriefing: ComercialBriefing = { osId, items: [] };
         allBriefings.push(newBriefing);
         localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
