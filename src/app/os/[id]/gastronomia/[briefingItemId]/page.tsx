@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Save, Trash2, PlusCircle, Loader2, MessageSquare, Users } from 'lucide-react';
+import { Save, Trash2, PlusCircle, Loader2, MessageSquare, Users, FilePenLine } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, Receta, GastronomyOrderStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -68,6 +68,15 @@ function PedidoGastronomiaForm() {
   const { control, handleSubmit, reset } = form;
   const { fields, append, remove, update } = useFieldArray({ control, name: "gastro_items" });
   const watchedItems = form.watch('gastro_items');
+
+  const totalPedido = useMemo(() => {
+    return watchedItems.reduce((acc, item) => {
+        if (item.type === 'item') {
+            return acc + (item.precioVenta || 0) * (item.quantity || 0);
+        }
+        return acc;
+    }, 0);
+  }, [watchedItems]);
 
   useEffect(() => {
     if (osId && briefingItemId) {
@@ -173,24 +182,27 @@ function PedidoGastronomiaForm() {
                         <RecetaSelector onSelect={onAddReceta} />
                     </Dialog>
                 </div>
+                <div className="text-right">
+                    <p className="text-sm font-medium text-muted-foreground">Total Pedido</p>
+                    <p className="text-2xl font-bold text-primary">{formatCurrency(totalPedido)}</p>
+                </div>
             </CardHeader>
             <CardContent className="pt-0">
                 <Table>
                     <TableHeader>
                         <TableRow>
                             <TableHead>Referencia</TableHead>
-                            <TableHead>Categoría</TableHead>
-                            <TableHead>PVP</TableHead>
-                            <TableHead>Cantidad</TableHead>
-                            <TableHead>Total</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
+                            <TableHead className="w-32">Cantidad</TableHead>
+                            <TableHead className="w-32">PVP</TableHead>
+                            <TableHead className="w-40 text-right">Total</TableHead>
+                            <TableHead className="w-28 text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {fields.length > 0 ? fields.map((field, index) => (
                             field.type === 'separator' ? (
-                                <TableRow key={field.id} className="bg-muted/50">
-                                    <TableCell colSpan={5}>
+                                <TableRow key={field.id} className="bg-muted/50 hover:bg-muted/80">
+                                    <TableCell colSpan={4}>
                                         <FormField
                                             control={control}
                                             name={`gastro_items.${index}.nombre`}
@@ -208,8 +220,6 @@ function PedidoGastronomiaForm() {
                             ) : (
                                 <TableRow key={field.id}>
                                     <TableCell>{field.nombre}</TableCell>
-                                    <TableCell><Badge variant="outline">{field.categoria}</Badge></TableCell>
-                                    <TableCell>{formatCurrency(field.precioVenta || 0)}</TableCell>
                                     <TableCell>
                                         <FormField
                                             control={control}
@@ -219,7 +229,8 @@ function PedidoGastronomiaForm() {
                                             )}
                                         />
                                     </TableCell>
-                                    <TableCell className="font-semibold">{formatCurrency((field.precioVenta || 0) * (watchedItems[index].quantity || 0))}</TableCell>
+                                    <TableCell>{formatCurrency(field.precioVenta || 0)}</TableCell>
+                                    <TableCell className="text-right font-semibold">{formatCurrency((field.precioVenta || 0) * (watchedItems[index].quantity || 0))}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end">
                                             <Button variant="ghost" size="icon" className="text-muted-foreground" onClick={() => setEditingComment({ index, text: field.comentarios || '' })}>
