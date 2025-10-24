@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useForm, useFieldArray, useWatch } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parse, differenceInMinutes } from 'date-fns';
@@ -33,7 +33,9 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -81,6 +83,7 @@ function PedidoGastronomiaForm() {
 
   const { control, handleSubmit, reset, watch, setValue, getValues, formState } = form;
   const { fields, append, remove, update } = useFieldArray({ control, name: "gastro_items" });
+  
   const watchedItems = watch('gastro_items');
   
   const { totalPedido, ratioUnidadesPorPax } = useMemo(() => {
@@ -142,6 +145,13 @@ function PedidoGastronomiaForm() {
       type: 'separator',
       nombre: name,
     });
+  };
+  
+  const handleQuantityChange = (index: number, newQuantity: number) => {
+    const item = getValues(`gastro_items.${index}`);
+    if (item) {
+        update(index, { ...item, quantity: newQuantity });
+    }
   };
 
   const onSubmit = (data: FormValues) => {
@@ -254,16 +264,15 @@ function PedidoGastronomiaForm() {
                                 <TableRow key={field.id}>
                                     <TableCell>{field.nombre}</TableCell>
                                     <TableCell>
-                                        <FormField
-                                            control={control}
-                                            name={`gastro_items.${index}.quantity`}
-                                            render={({ field: qtyField }) => (
-                                                <Input type="number" {...qtyField} onChange={(e) => qtyField.onChange(parseInt(e.target.value, 10) || 0)} className="w-24 h-8" />
-                                            )}
+                                        <Input
+                                            type="number"
+                                            value={field.quantity}
+                                            onChange={(e) => handleQuantityChange(index, parseInt(e.target.value, 10) || 0)}
+                                            className="w-24 h-8"
                                         />
                                     </TableCell>
                                     <TableCell>{formatCurrency(field.precioVenta || 0)}</TableCell>
-                                    <TableCell className="text-right font-semibold">{formatCurrency((field.precioVenta || 0) * (watchedItems[index].quantity || 0))}</TableCell>
+                                    <TableCell className="text-right font-semibold">{formatCurrency((field.precioVenta || 0) * (field.quantity || 0))}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end">
                                             <Button variant="ghost" size="icon" className="text-muted-foreground" onClick={() => setEditingComment({ index, text: field.comentarios || '' })}>
