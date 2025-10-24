@@ -1009,4 +1009,12 @@ export type TipoCocina = {
     nombre: string;
 };
 
+export type HistoricoPreciosERP = {
+    id: string; // Composite key: articuloErpId + fecha
+    articuloErpId: string;
+    fecha: string; // ISO Date
+    precioCalculado: number;
+    proveedorId?: string;
+}
     
+```

@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, Save, Trash2, Loader2, Menu, FileUp, FileDown, Database, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { ArticuloERP, UnidadMedida, Proveedor, FamiliaERP } from '@/types';
+import type { ArticuloERP, UnidadMedida, Proveedor, FamiliaERP, HistoricoPreciosERP } from '@/types';
 import { UNIDADES_MEDIDA, articuloErpSchema } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +34,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import Papa from 'papaparse';
 import { Label } from '@/components/ui/label';
+import { differenceInDays, parseISO } from 'date-fns';
 
 const CSV_HEADERS = ["id", "idreferenciaerp", "idProveedor", "nombreProveedor", "nombreProductoERP", "referenciaProveedor", "familiaCategoria", "precioCompra", "descuento", "unidadConversion", "precioAlquiler", "unidad", "tipo", "categoriaMice", "alquiler", "observaciones"];
 
@@ -162,6 +163,14 @@ function ArticulosERPPageContent() {
     const s = String(value).toLowerCase().trim();
     return s === 'true' || s === '1';
   }
+  
+  const calculatePrice = (item: any) => {
+    const precioCompra = parseCurrency(item.precioCompra);
+    const descuento = parseCurrency(item.descuento);
+    const unidadConversion = parseCurrency(item.unidadConversion);
+    const precioConDescuento = precioCompra * (1 - (descuento / 100));
+    return unidadConversion > 0 ? precioConDescuento / unidadConversion : 0;
+  }
 
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>, delimiter: ',' | ';') => {
     const file = event.target.files?.[0];
@@ -182,6 +191,42 @@ function ArticulosERPPageContent() {
             toast({ variant: 'destructive', title: 'Error de formato', description: `El CSV debe contener las columnas correctas.`});
             return;
         }
+        
+        // --- Smart Snapshot Logic ---
+        const today = new Date();
+        const historicoPrecios: HistoricoPreciosERP[] = JSON.parse(localStorage.getItem('historicoPreciosERP') || '[]') as HistoricoPreciosERP[];
+        const currentArticulosMap = new Map(items.map(i => [i.idreferenciaerp, i]));
+        
+        results.data.forEach((item: any) => {
+            const idreferenciaerp = item.idreferenciaerp;
+            if (!idreferenciaerp) return;
+            
+            const existingItem = currentArticulosMap.get(idreferenciaerp);
+            const newPrice = calculatePrice(item);
+            
+            if (existingItem) {
+                const oldPrice = calculatePrice(existingItem);
+                const lastHistoryEntry = historicoPrecios
+                    .filter(h => h.articuloErpId === idreferenciaerp)
+                    .sort((a,b) => parseISO(b.fecha).getTime() - parseISO(a.fecha).getTime())[0];
+                
+                const hasPriceChanged = Math.abs(newPrice - oldPrice) > 0.001;
+                const daysSinceLastLog = lastHistoryEntry ? differenceInDays(today, parseISO(lastHistoryEntry.fecha)) : Infinity;
+                
+                if (hasPriceChanged || daysSinceLastLog > 7) {
+                    historicoPrecios.push({
+                        id: `${idreferenciaerp}-${today.toISOString()}`,
+                        articuloErpId: idreferenciaerp,
+                        fecha: today.toISOString(),
+                        precioCalculado: newPrice,
+                        proveedorId: item.idProveedor,
+                    });
+                }
+            }
+        });
+        localStorage.setItem('historicoPreciosERP', JSON.stringify(historicoPrecios));
+        // --- End Smart Snapshot Logic ---
+
 
         const allFamilias = JSON.parse(localStorage.getItem('familiasERP') || '[]') as FamiliaERP[];
         const familiasMap = new Map(allFamilias.map(f => [f.familiaCategoria, { tipo: f.Familia, categoriaMice: f.Categoria }]));
@@ -210,7 +255,7 @@ function ArticulosERPPageContent() {
         
         localStorage.setItem('articulosERP', JSON.stringify(importedData));
         setItems(importedData);
-        toast({ title: 'Importación completada', description: `Se han cargado ${importedData.length} registros.` });
+        toast({ title: 'Importación completada', description: `Se han cargado ${importedData.length} registros y se ha actualizado el histórico de precios.` });
         setIsImportAlertOpen(false);
       },
       error: (error) => {
