@@ -1,11 +1,11 @@
 
-      'use client';
+'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Component, ChefHat, PlusCircle, Trash2, Image as ImageIcon, Link as LinkIcon, Component as SubElabIcon } from 'lucide-react';
+import { Loader2, Component, ChefHat, PlusCircle, Trash2, Image as ImageIcon, Link as LinkIcon, Component as SubElabIcon, RefreshCw } from 'lucide-react';
 import type { Elaboracion, IngredienteInterno, UnidadMedida, ArticuloERP, PartidaProduccion, FormatoExpedicion } from '@/types';
 import { UNIDADES_MEDIDA } from '@/types';
 
@@ -237,6 +237,12 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
   const handleFormSubmit = (data: ElaborationFormValues) => {
     onSave(data, costePorUnidad);
   };
+  
+  const forceRecalculate = () => {
+    // This is a bit of a hack, but it forces the useMemo to re-run by "touching" its dependencies
+    const currentValues = form.getValues('componentes');
+    form.setValue('componentes', [...currentValues]);
+  }
 
   return (
     <TooltipProvider>
@@ -248,7 +254,12 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                     <CardTitle className="text-lg">Información General</CardTitle>
                 </div>
                 <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Coste / {formatUnit(form.watch('unidadProduccion'))}</p>
+                    <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
+                            <RefreshCw className="h-4 w-4" />
+                        </Button>
+                        <p className="text-xs text-muted-foreground">Coste / {formatUnit(form.watch('unidadProduccion'))}</p>
+                    </div>
                     <p className="font-bold text-xl text-primary">{formatCurrency(costePorUnidad)}</p>
                 </div>
             </CardHeader>
@@ -319,7 +330,12 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                     ? (componenteData as IngredienteConERP)?.erp?.unidad || 'UD'
                                     : (componenteData as Elaboracion)?.unidadProduccion || 'UD';
                                 
-                                const tooltipText = `Coste unitario: ${formatCurrency(field.costePorUnidad)} / ${formatUnit(unidad)}`;
+                                let tooltipText = `Coste unitario: ${formatCurrency(field.costePorUnidad)} / ${formatUnit(unidad)}`;
+                                if (field.tipo === 'ingrediente') {
+                                    const erpData = (componenteData as IngredienteConERP)?.erp;
+                                    if(erpData?.nombreProveedor) tooltipText += ` | ${erpData.nombreProveedor}`;
+                                    if(erpData?.referenciaProveedor) tooltipText += ` (Ref: ${erpData.referenciaProveedor})`;
+                                }
 
                                 return (
                                     <TableRow key={field.id}>
@@ -332,7 +348,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                                     </div>
                                                 </TooltipTrigger>
                                                 <TooltipContent>
-                                                    <p>{tooltipText}</p>
+                                                    <p className="max-w-sm">{tooltipText}</p>
                                                 </TooltipContent>
                                             </Tooltip>
                                         </TableCell>
@@ -436,5 +452,3 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
     </TooltipProvider>
   );
 }
-
-    
