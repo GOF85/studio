@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -13,7 +12,6 @@ import { format, differenceInMinutes, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import type { ServiceOrder, Receta, GastronomyOrderItem, GastronomyOrderStatus, ComercialBriefing, ComercialBriefingItem, TipoServicio } from '@/types';
-import { osFormSchema, type OsFormValues } from '@/app/os/[id]/info/page';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -45,7 +43,7 @@ import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSe
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
-
+import { cn } from '@/lib/utils';
 
 const gastronomyOrderItemSchema = z.object({
   id: z.string(),
@@ -218,24 +216,27 @@ export default function PedidoGastronomiaPage() {
     if (osId && briefingItemId) {
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const currentOS = allServiceOrders.find(os => os.id === osId);
-        setServiceOrder(currentOS || null);
-
+        
         if (!currentOS) {
             toast({ variant: 'destructive', title: 'Error', description: 'Orden de Servicio no encontrada.'});
             router.push('/pes');
             return;
         }
+        setServiceOrder(currentOS);
 
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
         const currentBriefing = allBriefings.find(b => b.osId === osId);
         const currentHito = currentBriefing?.items.find(i => i.id === briefingItemId);
-
+        
         if (currentHito) {
             setBriefingItem(currentHito);
             form.reset({
                 gastro_status: currentHito.gastro_status || 'Pendiente',
                 gastro_items: currentHito.gastro_items || [],
             });
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Hito de briefing no encontrado.'});
+            router.push(`/os/${osId}/gastronomia`);
         }
     }
     setIsMounted(true);
