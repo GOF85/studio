@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray, FieldErrors, FormProvider } from 'react-hook-form';
@@ -335,8 +334,7 @@ export default function RecetaFormPage() {
   }, [watchedElaboraciones, dbElaboraciones]);
 
   const precioVenta = useMemo(() => {
-    const costeProduccion = costeMateriaPrima * ((watchedPorcentajeCoste || 0) / 100);
-    return costeMateriaPrima + costeProduccion;
+    return costeMateriaPrima * (1 + (watchedPorcentajeCoste || 0) / 100);
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
   const loadData = useCallback(async () => {
@@ -684,29 +682,28 @@ export default function RecetaFormPage() {
                     </Card>
 
                     <Card>
-                        <CardHeader className="flex-row items-start justify-between py-3">
-                            <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
-                            <div className="text-right">
-                                <div className="flex items-center gap-2">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
-                                        <RefreshCw className="h-4 w-4" />
-                                    </Button>
-                                    <p className="text-sm font-semibold text-muted-foreground">PVP Teórico</p>
-                                </div>
-                                <p className="font-bold text-2xl text-green-600">{formatCurrency(precioVenta)}</p>
-                            </div>
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2"><TrendingUp/>Análisis de Rentabilidad</CardTitle>
                         </CardHeader>
-                        <CardContent className="grid grid-cols-2 gap-4 items-end">
+                        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                             <div>
                                 <Label>Coste Materia Prima</Label>
                                 <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
                             </div>
-                             <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
-                                <FormItem>
+                            <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
+                            <FormItem>
                                 <Label>Imputación CPR (%)</Label>
                                 <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
-                                </FormItem>
+                            </FormItem>
                             )} />
+                            <div>
+                                <Label className="flex items-center gap-2">PVP Teórico
+                                    <Button variant="ghost" size="icon" className="h-5 w-5" type="button" onClick={forceRecalculate}>
+                                        <RefreshCw className="h-3 w-3" />
+                                    </Button>
+                                </Label>
+                                <p className="font-bold text-lg text-green-600">{formatCurrency(precioVenta)}</p>
+                            </div>
                         </CardContent>
                     </Card>
                     
@@ -792,3 +789,4 @@ export default function RecetaFormPage() {
   );
 }
 
+    
