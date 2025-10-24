@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ObjectiveDisplay } from '@/components/os/objective-display';
-import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar, LayoutDashboard, Phone } from 'lucide-react';
+import { Briefcase, Utensils, Wine, Leaf, Warehouse, Archive, Truck, Snowflake, Euro, FilePlus, Users, UserPlus, Flower2, ClipboardCheck, PanelLeft, Building, FileText, Star, Menu, ClipboardList, Calendar, LayoutDashboard, Phone, ChevronRight } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -53,7 +53,7 @@ const getInitials = (name: string) => {
     if (!name) return '';
     const nameParts = name.split(' ');
     if (nameParts.length > 1) {
-        return `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
+        return `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
 }
@@ -81,20 +81,16 @@ function OsHeaderContent({ osId }: { osId: string }) {
         if (pathname === `/os/${osId}`) {
             return { title: 'Panel de Control', icon: LayoutDashboard };
         }
-        return navLinks.find(link => link.path === pathSegment);
+        return navLinks.find(link => pathname.includes(`/${link.path}`));
     }, [pathname, osId]);
 
     if (!serviceOrder || !currentModule) {
         return (
-             <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                     <div className="flex items-center gap-3">
-                         <Skeleton className="h-7 w-7" />
-                         <Skeleton className="h-8 w-48" />
-                     </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                         <Skeleton className="h-6 w-32" />
-                      </div>
+             <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3">
+                    <Skeleton className="h-6 w-32" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <Skeleton className="h-6 w-36" />
                 </div>
                  <div className="flex justify-between items-center text-sm text-muted-foreground bg-secondary px-3 py-1 rounded-md h-9">
                     <Skeleton className="h-5 w-1/3" />
@@ -105,96 +101,49 @@ function OsHeaderContent({ osId }: { osId: string }) {
     }
     
     const durationDays = serviceOrder.startDate && serviceOrder.endDate ? differenceInDays(new Date(serviceOrder.endDate), new Date(serviceOrder.startDate)) + 1 : 0;
+    
+    const responsables = [
+        {label: 'Comercial', name: serviceOrder.comercial},
+        {label: 'Metre', name: serviceOrder.respMetre},
+        {label: 'PM', name: serviceOrder.respProjectManager},
+        {label: 'Pase', name: serviceOrder.respPase},
+    ].filter(r => r.name);
 
     return (
         <TooltipProvider>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <currentModule.icon className="h-7 w-7 text-primary" />
-                  <h1 className="text-2xl font-headline font-bold">{currentModule.title}</h1>
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Link href={`/os/${osId}`} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                        <ClipboardList className="h-5 w-5"/>
+                        <span>{serviceOrder.serviceNumber}</span>
+                    </Link>
+                     <ChevronRight className="h-4 w-4 text-muted-foreground"/>
+                     <div className="flex items-center gap-2">
+                        <currentModule.icon className="h-5 w-5"/>
+                        <span>{currentModule.title}</span>
+                     </div>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   {('moduleName' in currentModule) && currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
-                  <div className="flex items-center gap-2 font-semibold">
-                    <FileText className="h-4 w-4" />
-                    <span>{serviceOrder.serviceNumber}</span>
-                  </div>
                   {serviceOrder.isVip && <Badge variant="default" className="bg-amber-400 text-black hover:bg-amber-500"><Star className="h-4 w-4 mr-1"/> VIP</Badge>}
-                  {serviceOrder.space && (
-                    <div className="hidden sm:flex items-center gap-2">
-                      <Building className="h-4 w-4" />
-                      <span className="font-semibold">{serviceOrder.space}</span>
-                    </div>
-                  )}
                 </div>
               </div>
                <div className="flex justify-between items-center text-sm text-muted-foreground bg-secondary px-3 py-1 rounded-md">
-                    <div className="flex items-center gap-4">
-                        {serviceOrder.comercial && (
-                            <Tooltip>
+                    <div className="flex items-center gap-3">
+                       {responsables.map(resp => (
+                           <Tooltip key={resp.label}>
                                 <TooltipTrigger className="flex items-center gap-2 cursor-default">
-                                    <span className="font-semibold">Comercial:</span>
+                                    <span className="font-semibold">{resp.label}:</span>
                                     <Avatar className="h-6 w-6 text-xs">
-                                        <AvatarFallback>{getInitials(serviceOrder.comercial)}</AvatarFallback>
+                                        <AvatarFallback>{getInitials(resp.name)}</AvatarFallback>
                                     </Avatar>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <div className="flex flex-col gap-1 p-1">
-                                        <span className="font-bold flex items-center gap-2"><Users className="h-4 w-4"/> {serviceOrder.comercial}</span>
-                                        {serviceOrder.comercialPhone && <span className="flex items-center gap-2"><Phone className="h-4 w-4"/> {serviceOrder.comercialPhone}</span>}
-                                    </div>
+                                    <p>{resp.name}</p>
                                 </TooltipContent>
                             </Tooltip>
-                        )}
-                        {serviceOrder.respMetre && (
-                             <Tooltip>
-                                <TooltipTrigger className="flex items-center gap-2 cursor-default">
-                                    <span className="font-semibold">Metre:</span>
-                                    <Avatar className="h-6 w-6 text-xs">
-                                        <AvatarFallback>{getInitials(serviceOrder.respMetre)}</AvatarFallback>
-                                    </Avatar>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <div className="flex flex-col gap-1 p-1">
-                                        <span className="font-bold flex items-center gap-2"><Users className="h-4 w-4"/> {serviceOrder.respMetre}</span>
-                                        {serviceOrder.respMetrePhone && <span className="flex items-center gap-2"><Phone className="h-4 w-4"/> {serviceOrder.respMetrePhone}</span>}
-                                    </div>
-                                </TooltipContent>
-                            </Tooltip>
-                        )}
-                         {serviceOrder.respPase && (
-                             <Tooltip>
-                                <TooltipTrigger className="flex items-center gap-2 cursor-default">
-                                    <span className="font-semibold">Pase:</span>
-                                    <Avatar className="h-6 w-6 text-xs">
-                                        <AvatarFallback>{getInitials(serviceOrder.respPase)}</AvatarFallback>
-                                    </Avatar>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <div className="flex flex-col gap-1 p-1">
-                                        <span className="font-bold flex items-center gap-2"><Users className="h-4 w-4"/> {serviceOrder.respPase}</span>
-                                        {serviceOrder.respPasePhone && <span className="flex items-center gap-2"><Phone className="h-4 w-4"/> {serviceOrder.respPasePhone}</span>}
-                                    </div>
-                                </TooltipContent>
-                            </Tooltip>
-                        )}
-                        {serviceOrder.respProjectManager && (
-                             <Tooltip>
-                                <TooltipTrigger className="flex items-center gap-2 cursor-default">
-                                    <span className="font-semibold">PM:</span>
-                                    <Avatar className="h-6 w-6 text-xs">
-                                        <AvatarFallback>{getInitials(serviceOrder.respProjectManager)}</AvatarFallback>
-                                    </Avatar>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <div className="flex flex-col gap-1 p-1">
-                                        <span className="font-bold flex items-center gap-2"><Users className="h-4 w-4"/> {serviceOrder.respProjectManager}</span>
-                                        {serviceOrder.respProjectManagerPhone && <span className="flex items-center gap-2"><Phone className="h-4 w-4"/> {serviceOrder.respProjectManagerPhone}</span>}
-                                    </div>
-                                </TooltipContent>
-                            </Tooltip>
-                        )}
+                       ))}
                     </div>
                     <div className="flex items-center gap-4">
                         {serviceOrder.startDate && serviceOrder.endDate && (
@@ -221,7 +170,7 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
 
     return (
         <div className="container mx-auto">
-            <div className="sticky top-[56px] z-30 bg-background py-2 border-b">
+            <div className="sticky top-[56px] z-30 bg-background/95 backdrop-blur-sm py-2 border-b">
                 <div className="flex items-center gap-4">
                     <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                         <SheetTrigger asChild>
@@ -262,7 +211,7 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                     </div>
                 </div>
             </div>
-            <main>
+            <main className="py-8">
                 {children}
             </main>
         </div>
