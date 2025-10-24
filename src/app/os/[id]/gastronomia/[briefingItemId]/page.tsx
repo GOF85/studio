@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -33,9 +34,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -216,7 +215,7 @@ function PedidoGastronomiaForm() {
                     </Dialog>
                 </div>
                  <div className="flex items-center gap-6">
-                    <div className="text-right">
+                     <div className="text-right">
                         <p className="text-sm font-medium text-muted-foreground">Ratio (uds/pax)</p>
                         <p className="text-xl font-bold">{formatNumber(ratioUnidadesPorPax, 1)}</p>
                     </div>
@@ -264,31 +263,17 @@ function PedidoGastronomiaForm() {
                                 <TableRow key={field.id}>
                                     <TableCell>{field.nombre}</TableCell>
                                      <TableCell>
-                                         <div className="flex items-center gap-1">
-                                            <Input
-                                                type="number"
-                                                defaultValue={field.quantity}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        handleQuantityChange(index, parseInt((e.target as HTMLInputElement).value, 10) || 0);
-                                                    }
-                                                }}
-                                                className="w-24 h-8"
-                                            />
-                                            <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-8 w-8" 
-                                                type="button" 
-                                                onClick={(e) => {
-                                                    const input = (e.currentTarget.previousSibling as HTMLInputElement);
-                                                    handleQuantityChange(index, parseInt(input.value, 10) || 0);
-                                                }}
-                                            >
-                                                <Check className="h-4 w-4 text-green-600"/>
-                                            </Button>
-                                         </div>
+                                        <Input
+                                            type="number"
+                                            defaultValue={field.quantity}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    handleQuantityChange(index, parseInt((e.target as HTMLInputElement).value, 10) || 0);
+                                                }
+                                            }}
+                                            className="w-24 h-8"
+                                        />
                                     </TableCell>
                                     <TableCell>{formatCurrency(field.precioVenta || 0)}</TableCell>
                                     <TableCell className="text-right font-semibold">{formatCurrency((field.precioVenta || 0) * (field.quantity || 0))}</TableCell>
