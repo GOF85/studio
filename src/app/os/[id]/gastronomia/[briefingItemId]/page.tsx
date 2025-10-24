@@ -1,42 +1,28 @@
 
-
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, Save, Pencil, Utensils, ArrowLeft } from 'lucide-react';
+import { PlusCircle, Trash2, Save, Utensils, ArrowLeft, GripVertical } from 'lucide-react';
 import { format, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import type { ServiceOrder, Receta, GastronomyOrderItem, GastronomyOrderStatus, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import type { ServiceOrder, Receta, GastronomyOrderItem, GastronomyOrderStatus, GastronomyOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { cn } from '@/lib/utils';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField } from '@/components/ui/form';
 
@@ -180,7 +166,7 @@ export default function PedidoGastronomiaPage() {
 
   const [isMounted, setIsMounted] = useState(false);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [briefingItem, setBriefingItem] = useState<ComercialBriefingItem | null>(null);
+  const [gastronomyOrder, setGastronomyOrder] = useState<GastronomyOrder | null>(null);
   const [isRecetaSelectorOpen, setIsRecetaSelectorOpen] = useState(false);
   const { toast } = useToast();
 
@@ -210,16 +196,15 @@ export default function PedidoGastronomiaPage() {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       setServiceOrder(allServiceOrders.find(os => os.id === osId) || null);
 
-      const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-      const currentBriefing = allBriefings.find(b => b.osId === osId);
-      const hito = currentBriefing?.items.find(i => i.id === briefingItemId);
-      setBriefingItem(hito || null);
+      const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+      const currentOrder = allGastroOrders.find(o => o.id === briefingItemId);
+      setGastronomyOrder(currentOrder || null);
       
-      if (hito) {
+      if (currentOrder) {
         form.reset({
-          id: hito.id,
-          status: hito.status || 'Pendiente',
-          items: hito.items || [],
+          id: currentOrder.id,
+          status: currentOrder.status || 'Pendiente',
+          items: currentOrder.items || [],
         });
       }
     }
@@ -267,29 +252,26 @@ export default function PedidoGastronomiaPage() {
   }, [fields, form.watch('items')]); 
 
   const onSubmit = (data: GastronomyOrderFormValues) => {
-    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
-    const briefingIndex = allBriefings.findIndex(b => b.osId === osId);
+    const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+    const orderIndex = allGastroOrders.findIndex(o => o.id === briefingItemId);
 
-    if (briefingIndex > -1) {
-      const hitoIndex = allBriefings[briefingIndex].items.findIndex(i => i.id === briefingItemId);
-      if (hitoIndex > -1) {
-        allBriefings[briefingIndex].items[hitoIndex] = {
-          ...allBriefings[briefingIndex].items[hitoIndex],
-          status: data.status,
-          items: data.items,
-          total: totalPedido,
-        };
+    if (orderIndex > -1) {
+      allGastroOrders[orderIndex] = {
+        ...allGastroOrders[orderIndex],
+        status: data.status,
+        items: data.items,
+        total: totalPedido,
+      };
 
-        localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
-        toast({ title: "Pedido guardado", description: "Los cambios en el pedido de gastronomía han sido guardados." });
-        router.push(`/os/${osId}/gastronomia`);
-      }
+      localStorage.setItem('gastronomyOrders', JSON.stringify(allGastroOrders));
+      toast({ title: "Pedido guardado", description: "Los cambios en el pedido de gastronomía han sido guardados." });
+      router.push(`/os/${osId}/gastronomia`);
     } else {
-      toast({ variant: "destructive", title: "Error", description: "No se pudo encontrar el briefing a actualizar." });
+      toast({ variant: "destructive", title: "Error", description: "No se pudo encontrar el pedido a actualizar." });
     }
   };
 
-  if (!isMounted || !serviceOrder || !briefingItem) {
+  if (!isMounted || !serviceOrder || !gastronomyOrder) {
     return <LoadingSkeleton title="Cargando Pedido de Gastronomía..." />;
   }
 
@@ -331,15 +313,15 @@ export default function PedidoGastronomiaPage() {
 
                 <Card className="mb-8">
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-3"><Utensils/>{briefingItem.descripcion}</CardTitle>
+                        <CardTitle className="flex items-center gap-3"><Utensils/>{gastronomyOrder.descripcion}</CardTitle>
                     </CardHeader>
                     <CardContent className="grid md:grid-cols-4 gap-x-4 gap-y-1 text-sm pt-0">
-                        <div><span className="font-semibold text-muted-foreground">Fecha: </span>{format(new Date(briefingItem.fecha), 'dd/MM/yyyy')}</div>
-                        <div><span className="font-semibold text-muted-foreground">Hora: </span>{briefingItem.horaInicio}</div>
-                        <div><span className="font-semibold text-muted-foreground">Sala: </span>{briefingItem.sala}</div>
-                        <div><span className="font-semibold text-muted-foreground">Asistentes: </span>{briefingItem.asistentes}</div>
-                        {briefingItem.comentarios && (
-                            <div className="md:col-span-4"><span className="font-semibold text-muted-foreground">Comentarios: </span>{briefingItem.comentarios}</div>
+                        <div><span className="font-semibold text-muted-foreground">Fecha: </span>{format(new Date(gastronomyOrder.fecha), 'dd/MM/yyyy')}</div>
+                        <div><span className="font-semibold text-muted-foreground">Hora: </span>{gastronomyOrder.horaInicio}</div>
+                        <div><span className="font-semibold text-muted-foreground">Sala: </span>{gastronomyOrder.sala}</div>
+                        <div><span className="font-semibold text-muted-foreground">Asistentes: </span>{gastronomyOrder.asistentes}</div>
+                        {gastronomyOrder.comentarios && (
+                            <div className="md:col-span-4"><span className="font-semibold text-muted-foreground">Comentarios: </span>{gastronomyOrder.comentarios}</div>
                         )}
                     </CardContent>
                 </Card>
