@@ -240,7 +240,7 @@ function CreateElaborationModal({ onElaborationCreated, children }: { onElaborat
     );
 }
 
-function SortableTableRow({ field, index, remove, form }: { field: ElaboracionEnReceta & { key: string }, index: number, remove: (index: number) => void, form: any }) {
+function SortableTableRow({ field, index, remove, form }: { field: ElaboracionEnReceta, index: number, remove: (index: number) => void, form: any }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -311,7 +311,7 @@ export default function RecetaFormPage() {
     defaultValues: { id: '', nombre: '', nombre_en: '', visibleParaComerciales: true, descripcionComercial: '', descripcionComercial_en: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], fotosMiseEnPlaceURLs: [], fotosRegeneracionURLs: [], perfilSaborSecundario: [], perfilTextura: [], tipoCocina: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] }
   });
 
-  const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab } = useFieldArray({ control: form.control, name: "elaboraciones" });
+  const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab } = useFieldArray({ control: form.control, name: "elaboraciones", keyName: "key" });
   const { fields: menajeFields, append: appendMenaje, remove: removeMenaje, move: moveMenaje } = useFieldArray({ control: form.control, name: "menajeAsociado" });
 
   const watchedElaboraciones = form.watch('elaboraciones');
@@ -757,7 +757,7 @@ export default function RecetaFormPage() {
                                 <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                                     <TableBody>
                                     {(elabFields || []).map((field, index) => (
-                                        <SortableTableRow key={field.key} field={{...field, key: field.key}} index={index} remove={removeElab} form={form} />
+                                        <SortableTableRow key={field.id} field={{...field, key: field.id}} index={index} remove={removeElab} form={form} />
                                     ))}
                                     </TableBody>
                                 </SortableContext>
