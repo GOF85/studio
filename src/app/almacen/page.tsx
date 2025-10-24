@@ -7,8 +7,7 @@ import { useEffect } from 'react';
 export default function AlmacenPage() {
     const router = useRouter();
     useEffect(() => {
-        router.replace('/almacen/planificacion');
+        router.replace('/almacen/picking');
     }, [router]);
     return null;
 }
-

@@ -1,23 +1,14 @@
 
-
 'use client';
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-// This page just redirects to the main warehouse page.
-export default function RedirectToWarehousePage() {
+// This page is deprecated and now redirects to the warehouse picking page.
+export default function AlmacenPlanificacionRedirectPage() {
     const router = useRouter();
     useEffect(() => {
-        router.replace('/almacen');
+        router.replace('/almacen/picking');
     }, [router]);
     return null;
 }
-    
-    
-
-    
-
-    
-
-
