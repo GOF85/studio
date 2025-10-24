@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -247,7 +248,7 @@ export default function PedidoGastronomiaPage() {
     append({
         id: Date.now().toString(),
         type: 'separator',
-        nombre: '',
+        nombre: 'Nuevo Separador',
         categoria: '',
         costeMateriaPrima: 0,
         precioVenta: 0,
@@ -293,13 +294,17 @@ export default function PedidoGastronomiaPage() {
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-center justify-between mb-8">
+                    <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/gastronomia`)} className="mb-2">
+                        <ArrowLeft className="mr-2" />
+                        Volver al listado
+                    </Button>
                     <div className="flex items-center gap-2">
-                         <FormField
+                        <FormField
                             control={form.control}
                             name="status"
                             render={({ field }) => (
                                 <FormItem>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl>
                                     <SelectTrigger className="w-[180px]">
                                         <SelectValue placeholder="Estado" />
@@ -316,16 +321,13 @@ export default function PedidoGastronomiaPage() {
                                 </FormItem>
                             )}
                             />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" type="button" onClick={() => router.push(`/os/${osId}/gastronomia`)}> <ArrowLeft className="mr-2"/> Cancelar</Button>
                         <Button type="submit"><Save className="mr-2" /> Guardar Pedido</Button>
                     </div>
                 </div>
 
                 <Card className="mb-8">
-                    <CardHeader className="py-3">
-                        <CardTitle className="text-lg">Resumen del Servicio</CardTitle>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-3"><Utensils/>{gastronomyOrder.descripcion}</CardTitle>
                     </CardHeader>
                     <CardContent className="grid md:grid-cols-4 gap-x-4 gap-y-1 text-sm pt-0">
                         <div><span className="font-semibold text-muted-foreground">Fecha: </span>{format(new Date(gastronomyOrder.fecha), 'dd/MM/yyyy')}</div>
