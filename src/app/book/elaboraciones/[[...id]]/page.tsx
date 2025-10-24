@@ -333,7 +333,7 @@ function ElaboracionesListPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre Elaboración</TableHead>
-              <TableHead>Coste / Unidad</TableHead>
+              <TableHead>Coste / Ud.</TableHead>
               <TableHead>Alérgenos</TableHead>
               <TableHead className="text-right w-24">Acciones</TableHead>
             </TableRow>
@@ -426,9 +426,9 @@ function ElaborationFormPage() {
     const params = useParams();
     const searchParams = useSearchParams();
 
-    // Correctly determine the action based on URL
-    const isNew = params.id?.[0] === 'nuevo';
-    const id = !isNew && params.id ? params.id[0] : null;
+    const id = Array.isArray(params.id) ? params.id[0] : null;
+    const isNew = id === 'nuevo';
+    const isEditing = !isNew && id;
     const cloneId = searchParams.get('cloneId');
 
     const [initialData, setInitialData] = useState<Partial<ElaborationFormValues> | null>(null);
@@ -444,7 +444,7 @@ function ElaborationFormPage() {
             if (elabToClone) {
                 elabToLoad = { ...elabToClone, id: Date.now().toString(), nombre: `${elabToClone.nombre} (Copia)` };
             }
-        } else if (id) {
+        } else if (isEditing) {
             elabToLoad = allElaboraciones.find(e => e.id === id) || null;
         } else if (isNew) {
             elabToLoad = { 
@@ -466,7 +466,7 @@ function ElaborationFormPage() {
         setInitialData(elabToLoad);
         setIsDataLoaded(true);
 
-    }, [id, isNew, cloneId]);
+    }, [id, isNew, isEditing, cloneId]);
 
     function onSubmit(data: ElaborationFormValues, costePorUnidad: number) {
         setIsLoading(true);
@@ -478,7 +478,7 @@ function ElaborationFormPage() {
           costePorUnidad 
         };
 
-        if (id && !cloneId) {
+        if (isEditing && !cloneId) {
           const index = allItems.findIndex(p => p.id === id);
           if (index !== -1) {
             allItems[index] = dataToSave;
@@ -503,7 +503,6 @@ function ElaborationFormPage() {
     }
 
     if (!initialData) {
-        // This case should ideally not be hit if logic is correct, but it's a safeguard
         toast({ variant: "destructive", title: "Error", description: "No se pudo cargar la elaboración." });
         router.push('/book/elaboraciones');
         return <LoadingSkeleton title="Redirigiendo..." />;
@@ -526,33 +525,23 @@ function ElaborationFormPage() {
                     </Button>
                 </div>
             </div>
-            {initialData && (
-                 <ElaborationForm
-                    initialData={initialData}
-                    onSave={onSubmit}
-                    isSubmitting={isLoading}
-                />
-            )}
+            <ElaborationForm
+                initialData={initialData}
+                onSave={onSubmit}
+                isSubmitting={isLoading}
+            />
       </main>
     );
 }
 
 export default function ElaboracionesPage() {
     const params = useParams();
-    const searchParams = useSearchParams();
-    
-    // Check if `params.id` exists and is an array. If so, it's a dynamic route.
-    // If not, it's the list page. `nuevo` is also a form page.
-    const isForm = params.id && Array.isArray(params.id) && params.id.length > 0;
-    const isClone = searchParams.get('cloneId');
+    const isListPage = !params.id || params.id.length === 0;
 
-    if (isForm || isClone) {
-        return <ElaborationFormPage />
-    }
-    
     return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando..." />}>
-            <ElaboracionesListPage />
+        <Suspense fallback={<LoadingSkeleton title="Cargando elaboraciones..." />}>
+            {isListPage ? <ElaboracionesListPage /> : <ElaborationFormPage />}
         </Suspense>
     );
 }
+
