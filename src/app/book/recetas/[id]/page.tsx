@@ -200,7 +200,7 @@ function ImageUploadSection({ name, title, form }: { name: "fotosMiseEnPlaceURLs
         try {
             const url = new URL(newUrl);
             append({ value: url.href });
-            setNewUrl('');
+            setNewImageUrl('');
         } catch (e) {
             toast({ variant: 'destructive', title: 'URL inválida', description: 'Por favor, introduce una URL de imagen válida.' });
         }
@@ -305,6 +305,7 @@ export default function RecetaFormPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
   const [dbElaboraciones, setDbElaboraciones] = useState<ElaborationConCoste[]>([]);
   const [dbMenaje, setDbMenaje] = useState<MenajeDB[]>([]);
@@ -606,11 +607,11 @@ export default function RecetaFormPage() {
 
   return (
     <div>
-      <TooltipProvider>
-        <main className="container mx-auto px-4 py-8">
-          <FormProvider {...form}>
-            <form id="receta-form" onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-4">
-              <div className="flex items-center justify-between mb-4">
+    <TooltipProvider>
+      <main className="container mx-auto px-4 py-8">
+        <FormProvider {...form}>
+          <form id="receta-form" onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                       <BookHeart className="h-8 w-8" />
                       <h1 className="text-3xl font-headline font-bold">{pageTitle} {cloneId && <span className="text-xl text-muted-foreground">(Clonando)</span>}</h1>
@@ -698,45 +699,42 @@ export default function RecetaFormPage() {
                           </div>
                       </CardContent>
                   </Card>
+                  
+                  <Card>
+                    <CardHeader className="flex-row items-center justify-between py-3">
+                      <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setUpdateTrigger(Date.now())}>
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                        <p className="font-bold text-2xl text-green-600 flex items-center gap-2">
+                          <Euro size={24}/>
+                          <span>{formatCurrency(precioVenta)}</span>
+                        </p>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                      <div>
+                        <Label>Coste Materia Prima</Label>
+                        <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
+                      </div>
+                      <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
+                          <FormItem>
+                              <Label>Imputación CPR (%)</Label>
+                              <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
+                          </FormItem>
+                      )} />
+                      <div>
+                        <Label>Margen Bruto</Label>
+                        <p className="font-semibold">{formatCurrency(margenBruto)}</p>
+                      </div>
+                      <div>
+                        <Label>Margen %</Label>
+                        <p className="font-semibold">{formatPercentage(margenPct)}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                   <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid md:grid-cols-2 gap-x-8 gap-y-4">
-                           <div className="space-y-4">
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="font-semibold">Coste Materia Prima</span>
-                                    <span className="font-bold text-base">{formatCurrency(costeMateriaPrima)}</span>
-                                </div>
-                                <div className="flex justify-between items-center text-sm">
-                                    <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
-                                        <FormItem className="flex items-center gap-2">
-                                            <FormLabel>Imputación CPR</FormLabel>
-                                            <FormControl><Input type="number" {...field} className="h-8 w-16 text-center"/></FormControl>
-                                            <span>%</span>
-                                        </FormItem>
-                                    )} />
-                                </div>
-                           </div>
-                           <div className="space-y-2 text-right">
-                                <FormLabel className="font-semibold flex items-center justify-end gap-2">
-                                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setUpdateTrigger(Date.now())}>
-                                        <RefreshCw className="h-4 w-4"/>
-                                    </Button>
-                                    Precio Venta
-                                </FormLabel>
-                                <p className="font-bold text-green-600 text-4xl flex items-center justify-end gap-2">
-                                    <Euro size={28}/>
-                                    <span>{formatCurrency(precioVenta)}</span>
-                                </p>
-                                <div className="space-y-1 text-xs text-muted-foreground pt-2">
-                                    <div className="flex justify-between"><span>Margen Bruto:</span><span>{formatCurrency(margenBruto)}</span></div>
-                                    <div className="flex justify-between"><span>Margen %:</span><span>{formatPercentage(margenPct)}</span></div>
-                                </div>
-                           </div>
-                        </CardContent>
-                    </Card>
 
                   <Card>
                       <CardHeader className="flex-row items-center justify-between py-3">
@@ -746,13 +744,30 @@ export default function RecetaFormPage() {
                               <CreateElaborationModal onElaborationCreated={handleElaborationCreated}>
                                   <Button variant="secondary" size="sm" type="button"><PlusCircle size={16} /> Crear Nueva</Button>
                               </CreateElaborationModal>
-                              <SelectorDialog trigger={<Button type="button" variant="outline" size="sm"><PlusCircle size={16} />Añadir Elaboración</Button>} title="Seleccionar Elaboración" items={dbElaboraciones} columns={[{ key: 'nombre', header: 'Nombre' }, { key: 'costePorUnidad', header: 'Coste/Unidad' }]} onSelect={onAddElab} />
+                              <Dialog open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
+                                <DialogTrigger asChild>
+                                  <Button type="button" variant="outline" size="sm"><PlusCircle size={16} />Añadir Elaboración</Button>
+                                </DialogTrigger>
+                                <ComponenteSelector onSelectIngrediente={handleSelectIngrediente} onSelectElaboracion={handleSelectElaboracion} allElaboraciones={Array.from(dbElaboraciones.values())} />
+                              </Dialog>
                           </div>
                       </CardHeader>
                       <CardContent>
-                          <DndContext sensors={sensors} onDragEnd={(e) => handleDragEnd(e, 'elab')} collisionDetection={closestCenter}>
+                          <div className="border rounded-lg">
+                        <DndContext sensors={sensors} onDragEnd={(e) => handleDragEnd(e, 'elab')} collisionDetection={closestCenter}>
+                          <Table>
+                              <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-10"></TableHead>
+                                    <TableHead>Nombre</TableHead>
+                                    <TableHead className="w-40">Cantidad</TableHead>
+                                    <TableHead className="w-24">% Merma</TableHead>
+                                    <TableHead className="w-40">Unidad</TableHead>
+                                    <TableHead className="w-12"></TableHead>
+                                </TableRow>
+                              </TableHeader>
                               <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                                  <div className="space-y-1">
+                                  <TableBody>
                                   {(elabFields || []).map((field, index) => (
                                       <SortableItem key={field.id} id={field.id}>
                                           <div className="grid grid-cols-12 items-center gap-4 flex-1">
@@ -761,22 +776,25 @@ export default function RecetaFormPage() {
                                                   <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (
                                                       <FormItem className="flex items-center gap-2"><FormLabel className="text-xs">Cantidad:</FormLabel><FormControl><Input type="number" step="any" {...qField} className="h-8 w-20" /></FormControl></FormItem>
                                                   )} />
-                                                  <span className="text-xs text-muted-foreground">{formatUnit(field.unidad)}</span>
+                                                  
                                               </div>
-                                              <div className="flex items-center gap-2 col-span-3">
+                                              <div className="flex items-center gap-2 col-span-2">
                                                   <FormField control={form.control} name={`elaboraciones.${index}.merma`} render={({ field: mField }) => (
                                                       <FormItem className="flex items-center gap-2"><FormLabel className="text-xs">% Merma:</FormLabel><FormControl><Input type="number" {...mField} value={mField.value ?? 0} className="h-8 w-20" /></FormControl></FormItem>
                                                   )} />
                                               </div>
+                                              <span className="text-xs text-muted-foreground col-span-1">{formatUnit(field.unidad)}</span>
                                               <div className="col-span-1 text-right">
                                                   <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeElab(index)}><Trash2 className="h-4 w-4" /></Button>
                                               </div>
                                           </div>
                                       </SortableItem>
                                   ))}
-                                  </div>
+                                  </TableBody>
                               </SortableContext>
-                          </DndContext>
+                          </Table>
+                        </DndContext>
+                        </div>
                       </CardContent>
                   </Card>
                   <Card>
@@ -816,3 +834,4 @@ export default function RecetaFormPage() {
     </div>
   );
 }
+
