@@ -1,15 +1,16 @@
 
+
 'use client';
 
 import * as React from 'react';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useForm, useFieldArray, useWatch, FormProvider } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format, parse, differenceInMinutes } from 'date-fns';
+import { format, differenceInMinutes, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, MessageSquare, Users, Loader2 } from 'lucide-react';
+import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, MessageSquare, Users, Loader2, DollarSign } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, Receta, GastronomyOrderStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -148,10 +149,11 @@ function PedidoGastronomiaForm() {
   };
   
   const handleQuantityChange = (index: number, newQuantity: number) => {
-    const item = getValues(`gastro_items.${index}`);
-    if (item) {
-        update(index, { ...item, quantity: newQuantity });
-    }
+      const parsedQuantity = parseInt(newQuantity.toString(), 10);
+      if (isNaN(parsedQuantity) || parsedQuantity < 0) {
+        return;
+      }
+      setValue(`gastro_items.${index}.quantity`, parsedQuantity, { shouldDirty: true });
   };
 
   const onSubmit = (data: FormValues) => {
@@ -195,17 +197,13 @@ function PedidoGastronomiaForm() {
       <Form {...form}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="flex items-center justify-between p-2 bg-muted rounded-md text-sm text-muted-foreground">
-                <div className="flex items-center gap-4 text-sm">
-                    <span>Para el servicio: <strong>{briefingItem.descripcion}</strong></span>
-                    <span className="h-4 border-l"></span>
-                    <span>{format(new Date(briefingItem.fecha), 'dd/MM/yyyy')} a las {briefingItem.horaInicio}h</span>
-                    <span className="h-4 border-l"></span>
-                    <span className="flex items-center gap-1.5"><Users size={16}/>{briefingItem.asistentes} asistentes</span>
-                </div>
-                <Button type="submit" disabled={isLoading || !formState.isDirty}>
-                    {isLoading ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2" />} 
-                    Guardar Pedido
-                </Button>
+            <div className="flex items-center gap-4 text-sm">
+                <span>Para el servicio: <strong>{briefingItem.descripcion}</strong></span>
+                <span className="h-4 border-l"></span>
+                <span>{format(new Date(briefingItem.fecha), 'dd/MM/yyyy')} a las {briefingItem.horaInicio}h</span>
+                <span className="h-4 border-l"></span>
+                <span className="flex items-center gap-1.5"><Users size={16}/>{briefingItem.asistentes} asistentes</span>
+            </div>
           </div>
           
           <Card>
@@ -228,6 +226,10 @@ function PedidoGastronomiaForm() {
                         <p className="text-sm font-medium text-muted-foreground">Total Pedido</p>
                         <p className="text-2xl font-bold text-primary">{formatCurrency(totalPedido)}</p>
                     </div>
+                    <Button type="submit" disabled={isLoading || !formState.isDirty}>
+                        {isLoading ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2" />} 
+                        Guardar Pedido
+                    </Button>
                 </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -263,11 +265,11 @@ function PedidoGastronomiaForm() {
                             ) : (
                                 <TableRow key={field.id}>
                                     <TableCell>{field.nombre}</TableCell>
-                                    <TableCell>
+                                     <TableCell>
                                         <Input
                                             type="number"
-                                            value={field.quantity}
-                                            onChange={(e) => handleQuantityChange(index, parseInt(e.target.value, 10) || 0)}
+                                            defaultValue={field.quantity}
+                                            onBlur={(e) => handleQuantityChange(index, parseInt(e.target.value, 10) || 0)}
                                             className="w-24 h-8"
                                         />
                                     </TableCell>
