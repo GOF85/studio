@@ -204,12 +204,12 @@ function ImageUploadSection({ name, title, form }: { name: "fotosMiseEnPlaceURLs
                     <Button type="button" variant="outline" onClick={handleAdd}><LinkIcon className="mr-2"/>Añadir</Button>
                 </div>
                 {form.formState.errors[name] && <p className="text-sm font-medium text-destructive">{(form.formState.errors[name] as any).message}</p>}
-                <div className="grid grid-cols-4 gap-2 pt-2">
-                    {fields.map((field, index) => (
+                <div className="grid grid-cols-3 gap-2 pt-2">
+                    {fotosFields.map((field, index) => (
                         <div key={field.id} className="relative aspect-video rounded-md overflow-hidden group">
                             <Image src={(field as any).value} alt={`Foto ${index + 1}`} fill className="object-cover" />
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}><Trash2 /></Button>
+                                <Button type="button" variant="destructive" size="icon" onClick={() => removeFoto(index)}><Trash2 /></Button>
                             </div>
                         </div>
                     ))}
@@ -335,10 +335,11 @@ export default function RecetaFormPage() {
   }, [watchedElaboraciones, dbElaboraciones]);
 
   const { precioVenta, margenBruto, margenPct } = useMemo(() => {
-    const pvp = costeMateriaPrima / (1 - (watchedPorcentajeCoste || 0) / 100);
-    const margenNeto = pvp - costeMateriaPrima;
-    const margenPorcentual = pvp > 0 ? (margenNeto / pvp) : 0;
-    return { precioVenta: pvp, margenBruto: margenNeto, margenPct: margenPorcentual };
+    const costeProduccion = costeMateriaPrima * ((watchedPorcentajeCoste || 0) / 100);
+    const pvp = costeMateriaPrima + costeProduccion;
+    const margen = pvp - costeMateriaPrima; // Esto es igual al coste de producción
+    const margenPorcentual = pvp > 0 ? (margen / pvp) : 0;
+    return { precioVenta: pvp, margenBruto: margen, margenPct: margenPorcentual };
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
   const loadData = useCallback(async () => {
@@ -686,42 +687,42 @@ export default function RecetaFormPage() {
                     </Card>
 
                     <Card>
-                      <CardHeader className="py-3 flex-row items-start justify-between">
-                          <div>
-                              <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
-                              <CardDescription className="text-xs">Costes, márgenes y precio de venta recomendado.</CardDescription>
-                          </div>
-                          <div className="text-right">
-                              <div className="flex items-center gap-2">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
-                                      <RefreshCw className="h-4 w-4" />
-                                  </Button>
-                                  <p className="text-sm font-semibold text-muted-foreground">PVP Teórico</p>
-                              </div>
-                              <p className="font-bold text-2xl text-green-600">{formatCurrency(precioVenta)}</p>
-                          </div>
-                      </CardHeader>
-                      <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-                        <div>
-                          <Label>Coste Materia Prima</Label>
-                          <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
-                        </div>
-                        <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
-                              <FormItem>
-                              <Label>Imputación CPR (%)</Label>
-                              <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
-                              </FormItem>
-                          )} />
-                          <div>
-                              <Label>Margen Bruto</Label>
-                              <p className="font-bold text-lg">{formatCurrency(margenBruto)}</p>
-                          </div>
-                          <div>
-                              <Label>Margen %</Label>
-                              <p className="font-bold text-lg">{formatPercentage(margenPct)}</p>
-                          </div>
-                      </CardContent>
-                  </Card>
+                        <CardHeader className="py-3 flex-row items-center justify-between">
+                            <div>
+                                <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
+                                <CardDescription className="text-xs">Costes, márgenes y precio de venta recomendado.</CardDescription>
+                            </div>
+                             <div className="text-right">
+                                <div className="flex items-center gap-2">
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
+                                        <RefreshCw className="h-4 w-4" />
+                                    </Button>
+                                    <p className="text-sm font-semibold text-muted-foreground">PVP Teórico</p>
+                                </div>
+                                <p className="font-bold text-2xl text-green-600">{formatCurrency(precioVenta)}</p>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                            <div>
+                                <Label>Coste Materia Prima</Label>
+                                <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
+                            </div>
+                            <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
+                                <FormItem>
+                                <Label>Imputación CPR (%)</Label>
+                                <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
+                                </FormItem>
+                            )} />
+                            <div>
+                                <Label>Margen Bruto</Label>
+                                <p className="font-bold text-lg">{formatCurrency(margenBruto)}</p>
+                            </div>
+                            <div>
+                                <Label>Margen %</Label>
+                                <p className="font-bold text-lg">{formatPercentage(margenPct)}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
                     
                     <Card>
                         <CardHeader className="flex-row items-center justify-between py-3">
@@ -736,7 +737,7 @@ export default function RecetaFormPage() {
                                       <Button type="button" variant="outline" size="sm"><PlusCircle size={16} />Añadir Elaboración</Button>
                                     </DialogTrigger>
                                     <ComponenteSelector onSelectIngrediente={() => {}} onSelectElaboracion={onAddElab} allElaboraciones={Array.from(dbElaboraciones.values())} />
-                                  </Dialog>
+                                </Dialog>
                             </div>
                         </CardHeader>
                         <CardContent>
@@ -758,7 +759,7 @@ export default function RecetaFormPage() {
                                 <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                                     <TableBody>
                                     {(elabFields || []).map((field, index) => (
-                                        <SortableTableRow key={field.id} field={{...field}} index={index} remove={removeElab} form={form} />
+                                        <SortableTableRow key={field.id} field={{...field, key: field.id}} index={index} remove={removeElab} form={form} />
                                     ))}
                                     </TableBody>
                                 </SortableContext>
