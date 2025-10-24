@@ -33,7 +33,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Combobox } from '@/components/ui/combobox';
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Slider } from '@/components/ui/slider';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatUnit, cn } from '@/lib/utils';
@@ -43,6 +43,14 @@ import { ElaborationForm, type ElaborationFormValues } from '@/components/book/e
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Papa from 'papaparse';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 
 const CSV_HEADERS_ELABORACIONES = [ "id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion" ];
@@ -425,7 +433,7 @@ function ElaborationFormPage() {
     const params = useParams();
     const searchParams = useSearchParams();
 
-    const idParam = Array.isArray(params.id) ? params.id[0] : params.id;
+    const idParam = Array.isArray(params.id) ? params.id[0] : 'nuevo';
     const isNew = idParam === 'nuevo';
     const id = isNew ? null : idParam;
     
@@ -446,7 +454,9 @@ function ElaborationFormPage() {
             }
         } else if (id) {
             elabToLoad = allElaboraciones.find(e => e.id === id) || null;
-        } else if (isNew) {
+        }
+        
+        if (!id && !cloneId) { // This is the /nuevo case
             elabToLoad = { 
                 id: Date.now().toString(), 
                 nombre: '', 
@@ -462,7 +472,7 @@ function ElaborationFormPage() {
                 fotosProduccionURLs: [],
             };
         }
-
+        
         setInitialData(elabToLoad);
         setIsDataLoaded(true);
 
@@ -518,8 +528,8 @@ function ElaborationFormPage() {
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" type="button" onClick={() => router.push('/book/elaboraciones')}> <X className="mr-2"/> Cancelar</Button>
-                    <Button type="submit" form="elaboration-form" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                    <Button type="submit" form="elaboration-form" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : <Save />}
                     <span className="ml-2">{isNew || cloneId ? 'Guardar Elaboración' : 'Guardar Cambios'}</span>
                     </Button>
                 </div>
@@ -537,22 +547,12 @@ function ElaborationFormPage() {
 
 export default function ElaboracionesPage() {
     const params = useParams();
-    const searchParams = useSearchParams();
     
-    const idParam = Array.isArray(params.id) ? params.id[0] : params.id;
-    const isListPage = !idParam;
-    
-    if (isListPage) {
-        return (
-            <Suspense fallback={<LoadingSkeleton title="Cargando elaboraciones..." />}>
-                <ElaboracionesListPage />
-            </Suspense>
-        );
-    }
+    const isListPage = !params.id || params.id.length === 0;
 
     return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando elaboración..." />}>
-            <ElaborationFormPage />
+        <Suspense fallback={<LoadingSkeleton title="Cargando..." />}>
+            {isListPage ? <ElaboracionesListPage /> : <ElaborationFormPage />}
         </Suspense>
     );
 }
