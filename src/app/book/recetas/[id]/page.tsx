@@ -38,7 +38,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Slider } from '@/components/ui/slider';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { formatCurrency, formatUnit, cn, formatPercentage } from '@/lib/utils';
+import { formatCurrency, formatUnit, cn } from '@/lib/utils';
 import Image from 'next/image';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
 import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
@@ -334,12 +334,9 @@ export default function RecetaFormPage() {
     };
   }, [watchedElaboraciones, dbElaboraciones]);
 
-  const { precioVenta, margenBruto, margenPct } = useMemo(() => {
+  const precioVenta = useMemo(() => {
     const costeProduccion = costeMateriaPrima * ((watchedPorcentajeCoste || 0) / 100);
-    const pvp = costeMateriaPrima + costeProduccion;
-    const margen = pvp - costeMateriaPrima;
-    const margenPorcentual = pvp > 0 ? (margen / pvp) : 0;
-    return { precioVenta: pvp, margenBruto: margen, margenPct: margenPorcentual };
+    return costeMateriaPrima + costeProduccion;
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
   const loadData = useCallback(async () => {
@@ -687,7 +684,7 @@ export default function RecetaFormPage() {
                     </Card>
 
                     <Card>
-                        <CardHeader className="flex-row items-center justify-between py-3">
+                        <CardHeader className="flex-row items-start justify-between py-3">
                             <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
                             <div className="text-right">
                                 <div className="flex items-center gap-2">
@@ -699,25 +696,17 @@ export default function RecetaFormPage() {
                                 <p className="font-bold text-2xl text-green-600">{formatCurrency(precioVenta)}</p>
                             </div>
                         </CardHeader>
-                        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-                          <div>
-                            <Label>Coste Materia Prima</Label>
-                            <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
-                          </div>
-                          <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
-                            <FormItem>
-                              <Label>Imputación CPR (%)</Label>
-                              <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
-                            </FormItem>
-                          )} />
-                          <div>
-                            <Label>Margen Bruto</Label>
-                            <p className="font-bold text-lg">{formatCurrency(margenBruto)}</p>
-                          </div>
-                          <div>
-                            <Label>Margen %</Label>
-                            <p className="font-bold text-lg">{formatPercentage(margenPct)}</p>
-                          </div>
+                        <CardContent className="grid grid-cols-2 gap-4 items-end">
+                            <div>
+                                <Label>Coste Materia Prima</Label>
+                                <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
+                            </div>
+                             <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
+                                <FormItem>
+                                <Label>Imputación CPR (%)</Label>
+                                <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
+                                </FormItem>
+                            )} />
                         </CardContent>
                     </Card>
                     
@@ -802,3 +791,4 @@ export default function RecetaFormPage() {
     </div>
   );
 }
+
