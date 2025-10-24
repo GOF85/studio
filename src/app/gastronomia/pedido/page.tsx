@@ -55,6 +55,7 @@ const gastronomyOrderItemSchema = z.object({
   nombre: z.string(),
   categoria: z.string().optional(),
   costeMateriaPrima: z.number().optional(),
+  precioVenta: z.number().optional(),
   quantity: z.coerce.number().optional(),
 });
 
@@ -106,7 +107,7 @@ function RecetaSelector({ onSelectReceta }: { onSelectReceta: (receta: Receta) =
             <TableRow>
               <TableHead>Nombre Receta</TableHead>
               <TableHead>Categoría</TableHead>
-              <TableHead>Coste Materia Prima</TableHead>
+              <TableHead>PVP</TableHead>
               <TableHead>Acción</TableHead>
             </TableRow>
           </TableHeader>
@@ -115,7 +116,7 @@ function RecetaSelector({ onSelectReceta }: { onSelectReceta: (receta: Receta) =
               <TableRow key={receta.id}>
                 <TableCell className="font-medium">{receta.nombre}</TableCell>
                 <TableCell>{receta.categoria}</TableCell>
-                <TableCell>{(receta.costeMateriaPrima || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                <TableCell>{(receta.precioVenta || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                 <TableCell><Button size="sm" onClick={() => onSelectReceta(receta)}>Añadir</Button></TableCell>
               </TableRow>
             ))}
@@ -144,7 +145,7 @@ function SortableTableRow({ field, index, remove, form }: { field: GastronomyOrd
                 <>
                     <TableCell className="font-medium">{field.nombre}</TableCell>
                     <TableCell>{field.categoria}</TableCell>
-                    <TableCell>{(field.costeMateriaPrima || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell>{(field.precioVenta || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                     <TableCell>
                         <Input 
                             type="number" 
@@ -153,7 +154,7 @@ function SortableTableRow({ field, index, remove, form }: { field: GastronomyOrd
                             {...form.register(`items.${index}.quantity`)}
                         />
                     </TableCell>
-                    <TableCell>{((field.costeMateriaPrima || 0) * (form.watch(`items.${index}.quantity`) || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
+                    <TableCell>{((field.precioVenta || 0) * (form.watch(`items.${index}.quantity`) || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
                 </>
             ) : (
                 <TableCell colSpan={5} className="font-bold bg-muted/50">
@@ -237,6 +238,7 @@ export default function PedidoGastronomiaPage() {
         nombre: receta.nombre,
         categoria: receta.categoria,
         costeMateriaPrima: receta.costeMateriaPrima,
+        precioVenta: receta.precioVenta,
         quantity: 1,
       });
     }
@@ -250,6 +252,7 @@ export default function PedidoGastronomiaPage() {
         nombre: '',
         categoria: '',
         costeMateriaPrima: 0,
+        precioVenta: 0,
         quantity: 0
     });
   }
@@ -257,7 +260,7 @@ export default function PedidoGastronomiaPage() {
   const totalPedido = useMemo(() => {
     return fields.reduce((acc, item) => {
         if(item.type === 'item') {
-            return acc + ((item.costeMateriaPrima || 0) * (item.quantity || 0));
+            return acc + ((item.precioVenta || 0) * (item.quantity || 0));
         }
         return acc;
     }, 0);
@@ -277,7 +280,7 @@ export default function PedidoGastronomiaPage() {
 
       localStorage.setItem('gastronomyOrders', JSON.stringify(allGastroOrders));
       toast({ title: "Pedido guardado", description: "Los cambios en el pedido de gastronomía han sido guardados." });
-      router.push(`/gastronomia?osId=${osId}`);
+      router.push(`/os/${osId}/gastronomia`);
     } else {
       toast({ variant: "destructive", title: "Error", description: "No se pudo encontrar el pedido a actualizar." });
     }
@@ -294,7 +297,7 @@ export default function PedidoGastronomiaPage() {
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <Button variant="ghost" size="sm" onClick={() => router.push(`/gastronomia?osId=${osId}`)} className="mb-2">
+                        <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/gastronomia`)} className="mb-2">
                             <ArrowLeft className="mr-2" />
                             Volver al Módulo
                         </Button>
@@ -365,7 +368,7 @@ export default function PedidoGastronomiaPage() {
                                       <TableHead className="w-10"></TableHead>
                                       <TableHead>Nombre del Plato</TableHead>
                                       <TableHead>Categoría</TableHead>
-                                      <TableHead>Coste M.P. (Ud.)</TableHead>
+                                      <TableHead>PVP (Ud.)</TableHead>
                                       <TableHead>Cantidad</TableHead>
                                       <TableHead>Subtotal</TableHead>
                                       <TableHead className="text-right">Acciones</TableHead>
@@ -375,7 +378,7 @@ export default function PedidoGastronomiaPage() {
                                   <TableBody>
                                       {fields.length > 0 ? (
                                           fields.map((field, index) => (
-                                              <SortableTableRow key={field.key} field={{...field, key: field.key}} index={index} remove={remove} form={form} />
+                                              <SortableTableRow key={field.key} field={{...field, key: field.id}} index={index} remove={remove} form={form} />
                                           ))
                                       ) : (
                                           <TableRow>
@@ -393,7 +396,7 @@ export default function PedidoGastronomiaPage() {
                     {fields.length > 0 && (
                          <CardFooter className="flex justify-end">
                             <div className="text-xl font-bold">
-                                Coste Total Pedido: {totalPedido.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                                Total Pedido: {totalPedido.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                             </div>
                         </CardFooter>
                     )}
