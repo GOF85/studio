@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { PlusCircle, MoreHorizontal, Pencil, Trash2, Component, FileDown, FileUp, Menu, AlertTriangle, Copy, Download, Upload, Save, X } from 'lucide-react';
@@ -384,7 +384,7 @@ function ElaboracionesListPage() {
 }
 
 
-function ElaboracionFormPage() {
+function ElaborationFormPage() {
     const router = useRouter();
     const { toast } = useToast();
     const params = useParams();
@@ -411,7 +411,7 @@ function ElaboracionFormPage() {
             }
         } else if (id) {
             elabToLoad = allElaboraciones.find(e => e.id === id) || null;
-        } else {
+        } else { // This is the 'nuevo' case
             elabToLoad = { 
                 id: Date.now().toString(), 
                 nombre: '', 
@@ -463,7 +463,7 @@ function ElaboracionFormPage() {
         }, 1000);
     }
     
-    if (!isDataLoaded || (id && !initialData)) {
+    if (!isDataLoaded || (!isNew && !cloneId && !initialData)) {
       return <LoadingSkeleton title="Cargando elaboración..." />;
     }
 
