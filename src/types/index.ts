@@ -1,5 +1,4 @@
 
-
 import { z } from "zod";
 
 export type CateringItem = {
@@ -617,7 +616,7 @@ export type FamiliaERP = {
     Categoria: string;
 }
 
-export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS DE CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
+export const ALERGENOS = ['GLUTEN', 'CRUSTACEOS', 'HUEVOS', 'PESCADO', 'CACAHUETES', 'SOJA', 'LACTEOS', 'FRUTOS_DE_CASCARA', 'APIO', 'MOSTAZA', 'SESAMO', 'SULFITOS', 'ALTRAMUCES', 'MOLUSCOS'] as const;
 export type Alergeno = typeof ALERGENOS[number];
 
 export type IngredienteInterno = {
@@ -1016,5 +1015,3 @@ export type HistoricoPreciosERP = {
     precioCalculado: number;
     proveedorId?: string;
 }
-    
-```
