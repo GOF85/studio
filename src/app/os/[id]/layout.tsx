@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -22,6 +21,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { format, differenceInDays } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 type NavLink = {
@@ -59,14 +59,22 @@ const getInitials = (name: string) => {
 }
 
 
-export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
-    const params = useParams();
+function OsHeaderContent({ osId }: { osId: string }) {
     const pathname = usePathname();
-    const osId = params.id as string;
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [updateKey, setUpdateKey] = useState(Date.now());
 
+    useEffect(() => {
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const currentOS = allServiceOrders.find(os => os.id === osId);
+        setServiceOrder(currentOS || null);
+
+        const handleStorageChange = () => {
+            setUpdateKey(Date.now());
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, [osId, updateKey]);
 
     const currentModule = useMemo(() => {
         const pathSegment = pathname.split('/').pop();
@@ -76,93 +84,35 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
         return navLinks.find(link => link.path === pathSegment);
     }, [pathname, osId]);
 
-    useEffect(() => {
-        if (osId) {
-            if (osId === 'nuevo') {
-                // Handle the case for a new service order
-                setServiceOrder({ id: 'nuevo', serviceNumber: 'Nueva OS' } as ServiceOrder);
-            } else {
-                const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-                const currentOS = allServiceOrders.find(os => os.id === osId);
-                setServiceOrder(currentOS || null);
-            }
-        }
-        const handleStorageChange = () => {
-            setUpdateKey(Date.now());
-        };
-        window.addEventListener('storage', handleStorageChange);
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-        };
-
-    }, [osId, updateKey]);
-
-    if (!serviceOrder || !currentModule) return null;
-
-    const dashboardHref = `/os/${osId}`;
-
+    if (!serviceOrder || !currentModule) {
+        return (
+             <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-3">
+                         <Skeleton className="h-7 w-7" />
+                         <Skeleton className="h-8 w-48" />
+                     </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                         <Skeleton className="h-6 w-32" />
+                      </div>
+                </div>
+                 <div className="flex justify-between items-center text-sm text-muted-foreground bg-secondary px-3 py-1 rounded-md h-9">
+                    <Skeleton className="h-5 w-1/3" />
+                    <Skeleton className="h-5 w-1/4" />
+                </div>
+             </div>
+        );
+    }
+    
     const durationDays = serviceOrder.startDate && serviceOrder.endDate ? differenceInDays(new Date(serviceOrder.endDate), new Date(serviceOrder.startDate)) + 1 : 0;
 
     return (
-      <TooltipProvider>
-      <div className="container mx-auto">
-          <div className="sticky top-[56px] z-30 bg-background py-2 border-b">
+        <TooltipProvider>
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                      <SheetTrigger asChild>
-                        <Button variant="outline">
-                          <Menu className="h-5 w-5 mr-2" />
-                          Módulos
-                        </Button>
-                      </SheetTrigger>
-                      <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
-                        <SheetHeader className="p-4 border-b">
-                          <SheetTitle>Módulos de la OS</SheetTitle>
-                        </SheetHeader>
-                        <ScrollArea className="h-full p-4">
-                           <nav className={cn("grid items-start gap-1 pb-4")}>
-                                <Link href={dashboardHref} onClick={() => setIsSheetOpen(false)}>
-                                    <span
-                                        className={cn(
-                                            "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                                            pathname === `/os/${osId}` ? "bg-accent" : "transparent"
-                                        )}
-                                    >
-                                        <LayoutDashboard className="mr-2 h-4 w-4" />
-                                        <span>Panel de Control</span>
-                                    </span>
-                                </Link>
-                              {navLinks.map((item, index) => {
-                                  const href = `/os/${osId}/${item.path}`;
-                                  return (
-                                  <Link
-                                      key={index}
-                                      href={href}
-                                      onClick={() => setIsSheetOpen(false)}
-                                  >
-                                      <span
-                                          className={cn(
-                                              "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
-                                              pathname.startsWith(href) ? "bg-accent" : "transparent"
-                                          )}
-                                      >
-                                          <item.icon className="mr-2 h-4 w-4" />
-                                          <span>{item.title}</span>
-                                      </span>
-                                  </Link>
-                              )})}
-                          </nav>
-                        </ScrollArea>
-                      </SheetContent>
-                    </Sheet>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <currentModule.icon className="h-7 w-7 text-primary" />
-                    <h1 className="text-2xl font-headline font-bold">{currentModule.title}</h1>
-                  </div>
+                <div className="flex items-center gap-3">
+                  <currentModule.icon className="h-7 w-7 text-primary" />
+                  <h1 className="text-2xl font-headline font-bold">{currentModule.title}</h1>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   {('moduleName' in currentModule) && currentModule.moduleName && <ObjectiveDisplay osId={osId} moduleName={currentModule.moduleName} updateKey={updateKey} />}
@@ -257,11 +207,64 @@ export default function OSDetailsLayout({ children }: { children: React.ReactNod
                     </div>
                 </div>
             </div>
-          </div>
-          <main>
-              {children}
-          </main>
-      </div>
-      </TooltipProvider>
+        </TooltipProvider>
+    );
+}
+
+export default function OSDetailsLayout({ children }: { children: React.ReactNode }) {
+    const params = useParams();
+    const pathname = usePathname();
+    const osId = params.id as string;
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+    const dashboardHref = `/os/${osId}`;
+
+    return (
+        <div className="container mx-auto">
+            <div className="sticky top-[56px] z-30 bg-background py-2 border-b">
+                <div className="flex items-center gap-4">
+                    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                        <SheetTrigger asChild>
+                            <Button variant="outline">
+                                <Menu className="h-5 w-5 mr-2" />
+                                Módulos
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left" className="w-[250px] sm:w-[280px] p-0">
+                            <SheetHeader className="p-4 border-b">
+                                <SheetTitle>Módulos de la OS</SheetTitle>
+                            </SheetHeader>
+                            <ScrollArea className="h-full p-4">
+                                <nav className="grid items-start gap-1 pb-4">
+                                    <Link href={dashboardHref} onClick={() => setIsSheetOpen(false)}>
+                                        <span className={cn("group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname === `/os/${osId}` ? "bg-accent" : "transparent")}>
+                                            <LayoutDashboard className="mr-2 h-4 w-4" />
+                                            <span>Panel de Control</span>
+                                        </span>
+                                    </Link>
+                                    {navLinks.map((item, index) => {
+                                        const href = `/os/${osId}/${item.path}`;
+                                        return (
+                                            <Link key={index} href={href} onClick={() => setIsSheetOpen(false)}>
+                                                <span className={cn("group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground", pathname.startsWith(href) ? "bg-accent" : "transparent")}>
+                                                    <item.icon className="mr-2 h-4 w-4" />
+                                                    <span>{item.title}</span>
+                                                </span>
+                                            </Link>
+                                        )
+                                    })}
+                                </nav>
+                            </ScrollArea>
+                        </SheetContent>
+                    </Sheet>
+                    <div className="flex-grow">
+                        <OsHeaderContent osId={osId} />
+                    </div>
+                </div>
+            </div>
+            <main>
+                {children}
+            </main>
+        </div>
     );
 }
