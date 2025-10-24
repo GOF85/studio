@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -7,7 +8,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray, useWatch, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, Save, Utensils, ArrowLeft, GripVertical } from 'lucide-react';
+import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, ArrowLeft, GripVertical } from 'lucide-react';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -401,3 +402,4 @@ export default function PedidoGastronomiaPage() {
     </main>
   );
 }
+

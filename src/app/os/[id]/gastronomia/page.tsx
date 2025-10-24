@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -6,7 +7,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Utensils } from 'lucide-react';
-import type { ServiceOrder, ComercialBriefing, GastronomyOrder, GastronomyOrderStatus, ComercialBriefingItem } from '@/types';
+import type { ServiceOrder, ComercialBriefing, GastronomyOrder, GastronomyOrderStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -51,6 +52,7 @@ export default function GastronomiaPage() {
 
     let needsUpdate = false;
     
+    // Sync: Add new orders from briefing if they don't exist
     briefingItemsWithGastro.forEach(briefingItem => {
         const existingOrder = osGastroOrders.find(o => o.id === briefingItem.id);
         if (!existingOrder) {
@@ -69,17 +71,23 @@ export default function GastronomiaPage() {
             };
             osGastroOrders.push(newOrder);
             needsUpdate = true;
-        } else {
+        }
+    });
+    
+    // Sync: Update existing orders with briefing data
+    osGastroOrders.forEach(order => {
+        const briefingItem = briefingItemsWithGastro.find(item => item.id === order.id);
+        if (briefingItem) {
             const hasChanged = 
-              existingOrder.descripcion !== briefingItem.descripcion ||
-              existingOrder.fecha !== briefingItem.fecha ||
-              existingOrder.horaInicio !== briefingItem.horaInicio ||
-              existingOrder.asistentes !== briefingItem.asistentes ||
-              existingOrder.comentarios !== briefingItem.comentarios ||
-              existingOrder.sala !== briefingItem.sala;
-
+              order.descripcion !== briefingItem.descripcion ||
+              order.fecha !== briefingItem.fecha ||
+              order.horaInicio !== briefingItem.horaInicio ||
+              order.asistentes !== briefingItem.asistentes ||
+              order.comentarios !== briefingItem.comentarios ||
+              order.sala !== briefingItem.sala;
+            
             if (hasChanged) {
-                Object.assign(existingOrder, {
+                 Object.assign(order, {
                     descripcion: briefingItem.descripcion,
                     fecha: briefingItem.fecha,
                     horaInicio: briefingItem.horaInicio,
@@ -170,7 +178,7 @@ export default function GastronomiaPage() {
                         ) : (
                             <TableRow>
                             <TableCell colSpan={6} className="h-24 text-center">
-                                No hay pedidos de gastronomía. Activa la opción "Con gastronomía" en las entregas del briefing comercial.
+                                No hay pedidos de gastronomía. Activa la opción "Con gastronomía" en los hitos del briefing comercial.
                             </TableCell>
                             </TableRow>
                         )}

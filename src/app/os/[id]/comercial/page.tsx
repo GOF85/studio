@@ -393,14 +393,9 @@ export default function ComercialPage() {
 
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-4xl">
+        <DialogContent className="sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>{item ? 'Editar' : 'Nuevo'} Hito del Briefing</DialogTitle>
-             {serviceOrder && (
-              <DialogDescription>
-                OS: {serviceOrder.serviceNumber} | {serviceOrder.space} | {serviceOrder.asistentes}pax
-              </DialogDescription>
-            )}
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
@@ -416,7 +411,6 @@ export default function ComercialPage() {
                           onChange={handleLocationChange}
                           placeholder="Busca o crea una sala..."
                           searchPlaceholder="Buscar sala..."
-                          onCreated={onAddLocation}
                       />
                       <FormMessage />
                     </FormItem>
@@ -454,7 +448,7 @@ export default function ComercialPage() {
                             onCheckedChange={field.onChange}
                         />
                         </FormControl>
-                        <FormLabel className="!m-0">
+                        <FormLabel className="!m-0 text-base">
                             Con gastronomía
                         </FormLabel>
                     </FormItem>

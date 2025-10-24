@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -46,7 +47,6 @@ const statusVariant: { [key in HieloOrder['status']]: 'default' | 'secondary' | 
 };
 
 export default function HieloPage() {
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [hieloOrders, setHieloOrders] = useState<HieloOrder[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
@@ -58,17 +58,6 @@ export default function HieloPage() {
 
   useEffect(() => {
     if (!osId) return;
-    
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const currentOS = allServiceOrders.find(os => os.id === osId);
-    
-    if (!currentOS) {
-        toast({ variant: 'destructive', title: 'Error', description: 'No se ha especificado una Orden de Servicio válida.' });
-        router.push('/pes');
-        return;
-    }
-    
-    setServiceOrder(currentOS);
 
     const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
     const relatedOrders = allHieloOrders.filter(order => order.osId === osId);
@@ -93,13 +82,13 @@ export default function HieloPage() {
     setOrderToDelete(null);
   };
   
-  if (!isMounted || !serviceOrder) {
+  if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Hielo..." />;
   }
 
   return (
     <>
-      <div className="flex items-start justify-end mb-4">
+      <div className="flex items-start justify-end mb-8">
         <Button asChild>
           <Link href={`/hielo/pedido?osId=${osId}`}>
             <PlusCircle className="mr-2" />

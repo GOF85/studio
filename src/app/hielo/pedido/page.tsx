@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -209,7 +210,7 @@ export default function PedidoHieloPage() {
     }
 
     localStorage.setItem('hieloOrders', JSON.stringify(allOrders));
-    router.push(`/hielo?osId=${osId}`);
+    router.push(`/os/${osId}/hielo`);
   };
 
   if (!isMounted || !serviceOrder) {
@@ -223,7 +224,7 @@ export default function PedidoHieloPage() {
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <Button variant="ghost" size="sm" onClick={() => router.push(`/hielo?osId=${osId}`)} className="mb-2">
+                        <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/hielo`)} className="mb-2">
                             <ArrowLeft className="mr-2" />
                             Volver al Módulo
                         </Button>
@@ -231,7 +232,7 @@ export default function PedidoHieloPage() {
                         <p className="text-muted-foreground">Para la OS: {serviceOrder.serviceNumber}</p>
                     </div>
                      <div className="flex gap-2">
-                        <Button variant="outline" type="button" onClick={() => router.push(`/hielo?osId=${osId}`)}>
+                        <Button variant="outline" type="button" onClick={() => router.push(`/os/${osId}/hielo`)}>
                             <X className="mr-2 h-4 w-4" />
                             Cancelar
                         </Button>
