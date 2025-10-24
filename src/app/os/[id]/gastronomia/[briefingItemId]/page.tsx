@@ -2,14 +2,14 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Save, Trash2, PlusCircle, Utensils, Loader2, MessageSquare, User } from 'lucide-react';
+import { Save, Trash2, PlusCircle, Loader2, MessageSquare, Users } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, Receta, GastronomyOrderStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -17,8 +17,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -148,19 +148,19 @@ function PedidoGastronomiaForm() {
     <main>
       <Form {...form}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-4 text-muted-foreground text-sm">
+          <CardDescription className="flex items-center justify-between p-2 bg-muted rounded-md">
+                <div className="flex items-center gap-4 text-sm">
                     <span>Para el servicio: <strong>{briefingItem.descripcion}</strong></span>
-                    <Separator orientation="vertical" className="h-4"/>
+                    <span className="h-4 border-l"></span>
                     <span>{format(new Date(briefingItem.fecha), 'dd/MM/yyyy')} a las {briefingItem.horaInicio}h</span>
-                    <Separator orientation="vertical" className="h-4"/>
+                    <span className="h-4 border-l"></span>
                     <span className="flex items-center gap-1.5"><Users size={16}/>{briefingItem.asistentes} asistentes</span>
                 </div>
                 <Button type="submit" disabled={isLoading}>
                     {isLoading ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2" />} 
                     Guardar Pedido
                 </Button>
-            </div>
+            </CardDescription>
           
           <Card>
             <CardHeader className="flex-row justify-between items-center py-3">
@@ -270,3 +270,4 @@ export default function PedidoGastronomiaPage() {
         </React.Suspense>
     );
 }
+
