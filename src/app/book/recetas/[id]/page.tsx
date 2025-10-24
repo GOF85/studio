@@ -240,6 +240,43 @@ function CreateElaborationModal({ onElaborationCreated, children }: { onElaborat
     );
 }
 
+function SortableTableRow({ field, index, remove, form }: { field: ElaboracionEnReceta & { key: string }, index: number, remove: (index: number) => void, form: any }) {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+    
+    const costeTotal = (field.coste || 0) * (form.watch(`elaboraciones.${index}.cantidad`) || 0);
+
+    return (
+        <TableRow ref={setNodeRef} style={style} {...attributes}>
+            <TableCell className="w-10 p-2">
+                <div {...listeners} className="cursor-grab text-muted-foreground p-2">
+                    <GripVertical />
+                </div>
+            </TableCell>
+            <TableCell className="font-semibold py-1 px-3">{field.nombre}</TableCell>
+            <TableCell className="text-right font-mono py-1 px-3">{formatCurrency(field.coste)}</TableCell>
+            <TableCell className="py-1 px-3">
+                <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (
+                    <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
+                )} />
+            </TableCell>
+            <TableCell className="py-1 px-3">
+                <FormField control={form.control} name={`elaboraciones.${index}.merma`} render={({ field: mField }) => (
+                    <FormItem><FormControl><Input type="number" {...mField} value={mField.value ?? 0} className="h-8" /></FormControl></FormItem>
+                )} />
+            </TableCell>
+            <TableCell className="text-xs text-muted-foreground py-1 px-3">{formatUnit(field.unidad)}</TableCell>
+            <TableCell className="text-right font-mono py-1 px-3">{formatCurrency(costeTotal)}</TableCell>
+            <TableCell className="py-1 px-3">
+                <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4" /></Button>
+            </TableCell>
+        </TableRow>
+    );
+}
+
 export default function RecetaFormPage() {
   const router = useRouter();
   const params = useParams();
@@ -307,11 +344,10 @@ export default function RecetaFormPage() {
   }, [watchedElaboraciones, dbElaboraciones]);
 
   const { precioVenta, margenBruto, margenPct } = useMemo(() => {
-    const costeConImputacion = costeMateriaPrima + (costeMateriaPrima * ((watchedPorcentajeCoste || 0) / 100));
-    const pvp = costeConImputacion;
+    const pvp = costeMateriaPrima + (costeMateriaPrima * ((watchedPorcentajeCoste || 0) / 100));
     const margenNeto = pvp - costeMateriaPrima;
     const margenPorcentual = pvp > 0 ? (margenNeto / pvp) : 0;
-    return { precioVenta: costeConImputacion, margenBruto: margenNeto, margenPct: margenPorcentual };
+    return { precioVenta: pvp, margenBruto: margenNeto, margenPct: margenPorcentual };
   }, [costeMateriaPrima, watchedPorcentajeCoste, updateTrigger]);
   
   const loadData = useCallback(async () => {
@@ -649,11 +685,14 @@ export default function RecetaFormPage() {
                     </Card>
 
                     <Card>
-                        <CardHeader className="py-3 flex flex-row items-start justify-between">
-                            <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
-                             <div className="text-right">
+                        <CardHeader className="py-3 flex-row items-start justify-between">
+                            <div className="space-y-1">
+                                <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
+                                <CardDescription className="text-xs">Costes, márgenes y precio de venta recomendado.</CardDescription>
+                            </div>
+                            <div className="text-right">
                                 <div className="flex items-center gap-2">
-                                     <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={() => setUpdateTrigger(Date.now())}>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={() => setUpdateTrigger(Date.now())}>
                                         <RefreshCw className="h-4 w-4" />
                                     </Button>
                                     <p className="text-sm font-semibold text-muted-foreground">PVP Teórico</p>
@@ -661,22 +700,24 @@ export default function RecetaFormPage() {
                                 <p className="font-bold text-2xl text-green-600">{formatCurrency(precioVenta)}</p>
                             </div>
                         </CardHeader>
-                        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start pt-2">
+                        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                          <div>
+                            <Label>Coste Materia Prima</Label>
+                            <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
+                          </div>
+                          <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
+                                <FormItem>
+                                <Label>Imputación CPR (%)</Label>
+                                <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
+                                </FormItem>
+                            )} />
                             <div>
-                                <Label>Coste Materia Prima</Label>
-                                <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
+                                <Label>Margen Bruto</Label>
+                                <p className="font-bold text-lg">{formatCurrency(margenBruto)}</p>
                             </div>
-                            <div className="space-y-1">
-                                <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
-                                    <FormItem>
-                                    <Label>Imputación CPR (%)</Label>
-                                    <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
-                                    </FormItem>
-                                )} />
-                                <div className="text-xs text-muted-foreground pt-1 space-y-0.5">
-                                    <div className="flex justify-between"><span>Margen Bruto:</span><span className="font-medium">{formatCurrency(margenBruto)}</span></div>
-                                    <div className="flex justify-between"><span>Margen %:</span><span className="font-medium">{formatPercentage(margenPct)}</span></div>
-                                </div>
+                            <div>
+                                <Label>Margen %</Label>
+                                <p className="font-bold text-lg">{formatPercentage(margenPct)}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -705,37 +746,18 @@ export default function RecetaFormPage() {
                                   <TableRow>
                                       <TableHead className="w-10 p-2"></TableHead>
                                       <TableHead className="py-2 px-3">Nombre</TableHead>
-                                      <TableHead className="w-32 py-2 px-3">Cantidad</TableHead>
-                                      <TableHead className="w-32 py-2 px-3">% Merma</TableHead>
-                                      <TableHead className="w-40 py-2 px-3">Unidad</TableHead>
+                                      <TableHead className="w-28 py-2 px-3 text-right">Coste / Ud.</TableHead>
+                                      <TableHead className="w-28 py-2 px-3">Cantidad</TableHead>
+                                      <TableHead className="w-24 py-2 px-3">% Merma</TableHead>
+                                      <TableHead className="w-24 py-2 px-3">Unidad</TableHead>
+                                      <TableHead className="w-32 py-2 px-3 text-right">Subtotal</TableHead>
                                       <TableHead className="w-12 py-2 px-3"></TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                                     <TableBody>
                                     {(elabFields || []).map((field, index) => (
-                                        <SortableItem key={field.id} id={field.id}>
-                                            <TableCell className="w-10 p-2">
-                                                <div className="cursor-grab text-muted-foreground p-2">
-                                                    <GripVertical />
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="font-semibold py-1 px-3">{field.nombre}</TableCell>
-                                            <TableCell className="py-1 px-3">
-                                                <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (
-                                                    <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
-                                                )} />
-                                            </TableCell>
-                                            <TableCell className="py-1 px-3">
-                                                <FormField control={form.control} name={`elaboraciones.${index}.merma`} render={({ field: mField }) => (
-                                                    <FormItem><FormControl><Input type="number" {...mField} value={mField.value ?? 0} className="h-8" /></FormControl></FormItem>
-                                                )} />
-                                            </TableCell>
-                                            <TableCell className="text-xs text-muted-foreground py-1 px-3">{formatUnit(field.unidad)}</TableCell>
-                                            <TableCell className="py-1 px-3">
-                                                <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeElab(index)}><Trash2 className="h-4 w-4" /></Button>
-                                            </TableCell>
-                                        </SortableItem>
+                                        <SortableTableRow key={field.key} field={{...field, key: field.key}} index={index} remove={removeElab} form={form} />
                                     ))}
                                     </TableBody>
                                 </SortableContext>
@@ -781,4 +803,3 @@ export default function RecetaFormPage() {
     </div>
   );
 }
-
