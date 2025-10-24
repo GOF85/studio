@@ -2,24 +2,39 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { format } from 'date-fns';
+import { format, parse, differenceInMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Save, Trash2, PlusCircle, Loader2, MessageSquare, Users } from 'lucide-react';
+import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, MessageSquare, Users, Loader2 } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, Receta, GastronomyOrderStatus } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { RecetaSelector } from '@/components/os/gastronomia/receta-selector';
@@ -64,29 +79,29 @@ function PedidoGastronomiaForm() {
     },
   });
 
-  const { control, handleSubmit, reset, watch, setValue } = form;
+  const { control, handleSubmit, reset, watch, setValue, getValues, formState } = form;
   const { fields, append, remove, update } = useFieldArray({ control, name: "gastro_items" });
   const watchedItems = watch('gastro_items');
-
-  const totalPedido = useMemo(() => {
-    return watchedItems.reduce((acc, item) => {
+  
+  const { totalPedido, ratioUnidadesPorPax } = useMemo(() => {
+    let total = 0;
+    let totalUnits = 0;
+    
+    (watchedItems || []).forEach(item => {
         if (item.type === 'item') {
-            return acc + (item.precioVenta || 0) * (item.quantity || 0);
+            total += (item.precioVenta || 0) * (item.quantity || 0);
+            totalUnits += item.quantity || 0;
         }
-        return acc;
-    }, 0);
-  }, [watchedItems]);
+    });
 
-  const ratioUnidadesPorPax = useMemo(() => {
-    if (!briefingItem || briefingItem.asistentes === 0) return 0;
-    const totalUnidades = watchedItems.reduce((acc, item) => {
-        if (item.type === 'item') {
-            return acc + (item.quantity || 0);
-        }
-        return acc;
-    }, 0);
-    return totalUnidades / briefingItem.asistentes;
-  }, [watchedItems, briefingItem]);
+    const ratio = briefingItem?.asistentes && briefingItem.asistentes > 0 ? totalUnits / briefingItem.asistentes : 0;
+    
+    return {
+        totalPedido: total,
+        ratioUnidadesPorPax: ratio,
+    }
+  }, [watchedItems, briefingItem?.asistentes]);
+
 
   useEffect(() => {
     if (osId && briefingItemId) {
@@ -144,7 +159,7 @@ function PedidoGastronomiaForm() {
         };
         localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
         toast({ title: 'Pedido de Gastronomía Guardado' });
-        router.push(`/os/${osId}/gastronomia`);
+        reset(data); // Mark form as not dirty
       }
     }
     setIsLoading(false);
@@ -152,7 +167,7 @@ function PedidoGastronomiaForm() {
   
   const handleSaveComment = () => {
     if (editingComment) {
-        const currentItems = watch('gastro_items');
+        const currentItems = getValues('gastro_items');
         currentItems[editingComment.index].comentarios = editingComment.text;
         update(editingComment.index, currentItems[editingComment.index]);
         setEditingComment(null);
@@ -170,14 +185,14 @@ function PedidoGastronomiaForm() {
       <Form {...form}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="flex items-center justify-between p-2 bg-muted rounded-md text-sm text-muted-foreground">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 text-sm">
                     <span>Para el servicio: <strong>{briefingItem.descripcion}</strong></span>
                     <span className="h-4 border-l"></span>
                     <span>{format(new Date(briefingItem.fecha), 'dd/MM/yyyy')} a las {briefingItem.horaInicio}h</span>
                     <span className="h-4 border-l"></span>
                     <span className="flex items-center gap-1.5"><Users size={16}/>{briefingItem.asistentes} asistentes</span>
                 </div>
-                <Button type="submit" disabled={isLoading}>
+                <Button type="submit" disabled={isLoading || !formState.isDirty}>
                     {isLoading ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2" />} 
                     Guardar Pedido
                 </Button>
