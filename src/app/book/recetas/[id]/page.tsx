@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -82,13 +81,13 @@ const recetaFormSchema = z.object({
   tipoDieta: z.enum(['VEGETARIANO', 'VEGANO', 'AMBOS', 'NINGUNO']),
   porcentajeCosteProduccion: z.coerce.number().optional().default(30),
   elaboraciones: z.array(elaboracionEnRecetaSchema).default([]),
-  menajeAsociado: z.array(menajeEnRecetaSchema).default([]),
+  menajeAsociado: z.array(menajeEnRecetaSchema).optional().default([]),
   instruccionesMiseEnPlace: z.string().optional().default(''),
   fotosMiseEnPlaceURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
   instruccionesRegeneracion: z.string().optional().default(''),
   fotosRegeneracionURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
   instruccionesEmplatado: z.string().optional().default(''),
-  fotosEmplatadoURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
+  fotosEmplatadoURLs: z.array(z.object({ value: z.string().url("Debe be una URL válida") })).optional().default([]),
   perfilSaborPrincipal: z.enum(SABORES_PRINCIPALES).optional(),
   perfilSaborSecundario: z.array(z.string()).optional().default([]),
   perfilTextura: z.array(z.string()).optional().default([]),
@@ -201,7 +200,7 @@ function ImageUploadSection({ name, title, form }: { name: "fotosMiseEnPlaceURLs
         try {
             const url = new URL(newUrl);
             append({ value: url.href });
-            setNewImageUrl('');
+            setNewUrl('');
         } catch (e) {
             toast({ variant: 'destructive', title: 'URL inválida', description: 'Por favor, introduce una URL de imagen válida.' });
         }
@@ -307,8 +306,8 @@ export default function RecetaFormPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
-
-  const [dbElaboraciones, setDbElaboraciones] = useState<ElaborationConCoste[]>([]);
+  const [newImageUrl, setNewImageUrl] = useState("");
+  const [dbElaboraciones, setDbElaboraciones] = useState<ElaboracionConCoste[]>([]);
   const [dbMenaje, setDbMenaje] = useState<MenajeDB[]>([]);
   const [dbCategorias, setDbCategorias] = useState<CategoriaReceta[]>([]);
   const [dbTiposCocina, setDbTiposCocina] = useState<TipoCocina[]>([]);
@@ -486,7 +485,6 @@ export default function RecetaFormPage() {
   useEffect(() => {
     setUpdateTrigger(Date.now());
   }, [watchedElaboraciones]);
-
 
   const onAddElab = (elab: ElaboracionConCoste) => {
     appendElab({ id: `${elab.id}-${Date.now()}`, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [], unidad: elab.unidadProduccion, merma: 0 });
@@ -701,31 +699,36 @@ export default function RecetaFormPage() {
                       </CardContent>
                   </Card>
                   
-                    <Card>
-                        <CardHeader className="py-3 flex-row items-center justify-between">
-                            <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-                            <div>
-                                <Label>Coste Materia Prima</Label>
-                                <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
-                            </div>
-                            <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
-                                <FormItem>
-                                <Label>Imputación CPR (%)</Label>
-                                <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
-                                </FormItem>
-                            )} />
-                            <div className="text-right">
-                                <Label>PVP Teórico</Label>
-                                <p className="font-bold text-lg">{formatCurrency(precioVenta)}</p>
-                            </div>
-                            <div className="text-right">
-                                <Label>Margen Bruto</Label>
-                                <p className={cn("font-bold text-lg", margenBruto >= 0 ? "text-green-600" : "text-destructive")}>{formatCurrency(margenBruto)} ({formatPercentage(margenPct)})</p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                  <Card>
+                      <CardHeader className="py-3 flex-row items-center justify-between">
+                          <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
+                          <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={() => setUpdateTrigger(Date.now())}>
+                                  <RefreshCw className="h-4 w-4" />
+                              </Button>
+                              <div className="text-right">
+                                  <p className="text-sm font-semibold text-muted-foreground">PVP Teórico</p>
+                                  <p className="font-bold text-2xl text-green-600">{formatCurrency(precioVenta)}</p>
+                              </div>
+                          </div>
+                      </CardHeader>
+                      <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                      <div>
+                          <Label>Coste Materia Prima</Label>
+                          <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
+                      </div>
+                      <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
+                          <FormItem>
+                          <Label>Imputación CPR (%)</Label>
+                          <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
+                          </FormItem>
+                      )} />
+                      <div className="space-y-1 text-xs text-muted-foreground pt-2">
+                          <div className="flex justify-between"><span>Margen Bruto:</span><span>{formatCurrency(margenBruto)}</span></div>
+                          <div className="flex justify-between"><span>Margen %:</span><span>{formatPercentage(margenPct)}</span></div>
+                      </div>
+                  </CardContent>
+                  </Card>
 
 
                   <Card>
@@ -740,7 +743,7 @@ export default function RecetaFormPage() {
                                 <DialogTrigger asChild>
                                   <Button type="button" variant="outline" size="sm"><PlusCircle size={16} />Añadir Elaboración</Button>
                                 </DialogTrigger>
-                                <ComponenteSelector onSelectIngrediente={handleSelectIngrediente} onSelectElaboracion={handleSelectElaboracion} allElaboraciones={Array.from(dbElaboraciones.values())} />
+                                <ComponenteSelector onSelectIngrediente={() => {}} onSelectElaboracion={onAddElab} allElaboraciones={Array.from(dbElaboraciones.values())} />
                               </Dialog>
                           </div>
                       </CardHeader>
@@ -826,6 +829,3 @@ export default function RecetaFormPage() {
     </div>
   );
 }
-
-
-
