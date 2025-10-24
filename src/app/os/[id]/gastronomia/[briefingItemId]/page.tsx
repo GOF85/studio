@@ -1,18 +1,22 @@
 
+
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
+import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { PlusCircle, Trash2, Save, Pencil, Utensils, ArrowLeft } from 'lucide-react';
 import { format, parse } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { Utensils, ArrowLeft, Save, Trash2, PlusCircle, GripVertical } from 'lucide-react';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import type { ServiceOrder, GastronomyOrder, Receta, GastronomyOrderItem, GastronomyOrderStatus, ComercialBriefing, ComercialBriefingItem } from '@/types';
+import type { ServiceOrder, Receta, GastronomyOrderItem, GastronomyOrderStatus, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -21,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -32,12 +37,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { z } from 'zod';
+import { Form, FormControl, FormField } from '@/components/ui/form';
 
 const statusOptions: GastronomyOrderStatus[] = ['Pendiente', 'En preparación', 'Listo', 'Incidencia'];
 const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -46,7 +47,6 @@ const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' |
   Listo: 'default',
   Incidencia: 'destructive',
 };
-
 
 const gastronomyOrderItemSchema = z.object({
   id: z.string(),
@@ -180,7 +180,6 @@ export default function PedidoGastronomiaPage() {
 
   const [isMounted, setIsMounted] = useState(false);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [gastronomyOrder, setGastronomyOrder] = useState<GastronomyOrder | null>(null);
   const [briefingItem, setBriefingItem] = useState<ComercialBriefingItem | null>(null);
   const [isRecetaSelectorOpen, setIsRecetaSelectorOpen] = useState(false);
   const { toast } = useToast();
@@ -211,20 +210,16 @@ export default function PedidoGastronomiaPage() {
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       setServiceOrder(allServiceOrders.find(os => os.id === osId) || null);
 
-      const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-      const order = allGastroOrders.find(o => o.id === briefingItemId && o.osId === osId);
-      
       const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
       const currentBriefing = allBriefings.find(b => b.osId === osId);
       const hito = currentBriefing?.items.find(i => i.id === briefingItemId);
       setBriefingItem(hito || null);
       
-      if (order) {
-        setGastronomyOrder(order);
+      if (hito) {
         form.reset({
-          id: order.id,
-          status: order.status,
-          items: order.items || [],
+          id: hito.id,
+          status: hito.status || 'Pendiente',
+          items: hito.items || [],
         });
       }
     }
@@ -269,25 +264,28 @@ export default function PedidoGastronomiaPage() {
         }
         return acc;
     }, 0);
-  }, [fields, form.watch('items')]); // watch items for changes
+  }, [fields, form.watch('items')]); 
 
   const onSubmit = (data: GastronomyOrderFormValues) => {
-    const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-    const index = allGastroOrders.findIndex(o => o.id === briefingItemId && o.osId === osId);
+    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+    const briefingIndex = allBriefings.findIndex(b => b.osId === osId);
 
-    if (index > -1) {
-      allGastroOrders[index] = {
-        ...allGastroOrders[index],
-        status: data.status,
-        items: data.items,
-        total: totalPedido,
-      };
+    if (briefingIndex > -1) {
+      const hitoIndex = allBriefings[briefingIndex].items.findIndex(i => i.id === briefingItemId);
+      if (hitoIndex > -1) {
+        allBriefings[briefingIndex].items[hitoIndex] = {
+          ...allBriefings[briefingIndex].items[hitoIndex],
+          status: data.status,
+          items: data.items,
+          total: totalPedido,
+        };
 
-      localStorage.setItem('gastronomyOrders', JSON.stringify(allGastroOrders));
-      toast({ title: "Pedido guardado", description: "Los cambios en el pedido de gastronomía han sido guardados." });
-      router.push(`/os/${osId}/gastronomia`);
+        localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
+        toast({ title: "Pedido guardado", description: "Los cambios en el pedido de gastronomía han sido guardados." });
+        router.push(`/os/${osId}/gastronomia`);
+      }
     } else {
-      toast({ variant: "destructive", title: "Error", description: "No se pudo encontrar el pedido a actualizar." });
+      toast({ variant: "destructive", title: "Error", description: "No se pudo encontrar el briefing a actualizar." });
     }
   };
 
@@ -404,6 +402,5 @@ export default function PedidoGastronomiaPage() {
             </form>
         </Form>
     </main>
-    );
+  );
 }
-

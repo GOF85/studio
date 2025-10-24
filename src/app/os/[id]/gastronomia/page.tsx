@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { Utensils, ArrowLeft } from 'lucide-react';
-import type { ServiceOrder, ComercialBriefing, GastronomyOrderItem, GastronomyOrderStatus, ComercialBriefingItem } from '@/types';
+import type { ServiceOrder, ComercialBriefing, GastronomyOrder, GastronomyOrderStatus, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -30,7 +30,7 @@ const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' |
 };
 
 export default function GastronomiaPage() {
-  const [briefing, setBriefing] = useState<ComercialBriefing | null>(null);
+  const [gastronomyItems, setGastronomyItems] = useState<ComercialBriefingItem[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   
   const router = useRouter();
@@ -38,38 +38,38 @@ export default function GastronomiaPage() {
   const osId = params.id as string;
   const { toast } = useToast();
 
-  const loadBriefing = useCallback(() => {
+  const loadAndSyncData = useCallback(() => {
     if (!osId) return;
 
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const currentBriefing = allBriefings.find(b => b.osId === osId);
     
-    if (currentBriefing) {
-        setBriefing(currentBriefing);
-    } else {
-        // If no briefing exists, create one, assuming OS exists.
-        const newBriefing = { osId, items: [] };
+    if (!currentBriefing) {
+        // If no briefing, create one. This case should ideally be handled when an OS is created.
+        const newBriefing: ComercialBriefing = { osId, items: [] };
         allBriefings.push(newBriefing);
         localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
-        setBriefing(newBriefing);
+        setGastronomyItems([]);
+        return;
     }
+
+    const gastronomicHitos = currentBriefing.items.filter(item => item.conGastronomia);
+    
+    setGastronomyItems(gastronomicHitos);
     
   }, [osId]);
 
   useEffect(() => {
-    loadBriefing();
+    loadAndSyncData();
     setIsMounted(true);
     
-    const handleStorageChange = () => loadBriefing();
+    const handleStorageChange = () => loadAndSyncData();
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [loadBriefing]);
+  }, [loadAndSyncData]);
 
   const sortedGastronomyItems = useMemo(() => {
-    if (!briefing?.items) return [];
-    
-    return [...briefing.items]
-        .filter(item => item.conGastronomia)
+    return [...gastronomyItems]
         .sort((a, b) => {
             const dateA = new Date(a.fecha);
             const dateB = new Date(b.fecha);
@@ -77,7 +77,7 @@ export default function GastronomiaPage() {
             if (dateComparison !== 0) return dateComparison;
             return a.horaInicio.localeCompare(b.horaInicio);
     });
-  }, [briefing]);
+  }, [gastronomyItems]);
   
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Módulo de Gastronomía..." />;
