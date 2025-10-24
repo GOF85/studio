@@ -193,23 +193,30 @@ export default function PedidoGastronomiaPage() {
 
   useEffect(() => {
     if (osId && briefingItemId) {
-      const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-      setServiceOrder(allServiceOrders.find(os => os.id === osId) || null);
+        const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
+        const currentOS = allServiceOrders.find(os => os.id === osId);
+        setServiceOrder(currentOS || null);
 
-      const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
-      const currentOrder = allGastroOrders.find(o => o.id === briefingItemId);
-      setGastronomyOrder(currentOrder || null);
-      
-      if (currentOrder) {
-        form.reset({
-          id: currentOrder.id,
-          status: currentOrder.status || 'Pendiente',
-          items: currentOrder.items || [],
-        });
-      }
+        if (!currentOS) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Orden de Servicio no encontrada.'});
+            router.push('/pes');
+            return;
+        }
+
+        const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+        const currentOrder = allGastroOrders.find(o => o.id === briefingItemId && o.osId === osId);
+        
+        if (currentOrder) {
+            setGastronomyOrder(currentOrder);
+            form.reset({
+                id: currentOrder.id,
+                status: currentOrder.status || 'Pendiente',
+                items: currentOrder.items || [],
+            });
+        }
     }
     setIsMounted(true);
-  }, [osId, briefingItemId, form]);
+  }, [osId, briefingItemId, form, router, toast]);
 
   const onSelectReceta = (receta: Receta) => {
     const existingIndex = fields.findIndex(item => item.id === receta.id);
