@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -44,7 +45,7 @@ import { formatCurrency, formatUnit } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
 import { Loader2 } from 'lucide-react';
-import { AllergenIcon } from '@/components/icons/allergen-icon';
+import { AllergenBadge } from '@/components/icons/allergen-badge';
 
 const CSV_HEADERS_ELABORACIONES = [ "id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion" ];
 const CSV_HEADERS_COMPONENTES = [ "id_elaboracion_padre", "tipo_componente", "id_componente", "cantidad", "merma" ];
@@ -347,7 +348,7 @@ function ElaboracionesListPage() {
                   <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {(item.alergenosCalculados || []).map(alergeno => (
-                            <AllergenIcon key={alergeno} allergen={alergeno} />
+                            <AllergenBadge key={alergeno} allergen={alergeno} />
                         ))}
                       </div>
                     </TableCell>
@@ -519,8 +520,8 @@ function ElaborationFormPage() {
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" type="button" onClick={() => router.push('/book/elaboraciones')}> <X className="mr-2"/> Cancelar</Button>
-                    <Button type="submit" form="elaboration-form" disabled={isSubmitting}>
-                    {isSubmitting ? <Loader2 className="animate-spin" /> : <Save />}
+                    <Button type="submit" form="elaboration-form" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
                     <span className="ml-2">{isNew || cloneId ? 'Guardar Elaboración' : 'Guardar Cambios'}</span>
                     </Button>
                 </div>
@@ -529,7 +530,7 @@ function ElaborationFormPage() {
                  <ElaborationForm
                     initialData={initialData}
                     onSave={onSubmit}
-                    isSubmitting={isSubmitting}
+                    isSubmitting={isLoading}
                 />
             )}
       </main>

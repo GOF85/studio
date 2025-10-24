@@ -1,5 +1,9 @@
+
 'use client';
 import * as React from 'react';
+
+// This file is no longer in use and will be removed in a future cleanup.
+// Please use the AllergenBadge component instead.
 const Gluten = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" {...props}>
     <path

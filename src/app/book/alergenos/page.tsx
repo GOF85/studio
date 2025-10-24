@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MultiSelect } from '@/components/ui/multi-select';
-import { AllergenIcon } from '@/components/icons/allergen-icon';
+import { AllergenBadge } from '@/components/icons/allergen-badge';
 
 export default function AlergenosPage() {
   const [recetas, setRecetas] = useState<Receta[]>([]);
@@ -121,7 +121,7 @@ export default function AlergenosPage() {
                     <TableCell>
                       <div className="flex flex-wrap gap-1.5">
                         {(receta.alergenos || []).map(alergeno => (
-                            <AllergenIcon key={alergeno} allergen={alergeno} />
+                            <AllergenBadge key={alergeno} allergen={alergeno} />
                         ))}
                       </div>
                     </TableCell>
