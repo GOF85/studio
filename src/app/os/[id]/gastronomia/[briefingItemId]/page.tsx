@@ -289,8 +289,7 @@ export default function PedidoGastronomiaPage() {
   }
 
   return (
-    <>
-      <main>
+    <main>
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-center justify-between mb-8">
@@ -319,7 +318,7 @@ export default function PedidoGastronomiaPage() {
                             />
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" type="button" onClick={() => router.push(`/os/${osId}/gastronomia`)}> <X className="mr-2"/> Cancelar</Button>
+                        <Button variant="outline" type="button" onClick={() => router.push(`/os/${osId}/gastronomia`)}> <ArrowLeft className="mr-2"/> Cancelar</Button>
                         <Button type="submit"><Save className="mr-2" /> Guardar Pedido</Button>
                     </div>
                 </div>
@@ -396,8 +395,6 @@ export default function PedidoGastronomiaPage() {
                 </Card>
             </form>
         </Form>
-    </>
     </main>
-    </>
   );
 }
