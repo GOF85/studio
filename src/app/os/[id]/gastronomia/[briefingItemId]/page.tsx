@@ -2,33 +2,31 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Save, Trash2, PlusCircle, Loader2, MessageSquare, Users, FilePenLine } from 'lucide-react';
+import { Save, Trash2, PlusCircle, Loader2, MessageSquare, Users } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, Receta, GastronomyOrderStatus } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { formatCurrency } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
+import { formatCurrency, formatNumber } from '@/lib/utils';
 import { RecetaSelector } from '@/components/os/gastronomia/receta-selector';
 
 const gastroItemSchema = z.object({
   id: z.string(),
   type: z.enum(['item', 'separator']),
   nombre: z.string(),
-  categoria: z.string().optional(),
   costeMateriaPrima: z.number().optional(),
   precioVenta: z.number().optional(),
   quantity: z.number().optional(),
@@ -65,9 +63,9 @@ function PedidoGastronomiaForm() {
     },
   });
 
-  const { control, handleSubmit, reset } = form;
+  const { control, handleSubmit, reset, watch, setValue } = form;
   const { fields, append, remove, update } = useFieldArray({ control, name: "gastro_items" });
-  const watchedItems = form.watch('gastro_items');
+  const watchedItems = watch('gastro_items');
 
   const totalPedido = useMemo(() => {
     return watchedItems.reduce((acc, item) => {
@@ -77,6 +75,17 @@ function PedidoGastronomiaForm() {
         return acc;
     }, 0);
   }, [watchedItems]);
+
+  const ratioUnidadesPorPax = useMemo(() => {
+    if (!briefingItem || briefingItem.asistentes === 0) return 0;
+    const totalUnidades = watchedItems.reduce((acc, item) => {
+        if (item.type === 'item') {
+            return acc + (item.quantity || 0);
+        }
+        return acc;
+    }, 0);
+    return totalUnidades / briefingItem.asistentes;
+  }, [watchedItems, briefingItem]);
 
   useEffect(() => {
     if (osId && briefingItemId) {
@@ -102,7 +111,6 @@ function PedidoGastronomiaForm() {
         id: receta.id,
         type: 'item',
         nombre: receta.nombre,
-        categoria: receta.categoria,
         costeMateriaPrima: receta.costeMateriaPrima,
         precioVenta: receta.precioVenta,
         quantity: briefingItem?.asistentes || 1,
@@ -143,11 +151,14 @@ function PedidoGastronomiaForm() {
   
   const handleSaveComment = () => {
     if (editingComment) {
-        update(editingComment.index, { ...watchedItems[editingComment.index], comentarios: editingComment.text });
+        const currentItems = watch('gastro_items');
+        currentItems[editingComment.index].comentarios = editingComment.text;
+        update(editingComment.index, currentItems[editingComment.index]);
         setEditingComment(null);
         toast({title: 'Comentario guardado.'});
     }
   };
+
 
   if (!isMounted || !briefingItem) {
     return <LoadingSkeleton title="Cargando pedido de gastronomía..." />;
@@ -182,9 +193,15 @@ function PedidoGastronomiaForm() {
                         <RecetaSelector onSelect={onAddReceta} />
                     </Dialog>
                 </div>
-                <div className="text-right">
-                    <p className="text-sm font-medium text-muted-foreground">Total Pedido</p>
-                    <p className="text-2xl font-bold text-primary">{formatCurrency(totalPedido)}</p>
+                 <div className="flex items-center gap-6">
+                    <div className="text-right">
+                        <p className="text-sm font-medium text-muted-foreground">Ratio (uds/pax)</p>
+                        <p className="text-xl font-bold">{formatNumber(ratioUnidadesPorPax, 1)}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-sm font-medium text-muted-foreground">Total Pedido</p>
+                        <p className="text-2xl font-bold text-primary">{formatCurrency(totalPedido)}</p>
+                    </div>
                 </div>
             </CardHeader>
             <CardContent className="pt-0">
@@ -244,7 +261,7 @@ function PedidoGastronomiaForm() {
                                 </TableRow>
                             )
                         )) : (
-                            <TableRow><TableCell colSpan={6} className="text-center h-24">No hay platos en este pedido.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={5} className="text-center h-24">No hay platos en este pedido.</TableCell></TableRow>
                         )}
                     </TableBody>
                 </Table>
@@ -274,10 +291,12 @@ function PedidoGastronomiaForm() {
   );
 }
 
-export default function PedidoGastronomiaPage() {
+function PedidoGastronomiaPage() {
     return (
         <React.Suspense fallback={<LoadingSkeleton title="Cargando..." />}>
             <PedidoGastronomiaForm />
         </React.Suspense>
     );
 }
+
+export default PedidoGastronomiaPage;
