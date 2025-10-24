@@ -5,16 +5,16 @@ import { useEffect, useState, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Component, ChefHat, PlusCircle, Trash2, Image as ImageIcon, Link as LinkIcon, Component as SubElabIcon, RefreshCw } from 'lucide-react';
-import type { Elaboracion, IngredienteInterno, UnidadMedida, ArticuloERP, PartidaProduccion, FormatoExpedicion } from '@/types';
-import { UNIDADES_MEDIDA } from '@/types';
+import { Loader2, Component, ChefHat, PlusCircle, Trash2, Image as ImageIcon, Link as LinkIcon, Component as SubElabIcon, RefreshCw, Sprout } from 'lucide-react';
+import type { Elaboracion, IngredienteInterno, UnidadMedida, ArticuloERP, PartidaProduccion, FormatoExpedicion, Alergeno } from '@/types';
+import { UNIDADES_MEDIDA, ALERGENOS } from '@/types';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -23,6 +23,7 @@ import Image from 'next/image';
 import { Combobox } from '@/components/ui/combobox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { AllergenBadge } from '../icons/allergen-badge';
 
 const componenteSchema = z.object({
     id: z.string(),
@@ -223,44 +224,90 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
     }
   }
 
-  const { costeTotal, costePorUnidad } = useMemo(() => {
+  const { costeTotal, costePorUnidad, alergenosPresentes, alergenosTrazas } = useMemo(() => {
     let total = 0;
+    const presentes = new Set<Alergeno>();
+    const trazas = new Set<Alergeno>();
+
+    const getElabAllergens = (elabId: string): { presentes: Alergeno[], trazas: Alergeno[] } => {
+        const elaboracion = elaboracionesData.get(elabId);
+        if (!elaboracion) return { presentes: [], trazas: [] };
+        
+        const elabPresentes = new Set<Alergeno>();
+        const elabTrazas = new Set<Alergeno>();
+
+        (elaboracion.componentes || []).forEach(comp => {
+            if (comp.tipo === 'ingrediente') {
+                const ing = ingredientesData.get(comp.componenteId);
+                if (ing) {
+                    (ing.alergenosPresentes || []).forEach(a => elabPresentes.add(a));
+                    (ing.alergenosTrazas || []).forEach(a => elabTrazas.add(a));
+                }
+            } else if (comp.tipo === 'elaboracion') {
+                const subElabAllergens = getElabAllergens(comp.componenteId);
+                subElabAllergens.presentes.forEach(a => elabPresentes.add(a));
+                subElabAllergens.trazas.forEach(a => elabTrazas.add(a));
+            }
+        });
+        return { presentes: Array.from(elabPresentes), trazas: Array.from(elabTrazas) };
+    }
+
     (watchedComponentes || []).forEach(componente => {
         const costeConMerma = (componente.costePorUnidad || 0) * (1 + (componente.merma || 0) / 100);
         total += costeConMerma * componente.cantidad;
+
+        if (componente.tipo === 'ingrediente') {
+            const ingData = ingredientesData.get(componente.componenteId);
+            if (ingData) {
+                (ingData.alergenosPresentes || []).forEach(a => presentes.add(a));
+                (ingData.alergenosTrazas || []).forEach(a => trazas.add(a));
+            }
+        } else if (componente.tipo === 'elaboracion') {
+            const subElabAllergens = getElabAllergens(componente.componenteId);
+            subElabAllergens.presentes.forEach(a => presentes.add(a));
+            subElabAllergens.trazas.forEach(a => trazas.add(a));
+        }
     });
+
+    // Remove trazas if they are also present
+    trazas.forEach(traza => {
+        if(presentes.has(traza)) {
+            trazas.delete(traza);
+        }
+    })
+
     const produccionTotal = watchedProduccionTotal > 0 ? watchedProduccionTotal : 1;
     const porUnidad = total / produccionTotal;
-    return { costeTotal: total, costePorUnidad: porUnidad };
-  }, [watchedComponentes, watchedProduccionTotal]);
+    
+    return { 
+        costeTotal: total, 
+        costePorUnidad: porUnidad,
+        alergenosPresentes: Array.from(presentes).sort((a,b) => ALERGENOS.indexOf(a) - ALERGENOS.indexOf(b)),
+        alergenosTrazas: Array.from(trazas).sort((a,b) => ALERGENOS.indexOf(a) - ALERGENOS.indexOf(b)),
+    };
+  }, [watchedComponentes, watchedProduccionTotal, ingredientesData, elaboracionesData]);
   
   const handleFormSubmit = (data: ElaborationFormValues) => {
     onSave(data, costePorUnidad);
   };
   
   const forceRecalculate = () => {
-    // This is a bit of a hack, but it forces the useMemo to re-run by "touching" its dependencies
+    // This is a hack, but it forces the useMemo to re-run by "touching" its dependencies
     const currentValues = form.getValues('componentes');
     form.setValue('componentes', [...currentValues]);
+    toast({title: 'Cálculo forzado', description: 'Los costes y alérgenos han sido recalculados.'});
   }
 
   return (
     <TooltipProvider>
     <Form {...form}>
       <form id="elaboration-form" onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+        <div className="grid lg:grid-cols-[1fr_320px] gap-4 items-start">
+        <div className="space-y-4">
         <Card>
             <CardHeader className="flex flex-row justify-between items-start py-3">
                 <div>
                     <CardTitle className="text-lg">Información General</CardTitle>
-                </div>
-                <div className="text-right">
-                    <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
-                            <RefreshCw className="h-4 w-4" />
-                        </Button>
-                        <p className="text-xs text-muted-foreground">Coste / {formatUnit(form.watch('unidadProduccion'))}</p>
-                    </div>
-                    <p className="font-bold text-xl text-primary">{formatCurrency(costePorUnidad)}</p>
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -269,7 +316,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                         <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Nombre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="partidaProduccion" render={({ field }) => (
-                        <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Partida de Producción</FormLabel>
+                        <FormItem className="flex-1 flex items-center gap-2"><FormLabel>Partida</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                 <SelectContent>
@@ -446,6 +493,52 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                     </div>
                 </CardContent>
             </Card>
+        </div>
+        </div>
+        <div className="space-y-4">
+             <Card className="sticky top-24">
+                <CardHeader className="flex-row items-start justify-between">
+                    <CardTitle className="text-lg">Coste de la Elaboración</CardTitle>
+                    <div className="text-right">
+                        <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
+                                <RefreshCw className="h-4 w-4" />
+                            </Button>
+                            <p className="text-xs text-muted-foreground">Coste / {formatUnit(form.watch('unidadProduccion'))}</p>
+                        </div>
+                        <p className="font-bold text-xl text-primary">{formatCurrency(costePorUnidad)}</p>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-muted-foreground">Coste total de materia prima: {formatCurrency(costeTotal)}</p>
+                </CardContent>
+                 <CardFooter className="flex-col items-start gap-3">
+                    <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm"><Sprout/>Resumen de Alérgenos</h4>
+                    <div className="w-full space-y-2">
+                        <div>
+                            <p className="text-xs font-bold text-muted-foreground mb-1">Presentes:</p>
+                            <div className="border rounded-md p-2 w-full bg-background min-h-8">
+                                {alergenosPresentes.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {alergenosPresentes.map(a => <AllergenBadge key={a} allergen={a}/>)}
+                                    </div>
+                                ) : <p className="text-xs text-muted-foreground italic">Ninguno</p>}
+                            </div>
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold text-muted-foreground mb-1">Trazas:</p>
+                            <div className="border rounded-md p-2 w-full bg-background min-h-8">
+                                {alergenosTrazas.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {alergenosTrazas.map(a => <AllergenBadge key={a} allergen={a} isTraza/>)}
+                                    </div>
+                                ) : <p className="text-xs text-muted-foreground italic">Ninguna</p>}
+                            </div>
+                        </div>
+                    </div>
+                 </CardFooter>
+            </Card>
+        </div>
         </div>
       </form>
     </Form>
