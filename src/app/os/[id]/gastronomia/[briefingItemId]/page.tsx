@@ -1,48 +1,24 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
-import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { PlusCircle, Trash2, Save, Pencil, Check, Utensils } from 'lucide-react';
-import { format, differenceInMinutes, parse } from 'date-fns';
+import { PlusCircle, Trash2, Save, ArrowLeft, Utensils } from 'lucide-react';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import type { ServiceOrder, Receta, GastronomyOrderItem, GastronomyOrderStatus, ComercialBriefing, ComercialBriefingItem, TipoServicio } from '@/types';
+import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, GastronomyOrderStatus, Receta, TipoServicio } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 const gastronomyOrderItemSchema = z.object({
   id: z.string(),
@@ -61,218 +37,66 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-function RecetaSelector({ onSelectReceta }: { onSelectReceta: (receta: Receta) => void }) {
-  const [recetasDB, setRecetasDB] = useState<Receta[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-
-  useEffect(() => {
-    const storedData = localStorage.getItem('recetas') || '[]';
-    setRecetasDB(JSON.parse(storedData));
-  }, []);
-
-  const categories = useMemo(() => ['all', ...new Set(recetasDB.map(item => item.categoria).filter(Boolean))], [recetasDB]);
-
-  const filteredItems = useMemo(() => {
-    return recetasDB.filter(item => {
-      const matchesCategory = selectedCategory === 'all' || item.categoria === selectedCategory;
-      const matchesSearch = item.nombre.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesCategory && matchesSearch;
-    });
-  }, [recetasDB, searchTerm, selectedCategory]);
-
-  return (
-    <DialogContent className="max-w-4xl">
-      <DialogHeader>
-        <DialogTitle>Seleccionar Receta del Book</DialogTitle>
-      </DialogHeader>
-      <div className="flex gap-4 my-4">
-        <Input placeholder="Buscar por nombre..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-[240px]"><SelectValue placeholder="Categoría" /></SelectTrigger>
-          <SelectContent>
-            {categories.map(cat => <SelectItem key={cat} value={cat}>{cat === 'all' ? 'Todas' : cat}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="max-h-[60vh] overflow-y-auto border rounded-md">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre Receta</TableHead>
-              <TableHead>Categoría</TableHead>
-              <TableHead>PVP</TableHead>
-              <TableHead>Acción</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredItems.map(receta => (
-              <TableRow key={receta.id}>
-                <TableCell className="font-medium">{receta.nombre}</TableCell>
-                <TableCell>{receta.categoria}</TableCell>
-                <TableCell>{(receta.precioVenta || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                <TableCell><Button size="sm" onClick={() => onSelectReceta(receta)}>Añadir</Button></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </DialogContent>
-  );
-}
-
-function SortableTableRow({ field, index, remove, form }: { field: GastronomyOrderItem & { key: string }, index: number, remove: (index: number) => void, form: any }) {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
-
-    return (
-        <TableRow ref={setNodeRef} style={style} {...attributes}>
-             <TableCell className="py-1 px-2 w-10">
-                <Button type="button" variant="ghost" size="icon" {...listeners} className="cursor-grab h-8 w-8">
-                    <GripVertical className="h-4 w-4 text-muted-foreground"/>
-                </Button>
-            </TableCell>
-            {field.type === 'item' ? (
-                <>
-                    <TableCell className="font-medium">{field.nombre}</TableCell>
-                    <TableCell>{field.categoria}</TableCell>
-                    <TableCell>{(field.precioVenta || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                    <TableCell>
-                        <Input 
-                            type="number" 
-                            min="1" 
-                            className="w-20"
-                            {...form.register(`gastro_items.${index}.quantity`)}
-                        />
-                    </TableCell>
-                    <TableCell>{((field.precioVenta || 0) * (form.watch(`gastro_items.${index}.quantity`) || 0)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</TableCell>
-                </>
-            ) : (
-                <TableCell colSpan={5} className="font-bold bg-muted/50">
-                    <Input 
-                        className="border-none bg-transparent h-auto p-0 text-base"
-                        {...form.register(`gastro_items.${index}.nombre`)}
-                    />
-                </TableCell>
-            )}
-            <TableCell className={cn("text-right", field.type === 'separator' && 'bg-muted/50')}>
-                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove(index)} type="button">
-                    <Trash2 className="h-4 w-4" />
-                </Button>
-            </TableCell>
-        </TableRow>
-    );
-}
-
-const statusOptions: GastronomyOrderStatus[] = ['Pendiente', 'En preparación', 'Listo', 'Incidencia'];
-const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
-  Pendiente: 'secondary',
-  'En preparación': 'outline',
-  Listo: 'default',
-  Incidencia: 'destructive',
-};
-
-
 export default function PedidoGastronomiaPage() {
   const router = useRouter();
   const params = useParams();
   const osId = params.id as string;
   const briefingItemId = params.briefingItemId as string;
 
-  const [isMounted, setIsMounted] = useState(false);
-  const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-  const [briefingItem, setBriefingItem] = useState<ComercialBriefingItem | null>(null);
-  const [isRecetaSelectorOpen, setIsRecetaSelectorOpen] = useState(false);
   const { toast } = useToast();
+  const [isMounted, setIsMounted] = useState(false);
+  
+  // --- Estados de depuración ---
+  const [debugOs, setDebugOs] = useState<ServiceOrder | null>(null);
+  const [debugBriefing, setDebugBriefing] = useState<ComercialBriefing | null>(null);
+  const [debugHito, setDebugHito] = useState<ComercialBriefingItem | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-  });
-
-  const { control, handleSubmit } = form;
-
-  const { fields, append, remove, update, move } = useFieldArray({
-    control: form.control,
-    name: "gastro_items",
-    keyName: "key",
-  });
-  
-  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-        const oldIndex = fields.findIndex(f => f.id === active.id);
-        const newIndex = fields.findIndex(f => f.id === over.id);
-        move(oldIndex, newIndex);
+    defaultValues: {
+        gastro_status: 'Pendiente',
+        gastro_items: [],
     }
-  }
+  });
+
+  const { control, handleSubmit, reset } = form;
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "gastro_items",
+  });
 
   useEffect(() => {
     if (osId && briefingItemId) {
+      try {
         const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
         const currentOS = allServiceOrders.find(os => os.id === osId);
-        setServiceOrder(currentOS || null);
+        setDebugOs(currentOS || null);
 
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
         const currentBriefing = allBriefings.find(b => b.osId === osId);
-        const currentHito = currentBriefing?.items.find(i => i.id === briefingItemId);
-        
-        if (currentHito) {
-            setBriefingItem(currentHito);
-            form.reset({
-                gastro_status: currentHito.gastro_status || 'Pendiente',
-                gastro_items: currentHito.gastro_items || [],
-            });
+        setDebugBriefing(currentBriefing || null);
+
+        if (currentBriefing) {
+            const currentHito = currentBriefing.items.find(item => item.id === briefingItemId);
+            setDebugHito(currentHito || null);
+            if (currentHito) {
+                reset({
+                    gastro_status: currentHito.gastro_status || 'Pendiente',
+                    gastro_items: currentHito.gastro_items || [],
+                });
+            }
         }
+      } catch (e) {
+        console.error("Error loading data:", e);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar los datos. La información puede estar corrupta.' });
+      }
     }
     setIsMounted(true);
-  }, [osId, briefingItemId, form]);
-
-  const onSelectReceta = (receta: Receta) => {
-    const existingIndex = fields.findIndex(item => item.id === receta.id);
-    if (existingIndex > -1) {
-      const existingItem = fields[existingIndex];
-      update(existingIndex, { ...existingItem, quantity: (existingItem.quantity || 0) + 1 });
-    } else {
-      append({
-        id: receta.id,
-        type: 'item',
-        nombre: receta.nombre,
-        categoria: receta.categoria,
-        costeMateriaPrima: receta.costeMateriaPrima,
-        precioVenta: receta.precioVenta,
-        quantity: 1,
-      });
-    }
-    toast({ title: "Plato añadido", description: `${receta.nombre} ha sido añadido al pedido.` });
-  };
-  
-  const addSeparator = () => {
-    append({
-        id: Date.now().toString(),
-        type: 'separator',
-        nombre: 'Nuevo Separador',
-        categoria: '',
-        costeMateriaPrima: 0,
-        precioVenta: 0,
-        quantity: 0
-    });
-  }
-  
-  const totalPedido = useMemo(() => {
-    return fields.reduce((acc, item) => {
-        if(item.type === 'item') {
-            return acc + ((item.precioVenta || 0) * (item.quantity || 0));
-        }
-        return acc;
-    }, 0);
-  }, [fields, form.watch('gastro_items')]); 
+  }, [osId, briefingItemId, reset, toast]);
 
   const onSubmit = (data: FormValues) => {
+    // Lógica de guardado que ya funcionaba
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const briefingIndex = allBriefings.findIndex(b => b.osId === osId);
 
@@ -284,13 +108,10 @@ export default function PedidoGastronomiaPage() {
             gastro_status: data.gastro_status,
             gastro_items: data.gastro_items,
         };
-
         localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
         toast({ title: "Pedido guardado", description: "Los cambios en el pedido de gastronomía han sido guardados." });
         router.push(`/os/${osId}/gastronomia`);
       }
-    } else {
-      toast({ variant: "destructive", title: "Error", description: "No se pudo encontrar el briefing a actualizar." });
     }
   };
 
@@ -300,131 +121,62 @@ export default function PedidoGastronomiaPage() {
 
   return (
     <main>
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 my-4 rounded-md">
-            <h3 className="font-bold">Información de Depuración</h3>
-            <pre className="text-xs whitespace-pre-wrap font-mono">
-                osId: {osId ?? 'No encontrado'}\n
-                briefingItemId: {briefingItemId ?? 'No encontrado'}\n
-                Service Order Encontrado: {serviceOrder ? 'Sí' : 'No'}\n
-                Hito del Briefing Encontrado: {briefingItem ? 'Sí' : 'No'}\n
-                Datos del Hito: {JSON.stringify(briefingItem, null, 2)}
-            </pre>
+        <div className="flex items-center justify-between mb-4">
+            <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/gastronomia`)}>
+                <ArrowLeft className="mr-2" /> Volver al listado
+            </Button>
+            <h1 className="text-xl font-bold">Debug Info</h1>
+        </div>
+        
+        {/* Bloques de Depuración Visual */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <Card>
+                <CardHeader><CardTitle>ServiceOrder (OS)</CardTitle></CardHeader>
+                <CardContent className="text-xs max-h-48 overflow-y-auto"><pre>{JSON.stringify(debugOs, null, 2)}</pre></CardContent>
+            </Card>
+            <Card>
+                <CardHeader><CardTitle>ComercialBriefing</CardTitle></CardHeader>
+                <CardContent className="text-xs max-h-48 overflow-y-auto"><pre>{JSON.stringify(debugBriefing, null, 2)}</pre></CardContent>
+            </Card>
+            <Card>
+                <CardHeader><CardTitle>BriefingItem (Hito)</CardTitle></CardHeader>
+                <CardContent className="text-xs max-h-48 overflow-y-auto"><pre>{JSON.stringify(debugHito, null, 2)}</pre></CardContent>
+            </Card>
         </div>
 
-        {!briefingItem ? (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-destructive">Error de Carga</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p>No se han podido cargar los datos para este pedido de gastronomía. La información de depuración de arriba puede ayudar a identificar el problema.</p>
-                     <Button onClick={() => router.push(`/os/${osId}/gastronomia`)} className="mt-4">Volver al listado</Button>
-                </CardContent>
-            </Card>
+        {!debugHito ? (
+             <Card>
+                <CardHeader><CardTitle className="text-destructive">Error de Carga</CardTitle></CardHeader>
+                <CardContent><p>No se han podido cargar los datos para este pedido. Revisa la información de depuración de arriba.</p></CardContent>
+             </Card>
         ) : (
             <Form {...form}>
                 <form onSubmit={handleSubmit(onSubmit)}>
-                    <div className="flex items-center justify-between mb-8">
-                        <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/gastronomia`)} className="mb-2">
-                            <ArrowLeft className="mr-2" />
-                            Volver al listado
-                        </Button>
-                        <div className="flex items-center gap-2">
-                            <FormField
-                                control={form.control}
-                                name="gastro_status"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl>
-                                        <SelectTrigger className="w-[180px]">
-                                            <SelectValue placeholder="Estado" />
-                                        </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                        {statusOptions.map(status => (
-                                            <SelectItem key={status} value={status}>
-                                            <Badge variant={statusVariant[status]}>{status}</Badge>
-                                            </SelectItem>
-                                        ))}
-                                        </SelectContent>
-                                    </Select>
-                                    </FormItem>
-                                )}
-                                />
-                            <Button type="submit"><Save className="mr-2" /> Guardar Pedido</Button>
-                        </div>
-                    </div>
-
-                    <Card className="mb-8">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-3">{briefingItem.descripcion}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid md:grid-cols-4 gap-x-4 gap-y-1 text-sm pt-0">
-                            <div><span className="font-semibold text-muted-foreground">Fecha: </span>{format(new Date(briefingItem.fecha), 'dd/MM/yyyy')}</div>
-                            <div><span className="font-semibold text-muted-foreground">Hora: </span>{briefingItem.horaInicio}</div>
-                            <div><span className="font-semibold text-muted-foreground">Sala: </span>{briefingItem.sala}</div>
-                            <div><span className="font-semibold text-muted-foreground">Asistentes: </span>{briefingItem.asistentes}</div>
-                            {briefingItem.comentarios && (
-                                <div className="md:col-span-4"><span className="font-semibold text-muted-foreground">Comentarios: </span>{briefingItem.comentarios}</div>
-                            )}
-                        </CardContent>
-                    </Card>
-
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <CardTitle>Platos del pedido</CardTitle>
-                            <div className="flex gap-2">
-                                <Button variant="secondary" type="button" onClick={addSeparator}><PlusCircle className="mr-2"/>+ Separador</Button>
-                                <Dialog open={isRecetaSelectorOpen} onOpenChange={setIsRecetaSelectorOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="outline" type="button"><PlusCircle className="mr-2"/>Añadir plato</Button>
-                                    </DialogTrigger>
-                                    <RecetaSelector onSelectReceta={onSelectReceta} />
-                                </Dialog>
-                            </div>
+                        <CardHeader>
+                            <CardTitle>{debugHito.descripcion}</CardTitle>
+                            <CardDescription>
+                                Fecha: {format(new Date(debugHito.fecha), 'dd/MM/yyyy')} | Asistentes: {debugHito.asistentes}
+                            </CardDescription>
                         </CardHeader>
                         <CardContent>
-                        <div className="border rounded-lg">
-                            <DndContext sensors={sensors} onDragEnd={handleDragEnd} collisionDetection={closestCenter}>
                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-10"></TableHead>
-                                        <TableHead>Nombre del Plato</TableHead>
-                                        <TableHead>Categoría</TableHead>
-                                        <TableHead>PVP (Ud.)</TableHead>
-                                        <TableHead>Cantidad</TableHead>
-                                        <TableHead>Subtotal</TableHead>
-                                        <TableHead className="text-right">Acciones</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                                    <TableBody>
-                                        {fields.length > 0 ? (
-                                            fields.map((field, index) => (
-                                                <SortableTableRow key={field.key} field={{...field, key: field.id}} index={index} remove={remove} form={form} />
-                                            ))
-                                        ) : (
-                                            <TableRow>
-                                                <TableCell colSpan={7} className="h-24 text-center">
-                                                No hay platos en este pedido.
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </SortableContext>
+                                <TableHeader><TableRow><TableHead>Plato</TableHead><TableHead>Cantidad</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {fields.length > 0 ? fields.map((field, index) => (
+                                        <TableRow key={field.id}>
+                                            <TableCell>{field.nombre}</TableCell>
+                                            <TableCell>{field.quantity}</TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow><TableCell colSpan={2} className="text-center h-24">No hay platos en este pedido.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
                             </Table>
-                            </DndContext>
-                        </div>
                         </CardContent>
-                        {fields.length > 0 && (
-                            <CardFooter className="flex justify-end">
-                                <div className="text-xl font-bold">
-                                    Total Pedido: {totalPedido.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                                </div>
-                            </CardFooter>
-                        )}
+                         <CardFooter>
+                            <Button type="submit">Guardar</Button>
+                        </CardFooter>
                     </Card>
                 </form>
             </Form>
@@ -432,4 +184,3 @@ export default function PedidoGastronomiaPage() {
     </main>
   );
 }
-
