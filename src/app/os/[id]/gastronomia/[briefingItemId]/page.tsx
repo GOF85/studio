@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -148,7 +148,7 @@ function PedidoGastronomiaForm() {
     <main>
       <Form {...form}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <CardDescription className="flex items-center justify-between p-2 bg-muted rounded-md">
+          <div className="flex items-center justify-between p-2 bg-muted rounded-md text-muted-foreground">
                 <div className="flex items-center gap-4 text-sm">
                     <span>Para el servicio: <strong>{briefingItem.descripcion}</strong></span>
                     <span className="h-4 border-l"></span>
@@ -160,7 +160,7 @@ function PedidoGastronomiaForm() {
                     {isLoading ? <Loader2 className="animate-spin mr-2"/> : <Save className="mr-2" />} 
                     Guardar Pedido
                 </Button>
-            </CardDescription>
+          </div>
           
           <Card>
             <CardHeader className="flex-row justify-between items-center py-3">
@@ -270,4 +270,3 @@ export default function PedidoGastronomiaPage() {
         </React.Suspense>
     );
 }
-
