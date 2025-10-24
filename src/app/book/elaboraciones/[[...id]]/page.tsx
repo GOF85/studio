@@ -1,51 +1,49 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { PlusCircle, MoreHorizontal, Pencil, Trash2, Component, FileDown, FileUp, Menu, AlertTriangle, Copy, Download, Upload, Save, X } from 'lucide-react';
-import type { Elaboracion, Receta, IngredienteInterno, ArticuloERP, ComponenteElaboracion, Alergeno } from '@/types';
+import { useForm, useFieldArray, FieldErrors, FormProvider } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
+
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, MoreHorizontal, Copy, Download, Upload, Menu, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
+import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, ArticuloERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina, PartidaProduccion, ElaboracionEnReceta } from '@/types';
+import { SABORES_PRINCIPALES } from '@/types';
+
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { MultiSelect } from '@/components/ui/multi-select';
+import { Combobox } from '@/components/ui/combobox';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Slider } from '@/components/ui/slider';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
-import Papa from 'papaparse';
+import { formatCurrency, formatUnit, cn } from '@/lib/utils';
+import Image from 'next/image';
+import { AllergenBadge } from '@/components/icons/allergen-badge';
+import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { formatCurrency, formatUnit } from '@/lib/utils';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
-import { Loader2 } from 'lucide-react';
-import { AllergenBadge } from '@/components/icons/allergen-badge';
+import Papa from 'papaparse';
+
 
 const CSV_HEADERS_ELABORACIONES = [ "id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion" ];
 const CSV_HEADERS_COMPONENTES = [ "id_elaboracion_padre", "tipo_componente", "id_componente", "cantidad", "merma" ];
@@ -539,11 +537,22 @@ function ElaborationFormPage() {
 
 export default function ElaboracionesPage() {
     const params = useParams();
-    const isListPage = !params || !params.id || params.id.length === 0;
+    const searchParams = useSearchParams();
+    
+    const idParam = Array.isArray(params.id) ? params.id[0] : params.id;
+    const isListPage = !idParam;
+    
+    if (isListPage) {
+        return (
+            <Suspense fallback={<LoadingSkeleton title="Cargando elaboraciones..." />}>
+                <ElaboracionesListPage />
+            </Suspense>
+        );
+    }
 
     return (
-        <Suspense fallback={<LoadingSkeleton title="Cargando elaboraciones..." />}>
-            {isListPage ? <ElaboracionesListPage /> : <ElaborationFormPage />}
+        <Suspense fallback={<LoadingSkeleton title="Cargando elaboración..." />}>
+            <ElaborationFormPage />
         </Suspense>
     );
 }
