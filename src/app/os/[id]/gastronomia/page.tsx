@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
-import { Utensils, ArrowLeft } from 'lucide-react';
+import { Utensils } from 'lucide-react';
 import type { ServiceOrder, ComercialBriefing, GastronomyOrder, GastronomyOrderStatus } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,7 +62,7 @@ export default function GastronomiaPage() {
         } else {
             // Add new order
             needsUpdate = true;
-            return { ...briefingItem, osId, status: 'Pendiente' as GastronomyOrderStatus };
+            return { ...briefingItem, osId, status: 'Pendiente' as GastronomyOrderStatus, items: [], total: 0 };
         }
     });
 
@@ -127,7 +128,7 @@ export default function GastronomiaPage() {
                             sortedGastronomyOrders.map(order => (
                             <TableRow 
                                 key={order.id} 
-                                onClick={() => router.push(`/gastronomia/pedido?osId=${osId}&briefingItemId=${order.id}`)} 
+                                onClick={() => router.push(`/os/${osId}/gastronomia/${order.id}`)} 
                                 className={cn(
                                     "cursor-pointer", 
                                     order.descripcion.toLowerCase() === 'prueba de menu' && "bg-muted hover:bg-muted/80"

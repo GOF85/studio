@@ -1,21 +1,17 @@
 
-
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useForm, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { format } from 'date-fns';
-import { ArrowLeft, Save, Trash2, PlusCircle, Utensils, GripVertical } from 'lucide-react';
-import type { ServiceOrder, GastronomyOrder, Receta, GastronomyOrderItem, GastronomyOrderStatus } from '@/types';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { format, parse } from 'date-fns';
+import { Utensils, ArrowLeft, Save, Trash2, PlusCircle, GripVertical } from 'lucide-react';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+import type { ServiceOrder, GastronomyOrder, Receta, GastronomyOrderItem, GastronomyOrderStatus } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -24,10 +20,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -35,10 +31,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
-import { cn } from '@/lib/utils';
-
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { z } from 'zod';
 
 const statusOptions: GastronomyOrderStatus[] = ['Pendiente', 'En preparación', 'Listo', 'Incidencia'];
 const statusVariant: { [key in GastronomyOrderStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -175,9 +173,9 @@ function SortableTableRow({ field, index, remove, form }: { field: GastronomyOrd
 
 export default function PedidoGastronomiaPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const osId = searchParams.get('osId');
-  const briefingItemId = searchParams.get('briefingItemId');
+  const params = useParams();
+  const osId = params.id as string;
+  const briefingItemId = params.briefingItemId as string;
 
   const [isMounted, setIsMounted] = useState(false);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
@@ -292,18 +290,10 @@ export default function PedidoGastronomiaPage() {
 
   return (
     <>
-      <main className="container mx-auto px-4 py-8">
+      <main>
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/gastronomia`)} className="mb-2">
-                            <ArrowLeft className="mr-2" />
-                            Volver al Módulo
-                        </Button>
-                        <h1 className="text-3xl font-headline font-bold flex items-center gap-3"><Utensils />Pedido de Gastronomía</h1>
-                        <p className="text-muted-foreground">{gastronomyOrder.descripcion} para OS: {serviceOrder.serviceNumber}</p>
-                    </div>
                     <div className="flex items-center gap-2">
                          <FormField
                             control={form.control}
@@ -327,6 +317,9 @@ export default function PedidoGastronomiaPage() {
                                 </FormItem>
                             )}
                             />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" type="button" onClick={() => router.push(`/os/${osId}/gastronomia`)}> <X className="mr-2"/> Cancelar</Button>
                         <Button type="submit"><Save className="mr-2" /> Guardar Pedido</Button>
                     </div>
                 </div>
@@ -403,7 +396,8 @@ export default function PedidoGastronomiaPage() {
                 </Card>
             </form>
         </Form>
-      </main>
+    </>
+    </main>
     </>
   );
 }
