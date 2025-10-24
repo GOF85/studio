@@ -44,13 +44,33 @@ import { formatCurrency, formatUnit } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { ElaborationForm, type ElaborationFormValues } from '@/components/book/elaboration-form';
 import { Loader2 } from 'lucide-react';
+import { AllergenIcon } from '@/components/icons/allergen-icon';
 
 const CSV_HEADERS_ELABORACIONES = [ "id", "nombre", "produccionTotal", "unidadProduccion", "instruccionesPreparacion", "fotosProduccionURLs", "videoProduccionURL", "formatoExpedicion", "ratioExpedicion", "tipoExpedicion", "costePorUnidad", "partidaProduccion" ];
 const CSV_HEADERS_COMPONENTES = [ "id_elaboracion_padre", "tipo_componente", "id_componente", "cantidad", "merma" ];
 
+type ElaboracionConAlergenos = Elaboracion & { alergenosCalculados?: Alergeno[] };
+type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
+
+const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<string, IngredienteInterno>): Alergeno[] => {
+    if (!elaboracion || !elaboracion.componentes) {
+      return [];
+    }
+    const elabAlergenos = new Set<Alergeno>();
+    elaboracion.componentes.forEach(comp => {
+        if(comp.tipo === 'ingrediente') {
+            const ingData = ingredientesMap.get(comp.componenteId);
+            if (ingData) {
+              (ingData.alergenosPresentes || []).forEach(a => elabAlergenos.add(a));
+              (ingData.alergenosTrazas || []).forEach(a => elabAlergenos.add(a));
+            }
+        }
+    });
+    return Array.from(elabAlergenos);
+};
 
 function ElaboracionesListPage() {
-  const [items, setItems] = useState<Elaboracion[]>([]);
+  const [items, setItems] = useState<ElaboracionConAlergenos[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<Elaboracion | null>(null);
@@ -63,7 +83,18 @@ function ElaboracionesListPage() {
 
   useEffect(() => {
     let storedData = localStorage.getItem('elaboraciones');
-    setItems(storedData ? JSON.parse(storedData) : []);
+    const elaboraciones = storedData ? JSON.parse(storedData) : [];
+    
+    const storedIngredientes = localStorage.getItem('ingredientesInternos') || '[]';
+    const ingredientes = JSON.parse(storedIngredientes) as IngredienteInterno[];
+    const ingredientesMap = new Map(ingredientes.map(i => [i.id, i]));
+    
+    const elaboracionesConAlergenos = elaboraciones.map((elab: Elaboracion) => ({
+      ...elab,
+      alergenosCalculados: calculateElabAlergenos(elab, ingredientesMap)
+    }));
+
+    setItems(elaboracionesConAlergenos);
     setIsMounted(true);
   }, []);
 
@@ -143,7 +174,7 @@ function ElaboracionesListPage() {
 
   const handleExportElaboracionesCSV = () => {
     const dataToExport = items.map(item => {
-        const { componentes, ...rest } = item;
+        const { componentes, alergenosCalculados, ...rest } = item;
         return {
             ...rest,
             fotosProduccionURLs: JSON.stringify(item.fotosProduccionURLs || []),
@@ -302,8 +333,8 @@ function ElaboracionesListPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre Elaboración</TableHead>
-              <TableHead>Producción Total</TableHead>
               <TableHead>Coste / Unidad</TableHead>
+              <TableHead>Alérgenos</TableHead>
               <TableHead className="text-right w-24">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -312,8 +343,14 @@ function ElaboracionesListPage() {
               filteredItems.map(item => (
                 <TableRow key={item.id} >
                   <TableCell className="font-medium cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{item.nombre}</TableCell>
-                  <TableCell className="cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{item.produccionTotal} {formatUnit(item.unidadProduccion)}</TableCell>
                   <TableCell className="cursor-pointer" onClick={() => router.push(`/book/elaboraciones/${item.id}`)}>{formatCurrency(item.costePorUnidad)} / {formatUnit(item.unidadProduccion)}</TableCell>
+                  <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {(item.alergenosCalculados || []).map(alergeno => (
+                            <AllergenIcon key={alergeno} allergen={alergeno} />
+                        ))}
+                      </div>
+                    </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -382,7 +419,6 @@ function ElaboracionesListPage() {
     </TooltipProvider>
   );
 }
-
 
 function ElaborationFormPage() {
     const router = useRouter();
@@ -483,8 +519,8 @@ function ElaborationFormPage() {
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" type="button" onClick={() => router.push('/book/elaboraciones')}> <X className="mr-2"/> Cancelar</Button>
-                    <Button type="submit" form="elaboration-form" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="animate-spin" /> : <Save />}
+                    <Button type="submit" form="elaboration-form" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : <Save />}
                     <span className="ml-2">{isNew || cloneId ? 'Guardar Elaboración' : 'Guardar Cambios'}</span>
                     </Button>
                 </div>
@@ -493,7 +529,7 @@ function ElaborationFormPage() {
                  <ElaborationForm
                     initialData={initialData}
                     onSave={onSubmit}
-                    isSubmitting={isLoading}
+                    isSubmitting={isSubmitting}
                 />
             )}
       </main>
