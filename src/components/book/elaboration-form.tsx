@@ -1,5 +1,5 @@
 
-'use client';
+      'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -22,6 +22,7 @@ import { formatCurrency, formatUnit } from '@/lib/utils';
 import Image from 'next/image';
 import { Combobox } from '@/components/ui/combobox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 const componenteSchema = z.object({
     id: z.string(),
@@ -238,6 +239,7 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
   };
 
   return (
+    <TooltipProvider>
     <Form {...form}>
       <form id="elaboration-form" onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
         <Card>
@@ -316,12 +318,23 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
                                 const unidad = field.tipo === 'ingrediente'
                                     ? (componenteData as IngredienteConERP)?.erp?.unidad || 'UD'
                                     : (componenteData as Elaboracion)?.unidadProduccion || 'UD';
+                                
+                                const tooltipText = `Coste unitario: ${formatCurrency(field.costePorUnidad)} / ${formatUnit(unidad)}`;
 
                                 return (
                                     <TableRow key={field.id}>
-                                        <TableCell className="font-medium py-1 px-3 flex items-center gap-2">
-                                            {field.tipo === 'ingrediente' ? <ChefHat size={16} className="text-muted-foreground"/> : <SubElabIcon size={16} className="text-muted-foreground"/>}
-                                            {field.nombre}
+                                        <TableCell className="font-medium py-1 px-3">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <div className="flex items-center gap-2">
+                                                        {field.tipo === 'ingrediente' ? <ChefHat size={16} className="text-muted-foreground"/> : <SubElabIcon size={16} className="text-muted-foreground"/>}
+                                                        {field.nombre}
+                                                    </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{tooltipText}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
                                         </TableCell>
                                         <TableCell className="py-1 px-3">
                                             <FormField control={form.control} name={`componentes.${index}.cantidad`} render={({ field: qField }) => (
@@ -420,5 +433,8 @@ export function ElaborationForm({ initialData, onSave, isSubmitting }: { initial
         </div>
       </form>
     </Form>
+    </TooltipProvider>
   );
 }
+
+    
