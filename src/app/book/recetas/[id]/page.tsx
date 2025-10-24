@@ -12,7 +12,7 @@ import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSe
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { recipeDescriptionGenerator } from '@/ai/flows/recipe-description-generator';
 
-import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component } from 'lucide-react';
+import { Loader2, Save, X, BookHeart, Utensils, Sprout, GlassWater, Percent, PlusCircle, GripVertical, Trash2, Eye, Soup, Info, ChefHat, Package, Factory, Sparkles, TrendingUp, FilePenLine, Link as LinkIcon, Component, RefreshCw } from 'lucide-react';
 import type { Receta, Elaboracion, IngredienteInterno, MenajeDB, ArticuloERP, Alergeno, Personal, CategoriaReceta, SaborPrincipal, TipoCocina, PartidaProduccion, ElaboracionEnReceta } from '@/types';
 import { SABORES_PRINCIPALES } from '@/types';
 
@@ -34,7 +34,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Combobox } from '@/components/ui/combobox';
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Slider } from '@/components/ui/slider';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatUnit, cn } from '@/lib/utils';
@@ -48,7 +48,7 @@ const elaboracionEnRecetaSchema = z.object({
   elaboracionId: z.string(),
   nombre: z.string(),
   cantidad: z.coerce.number().min(0),
-  coste: z.coerce.number().default(0),
+  coste: z.coerce.number().optional().default(0),
   gramaje: z.coerce.number().default(0),
   alergenos: z.array(z.string()).optional().default([]),
   unidad: z.enum(['KG', 'L', 'UD']),
@@ -217,8 +217,8 @@ function ImageUploadSection({ name, title, form }: { name: "fotosMiseEnPlaceURLs
             />
             <div className="space-y-2 mt-2">
                 <div className="flex gap-2">
-                    <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="Pega una URL de imagen..." />
-                    <Button type="button" variant="outline" onClick={handleAdd}><LinkIcon className="mr-2" />Añadir</Button>
+                    <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="Pega una URL de imagen..."/>
+                    <Button type="button" variant="outline" onClick={handleAdd}><LinkIcon className="mr-2"/>Añadir</Button>
                 </div>
                 {form.formState.errors[name] && <p className="text-sm font-medium text-destructive">{(form.formState.errors[name] as any).message}</p>}
                 <div className="grid grid-cols-4 gap-2 pt-2">
@@ -313,7 +313,7 @@ export default function RecetaFormPage() {
   const [formatosServicio, setFormatosServicio] = useState<string[]>(['Cóctel (bocado)', 'Buffet', 'Emplatado en mesa', 'Estación de cocina en vivo (Showcooking)']);
   const [equipamientos, setEquipamientos] = useState<string[]>(['Horno de convección', 'Abatidor', 'Sifón', 'Roner']);
   const [etiquetasTendencia, setEtiquetasTendencia] = useState<string[]>(['Plant-based', 'Comfort food', 'Superalimentos', 'Kilómetro 0', 'Sin gluten', 'Keto']);
-
+  const [updateTrigger, setUpdateTrigger] = useState(0);
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
@@ -333,11 +333,13 @@ export default function RecetaFormPage() {
     const allPartidas = new Set<PartidaProduccion>();
 
     (watchedElaboraciones || []).forEach(elab => {
-        const costeConMerma = elab.coste * (1 + (elab.merma || 0) / 100);
-        coste += costeConMerma * elab.cantidad;
-        (elab.alergenos || []).forEach(a => allAlergenos.add(a as Alergeno));
-
         const elabData = dbElaboraciones.find(dbElab => dbElab.id === elab.elaboracionId);
+        const costeUnitarioReal = elabData?.costePorUnidad || 0;
+        const costeConMerma = costeUnitarioReal * (1 + (elab.merma || 0) / 100);
+        coste += costeConMerma * elab.cantidad;
+        
+        (elabData?.alergenos || []).forEach(a => allAlergenos.add(a as Alergeno));
+
         if (elabData?.partidaProduccion) {
             allPartidas.add(elabData.partidaProduccion);
         }
@@ -348,7 +350,7 @@ export default function RecetaFormPage() {
         alergenos: Array.from(allAlergenos),
         partidasProduccion: Array.from(allPartidas)
     };
-  }, [watchedElaboraciones, dbElaboraciones]);
+  }, [watchedElaboraciones, dbElaboraciones, updateTrigger]);
 
   const { precioVenta, margenBruto, margenPct } = useMemo(() => {
     if (!watchedPorcentajeCoste || watchedPorcentajeCoste < 0) {
@@ -356,15 +358,15 @@ export default function RecetaFormPage() {
         const margen = pv > 0 ? (pv - costeMateriaPrima) / pv * 100 : 0;
         return { precioVenta: pv, margenBruto: pv - costeMateriaPrima, margenPct: margen };
     }
-    const pv = costeMateriaPrima + (costeMateriaPrima * (watchedPorcentajeCoste / 100));
+    const pv = costeMateriaPrima / (1 - (watchedPorcentajeCoste / 100));
     const margen = pv > 0 ? (pv - costeMateriaPrima) / pv * 100 : 0;
     return { precioVenta: pv, margenBruto: pv - costeMateriaPrima, margenPct: margen };
-  }, [costeMateriaPrima, watchedPorcentajeCoste]);
+  }, [costeMateriaPrima, watchedPorcentajeCoste, updateTrigger]);
   
   const loadData = useCallback(async () => {
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
     const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-    const erpMap = new Map(storedErp.map(i => [i.id, i]));
+    const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
     const combined = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
     const ingredientesMap = new Map(combined.map(i => [i.id, i]));
 
@@ -477,6 +479,10 @@ export default function RecetaFormPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+  
+  useEffect(() => {
+    setUpdateTrigger(Date.now());
+  }, [watchedElaboraciones]);
 
 
   const onAddElab = (elab: ElaboracionConCoste) => {
@@ -577,7 +583,7 @@ export default function RecetaFormPage() {
     localStorage.setItem('recetas', JSON.stringify(allItems));
     toast({ description: `Receta "${data.nombre}" guardada.` });
     setIsLoading(false);
-    form.reset(dataToSave); // Mark form as clean with the saved data
+    form.reset(dataToSave); // Mark form as not dirty
     router.push('/book');
   }
 
@@ -713,10 +719,10 @@ export default function RecetaFormPage() {
                                     <div className="space-y-1">
                                     {(elabFields || []).map((field, index) => (
                                         <SortableItem key={field.id} id={field.id}>
-                                            <div className="flex-1 grid grid-cols-4 items-center gap-2">
-                                                <span className="font-semibold col-span-2">{field.nombre}</span>
+                                            <div className="flex-1 grid grid-cols-12 items-center gap-4">
+                                                <span className="font-semibold col-span-5">{field.nombre}</span>
                                                 <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (
-                                                    <FormItem className="flex items-center gap-2">
+                                                    <FormItem className="flex items-center gap-2 col-span-3">
                                                         <FormLabel className="text-xs">Cantidad:</FormLabel>
                                                         <FormControl>
                                                             <div className="flex items-center">
@@ -727,15 +733,17 @@ export default function RecetaFormPage() {
                                                     </FormItem>
                                                 )} />
                                                 <FormField control={form.control} name={`elaboraciones.${index}.merma`} render={({ field: mField }) => (
-                                                    <FormItem className="flex items-center gap-2">
+                                                    <FormItem className="flex items-center gap-2 col-span-3">
                                                         <FormLabel className="text-xs">% Merma:</FormLabel>
                                                         <FormControl>
                                                             <Input type="number" {...mField} value={mField.value ?? 0} className="h-8 w-20" />
                                                         </FormControl>
                                                     </FormItem>
                                                 )} />
+                                                <div className="col-span-1 text-right">
+                                                    <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeElab(index)}><Trash2 className="h-4 w-4" /></Button>
+                                                </div>
                                             </div>
-                                            <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => removeElab(index)}><Trash2 className="h-4 w-4" /></Button>
                                         </SortableItem>
                                     ))}
                                     </div>
@@ -983,14 +991,18 @@ export default function RecetaFormPage() {
                     <div className="flex justify-between items-center">
                         <FormLabel className="text-sm">Imputación CPR</FormLabel>
                          <div className="flex items-center gap-2">
-                            <FormControl><Input type="number" {...field} className="h-8 w-20 text-right" /></FormControl>
+                            <FormControl><Input type="number" {...field} onChange={e => { field.onChange(e); setUpdateTrigger(Date.now()) }} className="h-8 w-20 text-right" /></FormControl>
                             <span>%</span>
                         </div>
                     </div>
                 </FormItem> )} />
                  <Separator />
                 <div className="flex justify-between items-center font-bold text-lg">
-                    <FormLabel>Precio Venta</FormLabel>
+                    <FormLabel className="flex items-center gap-2">Precio Venta
+                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={() => setUpdateTrigger(Date.now())}>
+                            <RefreshCw className="h-4 w-4"/>
+                        </Button>
+                    </FormLabel>
                     <span className="text-primary">{formatCurrency(precioVenta)}</span>
                 </div>
                 <Separator />
@@ -1005,16 +1017,14 @@ export default function RecetaFormPage() {
                     </div>
                  </div>
             </CardContent>
-             <CardFooter>
-                <div className="w-full">
-                    <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm"><Sprout/>Alérgenos de la Receta</h4>
-                    <div className="border rounded-md p-2 w-full bg-muted/30">
-                        <div className="flex flex-wrap gap-1.5">
-                            {alergenos.map(a => (
-                                <AllergenBadge key={a} allergen={a} />
-                            ))}
-                            {alergenos.length === 0 && <p className="text-muted-foreground text-xs">No se han detectado alérgenos.</p>}
-                        </div>
+             <CardFooter className="flex-col items-start gap-3">
+                <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm"><Sprout/>Alérgenos de la Receta</h4>
+                <div className="border rounded-md p-2 w-full bg-muted/30">
+                    <div className="flex flex-wrap gap-1.5">
+                        {alergenos.map(a => (
+                            <AllergenBadge key={a} allergen={a} />
+                        ))}
+                        {alergenos.length === 0 && <p className="text-muted-foreground text-xs">No se han detectado alérgenos.</p>}
                     </div>
                 </div>
              </CardFooter>
@@ -1044,6 +1054,7 @@ export default function RecetaFormPage() {
     </TooltipProvider>
   );
 }
+
 
 
 
