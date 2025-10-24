@@ -1,16 +1,16 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { format, parse } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Utensils, ArrowLeft, Save, Trash2, PlusCircle, GripVertical } from 'lucide-react';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-import type { ServiceOrder, GastronomyOrder, Receta, GastronomyOrderItem, GastronomyOrderStatus } from '@/types';
+import type { ServiceOrder, GastronomyOrder, Receta, GastronomyOrderItem, GastronomyOrderStatus, ComercialBriefing, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import {
@@ -181,6 +181,7 @@ export default function PedidoGastronomiaPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
   const [gastronomyOrder, setGastronomyOrder] = useState<GastronomyOrder | null>(null);
+  const [briefingItem, setBriefingItem] = useState<ComercialBriefingItem | null>(null);
   const [isRecetaSelectorOpen, setIsRecetaSelectorOpen] = useState(false);
   const { toast } = useToast();
 
@@ -212,6 +213,11 @@ export default function PedidoGastronomiaPage() {
 
       const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
       const order = allGastroOrders.find(o => o.id === briefingItemId && o.osId === osId);
+      
+      const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+      const currentBriefing = allBriefings.find(b => b.osId === osId);
+      const hito = currentBriefing?.items.find(i => i.id === briefingItemId);
+      setBriefingItem(hito || null);
       
       if (order) {
         setGastronomyOrder(order);
@@ -285,7 +291,7 @@ export default function PedidoGastronomiaPage() {
     }
   };
 
-  if (!isMounted || !serviceOrder || !gastronomyOrder) {
+  if (!isMounted || !serviceOrder || !briefingItem) {
     return <LoadingSkeleton title="Cargando Pedido de Gastronomía..." />;
   }
 
@@ -294,7 +300,7 @@ export default function PedidoGastronomiaPage() {
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
                 <div className="flex items-center justify-between mb-8">
-                    <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/gastronomia`)} className="mb-2">
+                     <Button variant="ghost" size="sm" onClick={() => router.push(`/os/${osId}/gastronomia`)} className="mb-2">
                         <ArrowLeft className="mr-2" />
                         Volver al listado
                     </Button>
@@ -327,15 +333,15 @@ export default function PedidoGastronomiaPage() {
 
                 <Card className="mb-8">
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-3"><Utensils/>{gastronomyOrder.descripcion}</CardTitle>
+                        <CardTitle className="flex items-center gap-3"><Utensils/>{briefingItem.descripcion}</CardTitle>
                     </CardHeader>
                     <CardContent className="grid md:grid-cols-4 gap-x-4 gap-y-1 text-sm pt-0">
-                        <div><span className="font-semibold text-muted-foreground">Fecha: </span>{format(new Date(gastronomyOrder.fecha), 'dd/MM/yyyy')}</div>
-                        <div><span className="font-semibold text-muted-foreground">Hora: </span>{gastronomyOrder.horaInicio}</div>
-                        <div><span className="font-semibold text-muted-foreground">Sala: </span>{gastronomyOrder.sala}</div>
-                        <div><span className="font-semibold text-muted-foreground">Asistentes: </span>{gastronomyOrder.asistentes}</div>
-                        {gastronomyOrder.comentarios && (
-                            <div className="md:col-span-4"><span className="font-semibold text-muted-foreground">Comentarios: </span>{gastronomyOrder.comentarios}</div>
+                        <div><span className="font-semibold text-muted-foreground">Fecha: </span>{format(new Date(briefingItem.fecha), 'dd/MM/yyyy')}</div>
+                        <div><span className="font-semibold text-muted-foreground">Hora: </span>{briefingItem.horaInicio}</div>
+                        <div><span className="font-semibold text-muted-foreground">Sala: </span>{briefingItem.sala}</div>
+                        <div><span className="font-semibold text-muted-foreground">Asistentes: </span>{briefingItem.asistentes}</div>
+                        {briefingItem.comentarios && (
+                            <div className="md:col-span-4"><span className="font-semibold text-muted-foreground">Comentarios: </span>{briefingItem.comentarios}</div>
                         )}
                     </CardContent>
                 </Card>
@@ -398,5 +404,6 @@ export default function PedidoGastronomiaPage() {
             </form>
         </Form>
     </main>
-  );
+    );
 }
+
