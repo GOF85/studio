@@ -110,10 +110,41 @@ type RecetaFormValues = z.infer<typeof recetaFormSchema>;
 type ElaboracionConCoste = Elaboracion & { costePorUnidad?: number; alergenos?: Alergeno[] };
 type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
 
-function SortableItem({ id, children }: { id: string; children: React.ReactNode }) {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-    const style = { transform: CSS.Transform.toString(transform), transition };
-    return <TableRow ref={setNodeRef} style={style} {...attributes}>{children}</TableRow>;
+function SortableTableRow({ field, index, remove, form }: { field: ElaboracionEnReceta & { key: string }, index: number, remove: (index: number) => void, form: any }) {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+    
+    const costeTotal = (field.coste || 0) * (form.watch(`elaboraciones.${index}.cantidad`) || 0);
+
+    return (
+        <TableRow ref={setNodeRef} style={style} {...attributes}>
+            <TableCell className="w-10 p-2">
+                <div {...listeners} className="cursor-grab text-muted-foreground p-2">
+                    <GripVertical />
+                </div>
+            </TableCell>
+            <TableCell className="font-semibold py-1 px-3">{field.nombre}</TableCell>
+            <TableCell className="text-right font-mono py-1 px-3">{formatCurrency(field.coste)}</TableCell>
+            <TableCell className="py-1 px-3">
+                <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (
+                    <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
+                )} />
+            </TableCell>
+            <TableCell className="py-1 px-3">
+                <FormField control={form.control} name={`elaboraciones.${index}.merma`} render={({ field: mField }) => (
+                    <FormItem><FormControl><Input type="number" {...mField} value={mField.value ?? 0} className="h-8" /></FormControl></FormItem>
+                )} />
+            </TableCell>
+            <TableCell className="text-xs text-muted-foreground py-1 px-3">{formatUnit(field.unidad)}</TableCell>
+            <TableCell className="text-right font-mono py-1 px-3">{formatCurrency(costeTotal)}</TableCell>
+            <TableCell className="py-1 px-3">
+                <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4" /></Button>
+            </TableCell>
+        </TableRow>
+    );
 }
 
 const InfoTooltip = ({ text }: { text: string }) => (
@@ -240,43 +271,6 @@ function CreateElaborationModal({ onElaborationCreated, children }: { onElaborat
     );
 }
 
-function SortableTableRow({ field, index, remove, form }: { field: ElaboracionEnReceta, index: number, remove: (index: number) => void, form: any }) {
-    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: field.id });
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
-    
-    const costeTotal = (field.coste || 0) * (form.watch(`elaboraciones.${index}.cantidad`) || 0);
-
-    return (
-        <TableRow ref={setNodeRef} style={style} {...attributes}>
-            <TableCell className="w-10 p-2">
-                <div {...listeners} className="cursor-grab text-muted-foreground p-2">
-                    <GripVertical />
-                </div>
-            </TableCell>
-            <TableCell className="font-semibold py-1 px-3">{field.nombre}</TableCell>
-            <TableCell className="text-right font-mono py-1 px-3">{formatCurrency(field.coste)}</TableCell>
-            <TableCell className="py-1 px-3">
-                <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (
-                    <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
-                )} />
-            </TableCell>
-            <TableCell className="py-1 px-3">
-                <FormField control={form.control} name={`elaboraciones.${index}.merma`} render={({ field: mField }) => (
-                    <FormItem><FormControl><Input type="number" {...mField} value={mField.value ?? 0} className="h-8" /></FormControl></FormItem>
-                )} />
-            </TableCell>
-            <TableCell className="text-xs text-muted-foreground py-1 px-3">{formatUnit(field.unidad)}</TableCell>
-            <TableCell className="text-right font-mono py-1 px-3">{formatCurrency(costeTotal)}</TableCell>
-            <TableCell className="py-1 px-3">
-                <Button type="button" variant="ghost" size="icon" className="text-destructive h-8 w-8" onClick={() => remove(index)}><Trash2 className="h-4 w-4" /></Button>
-            </TableCell>
-        </TableRow>
-    );
-}
-
 export default function RecetaFormPage() {
   const router = useRouter();
   const params = useParams();
@@ -292,7 +286,6 @@ export default function RecetaFormPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { toast } = useToast();
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
-  const [newImageUrl, setNewImageUrl] = useState("");
   const [dbElaboraciones, setDbElaboraciones] = useState<ElaboracionConCoste[]>([]);
   const [dbMenaje, setDbMenaje] = useState<MenajeDB[]>([]);
   const [dbCategorias, setDbCategorias] = useState<CategoriaReceta[]>([]);
@@ -304,19 +297,17 @@ export default function RecetaFormPage() {
   const [formatosServicio, setFormatosServicio] = useState<string[]>(['Cóctel (bocado)', 'Buffet', 'Emplatado en mesa', 'Estación de cocina en vivo (Showcooking)']);
   const [equipamientos, setEquipamientos] = useState<string[]>(['Horno de convección', 'Abatidor', 'Sifón', 'Roner']);
   const [etiquetasTendencia, setEtiquetasTendencia] = useState<string[]>(['Plant-based', 'Comfort food', 'Superalimentos', 'Kilómetro 0', 'Sin gluten', 'Keto']);
-  const [updateTrigger, setUpdateTrigger] = useState(0);
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
     defaultValues: { id: '', nombre: '', nombre_en: '', visibleParaComerciales: true, descripcionComercial: '', descripcionComercial_en: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], fotosMiseEnPlaceURLs: [], fotosRegeneracionURLs: [], perfilSaborSecundario: [], perfilTextura: [], tipoCocina: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] }
   });
 
-  const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab } = useFieldArray({ control: form.control, name: "elaboraciones", keyName: "key" });
+  const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab, update: updateElab } = useFieldArray({ control: form.control, name: "elaboraciones", keyName: "key" });
   const { fields: menajeFields, append: appendMenaje, remove: removeMenaje, move: moveMenaje } = useFieldArray({ control: form.control, name: "menajeAsociado" });
 
   const watchedElaboraciones = form.watch('elaboraciones');
   const watchedPorcentajeCoste = form.watch('porcentajeCosteProduccion');
-  const numeroReceta = form.watch('numeroReceta');
 
   const { costeMateriaPrima, alergenos, partidasProduccion } = useMemo(() => {
     let coste = 0;
@@ -325,7 +316,7 @@ export default function RecetaFormPage() {
 
     (watchedElaboraciones || []).forEach(elab => {
         const elabData = dbElaboraciones.find(dbElab => dbElab.id === elab.elaboracionId);
-        const costeUnitarioReal = elabData?.costePorUnidad || 0;
+        const costeUnitarioReal = elab.coste || 0;
         const costeConMerma = costeUnitarioReal * (1 + (elab.merma || 0) / 100);
         coste += costeConMerma * elab.cantidad;
         
@@ -344,11 +335,11 @@ export default function RecetaFormPage() {
   }, [watchedElaboraciones, dbElaboraciones]);
 
   const { precioVenta, margenBruto, margenPct } = useMemo(() => {
-    const pvp = costeMateriaPrima + (costeMateriaPrima * ((watchedPorcentajeCoste || 0) / 100));
+    const pvp = costeMateriaPrima / (1 - (watchedPorcentajeCoste || 0) / 100);
     const margenNeto = pvp - costeMateriaPrima;
     const margenPorcentual = pvp > 0 ? (margenNeto / pvp) : 0;
     return { precioVenta: pvp, margenBruto: margenNeto, margenPct: margenPorcentual };
-  }, [costeMateriaPrima, watchedPorcentajeCoste, updateTrigger]);
+  }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
   const loadData = useCallback(async () => {
     const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
@@ -467,9 +458,19 @@ export default function RecetaFormPage() {
     loadData();
   }, [loadData]);
   
-  useEffect(() => {
-    setUpdateTrigger(Date.now());
-  }, [watchedElaboraciones]);
+  const forceRecalculate = () => {
+    const currentElaboraciones = form.getValues('elaboraciones');
+    const updatedElaboraciones = currentElaboraciones.map(elab => {
+        const masterElab = dbElaboraciones.find(dbElab => dbElab.id === elab.elaboracionId);
+        if (masterElab && masterElab.costePorUnidad !== elab.coste) {
+            return { ...elab, coste: masterElab.costePorUnidad || 0 };
+        }
+        return elab;
+    });
+    form.setValue('elaboraciones', updatedElaboraciones, { shouldDirty: true });
+    toast({ title: 'Costes recalculados', description: 'Se han actualizado los costes unitarios de las elaboraciones.' });
+};
+
 
   const onAddElab = (elab: ElaboracionConCoste) => {
     appendElab({ id: `${elab.id}-${Date.now()}`, elaboracionId: elab.id, nombre: elab.nombre, cantidad: 1, coste: elab.costePorUnidad || 0, gramaje: elab.produccionTotal || 0, alergenos: elab.alergenos || [], unidad: elab.unidadProduccion, merma: 0 });
@@ -685,42 +686,42 @@ export default function RecetaFormPage() {
                     </Card>
 
                     <Card>
-                        <CardHeader className="py-3 flex-row items-start justify-between">
-                            <div className="space-y-1">
-                                <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
-                                <CardDescription className="text-xs">Costes, márgenes y precio de venta recomendado.</CardDescription>
-                            </div>
-                            <div className="text-right">
-                                <div className="flex items-center gap-2">
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={() => setUpdateTrigger(Date.now())}>
-                                        <RefreshCw className="h-4 w-4" />
-                                    </Button>
-                                    <p className="text-sm font-semibold text-muted-foreground">PVP Teórico</p>
-                                </div>
-                                <p className="font-bold text-2xl text-green-600">{formatCurrency(precioVenta)}</p>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                      <CardHeader className="py-3 flex-row items-start justify-between">
                           <div>
-                            <Label>Coste Materia Prima</Label>
-                            <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
+                              <CardTitle className="text-lg">Análisis de Rentabilidad</CardTitle>
+                              <CardDescription className="text-xs">Costes, márgenes y precio de venta recomendado.</CardDescription>
                           </div>
-                          <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
-                                <FormItem>
-                                <Label>Imputación CPR (%)</Label>
-                                <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
-                                </FormItem>
-                            )} />
-                            <div>
-                                <Label>Margen Bruto</Label>
-                                <p className="font-bold text-lg">{formatCurrency(margenBruto)}</p>
-                            </div>
-                            <div>
-                                <Label>Margen %</Label>
-                                <p className="font-bold text-lg">{formatPercentage(margenPct)}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                          <div className="text-right">
+                              <div className="flex items-center gap-2">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" type="button" onClick={forceRecalculate}>
+                                      <RefreshCw className="h-4 w-4" />
+                                  </Button>
+                                  <p className="text-sm font-semibold text-muted-foreground">PVP Teórico</p>
+                              </div>
+                              <p className="font-bold text-2xl text-green-600">{formatCurrency(precioVenta)}</p>
+                          </div>
+                      </CardHeader>
+                      <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                        <div>
+                          <Label>Coste Materia Prima</Label>
+                          <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
+                        </div>
+                        <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
+                              <FormItem>
+                              <Label>Imputación CPR (%)</Label>
+                              <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
+                              </FormItem>
+                          )} />
+                          <div>
+                              <Label>Margen Bruto</Label>
+                              <p className="font-bold text-lg">{formatCurrency(margenBruto)}</p>
+                          </div>
+                          <div>
+                              <Label>Margen %</Label>
+                              <p className="font-bold text-lg">{formatPercentage(margenPct)}</p>
+                          </div>
+                      </CardContent>
+                  </Card>
                     
                     <Card>
                         <CardHeader className="flex-row items-center justify-between py-3">
@@ -757,7 +758,7 @@ export default function RecetaFormPage() {
                                 <SortableContext items={elabFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                                     <TableBody>
                                     {(elabFields || []).map((field, index) => (
-                                        <SortableTableRow key={field.id} field={{...field, key: field.id}} index={index} remove={removeElab} form={form} />
+                                        <SortableTableRow key={field.id} field={{...field}} index={index} remove={removeElab} form={form} />
                                     ))}
                                     </TableBody>
                                 </SortableContext>
