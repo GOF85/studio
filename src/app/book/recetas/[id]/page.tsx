@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useForm, useFieldArray, FieldErrors, FormProvider } from 'react-hook-form';
+import { useForm, useFieldArray, FieldErrors, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DndContext, closestCenter, type DragEndEvent, PointerSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -84,6 +85,7 @@ const recetaFormSchema = z.object({
   elaboraciones: z.array(elaboracionEnRecetaSchema).default([]),
   menajeAsociado: z.array(menajeEnRecetaSchema).optional().default([]),
   instruccionesMiseEnPlace: z.string().optional().default(''),
+  fotosComercialesURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
   fotosMiseEnPlaceURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
   instruccionesRegeneracion: z.string().optional().default(''),
   fotosRegeneracionURLs: z.array(z.object({ value: z.string().url("Debe ser una URL válida") })).optional().default([]),
@@ -126,7 +128,7 @@ function SortableTableRow({ field, index, remove, form }: { field: ElaboracionEn
                 </div>
             </TableCell>
             <TableCell className="font-semibold py-1 px-3">{field.nombre}</TableCell>
-            <TableCell className="text-right font-mono py-1 px-3">{formatCurrency(field.coste)}</TableCell>
+             <TableCell className="text-right font-mono py-1 px-3">{formatCurrency(field.coste)}</TableCell>
             <TableCell className="py-1 px-3">
                 <FormField control={form.control} name={`elaboraciones.${index}.cantidad`} render={({ field: qField }) => (
                     <FormItem><FormControl><Input type="number" step="any" {...qField} className="h-8" /></FormControl></FormItem>
@@ -170,7 +172,7 @@ const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<s
     return Array.from(elabAlergenos);
 };
 
-function ImageUploadSection({ name, title, form }: { name: "fotosMiseEnPlaceURLs" | "fotosRegeneracionURLs" | "fotosEmplatadoURLs"; title: string; form: any }) {
+function ImageUploadSection({ name, title, form, description }: { name: "fotosMiseEnPlaceURLs" | "fotosRegeneracionURLs" | "fotosEmplatadoURLs" | "fotosComercialesURLs"; title: string; form: any, description?: string }) {
     const { fields, append, remove } = useFieldArray({ control: form.control, name });
     const [newUrl, setNewUrl] = useState('');
     const { toast } = useToast();
@@ -187,16 +189,23 @@ function ImageUploadSection({ name, title, form }: { name: "fotosMiseEnPlaceURLs
 
     return (
         <div>
-            <FormField
-                control={form.control}
-                name={name === "fotosMiseEnPlaceURLs" ? "instruccionesMiseEnPlace" : name === "fotosRegeneracionURLs" ? "instruccionesRegeneracion" : "instruccionesEmplatado"}
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>{title}</FormLabel>
-                        <FormControl><Textarea {...field} rows={5} /></FormControl>
-                    </FormItem>
-                )}
-            />
+            {name !== "fotosComercialesURLs" ? (
+                <FormField
+                    control={form.control}
+                    name={name === "fotosMiseEnPlaceURLs" ? "instruccionesMiseEnPlace" : name === "fotosRegeneracionURLs" ? "instruccionesRegeneracion" : "instruccionesEmplatado"}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>{title}</FormLabel>
+                            <FormControl><Textarea {...field} rows={5} /></FormControl>
+                        </FormItem>
+                    )}
+                />
+            ) : (
+                <>
+                <CardTitle className="text-lg">{title}</CardTitle>
+                {description && <CardDescription>{description}</CardDescription>}
+                </>
+            )}
             <div className="space-y-2 mt-2">
                 <div className="flex gap-2">
                     <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="Pega una URL de imagen..."/>
@@ -274,18 +283,19 @@ export default function RecetaFormPage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
-  const id = params.id as string;
+
+  const id = Array.isArray(params.id) ? params.id[0] : null;
   const isNew = id === 'nueva';
-  const isEditing = !isNew;
+  const isEditing = !isNew && id;
   const cloneId = searchParams.get('cloneId');
   
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const { toast } = useToast();
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
-  const [dbElaboraciones, setDbElaboraciones] = useState<ElaboracionConCoste[]>([]);
+  const { toast } = useToast();
+  const [dbElaboraciones, setDbElaboraciones] = useState<ElaborationConCoste[]>([]);
   const [dbMenaje, setDbMenaje] = useState<MenajeDB[]>([]);
   const [dbCategorias, setDbCategorias] = useState<CategoriaReceta[]>([]);
   const [dbTiposCocina, setDbTiposCocina] = useState<TipoCocina[]>([]);
@@ -299,7 +309,7 @@ export default function RecetaFormPage() {
 
   const form = useForm<RecetaFormValues>({
     resolver: zodResolver(recetaFormSchema),
-    defaultValues: { id: '', nombre: '', nombre_en: '', visibleParaComerciales: true, descripcionComercial: '', descripcionComercial_en: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosEmplatadoURLs: [], fotosMiseEnPlaceURLs: [], fotosRegeneracionURLs: [], perfilSaborSecundario: [], perfilTextura: [], tipoCocina: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] }
+    defaultValues: { id: '', nombre: '', nombre_en: '', visibleParaComerciales: true, descripcionComercial: '', descripcionComercial_en: '', responsableEscandallo: '', categoria: '', estacionalidad: 'MIXTO', tipoDieta: 'NINGUNO', gramajeTotal: 0, porcentajeCosteProduccion: 30, elaboraciones: [], menajeAsociado: [], fotosComercialesURLs: [], fotosEmplatadoURLs: [], fotosMiseEnPlaceURLs: [], fotosRegeneracionURLs: [], perfilSaborSecundario: [], perfilTextura: [], tipoCocina: [], equipamientoCritico: [], formatoServicioIdeal: [], etiquetasTendencia: [] }
   });
 
   const { fields: elabFields, append: appendElab, remove: removeElab, move: moveElab, update: updateElab } = useFieldArray({ control: form.control, name: "elaboraciones", keyName: "key" });
@@ -333,8 +343,9 @@ export default function RecetaFormPage() {
     };
   }, [watchedElaboraciones, dbElaboraciones]);
 
-  const precioVenta = useMemo(() => {
-    return costeMateriaPrima * (1 + (watchedPorcentajeCoste || 0) / 100);
+  const pvpTeorico = useMemo(() => {
+    const costeImputacion = costeMateriaPrima * ((watchedPorcentajeCoste || 0) / 100);
+    return costeMateriaPrima + costeImputacion;
   }, [costeMateriaPrima, watchedPorcentajeCoste]);
   
   const loadData = useCallback(async () => {
@@ -434,6 +445,7 @@ export default function RecetaFormPage() {
             porcentajeCosteProduccion: 30, 
             elaboraciones: [], 
             menajeAsociado: [], 
+            fotosComercialesURLs: [],
             fotosEmplatadoURLs: [],
             fotosMiseEnPlaceURLs: [],
             fotosRegeneracionURLs: [],
@@ -551,7 +563,7 @@ export default function RecetaFormPage() {
     const dataToSave: Receta = { 
         ...data, 
         costeMateriaPrima, 
-        precioVenta, 
+        precioVenta: pvpTeorico, 
         alergenos,
         partidaProduccion: partidasProduccion.join(', '), // Save computed value
     };
@@ -682,8 +694,20 @@ export default function RecetaFormPage() {
                     </Card>
 
                     <Card>
+                        <CardHeader className="py-4">
+                            <CardTitle className="text-lg">Imágenes Comerciales</CardTitle>
+                             <CardDescription>Añade URLs de imágenes de alta calidad para usar en propuestas. La primera imagen será la principal.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ImageUploadSection name="fotosComercialesURLs" title="Imágenes Comerciales" form={form} />
+                        </CardContent>
+                    </Card>
+                    
+                    <Card>
                         <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2"><TrendingUp/>Análisis de Rentabilidad</CardTitle>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <TrendingUp/>Análisis de Rentabilidad
+                            </CardTitle>
                         </CardHeader>
                         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                             <div>
@@ -691,10 +715,10 @@ export default function RecetaFormPage() {
                                 <p className="font-bold text-lg">{formatCurrency(costeMateriaPrima)}</p>
                             </div>
                             <FormField control={form.control} name="porcentajeCosteProduccion" render={({ field }) => (
-                            <FormItem>
-                                <Label>Imputación CPR (%)</Label>
-                                <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
-                            </FormItem>
+                                <FormItem>
+                                    <Label>Imputación CPR (%)</Label>
+                                    <FormControl><Input type="number" {...field} className="h-9"/></FormControl>
+                                </FormItem>
                             )} />
                             <div>
                                 <Label className="flex items-center gap-2">PVP Teórico
@@ -702,7 +726,7 @@ export default function RecetaFormPage() {
                                         <RefreshCw className="h-3 w-3" />
                                     </Button>
                                 </Label>
-                                <p className="font-bold text-lg text-green-600">{formatCurrency(precioVenta)}</p>
+                                <p className="font-bold text-lg text-green-600">{formatCurrency(pvpTeorico)}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -788,5 +812,3 @@ export default function RecetaFormPage() {
     </div>
   );
 }
-
-    
