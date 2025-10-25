@@ -109,6 +109,7 @@ export default function OfPage() {
     // --- LÓGICA DE CÁLCULO DE NECESIDADES ---
     const serviceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
     const gastronomyOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const elaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     const stockElaboraciones: Record<string, { cantidadTotal: number }> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
@@ -117,15 +118,25 @@ export default function OfPage() {
     const elabMap = new Map(elaboraciones.map(e => [e.id, e]));
 
     const necesidadesAgregadas: Record<string, NecesidadItem> = {};
+    const necesidadesPorFecha: Record<string, NecesidadItem[]> = {};
 
     serviceOrders.forEach(os => {
-        try {
-            const osDate = new Date(os.startDate);
-            if (!isWithinInterval(osDate, { start: dateRange.from!, end: dateRange.to || dateRange.from! })) return;
-            
-            const gastroOrdersForOS = gastronomyOrders.filter(go => go.osId === os.id);
-            
-            gastroOrdersForOS.forEach(gastroOrder => {
+        const briefing = allBriefings.find(b => b.osId === os.id);
+        if (!briefing) return;
+
+        briefing.items.forEach(hito => {
+            if (!hito.conGastronomia) return;
+
+            try {
+                const hitoDate = new Date(hito.fecha);
+                 if (!isWithinInterval(hitoDate, { start: dateRange.from!, end: dateRange.to || dateRange.from! })) return;
+                 
+                const gastroOrder = gastronomyOrders.find(g => g.id === hito.id);
+                if (!gastroOrder) return;
+                
+                const fechaKey = format(hitoDate, 'yyyy-MM-dd');
+                if(!necesidadesPorFecha[fechaKey]) necesidadesPorFecha[fechaKey] = [];
+                
                 (gastroOrder.items || []).forEach(item => {
                     if (item.type !== 'item') return;
                     
@@ -137,8 +148,10 @@ export default function OfPage() {
                         if (!elab) return;
                         
                         const id = elab.id;
-                        if (!necesidadesAgregadas[id]) {
-                            necesidadesAgregadas[id] = {
+                        let necesidad = necesidadesPorFecha[fechaKey].find(n => n.id === id);
+
+                        if (!necesidad) {
+                            necesidad = {
                                 id,
                                 nombre: elab.nombre,
                                 cantidad: 0,
@@ -147,43 +160,38 @@ export default function OfPage() {
                                 partida: elab.partidaProduccion,
                                 tipoExpedicion: elab.tipoExpedicion,
                             };
+                            necesidadesPorFecha[fechaKey].push(necesidad);
                         }
                         
-                        necesidadesAgregadas[id].cantidad += (item.quantity || 1) * elabEnReceta.cantidad;
-                        necesidadesAgregadas[id].osIDs.add(os.id);
+                        necesidad.cantidad += (item.quantity || 1) * elabEnReceta.cantidad;
+                        necesidad.osIDs.add(os.id);
                     });
                 });
-            });
-        } catch (e) {
-            console.warn(`Could not process OS ${os.id}`, e);
-        }
+
+            } catch (e) {
+                 console.warn(`Could not process hito ${hito.id} for OS ${os.id}`, e);
+            }
+        });
     });
 
-    const necesidadesPorFecha: Record<string, NecesidadItem[]> = {};
-
-    Object.values(necesidadesAgregadas).forEach(necesidad => {
+    Object.keys(necesidadesPorFecha).forEach(fechaKey => {
+      necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].filter(necesidad => {
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id);
         const cantidadEnProduccion = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => sum + of.cantidadTotal, 0);
         const cantidadEnStock = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
         
-        let cantidadNeta = necesidad.cantidad - cantidadEnProduccion - cantidadEnStock;
-
-        if (cantidadNeta > 0) {
-            necesidad.cantidad = cantidadNeta;
-            // Simplified date grouping
-            const fechaKey = new Date().toISOString().split('T')[0]; // Using today for all for now
-            if(!necesidadesPorFecha[fechaKey]) necesidadesPorFecha[fechaKey] = [];
-            necesidadesPorFecha[fechaKey].push(necesidad);
-        }
+        necesidad.cantidad -= (cantidadEnProduccion + cantidadEnStock);
+        return necesidad.cantidad > 0.001;
+      });
     });
 
     setNecesidades(necesidadesPorFecha);
     setIsMounted(true);
-  }, []);
+  }, [dateRange]);
 
   useEffect(() => {
     loadData();
-  }, [loadData, dateRange]);
+  }, [loadData]);
 
 
   const filteredAndSortedItems = useMemo(() => {
@@ -303,7 +311,7 @@ export default function OfPage() {
                       {Object.keys(necesidades).length > 0 ? Object.entries(necesidades).map(([fecha, items]) => (
                         <div key={fecha}>
                           <div className="flex justify-between items-center mb-2">
-                             <h4 className="font-semibold">Para el {format(parseISO(fecha), 'dd/MM/yyyy')}</h4>
+                             <h4 className="font-semibold">Para el {format(parseISO(fecha), 'dd/MM/yyyy')} y posteriores</h4>
                              <Button size="sm" onClick={() => handleGenerateOFs(fecha)} disabled={!selectedNecesidades[fecha] || selectedNecesidades[fecha].size === 0}>
                                   Generar OF para la selección ({selectedNecesidades[fecha]?.size || 0})
                               </Button>
@@ -454,4 +462,5 @@ export default function OfPage() {
   );
 }
 
+    
     
