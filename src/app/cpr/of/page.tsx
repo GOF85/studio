@@ -46,7 +46,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
@@ -431,7 +431,7 @@ export default function OfPage() {
                         <div className="flex flex-wrap gap-1">
                             <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
                             {statusOptions.map(s => (
-                                <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(s)}>{s}</Button>
+                                <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={()=> setStatusFilter(s)}>{s}</Button>
                             ))}
                         </div>
                         <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground ml-auto">Limpiar Filtros</Button>
@@ -497,7 +497,7 @@ export default function OfPage() {
                 </CardContent>
             </Card>
         </TabsContent>
-        <TabsContent value="asignacion">
+        <TabsContent value="asignacion" className="mt-4">
              <Card>
                 <CardHeader>
                     <CardTitle>Asignación de Órdenes Pendientes</CardTitle>
