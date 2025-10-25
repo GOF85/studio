@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -43,6 +42,7 @@ const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'seconda
 type DetalleNecesidad = {
     osId: string;
     osNumber: string;
+    osSpace: string;
     hitoId: string;
     hitoDescripcion: string;
     recetaId: string;
@@ -123,7 +123,6 @@ export default function OfDetailPage() {
         const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
         const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
         const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-        const allElabs = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
 
         const necesidades: DetalleNecesidad[] = [];
         
@@ -149,6 +148,7 @@ export default function OfDetailPage() {
                                 necesidades.push({
                                     osId: os.id,
                                     osNumber: os.serviceNumber,
+                                    osSpace: os.space,
                                     hitoId: hito.id,
                                     hitoDescripcion: hito.descripcion,
                                     recetaId: receta.id,
@@ -327,7 +327,7 @@ export default function OfDetailPage() {
         return formatNumber(num, 2);
     }
     
-    const pageTitle = isEditing ? `Orden de Fabricación` : 'Nueva Orden de Fabricación Manual';
+    const pageTitle = isEditing ? `Orden de Fabricación: ${id}` : 'Nueva Orden de Fabricación Manual';
     const elabNombre = isEditing ? orden?.elaboracionNombre : selectedElaboracion?.nombre;
     const elabPartida = isEditing ? orden?.partidaAsignada : selectedElaboracion?.partidaProduccion;
     const elabUnidad = isEditing ? orden?.unidad : selectedElaboracion?.unidadProduccion;
@@ -396,11 +396,16 @@ export default function OfDetailPage() {
                                             <h4 className="font-semibold text-muted-foreground">Órdenes de Servicio</h4>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <p className="flex items-center gap-1.5 cursor-help"><Info className="h-4 w-4"/> Afecta a {orden.osIDs.length} evento(s)</p>
+                                                    <p className="flex items-center gap-1.5 cursor-help"><Info className="h-4 w-4"/> Afecta a {detallesNecesidad.length} servicio(s)</p>
                                                 </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <ul className="list-disc pl-4">
-                                                        {orden.osIDs.map(os => <li key={os}>{os}</li>)}
+                                                <TooltipContent className="max-w-md p-2">
+                                                    <ul className="space-y-2">
+                                                        {detallesNecesidad.map((n, i) => (
+                                                          <li key={i} className="text-xs">
+                                                            <p className="font-bold">{n.osNumber} - {n.hitoDescripcion} ({n.osSpace})</p>
+                                                            <p className="text-muted-foreground pl-2">{formatNumber(n.cantidadNecesaria, 2)} {formatUnit(elaboracion?.unidadProduccion || '')} para la receta "{n.recetaNombre}"</p>
+                                                          </li>  
+                                                        ))}
                                                     </ul>
                                                 </TooltipContent>
                                             </Tooltip>
@@ -582,3 +587,4 @@ export default function OfDetailPage() {
         </TooltipProvider>
     );
 }
+
