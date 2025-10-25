@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -48,21 +47,28 @@ function NavContent({ closeSheet }: { closeSheet: () => void }) {
 export default function CprLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
-    
+    const [clientPath, setClientPath] = useState('');
+
+    useEffect(() => {
+        setClientPath(pathname);
+    }, [pathname]);
+
     const { currentPage, isDetailPage, detailId } = useMemo(() => {
-        const pathSegments = pathname.split('/').filter(Boolean); // e.g., ['cpr', 'of', 'OF-123']
+        if (!clientPath) {
+             return { currentPage: cprNav.find(link => link.href === '/cpr/dashboard'), isDetailPage: false, detailId: null };
+        }
         
-        // Check for specific detail page patterns first
+        const pathSegments = clientPath.split('/').filter(Boolean); // e.g., ['cpr', 'of', 'OF-123']
+        
         if (pathSegments.length > 2 && pathSegments[0] === 'cpr' && pathSegments[1] === 'of') {
             const ofPage = cprNav.find(link => link.href === '/cpr/of');
             return {
                 currentPage: ofPage,
                 isDetailPage: true,
-                detailId: pathSegments[2] // This is the OF ID
+                detailId: pathSegments[2] 
             };
         }
         
-        // Fallback for general module pages
         const currentPathSegment = pathSegments.length > 1 ? pathSegments[1] : 'dashboard';
         const currentPageData = cprNav.find(link => link.href.includes(`/cpr/${currentPathSegment}`));
         
@@ -71,7 +77,7 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
             isDetailPage: false,
             detailId: null,
         };
-    }, [pathname]);
+    }, [clientPath]);
 
     return (
         <>
