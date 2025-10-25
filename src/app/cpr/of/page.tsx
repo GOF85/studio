@@ -1,11 +1,10 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Factory, Search, PlusCircle, Trash2, Calendar as CalendarIcon, ChefHat, CheckSquare } from 'lucide-react';
-import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion } from '@/types';
+import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -48,6 +47,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 type NecesidadItem = {
   id: string; // elaboracionId
@@ -80,6 +81,7 @@ const statusOptions = Object.keys(statusVariant) as OrdenFabricacion['estado'][]
 
 export default function OfPage() {
   const [ordenes, setOrdenes] = useState<OrdenFabricacion[]>([]);
+  const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -103,6 +105,9 @@ export default function OfPage() {
     let storedOFs = localStorage.getItem('ordenesFabricacion');
     const allOFs = storedOFs ? JSON.parse(storedOFs) : [];
     setOrdenes(allOFs);
+    
+    const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
+    setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
 
     if (!dateRange?.from) {
       setNecesidades({});
@@ -283,6 +288,19 @@ export default function OfPage() {
     setSelectedNecesidades(prev => ({...prev, [fecha]: new Set()}));
     loadData();
   };
+  
+  const handleAssignResponsable = (ofId: string, responsable: string) => {
+    let allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+    const index = allOFs.findIndex(of => of.id === ofId);
+    if(index > -1 && allOFs[index].estado === 'Pendiente') {
+        allOFs[index].responsable = responsable;
+        allOFs[index].estado = 'Asignada';
+        allOFs[index].fechaAsignacion = new Date().toISOString();
+        localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
+        setOrdenes(allOFs);
+        toast({ title: 'Responsable Asignado', description: `Se ha asignado a ${responsable}.`});
+    }
+  }
 
   const handleSelectNecesidad = (fecha: string, elabId: string, checked: boolean) => {
     setSelectedNecesidades(prev => {
@@ -304,176 +322,231 @@ export default function OfPage() {
 
   return (
     <>
-      <div className="space-y-4">
-        <Accordion type="multiple" className="w-full space-y-4">
-           <AccordionItem value="necesidades" className="border-none">
-              <Card>
-                 <AccordionTrigger className="p-4">
-                    <CardTitle className="text-lg flex items-center gap-2"><CheckSquare/>Necesidades de Producción Pendientes</CardTitle>
-                 </AccordionTrigger>
-                 <AccordionContent className="p-4 pt-0">
-                    <div className="space-y-4">
-                      {Object.keys(necesidades).length > 0 ? Object.entries(necesidades).map(([fecha, items]) => (
-                        <div key={fecha}>
-                          <div className="flex justify-between items-center mb-2">
-                             <h4 className="font-semibold">Para el {format(parseISO(fecha), 'dd/MM/yyyy')} y posteriores</h4>
-                             <Button size="sm" onClick={() => handleGenerateOFs(fecha)} disabled={!selectedNecesidades[fecha] || selectedNecesidades[fecha].size === 0}>
-                                  Generar OF para la selección ({selectedNecesidades[fecha]?.size || 0})
-                              </Button>
-                          </div>
-                          <div className="border rounded-lg">
-                              <Table>
-                                  <TableHeader>
-                                      <TableRow>
-                                          <TableHead className="w-12"><Checkbox onCheckedChange={(checked) => {
-                                                const allIds = new Set(items.map(i => i.id));
-                                                setSelectedNecesidades(prev => ({...prev, [fecha]: checked ? allIds : new Set()}));
-                                          }}/></TableHead>
-                                          <TableHead>Elaboración</TableHead>
-                                          <TableHead>Partida</TableHead>
-                                          <TableHead className="text-right">Cantidad Necesaria</TableHead>
-                                      </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                      {items.map(item => (
-                                          <TableRow key={item.id}>
-                                              <TableCell><Checkbox checked={selectedNecesidades[fecha]?.has(item.id)} onCheckedChange={(checked) => handleSelectNecesidad(fecha, item.id, !!checked)}/></TableCell>
-                                              <TableCell>{item.nombre}</TableCell>
-                                              <TableCell><Badge variant="secondary">{item.partida}</Badge></TableCell>
-                                              <TableCell className="text-right font-mono">{formatNumber(item.cantidad, 2)} {formatUnit(item.unidad)}</TableCell>
-                                          </TableRow>
-                                      ))}
-                                  </TableBody>
-                              </Table>
-                          </div>
+      <Tabs defaultValue="planificacion">
+        <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="planificacion">Planificación y Creación</TabsTrigger>
+            <TabsTrigger value="asignacion">Asignación de Órdenes</TabsTrigger>
+        </TabsList>
+        <TabsContent value="planificacion" className="mt-4 space-y-4">
+            <Accordion type="multiple" className="w-full space-y-4">
+            <AccordionItem value="necesidades" className="border-none">
+                <Card>
+                    <AccordionTrigger className="p-4">
+                        <CardTitle className="text-lg flex items-center gap-2"><CheckSquare/>Necesidades de Producción Pendientes</CardTitle>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-4 pt-0">
+                        <div className="space-y-4">
+                        {Object.keys(necesidades).length > 0 ? Object.entries(necesidades).map(([fecha, items]) => (
+                            <div key={fecha}>
+                            <div className="flex justify-between items-center mb-2">
+                                <h4 className="font-semibold">Para el {format(parseISO(fecha), 'dd/MM/yyyy')} y posteriores</h4>
+                                <Button size="sm" onClick={() => handleGenerateOFs(fecha)} disabled={!selectedNecesidades[fecha] || selectedNecesidades[fecha].size === 0}>
+                                    Generar OF para la selección ({selectedNecesidades[fecha]?.size || 0})
+                                </Button>
+                            </div>
+                            <div className="border rounded-lg">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-12"><Checkbox onCheckedChange={(checked) => {
+                                                    const allIds = new Set(items.map(i => i.id));
+                                                    setSelectedNecesidades(prev => ({...prev, [fecha]: checked ? allIds : new Set()}));
+                                            }}/></TableHead>
+                                            <TableHead>Elaboración</TableHead>
+                                            <TableHead>Partida</TableHead>
+                                            <TableHead className="text-right">Cantidad Necesaria</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {items.map(item => (
+                                            <TableRow key={item.id}>
+                                                <TableCell><Checkbox checked={selectedNecesidades[fecha]?.has(item.id)} onCheckedChange={(checked) => handleSelectNecesidad(fecha, item.id, !!checked)}/></TableCell>
+                                                <TableCell>{item.nombre}</TableCell>
+                                                <TableCell><Badge variant="secondary">{item.partida}</Badge></TableCell>
+                                                <TableCell className="text-right font-mono">{formatNumber(item.cantidad, 2)} {formatUnit(item.unidad)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            </div>
+                        )) : (
+                            <p className="text-muted-foreground text-center py-4">No hay necesidades de producción en el rango de fechas seleccionado.</p>
+                        )}
                         </div>
-                      )) : (
-                        <p className="text-muted-foreground text-center py-4">No hay necesidades de producción en el rango de fechas seleccionado.</p>
-                      )}
+                    </AccordionContent>
+                </Card>
+            </AccordionItem>
+            </Accordion>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Factory/>Órdenes de Fabricación Creadas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center justify-end mb-4">
+                    <Button asChild>
+                        <Link href="/cpr/of/nuevo">
+                            <PlusCircle className="mr-2"/>
+                            Nueva OF Manual
+                        </Link>
+                    </Button>
                     </div>
-                 </AccordionContent>
-              </Card>
-           </AccordionItem>
-        </Accordion>
-        
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Factory/>Órdenes de Fabricación Creadas</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-center justify-end mb-4">
-                  <Button asChild>
-                      <Link href="/cpr/of/nuevo">
-                        <PlusCircle className="mr-2"/>
-                        Nueva OF Manual
-                      </Link>
-                  </Button>
-                </div>
 
-                <div className="flex flex-col gap-4 mb-4">
-                  <div className="flex flex-col sm:flex-row gap-4">
-                      <div className="relative flex-grow">
-                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input
-                              type="search"
-                              placeholder="Buscar por Nº de Lote o Elaboración..."
-                              className="pl-8 w-full"
-                              value={searchTerm}
-                              onChange={(e) => setSearchTerm(e.target.value)}
-                          />
-                      </div>
-                      <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                          <PopoverTrigger asChild>
-                              <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal md:w-[300px]", !dateRange && "text-muted-foreground")}>
-                                  <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
-                              </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
-                          </PopoverContent>
-                      </Popover>
-                      <Select value={partidaFilter} onValueChange={setPartidaFilter}>
-                          <SelectTrigger className="w-full sm:w-[240px]">
-                              <SelectValue placeholder="Filtrar por partida" />
-                          </SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="all">Todas las Partidas</SelectItem>
-                              {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                          </SelectContent>
-                      </Select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm">Estado:</span>
-                      <div className="flex flex-wrap gap-1">
-                          <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
-                          {statusOptions.map(s => (
-                              <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(s)}>{s}</Button>
-                          ))}
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground ml-auto">Limpiar Filtros</Button>
-                  </div>
-                </div>
+                    <div className="flex flex-col gap-4 mb-4">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <div className="relative flex-grow">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Buscar por Nº de Lote o Elaboración..."
+                                className="pl-8 w-full"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                            <PopoverTrigger asChild>
+                                <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal md:w-[300px]", !dateRange && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
+                            </PopoverContent>
+                        </Popover>
+                        <Select value={partidaFilter} onValueChange={setPartidaFilter}>
+                            <SelectTrigger className="w-full sm:w-[240px]">
+                                <SelectValue placeholder="Filtrar por partida" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todas las Partidas</SelectItem>
+                                {partidas.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm">Estado:</span>
+                        <div className="flex flex-wrap gap-1">
+                            <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
+                            {statusOptions.map(s => (
+                                <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(s)}>{s}</Button>
+                            ))}
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={handleClearFilters} className="text-muted-foreground ml-auto">Limpiar Filtros</Button>
+                    </div>
+                    </div>
 
-                <div className="border rounded-lg">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">
-                          <Checkbox 
-                            checked={selectedRows.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0}
-                            onCheckedChange={handleSelectAll}
-                          />
-                        </TableHead>
-                        <TableHead>Lote / OF</TableHead>
-                        <TableHead>Elaboración</TableHead>
-                        <TableHead>Cant. Planificada</TableHead>
-                        <TableHead>Cant. Producida</TableHead>
-                        <TableHead>Fecha Prevista</TableHead>
-                        <TableHead>Estado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredAndSortedItems.length > 0 ? (
-                        filteredAndSortedItems.map(of => (
-                          <TableRow
-                            key={of.id}
-                            onClick={() => router.push(`/cpr/of/${of.id}`)}
-                            className={cn(
-                                "cursor-pointer", 
-                                of.partidaAsignada && partidaColorClasses[of.partidaAsignada],
-                                selectedRows.has(of.id) && 'bg-primary/10 hover:bg-primary/20'
-                            )}
-                          >
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                                <Checkbox 
-                                    checked={selectedRows.has(of.id)}
-                                    onCheckedChange={(checked) => handleSelectRow(of.id, checked)}
-                                />
-                            </TableCell>
-                            <TableCell className="font-medium">{of.id}</TableCell>
-                            <TableCell>{of.elaboracionNombre}</TableCell>
-                            <TableCell>{ceilToTwoDecimals(of.cantidadTotal)} {formatUnit(of.unidad)}</TableCell>
-                            <TableCell>{ceilToTwoDecimals(of.cantidadReal)} {of.cantidadReal ? formatUnit(of.unidad) : ''}</TableCell>
-                            <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
-                            <TableCell>
-                              <Badge variant={statusVariant[of.estado]}>{of.estado}</Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
+                    <div className="border rounded-lg">
+                    <Table>
+                        <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={8} className="h-24 text-center">
-                            No se encontraron órdenes de fabricación.
-                          </TableCell>
+                            <TableHead className="w-12">
+                            <Checkbox 
+                                checked={selectedRows.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0}
+                                onCheckedChange={handleSelectAll}
+                            />
+                            </TableHead>
+                            <TableHead>Lote / OF</TableHead>
+                            <TableHead>Elaboración</TableHead>
+                            <TableHead>Cant. Planificada</TableHead>
+                            <TableHead>Cant. Producida</TableHead>
+                            <TableHead>Fecha Prevista</TableHead>
+                            <TableHead>Estado</TableHead>
                         </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-            </CardContent>
-        </Card>
-      </div>
+                        </TableHeader>
+                        <TableBody>
+                        {filteredAndSortedItems.length > 0 ? (
+                            filteredAndSortedItems.map(of => (
+                            <TableRow
+                                key={of.id}
+                                onClick={() => router.push(`/cpr/of/${of.id}`)}
+                                className={cn(
+                                    "cursor-pointer", 
+                                    of.partidaAsignada && partidaColorClasses[of.partidaAsignada],
+                                    selectedRows.has(of.id) && 'bg-primary/10 hover:bg-primary/20'
+                                )}
+                            >
+                                <TableCell onClick={(e) => e.stopPropagation()}>
+                                    <Checkbox 
+                                        checked={selectedRows.has(of.id)}
+                                        onCheckedChange={(checked) => handleSelectRow(of.id, checked)}
+                                    />
+                                </TableCell>
+                                <TableCell className="font-medium">{of.id}</TableCell>
+                                <TableCell>{of.elaboracionNombre}</TableCell>
+                                <TableCell>{ceilToTwoDecimals(of.cantidadTotal)} {formatUnit(of.unidad)}</TableCell>
+                                <TableCell>{ceilToTwoDecimals(of.cantidadReal)} {of.cantidadReal ? formatUnit(of.unidad) : ''}</TableCell>
+                                <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
+                                <TableCell>
+                                <Badge variant={statusVariant[of.estado]}>{of.estado}</Badge>
+                                </TableCell>
+                            </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                            <TableCell colSpan={8} className="h-24 text-center">
+                                No se encontraron órdenes de fabricación.
+                            </TableCell>
+                            </TableRow>
+                        )}
+                        </TableBody>
+                    </Table>
+                    </div>
+                </CardContent>
+            </Card>
+        </TabsContent>
+        <TabsContent value="asignacion">
+             <Card>
+                <CardHeader>
+                    <CardTitle>Asignación de Órdenes Pendientes</CardTitle>
+                    <CardDescription>Asigna rápidamente las OF pendientes a un responsable de producción.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Lote / OF</TableHead>
+                                <TableHead>Elaboración</TableHead>
+                                <TableHead>Fecha Prevista</TableHead>
+                                <TableHead>Partida</TableHead>
+                                <TableHead className="w-56">Asignar a</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {ordenes.filter(o => o.estado === 'Pendiente').length > 0 ? (
+                                ordenes.filter(o => o.estado === 'Pendiente').map(of => (
+                                    <TableRow key={of.id} className="hover:bg-muted/30">
+                                        <TableCell><Badge variant="outline">{of.id}</Badge></TableCell>
+                                        <TableCell className="font-medium">{of.elaboracionNombre}</TableCell>
+                                        <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
+                                        <TableCell><Badge variant="secondary">{of.partidaAsignada}</Badge></TableCell>
+                                        <TableCell>
+                                            <Select onValueChange={(responsable) => handleAssignResponsable(of.id, responsable)}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Seleccionar cocinero..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {personalCPR.map(p => (
+                                                        <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center h-24">No hay órdenes pendientes de asignación.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+             </Card>
+        </TabsContent>
+      </Tabs>
     </>
   );
 }
