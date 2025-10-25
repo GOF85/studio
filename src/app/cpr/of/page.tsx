@@ -111,7 +111,6 @@ export default function OfPage() {
     const gastronomyOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
     const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const elaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-    const excedentes = JSON.parse(localStorage.getItem('excedentesProduccion') || '[]') as ExcedenteProduccion[];
     const stockElaboraciones: Record<string, { cantidadTotal: number }> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
 
     const recetasMap = new Map(recetas.map(r => [r.id, r]));
@@ -163,7 +162,7 @@ export default function OfPage() {
     const necesidadesPorFecha: Record<string, NecesidadItem[]> = {};
 
     Object.values(necesidadesAgregadas).forEach(necesidad => {
-        const ofsExistentes = allOFs.filter(of => of.elaboracionId === necesidad.id);
+        const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id);
         const cantidadEnProduccion = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => sum + of.cantidadTotal, 0);
         const cantidadEnStock = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
         
@@ -180,11 +179,11 @@ export default function OfPage() {
 
     setNecesidades(necesidadesPorFecha);
     setIsMounted(true);
-  }, [dateRange]);
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, dateRange]);
 
 
   const filteredAndSortedItems = useMemo(() => {
@@ -383,7 +382,7 @@ export default function OfPage() {
                   <div className="flex items-center gap-2">
                       <span className="font-semibold text-sm">Estado:</span>
                       <div className="flex flex-wrap gap-1">
-                          <Button variant={statusFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('all')}>Todos</Button>
+                          <Button size="sm" variant={statusFilter === 'all' ? 'default' : 'outline'} onClick={() => setStatusFilter('all')}>Todos</Button>
                           {statusOptions.map(s => (
                               <Button key={s} variant={statusFilter === s ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(s)}>{s}</Button>
                           ))}
@@ -454,3 +453,5 @@ export default function OfPage() {
     </>
   );
 }
+
+    
