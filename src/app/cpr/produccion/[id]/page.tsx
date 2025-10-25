@@ -166,16 +166,22 @@ export default function ProduccionDetallePage() {
                             Introduce la cantidad real que has producido. Esta cifra se utilizará para el control de calidad y el stock.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <div className="py-4">
-                        <Label htmlFor="cantidad-real" className="text-lg">Cantidad Real Producida ({orden.unidad})</Label>
-                        <Input 
-                            id="cantidad-real" 
-                            type="number"
-                            step="0.01"
-                            value={cantidadReal}
-                            onChange={(e) => setCantidadReal(e.target.value)}
-                            className="mt-2 text-2xl h-16 text-center font-bold"
-                        />
+                    <div className="py-4 space-y-4">
+                        <div className="text-center">
+                            <p className="text-sm text-muted-foreground">Cantidad Planificada</p>
+                            <p className="text-xl font-bold">{orden.cantidadTotal} {orden.unidad}</p>
+                        </div>
+                        <div>
+                            <Label htmlFor="cantidad-real" className="text-lg">Cantidad Real Producida ({orden.unidad})</Label>
+                            <Input 
+                                id="cantidad-real" 
+                                type="number"
+                                step="0.01"
+                                value={cantidadReal}
+                                onChange={(e) => setCantidadReal(e.target.value)}
+                                className="mt-2 text-2xl h-16 text-center font-bold"
+                            />
+                        </div>
                     </div>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
