@@ -407,7 +407,7 @@ export default function OfDetailPage() {
                                                     <ul className="space-y-2">
                                                         {detallesNecesidad.map((n, i) => (
                                                           <li key={i} className="text-xs">
-                                                            <p className="font-bold">{n.osNumber} - {n.hitoDescripcion} ({n.osSpace}) - {format(new Date(n.fechaHito), 'dd/MM/yy')}</p>
+                                                            <p className="font-bold">{n.osNumber} - {n.hitoDescripcion} ({format(new Date(n.fechaHito), 'dd/MM/yy')}) - {n.osSpace}</p>
                                                             <p className="text-muted-foreground pl-2">{n.cantidadReceta} x "{n.recetaNombre}" &rarr; {formatNumber(n.cantidadNecesaria, 2)} {formatUnit(elaboracion?.unidadProduccion || '')}</p>
                                                           </li>  
                                                         ))}
@@ -523,7 +523,7 @@ export default function OfDetailPage() {
                                                     <TableCell>{formatNumber(detalle.cantidadNecesaria, 2)} {elabUnidad ? formatUnit(elabUnidad) : 'uds'}</TableCell>
                                                     <TableCell>
                                                         <FormField control={control} name={`desgloseProduccion.${index}.cantidadReal`} render={({field}) => (
-                                                            <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || null)} />
+                                                            <Input type="number" step="0.01" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value) || null)} />
                                                         )} />
                                                     </TableCell>
                                                     <TableCell>
@@ -592,5 +592,3 @@ export default function OfDetailPage() {
         </TooltipProvider>
     );
 }
-
-
