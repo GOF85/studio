@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -27,6 +28,7 @@ import { Combobox } from '@/components/ui/combobox';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { formatNumber, formatUnit } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -97,7 +99,7 @@ export default function OfDetailPage() {
         name: "desgloseProduccion"
     });
 
-    const selectedElaboracionId = watch('elaboracionId');
+    const watchedElaboracionId = watch('elaboracionId');
     const desgloseWatch = watch('desgloseProduccion');
 
     const isDesgloseComplete = useMemo(() => {
@@ -113,7 +115,7 @@ export default function OfDetailPage() {
       setValue('cantidadReal', totalDesglose);
     }, [totalDesglose, setValue]);
 
-    const selectedElaboracion = useMemo(() => dbElaboraciones.find(e => e.id === selectedElaboracionId), [dbElaboraciones, selectedElaboracionId]);
+    const selectedElaboracion = useMemo(() => dbElaboraciones.find(e => e.id === watchedElaboracionId), [dbElaboraciones, watchedElaboracionId]);
 
     const loadNecesidades = useCallback((of: OrdenFabricacion | null) => {
         if (!of) return;
@@ -180,7 +182,7 @@ export default function OfDetailPage() {
         
         const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
         const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
-        const erpMap = new Map(storedErp.map(i => [i.id, i]));
+        const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
         const combined = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
         setIngredientesData(new Map(combined.map(i => [i.id, i])));
         
@@ -332,7 +334,7 @@ export default function OfDetailPage() {
     const elabCantidad = watch('cantidadTotal') || (isEditing ? orden?.cantidadTotal : 0);
 
     return (
-        <div>
+        <TooltipProvider>
             <div className="flex items-center justify-between mb-2">
                 <div></div>
                 <div className="flex items-center gap-2">
@@ -392,7 +394,16 @@ export default function OfDetailPage() {
                                     {orden && orden.osIDs.length > 0 && 
                                         <div className="space-y-1">
                                             <h4 className="font-semibold text-muted-foreground">Órdenes de Servicio</h4>
-                                            <p className="flex items-center gap-1.5"><Info className="h-4 w-4"/> Afecta a {orden.osIDs.length} evento(s)</p>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <p className="flex items-center gap-1.5 cursor-help"><Info className="h-4 w-4"/> Afecta a {orden.osIDs.length} evento(s)</p>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <ul className="list-disc pl-4">
+                                                        {orden.osIDs.map(os => <li key={os}>{os}</li>)}
+                                                    </ul>
+                                                </TooltipContent>
+                                            </Tooltip>
                                         </div>
                                     }
                                     <div className="space-y-1">
@@ -427,7 +438,7 @@ export default function OfDetailPage() {
                                         <TableBody>
                                             {elaboracion.componentes.map(comp => {
                                                 const ingrediente = ingredientesData.get(comp.componenteId);
-                                                const unidad = ingrediente?.erp?.unidad || 'UNIDAD';
+                                                const unidad = ingrediente?.erp?.unidad || 'UD';
                                                 return (
                                                     <TableRow key={comp.id}>
                                                         <TableCell>{comp.nombre}</TableCell>
@@ -568,6 +579,6 @@ export default function OfDetailPage() {
                     </AlertDialogContent>
                 </AlertDialog>
             )}
-        </div>
+        </TooltipProvider>
     );
 }

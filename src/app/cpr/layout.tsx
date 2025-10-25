@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -49,27 +50,24 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     
     const { currentPage, isDetailPage, detailId } = useMemo(() => {
-        const pathSegments = pathname.split('/').filter(Boolean);
-        const isOfDetail = pathSegments[1] === 'cpr' && pathSegments[2] === 'of' && pathSegments.length > 3;
-
-        if (isOfDetail) {
+        const pathSegments = pathname.split('/').filter(Boolean); // e.g., ['cpr', 'of', 'OF-123']
+        
+        // Check for specific detail page patterns first
+        if (pathSegments.length > 2 && pathSegments[0] === 'cpr' && pathSegments[1] === 'of') {
+            const ofPage = cprNav.find(link => link.href === '/cpr/of');
             return {
-                currentPage: cprNav.find(link => link.href.includes('/cpr/of')),
+                currentPage: ofPage,
                 isDetailPage: true,
-                detailId: pathSegments[3]
+                detailId: pathSegments[2] // This is the OF ID
             };
         }
-
-        const currentPath = pathSegments[2];
-        if (!currentPath || pathSegments[1] !== 'cpr') {
-            return {
-                currentPage: cprNav.find(link => link.href === '/cpr/dashboard'),
-                isDetailPage: false,
-                detailId: null,
-            };
-        }
+        
+        // Fallback for general module pages
+        const currentPathSegment = pathSegments.length > 1 ? pathSegments[1] : 'dashboard';
+        const currentPageData = cprNav.find(link => link.href.includes(`/cpr/${currentPathSegment}`));
+        
         return {
-            currentPage: cprNav.find(link => link.href.includes(currentPath)),
+            currentPage: currentPageData || cprNav[0], // Default to dashboard
             isDetailPage: false,
             detailId: null,
         };
@@ -94,7 +92,7 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
                             <Factory className="h-5 w-5"/>
                             <span>Panel de Producción</span>
                         </Link>
-                        {currentPage && currentPage.icon && (
+                        {currentPage && currentPage.href !== '/cpr/dashboard' && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
                                 <Link href={currentPage.href} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
@@ -106,7 +104,7 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
                          {isDetailPage && detailId && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                <span className="flex items-center gap-2 text-primary">
+                                <span className="flex items-center gap-2 text-primary font-bold">
                                     <Factory className="h-5 w-5"/>
                                     <span>{detailId}</span>
                                 </span>
