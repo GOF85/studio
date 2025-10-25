@@ -73,10 +73,14 @@ export default function ProduccionDetallePage() {
     };
     
     const barquetas = useMemo(() => {
-      if (!elaboracion?.ratioExpedicion || !orden?.cantidadReal || elaboracion.ratioExpedicion === 0) {
+      if (!elaboracion?.ratioExpedicion || elaboracion.ratioExpedicion === 0) {
         return 0;
       }
-      return Math.ceil(orden.cantidadReal / elaboracion.ratioExpedicion);
+      
+      const cantidad = orden?.estado === 'Finalizado' ? orden.cantidadReal : orden?.cantidadTotal;
+      if (!cantidad) return 0;
+      
+      return Math.ceil(cantidad / elaboracion.ratioExpedicion);
     }, [orden, elaboracion]);
 
 
@@ -139,7 +143,7 @@ export default function ProduccionDetallePage() {
                         </div>
                          <div className="p-4 bg-secondary rounded-lg">
                             <h4 className="text-sm font-semibold text-muted-foreground">Barquetas Necesarias</h4>
-                            <p className="text-lg font-bold">{orden.estado === 'Finalizado' ? barquetas : 'Pendiente de finalizar'}</p>
+                            <p className="text-lg font-bold">{barquetas > 0 ? barquetas : 'N/A'}</p>
                         </div>
                     </CardContent>
                 </Card>
