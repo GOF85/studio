@@ -48,12 +48,31 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     
-    const currentPage = useMemo(() => {
-        const currentPath = pathname.split('/')[2];
-        if (!currentPath) {
-            return cprNav.find(link => link.href === '/cpr/dashboard');
+    const { currentPage, isDetailPage, detailId } = useMemo(() => {
+        const pathSegments = pathname.split('/').filter(Boolean);
+        const isOfDetail = pathSegments[1] === 'cpr' && pathSegments[2] === 'of' && pathSegments.length > 3;
+
+        if (isOfDetail) {
+            return {
+                currentPage: cprNav.find(link => link.href.includes('/cpr/of')),
+                isDetailPage: true,
+                detailId: pathSegments[3]
+            };
         }
-        return cprNav.find(link => link.href.includes(currentPath));
+
+        const currentPath = pathSegments[2];
+        if (!currentPath || pathSegments[1] !== 'cpr') {
+            return {
+                currentPage: cprNav.find(link => link.href === '/cpr/dashboard'),
+                isDetailPage: false,
+                detailId: null,
+            };
+        }
+        return {
+            currentPage: cprNav.find(link => link.href.includes(currentPath)),
+            isDetailPage: false,
+            detailId: null,
+        };
     }, [pathname]);
 
     return (
@@ -78,8 +97,19 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
                         {currentPage && currentPage.icon && (
                             <>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground"/>
-                                <currentPage.icon className="h-5 w-5 text-muted-foreground"/>
-                                <span>{currentPage.title}</span>
+                                <Link href={currentPage.href} className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+                                    <currentPage.icon className="h-5 w-5"/>
+                                    <span>{currentPage.title}</span>
+                                </Link>
+                            </>
+                        )}
+                         {isDetailPage && detailId && (
+                            <>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground"/>
+                                <span className="flex items-center gap-2 text-primary">
+                                    <Factory className="h-5 w-5"/>
+                                    <span>{detailId}</span>
+                                </span>
                             </>
                         )}
                     </div>
