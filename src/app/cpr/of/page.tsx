@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Factory, Search, PlusCircle, Trash2, Calendar as CalendarIcon, ChefHat, CheckSquare } from 'lucide-react';
-import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion } from '@/types';
+import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -117,7 +117,6 @@ export default function OfPage() {
     const recetasMap = new Map(recetas.map(r => [r.id, r]));
     const elabMap = new Map(elaboraciones.map(e => [e.id, e]));
 
-    const necesidadesAgregadas: Record<string, NecesidadItem> = {};
     const necesidadesPorFecha: Record<string, NecesidadItem[]> = {};
 
     serviceOrders.forEach(os => {
@@ -128,8 +127,8 @@ export default function OfPage() {
             if (!hito.conGastronomia) return;
 
             try {
-                const hitoDate = new Date(hito.fecha);
-                 if (!isWithinInterval(hitoDate, { start: dateRange.from!, end: dateRange.to || dateRange.from! })) return;
+                const hitoDate = parseISO(hito.fecha);
+                 if (!isWithinInterval(hitoDate, { start: startOfDay(dateRange.from!), end: endOfDay(dateRange.to || dateRange.from!) })) return;
                  
                 const gastroOrder = gastronomyOrders.find(g => g.id === hito.id);
                 if (!gastroOrder) return;
@@ -176,13 +175,16 @@ export default function OfPage() {
 
     Object.keys(necesidadesPorFecha).forEach(fechaKey => {
       necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].filter(necesidad => {
-        const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id);
+        const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id && isWithinInterval(new Date(of.fechaProduccionPrevista), { start: startOfDay(dateRange.from!), end: endOfDay(dateRange.to || dateRange.from!)}));
         const cantidadEnProduccion = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => sum + of.cantidadTotal, 0);
         const cantidadEnStock = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
         
         necesidad.cantidad -= (cantidadEnProduccion + cantidadEnStock);
         return necesidad.cantidad > 0.001;
       });
+      if(necesidadesPorFecha[fechaKey].length === 0) {
+        delete necesidadesPorFecha[fechaKey];
+      }
     });
 
     setNecesidades(necesidadesPorFecha);
@@ -461,6 +463,3 @@ export default function OfPage() {
     </>
   );
 }
-
-    
-    

@@ -25,8 +25,8 @@ import {
 } from '@/components/ui/alert-dialog';
 
 const ALL_DATABASE_KEYS = [
-    'personal', 'espacios', 'articulos', 'tipoServicio', 'tiposTransporte',
-    'atipicosDB', 'personalMiceOrders', 'tiposPersonal', 'decoracionDB', 
+    'personal', 'espacios', 'articulos', 'tipoServicio', 'tiposPersonal', 'tiposTransporte',
+    'atipicosDB', 'personalMiceOrders', 'decoracionDB', 
     'tiposCocina', 'pedidoPlantillas', 'formatosExpedicionDB', 'proveedores', 'serviceOrders', 
     'entregas', 'comercialBriefings', 'gastronomyOrders', 'materialOrders', 'transporteOrders', 
     'hieloOrders', 'decoracionOrders', 'atipicoOrders', 'personalExterno', 'personalExternoAjustes', 'pruebasMenu', 
@@ -34,7 +34,7 @@ const ALL_DATABASE_KEYS = [
     'pedidosEntrega', 'personalEntrega', 'partnerPedidosStatus', 'activityLogs', 'ctaRealCosts', 
     'ctaComentarios', 'objetivosGastoPlantillas', 'defaultObjetivoGastoId', 'articulosERP', 'familiasERP',
     'ingredientesInternos', 'elaboraciones', 'recetas', 'categoriasRecetas', 'portalUsers',
-    'comercialAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones', 'personalExternoDB'
+    'comercialAjustes', 'productosVenta', 'pickingEntregasState', 'stockElaboraciones', 'personalExternoDB', 'historicoPreciosERP'
 ];
 
 
@@ -89,6 +89,7 @@ const KEY_DESCRIPTIONS: Record<string, string> = {
     productosVenta: 'Catálogo de productos para la vertical de Entregas, incluyendo "Packs".',
     pickingEntregasState: 'Estado del picking para la vertical de Entregas.',
     stockElaboraciones: 'Inventario en tiempo real de las elaboraciones producidas y validadas por calidad.',
+    historicoPreciosERP: 'Registro histórico de los precios de la materia prima.'
 };
 
 
