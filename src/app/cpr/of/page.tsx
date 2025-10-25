@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -92,6 +93,8 @@ export default function OfPage() {
     from: startOfDay(new Date()),
     to: endOfDay(addDays(new Date(), 7)),
   });
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
 
   const router = useRouter();
   const { toast } = useToast();
@@ -106,7 +109,6 @@ export default function OfPage() {
       return;
     }
     
-    // --- LÓGICA DE CÁLCULO DE NECESIDADES ---
     const serviceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
     const gastronomyOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
@@ -214,6 +216,7 @@ export default function OfPage() {
     setStatusFilter('all');
     setPartidaFilter('all');
     setSelectedRows(new Set());
+    setDateRange({ from: startOfDay(new Date()), to: endOfDay(addDays(new Date(), 7)) });
   };
 
   const handleSelectRow = (id: string, checked: boolean | 'indeterminate') => {
@@ -379,6 +382,17 @@ export default function OfPage() {
                               onChange={(e) => setSearchTerm(e.target.value)}
                           />
                       </div>
+                      <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                          <PopoverTrigger asChild>
+                              <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal md:w-[300px]", !dateRange && "text-muted-foreground")}>
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                              </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
+                          </PopoverContent>
+                      </Popover>
                       <Select value={partidaFilter} onValueChange={setPartidaFilter}>
                           <SelectTrigger className="w-full sm:w-[240px]">
                               <SelectValue placeholder="Filtrar por partida" />
