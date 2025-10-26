@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -187,7 +188,9 @@ export default function OfPage() {
       necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].filter(necesidad => {
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id);
         const cantidadYaProducida = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => {
-            return sum + (of.cantidadReal || 0); // Always use real quantity, defaults to 0 if not set
+            // If the order is finished, use the real quantity. If not, use the planned total quantity to avoid re-generating.
+            const cantidad = (of.estado === 'Finalizado' || of.estado === 'Validado') ? (of.cantidadReal || 0) : of.cantidadTotal;
+            return sum + cantidad;
         }, 0);
         const cantidadEnStock = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
         
