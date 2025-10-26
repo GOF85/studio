@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { differenceInDays, format, startOfToday, addDays, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PackagePlus, Search, AlertTriangle } from 'lucide-react';
-import type { OrdenFabricacion, Elaboracion, ServiceOrder, Receta, GastronomyOrder, ExcedenteProduccion, StockElaboracion } from '@/types';
+import type { OrdenFabricacion, Elaboracion, ServiceOrder, Receta, GastronomyOrder, ExcedenteProduccion, StockElaboracion, PickingState, LoteAsignado } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -46,6 +46,21 @@ export default function ExcedentesPage() {
     setElaboracionesMap(new Map(allElaboraciones.map(e => [e.id, e])));
     
     const allStock = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}') as Record<string, StockElaboracion>;
+    const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingState>;
+    const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+    const ofsMap = new Map(allOFs.map(of => [of.id, of]));
+
+    // Calcular las cantidades asignadas en todos los pickings
+    const assignedQuantities: Record<string, number> = {};
+    Object.values(allPickingStates).forEach(pickingState => {
+        (pickingState.itemStates || []).forEach(loteAsignado => {
+            const of = ofsMap.get(loteAsignado.ofId);
+            if (of) {
+                const elabId = of.elaboracionId;
+                assignedQuantities[elabId] = (assignedQuantities[elabId] || 0) + loteAsignado.quantity;
+            }
+        });
+    });
     
     const stockItems: StockDisplayItem[] = Object.values(allStock).map(item => {
         const elab = allElaboraciones.find(e => e.id === item.elaboracionId);
@@ -63,15 +78,19 @@ export default function ExcedentesPage() {
             }
         }
         
+        // Restar la cantidad asignada del total en stock
+        const cantidadAsignada = assignedQuantities[item.elaboracionId] || 0;
+        const cantidadDisponible = item.cantidadTotal - cantidadAsignada;
+
         return {
             elaboracionId: item.elaboracionId,
             elaboracionNombre: elab?.nombre || 'Desconocido',
-            cantidadTotal: item.cantidadTotal,
+            cantidadTotal: cantidadDisponible,
             unidad: item.unidad,
             caducidadProxima,
             estado
         };
-    }).filter(item => item.cantidadTotal > 0.01); // Only show items with significant stock
+    }).filter(item => item.cantidadTotal > 0.01); // Solo mostrar si hay stock real disponible
 
     setStock(stockItems);
     setIsMounted(true);
