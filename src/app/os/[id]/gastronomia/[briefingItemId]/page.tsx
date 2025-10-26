@@ -34,7 +34,9 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -46,7 +48,7 @@ const gastroItemSchema = z.object({
   nombre: z.string(),
   costeMateriaPrima: z.number().optional(),
   precioVenta: z.number().optional(),
-  quantity: z.number().optional(),
+  quantity: z.coerce.number().optional(),
   comentarios: z.string().optional(),
 });
 
@@ -144,13 +146,6 @@ function PedidoGastronomiaForm() {
       type: 'separator',
       nombre: name,
     });
-  };
-  
-  const handleQuantityChange = (index: number, newQuantity: number) => {
-      const currentItem = getValues(`gastro_items.${index}`);
-      if (currentItem) {
-        update(index, { ...currentItem, quantity: newQuantity });
-      }
   };
 
   const onSubmit = (data: FormValues) => {
@@ -263,16 +258,17 @@ function PedidoGastronomiaForm() {
                                 <TableRow key={field.id}>
                                     <TableCell>{field.nombre}</TableCell>
                                      <TableCell>
-                                        <Input
-                                            type="number"
-                                            defaultValue={field.quantity}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    handleQuantityChange(index, parseInt((e.target as HTMLInputElement).value, 10) || 0);
-                                                }
-                                            }}
-                                            className="w-24 h-8"
+                                        <FormField
+                                            control={control}
+                                            name={`gastro_items.${index}.quantity`}
+                                            render={({ field: quantityField }) => (
+                                                <Input
+                                                    type="number"
+                                                    {...quantityField}
+                                                    onChange={(e) => quantityField.onChange(parseInt(e.target.value, 10) || 0)}
+                                                    className="w-24 h-8"
+                                                />
+                                            )}
                                         />
                                     </TableCell>
                                     <TableCell>{formatCurrency(field.precioVenta || 0)}</TableCell>
