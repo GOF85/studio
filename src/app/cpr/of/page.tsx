@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Factory, Search, PlusCircle, Trash2, Calendar as CalendarIcon, ChefHat, CheckSquare } from 'lucide-react';
+import { Factory, Search, PlusCircle, Trash2, Calendar as CalendarIcon, ChefHat, CheckSquare, Euro } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,7 +37,7 @@ import {
 import { format, parseISO, startOfDay, endOfDay, isWithinInterval, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
-import { formatNumber, formatUnit } from '@/lib/utils';
+import { formatNumber, formatUnit, formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -88,6 +88,7 @@ export default function OfPage() {
   const [partidaFilter, setPartidaFilter] = useState('all');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [elaboracionesMap, setElaboracionesMap] = useState<Map<string, Elaboracion>>(new Map());
   
   const [necesidades, setNecesidades] = useState<Record<string, NecesidadItem[]>>({});
   const [selectedNecesidades, setSelectedNecesidades] = useState<Record<string, Set<string>>>({});
@@ -109,6 +110,9 @@ export default function OfPage() {
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
 
+    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    setElaboracionesMap(new Map(allElaboraciones.map(e => [e.id, e])));
+
     if (!dateRange?.from) {
       setNecesidades({});
       return;
@@ -118,11 +122,10 @@ export default function OfPage() {
     const gastronomyOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-    const elaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     const stockElaboraciones: Record<string, { cantidadTotal: number }> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
 
     const recetasMap = new Map(recetas.map(r => [r.id, r]));
-    const elabMap = new Map(elaboraciones.map(e => [e.id, e]));
+    const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
 
     const necesidadesPorFecha: Record<string, NecesidadItem[]> = {};
 
@@ -183,7 +186,9 @@ export default function OfPage() {
     Object.keys(necesidadesPorFecha).forEach(fechaKey => {
       necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].filter(necesidad => {
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id);
-        const cantidadYaProducida = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => sum + (of.cantidadReal || 0), 0);
+        const cantidadYaProducida = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => {
+            return sum + (of.cantidadReal || 0); // Always use real quantity, defaults to 0 if not set
+        }, 0);
         const cantidadEnStock = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
         
         necesidad.cantidad -= (cantidadYaProducida + cantidadEnStock);
@@ -295,7 +300,6 @@ export default function OfPage() {
     
     toast({ title: 'Órdenes de Fabricación Creadas', description: `${nuevasOFs.length} OFs se han añadido a la lista.` });
     
-    // Clear selection and reload needs
     setSelectedNecesidades(prev => ({...prev, [fecha]: new Set()}));
     loadData();
   };
@@ -350,6 +354,7 @@ export default function OfPage() {
                     <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
                 </PopoverContent>
             </Popover>
+             <Button variant="secondary" onClick={() => { setDateRange({ from: startOfDay(new Date()), to: endOfDay(addDays(new Date(), 7)) }); }}>Próximos 7 días</Button>
         </div>
         <TabsContent value="planificacion" className="mt-4 space-y-4">
             <Accordion type="multiple" className="w-full space-y-4">
@@ -465,13 +470,17 @@ export default function OfPage() {
                             <TableHead>Elaboración</TableHead>
                             <TableHead>Cant. Planificada</TableHead>
                             <TableHead>Cant. Producida</TableHead>
+                            <TableHead>Valoración Lote</TableHead>
                             <TableHead>Fecha Prevista</TableHead>
                             <TableHead>Estado</TableHead>
                         </TableRow>
                         </TableHeader>
                         <TableBody>
                         {filteredAndSortedItems.length > 0 ? (
-                            filteredAndSortedItems.map(of => (
+                            filteredAndSortedItems.map(of => {
+                                 const elab = elaboracionesMap.get(of.elaboracionId);
+                                 const costeLote = (elab?.costePorUnidad || 0) * (of.cantidadReal || of.cantidadTotal);
+                                return (
                             <TableRow
                                 key={of.id}
                                 onClick={() => router.push(`/cpr/of/${of.id}`)}
@@ -491,12 +500,13 @@ export default function OfPage() {
                                 <TableCell>{of.elaboracionNombre}</TableCell>
                                 <TableCell>{ceilToTwoDecimals(of.cantidadTotal)} {formatUnit(of.unidad)}</TableCell>
                                 <TableCell>{ceilToTwoDecimals(of.cantidadReal)} {of.cantidadReal ? formatUnit(of.unidad) : ''}</TableCell>
+                                <TableCell className="font-semibold">{formatCurrency(costeLote)}</TableCell>
                                 <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
                                 <TableCell>
                                 <Badge variant={statusVariant[of.estado]}>{of.estado}</Badge>
                                 </TableCell>
                             </TableRow>
-                            ))
+                            )})
                         ) : (
                             <TableRow>
                             <TableCell colSpan={8} className="h-24 text-center">
@@ -563,4 +573,3 @@ export default function OfPage() {
     </>
   );
 }
-

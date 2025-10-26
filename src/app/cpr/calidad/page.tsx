@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle, Search, AlertTriangle, Calendar as CalendarIcon } from 'lucide-react';
-import type { OrdenFabricacion, Personal, StockElaboracion, UnidadMedida } from '@/types';
+import type { OrdenFabricacion, Personal, StockElaboracion, UnidadMedida, Elaboracion } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -34,7 +34,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -61,6 +61,7 @@ export default function CalidadPage() {
     to: startOfToday(),
   });
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [elaboracionesMap, setElaboracionesMap] = useState<Map<string, Elaboracion>>(new Map());
   const router = useRouter();
   const { toast } = useToast();
 
@@ -71,6 +72,10 @@ export default function CalidadPage() {
     }
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
+
+    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    setElaboracionesMap(new Map(allElaboraciones.map(e => [e.id, e])));
+
     setIsMounted(true);
   }, []);
   
@@ -169,7 +174,7 @@ export default function CalidadPage() {
               dateMatch = isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
           }
         } else if (dateRange?.from) {
-            dateMatch = false; // If date filter is set, but item has no date, it doesn't match
+            dateMatch = false;
         }
 
         return matchesFilter && searchMatch && dateMatch;
@@ -232,6 +237,7 @@ export default function CalidadPage() {
               <TableHead>Lote / OF</TableHead>
               <TableHead>Elaboración</TableHead>
               <TableHead>Cantidad Producida</TableHead>
+              <TableHead>Valoración Lote</TableHead>
               <TableHead>Fecha Producción</TableHead>
               <TableHead>Responsable</TableHead>
               {showAll && <TableHead>Estado Calidad</TableHead>}
@@ -240,13 +246,15 @@ export default function CalidadPage() {
           </TableHeader>
           <TableBody>
             {filteredItems.length > 0 ? (
-              filteredItems.map(of => (
-                <TableRow
-                  key={of.id}
-                >
+              filteredItems.map(of => {
+                  const elab = elaboracionesMap.get(of.elaboracionId);
+                  const costeLote = (elab?.costePorUnidad || 0) * (of.cantidadReal || of.cantidadTotal);
+                  return (
+                <TableRow key={of.id}>
                   <TableCell className="font-medium cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.id}</TableCell>
                   <TableCell className="cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.elaboracionNombre}</TableCell>
                   <TableCell className="cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.cantidadReal || of.cantidadTotal} {of.unidad}</TableCell>
+                  <TableCell className="font-semibold">{formatCurrency(costeLote)}</TableCell>
                   <TableCell className="cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>{of.fechaFinalizacion ? format(new Date(of.fechaFinalizacion), 'dd/MM/yyyy') : '-'}</TableCell>
                   <TableCell className="cursor-pointer" onClick={() => router.push(`/cpr/of/${of.id}`)}>
                     <Badge variant="secondary">{of.responsable}</Badge>
@@ -287,10 +295,10 @@ export default function CalidadPage() {
                     </AlertDialog>
                   </TableCell>
                 </TableRow>
-              ))
+              )})
             ) : (
               <TableRow>
-                <TableCell colSpan={showAll ? 7 : 6} className="h-24 text-center">
+                <TableCell colSpan={showAll ? 8 : 7} className="h-24 text-center">
                   No hay órdenes de fabricación que coincidan con los filtros.
                 </TableCell>
               </TableRow>
