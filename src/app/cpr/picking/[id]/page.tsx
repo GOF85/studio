@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -298,7 +299,7 @@ export default function PickingDetailPage() {
                 
                 return { ...necesidad, cantidadAsignada: cantidadAsignadaTotal };
             }).filter(lote => {
-                const of = lotesNecesarios.find(o => o.elaboracionId === lote.elaboracionId && (o.estado === 'Validado' || o.estado === 'Finalizado'));
+                const of = lotesNecesarios.find(o => o.elaboracionId === lote.elaboracionId && (o.estado === 'Validado'));
                 if (!of) return false;
                 
                 const isReadyForPicking = true;
@@ -368,11 +369,9 @@ export default function PickingDetailPage() {
         setShowDeleteConfirm(false);
     }
     
-    const handlePrintHito = async (hito: ComercialBriefingItem) => {
+    const handlePrintHito = (hito: ComercialBriefingItem) => {
         if (!serviceOrder) return;
-        
-        setPrintingHito(hito.id); // Set state to trigger re-render of only the printable content
-        
+        setPrintingHito(hito.id);
         setTimeout(() => {
           window.print();
           setPrintingHito(null);
@@ -381,40 +380,69 @@ export default function PickingDetailPage() {
 
     const handlePrintEtiquetas = (hito: ComercialBriefingItem) => {
         if (!serviceOrder) return;
-        setPrintingHito(`etiquetas-${hito.id}`);
-        
+    
         try {
             const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [90, 110] });
             const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
             const allElabs = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
             const containers = pickingState.assignedContainers.filter(c => c.hitoId === hito.id);
-            
+    
             containers.forEach((container, containerIndex) => {
                 if (containerIndex > 0) doc.addPage();
                 
-                doc.setFontSize(16);
-                doc.setFont('helvetica', 'bold');
-                doc.text(`${serviceOrder.serviceNumber}.${(hitosConNecesidades.findIndex(h => h.id === hito.id) + 1).toString().padStart(2, '0')}`, 45, 15, { align: 'center' });
+                // --- HEADER ---
+                const headerBgColor = container.tipo === 'REFRIGERADO' ? '#e0f2fe' : container.tipo === 'CONGELADO' ? '#e0f2fe' : '#fef9c3';
+                doc.setFillColor(headerBgColor);
+                doc.rect(0, 0, 90, 25, 'F');
                 doc.setFontSize(22);
-                doc.text(`${container.tipo} #${container.numero}`, 45, 25, { align: 'center' });
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor('#1f2937');
+                doc.text(`${container.tipo} #${container.numero}`, 45, 17, { align: 'center' });
     
-                let finalY = 35;
-                doc.setFontSize(8);
+                let finalY = 32;
+                const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
+                const expedicionNumero = `${serviceOrder.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
+    
+                // --- INFO ---
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Hito:', 5, finalY);
                 doc.setFont('helvetica', 'normal');
-                doc.text(`Hito: ${hito.descripcion}`, 5, finalY);
-                doc.text(`Fecha: ${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`, 5, finalY + 4);
-                doc.text(`Cliente: ${serviceOrder.client}`, 5, finalY + 8);
-                doc.text(`Espacio: ${serviceOrder.space}`, 5, finalY + 12);
-                doc.text(`OS: ${serviceOrder.serviceNumber}`, 5, finalY + 16);
-                finalY += 22;
+                doc.text(hito.descripcion, 25, finalY);
     
+                doc.setFont('helvetica', 'bold');
+                doc.text(`Exp: ${expedicionNumero}`, 90 - 5, finalY, { align: 'right' });
+                finalY += 4.5;
+                
+                doc.setFont('helvetica', 'bold');
+                doc.text('Cliente:', 5, finalY);
+                doc.setFont('helvetica', 'normal');
+                doc.text(serviceOrder.client, 25, finalY);
+                
+                doc.setFont('helvetica', 'bold');
+                doc.text(`OS: ${serviceOrder.serviceNumber}`, 90 - 5, finalY, { align: 'right' });
+                finalY += 4.5;
+                
+                doc.setFont('helvetica', 'bold');
+                doc.text('Espacio:', 5, finalY);
+                doc.setFont('helvetica', 'normal');
+                doc.text(serviceOrder.space || 'N/A', 25, finalY);
+                finalY += 4.5;
+
+                doc.setFont('helvetica', 'bold');
+                doc.text('Fecha:', 5, finalY);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`, 25, finalY);
+                finalY += 6;
+
+                // --- TABLA ---
                 const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
                 const tableBody = containerItems.map(item => {
                     const loteInfo = allOFs.find(of => of.id === item.ofId);
                     const elabInfo = allElabs.find(e => e.id === loteInfo?.elaboracionId);
                     const recetaNombre = elabInfo ? getRecetaForElaboracion(elabInfo.id, osId) : '-';
                     return [
-                        elabInfo?.nombre || 'N/A',
+                        { content: elabInfo?.nombre || 'N/A', styles: { fontStyle: 'bold' } },
                         recetaNombre,
                         `${formatNumber(item.quantity, 2)} ${formatUnit(elabInfo?.unidadProduccion || '')}`
                     ];
@@ -425,9 +453,9 @@ export default function PickingDetailPage() {
                     head: [['Elaboración', 'Receta', 'Cant.']],
                     body: tableBody,
                     theme: 'grid',
-                    styles: { fontSize: 6, cellPadding: 1, overflow: 'linebreak' },
-                    headStyles: { fillColor: '#f2f2f2', textColor: '#333', fontSize: 7 },
-                    columnStyles: { 0: { cellWidth: 35 }, 1: { cellWidth: 25 }, 2: { cellWidth: 15, halign: 'right' } }
+                    styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
+                    headStyles: { fillColor: '#e5e7eb', textColor: '#374151', fontSize: 8, fontStyle: 'bold' },
+                    columnStyles: { 0: { cellWidth: 38 }, 1: { cellWidth: 27 }, 2: { cellWidth: 15, halign: 'right' } }
                 });
             });
     
@@ -436,10 +464,9 @@ export default function PickingDetailPage() {
         } catch (error) {
              console.error("Error generating labels PDF:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF de etiquetas.' });
-        } finally {
-            setPrintingHito(null);
         }
     };
+
 
     if (!isMounted || !serviceOrder) {
         return <LoadingSkeleton title="Cargando Picking..." />;
@@ -632,4 +659,5 @@ export default function PickingDetailPage() {
         </TooltipProvider>
     );
 }
+
 
