@@ -137,8 +137,11 @@ export default function OfPage() {
             if (!hito.conGastronomia || !hito.gastro_items) return;
 
             try {
-                const hitoDate = parseISO(hito.fecha);
-                 if (!isWithinInterval(hitoDate, { start: startOfDay(dateRange.from!), end: endOfDay(dateRange.to || dateRange.from!) })) return;
+                const hitoDate = startOfDay(parseISO(hito.fecha));
+                const rangeStart = startOfDay(dateRange.from!);
+                const rangeEnd = endOfDay(dateRange.to || dateRange.from!);
+
+                 if (!isWithinInterval(hitoDate, { start: rangeStart, end: rangeEnd })) return;
                  
                 const fechaKey = format(hitoDate, 'yyyy-MM-dd');
                 if(!necesidadesPorFecha[fechaKey]) necesidadesPorFecha[fechaKey] = [];
