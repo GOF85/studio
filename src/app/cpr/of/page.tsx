@@ -119,6 +119,7 @@ export default function OfPage() {
       return;
     }
     
+    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
     const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
     const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const stockElaboraciones: Record<string, { cantidadTotal: number }> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
@@ -128,15 +129,19 @@ export default function OfPage() {
 
     const necesidadesPorFecha: Record<string, NecesidadItem[]> = {};
 
-    allGastroOrders.forEach(gastroOrder => {
-      try {
-        const hitoDate = startOfDay(new Date(gastroOrder.fecha));
-        const rangeStart = startOfDay(dateRange.from!);
-        const rangeEnd = endOfDay(dateRange.to || dateRange.from!);
+    const rangeStart = startOfDay(dateRange.from);
+    const rangeEnd = endOfDay(dateRange.to || dateRange.from);
+    
+    const gastroOrdersInRange = allGastroOrders.filter(order => {
+        try {
+            const hitoDate = startOfDay(new Date(order.fecha));
+            return isWithinInterval(hitoDate, { start: rangeStart, end: rangeEnd });
+        } catch (e) { return false; }
+    });
 
-        if (!isWithinInterval(hitoDate, { start: rangeStart, end: rangeEnd })) return;
-                 
-        const fechaKey = format(hitoDate, 'yyyy-MM-dd');
+    gastroOrdersInRange.forEach(gastroOrder => {
+      try {
+        const fechaKey = format(new Date(gastroOrder.fecha), 'yyyy-MM-dd');
         if(!necesidadesPorFecha[fechaKey]) necesidadesPorFecha[fechaKey] = [];
         
         (gastroOrder.items || []).forEach(item => {
@@ -174,7 +179,7 @@ export default function OfPage() {
            console.warn(`Could not process order ${gastroOrder.id}`, e);
       }
     });
-
+    
     Object.keys(necesidadesPorFecha).forEach(fechaKey => {
       necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].filter(necesidad => {
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id && isSameDay(new Date(of.fechaProduccionPrevista), new Date(fechaKey)));
@@ -182,7 +187,8 @@ export default function OfPage() {
             if (of.estado === 'Finalizado' || of.estado === 'Validado') {
                 return sum + (of.cantidadReal || 0);
             }
-            return sum + (of.cantidadTotal || 0); // Consider planned amount for non-finished OFs
+            // If it's not finished, consider the planned amount to avoid re-generating
+            return sum + (of.cantidadTotal || 0);
         }, 0);
         const cantidadEnStock = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
         
@@ -218,7 +224,7 @@ export default function OfPage() {
           if (dateRange.to) {
               dateMatch = isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
           } else {
-              dateMatch = isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
+              dateMatch = isSameDay(itemDate, dateRange.from);
           }
         }
         
