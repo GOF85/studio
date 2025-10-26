@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -15,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
@@ -39,15 +40,17 @@ function PrintLabelDialog({ of, elaboracion, ingredientes }: { of: OrdenFabricac
         date.setDate(date.getDate() + 7);
         return date;
     });
+    const [isOpen, setIsOpen] = useState(false);
 
     const handlePrint = () => {
-        window.print();
+        setIsOpen(false);
+        setTimeout(() => window.print(), 100);
     };
     
     if (!elaboracion) return null;
 
     return (
-        <Dialog>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
                 <Button size="sm"><Printer className="mr-2 h-4 w-4" />Imprimir Etiqueta</Button>
             </DialogTrigger>
@@ -127,7 +130,9 @@ function PrintLabelDialog({ of, elaboracion, ingredientes }: { of: OrdenFabricac
                         </style>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => (document.getElementById('printable-label') as any)?.focus()}>Cancelar</Button>
+                       <DialogClose asChild>
+                            <Button variant="outline">Cancelar</Button>
+                        </DialogClose>
                         <Button onClick={handlePrint}><Printer className="mr-2"/>Imprimir</Button>
                     </DialogFooter>
                  </TooltipProvider>
