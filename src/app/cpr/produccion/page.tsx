@@ -43,7 +43,6 @@ function PrintLabelDialog({ of, elaboracion, ingredientes }: { of: OrdenFabricac
 
     const handlePrint = () => {
         window.print();
-        setIsOpen(false);
     };
     
     if (!elaboracion) return null;
@@ -186,10 +185,14 @@ export default function ProduccionPage() {
   }, [ordenes, selectedCocinero]);
   
   const filteredOrdenesFinalizadas = useMemo(() => {
+    if (!selectedCocinero) return [];
     return ordenes
-      .filter(of => of.estado === 'Finalizado' || of.estado === 'Validado')
+      .filter(of => 
+        (of.estado === 'Finalizado' || of.estado === 'Validado') && 
+        of.responsable === selectedCocinero
+      )
       .sort((a, b) => new Date(b.fechaFinalizacion || b.fechaCreacion).getTime() - new Date(a.fechaFinalizacion || a.fechaCreacion).getTime());
-  }, [ordenes]);
+  }, [ordenes, selectedCocinero]);
   
   const getIngredientesForElaboracion = (elaboracionId: string): IngredienteConERP[] => {
     const elab = elaboraciones.get(elaboracionId);
@@ -298,7 +301,7 @@ export default function ProduccionPage() {
                                 })
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="h-24 text-center">No hay órdenes de fabricación finalizadas.</TableCell>
+                                    <TableCell colSpan={4} className="h-24 text-center">No hay órdenes de fabricación finalizadas por ti.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
