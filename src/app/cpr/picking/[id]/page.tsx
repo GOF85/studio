@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -329,11 +330,10 @@ export default function PickingDetailPage() {
                                     if(cantidadNecesaria < 0.01) return;
     
                                     let existing = necesidadesHito.get(elabInfo.id);
-                                    const validOFs = lotesNecesarios.filter(o => o.elaboracionId === elabInfo.id && (o.estado === 'Validado' || o.estado === 'Finalizado') && !o.incidencia);
+                                    const validOFs = lotesNecesarios.filter(o => o.elaboracionId === elabInfo.id && (o.estado === 'Validado'));
+                                    const of = validOFs.length > 0 ? validOFs[0] : lotesNecesarios.find(o => o.elaboracionId === elabInfo.id);
 
                                     if(!existing) {
-                                        const of = validOFs.length > 0 ? validOFs[0] : lotesNecesarios.find(o => o.elaboracionId === elabInfo.id);
-
                                         existing = {
                                             ofId: of?.id || 'NO-OF',
                                             elaboracionId: elabInfo.id,
@@ -372,8 +372,7 @@ export default function PickingDetailPage() {
                 const of = lotesNecesarios.find(o => o.elaboracionId === lote.elaboracionId);
                 if (!of) return false;
                 
-                const ofState = of.estado;
-                const isReadyForPicking = ofState === 'Validado';
+                const isReadyForPicking = of.estado === 'Validado';
                 const cantidadPendiente = lote.cantidadNecesaria - lote.cantidadAsignada;
                 return cantidadPendiente > 0.001 && isReadyForPicking;
             });
@@ -557,12 +556,9 @@ export default function PickingDetailPage() {
         }
     };
     
-    useEffect(() => {
-        if (printingHito) {
-            window.print();
-            setPrintingHito(null); // Reset after print dialog opens
-        }
-    }, [printingHito]);
+    const triggerPrint = () => {
+        setTimeout(() => window.print(), 100);
+    }
 
 
     if (!isMounted || !serviceOrder) {
@@ -652,7 +648,7 @@ export default function PickingDetailPage() {
                                         {isPrinting === hito.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2" />}
                                         {isPrinting === hito.id ? 'Generando...' : 'Hoja de Carga'}
                                     </Button>
-                                    <Button onClick={() => setPrintingHito(hito)} disabled={!hasContentToPrint} variant="outline">
+                                    <Button onClick={() => { setPrintingHito(hito); triggerPrint(); }} disabled={!hasContentToPrint} variant="outline">
                                         <Tags className="mr-2 h-4 w-4"/>Imprimir Etiquetas
                                     </Button>
                                 </div>
