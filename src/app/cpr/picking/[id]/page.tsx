@@ -1,10 +1,9 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Package, ArrowLeft, Thermometer, Box, Snowflake, PlusCircle, Printer, Loader2, Trash2, Check, Utensils, Building, Phone, Sprout, AlertTriangle, FileText, Tags } from 'lucide-react';
+import { Package, ArrowLeft, Thermometer, Box, Snowflake, PlusCircle, Printer, Loader2, Trash2, Check, Utensils, Building, Phone, Sprout, AlertTriangle, FileText, Tags, Menu } from 'lucide-react';
 import { format } from 'date-fns';
 import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio, ComercialBriefingItem, ContenedorDinamico, Alergeno, IngredienteInterno, ArticuloERP } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -146,79 +145,13 @@ const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<s
     return Array.from(elabAlergenos);
 };
 
-// New Component for the Printable Label
-const ContainerLabel = ({ hito, container, items, serviceOrder }: { hito: ComercialBriefingItem, container: ContenedorDinamico, items: LoteAsignado[], serviceOrder: ServiceOrder }) => {
-    
-    const getRecetaForElaboracion = useCallback((elaboracionId: string, osId: string): string => {
-        const gastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).filter(o => o.osId === osId);
-        const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-        for (const order of gastroOrders) {
-            for (const item of (order.items || [])) {
-                if(item.type === 'item') {
-                    const receta = recetas.find(r => r.id === item.id);
-                    if(receta && receta.elaboraciones.some(e => e.elaboracionId === elaboracionId)) {
-                        return receta.nombre;
-                    }
-                }
-            }
-        }
-        return 'Directa';
-    }, []);
-
-    const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-    const allElabs = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
-
-
-    return (
-        <div className="printable-label-container">
-            <div className="label-header">
-                <h2>{serviceOrder.serviceNumber}.{(serviceOrder.id.indexOf(hito.id) + 1).toString().padStart(2, '0')}</h2>
-                <h1>{container.tipo} #{container.numero}</h1>
-            </div>
-            <div className="label-info">
-                <p><strong>Hito:</strong> {hito.descripcion}</p>
-                <p><strong>Fecha/Hora:</strong> {format(new Date(hito.fecha), 'dd/MM/yy')} {hito.horaInicio}</p>
-                <p><strong>Cliente:</strong> {serviceOrder.client}</p>
-                <p><strong>Espacio:</strong> {serviceOrder.space}</p>
-            </div>
-            <div className="label-content">
-                <table className="label-table">
-                    <thead>
-                        <tr>
-                            <th>Elaboración</th>
-                            <th>Receta</th>
-                            <th>Cant.</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {items.map(item => {
-                            const loteInfo = allOFs.find(of => of.id === item.ofId);
-                            const elabInfo = allElabs.find(e => e.id === loteInfo?.elaboracionId);
-                            const recetaNombre = elabInfo ? getRecetaForElaboracion(elabInfo.id, serviceOrder.id) : '-';
-                            return (
-                                <tr key={item.allocationId}>
-                                    <td>{elabInfo?.nombre || 'N/A'}</td>
-                                    <td>{recetaNombre}</td>
-                                    <td>{formatNumber(item.quantity, 2)} {formatUnit(elabInfo?.unidadProduccion || '')}</td>
-                                </tr>
-                            )
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
-};
-
 export default function PickingDetailPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-    const [spaceAddress, setSpaceAddress] = useState<string>('');
     const [hitosConNecesidades, setHitosConNecesidades] = useState<ComercialBriefingItem[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: [], itemStates: [] });
     const [isMounted, setIsMounted] = useState(false);
-    const [isPrinting, setIsPrinting] = useState<string | null>(null);
+    const [printingHito, setPrintingHito] = useState<string | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [printingHito, setPrintingHito] = useState<ComercialBriefingItem | null>(null);
     
     const router = useRouter();
     const params = useParams();
@@ -282,11 +215,6 @@ export default function PickingDetailPage() {
             const currentOS = allServiceOrders.find(os => os.id === osId);
             setServiceOrder(currentOS || null);
 
-            if (currentOS?.space) {
-                const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-                const currentSpace = allEspacios.find(e => e.identificacion.nombreEspacio === currentOS.space);
-                setSpaceAddress(currentSpace?.identificacion.calle || '');
-            }
             
             const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
             const currentBriefing = allBriefings.find(b => b.osId === osId);
@@ -330,6 +258,7 @@ export default function PickingDetailPage() {
                                     if(cantidadNecesaria < 0.01) return;
     
                                     let existing = necesidadesHito.get(elabInfo.id);
+                                    
                                     const validOFs = lotesNecesarios.filter(o => o.elaboracionId === elabInfo.id && (o.estado === 'Validado'));
                                     const of = validOFs.length > 0 ? validOFs[0] : lotesNecesarios.find(o => o.elaboracionId === elabInfo.id);
 
@@ -369,10 +298,10 @@ export default function PickingDetailPage() {
                 
                 return { ...necesidad, cantidadAsignada: cantidadAsignadaTotal };
             }).filter(lote => {
-                const of = lotesNecesarios.find(o => o.elaboracionId === lote.elaboracionId);
+                const of = lotesNecesarios.find(o => o.elaboracionId === lote.elaboracionId && (o.estado === 'Validado' || o.estado === 'Finalizado'));
                 if (!of) return false;
                 
-                const isReadyForPicking = of.estado === 'Validado';
+                const isReadyForPicking = true;
                 const cantidadPendiente = lote.cantidadNecesaria - lote.cantidadAsignada;
                 return cantidadPendiente > 0.001 && isReadyForPicking;
             });
@@ -441,125 +370,76 @@ export default function PickingDetailPage() {
     
     const handlePrintHito = async (hito: ComercialBriefingItem) => {
         if (!serviceOrder) return;
-        setIsPrinting(hito.id);
+        
+        setPrintingHito(hito.id); // Set state to trigger re-render of only the printable content
+        
+        setTimeout(() => {
+          window.print();
+          setPrintingHito(null);
+        }, 100);
+    };
 
+    const handlePrintEtiquetas = (hito: ComercialBriefingItem) => {
+        if (!serviceOrder) return;
+        setPrintingHito(`etiquetas-${hito.id}`);
+        
         try {
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            let finalY = 15;
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [90, 110] });
+            const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+            const allElabs = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+            const containers = pickingState.assignedContainers.filter(c => c.hitoId === hito.id);
             
-            const addHeader = () => {
-                doc.setFontSize(18);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor('#059669'); // Primary color
-                doc.text('Hoja de Carga - Picking', 15, finalY);
-                finalY += 10;
+            containers.forEach((container, containerIndex) => {
+                if (containerIndex > 0) doc.addPage();
                 
-                doc.setFontSize(9);
+                doc.setFontSize(16);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${serviceOrder.serviceNumber}.${(hitosConNecesidades.findIndex(h => h.id === hito.id) + 1).toString().padStart(2, '0')}`, 45, 15, { align: 'center' });
+                doc.setFontSize(22);
+                doc.text(`${container.tipo} #${container.numero}`, 45, 25, { align: 'center' });
+    
+                let finalY = 35;
+                doc.setFontSize(8);
                 doc.setFont('helvetica', 'normal');
-                doc.setTextColor('#374151');
-                
-                const serviceData = [
-                    ['Nº Serv:', serviceOrder.serviceNumber],
-                    ['Comercial:', serviceOrder.comercial || '-'],
-                    ['Cliente:', serviceOrder.client],
-                    ['Cliente Final:', serviceOrder.finalClient || '-']
-                ];
-                const eventData = [
-                    ['Servicio:', hito.descripcion],
-                    ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
-                    ['Asistentes:', String(serviceOrder.asistentes)],
-                    ['Espacio:', serviceOrder.space || '-']
-                ];
-
-                autoTable(doc, {
-                    body: serviceData,
-                    startY: finalY,
-                    theme: 'plain',
-                    tableWidth: (doc.internal.pageSize.getWidth() - 30) / 2 - 5,
-                    styles: { fontSize: 9, cellPadding: 0.5 },
-                    columnStyles: { 0: { fontStyle: 'bold' } }
+                doc.text(`Hito: ${hito.descripcion}`, 5, finalY);
+                doc.text(`Fecha: ${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`, 5, finalY + 4);
+                doc.text(`Cliente: ${serviceOrder.client}`, 5, finalY + 8);
+                doc.text(`Espacio: ${serviceOrder.space}`, 5, finalY + 12);
+                doc.text(`OS: ${serviceOrder.serviceNumber}`, 5, finalY + 16);
+                finalY += 22;
+    
+                const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
+                const tableBody = containerItems.map(item => {
+                    const loteInfo = allOFs.find(of => of.id === item.ofId);
+                    const elabInfo = allElabs.find(e => e.id === loteInfo?.elaboracionId);
+                    const recetaNombre = elabInfo ? getRecetaForElaboracion(elabInfo.id, osId) : '-';
+                    return [
+                        elabInfo?.nombre || 'N/A',
+                        recetaNombre,
+                        `${formatNumber(item.quantity, 2)} ${formatUnit(elabInfo?.unidadProduccion || '')}`
+                    ];
                 });
-                autoTable(doc, {
-                    body: eventData,
+    
+                 autoTable(doc, {
                     startY: finalY,
-                    theme: 'plain',
-                    tableWidth: (doc.internal.pageSize.getWidth() - 30) / 2 - 5,
-                    margin: { left: doc.internal.pageSize.getWidth() / 2 + 5 },
-                    styles: { fontSize: 9, cellPadding: 0.5 },
-                    columnStyles: { 0: { fontStyle: 'bold' } }
+                    head: [['Elaboración', 'Receta', 'Cant.']],
+                    body: tableBody,
+                    theme: 'grid',
+                    styles: { fontSize: 6, cellPadding: 1, overflow: 'linebreak' },
+                    headStyles: { fillColor: '#f2f2f2', textColor: '#333', fontSize: 7 },
+                    columnStyles: { 0: { cellWidth: 35 }, 1: { cellWidth: 25 }, 2: { cellWidth: 15, halign: 'right' } }
                 });
-                finalY = (doc as any).lastAutoTable.finalY + 10;
-            }
-
-            addHeader();
-
-            for (const tipo of Object.keys(expeditionTypeMap) as Array<keyof typeof expeditionTypeMap>) {
-                const containersForType = pickingState.assignedContainers.filter(c => c.hitoId === hito.id && c.tipo === tipo);
-                if (containersForType.length === 0) continue;
-
-                if (finalY + 20 > doc.internal.pageSize.getHeight()) {
-                    doc.addPage();
-                    finalY = 15;
-                    addHeader();
-                }
-                
-                doc.setFontSize(14);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor('#1f2937');
-                doc.text(expeditionTypeMap[tipo].title, 15, finalY);
-                finalY += 8;
-
-                for (const container of containersForType) {
-                    const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
-                    if(containerItems.length === 0) continue;
-
-                    if (finalY + 20 > doc.internal.pageSize.getHeight()) {
-                        doc.addPage();
-                        finalY = 15;
-                        addHeader();
-                    }
-                    
-                    doc.setFontSize(11);
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(`Contenedor: ${container.tipo} #${container.numero}`, 16, finalY);
-                    finalY += 6;
-
-                    const tableBody = containerItems.map(assignedLote => {
-                        const loteInfo = lotesNecesarios.find(of => of.id === assignedLote.ofId);
-                        const recetaNombre = loteInfo ? getRecetaForElaboracion(loteInfo.elaboracionId, osId) : '-';
-                        return [
-                            loteInfo?.elaboracionNombre || 'Desconocido',
-                            recetaNombre,
-                            assignedLote.ofId,
-                            `${formatNumber(assignedLote.quantity, 2)} ${formatUnit(loteInfo?.unidad || 'Uds')}`
-                        ];
-                    });
-
-                    autoTable(doc, {
-                        startY: finalY,
-                        head: [['Elaboración', 'Receta', 'Lote (OF)', 'Cantidad']],
-                        body: tableBody,
-                        theme: 'grid',
-                        headStyles: { fillColor: [230, 230, 230], textColor: 20 },
-                        styles: { fontSize: 9 },
-                    });
-                    finalY = (doc as any).lastAutoTable.finalY + 10;
-                }
-            }
-            
-            doc.save(`HojaCarga_${serviceOrder.serviceNumber}_${hito.descripcion.replace(/\s+/g, '_')}.pdf`);
+            });
+    
+             doc.save(`Etiquetas_${serviceOrder.serviceNumber}_${hito.descripcion.replace(/\s+/g, '_')}.pdf`);
+    
         } catch (error) {
-            console.error("Error generating PDF:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
+             console.error("Error generating labels PDF:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF de etiquetas.' });
         } finally {
-            setIsPrinting(null);
+            setPrintingHito(null);
         }
     };
-    
-    const triggerPrint = () => {
-        setTimeout(() => window.print(), 100);
-    }
-
 
     if (!isMounted || !serviceOrder) {
         return <LoadingSkeleton title="Cargando Picking..." />;
@@ -567,19 +447,6 @@ export default function PickingDetailPage() {
     
     return (
         <TooltipProvider>
-            <div className="printable-labels-area">
-                {printingHito && pickingState.assignedContainers
-                    .filter(c => c.hitoId === printingHito.id)
-                    .map(container => (
-                        <ContainerLabel 
-                            key={container.id}
-                            hito={printingHito}
-                            container={container}
-                            items={pickingState.itemStates.filter(i => i.containerId === container.id)}
-                            serviceOrder={serviceOrder}
-                        />
-                ))}
-            </div>
             <div className="non-printable">
                 <div className="flex items-center justify-between p-3 bg-muted rounded-lg mb-6">
                     <div className="flex items-center gap-4">
@@ -644,12 +511,13 @@ export default function PickingDetailPage() {
                                     <CardDescription>Fecha: {format(new Date(hito.fecha), 'dd/MM/yyyy')} a las {hito.horaInicio}</CardDescription>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Button onClick={() => handlePrintHito(hito)} disabled={!hasContentToPrint || !!isPrinting} variant="outline">
-                                        {isPrinting === hito.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2" />}
-                                        {isPrinting === hito.id ? 'Generando...' : 'Hoja de Carga'}
+                                     <Button onClick={() => handlePrintHito(hito)} disabled={!hasContentToPrint} variant="outline">
+                                        <Printer className="mr-2" />
+                                        Hoja de Carga
                                     </Button>
-                                    <Button onClick={() => { setPrintingHito(hito); triggerPrint(); }} disabled={!hasContentToPrint} variant="outline">
-                                        <Tags className="mr-2 h-4 w-4"/>Imprimir Etiquetas
+                                    <Button onClick={() => handlePrintEtiquetas(hito)} disabled={!hasContentToPrint} variant="outline">
+                                        <Tags className="mr-2" />
+                                        Imprimir Etiquetas
                                     </Button>
                                 </div>
                                 </CardHeader>
@@ -681,7 +549,7 @@ export default function PickingDetailPage() {
                                                                     <TableBody>
                                                                         {lotesDePartida.map(lote => (
                                                                             <TableRow key={lote.ofId}>
-                                                                                 <TableCell className="text-xs text-muted-foreground w-[30%]">
+                                                                                <TableCell className="text-xs text-muted-foreground w-[30%]">
                                                                                     {lote.recetas.map(r => (
                                                                                         <div key={r.nombre}>{r.cantidad} x {r.nombre}</div>
                                                                                     ))}
@@ -758,34 +626,10 @@ export default function PickingDetailPage() {
                     </AlertDialogContent>
                 </AlertDialog>
             </div>
-            <style jsx global>{`
-                .printable-labels-area { display: none; }
-                @media print {
-                    .non-printable { display: none; }
-                    .printable-labels-area { display: block; }
-                    .printable-label-container {
-                        width: 11cm;
-                        height: 9cm;
-                        padding: 1cm;
-                        border: 1px solid #ccc;
-                        box-sizing: border-box;
-                        page-break-after: always;
-                        display: flex;
-                        flex-direction: column;
-                    }
-                    .label-header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 8px; }
-                    .label-header h1 { font-size: 24pt; font-weight: bold; margin: 0; }
-                    .label-header h2 { font-size: 14pt; margin: 0; color: #555; }
-                    .label-info { padding: 8px 0; font-size: 10pt; line-height: 1.4; border-bottom: 1px solid #eee; margin-bottom: 8px;}
-                    .label-info p { margin: 0; }
-                    .label-content { flex-grow: 1; overflow: hidden; }
-                    .label-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
-                    .label-table th, .label-table td { border: 1px solid #ddd; padding: 4px; text-align: left; }
-                    .label-table th { background-color: #f2f2f2; font-weight: bold; }
-                    .label-table td:nth-child(3) { text-align: right; }
-                }
-            `}</style>
+            {printingHito && <div id="printable-content" className="printable">
+                {/* Content to be printed will be rendered here */}
+            </div>}
         </TooltipProvider>
     );
 }
-    
+
