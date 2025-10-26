@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from "react"
@@ -62,6 +63,19 @@ const calculatePersonalExternoTotal = (personalExterno: PersonalExterno | null, 
     
     return costeTurnos + costeAjustes;
 };
+
+const calculateGastronomyCost = (briefing: ComercialBriefing | null) => {
+    if (!briefing) return 0;
+    return briefing.items.reduce((totalCost, hito) => {
+        const hitoCost = (hito.gastro_items || []).reduce((hitoTotal, item) => {
+            if (item.type === 'item') {
+                return hitoTotal + (item.costeMateriaPrima || 0) * (item.quantity || 0);
+            }
+            return hitoTotal;
+        }, 0);
+        return totalCost + hitoCost;
+    }, 0);
+}
 
 
 export default function CtaExplotacionPage() {
@@ -139,7 +153,8 @@ export default function CtaExplotacionPage() {
 
     const getModuleTotal = (orders: {total?: number, precio?: number}[]) => orders.reduce((sum, order) => sum + (order.total ?? order.precio ?? 0), 0);
     
-    const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+    const gastronomyCost = calculateGastronomyCost(currentBriefing || null);
+
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
     const allTransporteOrders = JSON.parse(localStorage.getItem('transporteOrders') || '[]') as TransporteOrder[];
@@ -179,7 +194,7 @@ export default function CtaExplotacionPage() {
     const costePersonalExternoCierre = calculatePersonalExternoTotal(personalExternoData, allPersonalExternoAjustes, 'real');
     
     const newCostes = [
-      { label: GASTO_LABELS.gastronomia, presupuesto: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allGastroOrders.filter(o => o.osId === osId)) },
+      { label: GASTO_LABELS.gastronomia, presupuesto: gastronomyCost, cierre: gastronomyCost },
       { label: GASTO_LABELS.bodega, presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Bodega')), cierre: getCierreCost(GASTO_LABELS.bodega, getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Bodega'))) },
       { label: GASTO_LABELS.consumibles, presupuesto: getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Bio')), cierre: getCierreCost(GASTO_LABELS.consumibles, getModuleTotal(allMaterialOrders.filter(o => o.osId === osId && o.type === 'Bio')))},
       { label: GASTO_LABELS.hielo, presupuesto: getModuleTotal(allHieloOrders.filter(o => o.osId === osId)), cierre: getModuleTotal(allHieloOrders.filter(o => o.osId === osId)) },

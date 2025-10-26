@@ -87,13 +87,15 @@ function PedidoGastronomiaForm() {
   
   const watchedItems = watch('gastro_items');
   
-  const { totalPedido, ratioUnidadesPorPax } = useMemo(() => {
+  const { totalPedido, costeTotalMateriaPrima, ratioUnidadesPorPax } = useMemo(() => {
     let total = 0;
+    let coste = 0;
     let totalUnits = 0;
     
     (watchedItems || []).forEach(item => {
         if (item.type === 'item') {
             total += (item.precioVenta || 0) * (item.quantity || 0);
+            coste += (item.costeMateriaPrima || 0) * (item.quantity || 0);
             totalUnits += item.quantity || 0;
         }
     });
@@ -102,6 +104,7 @@ function PedidoGastronomiaForm() {
     
     return {
         totalPedido: total,
+        costeTotalMateriaPrima: coste,
         ratioUnidadesPorPax: ratio,
     }
   }, [watchedItems, briefingItem?.asistentes]);
@@ -215,7 +218,11 @@ function PedidoGastronomiaForm() {
                         <p className="text-xl font-bold">{formatNumber(ratioUnidadesPorPax, 1)}</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-sm font-medium text-muted-foreground">Total Pedido</p>
+                        <p className="text-sm font-medium text-muted-foreground">Coste Materia Prima</p>
+                        <p className="text-lg font-bold">{formatCurrency(costeTotalMateriaPrima)}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-sm font-medium text-muted-foreground">Total Pedido (PVP)</p>
                         <p className="text-2xl font-bold text-primary">{formatCurrency(totalPedido)}</p>
                     </div>
                     <Button type="submit" disabled={isLoading || !formState.isDirty}>

@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { ServiceOrder, ObjetivosGasto, PersonalExterno } from '@/types';
+import type { ServiceOrder, ObjetivosGasto, PersonalExterno, ComercialBriefing } from '@/types';
 import { Target, Info, RefreshCw } from 'lucide-react';
 import { GASTO_LABELS } from '@/lib/constants';
 import { formatCurrency, formatPercentage, formatNumber, calculateHours } from '@/lib/utils';
@@ -22,6 +22,19 @@ interface ObjectiveDisplayProps {
   osId: string;
   moduleName: ModuleName;
   updateKey?: number; // To force re-render
+}
+
+const calculateGastronomyCost = (briefing: ComercialBriefing | null) => {
+    if (!briefing) return 0;
+    return briefing.items.reduce((totalCost, hito) => {
+        const hitoCost = (hito.gastro_items || []).reduce((hitoTotal, item) => {
+            if (item.type === 'item') {
+                return hitoTotal + (item.costeMateriaPrima || 0) * (item.quantity || 0);
+            }
+            return hitoTotal;
+        }, 0);
+        return totalCost + hitoCost;
+    }, 0);
 }
 
 export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDisplayProps) {
@@ -86,8 +99,7 @@ export function ObjectiveDisplay({ osId, moduleName, updateKey }: ObjectiveDispl
             const materialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as any[];
             switch(moduleName) {
                 case 'gastronomia':
-                    const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as any[];
-                    budgetValue = allGastroOrders.filter(o => o.osId === osId).reduce((sum, o) => sum + (o.total || 0), 0);
+                    budgetValue = calculateGastronomyCost(currentBriefing || null);
                     break;
                 case 'bodega':
                     budgetValue = materialOrders.filter(o => o.osId === osId && o.type === 'Bodega').reduce((s, o) => s + o.total, 0);
