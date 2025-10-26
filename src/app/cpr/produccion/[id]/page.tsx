@@ -3,14 +3,14 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, CheckCircle, Info, ChefHat, Package } from 'lucide-react';
+import { ArrowLeft, Play, CheckCircle, Info, ChefHat, Package, Timer } from 'lucide-react';
 import Image from 'next/image';
 import type { OrdenFabricacion, Elaboracion } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, formatDistanceToNowStrict } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -24,6 +24,7 @@ export default function ProduccionDetallePage() {
     const [isMounted, setIsMounted] = useState(false);
     const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
     const [cantidadReal, setCantidadReal] = useState<number | string>('');
+    const [elapsedTime, setElapsedTime] = useState<string | null>(null);
 
     const router = useRouter();
     const params = useParams();
@@ -43,6 +44,28 @@ export default function ProduccionDetallePage() {
         setIsMounted(true);
     }, [id]);
 
+    useEffect(() => {
+        let timer: NodeJS.Timeout | null = null;
+        if (orden?.estado === 'En Proceso' && orden.fechaInicioProduccion) {
+            const updateElapsedTime = () => {
+                const startTime = new Date(orden.fechaInicioProduccion!);
+                setElapsedTime(formatDistanceToNowStrict(startTime, { locale: es, addSuffix: false }));
+            }
+            updateElapsedTime();
+            timer = setInterval(updateElapsedTime, 1000);
+        } else if (orden?.estado === 'Finalizado' && orden.fechaInicioProduccion && orden.fechaFinalizacion) {
+             const startTime = new Date(orden.fechaInicioProduccion!);
+             const endTime = new Date(orden.fechaFinalizacion!);
+             setElapsedTime(formatDistanceToNowStrict(startTime, { locale: es, unit: 'minute', roundingMethod: 'ceil' }).replace('aproximadamente', ''));
+        }
+
+        return () => {
+            if (timer) {
+                clearInterval(timer);
+            }
+        };
+    }, [orden]);
+
     const handleUpdateStatus = (newStatus: 'En Proceso' | 'Finalizado') => {
         if (!orden) return;
         
@@ -53,6 +76,7 @@ export default function ProduccionDetallePage() {
             let updatedOF = { ...allOFs[index], estado: newStatus };
             if (newStatus === 'En Proceso') {
                 updatedOF.fechaInicioProduccion = new Date().toISOString();
+                toast({ title: 'Producción Iniciada', description: 'El cronómetro ha comenzado.' });
             }
             if (newStatus === 'Finalizado') {
                 const finalQuantity = typeof cantidadReal === 'string' ? parseFloat(cantidadReal) : cantidadReal;
@@ -62,13 +86,13 @@ export default function ProduccionDetallePage() {
                 }
                 updatedOF.fechaFinalizacion = new Date().toISOString();
                 updatedOF.cantidadReal = finalQuantity;
+                setShowFinalizeDialog(false);
+                router.push('/cpr/produccion');
             }
 
             allOFs[index] = updatedOF;
             localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
             setOrden(updatedOF);
-            setShowFinalizeDialog(false);
-            router.push('/cpr/produccion');
         }
     };
     
@@ -100,7 +124,15 @@ export default function ProduccionDetallePage() {
                     <CardHeader>
                         <Badge variant="secondary" className="w-fit mb-2">{orden.id}</Badge>
                         <CardTitle className="text-4xl font-headline">{orden.elaboracionNombre}</CardTitle>
-                        <CardDescription className="text-lg">Cantidad a producir: <span className="font-bold text-primary">{orden.cantidadTotal} {orden.unidad}</span></CardDescription>
+                        <div className="flex justify-between items-baseline">
+                            <CardDescription className="text-lg">Cantidad a producir: <span className="font-bold text-primary">{orden.cantidadTotal} {orden.unidad}</span></CardDescription>
+                            {elapsedTime && (
+                                <div className="flex items-center gap-2 text-lg font-semibold text-blue-600">
+                                    <Timer />
+                                    <span>{elapsedTime}</span>
+                                </div>
+                            )}
+                        </div>
                     </CardHeader>
                 </Card>
 
@@ -185,6 +217,10 @@ export default function ProduccionDetallePage() {
                                 onChange={(e) => setCantidadReal(e.target.value)}
                                 className="mt-2 text-2xl h-16 text-center font-bold"
                             />
+                        </div>
+                        <div>
+                             <Label htmlFor="observaciones-final" className="text-lg">Observaciones</Label>
+                             <Textarea id="observaciones-final" placeholder="Añade aquí cualquier comentario sobre la producción (opcional)..." />
                         </div>
                     </div>
                     <AlertDialogFooter>
