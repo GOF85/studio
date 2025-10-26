@@ -264,7 +264,6 @@ export default function PickingDetailPage() {
         const elabsMap = new Map(allElabs.map(e => [e.id, e]));
 
         return allOFs
-            .filter(of => of.osIDs.includes(osId))
             .map(of => {
                 const elab = elabsMap.get(of.elaboracionId);
                 return {
@@ -365,16 +364,16 @@ export default function PickingDetailPage() {
     
             const lotesPendientesHito = Array.from(necesidadesHito.values()).map(necesidad => {
                 const cantidadAsignadaTotal = pickingState.itemStates
-                    .filter(a => a.ofId === necesidad.ofId && a.hitoId === hito.id)
+                    .filter(a => lotesNecesarios.find(l => l.id === a.ofId)?.elaboracionId === necesidad.elaboracionId && a.hitoId === hito.id)
                     .reduce((sum, a) => sum + a.quantity, 0) || 0;
                 
                 return { ...necesidad, cantidadAsignada: cantidadAsignadaTotal };
             }).filter(lote => {
-                const of = lotesNecesarios.find(o => o.id === lote.ofId);
+                const of = lotesNecesarios.find(o => o.elaboracionId === lote.elaboracionId);
                 if (!of) return false;
                 
                 const ofState = of.estado;
-                const isReadyForPicking = ofState === 'Validado' || ofState === 'Finalizado';
+                const isReadyForPicking = ofState === 'Validado';
                 const cantidadPendiente = lote.cantidadNecesaria - lote.cantidadAsignada;
                 return cantidadPendiente > 0.001 && isReadyForPicking;
             });
@@ -391,12 +390,20 @@ export default function PickingDetailPage() {
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, lotesNecesarios]);
     
     const lotesPendientesCalidad = useMemo(() => {
-        const lotesNecesariosEsteEvento = lotesNecesarios.filter(of => of.osIDs.includes(osId));
-        return lotesNecesariosEsteEvento.filter(of => 
-            (of.estado !== 'Finalizado' && of.estado !== 'Validado') &&
-            !(of.incidencia)
+        if (!isMounted) return [];
+        const neededElabIds = new Set<string>();
+        lotesPendientesPorHito.forEach(lotes => {
+            lotes.forEach(lote => {
+                neededElabIds.add(lote.elaboracionId);
+            });
+        });
+        
+        return lotesNecesarios.filter(of => 
+            neededElabIds.has(of.elaboracionId) &&
+            of.estado === 'Finalizado' &&
+            !of.incidencia
         );
-    }, [lotesNecesarios, osId]);
+    }, [lotesNecesarios, lotesPendientesPorHito, isMounted]);
 
     const addContainer = (tipo: keyof typeof expeditionTypeMap, hitoId: string): string => {
       const newContainer: ContenedorDinamico = {
@@ -521,11 +528,9 @@ export default function PickingDetailPage() {
                     const tableBody = containerItems.map(assignedLote => {
                         const loteInfo = lotesNecesarios.find(of => of.id === assignedLote.ofId);
                         const recetaNombre = loteInfo ? getRecetaForElaboracion(loteInfo.elaboracionId, osId) : '-';
-                        const alergenosStr = loteInfo?.alergenos?.join(', ') || '';
                         return [
                             loteInfo?.elaboracionNombre || 'Desconocido',
                             recetaNombre,
-                            alergenosStr,
                             assignedLote.ofId,
                             `${formatNumber(assignedLote.quantity, 2)} ${formatUnit(loteInfo?.unidad || 'Uds')}`
                         ];
@@ -533,11 +538,11 @@ export default function PickingDetailPage() {
 
                     autoTable(doc, {
                         startY: finalY,
-                        head: [['Elaboración', 'Receta', 'Alérgenos', 'Lote (OF)', 'Cantidad']],
+                        head: [['Elaboración', 'Receta', 'Lote (OF)', 'Cantidad']],
                         body: tableBody,
                         theme: 'grid',
                         headStyles: { fillColor: [230, 230, 230], textColor: 20 },
-                        styles: { fontSize: 8 },
+                        styles: { fontSize: 9 },
                     });
                     finalY = (doc as any).lastAutoTable.finalY + 10;
                 }
@@ -580,12 +585,7 @@ export default function PickingDetailPage() {
                 ))}
             </div>
             <div className="non-printable">
-                <div className="flex items-center justify-between mb-2">
-                     <Button variant="ghost" size="sm" onClick={() => router.push('/cpr/picking')}>
-                        <ArrowLeft className="mr-2" /> Volver al listado
-                    </Button>
-                </div>
-                 <div className="flex items-center justify-between p-3 bg-muted rounded-lg mb-6">
+                <div className="flex items-center justify-between p-3 bg-muted rounded-lg mb-6">
                     <div className="flex items-center gap-4">
                         <h2 className="text-xl font-bold">{serviceOrder.serviceNumber}</h2>
                         <Separator orientation="vertical" className="h-6"/>
@@ -792,5 +792,4 @@ export default function PickingDetailPage() {
         </TooltipProvider>
     );
 }
-
     
