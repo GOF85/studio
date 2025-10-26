@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Factory, Search, PlusCircle, Trash2, Calendar as CalendarIcon, ChefHat, CheckSquare, Euro } from 'lucide-react';
-import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal } from '@/types';
+import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -184,7 +184,7 @@ export default function OfPage() {
       necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].filter(necesidad => {
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id);
         const cantidadYaProducida = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => {
-            const cantidad = (of.estado === 'Finalizado' || of.estado === 'Validado') ? (of.cantidadReal || 0) : of.cantidadTotal;
+            const cantidad = (of.estado === 'Pendiente' || of.estado === 'Asignada' || of.estado === 'En Proceso') ? of.cantidadTotal : (of.cantidadReal || 0);
             return sum + cantidad;
         }, 0);
         const cantidadEnStock = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
