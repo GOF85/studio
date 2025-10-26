@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -212,10 +211,21 @@ export default function OfPage() {
                             item.elaboracionNombre.toLowerCase().includes(searchTerm.toLowerCase());
         const statusMatch = statusFilter === 'all' || item.estado === statusFilter;
         const partidaMatch = partidaFilter === 'all' || item.partidaAsignada === partidaFilter;
-        return searchMatch && statusMatch && partidaMatch;
+        
+        let dateMatch = true;
+        if(dateRange?.from && item.fechaProduccionPrevista) {
+          const itemDate = parseISO(item.fechaProduccionPrevista);
+          if (dateRange.to) {
+              dateMatch = isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
+          } else {
+              dateMatch = isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.from) });
+          }
+        }
+        
+        return searchMatch && statusMatch && partidaMatch && dateMatch;
       })
       .sort((a, b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
-  }, [ordenes, searchTerm, statusFilter, partidaFilter]);
+  }, [ordenes, searchTerm, statusFilter, partidaFilter, dateRange]);
   
   const handleClearFilters = () => {
     setSearchTerm('');
@@ -328,6 +338,19 @@ export default function OfPage() {
             <TabsTrigger value="planificacion">Planificación y Creación</TabsTrigger>
             <TabsTrigger value="asignacion">Asignación de Órdenes</TabsTrigger>
         </TabsList>
+        <div className="flex flex-col md:flex-row gap-4 my-4">
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                <PopoverTrigger asChild>
+                    <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal md:w-[300px]", !dateRange && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
+                </PopoverContent>
+            </Popover>
+        </div>
         <TabsContent value="planificacion" className="mt-4 space-y-4">
             <Accordion type="multiple" className="w-full space-y-4">
             <AccordionItem value="necesidades" className="border-none">
@@ -340,7 +363,7 @@ export default function OfPage() {
                         {Object.keys(necesidades).length > 0 ? Object.entries(necesidades).map(([fecha, items]) => (
                             <div key={fecha}>
                             <div className="flex justify-between items-center mb-2">
-                                <h4 className="font-semibold">Para el {format(parseISO(fecha), 'dd/MM/yyyy')} y posteriores</h4>
+                                <h4 className="font-semibold">Para el {format(parseISO(fecha), 'dd/MM/yyyy')}</h4>
                                 <Button size="sm" onClick={() => handleGenerateOFs(fecha)} disabled={!selectedNecesidades[fecha] || selectedNecesidades[fecha].size === 0}>
                                     Generar OF para la selección ({selectedNecesidades[fecha]?.size || 0})
                                 </Button>
@@ -406,17 +429,6 @@ export default function OfPage() {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                            <PopoverTrigger asChild>
-                                <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal md:w-[300px]", !dateRange && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {dateRange?.from ? (dateRange.to ? (<> {format(dateRange.from, "LLL dd, y", { locale: es })} - {format(dateRange.to, "LLL dd, y", { locale: es })} </>) : (format(dateRange.from, "LLL dd, y", { locale: es }))) : (<span>Filtrar por fecha...</span>)}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={(range) => { setDateRange(range); if(range?.from && range?.to) { setIsDatePickerOpen(false); }}} numberOfMonths={2} locale={es}/>
-                            </PopoverContent>
-                        </Popover>
                         <Select value={partidaFilter} onValueChange={setPartidaFilter}>
                             <SelectTrigger className="w-full sm:w-[240px]">
                                 <SelectValue placeholder="Filtrar por partida" />
@@ -551,3 +563,4 @@ export default function OfPage() {
     </>
   );
 }
+
