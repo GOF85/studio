@@ -4,13 +4,15 @@
 
 import * as React from 'react';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray, useWatch, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, MessageSquare, Users, Loader2 } from 'lucide-react';
 import { format, differenceInMinutes, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, MessageSquare, Users, Loader2 } from 'lucide-react';
+
 import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, Receta, GastronomyOrderStatus, GastronomyOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -255,10 +257,6 @@ function PedidoGastronomiaForm() {
                      <div className="text-right">
                         <p className="text-sm font-medium text-muted-foreground">Ratio (uds/pax)</p>
                         <p className="text-xl font-bold">{formatNumber(ratioUnidadesPorPax, 1)}</p>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-sm font-medium text-muted-foreground">Coste Materia Prima</p>
-                        <p className="text-lg font-bold">{formatCurrency(costeTotalMateriaPrima)}</p>
                     </div>
                     <div className="text-right">
                         <p className="text-sm font-medium text-muted-foreground">Total Pedido (PVP)</p>

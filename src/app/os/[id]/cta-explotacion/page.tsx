@@ -64,19 +64,6 @@ const calculatePersonalExternoTotal = (personalExterno: PersonalExterno | null, 
     return costeTurnos + costeAjustes;
 };
 
-const calculateGastronomyCost = (briefing: ComercialBriefing | null) => {
-    if (!briefing) return 0;
-    return briefing.items.reduce((totalCost, hito) => {
-        const hitoCost = (hito.gastro_items || []).reduce((hitoTotal, item) => {
-            if (item.type === 'item') {
-                return hitoTotal + (item.costeMateriaPrima || 0) * (item.quantity || 0);
-            }
-            return hitoTotal;
-        }, 0);
-        return totalCost + hitoCost;
-    }, 0);
-}
-
 
 export default function CtaExplotacionPage() {
   const router = useRouter();
@@ -153,7 +140,8 @@ export default function CtaExplotacionPage() {
 
     const getModuleTotal = (orders: {total?: number, precio?: number}[]) => orders.reduce((sum, order) => sum + (order.total ?? order.precio ?? 0), 0);
     
-    const gastronomyCost = calculateGastronomyCost(currentBriefing || null);
+    const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+    const gastronomyCost = getModuleTotal(allGastroOrders.filter(o => o.osId === osId));
 
     const allMaterialOrders = JSON.parse(localStorage.getItem('materialOrders') || '[]') as MaterialOrder[];
     const allHieloOrders = JSON.parse(localStorage.getItem('hieloOrders') || '[]') as HieloOrder[];
