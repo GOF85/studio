@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { formatUnit, formatNumber } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Form, FormField, FormControl } from '@/components/ui/form';
 
 type FormData = {
     lotes: (StockLote & { initialCantidad: number })[];
@@ -151,6 +152,7 @@ function ExcedenteDetailPageContent() {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+                <Form {...form}>
                 <form onSubmit={handleSubmit(onSubmit)} className="lg:col-span-2 space-y-4">
                     <Card>
                         <CardHeader>
@@ -209,6 +211,7 @@ function ExcedenteDetailPageContent() {
                         </CardFooter>
                     </Card>
                 </form>
+                </Form>
                 
                 <div className="space-y-4">
                     <Card>
