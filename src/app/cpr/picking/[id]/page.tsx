@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Package, ArrowLeft, Thermometer, Box, Snowflake, PlusCircle, Printer, Loader2, Trash2, Check, Utensils, Building, Phone, Sprout, AlertTriangle } from 'lucide-react';
+import { Package, ArrowLeft, Thermometer, Box, Snowflake, PlusCircle, Printer, Loader2, Trash2, Check, Utensils, Building, Phone, Sprout, AlertTriangle, FileText, Tags } from 'lucide-react';
 import { format } from 'date-fns';
 import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio, ComercialBriefingItem, ContenedorDinamico, Alergeno, IngredienteInterno, ArticuloERP } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -120,7 +120,7 @@ function AllocationDialog({ lote, containers, onAllocate, onAddContainer }: { lo
                     </div>
                 </div>
                  <DialogFooter>
-                    <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
                     <Button onClick={handleAllocate}>Confirmar Asignación</Button>
                 </DialogFooter>
             </DialogContent>
@@ -145,6 +145,70 @@ const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<s
     return Array.from(elabAlergenos);
 };
 
+// New Component for the Printable Label
+const ContainerLabel = ({ hito, container, items, serviceOrder }: { hito: ComercialBriefingItem, container: ContenedorDinamico, items: LoteAsignado[], serviceOrder: ServiceOrder }) => {
+    
+    const getRecetaForElaboracion = useCallback((elaboracionId: string, osId: string): string => {
+        const gastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).filter(o => o.osId === osId);
+        const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+        for (const order of gastroOrders) {
+            for (const item of (order.items || [])) {
+                if(item.type === 'item') {
+                    const receta = recetas.find(r => r.id === item.id);
+                    if(receta && receta.elaboraciones.some(e => e.elaboracionId === elaboracionId)) {
+                        return receta.nombre;
+                    }
+                }
+            }
+        }
+        return 'Directa';
+    }, []);
+
+    const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+    const allElabs = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+
+
+    return (
+        <div className="printable-label-container">
+            <div className="label-header">
+                <h2>{serviceOrder.serviceNumber}.{(serviceOrder.id.indexOf(hito.id) + 1).toString().padStart(2, '0')}</h2>
+                <h1>{container.tipo} #{container.numero}</h1>
+            </div>
+            <div className="label-info">
+                <p><strong>Hito:</strong> {hito.descripcion}</p>
+                <p><strong>Fecha/Hora:</strong> {format(new Date(hito.fecha), 'dd/MM/yy')} {hito.horaInicio}</p>
+                <p><strong>Cliente:</strong> {serviceOrder.client}</p>
+                <p><strong>Espacio:</strong> {serviceOrder.space}</p>
+            </div>
+            <div className="label-content">
+                <table className="label-table">
+                    <thead>
+                        <tr>
+                            <th>Elaboración</th>
+                            <th>Receta</th>
+                            <th>Cant.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {items.map(item => {
+                            const loteInfo = allOFs.find(of => of.id === item.ofId);
+                            const elabInfo = allElabs.find(e => e.id === loteInfo?.elaboracionId);
+                            const recetaNombre = elabInfo ? getRecetaForElaboracion(elabInfo.id, serviceOrder.id) : '-';
+                            return (
+                                <tr key={item.allocationId}>
+                                    <td>{elabInfo?.nombre || 'N/A'}</td>
+                                    <td>{recetaNombre}</td>
+                                    <td>{formatNumber(item.quantity, 2)} {formatUnit(elabInfo?.unidadProduccion || '')}</td>
+                                </tr>
+                            )
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
 export default function PickingDetailPage() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [spaceAddress, setSpaceAddress] = useState<string>('');
@@ -153,6 +217,7 @@ export default function PickingDetailPage() {
     const [isMounted, setIsMounted] = useState(false);
     const [isPrinting, setIsPrinting] = useState<string | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [printingHito, setPrintingHito] = useState<ComercialBriefingItem | null>(null);
     
     const router = useRouter();
     const params = useParams();
@@ -187,7 +252,7 @@ export default function PickingDetailPage() {
                 }
             }
         }
-        return '-';
+        return 'Directa';
     }, []);
 
     const lotesNecesarios = useMemo(() => {
@@ -265,8 +330,9 @@ export default function PickingDetailPage() {
                                     if(cantidadNecesaria < 0.01) return;
     
                                     let existing = necesidadesHito.get(elabInfo.id);
+                                    const validOFs = lotesNecesarios.filter(o => o.elaboracionId === elabInfo.id && (o.estado === 'Validado' || o.estado === 'Finalizado') && !o.incidencia);
+
                                     if(!existing) {
-                                        const validOFs = lotesNecesarios.filter(o => o.elaboracionId === elabInfo.id && (o.estado === 'Validado' || o.estado === 'Finalizado') && !o.incidencia);
                                         const of = validOFs.length > 0 ? validOFs[0] : lotesNecesarios.find(o => o.elaboracionId === elabInfo.id);
 
                                         existing = {
@@ -367,79 +433,63 @@ export default function PickingDetailPage() {
         setShowDeleteConfirm(false);
     }
     
-const handlePrintHito = async (hito: ComercialBriefingItem) => {
-    if (!serviceOrder) return;
-    setIsPrinting(hito.id);
+    const handlePrintHito = async (hito: ComercialBriefingItem) => {
+        if (!serviceOrder) return;
+        setIsPrinting(hito.id);
 
-    try {
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        let finalY = 15;
-        
-        const addHeader = () => {
-            doc.setFontSize(18);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor('#059669'); // Primary color
-            doc.text('Hoja de Carga - Picking', 15, finalY);
-            finalY += 10;
+        try {
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            let finalY = 15;
             
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#374151');
-            
-            const serviceData = [
-                ['Nº Serv:', serviceOrder.serviceNumber],
-                ['Comercial:', serviceOrder.comercial || '-'],
-                ['Cliente:', serviceOrder.client],
-                ['Cliente Final:', serviceOrder.finalClient || '-']
-            ];
-            const eventData = [
-                ['Servicio:', hito.descripcion],
-                ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
-                ['Asistentes:', String(serviceOrder.asistentes)],
-                ['Espacio:', serviceOrder.space || '-']
-            ];
+            const addHeader = () => {
+                doc.setFontSize(18);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor('#059669'); // Primary color
+                doc.text('Hoja de Carga - Picking', 15, finalY);
+                finalY += 10;
+                
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor('#374151');
+                
+                const serviceData = [
+                    ['Nº Serv:', serviceOrder.serviceNumber],
+                    ['Comercial:', serviceOrder.comercial || '-'],
+                    ['Cliente:', serviceOrder.client],
+                    ['Cliente Final:', serviceOrder.finalClient || '-']
+                ];
+                const eventData = [
+                    ['Servicio:', hito.descripcion],
+                    ['Fecha-Hora:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
+                    ['Asistentes:', String(serviceOrder.asistentes)],
+                    ['Espacio:', serviceOrder.space || '-']
+                ];
 
-            autoTable(doc, {
-                body: serviceData,
-                startY: finalY,
-                theme: 'plain',
-                tableWidth: (doc.internal.pageSize.getWidth() - 30) / 2 - 5,
-                styles: { fontSize: 9, cellPadding: 0.5 },
-                columnStyles: { 0: { fontStyle: 'bold' } }
-            });
-            autoTable(doc, {
-                body: eventData,
-                startY: finalY,
-                theme: 'plain',
-                tableWidth: (doc.internal.pageSize.getWidth() - 30) / 2 - 5,
-                margin: { left: doc.internal.pageSize.getWidth() / 2 + 5 },
-                styles: { fontSize: 9, cellPadding: 0.5 },
-                columnStyles: { 0: { fontStyle: 'bold' } }
-            });
-            finalY = (doc as any).lastAutoTable.finalY + 10;
-        }
-
-        addHeader();
-
-        for (const tipo of Object.keys(expeditionTypeMap) as Array<keyof typeof expeditionTypeMap>) {
-            const containersForType = pickingState.assignedContainers.filter(c => c.hitoId === hito.id && c.tipo === tipo);
-            if (containersForType.length === 0) continue;
-
-            if (finalY + 20 > doc.internal.pageSize.getHeight()) {
-                doc.addPage();
-                finalY = 15;
-                addHeader();
+                autoTable(doc, {
+                    body: serviceData,
+                    startY: finalY,
+                    theme: 'plain',
+                    tableWidth: (doc.internal.pageSize.getWidth() - 30) / 2 - 5,
+                    styles: { fontSize: 9, cellPadding: 0.5 },
+                    columnStyles: { 0: { fontStyle: 'bold' } }
+                });
+                autoTable(doc, {
+                    body: eventData,
+                    startY: finalY,
+                    theme: 'plain',
+                    tableWidth: (doc.internal.pageSize.getWidth() - 30) / 2 - 5,
+                    margin: { left: doc.internal.pageSize.getWidth() / 2 + 5 },
+                    styles: { fontSize: 9, cellPadding: 0.5 },
+                    columnStyles: { 0: { fontStyle: 'bold' } }
+                });
+                finalY = (doc as any).lastAutoTable.finalY + 10;
             }
-            
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor('#1f2937');
-            doc.text(expeditionTypeMap[tipo].title, 15, finalY);
-            finalY += 8;
 
-            for (const container of containersForType) {
-                const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
-                if(containerItems.length === 0) continue;
+            addHeader();
+
+            for (const tipo of Object.keys(expeditionTypeMap) as Array<keyof typeof expeditionTypeMap>) {
+                const containersForType = pickingState.assignedContainers.filter(c => c.hitoId === hito.id && c.tipo === tipo);
+                if (containersForType.length === 0) continue;
 
                 if (finalY + 20 > doc.internal.pageSize.getHeight()) {
                     doc.addPage();
@@ -447,44 +497,68 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                     addHeader();
                 }
                 
-                doc.setFontSize(11);
+                doc.setFontSize(14);
                 doc.setFont('helvetica', 'bold');
-                doc.text(`Contenedor: ${container.tipo} #${container.numero}`, 16, finalY);
-                finalY += 6;
+                doc.setTextColor('#1f2937');
+                doc.text(expeditionTypeMap[tipo].title, 15, finalY);
+                finalY += 8;
 
-                const tableBody = containerItems.map(assignedLote => {
-                    const loteInfo = lotesNecesarios.find(of => of.id === assignedLote.ofId);
-                    const recetaNombre = loteInfo ? getRecetaForElaboracion(loteInfo.elaboracionId, osId) : '-';
-                    const alergenosStr = loteInfo?.alergenos?.join(', ') || '';
-                    return [
-                        loteInfo?.elaboracionNombre || 'Desconocido',
-                        recetaNombre,
-                        alergenosStr,
-                        assignedLote.ofId,
-                        `${formatNumber(assignedLote.quantity, 2)} ${formatUnit(loteInfo?.unidad || 'Uds')}`
-                    ];
-                });
+                for (const container of containersForType) {
+                    const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
+                    if(containerItems.length === 0) continue;
 
-                autoTable(doc, {
-                    startY: finalY,
-                    head: [['Elaboración', 'Receta', 'Alérgenos', 'Lote (OF)', 'Cantidad']],
-                    body: tableBody,
-                    theme: 'grid',
-                    headStyles: { fillColor: [230, 230, 230], textColor: 20 },
-                    styles: { fontSize: 8 },
-                });
-                finalY = (doc as any).lastAutoTable.finalY + 10;
+                    if (finalY + 20 > doc.internal.pageSize.getHeight()) {
+                        doc.addPage();
+                        finalY = 15;
+                        addHeader();
+                    }
+                    
+                    doc.setFontSize(11);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`Contenedor: ${container.tipo} #${container.numero}`, 16, finalY);
+                    finalY += 6;
+
+                    const tableBody = containerItems.map(assignedLote => {
+                        const loteInfo = lotesNecesarios.find(of => of.id === assignedLote.ofId);
+                        const recetaNombre = loteInfo ? getRecetaForElaboracion(loteInfo.elaboracionId, osId) : '-';
+                        const alergenosStr = loteInfo?.alergenos?.join(', ') || '';
+                        return [
+                            loteInfo?.elaboracionNombre || 'Desconocido',
+                            recetaNombre,
+                            alergenosStr,
+                            assignedLote.ofId,
+                            `${formatNumber(assignedLote.quantity, 2)} ${formatUnit(loteInfo?.unidad || 'Uds')}`
+                        ];
+                    });
+
+                    autoTable(doc, {
+                        startY: finalY,
+                        head: [['Elaboración', 'Receta', 'Alérgenos', 'Lote (OF)', 'Cantidad']],
+                        body: tableBody,
+                        theme: 'grid',
+                        headStyles: { fillColor: [230, 230, 230], textColor: 20 },
+                        styles: { fontSize: 8 },
+                    });
+                    finalY = (doc as any).lastAutoTable.finalY + 10;
+                }
             }
+            
+            doc.save(`HojaCarga_${serviceOrder.serviceNumber}_${hito.descripcion.replace(/\s+/g, '_')}.pdf`);
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
+        } finally {
+            setIsPrinting(null);
         }
-        
-        doc.save(`HojaCarga_${serviceOrder.serviceNumber}_${hito.descripcion.replace(/\s+/g, '_')}.pdf`);
-    } catch (error) {
-        console.error("Error generating PDF:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
-    } finally {
-        setIsPrinting(null);
-    }
-};
+    };
+    
+    useEffect(() => {
+        if (printingHito) {
+            window.print();
+            setPrintingHito(null); // Reset after print dialog opens
+        }
+    }, [printingHito]);
+
 
     if (!isMounted || !serviceOrder) {
         return <LoadingSkeleton title="Cargando Picking..." />;
@@ -492,9 +566,22 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
     
     return (
         <TooltipProvider>
-            <div>
+            <div className="printable-labels-area">
+                {printingHito && pickingState.assignedContainers
+                    .filter(c => c.hitoId === printingHito.id)
+                    .map(container => (
+                        <ContainerLabel 
+                            key={container.id}
+                            hito={printingHito}
+                            container={container}
+                            items={pickingState.itemStates.filter(i => i.containerId === container.id)}
+                            serviceOrder={serviceOrder}
+                        />
+                ))}
+            </div>
+            <div className="non-printable">
                 <div className="flex items-center justify-between mb-2">
-                     <Button variant="ghost" size="sm" onClick={() => router.push('/cpr/picking')} className="mb-2 no-print">
+                     <Button variant="ghost" size="sm" onClick={() => router.push('/cpr/picking')}>
                         <ArrowLeft className="mr-2" /> Volver al listado
                     </Button>
                 </div>
@@ -560,10 +647,15 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                     <CardTitle className="flex items-center gap-3"><Utensils />Necesidades para: {hito.descripcion}</CardTitle>
                                     <CardDescription>Fecha: {format(new Date(hito.fecha), 'dd/MM/yyyy')} a las {hito.horaInicio}</CardDescription>
                                 </div>
-                                    <Button onClick={() => handlePrintHito(hito)} disabled={!hasContentToPrint || !!isPrinting} className="no-print">
+                                <div className="flex items-center gap-2">
+                                    <Button onClick={() => handlePrintHito(hito)} disabled={!hasContentToPrint || !!isPrinting} variant="outline">
                                         {isPrinting === hito.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Printer className="mr-2" />}
                                         {isPrinting === hito.id ? 'Generando...' : 'Hoja de Carga'}
                                     </Button>
+                                    <Button onClick={() => setPrintingHito(hito)} disabled={!hasContentToPrint} variant="outline">
+                                        <Tags className="mr-2 h-4 w-4"/>Imprimir Etiquetas
+                                    </Button>
+                                </div>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-6">
@@ -670,6 +762,33 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                     </AlertDialogContent>
                 </AlertDialog>
             </div>
+            <style jsx global>{`
+                .printable-labels-area { display: none; }
+                @media print {
+                    .non-printable { display: none; }
+                    .printable-labels-area { display: block; }
+                    .printable-label-container {
+                        width: 11cm;
+                        height: 9cm;
+                        padding: 1cm;
+                        border: 1px solid #ccc;
+                        box-sizing: border-box;
+                        page-break-after: always;
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    .label-header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 8px; }
+                    .label-header h1 { font-size: 24pt; font-weight: bold; margin: 0; }
+                    .label-header h2 { font-size: 14pt; margin: 0; color: #555; }
+                    .label-info { padding: 8px 0; font-size: 10pt; line-height: 1.4; border-bottom: 1px solid #eee; margin-bottom: 8px;}
+                    .label-info p { margin: 0; }
+                    .label-content { flex-grow: 1; overflow: hidden; }
+                    .label-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+                    .label-table th, .label-table td { border: 1px solid #ddd; padding: 4px; text-align: left; }
+                    .label-table th { background-color: #f2f2f2; font-weight: bold; }
+                    .label-table td:nth-child(3) { text-align: right; }
+                }
+            `}</style>
         </TooltipProvider>
     );
 }
