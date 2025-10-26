@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { format, differenceInMinutes, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PlusCircle, Trash2, Save, Pencil, Check, Utensils, MessageSquare, Users, Loader2 } from 'lucide-react';
-import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, Receta, GastronomyOrderStatus } from '@/types';
+import type { ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrderItem, Receta, GastronomyOrderStatus, GastronomyOrder } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -53,8 +53,8 @@ const gastroItemSchema = z.object({
 });
 
 const formSchema = z.object({
-  gastro_items: z.array(gastroItemSchema),
-  gastro_status: z.enum(['Pendiente', 'En preparación', 'Listo', 'Incidencia']),
+  items: z.array(gastroItemSchema),
+  status: z.enum(['Pendiente', 'En preparación', 'Listo', 'Incidencia']),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -77,15 +77,15 @@ function PedidoGastronomiaForm() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      gastro_items: [],
-      gastro_status: 'Pendiente',
+      items: [],
+      status: 'Pendiente',
     },
   });
 
   const { control, handleSubmit, reset, watch, setValue, getValues, formState } = form;
-  const { fields, append, remove, update } = useFieldArray({ control, name: "gastro_items" });
+  const { fields, append, remove, update } = useFieldArray({ control, name: "items" });
   
-  const watchedItems = watch('gastro_items');
+  const watchedItems = watch('items');
   
   const { totalPedido, costeTotalMateriaPrima, ratioUnidadesPorPax } = useMemo(() => {
     let total = 0;
@@ -118,10 +118,23 @@ function PedidoGastronomiaForm() {
 
       if (currentHito) {
         setBriefingItem(currentHito);
-        reset({
-          gastro_items: currentHito.gastro_items || [],
-          gastro_status: currentHito.gastro_status || 'Pendiente',
-        });
+        
+        // Cargar datos desde el nuevo modelo GastronomyOrder
+        const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+        const currentGastroOrder = allGastroOrders.find(o => o.id === briefingItemId);
+        
+        if (currentGastroOrder) {
+            reset({
+                items: currentGastroOrder.items || [],
+                status: currentGastroOrder.status || 'Pendiente',
+            });
+        } else {
+            // Fallback to old data model if new one doesn't exist
+            reset({
+                items: currentHito.gastro_items || [],
+                status: currentHito.gastro_status || 'Pendiente',
+            });
+        }
       }
       const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
       setServiceOrder(allServiceOrders.find(os => os.id === osId) || null);
@@ -152,23 +165,49 @@ function PedidoGastronomiaForm() {
   };
 
   const onSubmit = (data: FormValues) => {
+    if (!briefingItem) return;
     setIsLoading(true);
+    
+    // Save to new centralized GastronomyOrder
+    let allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
+    const orderIndex = allGastroOrders.findIndex(o => o.id === briefingItemId);
+
+    const newOrderData: GastronomyOrder = {
+        id: briefingItemId,
+        osId: osId,
+        status: data.status,
+        descripcion: briefingItem.descripcion,
+        fecha: briefingItem.fecha,
+        horaInicio: briefingItem.horaInicio,
+        asistentes: briefingItem.asistentes,
+        comentarios: briefingItem.comentarios,
+        sala: briefingItem.sala,
+        items: data.items,
+        total: totalPedido
+    };
+    
+    if (orderIndex > -1) {
+        allGastroOrders[orderIndex] = newOrderData;
+    } else {
+        allGastroOrders.push(newOrderData);
+    }
+    
+    localStorage.setItem('gastronomyOrders', JSON.stringify(allGastroOrders));
+    
+    // Also save to briefing for backwards compatibility/consistency
     let allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const briefingIndex = allBriefings.findIndex(b => b.osId === osId);
-
     if (briefingIndex !== -1) {
       const hitoIndex = allBriefings[briefingIndex].items.findIndex(h => h.id === briefingItemId);
       if (hitoIndex !== -1) {
-        allBriefings[briefingIndex].items[hitoIndex] = {
-          ...allBriefings[briefingIndex].items[hitoIndex],
-          gastro_items: data.gastro_items,
-          gastro_status: data.gastro_status,
-        };
+        allBriefings[briefingIndex].items[hitoIndex].gastro_items = data.items;
+        allBriefings[briefingIndex].items[hitoIndex].gastro_status = data.status;
         localStorage.setItem('comercialBriefings', JSON.stringify(allBriefings));
-        toast({ title: 'Pedido de Gastronomía Guardado' });
-        reset(data); // Mark form as not dirty
       }
     }
+    
+    toast({ title: 'Pedido de Gastronomía Guardado' });
+    reset(data); // Mark form as not dirty
     setIsLoading(false);
   };
   
@@ -249,7 +288,7 @@ function PedidoGastronomiaForm() {
                                     <TableCell colSpan={4}>
                                         <FormField
                                             control={control}
-                                            name={`gastro_items.${index}.nombre`}
+                                            name={`items.${index}.nombre`}
                                             render={({ field: separatorField }) => (
                                                 <Input {...separatorField} className="border-none bg-transparent font-bold text-lg focus-visible:ring-1" />
                                             )}
@@ -267,7 +306,7 @@ function PedidoGastronomiaForm() {
                                      <TableCell>
                                         <FormField
                                             control={control}
-                                            name={`gastro_items.${index}.quantity`}
+                                            name={`items.${index}.quantity`}
                                             render={({ field: quantityField }) => (
                                                 <Input
                                                     type="number"

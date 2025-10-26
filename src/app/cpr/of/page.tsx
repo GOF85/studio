@@ -119,8 +119,7 @@ export default function OfPage() {
       return;
     }
     
-    const serviceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
-    const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
+    const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
     const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const stockElaboraciones: Record<string, { cantidadTotal: number }> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
 
@@ -129,65 +128,58 @@ export default function OfPage() {
 
     const necesidadesPorFecha: Record<string, NecesidadItem[]> = {};
 
-    serviceOrders.forEach(os => {
-        const briefing = allBriefings.find(b => b.osId === os.id);
-        if (!briefing) return;
+    allGastroOrders.forEach(gastroOrder => {
+      try {
+        const hitoDate = startOfDay(new Date(gastroOrder.fecha));
+        const rangeStart = startOfDay(dateRange.from!);
+        const rangeEnd = endOfDay(dateRange.to || dateRange.from!);
 
-        briefing.items.forEach(hito => {
-            if (!hito.conGastronomia || !hito.gastro_items) return;
-
-            try {
-                const hitoDate = startOfDay(parseISO(hito.fecha));
-                const rangeStart = startOfDay(dateRange.from!);
-                const rangeEnd = endOfDay(dateRange.to || dateRange.from!);
-
-                 if (!isWithinInterval(hitoDate, { start: rangeStart, end: rangeEnd })) return;
+        if (!isWithinInterval(hitoDate, { start: rangeStart, end: rangeEnd })) return;
                  
-                const fechaKey = format(hitoDate, 'yyyy-MM-dd');
-                if(!necesidadesPorFecha[fechaKey]) necesidadesPorFecha[fechaKey] = [];
+        const fechaKey = format(hitoDate, 'yyyy-MM-dd');
+        if(!necesidadesPorFecha[fechaKey]) necesidadesPorFecha[fechaKey] = [];
+        
+        (gastroOrder.items || []).forEach(item => {
+            if (item.type !== 'item') return;
+            
+            const receta = recetasMap.get(item.id);
+            if (!receta || !receta.elaboraciones) return;
+
+            receta.elaboraciones.forEach(elabEnReceta => {
+                const elab = elabMap.get(elabEnReceta.elaboracionId);
+                if (!elab) return;
                 
-                (hito.gastro_items || []).forEach(item => {
-                    if (item.type !== 'item') return;
-                    
-                    const receta = recetasMap.get(item.id);
-                    if (!receta || !receta.elaboraciones) return;
+                const id = elab.id;
+                let necesidad = necesidadesPorFecha[fechaKey].find(n => n.id === id);
 
-                    receta.elaboraciones.forEach(elabEnReceta => {
-                        const elab = elabMap.get(elabEnReceta.elaboracionId);
-                        if (!elab) return;
-                        
-                        const id = elab.id;
-                        let necesidad = necesidadesPorFecha[fechaKey].find(n => n.id === id);
-
-                        if (!necesidad) {
-                            necesidad = {
-                                id,
-                                nombre: elab.nombre,
-                                cantidad: 0,
-                                unidad: elab.unidadProduccion,
-                                osIDs: new Set(),
-                                partida: elab.partidaProduccion,
-                                tipoExpedicion: elab.tipoExpedicion,
-                            };
-                            necesidadesPorFecha[fechaKey].push(necesidad);
-                        }
-                        
-                        necesidad.cantidad += (item.quantity || 1) * elabEnReceta.cantidad;
-                        necesidad.osIDs.add(os.id);
-                    });
-                });
-
-            } catch (e) {
-                 console.warn(`Could not process hito ${hito.id} for OS ${os.id}`, e);
-            }
+                if (!necesidad) {
+                    necesidad = {
+                        id,
+                        nombre: elab.nombre,
+                        cantidad: 0,
+                        unidad: elab.unidadProduccion,
+                        osIDs: new Set(),
+                        partida: elab.partidaProduccion,
+                        tipoExpedicion: elab.tipoExpedicion,
+                    };
+                    necesidadesPorFecha[fechaKey].push(necesidad);
+                }
+                
+                necesidad.cantidad += (item.quantity || 1) * elabEnReceta.cantidad;
+                necesidad.osIDs.add(gastroOrder.osId);
+            });
         });
+
+      } catch (e) {
+           console.warn(`Could not process order ${gastroOrder.id}`, e);
+      }
     });
 
     Object.keys(necesidadesPorFecha).forEach(fechaKey => {
       necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].filter(necesidad => {
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id);
         const cantidadYaProducida = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => {
-            const cantidad = (of.estado === 'Pendiente' || of.estado === 'Asignada' || of.estado === 'En Proceso') ? of.cantidadTotal : (of.cantidadReal || 0);
+             const cantidad = (of.estado === 'Finalizado' || of.estado === 'Validado') ? (of.cantidadReal || 0) : of.cantidadTotal;
             return sum + cantidad;
         }, 0);
         const cantidadEnStock = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
