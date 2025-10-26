@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import type { OrdenFabricacion, StockElaboracion, StockLote, Elaboracion } from '@/types';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { ArrowLeft, Save, Trash2, AlertTriangle, CheckCircle, CalendarIcon, Watch } from 'lucide-react';
@@ -40,7 +40,7 @@ function ExcedenteDetailPageContent() {
     const elabId = params.id as string;
     
     const form = useForm<FormData>();
-    const { register, handleSubmit, setValue, getValues, control, useFieldArray } = form;
+    const { register, handleSubmit, setValue, getValues, control } = form;
     
     const { fields, update, remove } = useFieldArray({
         control,
