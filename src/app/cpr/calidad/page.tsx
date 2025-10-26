@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -35,6 +36,7 @@ import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn, formatCurrency } from '@/lib/utils';
+import { useImpersonatedUser } from '@/hooks/use-impersonated-user';
 
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -52,7 +54,6 @@ export default function CalidadPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [personalCPR, setPersonalCPR] = useState<Personal[]>([]);
-  const [responsableCalidad, setResponsableCalidad] = useState<string>('');
   const [ofForIncident, setOfForIncident] = useState<OrdenFabricacion | null>(null);
   const [incidentData, setIncidentData] = useState({ cantidadReal: 0, observaciones: '' });
   const [showAll, setShowAll] = useState(false);
@@ -64,6 +65,7 @@ export default function CalidadPage() {
   const [elaboracionesMap, setElaboracionesMap] = useState<Map<string, Elaboracion>>(new Map());
   const router = useRouter();
   const { toast } = useToast();
+  const { impersonatedUser } = useImpersonatedUser();
 
   useEffect(() => {
     let storedData = localStorage.getItem('ordenesFabricacion');
@@ -80,8 +82,8 @@ export default function CalidadPage() {
   }, []);
   
   const handleValidate = (ofId: string) => {
-    if (!responsableCalidad) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Por favor, selecciona un responsable de calidad.' });
+    if (!impersonatedUser) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se ha podido identificar al usuario. Por favor, selecciona un usuario para simular.' });
         return;
     }
     let allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
@@ -92,7 +94,7 @@ export default function CalidadPage() {
             ...allOFs[index],
             okCalidad: true,
             estado: 'Validado' as const,
-            responsableCalidad: responsableCalidad,
+            responsableCalidad: impersonatedUser.nombre,
             fechaValidacionCalidad: new Date().toISOString(),
         };
         allOFs[index] = validatedOF;
@@ -276,17 +278,9 @@ export default function CalidadPage() {
                           <AlertDialogHeader>
                               <AlertDialogTitle>Confirmar Validación de Calidad</AlertDialogTitle>
                               <AlertDialogDescription>
-                                  Selecciona tu nombre como responsable para confirmar que el lote <strong>{of.id} ({of.elaboracionNombre})</strong> cumple con los estándares de calidad. Esta acción añadirá la producción al stock de elaboraciones.
+                                  Confirma que el lote <strong>{of.id} ({of.elaboracionNombre})</strong> cumple con los estándares de calidad. Se te asignará como responsable de esta validación. Esta acción añadirá la producción al stock de elaboraciones.
                               </AlertDialogDescription>
                           </AlertDialogHeader>
-                          <Select onValueChange={setResponsableCalidad}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecciona un responsable..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {personalCPR.map(p => <SelectItem key={p.id} value={p.nombre}>{p.nombre}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
                           <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
                               <AlertDialogAction onClick={() => handleValidate(of.id)}>Confirmar y Validar</AlertDialogAction>
