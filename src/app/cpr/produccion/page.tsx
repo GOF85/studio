@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
+import { format, formatDistanceToNowStrict } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChefHat, Printer, Calendar as CalendarIcon, CheckCircle } from 'lucide-react';
 import type { OrdenFabricacion, Personal, Elaboracion, IngredienteInterno, ArticuloERP, Alergeno } from '@/types';
@@ -84,9 +85,12 @@ function PrintLabelDialog({ of, elaboracion, ingredientes }: { of: OrdenFabricac
                                     <span><strong>Lote:</strong> {of.id}</span>
                                     <span><strong>Producción:</strong> {format(new Date(of.fechaFinalizacion || of.fechaCreacion), 'dd/MM/yyyy')}</span>
                                 </div>
-                                <div className="flex justify-between text-sm mb-2">
+                                <div className="flex justify-between text-sm">
                                     <span><strong>Cant. Producida:</strong> {of.cantidadReal || of.cantidadTotal} {of.unidad}</span>
                                     <span><strong>Caducidad:</strong> {format(expirationDate, 'dd/MM/yyyy')}</span>
+                                </div>
+                                 <div className="text-sm mb-2">
+                                    <span><strong>Responsable:</strong> {of.responsable || 'N/A'}</span>
                                 </div>
                                 <div className="flex-grow border-t border-b py-2 my-2 overflow-hidden">
                                     <h3 className="font-bold text-xs">Ingredientes:</h3>
