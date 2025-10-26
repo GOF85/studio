@@ -1,5 +1,4 @@
 
-      
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -14,13 +13,14 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' | 'success' } = {
   'Pendiente': 'secondary',
@@ -52,83 +52,85 @@ function PrintLabelDialog({ of, elaboracion, ingredientes }: { of: OrdenFabricac
                 <Button size="sm"><Printer className="mr-2 h-4 w-4" />Imprimir Etiqueta</Button>
             </DialogTrigger>
             <DialogContent className="max-w-4xl">
-                <DialogHeader>
-                    <DialogTitle>Etiqueta para Lote: {of.id}</DialogTitle>
-                    <DialogDescription>
-                        Selecciona la fecha de caducidad y confirma la impresión.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 py-4">
-                     <div className="space-y-4">
-                         <div className="flex items-center gap-4">
-                            <Label htmlFor="expiration-date">Fecha de Caducidad</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                <Button variant={"outline"} id="expiration-date" className={cn("w-[240px] justify-start text-left font-normal")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {format(expirationDate, "PPP", { locale: es })}
-                                </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                <Calendar mode="single" selected={expirationDate} onSelect={(date) => date && setExpirationDate(date)} initialFocus />
-                                </PopoverContent>
-                            </Popover>
-                         </div>
-                        <div id="printable-label" className="p-4 border rounded-lg w-[11cm] h-[9cm] flex flex-col bg-white text-black font-sans">
-                            <div className="text-center border-b pb-2">
-                                <h2 className="text-2xl font-bold">{of.elaboracionNombre}</h2>
+                 <TooltipProvider>
+                    <DialogHeader>
+                        <DialogTitle>Etiqueta para Lote: {of.id}</DialogTitle>
+                        <DialogDescription>
+                            Selecciona la fecha de caducidad y confirma la impresión.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 py-4">
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-4">
+                                <Label htmlFor="expiration-date">Fecha de Caducidad</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <Button variant={"outline"} id="expiration-date" className={cn("w-[240px] justify-start text-left font-normal")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {format(expirationDate, "PPP", { locale: es })}
+                                    </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                    <Calendar mode="single" selected={expirationDate} onSelect={(date) => date && setExpirationDate(date)} initialFocus />
+                                    </PopoverContent>
+                                </Popover>
                             </div>
-                            <div className="flex justify-between text-sm mt-2">
-                                <span><strong>Lote:</strong> {of.id}</span>
-                                <span><strong>Producción:</strong> {format(new Date(of.fechaFinalizacion || of.fechaCreacion), 'dd/MM/yyyy')}</span>
-                            </div>
-                            <div className="flex justify-between text-sm mb-2">
-                                <span><strong>Cant. Producida:</strong> {of.cantidadReal || of.cantidadTotal} {of.unidad}</span>
-                                <span><strong>Caducidad:</strong> {format(expirationDate, 'dd/MM/yyyy')}</span>
-                            </div>
-                            <div className="flex-grow border-t border-b py-2 my-2 overflow-hidden">
-                                <h3 className="font-bold text-xs">Ingredientes:</h3>
-                                <p className="text-[10px] leading-tight columns-2">
-                                    {ingredientes.map(ing => ing.nombreIngrediente).join(', ')}
-                                </p>
-                            </div>
-                            <div className="flex-shrink-0">
-                                <h3 className="font-bold text-xs">Alérgenos:</h3>
-                                <div className="flex flex-wrap gap-1.5 mt-1">
-                                    {Array.from(new Set(ingredientes.flatMap(i => [...(i.alergenosPresentes || []), ...(i.alergenosTrazas || [])]))).map(a => (
-                                        <AllergenBadge key={a} allergen={a as Alergeno}/>
-                                    ))}
+                            <div id="printable-label" className="p-4 border rounded-lg w-[11cm] h-[9cm] flex flex-col bg-white text-black font-sans">
+                                <div className="text-center border-b pb-2">
+                                    <h2 className="text-2xl font-bold">{of.elaboracionNombre}</h2>
+                                </div>
+                                <div className="flex justify-between text-sm mt-2">
+                                    <span><strong>Lote:</strong> {of.id}</span>
+                                    <span><strong>Producción:</strong> {format(new Date(of.fechaFinalizacion || of.fechaCreacion), 'dd/MM/yyyy')}</span>
+                                </div>
+                                <div className="flex justify-between text-sm mb-2">
+                                    <span><strong>Cant. Producida:</strong> {of.cantidadReal || of.cantidadTotal} {of.unidad}</span>
+                                    <span><strong>Caducidad:</strong> {format(expirationDate, 'dd/MM/yyyy')}</span>
+                                </div>
+                                <div className="flex-grow border-t border-b py-2 my-2 overflow-hidden">
+                                    <h3 className="font-bold text-xs">Ingredientes:</h3>
+                                    <p className="text-[10px] leading-tight columns-2">
+                                        {ingredientes.map(ing => ing.nombreIngrediente).join(', ')}
+                                    </p>
+                                </div>
+                                <div className="flex-shrink-0">
+                                    <h3 className="font-bold text-xs">Alérgenos:</h3>
+                                    <div className="flex flex-wrap gap-1.5 mt-1">
+                                        {Array.from(new Set(ingredientes.flatMap(i => [...(i.alergenosPresentes || []), ...(i.alergenosTrazas || [])]))).map(a => (
+                                            <AllergenBadge key={a} allergen={a as Alergeno}/>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        <style>
+                            {`
+                            @media print {
+                                body * {
+                                visibility: hidden;
+                                }
+                                #printable-label, #printable-label * {
+                                visibility: visible;
+                                }
+                                #printable-label {
+                                position: absolute;
+                                left: 0;
+                                top: 0;
+                                width: 11cm;
+                                height: 9cm;
+                                margin: 0;
+                                padding: 10px;
+                                border: none;
+                                }
+                            }
+                            `}
+                        </style>
                     </div>
-                    <style>
-                        {`
-                          @media print {
-                            body * {
-                              visibility: hidden;
-                            }
-                            #printable-label, #printable-label * {
-                              visibility: visible;
-                            }
-                            #printable-label {
-                              position: absolute;
-                              left: 0;
-                              top: 0;
-                              width: 11cm;
-                              height: 9cm;
-                              margin: 0;
-                              padding: 10px;
-                              border: none;
-                            }
-                          }
-                        `}
-                    </style>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => (document.getElementById('printable-label') as any)?.focus()}>Cancelar</Button>
-                    <Button onClick={handlePrint}><Printer className="mr-2"/>Imprimir</Button>
-                </DialogFooter>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => (document.getElementById('printable-label') as any)?.focus()}>Cancelar</Button>
+                        <Button onClick={handlePrint}><Printer className="mr-2"/>Imprimir</Button>
+                    </DialogFooter>
+                 </TooltipProvider>
             </DialogContent>
         </Dialog>
     );
@@ -304,6 +306,3 @@ export default function ProduccionPage() {
     </div>
   );
 }
-
-
-    
