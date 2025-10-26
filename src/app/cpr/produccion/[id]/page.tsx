@@ -116,11 +116,6 @@ export default function ProduccionDetallePage() {
 
     return (
         <div className="p-4 bg-gray-50 min-h-screen">
-            <div className="flex items-center justify-between mb-4">
-                <Button variant="ghost" onClick={() => router.push('/cpr/produccion')}>
-                    <ArrowLeft className="mr-2"/> Volver a mis tareas
-                </Button>
-            </div>
             <div className="space-y-6">
                 <Card>
                     <CardHeader>
