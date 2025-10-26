@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Package, ArrowLeft, Thermometer, Box, Snowflake, PlusCircle, Printer, Loader2, Trash2, Check, Utensils, Building, Phone, Sprout } from 'lucide-react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Package, ArrowLeft, Thermometer, Box, Snowflake, PlusCircle, Printer, Loader2, Trash2, Check, Utensils, Building, Phone, Sprout, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio, ComercialBriefingItem, ContenedorDinamico, Alergeno, IngredienteInterno, ArticuloERP } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { ChevronsUpDown } from 'lucide-react';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { AllergenIcon } from '@/components/icons/allergen-icon';
+import { AllergenBadge } from '@/components/icons/allergen-badge';
 
 
 type LotePendiente = {
@@ -221,8 +222,8 @@ export default function PickingDetailPage() {
 
             if (currentOS?.space) {
                 const allEspacios = JSON.parse(localStorage.getItem('espacios') || '[]') as Espacio[];
-                const currentSpace = allEspacios.find(e => e.espacio === currentOS.space);
-                setSpaceAddress(currentSpace?.calle || '');
+                const currentSpace = allEspacios.find(e => e.identificacion.nombreEspacio === currentOS.space);
+                setSpaceAddress(currentSpace?.identificacion.calle || '');
             }
             
             const allBriefings = (JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[]);
@@ -269,7 +270,11 @@ export default function PickingDetailPage() {
     
                                     let existing = necesidadesHito.get(elabInfo.id);
                                     if(!existing) {
-                                        const of = allOFs.find(o => o.elaboracionId === elabInfo.id);
+                                        // LOGIC CORRECTION: Find the best OF. Prioritize validated/finished.
+                                        const validOFs = allOFs.filter(o => o.elaboracionId === elabInfo.id && (o.estado === 'Validado' || o.estado === 'Finalizado') && !o.incidencia);
+                                        const pendingOFs = allOFs.filter(o => o.elaboracionId === elabInfo.id && (o.estado !== 'Validado' && o.estado !== 'Finalizado'));
+                                        const of = validOFs[0] || pendingOFs[0];
+
                                         existing = {
                                             ofId: of?.id || 'NO-OF',
                                             elaboracionId: elabInfo.id,
@@ -287,9 +292,9 @@ export default function PickingDetailPage() {
                                     existing.cantidadNecesaria += cantidadNecesaria;
                                     const recetaEnNecesidad = existing.recetas.find(r => r.nombre === receta.nombre);
                                     if (recetaEnNecesidad) {
-                                        recetaEnNecesidad.cantidad += cantidadNecesaria;
+                                        recetaEnNecesidad.cantidad += item.quantity || 0;
                                     } else {
-                                        existing.recetas.push({nombre: receta.nombre, cantidad: cantidadNecesaria});
+                                        existing.recetas.push({nombre: receta.nombre, cantidad: item.quantity || 0});
                                     }
                                 }
                             });
@@ -326,12 +331,12 @@ export default function PickingDetailPage() {
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, lotesNecesarios]);
     
     const lotesPendientesCalidad = useMemo(() => {
-        return lotesNecesarios.filter(of => 
-            of.estado !== 'Finalizado' && 
-            of.estado !== 'Validado' && 
-            !(of.incidencia && of.cantidadReal !== null && of.cantidadReal > 0)
+        const lotesNecesariosEsteEvento = lotesNecesarios.filter(of => of.osIDs.includes(osId));
+        return lotesNecesariosEsteEvento.filter(of => 
+            (of.estado !== 'Finalizado' && of.estado !== 'Validado') &&
+            !(of.incidencia)
         );
-    }, [lotesNecesarios]);
+    }, [lotesNecesarios, osId]);
 
     const addContainer = (tipo: keyof typeof expeditionTypeMap, hitoId: string): string => {
       const newContainer: ContenedorDinamico = {
@@ -577,31 +582,16 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                         {lotesDePartida.length > 0 && (
                                                             <div className="mb-4">
                                                                 <h3 className="font-semibold mb-2">Lotes pendientes de asignar para esta entrega</h3>
-                                                                <Table className="bg-white"><TableHeader><TableRow><TableHead className="w-[20%]">Receta</TableHead><TableHead className="font-bold">Elaboración</TableHead><TableHead>Alérgenos</TableHead><TableHead>Lote (OF)</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
+                                                                <Table className="bg-white"><TableHeader><TableRow><TableHead className="w-[30%]">Receta</TableHead><TableHead className="font-bold">Elaboración</TableHead><TableHead>Lote (OF)</TableHead><TableHead className="text-right">Cant. Pendiente</TableHead><TableHead className="w-32 no-print"></TableHead></TableRow></TableHeader>
                                                                     <TableBody>
                                                                         {lotesDePartida.map(lote => (
                                                                             <TableRow key={lote.ofId}>
-                                                                                <TableCell className="text-xs text-muted-foreground w-[20%]">{lote.recetas.map(r => r.nombre).join(', ')}</TableCell>
-                                                                                <TableCell className="font-bold">
-                                                                                    <Tooltip>
-                                                                                        <TooltipTrigger>{lote.elaboracionNombre}</TooltipTrigger>
-                                                                                        <TooltipContent>
-                                                                                            <div className="p-1 max-w-xs">
-                                                                                                <h4 className="font-bold mb-1">Necesario para:</h4>
-                                                                                                <ul className="list-disc pl-4 text-xs">
-                                                                                                    {lote.recetas.map((r, i) => (
-                                                                                                        <li key={i}>{r.nombre}: {formatNumber(r.cantidad, 2)} {formatUnit(lote.unidad)}</li>
-                                                                                                    ))}
-                                                                                                </ul>
-                                                                                            </div>
-                                                                                        </TooltipContent>
-                                                                                    </Tooltip>
+                                                                                 <TableCell className="text-xs text-muted-foreground w-[30%]">
+                                                                                    {lote.recetas.map(r => (
+                                                                                        <div key={r.nombre}>{r.cantidad} x {r.nombre}</div>
+                                                                                    ))}
                                                                                 </TableCell>
-                                                                                <TableCell>
-                                                                                  <div className="flex flex-wrap gap-1">
-                                                                                     {lote.alergenos.map(a => <AllergenIcon key={a} allergen={a} />)}
-                                                                                  </div>
-                                                                                </TableCell>
+                                                                                <TableCell className="font-bold">{lote.elaboracionNombre}</TableCell>
                                                                                 <TableCell className="font-medium font-mono">{lote.ofId}</TableCell>
                                                                                 <TableCell className="text-right font-mono">{formatNumber(lote.cantidadNecesaria - lote.cantidadAsignada, 2)} {formatUnit(lote.unidad)}</TableCell>
                                                                                 <TableCell className="text-right no-print"><AllocationDialog lote={lote} containers={contenedoresDePartida} onAllocate={(contId, qty) => allocateLote(lote.ofId, contId, qty, hito.id)} onAddContainer={() => addContainer(tipo, hito.id)} /></TableCell>
@@ -620,7 +610,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                                         Contenedor {container.numero}
                                                                         <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeContainer(container.id)}><Trash2 size={14} /></Button>
                                                                         </h3>
-                                                                        <Table className="bg-white/70"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead>Receta</TableHead><TableHead>Alérgenos</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-16 no-print"></TableHead></TableRow></TableHeader>
+                                                                        <Table className="bg-white/70"><TableHeader><TableRow><TableHead>Lote (OF)</TableHead><TableHead>Elaboración</TableHead><TableHead>Receta</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="w-16 no-print"></TableHead></TableRow></TableHeader>
                                                                             <TableBody>
                                                                                 {containerItems.length > 0 ? (
                                                                                     containerItems.map(item => {
@@ -630,11 +620,6 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                                                                                             <TableCell className="font-medium font-mono">{item.ofId}</TableCell>
                                                                                             <TableCell>{loteInfo?.elaboracionNombre}</TableCell>
                                                                                             <TableCell className="text-xs text-muted-foreground">({getRecetaForElaboracion(loteInfo?.elaboracionId || '', osId)})</TableCell>
-                                                                                            <TableCell>
-                                                                                                <div className="flex flex-wrap gap-1">
-                                                                                                    {loteInfo?.alergenos.map(a => <AllergenIcon key={a} allergen={a} />)}
-                                                                                                </div>
-                                                                                            </TableCell>
                                                                                             <TableCell className="text-right font-mono">{formatNumber(item.quantity || 0, 2)} {loteInfo ? formatUnit(loteInfo.unidad) : ''}</TableCell>
                                                                                             <TableCell className="no-print"><Button variant="ghost" size="sm" onClick={() => deallocateLote(item.allocationId)}>Quitar</Button></TableCell>
                                                                                         </TableRow>
