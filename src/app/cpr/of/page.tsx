@@ -120,7 +120,6 @@ export default function OfPage() {
     }
     
     const serviceOrders = (JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[]).filter(os => os.status === 'Confirmado');
-    const gastronomyOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
     const allBriefings = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const stockElaboraciones: Record<string, { cantidadTotal: number }> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
@@ -135,19 +134,16 @@ export default function OfPage() {
         if (!briefing) return;
 
         briefing.items.forEach(hito => {
-            if (!hito.conGastronomia) return;
+            if (!hito.conGastronomia || !hito.gastro_items) return;
 
             try {
                 const hitoDate = parseISO(hito.fecha);
                  if (!isWithinInterval(hitoDate, { start: startOfDay(dateRange.from!), end: endOfDay(dateRange.to || dateRange.from!) })) return;
                  
-                const gastroOrder = gastronomyOrders.find(g => g.id === hito.id);
-                if (!gastroOrder) return;
-                
                 const fechaKey = format(hitoDate, 'yyyy-MM-dd');
                 if(!necesidadesPorFecha[fechaKey]) necesidadesPorFecha[fechaKey] = [];
                 
-                (gastroOrder.items || []).forEach(item => {
+                (hito.gastro_items || []).forEach(item => {
                     if (item.type !== 'item') return;
                     
                     const receta = recetasMap.get(item.id);
@@ -188,7 +184,6 @@ export default function OfPage() {
       necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].filter(necesidad => {
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id);
         const cantidadYaProducida = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => {
-            // If the order is finished, use the real quantity. If not, use the planned total quantity to avoid re-generating.
             const cantidad = (of.estado === 'Finalizado' || of.estado === 'Validado') ? (of.cantidadReal || 0) : of.cantidadTotal;
             return sum + cantidad;
         }, 0);
