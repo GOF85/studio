@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Package, ArrowLeft, Thermometer, Box, Snowflake, PlusCircle, Printer, Loader2, Trash2, Check, Utensils, Building, Phone, Sprout, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
@@ -36,6 +35,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { ChevronsUpDown } from 'lucide-react';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
+import { Separator } from '@/components/ui/separator';
 
 
 type LotePendiente = {
@@ -243,7 +243,6 @@ export default function PickingDetailPage() {
             return { lotesPendientesPorHito, isPickingComplete: true };
         }
     
-        const allOFs = lotesNecesarios;
         const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
         const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
         const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
@@ -267,9 +266,8 @@ export default function PickingDetailPage() {
     
                                     let existing = necesidadesHito.get(elabInfo.id);
                                     if(!existing) {
-                                        const validOFs = allOFs.filter(o => o.elaboracionId === elabInfo.id && (o.estado === 'Validado' || o.estado === 'Finalizado') && !o.incidencia);
-                                        const pendingOFs = allOFs.filter(o => o.elaboracionId === elabInfo.id && (o.estado !== 'Validado' && o.estado !== 'Finalizado'));
-                                        const of = validOFs[0] || pendingOFs[0];
+                                        const validOFs = lotesNecesarios.filter(o => o.elaboracionId === elabInfo.id && (o.estado === 'Validado' || o.estado === 'Finalizado') && !o.incidencia);
+                                        const of = validOFs.length > 0 ? validOFs[0] : lotesNecesarios.find(o => o.elaboracionId === elabInfo.id);
 
                                         existing = {
                                             ofId: of?.id || 'NO-OF',
@@ -306,7 +304,7 @@ export default function PickingDetailPage() {
                 
                 return { ...necesidad, cantidadAsignada: cantidadAsignadaTotal };
             }).filter(lote => {
-                const of = allOFs.find(o => o.id === lote.ofId);
+                const of = lotesNecesarios.find(o => o.id === lote.ofId);
                 if (!of) return false;
                 
                 const ofState = of.estado;
@@ -495,7 +493,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
     return (
         <TooltipProvider>
             <div>
-                <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center justify-between mb-2">
                      <Button variant="ghost" size="sm" onClick={() => router.push('/cpr/picking')} className="mb-2 no-print">
                         <ArrowLeft className="mr-2" /> Volver al listado
                     </Button>
@@ -515,7 +513,7 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
                             </SelectTrigger>
                             <SelectContent>
                                 {statusOptions.map(s => <SelectItem key={s} value={s} disabled={s !== 'Pendiente' && !isPickingComplete}>
-                                    <Badge variant={statusVariant[s] as any}>{s}</Badge>
+                                    <Badge variant={statusVariant[s]}>{s}</Badge>
                                 </SelectItem>)}
                             </SelectContent>
                         </Select>
