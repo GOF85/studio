@@ -56,13 +56,10 @@ const expeditionTypeMap = {
     SECO: { title: "Partida Seco", icon: Box, className: "bg-yellow-100 border-yellow-200" },
 };
 
-export const statusOptions: PickingStatus[] = ['Pendiente', 'Preparado', 'Enviado', 'Entregado', 'Retornado'];
-export const statusVariant: { [key in PickingStatus]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
+export const statusOptions: PickingStatus[] = ['Pendiente', 'Preparado'];
+export const statusVariant: { [key in PickingStatus]: 'success' | 'secondary' } = {
   Pendiente: 'secondary',
-  Preparado: 'outline',
-  Enviado: 'default',
-  Entregado: 'default',
-  Retornado: 'destructive',
+  Preparado: 'success',
 };
 
 function AllocationDialog({ lote, containers, onAllocate, onAddContainer }: { lote: LotePendiente, containers: ContenedorDinamico[], onAllocate: (containerId: string, quantity: number) => void, onAddContainer: () => string }) {
@@ -270,7 +267,6 @@ export default function PickingDetailPage() {
     
                                     let existing = necesidadesHito.get(elabInfo.id);
                                     if(!existing) {
-                                        // LOGIC CORRECTION: Find the best OF. Prioritize validated/finished.
                                         const validOFs = allOFs.filter(o => o.elaboracionId === elabInfo.id && (o.estado === 'Validado' || o.estado === 'Finalizado') && !o.incidencia);
                                         const pendingOFs = allOFs.filter(o => o.elaboracionId === elabInfo.id && (o.estado !== 'Validado' && o.estado !== 'Finalizado'));
                                         const of = validOFs[0] || pendingOFs[0];
@@ -500,14 +496,27 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
         <TooltipProvider>
             <div>
                 <div className="flex items-start justify-between mb-2">
-                    <div></div>
-                    <div className="flex gap-2 no-print">
+                     <Button variant="ghost" size="sm" onClick={() => router.push('/cpr/picking')} className="mb-2 no-print">
+                        <ArrowLeft className="mr-2" /> Volver al listado
+                    </Button>
+                </div>
+                 <div className="flex items-center justify-between p-3 bg-muted rounded-lg mb-6">
+                    <div className="flex items-center gap-4">
+                        <h2 className="text-xl font-bold">{serviceOrder.serviceNumber}</h2>
+                        <Separator orientation="vertical" className="h-6"/>
+                        <p>{serviceOrder.client}</p>
+                        <Separator orientation="vertical" className="h-6"/>
+                        <p className="flex items-center gap-2 text-muted-foreground"><Building className="h-4 w-4"/> {serviceOrder.space}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
                         <Select onValueChange={(value: PickingStatus) => handleStatusChange(value)} value={pickingState.status}>
                             <SelectTrigger className="w-[180px]">
                                 <SelectValue placeholder="Estado..." />
                             </SelectTrigger>
                             <SelectContent>
-                                {statusOptions.map(s => <SelectItem key={s} value={s} disabled={s !== 'Pendiente' && !isPickingComplete}><Badge variant={statusVariant[s]}>{s}</Badge></SelectItem>)}
+                                {statusOptions.map(s => <SelectItem key={s} value={s} disabled={s !== 'Pendiente' && !isPickingComplete}>
+                                    <Badge variant={statusVariant[s] as any}>{s}</Badge>
+                                </SelectItem>)}
                             </SelectContent>
                         </Select>
                         <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
@@ -666,3 +675,5 @@ const handlePrintHito = async (hito: ComercialBriefingItem) => {
         </TooltipProvider>
     );
 }
+
+    
