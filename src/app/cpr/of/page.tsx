@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -47,7 +48,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 type NecesidadItem = {
@@ -182,7 +183,11 @@ export default function OfPage() {
 
     Object.keys(necesidadesPorFecha).forEach(fechaKey => {
       necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].filter(necesidad => {
-        const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id && isWithinInterval(new Date(of.fechaProduccionPrevista), { start: startOfDay(dateRange.from!), end: endOfDay(dateRange.to || dateRange.from!)}));
+        const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => 
+            of.elaboracionId === necesidad.id &&
+            of.estado !== 'Incidencia' &&
+            isWithinInterval(new Date(of.fechaProduccionPrevista), { start: startOfDay(dateRange.from!), end: endOfDay(dateRange.to || dateRange.from!)})
+        );
         const cantidadEnProduccion = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => sum + of.cantidadTotal, 0);
         const cantidadEnStock = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
         
