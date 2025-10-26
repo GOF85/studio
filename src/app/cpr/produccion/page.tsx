@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -43,8 +42,8 @@ function PrintLabelDialog({ of, elaboracion, ingredientes }: { of: OrdenFabricac
     const [isOpen, setIsOpen] = useState(false);
 
     const handlePrint = () => {
+        window.print();
         setIsOpen(false);
-        setTimeout(() => window.print(), 100);
     };
     
     if (!elaboracion) return null;
