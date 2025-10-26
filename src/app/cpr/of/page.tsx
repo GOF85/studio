@@ -58,6 +58,8 @@ type NecesidadItem = {
   osIDs: Set<string>;
   partida: PartidaProduccion;
   tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
+  stockDisponible?: number;
+  cantidadPlanificada?: number;
 };
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -103,7 +105,6 @@ export default function OfPage() {
   const { toast } = useToast();
   
   const loadData = useCallback(() => {
-    console.log('[DEBUG 0] Iniciando carga de datos para planificación...');
     
     // --- STAGE 1: RAW DATA ---
     const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
@@ -112,13 +113,6 @@ export default function OfPage() {
     const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
     const stockElaboraciones: Record<string, { cantidadTotal: number }> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
     
-    console.log('[DEBUG 1] Datos Crudos Cargados:', {
-        gastroOrdersCount: allGastroOrders.length,
-        recetasCount: allRecetas.length,
-        ofCount: allOFs.length,
-        stockKeys: Object.keys(stockElaboraciones).length,
-    });
-    console.log('Datos de Gastronomia:', allGastroOrders);
 
     let storedOFs = localStorage.getItem('ordenesFabricacion');
     const allOFsForState = storedOFs ? JSON.parse(storedOFs) : [];
@@ -130,6 +124,7 @@ export default function OfPage() {
 
     if (!dateRange?.from) {
       setNecesidades({});
+      setIsMounted(true);
       return;
     }
     
@@ -142,21 +137,16 @@ export default function OfPage() {
     const rangeEnd = endOfDay(dateRange.to || dateRange.from);
 
     // --- STAGE 2: FILTER BY DATE ---
-    console.log(`[DEBUG 2] Filtrando pedidos entre ${format(rangeStart, 'yyyy-MM-dd')} y ${format(rangeEnd, 'yyyy-MM-dd')}`);
     
     const gastroOrdersInRange = allGastroOrders.filter(order => {
         try {
             const hitoDate = startOfDay(new Date(order.fecha));
             const isInRange = isWithinInterval(hitoDate, { start: rangeStart, end: rangeEnd });
-            console.log(`- Chequeando Pedido Hito ID ${order.id} (Fecha: ${order.fecha}): ${isInRange ? 'DENTRO del rango' : 'FUERA del rango'}`);
             return isInRange;
         } catch (e) { 
-            console.error(`Fecha inválida para el pedido ${order.id}:`, order.fecha);
             return false;
         }
     });
-
-    console.log(`[DEBUG 2.1] Encontrados ${gastroOrdersInRange.length} pedidos de gastronomía en el rango de fechas.`);
 
     // --- STAGE 3: CALCULATE NEEDS ---
     gastroOrdersInRange.forEach(gastroOrder => {
@@ -195,38 +185,32 @@ export default function OfPage() {
             });
         });
       } catch (e) {
-           console.warn(`Could not process order ${gastroOrder.id}`, e);
       }
     });
 
-    console.log('[DEBUG 3] Necesidades calculadas ANTES de filtrar stock/OFs:', JSON.parse(JSON.stringify(necesidadesPorFecha, (key, value) => value instanceof Set ? Array.from(value) : value)));
 
     // --- STAGE 4: SUBTRACT EXISTING STOCK & OFs ---
     Object.keys(necesidadesPorFecha).forEach(fechaKey => {
-      necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].filter(necesidad => {
+      necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].map(necesidad => {
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id && isSameDay(new Date(of.fechaProduccionPrevista), new Date(fechaKey)));
+        
         const cantidadYaPlanificada = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => {
-            if (of.estado === 'Finalizado' || of.estado === 'Validado') {
-                return sum + (of.cantidadReal || 0);
-            }
             return sum + (of.cantidadTotal || 0);
         }, 0);
+        
         const cantidadEnStock = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
         
-        console.log(`[DEBUG 4] Para ${necesidad.nombre} (${fechaKey}): Cant. Bruta: ${necesidad.cantidad}, Stock: ${cantidadEnStock}, Ya Planificado: ${cantidadYaPlanificada}`);
-
-        necesidad.cantidad -= (cantidadYaPlanificada + cantidadEnStock);
+        const cantidadNeta = necesidad.cantidad - (cantidadYaPlanificada + cantidadEnStock);
         
-        console.log(` -> Cantidad Neta: ${necesidad.cantidad}`);
-
-        return necesidad.cantidad > 0.001;
+        return {
+          ...necesidad,
+          cantidad: Math.max(0, cantidadNeta), // No mostrar cantidades negativas
+          stockDisponible: cantidadEnStock,
+          cantidadPlanificada: cantidadYaPlanificada
+        };
       });
-      if(necesidadesPorFecha[fechaKey].length === 0) {
-        delete necesidadesPorFecha[fechaKey];
-      }
     });
 
-    console.log('[DEBUG 5] Necesidades FINALES a mostrar:', JSON.parse(JSON.stringify(necesidadesPorFecha, (key, value) => value instanceof Set ? Array.from(value) : value)));
     setNecesidades(necesidadesPorFecha);
     setIsMounted(true);
   }, [dateRange]);
@@ -300,7 +284,7 @@ export default function OfPage() {
     
     seleccionados.forEach(elabId => {
       const necesidad = necesidades[fecha].find(n => n.id === elabId);
-      if (!necesidad) return;
+      if (!necesidad || necesidad.cantidad <= 0) return;
       
       currentIdCounter++;
       
@@ -411,18 +395,25 @@ export default function OfPage() {
                                             }}/></TableHead>
                                             <TableHead>Elaboración</TableHead>
                                             <TableHead>Partida</TableHead>
-                                            <TableHead className="text-right">Cantidad Necesaria</TableHead>
+                                            <TableHead className="text-right">Cant. Necesaria</TableHead>
+                                            <TableHead className="text-right">Stock Actual</TableHead>
+                                            <TableHead className="text-right">Planificado</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {items.map(item => (
-                                            <TableRow key={item.id}>
-                                                <TableCell><Checkbox checked={selectedNecesidades[fecha]?.has(item.id)} onCheckedChange={(checked) => handleSelectNecesidad(fecha, item.id, !!checked)}/></TableCell>
+                                        {items.map(item => {
+                                          const isCovered = item.cantidad <= 0;
+                                          return (
+                                            <TableRow key={item.id} className={cn(isCovered && "bg-slate-100 text-muted-foreground")}>
+                                                <TableCell><Checkbox checked={selectedNecesidades[fecha]?.has(item.id)} onCheckedChange={(checked) => handleSelectNecesidad(fecha, item.id, !!checked)} disabled={isCovered}/></TableCell>
                                                 <TableCell>{item.nombre}</TableCell>
                                                 <TableCell><Badge variant="secondary">{item.partida}</Badge></TableCell>
                                                 <TableCell className="text-right font-mono">{formatNumber(item.cantidad, 2)} {formatUnit(item.unidad)}</TableCell>
+                                                <TableCell className="text-right font-mono">{formatNumber(item.stockDisponible || 0, 2)} {formatUnit(item.unidad)}</TableCell>
+                                                <TableCell className="text-right font-mono">{formatNumber(item.cantidadPlanificada || 0, 2)} {formatUnit(item.unidad)}</TableCell>
                                             </TableRow>
-                                        ))}
+                                          )
+                                        })}
                                     </TableBody>
                                 </Table>
                             </div>
