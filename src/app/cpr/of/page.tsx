@@ -177,10 +177,12 @@ export default function OfPage() {
 
     Object.keys(necesidadesPorFecha).forEach(fechaKey => {
       necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].filter(necesidad => {
-        const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id);
+        const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id && isSameDay(new Date(of.fechaProduccionPrevista), new Date(fechaKey)));
         const cantidadYaProducida = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => {
-             const cantidad = (of.estado === 'Finalizado' || of.estado === 'Validado') ? (of.cantidadReal || 0) : of.cantidadTotal;
-            return sum + cantidad;
+            if (of.estado === 'Finalizado' || of.estado === 'Validado') {
+                return sum + (of.cantidadReal || 0);
+            }
+            return sum + (of.cantidadTotal || 0); // Consider planned amount for non-finished OFs
         }, 0);
         const cantidadEnStock = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
         
