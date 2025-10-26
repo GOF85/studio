@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function ProduccionDetallePage() {
     const [orden, setOrden] = useState<OrdenFabricacion | null>(null);
@@ -77,6 +78,7 @@ export default function ProduccionDetallePage() {
             if (newStatus === 'En Proceso') {
                 updatedOF.fechaInicioProduccion = new Date().toISOString();
                 toast({ title: 'Producción Iniciada', description: 'El cronómetro ha comenzado.' });
+                 setOrden(updatedOF); // Optimistically update state to show timer
             }
             if (newStatus === 'Finalizado') {
                 const finalQuantity = typeof cantidadReal === 'string' ? parseFloat(cantidadReal) : cantidadReal;
