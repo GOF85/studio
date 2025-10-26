@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -104,14 +103,29 @@ export default function OfPage() {
   const { toast } = useToast();
   
   const loadData = useCallback(() => {
+    console.log('[DEBUG 0] Iniciando carga de datos para planificación...');
+    
+    // --- STAGE 1: RAW DATA ---
+    const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
+    const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
+    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
+    const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
+    const stockElaboraciones: Record<string, { cantidadTotal: number }> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
+    
+    console.log('[DEBUG 1] Datos Crudos Cargados:', {
+        gastroOrdersCount: allGastroOrders.length,
+        recetasCount: allRecetas.length,
+        ofCount: allOFs.length,
+        stockKeys: Object.keys(stockElaboraciones).length,
+    });
+    console.log('Datos de Gastronomia:', allGastroOrders);
+
     let storedOFs = localStorage.getItem('ordenesFabricacion');
-    const allOFs = storedOFs ? JSON.parse(storedOFs) : [];
-    setOrdenes(allOFs);
+    const allOFsForState = storedOFs ? JSON.parse(storedOFs) : [];
+    setOrdenes(allOFsForState);
     
     const allPersonal = JSON.parse(localStorage.getItem('personal') || '[]') as Personal[];
     setPersonalCPR(allPersonal.filter(p => p.departamento === 'CPR'));
-
-    const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     setElaboracionesMap(new Map(allElaboraciones.map(e => [e.id, e])));
 
     if (!dateRange?.from) {
@@ -119,26 +133,32 @@ export default function OfPage() {
       return;
     }
     
-    const allServiceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]') as ServiceOrder[];
-    const allGastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]);
-    const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
-    const stockElaboraciones: Record<string, { cantidadTotal: number }> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
-
-    const recetasMap = new Map(recetas.map(r => [r.id, r]));
+    const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
     const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
 
     const necesidadesPorFecha: Record<string, NecesidadItem[]> = {};
 
     const rangeStart = startOfDay(dateRange.from);
     const rangeEnd = endOfDay(dateRange.to || dateRange.from);
+
+    // --- STAGE 2: FILTER BY DATE ---
+    console.log(`[DEBUG 2] Filtrando pedidos entre ${format(rangeStart, 'yyyy-MM-dd')} y ${format(rangeEnd, 'yyyy-MM-dd')}`);
     
     const gastroOrdersInRange = allGastroOrders.filter(order => {
         try {
             const hitoDate = startOfDay(new Date(order.fecha));
-            return isWithinInterval(hitoDate, { start: rangeStart, end: rangeEnd });
-        } catch (e) { return false; }
+            const isInRange = isWithinInterval(hitoDate, { start: rangeStart, end: rangeEnd });
+            console.log(`- Chequeando Pedido Hito ID ${order.id} (Fecha: ${order.fecha}): ${isInRange ? 'DENTRO del rango' : 'FUERA del rango'}`);
+            return isInRange;
+        } catch (e) { 
+            console.error(`Fecha inválida para el pedido ${order.id}:`, order.fecha);
+            return false;
+        }
     });
 
+    console.log(`[DEBUG 2.1] Encontrados ${gastroOrdersInRange.length} pedidos de gastronomía en el rango de fechas.`);
+
+    // --- STAGE 3: CALCULATE NEEDS ---
     gastroOrdersInRange.forEach(gastroOrder => {
       try {
         const fechaKey = format(new Date(gastroOrder.fecha), 'yyyy-MM-dd');
@@ -174,25 +194,31 @@ export default function OfPage() {
                 necesidad.osIDs.add(gastroOrder.osId);
             });
         });
-
       } catch (e) {
            console.warn(`Could not process order ${gastroOrder.id}`, e);
       }
     });
-    
+
+    console.log('[DEBUG 3] Necesidades calculadas ANTES de filtrar stock/OFs:', JSON.parse(JSON.stringify(necesidadesPorFecha, (key, value) => value instanceof Set ? Array.from(value) : value)));
+
+    // --- STAGE 4: SUBTRACT EXISTING STOCK & OFs ---
     Object.keys(necesidadesPorFecha).forEach(fechaKey => {
       necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].filter(necesidad => {
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id && isSameDay(new Date(of.fechaProduccionPrevista), new Date(fechaKey)));
-        const cantidadYaProducida = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => {
+        const cantidadYaPlanificada = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => {
             if (of.estado === 'Finalizado' || of.estado === 'Validado') {
                 return sum + (of.cantidadReal || 0);
             }
-            // If it's not finished, consider the planned amount to avoid re-generating
             return sum + (of.cantidadTotal || 0);
         }, 0);
         const cantidadEnStock = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
         
-        necesidad.cantidad -= (cantidadYaProducida + cantidadEnStock);
+        console.log(`[DEBUG 4] Para ${necesidad.nombre} (${fechaKey}): Cant. Bruta: ${necesidad.cantidad}, Stock: ${cantidadEnStock}, Ya Planificado: ${cantidadYaPlanificada}`);
+
+        necesidad.cantidad -= (cantidadYaPlanificada + cantidadEnStock);
+        
+        console.log(` -> Cantidad Neta: ${necesidad.cantidad}`);
+
         return necesidad.cantidad > 0.001;
       });
       if(necesidadesPorFecha[fechaKey].length === 0) {
@@ -200,6 +226,7 @@ export default function OfPage() {
       }
     });
 
+    console.log('[DEBUG 5] Necesidades FINALES a mostrar:', JSON.parse(JSON.stringify(necesidadesPorFecha, (key, value) => value instanceof Set ? Array.from(value) : value)));
     setNecesidades(necesidadesPorFecha);
     setIsMounted(true);
   }, [dateRange]);
