@@ -16,12 +16,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' | 'success' } = {
   'Pendiente': 'secondary',
@@ -255,7 +257,9 @@ export default function ProduccionPage() {
                                     >
                                         <TableCell className="py-4">{of.elaboracionNombre}</TableCell>
                                         <TableCell className="py-4">{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
-                                        <TableCell className="py-4">{of.cantidadTotal} {of.unidad}</TableCell>
+                                        <TableCell className="py-4">
+                                            {Math.ceil(of.cantidadTotal * 100) / 100} {of.unidad}
+                                        </TableCell>
                                         <TableCell className="py-4"><Badge variant={statusVariant[of.estado]}>{of.estado}</Badge></TableCell>
                                     </TableRow>
                                 ))
@@ -317,3 +321,4 @@ export default function ProduccionPage() {
     </div>
   );
 }
+
