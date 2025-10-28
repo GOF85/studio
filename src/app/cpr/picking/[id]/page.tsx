@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
@@ -16,12 +15,12 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
+  AlertDialogDescription as AlertDialogDesc,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -167,7 +166,7 @@ function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pick
             doc.setFontSize(14);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor('#1f2937');
-            doc.text(containerInfo.title.replace('Carambuco ', ''), margin, finalY);
+            doc.text(containerInfo.title, margin, finalY);
 
             doc.setFontSize(28);
             doc.setFont('helvetica', 'bold');
@@ -642,9 +641,9 @@ function PickingPageContent() {
                     <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Reiniciar el picking?</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogDesc>
                         Esta acción desasignará todos los lotes de sus contenedores y vaciará la lista de contenedores asignados a este evento. Es útil si necesitas empezar la organización logística desde cero.
-                        </AlertDialogDescription>
+                        </AlertDialogDesc>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -669,3 +668,5 @@ export default function PickingDetailPageWrapper() {
     </Suspense>
   )
 }
+
+    
