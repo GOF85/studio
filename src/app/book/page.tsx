@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -46,8 +47,8 @@ export default function BookDashboardPage() {
     totalIngredientes: 0,
     recetasParaRevisar: 0,
   });
-  const [topUsedRecipes, setTopUsedRecipes] = useState<{ nombre: string, count: number }[]>([]);
-  const [mostUsedElaborations, setMostUsedElaborations] = useState<{ nombre: string, count: number }[]>([]);
+  const [topUsedRecipes, setTopUsedRecipes] = useState<{ nombre: string, count: number, pvp: number, coste: number, margen: number }[]>([]);
+  const [mostUsedElaborations, setMostUsedElaborations] = useState<{ nombre: string, count: number, pvp: number, coste: number, margen: number }[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
   
@@ -65,7 +66,6 @@ export default function BookDashboardPage() {
       recetasParaRevisar: storedRecetas.filter(r => r.requiereRevision).length,
     });
     
-    // Filter orders for the current year
     const now = new Date();
     const startOfCurrentYear = startOfYear(now);
     const endOfCurrentYear = endOfYear(now);
@@ -83,29 +83,30 @@ export default function BookDashboardPage() {
 
     const gastroOrdersCurrentYear = gastronomyOrders.filter(go => osIdsCurrentYear.has(go.osId));
 
-    // Top 20 Recetas más utilizadas
-    const recipeUsageCount = new Map<string, number>();
+    const recipeUsage = new Map<string, { count: number; pvp: number; coste: number }>();
     gastroOrdersCurrentYear.forEach(order => {
         (order.items || []).forEach(item => {
             if(item.type === 'item') {
                 const qty = item.quantity || 1;
-                recipeUsageCount.set(item.id, (recipeUsageCount.get(item.id) || 0) + qty);
+                const existing = recipeUsage.get(item.id) || { count: 0, pvp: 0, coste: 0 };
+                existing.count += qty;
+                existing.pvp += (item.precioVenta || 0) * qty;
+                existing.coste += (item.costeMateriaPrima || 0) * qty;
+                recipeUsage.set(item.id, existing);
             }
         });
     });
     
-    const sortedRecipes = Array.from(recipeUsageCount.entries())
-        .sort(([, countA], [, countB]) => countB - countA)
+    const sortedRecipes = Array.from(recipeUsage.entries())
+        .sort(([, dataA], [, dataB]) => dataB.count - dataA.count)
         .slice(0, 20)
-        .map(([recetaId, count]) => {
+        .map(([recetaId, data]) => {
             const receta = storedRecetas.find(r => r.id === recetaId);
-            return { nombre: receta?.nombre || 'Desconocido', count };
+            return { nombre: receta?.nombre || 'Desconocido', ...data, margen: data.pvp - data.coste };
         });
     setTopUsedRecipes(sortedRecipes);
 
-
-    // Top 20 Elaboraciones más utilizadas
-    const elabUsageCount = new Map<string, number>();
+    const elabUsage = new Map<string, { count: number; pvp: number; coste: number }>();
     gastroOrdersCurrentYear.forEach(order => {
         (order.items || []).forEach(item => {
              if(item.type === 'item') {
@@ -114,20 +115,30 @@ export default function BookDashboardPage() {
                 if (receta) {
                     receta.elaboraciones.forEach(elabEnReceta => {
                         const elabId = elabEnReceta.elaboracionId;
-                        const elabQtyInReceta = elabEnReceta.cantidad || 0;
-                        elabUsageCount.set(elabId, (elabUsageCount.get(elabId) || 0) + (orderQty * elabQtyInReceta));
+                        const elabData = storedElaboraciones.find(e => e.id === elabId);
+                        if(elabData) {
+                            const qty = orderQty * elabEnReceta.cantidad;
+                            const elabCoste = (elabData.costePorUnidad || 0) * qty;
+                            const elabPvp = (receta.precioVenta || 0) * (elabCoste / (receta.costeMateriaPrima || 1));
+                            
+                            const existing = elabUsage.get(elabId) || { count: 0, pvp: 0, coste: 0 };
+                            existing.count += qty;
+                            existing.coste += elabCoste;
+                            existing.pvp += elabPvp;
+                            elabUsage.set(elabId, existing);
+                        }
                     });
                 }
             }
         });
     });
     
-    const sortedElabs = Array.from(elabUsageCount.entries())
-        .sort(([, countA], [, countB]) => countB - countA)
+    const sortedElabs = Array.from(elabUsage.entries())
+        .sort(([, dataA], [, dataB]) => dataB.count - dataA.count)
         .slice(0, 20)
-        .map(([elabId, count]) => {
+        .map(([elabId, data]) => {
             const elab = storedElaboraciones.find(e => e.id === elabId);
-            return { nombre: elab?.nombre || 'Desconocido', count };
+            return { nombre: elab?.nombre || 'Desconocido', ...data, margen: data.pvp - data.coste };
         });
     setMostUsedElaborations(sortedElabs);
 
@@ -138,6 +149,31 @@ export default function BookDashboardPage() {
   if (!isMounted) {
     return <LoadingSkeleton title="Cargando Panel de Control del Book..." />;
   }
+  
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="rounded-lg border bg-background p-2 shadow-sm text-sm">
+          <p className="font-bold text-base mb-2">{label}</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <span className="font-semibold text-muted-foreground">Cantidad:</span>
+            <span className="text-right font-mono">{data.count.toFixed(2)} uds</span>
+            
+            <span className="font-semibold text-muted-foreground">Facturación:</span>
+            <span className="text-right font-mono">{formatCurrency(data.pvp)}</span>
+
+            <span className="font-semibold text-muted-foreground">Coste MP:</span>
+            <span className="text-right font-mono">{formatCurrency(data.coste)}</span>
+            
+            <span className="font-bold text-primary">Margen Bruto:</span>
+            <span className="text-right font-bold font-mono text-primary">{formatCurrency(data.margen)}</span>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -160,19 +196,7 @@ export default function BookDashboardPage() {
                         <BarChart data={mostUsedElaborations} layout="vertical" margin={{ left: 10, right: 30 }}>
                             <XAxis type="number" hide />
                             <YAxis type="category" dataKey="nombre" width={150} stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                            <Tooltip
-                                cursor={{fill: 'hsl(var(--accent))'}}
-                                content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                    return (
-                                    <div className="rounded-lg border bg-background p-2 shadow-sm">
-                                        <p className="font-bold">{`${payload[0].payload.nombre}: ${payload[0].value?.toLocaleString()} uds.`}</p>
-                                    </div>
-                                    )
-                                }
-                                return null
-                                }}
-                            />
+                            <Tooltip content={<CustomTooltip />} cursor={{fill: 'hsl(var(--accent))'}}/>
                             <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
@@ -189,19 +213,7 @@ export default function BookDashboardPage() {
                         <BarChart data={topUsedRecipes} layout="vertical" margin={{ left: 10, right: 30 }}>
                             <XAxis type="number" hide />
                             <YAxis type="category" dataKey="nombre" width={150} stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                            <Tooltip
-                                cursor={{fill: 'hsl(var(--accent))'}}
-                                content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                    return (
-                                    <div className="rounded-lg border bg-background p-2 shadow-sm">
-                                        <p className="font-bold">{`${payload[0].payload.nombre}: ${payload[0].value} veces`}</p>
-                                    </div>
-                                    )
-                                }
-                                return null
-                                }}
-                            />
+                            <Tooltip content={<CustomTooltip />} cursor={{fill: 'hsl(var(--accent))'}}/>
                             <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
