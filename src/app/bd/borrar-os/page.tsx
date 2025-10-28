@@ -28,6 +28,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 
 type DataSet = {
   key: string;
@@ -69,14 +70,48 @@ type ItemToDelete = {
     checked: boolean;
 };
 
+type DataSetCardProps = {
+    db: DataSet;
+    count: number;
+    onDelete: (db: DataSet) => void;
+};
+
+function DataSetCard({ db, count, onDelete }: DataSetCardProps) {
+    return (
+        <Card>
+            <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                    <h3 className="font-semibold">{db.name}</h3>
+                    <p className="text-sm text-muted-foreground">{db.description}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{count} registros</Badge>
+                    <Button variant="destructive" onClick={() => onDelete(db)} disabled={count === 0}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Borrar
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function BorrarOsPage() {
     const { toast } = useToast();
     const [isMounted, setIsMounted] = useState(false);
     const [dataSetToView, setDataSetToView] = useState<DataSet | null>(null);
     const [itemsToDelete, setItemsToDelete] = useState<ItemToDelete[]>([]);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [dbCounts, setDbCounts] = useState<Record<string, number>>({});
 
     useEffect(() => {
+        const counts: Record<string, number> = {};
+        [...EVENT_DATA, ...RELATED_DATA].forEach(db => {
+            const dataString = localStorage.getItem(db.key);
+            const data = dataString ? JSON.parse(dataString) : [];
+            counts[db.key] = Array.isArray(data) ? data.length : Object.keys(data).length;
+        });
+        setDbCounts(counts);
         setIsMounted(true);
     }, []);
 
@@ -133,6 +168,9 @@ export default function BorrarOsPage() {
             description: `Se han borrado ${idsToDelete.size} registros de: ${dataSetToView.name}.`,
         });
 
+        // Update counts
+        setDbCounts(prev => ({ ...prev, [dataSetToView.key]: Array.isArray(newData) ? newData.length : Object.keys(newData).length }));
+
         setDataSetToView(null);
         setItemsToDelete([]);
         setIsConfirmOpen(false);
@@ -140,30 +178,8 @@ export default function BorrarOsPage() {
 
     const numSelected = itemsToDelete.filter(i => i.checked).length;
 
-    const renderDataSetCard = (db: DataSet) => {
-        if(!isMounted) return <div className="p-4 border rounded-lg h-24 animate-pulse bg-muted"/>;
-
-        const dataString = localStorage.getItem(db.key);
-        const data = dataString ? JSON.parse(dataString) : [];
-        const count = Array.isArray(data) ? data.length : Object.keys(data).length;
-
-        return(
-            <Card>
-                <CardContent className="p-4 flex items-center justify-between">
-                    <div>
-                        <h3 className="font-semibold">{db.name}</h3>
-                        <p className="text-sm text-muted-foreground">{db.description}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{count} registros</Badge>
-                        <Button variant="destructive" onClick={() => handleOpenDialog(db)} disabled={count === 0}>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Borrar
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-        );
+    if (!isMounted) {
+        return <LoadingSkeleton title="Cargando Limpieza de Datos..." />;
     }
     
     return (
@@ -190,7 +206,7 @@ export default function BorrarOsPage() {
                     <h2 className="text-2xl font-headline font-semibold mb-4 mt-8">Registros Principales</h2>
                      <div className="space-y-4">
                         {EVENT_DATA.map(db => (
-                           <div key={db.key}>{renderDataSetCard(db)}</div>
+                            <DataSetCard key={db.key} db={db} count={dbCounts[db.key] || 0} onDelete={handleOpenDialog} />
                         ))}
                     </div>
                     
@@ -200,7 +216,7 @@ export default function BorrarOsPage() {
                     </p>
                     <div className="space-y-4">
                          {RELATED_DATA.map(db => (
-                           <div key={db.key}>{renderDataSetCard(db)}</div>
+                           <DataSetCard key={db.key} db={db} count={dbCounts[db.key] || 0} onDelete={handleOpenDialog} />
                         ))}
                     </div>
                 </div>
