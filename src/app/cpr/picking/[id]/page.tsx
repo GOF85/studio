@@ -51,9 +51,9 @@ type LotePendiente = {
 };
 
 const expeditionTypeMap = {
-    REFRIGERADO: { title: "Partida Refrigerado", icon: Thermometer, className: "bg-blue-100 border-blue-200" },
-    CONGELADO: { title: "Partida Congelado", icon: Snowflake, className: "bg-sky-100 border-sky-200" },
-    SECO: { title: "Partida Seco", icon: Box, className: "bg-yellow-100 border-yellow-200" },
+    REFRIGERADO: { title: "Carambuco Refrigerado", icon: Thermometer, className: "bg-blue-100 border-blue-200" },
+    CONGELADO: { title: "Carambuco Congelado", icon: Snowflake, className: "bg-sky-100 border-sky-200" },
+    SECO: { title: "Contenedor Seco", icon: Box, className: "bg-yellow-100 border-yellow-200" },
 };
 
 export const statusOptions: PickingStatus[] = ['Pendiente', 'Preparado'];
@@ -150,8 +150,8 @@ export default function PickingDetailPage() {
     const [hitosConNecesidades, setHitosConNecesidades] = useState<ComercialBriefingItem[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: [], itemStates: [] });
     const [isMounted, setIsMounted] = useState(false);
-    const [isPrinting, setIsPrinting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isPrinting, setIsPrinting] = useState(isPrinting);
     
     const router = useRouter();
     const params = useParams();
@@ -425,44 +425,47 @@ export default function PickingDetailPage() {
             const containers = pickingState.assignedContainers.filter(c => c.hitoId === hito.id);
             const margin = 5;
             const pageWidth = 100;
+            const pageHeight = 150;
     
             containers.forEach((container, containerIndex) => {
                 if (containerIndex > 0) doc.addPage();
                 
                 let finalY = margin + 5;
-    
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-                doc.text('DE: MICE', margin, finalY);
-                
                 const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
                 const expedicionNumero = `${serviceOrder.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
                 const fullExpId = `MICE-${expedicionNumero}-${container.numero}`;
+
+                // --- HEADER ---
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.text(expeditionTypeMap[container.tipo].title, margin, finalY, { align: 'left' });
                 
                 doc.setFontSize(22);
                 doc.setFont('helvetica', 'bold');
                 doc.text(fullExpId, pageWidth - margin, finalY, { align: 'right' });
                 finalY += 10;
-    
+                
                 doc.setLineWidth(0.3);
+                doc.setDrawColor('#cbd5e1');
                 doc.line(margin, finalY, pageWidth - margin, finalY);
                 finalY += 8;
-
+                
+                // --- PARA (TO) ---
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
                 doc.text('PARA:', margin, finalY);
                 doc.setFont('helvetica', 'normal');
-                
                 const clientText = `${serviceOrder.client}${serviceOrder.finalClient ? ` / ${serviceOrder.finalClient}` : ''}`;
                 doc.text(clientText, margin + 15, finalY);
                 finalY += 5;
-
                 const spaceLines = doc.splitTextToSize(`${serviceOrder.space || ''} (${hito.sala || ''})`, pageWidth - margin * 2 - 15);
                 doc.text(spaceLines, margin + 15, finalY);
                 finalY += spaceLines.length * 4 + 4;
-    
+
                 doc.line(margin, finalY, pageWidth - margin, finalY);
                 finalY += 5;
+                
+                // --- FOOTER INFO ---
                 const deliveryInfo = `Fecha: ${format(new Date(hito.fecha), 'dd/MM/yy')}   Hora: ${hito.horaInicio}`;
                 doc.setFontSize(8);
                 doc.text(deliveryInfo, margin, finalY);
@@ -474,10 +477,8 @@ export default function PickingDetailPage() {
                     const loteInfo = allOFs.find(of => of.id === item.ofId);
                     const receta = getRecetaForElaboracion(loteInfo?.elaboracionId || '', osId);
                     const nombre = `${loteInfo?.elaboracionNombre || 'N/A'}${receta !== 'Directa' ? ` (${receta})` : ''}`;
-                    return [
-                        nombre,
-                        `${formatNumber(item.quantity, 2)} ${formatUnit(loteInfo?.unidad || 'Uds')}`
-                    ];
+                    const cantidad = `${formatNumber(item.quantity, 2)} ${formatUnit(loteInfo?.unidad || 'Uds')}`;
+                    return [nombre, cantidad];
                 });
     
                  autoTable(doc, {
@@ -485,10 +486,10 @@ export default function PickingDetailPage() {
                     head: [['PRODUCTO', 'CANTIDAD']],
                     body: tableBody,
                     theme: 'grid',
-                    styles: { fontSize: 7, cellPadding: 1, overflow: 'linebreak' },
-                    headStyles: { fillColor: '#374151', textColor: '#FFFFFF', fontSize: 8, fontStyle: 'bold', cellPadding: 1 },
+                    styles: { fontSize: 8, cellPadding: 1, overflow: 'linebreak', valign: 'middle' },
+                    headStyles: { fillColor: '#374151', textColor: '#FFFFFF', fontSize: 7, fontStyle: 'bold', cellPadding: 1 },
                     columnStyles: { 
-                        0: { cellWidth: 65 }, 
+                        0: { cellWidth: 60 }, 
                         1: { cellWidth: 'auto', halign: 'right' }
                     }
                 });
@@ -695,3 +696,4 @@ export default function PickingDetailPage() {
     );
 }
 
+    
