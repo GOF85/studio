@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Factory, Search, PlusCircle, Trash2, Calendar as CalendarIcon, ChefHat, CheckSquare, Euro } from 'lucide-react';
-import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
+import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState, LoteAsignado } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -616,5 +617,5 @@ export default function OfPage() {
         </TabsContent>
       </Tabs>
     </TooltipProvider>
-    
-    
+  )
+}
