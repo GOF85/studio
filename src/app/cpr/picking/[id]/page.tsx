@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
@@ -21,7 +22,7 @@ import autoTable from 'jspdf-autotable';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { formatNumber, formatUnit } from '@/lib/utils';
+import { formatNumber, formatUnit, formatCurrency } from '@/lib/utils';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { AllergenBadge } from '@/components/icons/allergen-badge';
@@ -196,45 +197,47 @@ function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pick
             const containerInfo = expeditionTypeMap[container.tipo];
 
             if (orientation === 'p') {
+                 // --- CABECERA ---
                 doc.setFillColor(0, 0, 0);
                 doc.rect(0, 0, width, 12, 'F');
                 doc.setFontSize(22);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(255, 255, 255);
-                doc.text(expedicionNumero, width / 2, finalY + 2, { align: 'center' });
-                finalY += 10;
+                doc.text(expedicionNumero, width / 2, 9, { align: 'center' });
+                finalY = 18;
 
                 doc.setTextColor(0, 0, 0);
                 doc.setFontSize(14);
                 doc.setFont('helvetica', 'normal');
                 doc.text(`Contenedor ${containerInfo.title} #${container.numero}`, width / 2, finalY, { align: 'center' });
-                finalY += 6;
+                finalY += 4;
                 doc.setLineWidth(0.3);
                 doc.setDrawColor('#cbd5e1');
                 doc.line(margin, finalY, width - margin, finalY);
-                finalY += 4;
+                finalY += 6;
+                
                 doc.setFontSize(9);
                 doc.text(`Espacio: ${serviceOrder.space || '-'}`, margin, finalY);
                 doc.text(`Servicio: ${hito.descripcion}`, width - margin, finalY, { align: 'right' });
                 finalY += 4;
+                
                 doc.text(`Fecha: ${format(new Date(hito.fecha), 'dd/MM/yy')} Hora: ${hito.horaInicio}`, margin, finalY);
                 if (hito.sala) {
                     doc.text(`Sala: ${hito.sala}`, width - margin, finalY, { align: 'right' });
                 }
                 finalY += 4;
-
             } else { // landscape
                 doc.setFillColor(0, 0, 0);
                 doc.rect(0, 0, width, 12, 'F');
                 doc.setFontSize(14);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(255, 255, 255);
-                doc.text(`Contenedor ${containerInfo.title}`, margin, finalY);
+                doc.text(`Contenedor ${containerInfo.title}`, margin, 9);
 
                 doc.setFontSize(28);
                 doc.setFont('helvetica', 'bold');
-                doc.text(`${expedicionNumero}-${container.numero}`, width - margin, finalY, { align: 'right' });
-                finalY += 8;
+                doc.text(`${expedicionNumero}-${container.numero}`, width - margin, 9, { align: 'right' });
+                finalY = 18;
 
                 doc.setTextColor(0,0,0);
                  doc.setLineWidth(0.3);
@@ -292,7 +295,7 @@ function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pick
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Seleccionar Formato de Etiqueta</DialogTitle>
-                    <p>Elige la orientación para las etiquetas de los contenedores (9x11 cm).</p>
+                    <DialogDescription>Elige la orientación para las etiquetas de los contenedores (9x11 cm).</DialogDescription>
                 </DialogHeader>
                 <div className="flex justify-center gap-8 py-8">
                     <Button onClick={() => generateLabel('p')} variant="outline" className="h-28 w-20 flex-col gap-2">
@@ -470,21 +473,21 @@ function PickingPageContent() {
 
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, allValidatedOFs, allAssignedQuantities]);
     
-    const lotesPendientesCalidad = useMemo(() => {
-        if (!isMounted) return [];
-        const neededElabIds = new Set<string>();
-        lotesPendientesPorHito.forEach(lotes => {
-            lotes.forEach(lote => {
-                neededElabIds.add(lote.elaboracionId);
+    const lotesNecesarios = useMemo(() => {
+        const lotes = new Map<string, LoteNecesario>();
+        lotesPendientesPorHito.forEach((lotesHito) => {
+            lotesHito.forEach(lote => {
+                const existing = lotes.get(lote.elaboracionId);
+                if (existing) {
+                    existing.cantidadNecesaria += lote.cantidadNecesaria;
+                    existing.cantidadAsignada += lote.cantidadAsignada;
+                } else {
+                    lotes.set(lote.elaboracionId, { ...lote });
+                }
             });
         });
-        const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        return allOFs.filter(of => 
-            neededElabIds.has(of.elaboracionId) &&
-            of.estado === 'Finalizado' &&
-            !of.incidencia
-        );
-    }, [lotesPendientesPorHito, isMounted]);
+        return Array.from(lotes.values());
+    }, [lotesPendientesPorHito]);
 
     const addContainer = (tipo: keyof typeof expeditionTypeMap, hitoId: string): string => {
       const newContainer: ContenedorDinamico = {
@@ -560,24 +563,6 @@ function PickingPageContent() {
                     </div>
                 </div>
                 
-                {lotesPendientesCalidad.length > 0 && (
-                    <Card className="mb-6 bg-yellow-50 border-yellow-200">
-                        <CardHeader>
-                            <CardTitle className="text-yellow-800">Lotes Pendientes de Control de Calidad</CardTitle>
-                            <CardDescription className="text-yellow-700">
-                                Los siguientes lotes son necesarios para este evento pero aún no han sido validados por Calidad. No se pueden añadir al picking.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex flex-wrap gap-2">
-                                {lotesPendientesCalidad.map(of => (
-                                    <Badge key={of.id} variant="secondary">{of.id} - {of.elaboracionNombre}</Badge>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-
                 <div className="space-y-8">
                     {hitosConNecesidades.map(hito => {
                         const lotesPendientesHito = lotesPendientesPorHito.get(hito.id) || [];
@@ -700,7 +685,7 @@ function PickingPageContent() {
     );
 }
 
-export default function PickingDetailPageWrapper() {
+function PickingDetailPageWrapper() {
   return (
     <Suspense fallback={<LoadingSkeleton title="Cargando picking..." />}>
       <PickingPageContent />
@@ -708,4 +693,4 @@ export default function PickingDetailPageWrapper() {
   )
 }
 
-    
+export default PickingDetailPageWrapper;
