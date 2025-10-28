@@ -3,15 +3,15 @@
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Package, ListChecks, AlertTriangle, PlusCircle, Printer, CheckCircle, FilePenLine } from 'lucide-react';
+import { ArrowLeft, Package, ListChecks, AlertTriangle, PlusCircle, Printer, CheckCircle, FileText } from 'lucide-react';
 import { format, isBefore } from 'date-fns';
-import type { ServiceOrder, OrdenFabricacion, ContenedorDinamico, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Alergeno, IngredienteInterno, ArticuloERP } from '@/types';
+import type { ServiceOrder, OrdenFabricacion, ContenedorDinamico, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Alergeno, IngredienteInterno, ArticuloERP, ComercialBriefingItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -197,12 +197,12 @@ function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pick
 
             if (orientation === 'p') {
                 doc.setFillColor(0, 0, 0);
-                doc.rect(margin - 5, margin-5, width, 12, 'F');
+                doc.rect(0, 0, width, 12, 'F');
                 doc.setFontSize(22);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(255, 255, 255);
-                doc.text(expedicionNumero, width / 2, finalY, { align: 'center' });
-                finalY += 8;
+                doc.text(expedicionNumero, width / 2, finalY + 2, { align: 'center' });
+                finalY += 10;
 
                 doc.setTextColor(0, 0, 0);
                 doc.setFontSize(14);
@@ -225,7 +225,7 @@ function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pick
 
             } else { // landscape
                 doc.setFillColor(0, 0, 0);
-                doc.rect(margin-5, margin-5, width, 12, 'F');
+                doc.rect(0, 0, width, 12, 'F');
                 doc.setFontSize(14);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(255, 255, 255);
@@ -292,7 +292,7 @@ function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pick
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Seleccionar Formato de Etiqueta</DialogTitle>
-                    <DialogDescription>Elige la orientación para las etiquetas de los contenedores (9x11 cm).</DialogDescription>
+                    <p>Elige la orientación para las etiquetas de los contenedores (9x11 cm).</p>
                 </DialogHeader>
                 <div className="flex justify-center gap-8 py-8">
                     <Button onClick={() => generateLabel('p')} variant="outline" className="h-28 w-20 flex-col gap-2">
@@ -311,7 +311,7 @@ function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pick
 
 function PickingPageContent() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
-    const [hitosConNecesidades, setHitosConNecesidades = useState<ComercialBriefingItem[]>([]);
+    const [hitosConNecesidades, setHitosConNecesidades] = useState<ComercialBriefingItem[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: [], itemStates: [] });
     const [isMounted, setIsMounted] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -391,14 +391,16 @@ function PickingPageContent() {
         setIsMounted(true);
     }, [osId, savePickingState]); 
 
-    const { lotesPendientesPorHito, isPickingComplete } = useMemo(() => {
+    const { lotesPendientesPorHito, isPickingComplete, elabMap } = useMemo(() => {
         const lotesPorHito = new Map<string, LoteNecesario[]>();
-        if (!isMounted || !hitosConNecesidades.length) return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: true };
+        if (!isMounted || !hitosConNecesidades.length) return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: true, elabMap: new Map() };
     
         const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
         const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
         const allGastroOrders = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
     
+        const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
+
         let allComplete = true;
     
         hitosConNecesidades.forEach(hito => {
@@ -411,7 +413,7 @@ function PickingPageContent() {
                         const receta = allRecetas.find(r => r.id === item.id);
                         if (receta) {
                             receta.elaboraciones.forEach(elabEnReceta => {
-                                const elabInfo = allElaboraciones.find(e => e.id === elabEnReceta.elaboracionId);
+                                const elabInfo = elabMap.get(elabEnReceta.elaboracionId);
                                 if (elabInfo) {
                                     const cantidadNecesaria = Number(item.quantity || 0) * elabEnReceta.cantidad;
                                     if (cantidadNecesaria < 0.01) return;
@@ -464,7 +466,7 @@ function PickingPageContent() {
             lotesPorHito.set(hito.id, lotesPendientesHito);
         });
         
-        return { lotesPendientesPorHito: lotesPorHito, isPickingComplete: allComplete };
+        return { lotesPendientesPorHito, isPickingComplete: allComplete, elabMap };
 
     }, [osId, isMounted, hitosConNecesidades, pickingState.itemStates, allValidatedOFs, allAssignedQuantities]);
     
@@ -600,7 +602,7 @@ function PickingPageContent() {
                                             
                                             const allocationsForPartida = pickingState.itemStates.filter(alloc => {
                                                 const of = allValidatedOFs.find(of => of.id === alloc.ofId);
-                                                return of && elabsMap.get(of.elaboracionId)?.tipoExpedicion === tipo && alloc.hitoId === hito.id;
+                                                return of && elabMap.get(of.elaboracionId)?.tipoExpedicion === tipo && alloc.hitoId === hito.id;
                                             });
 
                                             if (lotesDePartida.length === 0 && allocationsForPartida.length === 0) {
@@ -705,5 +707,5 @@ export default function PickingDetailPageWrapper() {
     </Suspense>
   )
 }
-    
+
     
