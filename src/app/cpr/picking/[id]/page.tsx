@@ -369,13 +369,13 @@ export default function PickingDetailPage() {
         setShowDeleteConfirm(false);
     }
     
-     const handlePrintHito = (hito: ComercialBriefingItem) => {
+    const handlePrintHito = (hito: ComercialBriefingItem) => {
         if (!serviceOrder) return;
         setIsPrinting(true);
         try {
-            const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
             const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-            const margin = 40;
+            const margin = 15;
             let finalY = margin;
 
             const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
@@ -384,12 +384,12 @@ export default function PickingDetailPage() {
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
             doc.text(`Hoja de Carga - Expedición ${expedicionNumero}`, margin, finalY);
-            finalY += 20;
+            finalY += 10;
 
             doc.setFontSize(10);
             doc.setFont('helvetica', 'normal');
             doc.text(`Servicio: ${hito.descripcion} - ${format(new Date(hito.fecha), 'dd/MM/yyyy')} ${hito.horaInicio}`, margin, finalY);
-            finalY += 20;
+            finalY += 15;
             
             const body = pickingState.itemStates
                 .filter(item => item.hitoId === hito.id)
@@ -421,59 +421,63 @@ export default function PickingDetailPage() {
         if (!serviceOrder) return;
         setIsPrinting(true);
         try {
-            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [100, 150] });
-            const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [100, 150] }); // Formato etiqueta 10x15cm
             const containers = pickingState.assignedContainers.filter(c => c.hitoId === hito.id);
-            const margin = 5;
-            const pageWidth = 100;
-            const pageHeight = 150;
-    
+            
             containers.forEach((container, containerIndex) => {
                 if (containerIndex > 0) doc.addPage();
                 
+                const margin = 5;
+                const pageWidth = 100;
                 let finalY = margin + 5;
+                
                 const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
                 const expedicionNumero = `${serviceOrder.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
                 
-                // Cabecera
                 const containerInfo = expeditionTypeMap[container.tipo];
+
+                // --- Cabecera ---
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'normal');
+                doc.setTextColor('#374151');
                 doc.text(containerInfo.title, margin, finalY);
-                
+
                 doc.setFontSize(22);
                 doc.setFont('helvetica', 'bold');
                 doc.text(`${expedicionNumero}-${container.numero}`, pageWidth - margin, finalY, { align: 'right' });
                 finalY += 10;
                 
+                // --- Separador ---
                 doc.setLineWidth(0.3);
-                doc.setDrawColor('#cbd5e1');
+                doc.setDrawColor('#cbd5e1'); // gray-300
                 doc.line(margin, finalY, pageWidth - margin, finalY);
                 finalY += 8;
                 
-                // Info Cliente
+                // --- Info Cliente (PARA) ---
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
                 doc.text('PARA:', margin, finalY);
                 doc.setFont('helvetica', 'normal');
                 const clientText = `${serviceOrder.client}${serviceOrder.finalClient ? ` / ${serviceOrder.finalClient}` : ''}`;
-                doc.text(clientText, margin + 15, finalY);
-                finalY += 5;
+                const clientLines = doc.splitTextToSize(clientText, pageWidth - margin * 2 - 15);
+                doc.text(clientLines, margin + 15, finalY);
+                finalY += (clientLines.length * 4) + 1; // Ajuste dinámico
+                
                 const spaceLines = doc.splitTextToSize(`${serviceOrder.space || ''} (${hito.sala || ''})`, pageWidth - margin * 2 - 15);
                 doc.text(spaceLines, margin + 15, finalY);
                 finalY += spaceLines.length * 4 + 4;
 
+                // --- Separador ---
                 doc.line(margin, finalY, pageWidth - margin, finalY);
                 finalY += 5;
                 
-                // Info Servicio
-                const deliveryInfo = `Fecha: ${format(new Date(hito.fecha), 'dd/MM/yy')}   Hora: ${hito.horaInicio}`;
+                // --- Info Servicio ---
                 doc.setFontSize(8);
-                doc.text(deliveryInfo, margin, finalY);
+                doc.text(`Fecha: ${format(new Date(hito.fecha), 'dd/MM/yy')}   Hora: ${hito.horaInicio}`, margin, finalY);
                 doc.text(`OS: ${serviceOrder.serviceNumber}`, pageWidth - margin, finalY, { align: 'right' });
                 finalY += 8;
     
-                // Tabla Contenido
+                // --- Tabla Contenido ---
                 const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
                 const tableBody = containerItems.map(item => {
                     const loteInfo = lotesNecesarios.find(l => l.id === item.ofId);
@@ -493,9 +497,11 @@ export default function PickingDetailPage() {
                     columnStyles: { 
                         0: { cellWidth: 60 }, 
                         1: { cellWidth: 'auto', halign: 'right' }
+                    },
+                    didDrawPage: (data) => {
+                        finalY = data.cursor?.y || finalY;
                     }
                 });
-                finalY = (doc as any).lastAutoTable.finalY + 10;
             });
     
             doc.save(`Etiquetas_${serviceOrder.serviceNumber}_${hito.descripcion.replace(/\s+/g, '_')}.pdf`);
