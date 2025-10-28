@@ -380,60 +380,64 @@ export default function PickingDetailPage() {
 
     const handlePrintEtiquetas = (hito: ComercialBriefingItem) => {
         if (!serviceOrder) return;
-    
+
         try {
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [90, 110] });
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [100, 150] }); // Custom size
             const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
             const allElabs = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
             const containers = pickingState.assignedContainers.filter(c => c.hitoId === hito.id);
+            const margin = 5;
+            const pageWidth = 100;
+            const pageHeight = 150;
     
             containers.forEach((container, containerIndex) => {
                 if (containerIndex > 0) doc.addPage();
                 
+                let finalY = margin + 2;
+
                 // --- HEADER ---
                 const headerBgColor = container.tipo === 'REFRIGERADO' ? '#e0f2fe' : container.tipo === 'CONGELADO' ? '#e0f2fe' : '#fef9c3';
                 doc.setFillColor(headerBgColor);
-                doc.rect(0, 0, 90, 25, 'F');
-                doc.setFontSize(22);
+                doc.rect(0, 0, pageWidth, 28, 'F');
+                doc.setFontSize(26);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor('#1f2937');
-                doc.text(`${container.tipo} #${container.numero}`, 45, 17, { align: 'center' });
-    
-                let finalY = 32;
-                const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
-                const expedicionNumero = `${serviceOrder.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
+                
+                const tipoTexto = container.tipo === 'REFRIGERADO' ? '❄️ Carambuco (Refrigerado)' : container.tipo === 'CONGELADO' ? '🧊 Carambuco (Congelado)' : '📦 Carambuco (Seco)';
+                doc.text(`${tipoTexto} #${container.numero}`, pageWidth / 2, 18, { align: 'center' });
+                
+                finalY = 35;
     
                 // --- INFO ---
-                doc.setFontSize(9);
-                doc.setFont('helvetica', 'bold');
-                doc.text('Hito:', 5, finalY);
-                doc.setFont('helvetica', 'normal');
-                doc.text(hito.descripcion, 25, finalY);
-    
-                doc.setFont('helvetica', 'bold');
-                doc.text(`Exp: ${expedicionNumero}`, 90 - 5, finalY, { align: 'right' });
-                finalY += 4.5;
+                const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
+                const expedicionNumero = `${serviceOrder.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
                 
+                doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
-                doc.text('Cliente:', 5, finalY);
+                doc.text(`Servicio:`, margin, finalY);
                 doc.setFont('helvetica', 'normal');
-                doc.text(serviceOrder.client, 25, finalY);
+                doc.text(hito.descripcion, margin + 20, finalY, { maxWidth: pageWidth - margin * 2 - 20});
+                let textLines = doc.splitTextToSize(hito.descripcion, pageWidth - margin * 2 - 20);
+                finalY += textLines.length * 4.5;
                 
-                doc.setFont('helvetica', 'bold');
-                doc.text(`OS: ${serviceOrder.serviceNumber}`, 90 - 5, finalY, { align: 'right' });
-                finalY += 4.5;
-                
-                doc.setFont('helvetica', 'bold');
-                doc.text('Espacio:', 5, finalY);
-                doc.setFont('helvetica', 'normal');
-                doc.text(serviceOrder.space || 'N/A', 25, finalY);
-                finalY += 4.5;
+                const infoPairs = [
+                    ['Cliente:', serviceOrder.client],
+                    ['Espacio:', serviceOrder.space || 'N/A'],
+                    ['Fecha:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
+                    ['Exp:', expedicionNumero],
+                    ['OS:', serviceOrder.serviceNumber],
+                ];
 
-                doc.setFont('helvetica', 'bold');
-                doc.text('Fecha:', 5, finalY);
-                doc.setFont('helvetica', 'normal');
-                doc.text(`${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`, 25, finalY);
-                finalY += 6;
+                doc.setFontSize(9);
+                autoTable(doc, {
+                    body: infoPairs,
+                    startY: finalY,
+                    theme: 'plain',
+                    styles: { fontSize: 9, cellPadding: 0.5, halign: 'left' },
+                    columnStyles: { 0: { fontStyle: 'bold' } },
+                });
+
+                finalY = (doc as any).lastAutoTable.finalY + 5;
 
                 // --- TABLA ---
                 const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
@@ -453,9 +457,9 @@ export default function PickingDetailPage() {
                     head: [['Elaboración', 'Receta', 'Cant.']],
                     body: tableBody,
                     theme: 'grid',
-                    styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
-                    headStyles: { fillColor: '#e5e7eb', textColor: '#374151', fontSize: 8, fontStyle: 'bold' },
-                    columnStyles: { 0: { cellWidth: 38 }, 1: { cellWidth: 27 }, 2: { cellWidth: 15, halign: 'right' } }
+                    styles: { fontSize: 8, cellPadding: 1.5, overflow: 'hidden', cellWidth: 'auto' },
+                    headStyles: { fillColor: '#e5e7eb', textColor: '#374151', fontSize: 9, fontStyle: 'bold' },
+                    columnStyles: { 2: { halign: 'right' } }
                 });
             });
     
@@ -659,5 +663,6 @@ export default function PickingDetailPage() {
         </TooltipProvider>
     );
 }
+
 
 
