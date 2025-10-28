@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -70,13 +71,7 @@ type ItemToDelete = {
     checked: boolean;
 };
 
-type DataSetCardProps = {
-    db: DataSet;
-    count: number;
-    onDelete: (db: DataSet) => void;
-};
-
-function DataSetCard({ db, count, onDelete }: DataSetCardProps) {
+function DataSetCard({ db, count, onDelete }: { db: DataSet; count: number; onDelete: (db: DataSet) => void; }) {
     return (
         <Card>
             <CardContent className="p-4 flex items-center justify-between">
@@ -108,8 +103,16 @@ export default function BorrarOsPage() {
         const counts: Record<string, number> = {};
         [...EVENT_DATA, ...RELATED_DATA].forEach(db => {
             const dataString = localStorage.getItem(db.key);
-            const data = dataString ? JSON.parse(dataString) : [];
-            counts[db.key] = Array.isArray(data) ? data.length : Object.keys(data).length;
+            if (dataString) {
+                try {
+                    const data = JSON.parse(dataString);
+                    counts[db.key] = Array.isArray(data) ? data.length : Object.keys(data).length;
+                } catch (e) {
+                    counts[db.key] = 0;
+                }
+            } else {
+                counts[db.key] = 0;
+            }
         });
         setDbCounts(counts);
         setIsMounted(true);
@@ -119,11 +122,25 @@ export default function BorrarOsPage() {
         const dataString = localStorage.getItem(db.key);
         const data = dataString ? JSON.parse(dataString) : [];
         
-        const items = (Array.isArray(data) ? data : Object.values(data)).map((item: any) => ({
-            id: item.id || item.osId, // Use osId as fallback for some data structures
-            label: item.serviceNumber || item.name || item.concepto || item.ofId || item.id || item.osId,
-            checked: true
-        }));
+        let items: ItemToDelete[] = [];
+
+        if (Array.isArray(data)) {
+            items = data.map((item: any) => ({
+                id: item.id || item.osId,
+                label: item.serviceNumber || item.name || item.concepto || item.ofId || item.id || item.osId,
+                checked: true
+            }));
+        } else if (typeof data === 'object' && data !== null) {
+            // Handle object-based storage like stockElaboraciones
+            items = Object.keys(data).map(key => {
+                const item = data[key];
+                return {
+                    id: key, // The key is the ID (e.g., elaboracionId)
+                    label: item.elaboracionNombre || item.serviceNumber || item.name || key,
+                    checked: true,
+                };
+            });
+        }
         
         setItemsToDelete(items);
         setDataSetToView(db);
@@ -146,15 +163,13 @@ export default function BorrarOsPage() {
         const dataString = localStorage.getItem(dataSetToView.key);
         const data = dataString ? JSON.parse(dataString) : [];
 
-        const isArray = Array.isArray(data);
         let newData;
 
-        if (isArray) {
+        if (Array.isArray(data)) {
             newData = data.filter((item: any) => !idsToDelete.has(item.id || item.osId));
-        } else { // Handle object-based storage like pickingStates
+        } else { // Handle object-based storage
             newData = Object.entries(data).reduce((acc, [key, value]) => {
-                const item = value as any;
-                if (!idsToDelete.has(item.id || item.osId || key)) {
+                if (!idsToDelete.has(key)) {
                     acc[key] = value;
                 }
                 return acc;
@@ -278,7 +293,7 @@ export default function BorrarOsPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteSelected}>Sí, entiendo. Borrar seleccionados.</AlertDialogAction>
+                        <AlertDialogAction onClick={handleDeleteSelected} className="bg-destructive hover:bg-destructive/90">Sí, entiendo. Borrar seleccionados.</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
