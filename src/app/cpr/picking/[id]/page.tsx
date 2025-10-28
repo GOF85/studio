@@ -151,7 +151,7 @@ export default function PickingDetailPage() {
     const [hitosConNecesidades, setHitosConNecesidades] = useState<ComercialBriefingItem[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: [], itemStates: [] });
     const [isMounted, setIsMounted] = useState(false);
-    const [printingHito, setPrintingHito] = useState<string | null>(null);
+    const [isPrinting, setIsPrinting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     
     const router = useRouter();
@@ -369,46 +369,75 @@ export default function PickingDetailPage() {
         setShowDeleteConfirm(false);
     }
     
+    const generatePdf = (title: string, head: any[], body: any[], filename: string) => {
+      try {
+        const doc = new jsPDF();
+        doc.setFontSize(16);
+        doc.text(title, 14, 22);
+        autoTable(doc, {
+          startY: 30,
+          head: head,
+          body: body,
+          theme: 'grid',
+        });
+        doc.save(filename);
+      } catch (error) {
+        console.error("Error generating PDF:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
+      }
+    };
+    
     const handlePrintHito = (hito: ComercialBriefingItem) => {
-        if (!serviceOrder) return;
-        setPrintingHito(hito.id);
-        setTimeout(() => {
-          window.print();
-          setPrintingHito(null);
-        }, 100);
+      setIsPrinting(true);
+      const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+      const body = pickingState.itemStates
+          .filter(item => item.hitoId === hito.id)
+          .map(item => {
+              const lote = allOFs.find(of => of.id === item.ofId);
+              return [
+                  lote?.elaboracionNombre || 'Desconocido',
+                  getRecetaForElaboracion(lote?.elaboracionId || '', osId),
+                  `${item.quantity} ${lote?.unidad || ''}`,
+                  lote?.partidaAsignada || '',
+              ];
+          });
+      generatePdf(
+        `Hoja de Carga - ${serviceOrder?.serviceNumber} / ${hito.descripcion}`,
+        [['Elaboración', 'Receta', 'Cantidad', 'Partida']],
+        body,
+        `HojaCarga_${serviceOrder?.serviceNumber}.pdf`
+      );
+      setIsPrinting(false);
     };
 
     const handlePrintEtiquetas = (hito: ComercialBriefingItem) => {
         if (!serviceOrder) return;
-
+        setIsPrinting(true);
         try {
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [100, 150] }); // Custom size
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [100, 150] });
             const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
             const allElabs = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
             const containers = pickingState.assignedContainers.filter(c => c.hitoId === hito.id);
             const margin = 5;
             const pageWidth = 100;
-            const pageHeight = 150;
-    
+
             containers.forEach((container, containerIndex) => {
                 if (containerIndex > 0) doc.addPage();
                 
                 let finalY = margin + 2;
 
-                // --- HEADER ---
-                const headerBgColor = container.tipo === 'REFRIGERADO' ? '#e0f2fe' : container.tipo === 'CONGELADO' ? '#e0f2fe' : '#fef9c3';
+                const headerBgColor = container.tipo === 'REFRIGERADO' ? '#e0f2fe' : container.tipo === 'CONGELADO' ? '#bae6fd' : '#fef9c3';
                 doc.setFillColor(headerBgColor);
                 doc.rect(0, 0, pageWidth, 28, 'F');
                 doc.setFontSize(26);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor('#1f2937');
                 
-                const tipoTexto = container.tipo === 'REFRIGERADO' ? '❄️ Carambuco (Refrigerado)' : container.tipo === 'CONGELADO' ? '🧊 Carambuco (Congelado)' : '📦 Carambuco (Seco)';
-                doc.text(`${tipoTexto} #${container.numero}`, pageWidth / 2, 18, { align: 'center' });
+                const tipoTexto = container.tipo === 'REFRIGERADO' ? 'Refrigerado' : container.tipo === 'CONGELADO' ? 'Congelado' : 'Seco';
+                doc.text(`Carambuco (${tipoTexto}) #${container.numero}`, pageWidth / 2, 18, { align: 'center' });
                 
                 finalY = 35;
-    
-                // --- INFO ---
+
                 const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
                 const expedicionNumero = `${serviceOrder.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
                 
@@ -416,11 +445,10 @@ export default function PickingDetailPage() {
                 doc.setFont('helvetica', 'bold');
                 doc.text(`Servicio:`, margin, finalY);
                 doc.setFont('helvetica', 'normal');
-                doc.text(hito.descripcion, margin + 20, finalY, { maxWidth: pageWidth - margin * 2 - 20});
-                let textLines = doc.splitTextToSize(hito.descripcion, pageWidth - margin * 2 - 20);
-                finalY += textLines.length * 4.5;
+                doc.text(hito.descripcion, margin + 15, finalY);
+                finalY += 10;
                 
-                const infoPairs = [
+                const infoBody = [
                     ['Cliente:', serviceOrder.client],
                     ['Espacio:', serviceOrder.space || 'N/A'],
                     ['Fecha:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
@@ -428,27 +456,24 @@ export default function PickingDetailPage() {
                     ['OS:', serviceOrder.serviceNumber],
                 ];
 
-                doc.setFontSize(9);
                 autoTable(doc, {
-                    body: infoPairs,
+                    body: infoBody,
                     startY: finalY,
                     theme: 'plain',
-                    styles: { fontSize: 9, cellPadding: 0.5, halign: 'left' },
-                    columnStyles: { 0: { fontStyle: 'bold' } },
+                    styles: { fontSize: 8, cellPadding: 0.5 },
+                    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 20 }, 1: { cellWidth: 'auto' } }
                 });
 
                 finalY = (doc as any).lastAutoTable.finalY + 5;
 
-                // --- TABLA ---
                 const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
                 const tableBody = containerItems.map(item => {
                     const loteInfo = allOFs.find(of => of.id === item.ofId);
-                    const elabInfo = allElabs.find(e => e.id === loteInfo?.elaboracionId);
-                    const recetaNombre = elabInfo ? getRecetaForElaboracion(elabInfo.id, osId) : '-';
+                    const recetaNombre = loteInfo ? getRecetaForElaboracion(loteInfo.elaboracionId, osId) : '-';
                     return [
-                        { content: elabInfo?.nombre || 'N/A', styles: { fontStyle: 'bold' } },
+                        loteInfo?.elaboracionNombre || 'N/A',
                         recetaNombre,
-                        `${formatNumber(item.quantity, 2)} ${formatUnit(elabInfo?.unidadProduccion || '')}`
+                        `${formatNumber(item.quantity, 2)} ${formatUnit(loteInfo?.unidad || 'Uds')}`
                     ];
                 });
     
@@ -457,9 +482,9 @@ export default function PickingDetailPage() {
                     head: [['Elaboración', 'Receta', 'Cant.']],
                     body: tableBody,
                     theme: 'grid',
-                    styles: { fontSize: 8, cellPadding: 1.5, overflow: 'hidden', cellWidth: 'auto' },
+                    styles: { fontSize: 8, cellPadding: 1, overflow: 'hidden' },
                     headStyles: { fillColor: '#e5e7eb', textColor: '#374151', fontSize: 9, fontStyle: 'bold' },
-                    columnStyles: { 2: { halign: 'right' } }
+                    columnStyles: { 0: { cellWidth: 40 }, 1: { cellWidth: 30 }, 2: { cellWidth: 15, halign: 'right' } }
                 });
             });
     
@@ -468,6 +493,8 @@ export default function PickingDetailPage() {
         } catch (error) {
              console.error("Error generating labels PDF:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF de etiquetas.' });
+        } finally {
+            setIsPrinting(false);
         }
     };
 
@@ -478,7 +505,7 @@ export default function PickingDetailPage() {
     
     return (
         <TooltipProvider>
-            <div className="non-printable">
+            <div>
                 <div className="flex items-center justify-between p-3 bg-muted rounded-lg mb-6">
                     <div className="flex items-center gap-4">
                         <h2 className="text-xl font-bold">{serviceOrder.serviceNumber}</h2>
@@ -546,8 +573,8 @@ export default function PickingDetailPage() {
                                         <Printer className="mr-2" />
                                         Hoja de Carga
                                     </Button>
-                                    <Button onClick={() => handlePrintEtiquetas(hito)} disabled={!hasContentToPrint} variant="outline">
-                                        <Tags className="mr-2" />
+                                    <Button onClick={() => handlePrintEtiquetas(hito)} disabled={!hasContentToPrint || isPrinting} variant="outline">
+                                        {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Tags className="mr-2" />}
                                         Imprimir Etiquetas
                                     </Button>
                                 </div>
@@ -657,12 +684,6 @@ export default function PickingDetailPage() {
                     </AlertDialogContent>
                 </AlertDialog>
             </div>
-            {printingHito && <div id="printable-content" className="printable">
-                {/* Content to be printed will be rendered here */}
-            </div>}
         </TooltipProvider>
     );
 }
-
-
-
