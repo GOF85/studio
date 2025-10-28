@@ -48,7 +48,9 @@ export default function BookDashboardPage() {
     recetasParaRevisar: 0,
   });
   const [topUsedRecipes, setTopUsedRecipes] = useState<{ nombre: string, count: number, pvp: number, coste: number, margen: number }[]>([]);
-  const [mostUsedElaborations, setMostUsedElaborations] = useState<{ nombre: string, count: number, pvp: number, coste: number, margen: number }[]>([]);
+  const [mostUsedElaborationsByUnit, setMostUsedElaborationsByUnit] = useState<{ nombre: string; count: number; pvp: number; coste: number; margen: number; }[]>([]);
+  const [mostUsedElaborationsByWeight, setMostUsedElaborationsByWeight] = useState<{ nombre: string; count: number; pvp: number; coste: number; margen: number; }[]>([]);
+
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
   
@@ -106,7 +108,7 @@ export default function BookDashboardPage() {
         });
     setTopUsedRecipes(sortedRecipes);
 
-    const elabUsage = new Map<string, { count: number; pvp: number; coste: number }>();
+    const elabUsage = new Map<string, { count: number; pvp: number; coste: number; unidad: string }>();
     gastroOrdersCurrentYear.forEach(order => {
         (order.items || []).forEach(item => {
              if(item.type === 'item') {
@@ -119,9 +121,9 @@ export default function BookDashboardPage() {
                         if(elabData) {
                             const qty = orderQty * elabEnReceta.cantidad;
                             const elabCoste = (elabData.costePorUnidad || 0) * qty;
-                            const elabPvp = (receta.precioVenta || 0) * (elabCoste / (receta.costeMateriaPrima || 1));
+                            const elabPvp = receta.precioVenta ? (receta.precioVenta * (elabCoste / (receta.costeMateriaPrima || 1))) : 0;
                             
-                            const existing = elabUsage.get(elabId) || { count: 0, pvp: 0, coste: 0 };
+                            const existing = elabUsage.get(elabId) || { count: 0, pvp: 0, coste: 0, unidad: elabData.unidadProduccion };
                             existing.count += qty;
                             existing.coste += elabCoste;
                             existing.pvp += elabPvp;
@@ -132,15 +134,16 @@ export default function BookDashboardPage() {
             }
         });
     });
-    
-    const sortedElabs = Array.from(elabUsage.entries())
-        .sort(([, dataA], [, dataB]) => dataB.count - dataA.count)
-        .slice(0, 20)
-        .map(([elabId, data]) => {
-            const elab = storedElaboraciones.find(e => e.id === elabId);
-            return { nombre: elab?.nombre || 'Desconocido', ...data, margen: data.pvp - data.coste };
-        });
-    setMostUsedElaborations(sortedElabs);
+
+    const allSortedElabs = Array.from(elabUsage.entries())
+      .map(([elabId, data]) => {
+          const elab = storedElaboraciones.find(e => e.id === elabId);
+          return { nombre: elab?.nombre || 'Desconocido', ...data, margen: data.pvp - data.coste };
+      });
+
+    setMostUsedElaborationsByUnit(allSortedElabs.filter(e => e.unidad === 'UD').sort((a,b) => b.count - a.count).slice(0, 20));
+    setMostUsedElaborationsByWeight(allSortedElabs.filter(e => e.unidad === 'KG' || e.unidad === 'L').sort((a,b) => b.count - a.count).slice(0, 20));
+
 
     setIsMounted(true);
   }, []);
@@ -158,7 +161,7 @@ export default function BookDashboardPage() {
           <p className="font-bold text-base mb-2">{label}</p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1">
             <span className="font-semibold text-muted-foreground">Cantidad:</span>
-            <span className="text-right font-mono">{data.count.toFixed(2)} uds</span>
+            <span className="text-right font-mono">{data.count.toFixed(2)} {data.unidad || 'uds'}</span>
             
             <span className="font-semibold text-muted-foreground">Facturación:</span>
             <span className="text-right font-mono">{formatCurrency(data.pvp)}</span>
@@ -185,15 +188,32 @@ export default function BookDashboardPage() {
             <StatCard title="Recetas para Revisar" value={stats.recetasParaRevisar} icon={AlertTriangle} bgColorClass={stats.recetasParaRevisar > 0 ? "bg-amber-100 text-amber-800" : "bg-green-50"} />
         </div>
         
+        <Card className="mb-8">
+            <CardHeader>
+                <CardTitle>Top 20 Recetas más Utilizadas (Año en curso)</CardTitle>
+                 <CardDescription>Analiza las recetas con mayor demanda.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                 <ResponsiveContainer width="100%" height={500}>
+                    <BarChart data={topUsedRecipes} layout="vertical" margin={{ left: 10, right: 30 }}>
+                        <XAxis type="number" hide />
+                        <YAxis type="category" dataKey="nombre" width={150} stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                        <Tooltip content={<CustomTooltip />} cursor={{fill: 'hsl(var(--accent))'}}/>
+                        <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </CardContent>
+        </Card>
+        
         <div className="grid lg:grid-cols-2 gap-8 items-start">
             <Card>
                 <CardHeader>
-                    <CardTitle>Top 20 Elaboraciones más Utilizadas (Año en curso)</CardTitle>
-                    <CardDescription>Identifica las preparaciones clave para optimizar la producción.</CardDescription>
+                    <CardTitle>Top 20 Elaboraciones por Peso/Volumen (Año en curso)</CardTitle>
+                    <CardDescription>Bases, salsas y guarniciones más producidas en Kg o Litros.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <ResponsiveContainer width="100%" height={500}>
-                        <BarChart data={mostUsedElaborations} layout="vertical" margin={{ left: 10, right: 30 }}>
+                        <BarChart data={mostUsedElaborationsByWeight} layout="vertical" margin={{ left: 10, right: 30 }}>
                             <XAxis type="number" hide />
                             <YAxis type="category" dataKey="nombre" width={150} stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                             <Tooltip content={<CustomTooltip />} cursor={{fill: 'hsl(var(--accent))'}}/>
@@ -203,14 +223,14 @@ export default function BookDashboardPage() {
                 </CardContent>
             </Card>
 
-            <Card>
+             <Card>
                 <CardHeader>
-                    <CardTitle>Top 20 Recetas más Utilizadas (Año en curso)</CardTitle>
-                     <CardDescription>Analiza las recetas con mayor demanda.</CardDescription>
+                    <CardTitle>Top 20 Elaboraciones por Unidad (Año en curso)</CardTitle>
+                     <CardDescription>Aperitivos, postres y otras elaboraciones unitarias.</CardDescription>
                 </CardHeader>
                 <CardContent>
                      <ResponsiveContainer width="100%" height={500}>
-                        <BarChart data={topUsedRecipes} layout="vertical" margin={{ left: 10, right: 30 }}>
+                        <BarChart data={mostUsedElaborationsByUnit} layout="vertical" margin={{ left: 10, right: 30 }}>
                             <XAxis type="number" hide />
                             <YAxis type="category" dataKey="nombre" width={150} stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                             <Tooltip content={<CustomTooltip />} cursor={{fill: 'hsl(var(--accent))'}}/>
