@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -150,8 +151,8 @@ function PickingPageContent() {
     const [hitosConNecesidades, setHitosConNecesidades] = useState<ComercialBriefingItem[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: [], itemStates: [] });
     const [isMounted, setIsMounted] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     
     const router = useRouter();
     const params = useParams();
@@ -391,9 +392,9 @@ function PickingPageContent() {
 
                 // --- Cabecera ---
                 doc.setFontSize(14);
-                doc.setFont('helvetica', 'bold');
+                doc.setFont('helvetica', 'normal');
                 doc.setTextColor('#1f2937');
-                doc.text(containerInfo.title.toUpperCase(), margin, finalY);
+                doc.text(containerInfo.title, margin, finalY);
 
                 doc.setFontSize(28);
                 doc.setFont('helvetica', 'bold');
@@ -409,17 +410,15 @@ function PickingPageContent() {
                 // --- Info Cliente (PARA) ---
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
-                doc.text('PARA:', margin, finalY);
-                doc.setFont('helvetica', 'normal');
                 const clientText = `${serviceOrder.client}${serviceOrder.finalClient ? ` / ${serviceOrder.finalClient}` : ''}`;
                 const clientLines = doc.splitTextToSize(clientText, pageWidth - margin * 2 - 15);
-                doc.text(clientLines, margin + 15, finalY);
-                finalY += (clientLines.length * 4) + 1; // Ajuste dinámico
+                doc.text(clientLines, margin, finalY);
+                finalY += (clientLines.length * 4) + 1;
                 
                 const spaceLines = doc.splitTextToSize(`${serviceOrder.space || ''} (${hito.sala || ''})`, pageWidth - margin * 2 - 15);
-                doc.text(spaceLines, margin + 15, finalY);
+                doc.text(spaceLines, margin, finalY);
                 finalY += spaceLines.length * 4 + 4;
-
+                
                 // --- Separador ---
                 doc.line(margin, finalY, pageWidth - margin, finalY);
                 finalY += 5;
@@ -427,7 +426,6 @@ function PickingPageContent() {
                 // --- Info Servicio ---
                 doc.setFontSize(8);
                 doc.text(`Fecha: ${format(new Date(hito.fecha), 'dd/MM/yy')}   Hora: ${hito.horaInicio}`, margin, finalY);
-                doc.text(`OS: ${serviceOrder.serviceNumber}`, pageWidth - margin, finalY, { align: 'right' });
                 finalY += 8;
     
                 // --- Tabla Contenido ---
@@ -445,11 +443,11 @@ function PickingPageContent() {
                     head: [['PRODUCTO', 'CANTIDAD']],
                     body: tableBody,
                     theme: 'grid',
-                    styles: { fontSize: 8, cellPadding: 1, overflow: 'truncate', valign: 'middle' },
                     headStyles: { fillColor: '#374151', textColor: '#FFFFFF', fontSize: 7, fontStyle: 'bold', cellPadding: 1 },
+                    styles: { fontSize: 8, cellPadding: 2, overflow: 'hidden', valign: 'middle' },
                     columnStyles: { 
                         0: { cellWidth: 100 }, 
-                        1: { cellWidth: 'auto', halign: 'right' }
+                        1: { cellWidth: 30, halign: 'right' }
                     },
                     didDrawPage: (data) => {
                         finalY = data.cursor?.y || finalY;
@@ -660,3 +658,5 @@ export default function PickingDetailPageWrapper() {
     </Suspense>
   )
 }
+
+    
