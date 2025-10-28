@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -375,7 +374,7 @@ function PickingPageContent() {
         if (!serviceOrder) return;
         setIsPrinting(true);
         try {
-            const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: [150, 100] }); // Formato etiqueta 10x15cm
+            const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: [150, 100] });
             const containers = pickingState.assignedContainers.filter(c => c.hitoId === hito.id);
             
             containers.forEach((container, containerIndex) => {
@@ -391,12 +390,12 @@ function PickingPageContent() {
                 const containerInfo = expeditionTypeMap[container.tipo];
 
                 // --- Cabecera ---
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-                doc.setTextColor('#374151');
-                doc.text(containerInfo.title, margin, finalY);
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor('#1f2937');
+                doc.text(containerInfo.title.toUpperCase(), margin, finalY);
 
-                doc.setFontSize(22);
+                doc.setFontSize(28);
                 doc.setFont('helvetica', 'bold');
                 doc.text(`${expedicionNumero}-${container.numero}`, pageWidth - margin, finalY, { align: 'right' });
                 finalY += 10;
@@ -446,7 +445,7 @@ function PickingPageContent() {
                     head: [['PRODUCTO', 'CANTIDAD']],
                     body: tableBody,
                     theme: 'grid',
-                    styles: { fontSize: 8, cellPadding: 1, overflow: 'linebreak', valign: 'middle' },
+                    styles: { fontSize: 8, cellPadding: 1, overflow: 'truncate', valign: 'middle' },
                     headStyles: { fillColor: '#374151', textColor: '#FFFFFF', fontSize: 7, fontStyle: 'bold', cellPadding: 1 },
                     columnStyles: { 
                         0: { cellWidth: 100 }, 
@@ -476,7 +475,7 @@ function PickingPageContent() {
     return (
         <TooltipProvider>
             <div>
-                <div className="flex items-center justify-between p-3 bg-muted rounded-lg mb-6">
+                <div className="flex items-start justify-between p-3 bg-muted rounded-lg mb-6">
                     <div className="flex items-center gap-4">
                         <h2 className="text-xl font-bold">{serviceOrder.serviceNumber}</h2>
                         <Separator orientation="vertical" className="h-6"/>
@@ -661,7 +660,3 @@ export default function PickingDetailPageWrapper() {
     </Suspense>
   )
 }
-
-    
-
-```
