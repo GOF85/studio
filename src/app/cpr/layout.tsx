@@ -59,11 +59,13 @@ export default function CprLayout({ children }: { children: React.ReactNode }) {
         }
         
         const pathSegments = clientPath.split('/').filter(Boolean); // e.g., ['cpr', 'of', 'OF-123']
+        const isOfDetail = pathSegments.length > 2 && pathSegments[0] === 'cpr' && pathSegments[1] === 'of';
+        const isPickingDetail = pathSegments.length > 2 && pathSegments[0] === 'cpr' && pathSegments[1] === 'picking';
         
-        if (pathSegments.length > 2 && pathSegments[0] === 'cpr' && pathSegments[1] === 'of') {
-            const ofPage = cprNav.find(link => link.href === '/cpr/of');
-            return {
-                currentPage: ofPage,
+        if (isOfDetail || isPickingDetail) {
+            const page = cprNav.find(link => link.href.includes(pathSegments[1]));
+             return {
+                currentPage: page,
                 isDetailPage: true,
                 detailId: pathSegments[2] 
             };
