@@ -49,6 +49,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { DateRange } from 'react-day-picker';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 type NecesidadItem = {
@@ -61,6 +62,7 @@ type NecesidadItem = {
   tipoExpedicion: 'REFRIGERADO' | 'CONGELADO' | 'SECO';
   stockDisponible?: number;
   cantidadPlanificada?: number;
+  desgloseDiario: { fecha: string, cantidad: number }[];
 };
 
 const statusVariant: { [key in OrdenFabricacion['estado']]: 'default' | 'secondary' | 'outline' | 'destructive' } = {
@@ -93,8 +95,8 @@ export default function OfPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [elaboracionesMap, setElaboracionesMap] = useState<Map<string, Elaboracion>>(new Map());
   
-  const [necesidades, setNecesidades] = useState<Record<string, NecesidadItem[]>>({});
-  const [selectedNecesidades, setSelectedNecesidades] = useState<Record<string, Set<string>>>({});
+  const [necesidades, setNecesidades] = useState<NecesidadItem[]>([]);
+  const [selectedNecesidades, setSelectedNecesidades] = useState<Set<string>>(new Set());
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfDay(new Date()),
     to: endOfDay(addDays(new Date(), 7)),
@@ -125,7 +127,7 @@ export default function OfPage() {
     setElaboracionesMap(new Map(allElaboraciones.map(e => [e.id, e])));
 
     if (!dateRange?.from) {
-      setNecesidades({});
+      setNecesidades([]);
       setIsMounted(true);
       return;
     }
@@ -133,7 +135,7 @@ export default function OfPage() {
     const recetasMap = new Map(allRecetas.map(r => [r.id, r]));
     const elabMap = new Map(allElaboraciones.map(e => [e.id, e]));
 
-    const necesidadesPorFecha: Record<string, NecesidadItem[]> = {};
+    const necesidadesAgregadas: Map<string, NecesidadItem> = new Map();
 
     const rangeStart = startOfDay(dateRange.from);
     const rangeEnd = endOfDay(dateRange.to || dateRange.from);
@@ -154,7 +156,6 @@ export default function OfPage() {
     gastroOrdersInRange.forEach(gastroOrder => {
       try {
         const fechaKey = format(new Date(gastroOrder.fecha), 'yyyy-MM-dd');
-        if(!necesidadesPorFecha[fechaKey]) necesidadesPorFecha[fechaKey] = [];
         
         (gastroOrder.items || []).forEach(item => {
             if (item.type !== 'item') return;
@@ -167,7 +168,7 @@ export default function OfPage() {
                 if (!elab) return;
                 
                 const id = elab.id;
-                let necesidad = necesidadesPorFecha[fechaKey].find(n => n.id === id);
+                let necesidad = necesidadesAgregadas.get(id);
 
                 if (!necesidad) {
                     necesidad = {
@@ -178,12 +179,21 @@ export default function OfPage() {
                         osIDs: new Set(),
                         partida: elab.partidaProduccion,
                         tipoExpedicion: elab.tipoExpedicion,
+                        desgloseDiario: []
                     };
-                    necesidadesPorFecha[fechaKey].push(necesidad);
+                    necesidadesAgregadas.set(id, necesidad);
                 }
                 
-                necesidad.cantidad += (item.quantity || 1) * elabEnReceta.cantidad;
+                const cantidadNecesaria = (item.quantity || 1) * elabEnReceta.cantidad;
+                necesidad.cantidad += cantidadNecesaria;
                 necesidad.osIDs.add(gastroOrder.osId);
+                
+                const desglose = necesidad.desgloseDiario.find(d => d.fecha === fechaKey);
+                if (desglose) {
+                    desglose.cantidad += cantidadNecesaria;
+                } else {
+                    necesidad.desgloseDiario.push({ fecha: fechaKey, cantidad: cantidadNecesaria });
+                }
             });
         });
       } catch (e) {
@@ -195,7 +205,7 @@ export default function OfPage() {
     
     const stockAsignadoGlobal: Record<string, number> = {};
     Object.values(allPickingStates).forEach(state => {
-      state.itemStates.forEach(assigned => {
+      (state.itemStates || []).forEach(assigned => {
         const of = allOFs.find(o => o.id === assigned.ofId);
         if (of) {
           stockAsignadoGlobal[of.elaboracionId] = (stockAsignadoGlobal[of.elaboracionId] || 0) + assigned.quantity;
@@ -203,13 +213,13 @@ export default function OfPage() {
       });
     });
 
-    Object.keys(necesidadesPorFecha).forEach(fechaKey => {
-      necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].map(necesidad => {
-        const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id && isSameDay(new Date(of.fechaProduccionPrevista), new Date(fechaKey)));
+    const necesidadesArray = Array.from(necesidadesAgregadas.values()).map(necesidad => {
+        const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => {
+            const ofDate = startOfDay(new Date(of.fechaProduccionPrevista));
+            return of.elaboracionId === necesidad.id && isWithinInterval(ofDate, { start: rangeStart, end: rangeEnd });
+        });
         
-        const cantidadYaPlanificada = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => {
-            return sum + (of.cantidadTotal || 0);
-        }, 0);
+        const cantidadYaPlanificada = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => sum + (of.cantidadTotal || 0), 0);
         
         const stockTotalBruto = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
         const stockYaAsignado = stockAsignadoGlobal[necesidad.id] || 0;
@@ -221,12 +231,12 @@ export default function OfPage() {
           ...necesidad,
           cantidad: Math.max(0, cantidadNeta), // No mostrar cantidades negativas
           stockDisponible: stockDisponibleReal,
-          cantidadPlanificada: cantidadYaPlanificada
+          cantidadPlanificada: cantidadYaPlanificada,
+          desgloseDiario: necesidad.desgloseDiario.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
         };
-      });
-    });
+    }).filter(n => n.cantidad > 0.001);
 
-    setNecesidades(necesidadesPorFecha);
+    setNecesidades(necesidadesArray);
     setIsMounted(true);
   }, [dateRange]);
 
@@ -279,9 +289,8 @@ export default function OfPage() {
     else setSelectedRows(new Set());
   };
   
-  const handleGenerateOFs = (fecha: string) => {
-    const seleccionados = selectedNecesidades[fecha];
-    if (!seleccionados || seleccionados.size === 0) {
+  const handleGenerateOFs = () => {
+    if (!dateRange?.from || selectedNecesidades.size === 0) {
       toast({ variant: 'destructive', title: 'Error', description: 'No hay necesidades seleccionadas para generar OFs.' });
       return;
     }
@@ -296,9 +305,10 @@ export default function OfPage() {
     let currentIdCounter = lastIdNumber;
     
     const nuevasOFs: OrdenFabricacion[] = [];
+    const fechaProduccion = format(dateRange.from, 'yyyy-MM-dd');
     
-    seleccionados.forEach(elabId => {
-      const necesidad = necesidades[fecha].find(n => n.id === elabId);
+    selectedNecesidades.forEach(elabId => {
+      const necesidad = necesidades.find(n => n.id === elabId);
       if (!necesidad || necesidad.cantidad <= 0) return;
       
       currentIdCounter++;
@@ -306,7 +316,7 @@ export default function OfPage() {
       const newOF: OrdenFabricacion = {
         id: `OF-${new Date().getFullYear()}-${(currentIdCounter).toString().padStart(3, '0')}`,
         fechaCreacion: new Date().toISOString(),
-        fechaProduccionPrevista: fecha,
+        fechaProduccionPrevista: fechaProduccion,
         elaboracionId: necesidad.id,
         elaboracionNombre: necesidad.nombre,
         cantidadTotal: necesidad.cantidad,
@@ -327,7 +337,7 @@ export default function OfPage() {
     
     toast({ title: 'Órdenes de Fabricación Creadas', description: `${nuevasOFs.length} OFs se han añadido a la lista.` });
     
-    setSelectedNecesidades(prev => ({...prev, [fecha]: new Set()}));
+    setSelectedNecesidades(new Set());
     loadData();
   };
   
@@ -344,12 +354,12 @@ export default function OfPage() {
     }
   }
 
-  const handleSelectNecesidad = (fecha: string, elabId: string, checked: boolean) => {
+  const handleSelectNecesidad = (elabId: string, checked: boolean) => {
     setSelectedNecesidades(prev => {
-      const newSelection = new Set(prev[fecha] || []);
+      const newSelection = new Set(prev);
       if (checked) newSelection.add(elabId);
       else newSelection.delete(elabId);
-      return { ...prev, [fecha]: newSelection };
+      return newSelection;
     });
   };
 
@@ -363,7 +373,7 @@ export default function OfPage() {
   }
 
   return (
-    <>
+    <TooltipProvider>
       <Tabs defaultValue="planificacion">
         <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="planificacion">Planificación y Creación</TabsTrigger>
@@ -384,63 +394,65 @@ export default function OfPage() {
              <Button variant="secondary" onClick={() => { setDateRange({ from: startOfDay(new Date()), to: endOfDay(addDays(new Date(), 7)) }); }}>Próximos 7 días</Button>
         </div>
         <TabsContent value="planificacion" className="mt-4 space-y-4">
-            <Accordion type="multiple" className="w-full space-y-4">
-            <AccordionItem value="necesidades" className="border-none">
-                <Card>
-                    <AccordionTrigger className="p-4">
-                        <CardTitle className="text-lg flex items-center gap-2"><CheckSquare/>Necesidades de Producción Pendientes</CardTitle>
-                    </AccordionTrigger>
-                    <AccordionContent className="p-4 pt-0">
-                        <div className="space-y-4">
-                        {Object.keys(necesidades).length > 0 ? Object.entries(necesidades).map(([fecha, items]) => (
-                            <div key={fecha}>
-                            <div className="flex justify-between items-center mb-2">
-                                <h4 className="font-semibold">Para el {format(parseISO(fecha), 'dd/MM/yyyy')}</h4>
-                                <Button size="sm" onClick={() => handleGenerateOFs(fecha)} disabled={!selectedNecesidades[fecha] || selectedNecesidades[fecha].size === 0}>
-                                    Generar OF para la selección ({selectedNecesidades[fecha]?.size || 0})
-                                </Button>
-                            </div>
-                            <div className="border rounded-lg">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-12"><Checkbox onCheckedChange={(checked) => {
-                                                    const allIds = new Set(items.map(i => i.id));
-                                                    setSelectedNecesidades(prev => ({...prev, [fecha]: checked ? allIds : new Set()}));
-                                            }}/></TableHead>
-                                            <TableHead>Elaboración</TableHead>
-                                            <TableHead>Partida</TableHead>
-                                            <TableHead className="text-right">Cant. Necesaria</TableHead>
-                                            <TableHead className="text-right">Stock Disponible</TableHead>
-                                            <TableHead className="text-right">Planificado</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {items.map(item => {
-                                          const isCovered = item.cantidad <= 0;
-                                          return (
-                                            <TableRow key={item.id} className={cn(isCovered && "bg-slate-100 text-muted-foreground")}>
-                                                <TableCell><Checkbox checked={selectedNecesidades[fecha]?.has(item.id)} onCheckedChange={(checked) => handleSelectNecesidad(fecha, item.id, !!checked)} disabled={isCovered}/></TableCell>
-                                                <TableCell>{item.nombre}</TableCell>
-                                                <TableCell><Badge variant="secondary">{item.partida}</Badge></TableCell>
-                                                <TableCell className="text-right font-mono">{formatNumber(item.cantidad, 2)} {formatUnit(item.unidad)}</TableCell>
-                                                <TableCell className="text-right font-mono">{formatNumber(item.stockDisponible || 0, 2)} {formatUnit(item.unidad)}</TableCell>
-                                                <TableCell className="text-right font-mono">{formatNumber(item.cantidadPlanificada || 0, 2)} {formatUnit(item.unidad)}</TableCell>
-                                            </TableRow>
-                                          )
-                                        })}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                            </div>
-                        )) : (
-                            <p className="text-muted-foreground text-center py-4">No hay necesidades de producción en el rango de fechas seleccionado.</p>
-                        )}
-                        </div>
-                    </AccordionContent>
-                </Card>
-            </AccordionItem>
-            </Accordion>
+            <Card>
+                <CardHeader className="flex-row justify-between items-center">
+                    <CardTitle className="text-lg flex items-center gap-2"><CheckSquare/>Necesidades de Producción Agregadas</CardTitle>
+                    <Button size="sm" onClick={handleGenerateOFs} disabled={selectedNecesidades.size === 0}>
+                        Generar OF para la selección ({selectedNecesidades.size})
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    <div className="border rounded-lg">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-12"><Checkbox onCheckedChange={(checked) => {
+                                            const allIds = new Set(necesidades.map(i => i.id));
+                                            setSelectedNecesidades(checked ? allIds : new Set());
+                                    }}/></TableHead>
+                                    <TableHead>Elaboración</TableHead>
+                                    <TableHead>Partida</TableHead>
+                                    <TableHead className="text-right">Cant. Necesaria</TableHead>
+                                    <TableHead className="text-right">Stock Disp.</TableHead>
+                                    <TableHead className="text-right">Planificado</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {necesidades.length > 0 ? necesidades.map(item => (
+                                    <TableRow key={item.id}>
+                                        <TableCell><Checkbox checked={selectedNecesidades.has(item.id)} onCheckedChange={(checked) => handleSelectNecesidad(item.id, !!checked)}/></TableCell>
+                                        <TableCell>{item.nombre}</TableCell>
+                                        <TableCell><Badge variant="secondary">{item.partida}</Badge></TableCell>
+                                        <TableCell className="text-right font-mono">
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <span className="cursor-help font-bold">{formatNumber(item.cantidad, 2)} {formatUnit(item.unidad)}</span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <div className="p-1 text-xs">
+                                                        <p className="font-bold mb-1">Desglose por día:</p>
+                                                        {item.desgloseDiario.map(d => (
+                                                            <p key={d.fecha}>{format(new Date(d.fecha), 'dd/MM')}: {formatNumber(d.cantidad, 2)} {formatUnit(item.unidad)}</p>
+                                                        ))}
+                                                    </div>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TableCell>
+                                        <TableCell className="text-right font-mono">{formatNumber(item.stockDisponible || 0, 2)} {formatUnit(item.unidad)}</TableCell>
+                                        <TableCell className="text-right font-mono">{formatNumber(item.cantidadPlanificada || 0, 2)} {formatUnit(item.unidad)}</TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                                            No hay necesidades de producción en el rango de fechas seleccionado.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
             
             <Card>
                 <CardHeader>
@@ -604,8 +616,7 @@ export default function OfPage() {
              </Card>
         </TabsContent>
       </Tabs>
+    </TooltipProvider>
     </>
   );
 }
-
-    
