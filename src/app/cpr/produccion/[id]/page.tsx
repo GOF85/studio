@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -290,7 +291,7 @@ export default function ProduccionDetallePage() {
             </div>
 
             <AlertDialog open={showFinalizeDialog} onOpenChange={setShowFinalizeDialog}>
-                <AlertDialogContent>
+                <AlertDialogContent className="max-w-2xl">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Finalizar Orden de Fabricación</AlertDialogTitle>
                         <AlertDialogDescription>
@@ -298,23 +299,62 @@ export default function ProduccionDetallePage() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div className="py-4 space-y-4">
-                        <div className="text-center">
-                            <p className="text-sm text-muted-foreground">Cantidad Planificada</p>
-                            <p className="text-xl font-bold">{orden.cantidadTotal} {orden.unidad}</p>
+                        <div className="grid grid-cols-2 gap-4 text-center">
+                            <div>
+                                <p className="text-sm text-muted-foreground">Cantidad Planificada</p>
+                                <p className="text-xl font-bold">{orden.cantidadTotal} {orden.unidad}</p>
+                            </div>
+                             <div>
+                                <Label htmlFor="cantidad-real" className="text-sm text-muted-foreground">Cantidad Real Producida ({orden.unidad})</Label>
+                                <Input 
+                                    id="cantidad-real" 
+                                    type="number"
+                                    step="0.01"
+                                    value={cantidadReal}
+                                    onChange={(e) => setCantidadReal(e.target.value)}
+                                    className="mt-1 text-2xl h-12 text-center font-bold"
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <Label htmlFor="cantidad-real" className="text-lg">Cantidad Real Producida ({orden.unidad})</Label>
-                            <Input 
-                                id="cantidad-real" 
-                                type="number"
-                                step="0.01"
-                                value={cantidadReal}
-                                onChange={(e) => setCantidadReal(e.target.value)}
-                                className="mt-2 text-2xl h-16 text-center font-bold"
-                            />
+
+                         <div>
+                            <h4 className="font-semibold mb-2">Resumen de Consumo de Componentes</h4>
+                            <div className="border rounded-md max-h-48 overflow-y-auto">
+                               <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Componente</TableHead>
+                                        <TableHead className="text-right">Teórico</TableHead>
+                                        <TableHead className="text-right">Real</TableHead>
+                                        <TableHead className="text-right">Desviación</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {elaboracion?.componentes.map(comp => {
+                                        const cantNecesaria = comp.cantidad * ratioProduccion;
+                                        const consumo = consumosReales.find(c => c.componenteId === comp.id);
+                                        const cantReal = consumo?.cantidadReal ?? cantNecesaria; // Use real if available, otherwise theoretical
+                                        const desviacion = cantReal - cantNecesaria;
+                                        const unidad = (ingredientesData.get(comp.componenteId) as IngredienteConERP)?.erp?.unidad || 'UD';
+                                        
+                                        return (
+                                            <TableRow key={comp.id}>
+                                                <TableCell className="text-xs">{comp.nombre}</TableCell>
+                                                <TableCell className="text-right text-xs font-mono">{ceilToTwoDecimals(cantNecesaria)} {formatUnit(unidad)}</TableCell>
+                                                <TableCell className="text-right text-xs font-mono">{ceilToTwoDecimals(cantReal)} {formatUnit(unidad)}</TableCell>
+                                                <TableCell className={cn("text-right text-xs font-mono", desviacion > 0 ? 'text-destructive' : 'text-green-600')}>
+                                                    {desviacion.toFixed(2)}
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    })}
+                                </TableBody>
+                               </Table>
+                            </div>
                         </div>
+
                         <div>
-                             <Label htmlFor="observaciones-final" className="text-lg">Observaciones</Label>
+                             <Label htmlFor="observaciones-final">Observaciones</Label>
                              <Textarea id="observaciones-final" placeholder="Añade aquí cualquier comentario sobre la producción (opcional)..." />
                         </div>
                     </div>
