@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -151,7 +149,7 @@ export default function PickingDetailPage() {
     const [hitosConNecesidades, setHitosConNecesidades] = useState<ComercialBriefingItem[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: [], itemStates: [] });
     const [isMounted, setIsMounted] = useState(false);
-    const [isPrinting, setIsPrinting] = useState(false);
+    const [isPrinting, setIsPrinting] = useState(isPrinting);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     
     const router = useRouter();
@@ -372,19 +370,22 @@ export default function PickingDetailPage() {
     const handlePrintHito = (hito: ComercialBriefingItem) => {
       setIsPrinting(true);
       try {
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
         const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        const margin = 15;
-        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 40;
         let finalY = margin;
 
-        doc.setFontSize(18);
+        const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
+        const expedicionNumero = `${serviceOrder?.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
+
+        doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
-        doc.text(`Hoja de Carga: ${serviceOrder?.serviceNumber || ''}`, margin, finalY);
-        finalY += 8;
-        doc.setFontSize(12);
+        doc.text(`Hoja de Carga - Expedición ${expedicionNumero}`, margin, finalY);
+        finalY += 20;
+
+        doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`${hito.descripcion} - ${format(new Date(hito.fecha), 'dd/MM/yyyy')}`, margin, finalY);
+        doc.text(`Servicio: ${hito.descripcion} - ${format(new Date(hito.fecha), 'dd/MM/yyyy')} ${hito.horaInicio}`, margin, finalY);
         finalY += 15;
         
         const body = pickingState.itemStates
@@ -394,19 +395,19 @@ export default function PickingDetailPage() {
                 return [
                     lote?.elaboracionNombre || 'Desconocido',
                     getRecetaForElaboracion(lote?.elaboracionId || '', osId),
-                    `${item.quantity.toFixed(2)} ${formatUnit(lote?.unidad || '')}`,
-                    lote?.partidaAsignada || '',
+                    `${formatNumber(item.quantity, 2)} ${formatUnit(lote?.unidad || '')}`
                 ];
             });
 
         autoTable(doc, {
             startY: finalY,
-            head: [['Elaboración', 'Receta', 'Cantidad', 'Partida']],
+            head: [['Elaboración', 'Receta', 'Cantidad']],
             body: body,
             theme: 'grid',
         });
-        doc.save(`HojaCarga_${serviceOrder?.serviceNumber}.pdf`);
+        doc.save(`HojaCarga_${expedicionNumero}.pdf`);
       } catch (error) {
+        console.error(error);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
       } finally {
         setIsPrinting(false);
@@ -417,7 +418,7 @@ export default function PickingDetailPage() {
         if (!serviceOrder) return;
         setIsPrinting(true);
         try {
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [100, 150] });
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [100, 150] }); // Standard label size
             const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
             const containers = pickingState.assignedContainers.filter(c => c.hitoId === hito.id);
             const margin = 5;
@@ -429,33 +430,32 @@ export default function PickingDetailPage() {
                 let finalY = margin + 5;
     
                 doc.setFontSize(10);
-                doc.setFont('helvetica', 'bold');
-                doc.text('DE:', margin, finalY);
                 doc.setFont('helvetica', 'normal');
-                doc.text('MICE CATERING CPR', margin + 8, finalY);
+                doc.text('DE: MICE CATERING CPR', margin, finalY);
                 
                 const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
                 const expedicionNumero = `${serviceOrder.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
+                const fullExpId = `MICE-${expedicionNumero}-${container.numero}`;
                 
                 doc.setFontSize(22);
                 doc.setFont('helvetica', 'bold');
-                doc.text(`MICE-${expedicionNumero}-${container.numero}`, pageWidth - margin, finalY + 2, { align: 'right' });
+                doc.text(fullExpId, pageWidth - margin, finalY, { align: 'right' });
                 finalY += 10;
     
                 doc.setLineWidth(0.3);
                 doc.line(margin, finalY, pageWidth - margin, finalY);
                 finalY += 8;
+
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
                 doc.text('PARA:', margin, finalY);
                 doc.setFont('helvetica', 'normal');
                 
-                let clientText = `${serviceOrder.client}${serviceOrder.finalClient ? ` / ${serviceOrder.finalClient}` : ''}`;
-                let clientLines = doc.splitTextToSize(clientText, pageWidth - margin * 2 - 15);
-                doc.text(clientLines, margin + 15, finalY);
-                finalY += clientLines.length * 4;
+                const clientText = `${serviceOrder.client}${serviceOrder.finalClient ? ` / ${serviceOrder.finalClient}` : ''}`;
+                doc.text(clientText, margin + 15, finalY);
+                finalY += 5;
 
-                let spaceLines = doc.splitTextToSize(`${serviceOrder.space || ''} (${hito.sala || ''})`, pageWidth - margin * 2 - 15);
+                const spaceLines = doc.splitTextToSize(`${serviceOrder.space || ''} (${hito.sala || ''})`, pageWidth - margin * 2 - 15);
                 doc.text(spaceLines, margin + 15, finalY);
                 finalY += spaceLines.length * 4 + 4;
     
@@ -473,7 +473,7 @@ export default function PickingDetailPage() {
                     const receta = getRecetaForElaboracion(loteInfo?.elaboracionId || '', osId);
                     const nombre = `${loteInfo?.elaboracionNombre || 'N/A'}${receta !== 'Directa' ? ` (${receta})` : ''}`;
                     return [
-                        doc.splitTextToSize(nombre, 50),
+                        nombre,
                         `${formatNumber(item.quantity, 2)} ${formatUnit(loteInfo?.unidad || 'Uds')}`
                     ];
                 });
@@ -485,7 +485,10 @@ export default function PickingDetailPage() {
                     theme: 'grid',
                     styles: { fontSize: 7, cellPadding: 1, overflow: 'linebreak' },
                     headStyles: { fillColor: '#374151', textColor: '#FFFFFF', fontSize: 8, fontStyle: 'bold', cellPadding: 1 },
-                    columnStyles: { 0: { cellWidth: 55 }, 1: { cellWidth: 20, halign: 'right' } }
+                    columnStyles: { 
+                        0: { cellWidth: 65 }, 
+                        1: { cellWidth: 'auto', halign: 'right' }
+                    }
                 });
                 finalY = (doc as any).lastAutoTable.finalY + 10;
             });
