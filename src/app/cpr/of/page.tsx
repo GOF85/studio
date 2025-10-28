@@ -1,10 +1,11 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Factory, Search, PlusCircle, Trash2, Calendar as CalendarIcon, ChefHat, CheckSquare, Euro } from 'lucide-react';
-import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal } from '@/types';
+import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -111,7 +112,8 @@ export default function OfPage() {
     const allRecetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
     const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
     const allOFs = (JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[]);
-    const stockElaboraciones: Record<string, { cantidadTotal: number }> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
+    const stockElaboraciones: Record<string, StockElaboracion> = JSON.parse(localStorage.getItem('stockElaboraciones') || '{}');
+    const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as Record<string, PickingState>;
     
 
     let storedOFs = localStorage.getItem('ordenesFabricacion');
@@ -190,6 +192,17 @@ export default function OfPage() {
 
 
     // --- STAGE 4: SUBTRACT EXISTING STOCK & OFs ---
+    
+    const stockAsignadoGlobal: Record<string, number> = {};
+    Object.values(allPickingStates).forEach(state => {
+      state.itemStates.forEach(assigned => {
+        const of = allOFs.find(o => o.id === assigned.ofId);
+        if (of) {
+          stockAsignadoGlobal[of.elaboracionId] = (stockAsignadoGlobal[of.elaboracionId] || 0) + assigned.quantity;
+        }
+      });
+    });
+
     Object.keys(necesidadesPorFecha).forEach(fechaKey => {
       necesidadesPorFecha[fechaKey] = necesidadesPorFecha[fechaKey].map(necesidad => {
         const ofsExistentes = allOFs.filter((of: OrdenFabricacion) => of.elaboracionId === necesidad.id && isSameDay(new Date(of.fechaProduccionPrevista), new Date(fechaKey)));
@@ -198,14 +211,16 @@ export default function OfPage() {
             return sum + (of.cantidadTotal || 0);
         }, 0);
         
-        const cantidadEnStock = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
+        const stockTotalBruto = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
+        const stockYaAsignado = stockAsignadoGlobal[necesidad.id] || 0;
+        const stockDisponibleReal = stockTotalBruto - stockYaAsignado;
         
-        const cantidadNeta = necesidad.cantidad - (cantidadYaPlanificada + cantidadEnStock);
+        const cantidadNeta = necesidad.cantidad - (cantidadYaPlanificada + stockDisponibleReal);
         
         return {
           ...necesidad,
           cantidad: Math.max(0, cantidadNeta), // No mostrar cantidades negativas
-          stockDisponible: cantidadEnStock,
+          stockDisponible: stockDisponibleReal,
           cantidadPlanificada: cantidadYaPlanificada
         };
       });
@@ -396,7 +411,7 @@ export default function OfPage() {
                                             <TableHead>Elaboración</TableHead>
                                             <TableHead>Partida</TableHead>
                                             <TableHead className="text-right">Cant. Necesaria</TableHead>
-                                            <TableHead className="text-right">Stock Actual</TableHead>
+                                            <TableHead className="text-right">Stock Disponible</TableHead>
                                             <TableHead className="text-right">Planificado</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -592,3 +607,5 @@ export default function OfPage() {
     </>
   );
 }
+
+    
