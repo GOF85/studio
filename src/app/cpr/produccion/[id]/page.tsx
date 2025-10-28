@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Play, CheckCircle, Info, ChefHat, Package, Timer } from 'lucide-react';
+import { ArrowLeft, Play, CheckCircle, Info, ChefHat, Package, Timer, Camera } from 'lucide-react';
 import Image from 'next/image';
 import type { OrdenFabricacion, Elaboracion, ComponenteElaboracion, IngredienteInterno, ArticuloERP } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -20,9 +20,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatNumber, formatUnit } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 
 type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
+
+type ConsumoReal = {
+    componenteId: string;
+    cantidadReal: number;
+}
 
 export default function ProduccionDetallePage() {
     const [orden, setOrden] = useState<OrdenFabricacion | null>(null);
@@ -32,6 +38,8 @@ export default function ProduccionDetallePage() {
     const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
     const [cantidadReal, setCantidadReal] = useState<number | string>('');
     const [elapsedTime, setElapsedTime] = useState<string | null>(null);
+    const [consumosReales, setConsumosReales] = useState<ConsumoReal[]>([]);
+
 
     const router = useRouter();
     const params = useParams();
@@ -100,6 +108,7 @@ export default function ProduccionDetallePage() {
                 }
                 updatedOF.fechaFinalizacion = new Date().toISOString();
                 updatedOF.cantidadReal = finalQuantity;
+                // updatedOF.consumosReales = consumosReales; // Future implementation
                 setShowFinalizeDialog(false);
                 router.push('/cpr/produccion');
             }
@@ -125,6 +134,18 @@ export default function ProduccionDetallePage() {
         if (!orden || !elaboracion || !elaboracion.produccionTotal) return 1;
         return orden.cantidadTotal / elaboracion.produccionTotal;
     }, [orden, elaboracion]);
+
+    const handleConsumoChange = (componenteId: string, cantidad: number) => {
+        setConsumosReales(prev => {
+            const existingIndex = prev.findIndex(c => c.componenteId === componenteId);
+            if (existingIndex > -1) {
+                const newConsumos = [...prev];
+                newConsumos[existingIndex] = { ...newConsumos[existingIndex], cantidadReal: cantidad };
+                return newConsumos;
+            }
+            return [...prev, { componenteId, cantidadReal: cantidad }];
+        });
+    }
 
     const ceilToTwoDecimals = (num?: number | null) => {
         if (num === null || num === undefined) return '0,00';
@@ -158,21 +179,34 @@ export default function ProduccionDetallePage() {
                  <div className="grid md:grid-cols-2 gap-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><ChefHat/> Escandallo</CardTitle>
+                            <CardTitle className="flex items-center gap-2"><ChefHat/> Escandallo Interactivo</CardTitle>
                         </CardHeader>
                          <CardContent>
                             <div className="p-0 border rounded-lg bg-white">
                                 {elaboracion ? (
                                     <Table>
-                                        <TableHeader><TableRow><TableHead>Componente</TableHead><TableHead className="text-right">Cantidad Necesaria</TableHead></TableRow></TableHeader>
+                                        <TableHeader><TableRow><TableHead>Componente</TableHead><TableHead className="text-right">Cant. Teórica</TableHead><TableHead className="w-32 text-right">Cant. Real</TableHead></TableRow></TableHeader>
                                         <TableBody>
                                             {elaboracion.componentes.map(comp => {
                                                 const ingrediente = ingredientesData.get(comp.componenteId);
                                                 const unidad = ingrediente?.erp?.unidad || 'UD';
+                                                const cantNecesaria = comp.cantidad * ratioProduccion;
+                                                const consumo = consumosReales.find(c => c.componenteId === comp.id);
+                                                const desviacion = consumo ? consumo.cantidadReal - cantNecesaria : 0;
+
                                                 return (
-                                                    <TableRow key={comp.id}>
+                                                    <TableRow key={comp.id} className={cn(desviacion !== 0 && "bg-amber-50")}>
                                                         <TableCell>{comp.nombre}</TableCell>
-                                                        <TableCell className="text-right font-mono">{ceilToTwoDecimals(comp.cantidad * ratioProduccion)} {formatUnit(unidad)}</TableCell>
+                                                        <TableCell className="text-right font-mono">{ceilToTwoDecimals(cantNecesaria)} {formatUnit(unidad)}</TableCell>
+                                                        <TableCell className="text-right">
+                                                            <Input 
+                                                              type="number" 
+                                                              step="0.01" 
+                                                              placeholder={ceilToTwoDecimals(cantNecesaria)}
+                                                              className="h-8 text-right"
+                                                              onChange={(e) => handleConsumoChange(comp.id, parseFloat(e.target.value) || 0)}
+                                                            />
+                                                        </TableCell>
                                                     </TableRow>
                                                 )
                                             })}
@@ -196,18 +230,30 @@ export default function ProduccionDetallePage() {
                     )}
                 </div>
                 
-                {elaboracion?.fotosProduccionURLs && elaboracion.fotosProduccionURLs.length > 0 && (
+                 {(elaboracion?.fotosProduccionURLs && elaboracion.fotosProduccionURLs.length > 0) || elaboracion?.videoProduccionURL ? (
                      <Card>
-                        <CardHeader><CardTitle>Imágenes de Referencia</CardTitle></CardHeader>
-                        <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <CardHeader><CardTitle className="flex items-center gap-2"><Camera/> Guía Multimedia</CardTitle></CardHeader>
+                        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {elaboracion.fotosProduccionURLs.map((foto, index) => (
                                 <div key={index} className="relative aspect-video rounded-lg overflow-hidden">
                                     <Image src={foto.value} alt={`Foto de producción ${index + 1}`} fill className="object-cover" />
                                 </div>
                             ))}
+                            {elaboracion.videoProduccionURL && (
+                                <div className="aspect-video">
+                                    <iframe 
+                                        className="w-full h-full rounded-lg"
+                                        src={elaboracion.videoProduccionURL.replace("watch?v=", "embed/")} 
+                                        title="YouTube video player" 
+                                        frameBorder="0" 
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                        allowFullScreen>
+                                    </iframe>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
-                )}
+                ) : null}
 
                 <Card>
                     <CardHeader>
