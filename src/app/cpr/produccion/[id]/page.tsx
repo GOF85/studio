@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Play, CheckCircle, Info, ChefHat, Package, Timer } from 'lucide-react';
 import Image from 'next/image';
-import type { OrdenFabricacion, Elaboracion } from '@/types';
+import type { OrdenFabricacion, Elaboracion, ComponenteElaboracion, IngredienteInterno, ArticuloERP } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
@@ -18,10 +18,16 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { formatNumber, formatUnit } from '@/lib/utils';
+
+
+type IngredienteConERP = IngredienteInterno & { erp?: ArticuloERP };
 
 export default function ProduccionDetallePage() {
     const [orden, setOrden] = useState<OrdenFabricacion | null>(null);
     const [elaboracion, setElaboracion] = useState<Elaboracion | null>(null);
+    const [ingredientesData, setIngredientesData] = useState<Map<string, IngredienteConERP>>(new Map());
     const [isMounted, setIsMounted] = useState(false);
     const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
     const [cantidadReal, setCantidadReal] = useState<number | string>('');
@@ -41,6 +47,12 @@ export default function ProduccionDetallePage() {
             const allElaboraciones = JSON.parse(localStorage.getItem('elaboraciones') || '[]') as Elaboracion[];
             const currentElab = allElaboraciones.find(e => e.id === currentOF.elaboracionId);
             setElaboracion(currentElab || null);
+
+            const storedInternos = JSON.parse(localStorage.getItem('ingredientesInternos') || '[]') as IngredienteInterno[];
+            const storedErp = JSON.parse(localStorage.getItem('articulosERP') || '[]') as ArticuloERP[];
+            const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
+            const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
+            setIngredientesData(new Map(combinedIngredientes.map(i => [i.id, i])));
         }
         setIsMounted(true);
     }, [id]);
@@ -108,6 +120,16 @@ export default function ProduccionDetallePage() {
       
       return Math.ceil(cantidad / elaboracion.ratioExpedicion);
     }, [orden, elaboracion]);
+    
+    const ratioProduccion = useMemo(() => {
+        if (!orden || !elaboracion || !elaboracion.produccionTotal) return 1;
+        return orden.cantidadTotal / elaboracion.produccionTotal;
+    }, [orden, elaboracion]);
+
+    const ceilToTwoDecimals = (num?: number | null) => {
+        if (num === null || num === undefined) return '0,00';
+        return formatNumber(num, 2);
+    }
 
 
     if (!isMounted || !orden) {
@@ -122,7 +144,7 @@ export default function ProduccionDetallePage() {
                         <Badge variant="secondary" className="w-fit mb-2">{orden.id}</Badge>
                         <CardTitle className="text-4xl font-headline">{orden.elaboracionNombre}</CardTitle>
                         <div className="flex justify-between items-baseline">
-                            <CardDescription className="text-lg">Cantidad a producir: <span className="font-bold text-primary">{orden.cantidadTotal} {orden.unidad}</span></CardDescription>
+                            <CardDescription className="text-lg">Cantidad a producir: <span className="font-bold text-primary">{ceilToTwoDecimals(orden.cantidadTotal)} {orden.unidad}</span></CardDescription>
                             {elapsedTime && (
                                 <div className="flex items-center gap-2 text-lg font-semibold text-blue-600">
                                     <Timer />
@@ -133,16 +155,46 @@ export default function ProduccionDetallePage() {
                     </CardHeader>
                 </Card>
 
-                 {elaboracion?.instruccionesPreparacion && (
+                 <div className="grid md:grid-cols-2 gap-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><ChefHat/> Instrucciones de Preparación</CardTitle>
+                            <CardTitle className="flex items-center gap-2"><ChefHat/> Escandallo</CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <div className="prose max-w-none whitespace-pre-wrap">{elaboracion.instruccionesPreparacion}</div>
+                         <CardContent>
+                            <div className="p-0 border rounded-lg bg-white">
+                                {elaboracion ? (
+                                    <Table>
+                                        <TableHeader><TableRow><TableHead>Componente</TableHead><TableHead className="text-right">Cantidad Necesaria</TableHead></TableRow></TableHeader>
+                                        <TableBody>
+                                            {elaboracion.componentes.map(comp => {
+                                                const ingrediente = ingredientesData.get(comp.componenteId);
+                                                const unidad = ingrediente?.erp?.unidad || 'UD';
+                                                return (
+                                                    <TableRow key={comp.id}>
+                                                        <TableCell>{comp.nombre}</TableCell>
+                                                        <TableCell className="text-right font-mono">{ceilToTwoDecimals(comp.cantidad * ratioProduccion)} {formatUnit(unidad)}</TableCell>
+                                                    </TableRow>
+                                                )
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                ) : (
+                                    <p className="text-muted-foreground text-center p-4">No se encontró la elaboración en el Book.</p>
+                                )}
+                            </div>
                         </CardContent>
                     </Card>
-                )}
+                     {elaboracion?.instruccionesPreparacion && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><Info /> Instrucciones de Preparación</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="prose max-w-none whitespace-pre-wrap">{elaboracion.instruccionesPreparacion}</div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
                 
                 {elaboracion?.fotosProduccionURLs && elaboracion.fotosProduccionURLs.length > 0 && (
                      <Card>
