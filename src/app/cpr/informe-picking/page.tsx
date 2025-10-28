@@ -57,7 +57,7 @@ export default function InformePickingPage() {
   }, [reportItems, searchTerm]);
   
   const handlePrint = (item: PickingReportItem) => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     const allBriefings: ComercialBriefing[] = JSON.parse(localStorage.getItem('comercialBriefings') || '[]') as ComercialBriefing[];
     const allOFs: OrdenFabricacion[] = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
     const allGastroOrders: GastronomyOrder[] = JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[];
@@ -82,26 +82,45 @@ export default function InformePickingPage() {
     const currentBriefing = allBriefings.find(b => b.osId === item.os.id);
     if (!currentBriefing) return;
 
-    doc.setFontSize(18);
-    doc.text(`Informe de Picking: OS ${item.os.serviceNumber}`, 14, 22);
-    doc.setFontSize(11);
-    doc.text(`Cliente: ${item.os.client}`, 14, 30);
-    doc.text(`Fecha: ${format(new Date(item.os.startDate), 'dd/MM/yyyy', {locale: es})}`, 14, 36);
-
-    let finalY = 45;
+    let finalY = 40;
 
     const hitos = currentBriefing.items.filter(i => item.state.assignedContainers.some(c => c.hitoId === i.id));
     
     hitos.forEach(hito => {
-        if (finalY > 250) {
+        if (finalY > 780) { // Check for page break
             doc.addPage();
-            finalY = 20;
+            finalY = 40;
         }
+        
+        const hitoIndex = currentBriefing.items.findIndex(h => h.id === hito.id);
+        const expedicionNumero = `${item.os.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
 
-        doc.setFontSize(14);
-        doc.setTextColor(40);
-        doc.text(`Hito: ${hito.descripcion} (${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio})`, 14, finalY);
-        finalY += 8;
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Carambuco (Refrigerado)`, 40, finalY);
+        finalY += 20;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Servicio:`, 40, finalY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(hito.descripcion, 85, finalY);
+        finalY += 20;
+
+        autoTable(doc, {
+            body: [
+                ['Cliente:', item.os.client],
+                ['Espacio:', item.os.space],
+                ['Fecha:', `${format(new Date(hito.fecha), 'dd/MM/yy')} ${hito.horaInicio}`],
+                ['Exp:', expedicionNumero],
+                ['OS:', item.os.serviceNumber],
+            ],
+            startY: finalY,
+            theme: 'plain',
+            styles: { fontSize: 9, cellPadding: 1 },
+            columnStyles: { 0: { fontStyle: 'bold' } }
+        });
+        finalY = (doc as any).lastAutoTable.finalY + 15;
 
         const containersForHito = item.state.assignedContainers.filter(c => c.hitoId === hito.id);
         
@@ -109,15 +128,10 @@ export default function InformePickingPage() {
             const containerItems = item.state.itemStates.filter(i => i.containerId === container.id);
             if(containerItems.length === 0) return;
 
-            if (finalY > 260) {
+            if (finalY > 780) {
                 doc.addPage();
-                finalY = 20;
+                finalY = 40;
             }
-            
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.text(`Contenedor: ${container.tipo} #${container.numero}`, 16, finalY);
-            finalY += 6;
 
             const tableBody = containerItems.map(assignedLote => {
                 const loteInfo = allOFs.find(of => of.id === assignedLote.ofId);
@@ -125,18 +139,22 @@ export default function InformePickingPage() {
                 return [
                     loteInfo?.elaboracionNombre || 'Desconocido',
                     recetaNombre,
-                    assignedLote.ofId,
                     `${formatNumber(assignedLote.quantity, 2)} ${formatUnit(loteInfo?.unidad || 'Uds')}`
                 ];
             });
 
             autoTable(doc, {
                 startY: finalY,
-                head: [['Elaboración', 'Receta', 'Lote (OF)', 'Cantidad']],
+                head: [['Elaboración', 'Receta', 'Cant.']],
                 body: tableBody,
                 theme: 'grid',
                 headStyles: { fillColor: [230, 230, 230], textColor: 20 },
-                styles: { fontSize: 9 },
+                styles: { fontSize: 8, cellPadding: 2, overflow: 'truncate' },
+                columnStyles: { 
+                    0: { cellWidth: 'auto' }, 
+                    1: { cellWidth: 'auto' },
+                    2: { cellWidth: 50, halign: 'right' }
+                }
             });
 
             finalY = (doc as any).lastAutoTable.finalY + 10;
