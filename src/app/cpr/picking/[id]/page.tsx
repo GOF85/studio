@@ -146,7 +146,7 @@ const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<s
     return Array.from(elabAlergenos);
 };
 
-export default function PickingDetailPage() {
+function PickingPageContent() {
     const [serviceOrder, setServiceOrder] = useState<ServiceOrder | null>(null);
     const [hitosConNecesidades, setHitosConNecesidades] = useState<ComercialBriefingItem[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: [], itemStates: [] });
@@ -157,6 +157,8 @@ export default function PickingDetailPage() {
     const router = useRouter();
     const params = useParams();
     const osId = params.id as string;
+    const searchParams = useSearchParams();
+    const hitoId = searchParams.get('hitoId');
     const { toast } = useToast();
 
     const savePickingState = useCallback((newState: Partial<PickingState>) => {
@@ -369,66 +371,18 @@ export default function PickingDetailPage() {
         setShowDeleteConfirm(false);
     }
     
-    const handlePrintHito = (hito: ComercialBriefingItem) => {
-        if (!serviceOrder) return;
-        setIsPrinting(true);
-        try {
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-            const margin = 15;
-            let finalY = margin;
-
-            const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
-            const expedicionNumero = `${serviceOrder.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
-
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.text(`Hoja de Carga - Expedición ${expedicionNumero}`, margin, finalY);
-            finalY += 10;
-
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'normal');
-            doc.text(`Servicio: ${hito.descripcion} - ${format(new Date(hito.fecha), 'dd/MM/yyyy')} ${hito.horaInicio}`, margin, finalY);
-            finalY += 15;
-            
-            const body = pickingState.itemStates
-                .filter(item => item.hitoId === hito.id)
-                .map(item => {
-                    const lote = allOFs.find(of => of.id === item.ofId);
-                    return [
-                        lote?.elaboracionNombre || 'Desconocido',
-                        getRecetaForElaboracion(lote?.elaboracionId || '', osId),
-                        `${formatNumber(item.quantity, 2)} ${formatUnit(lote?.unidad || '')}`
-                    ];
-                });
-
-            autoTable(doc, {
-                startY: finalY,
-                head: [['Elaboración', 'Receta', 'Cantidad']],
-                body: body,
-                theme: 'grid',
-            });
-            doc.save(`HojaCarga_${expedicionNumero}.pdf`);
-        } catch (error) {
-            console.error(error);
-            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
-        } finally {
-            setIsPrinting(false);
-        }
-    };
-
     const handlePrintEtiquetas = (hito: ComercialBriefingItem) => {
         if (!serviceOrder) return;
         setIsPrinting(true);
         try {
-            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [100, 150] }); // Formato etiqueta 10x15cm
+            const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: [150, 100] }); // Formato etiqueta 10x15cm
             const containers = pickingState.assignedContainers.filter(c => c.hitoId === hito.id);
             
             containers.forEach((container, containerIndex) => {
                 if (containerIndex > 0) doc.addPage();
                 
                 const margin = 5;
-                const pageWidth = 100;
+                const pageWidth = 150;
                 let finalY = margin + 5;
                 
                 const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
@@ -495,7 +449,7 @@ export default function PickingDetailPage() {
                     styles: { fontSize: 8, cellPadding: 1, overflow: 'linebreak', valign: 'middle' },
                     headStyles: { fillColor: '#374151', textColor: '#FFFFFF', fontSize: 7, fontStyle: 'bold', cellPadding: 1 },
                     columnStyles: { 
-                        0: { cellWidth: 60 }, 
+                        0: { cellWidth: 100 }, 
                         1: { cellWidth: 'auto', halign: 'right' }
                     },
                     didDrawPage: (data) => {
@@ -585,10 +539,6 @@ export default function PickingDetailPage() {
                                     <CardDescription>Fecha: {format(new Date(hito.fecha), 'dd/MM/yyyy')} a las {hito.horaInicio}</CardDescription>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                     <Button onClick={() => handlePrintHito(hito)} disabled={!hasContentToPrint} variant="outline">
-                                        <Printer className="mr-2" />
-                                        Hoja de Carga
-                                    </Button>
                                     <Button onClick={() => handlePrintEtiquetas(hito)} disabled={!hasContentToPrint || isPrinting} variant="outline">
                                         {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Tags className="mr-2" />}
                                         Imprimir Etiquetas
@@ -704,4 +654,14 @@ export default function PickingDetailPage() {
     );
 }
 
+export default function PickingDetailPageWrapper() {
+  return (
+    <Suspense fallback={<LoadingSkeleton title="Cargando picking..." />}>
+      <PickingPageContent />
+    </Suspense>
+  )
+}
+
     
+
+```
