@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Package, ListChecks, AlertTriangle, PlusCircle, Camera, Upload, Trash2, GripVertical, FileText, Printer, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Package, ListChecks, AlertTriangle, PlusCircle, Camera, Upload, Trash2, GripVertical, FileText, Printer, CheckCircle, FilePenLine } from 'lucide-react';
 import { format } from 'date-fns';
 import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio, ComercialBriefingItem, ContenedorDinamico, Alergeno, IngredienteInterno, ArticuloERP } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -15,12 +16,12 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription as AlertDialogDesc,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -146,9 +147,8 @@ function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pick
     const [isOpen, setIsOpen] = useState(false);
 
     const generateLabel = (orientation: 'p' | 'l') => {
-        const isLandscape = orientation === 'l';
-        const width = isLandscape ? 110 : 90;
-        const height = isLandscape ? 90 : 110;
+        const width = orientation === 'p' ? 90 : 110;
+        const height = orientation === 'p' ? 110 : 90;
         
         const doc = new jsPDF({ orientation, unit: 'mm', format: [width, height] });
         const containers = pickingState.assignedContainers.filter(c => c.hitoId === hito.id);
@@ -159,48 +159,65 @@ function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pick
             const margin = 5;
             let finalY = margin + 5;
             
-            const hitoIndex = serviceOrder.deliveryLocations?.indexOf(hito.sala || '') ?? 0;
+            const hitoIndex = (serviceOrder.deliveryLocations || []).indexOf(hito.sala || '') ?? 0;
             const expedicionNumero = `${serviceOrder.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
             const containerInfo = expeditionTypeMap[container.tipo];
-            
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#1f2937');
-            doc.text(containerInfo.title, margin, finalY);
 
-            doc.setFontSize(28);
-            doc.setFont('helvetica', 'bold');
-            doc.text(`${expedicionNumero}-${container.numero}`, width - margin, finalY, { align: 'right' });
-            finalY += 10;
-            
-            doc.setLineWidth(0.3);
-            doc.setDrawColor('#cbd5e1');
-            doc.line(margin, finalY, width - margin, finalY);
-            finalY += 8;
-            
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            let clientText = `${serviceOrder.space}${hito.sala ? ` (${hito.sala})` : ''}`;
+            if (orientation === 'p') {
+                doc.setFontSize(22);
+                doc.setFont('helvetica', 'bold');
+                doc.text(expedicionNumero, width / 2, finalY, { align: 'center' });
+                finalY += 8;
 
-            const clientLines = doc.splitTextToSize(clientText, width - margin * 2 - 15);
-            doc.text(clientLines, margin, finalY);
-            finalY += (clientLines.length * 4) + 1;
-            
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor('#6b7280');
-            const serviceLines = doc.splitTextToSize(hito.descripcion, width - margin * 2 - 15);
-            doc.text(serviceLines, margin, finalY);
-            finalY += (serviceLines.length * 4) + 4;
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`${containerInfo.title} #${container.numero}`, width / 2, finalY, { align: 'center' });
+                finalY += 8;
+
+                doc.setLineWidth(0.3);
+                doc.setDrawColor('#cbd5e1');
+                doc.line(margin, finalY, width - margin, finalY);
+                finalY += 6;
+
+                doc.setFontSize(9);
+                doc.text(`Espacio: ${serviceOrder.space || '-'}`, margin, finalY);
+                doc.text(`Servicio: ${hito.descripcion}`, width - margin, finalY, { align: 'right' });
+                finalY += 5;
+                
+                doc.text(`Fecha: ${format(new Date(hito.fecha), 'dd/MM/yy')} Hora: ${hito.horaInicio}`, margin, finalY);
+                if (hito.sala) {
+                    doc.text(`Sala: ${hito.sala}`, width - margin, finalY, { align: 'right' });
+                }
+                finalY += 6;
+
+            } else { // landscape
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.text(containerInfo.title, margin, finalY);
+
+                doc.setFontSize(28);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${expedicionNumero}-${container.numero}`, width - margin, finalY, { align: 'right' });
+                finalY += 10;
+                 doc.setLineWidth(0.3);
+                doc.setDrawColor('#cbd5e1');
+                doc.line(margin, finalY, width - margin, finalY);
+                finalY += 8;
+                 doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                let clientText = `Espacio: ${serviceOrder.space || '-'}${hito.sala ? ` (${hito.sala})` : ''}`;
+                doc.text(clientText, margin, finalY);
+                doc.text(`Servicio: ${hito.descripcion}`, width - margin, finalY, { align: 'right' });
+                finalY += 5;
+                doc.text(`Fecha: ${format(new Date(hito.fecha), 'dd/MM/yy')} Hora: ${hito.horaInicio}`, margin, finalY);
+
+                finalY += 5;
+            }
             
             doc.setLineWidth(0.3);
             doc.setDrawColor('#cbd5e1');
             doc.line(margin, finalY, width - margin, finalY);
             finalY += 5;
-            
-            doc.setFontSize(8);
-            doc.text(`Fecha: ${format(new Date(hito.fecha), 'dd/MM/yy')}   Hora: ${hito.horaInicio}`, margin, finalY);
-            finalY += 8;
 
             const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
             const tableBody = containerItems.map(item => {
@@ -243,11 +260,11 @@ function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pick
                 <div className="flex justify-center gap-8 py-8">
                     <Button onClick={() => generateLabel('p')} variant="outline" className="h-28 w-20 flex-col gap-2">
                         <FileText />
-                        Vertical
+                        Vertical (9x11)
                     </Button>
                     <Button onClick={() => generateLabel('l')} variant="outline" className="h-20 w-28 flex-col gap-2">
                         <FileText className="transform rotate-90" />
-                        Horizontal
+                        Horizontal (11x9)
                     </Button>
                 </div>
             </DialogContent>
@@ -641,9 +658,9 @@ function PickingPageContent() {
                     <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Reiniciar el picking?</AlertDialogTitle>
-                        <AlertDialogDesc>
+                        <AlertDialogDescription>
                         Esta acción desasignará todos los lotes de sus contenedores y vaciará la lista de contenedores asignados a este evento. Es útil si necesitas empezar la organización logística desde cero.
-                        </AlertDialogDesc>
+                        </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -668,5 +685,4 @@ export default function PickingDetailPageWrapper() {
     </Suspense>
   )
 }
-
     
