@@ -149,7 +149,7 @@ export default function PickingDetailPage() {
     const [hitosConNecesidades, setHitosConNecesidades] = useState<ComercialBriefingItem[]>([]);
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: [], itemStates: [] });
     const [isMounted, setIsMounted] = useState(false);
-    const [isPrinting, setIsPrinting] = useState(isPrinting);
+    const [isPrinting, setIsPrinting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     
     const router = useRouter();
