@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -151,7 +152,7 @@ export default function PickingDetailPage() {
     const [pickingState, setPickingState] = useState<PickingState>({ osId: '', status: 'Pendiente', assignedContainers: [], itemStates: [] });
     const [isMounted, setIsMounted] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [isPrinting, setIsPrinting] = useState(isPrinting);
+    const [isPrinting, setIsPrinting] = useState(false);
     
     const router = useRouter();
     const params = useParams();
@@ -368,59 +369,59 @@ export default function PickingDetailPage() {
         setShowDeleteConfirm(false);
     }
     
-    const handlePrintHito = (hito: ComercialBriefingItem) => {
-      if (!serviceOrder) return;
-      setIsPrinting(true);
-      try {
-        const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-        const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
-        const margin = 40;
-        let finalY = margin;
+     const handlePrintHito = (hito: ComercialBriefingItem) => {
+        if (!serviceOrder) return;
+        setIsPrinting(true);
+        try {
+            const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+            const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+            const margin = 40;
+            let finalY = margin;
 
-        const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
-        const expedicionNumero = `${serviceOrder.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
+            const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
+            const expedicionNumero = `${serviceOrder.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
 
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`Hoja de Carga - Expedición ${expedicionNumero}`, margin, finalY);
-        finalY += 20;
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Hoja de Carga - Expedición ${expedicionNumero}`, margin, finalY);
+            finalY += 20;
 
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Servicio: ${hito.descripcion} - ${format(new Date(hito.fecha), 'dd/MM/yyyy')} ${hito.horaInicio}`, margin, finalY);
-        finalY += 20;
-        
-        const body = pickingState.itemStates
-            .filter(item => item.hitoId === hito.id)
-            .map(item => {
-                const lote = allOFs.find(of => of.id === item.ofId);
-                return [
-                    lote?.elaboracionNombre || 'Desconocido',
-                    getRecetaForElaboracion(lote?.elaboracionId || '', osId),
-                    `${formatNumber(item.quantity, 2)} ${formatUnit(lote?.unidad || '')}`
-                ];
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Servicio: ${hito.descripcion} - ${format(new Date(hito.fecha), 'dd/MM/yyyy')} ${hito.horaInicio}`, margin, finalY);
+            finalY += 20;
+            
+            const body = pickingState.itemStates
+                .filter(item => item.hitoId === hito.id)
+                .map(item => {
+                    const lote = allOFs.find(of => of.id === item.ofId);
+                    return [
+                        lote?.elaboracionNombre || 'Desconocido',
+                        getRecetaForElaboracion(lote?.elaboracionId || '', osId),
+                        `${formatNumber(item.quantity, 2)} ${formatUnit(lote?.unidad || '')}`
+                    ];
+                });
+
+            autoTable(doc, {
+                startY: finalY,
+                head: [['Elaboración', 'Receta', 'Cantidad']],
+                body: body,
+                theme: 'grid',
             });
-
-        autoTable(doc, {
-            startY: finalY,
-            head: [['Elaboración', 'Receta', 'Cantidad']],
-            body: body,
-            theme: 'grid',
-        });
-        doc.save(`HojaCarga_${expedicionNumero}.pdf`);
-      } catch (error) {
-        console.error(error);
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
-      } finally {
-        setIsPrinting(false);
-      }
+            doc.save(`HojaCarga_${expedicionNumero}.pdf`);
+        } catch (error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF.' });
+        } finally {
+            setIsPrinting(false);
+        }
     };
 
     const handlePrintEtiquetas = (hito: ComercialBriefingItem) => {
         if (!serviceOrder) return;
         setIsPrinting(true);
         try {
-            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [100, 150] }); // Standard label size
+            const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [100, 150] });
             const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
             const containers = pickingState.assignedContainers.filter(c => c.hitoId === hito.id);
             const margin = 5;
@@ -433,16 +434,16 @@ export default function PickingDetailPage() {
                 let finalY = margin + 5;
                 const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
                 const expedicionNumero = `${serviceOrder.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
-                const fullExpId = `MICE-${expedicionNumero}-${container.numero}`;
-
-                // --- HEADER ---
+                
+                // Cabecera
+                const containerInfo = expeditionTypeMap[container.tipo];
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'normal');
-                doc.text(expeditionTypeMap[container.tipo].title, margin, finalY, { align: 'left' });
+                doc.text(containerInfo.title, margin, finalY);
                 
                 doc.setFontSize(22);
                 doc.setFont('helvetica', 'bold');
-                doc.text(fullExpId, pageWidth - margin, finalY, { align: 'right' });
+                doc.text(`${expedicionNumero}-${container.numero}`, pageWidth - margin, finalY, { align: 'right' });
                 finalY += 10;
                 
                 doc.setLineWidth(0.3);
@@ -450,7 +451,7 @@ export default function PickingDetailPage() {
                 doc.line(margin, finalY, pageWidth - margin, finalY);
                 finalY += 8;
                 
-                // --- PARA (TO) ---
+                // Info Cliente
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
                 doc.text('PARA:', margin, finalY);
@@ -465,23 +466,24 @@ export default function PickingDetailPage() {
                 doc.line(margin, finalY, pageWidth - margin, finalY);
                 finalY += 5;
                 
-                // --- FOOTER INFO ---
+                // Info Servicio
                 const deliveryInfo = `Fecha: ${format(new Date(hito.fecha), 'dd/MM/yy')}   Hora: ${hito.horaInicio}`;
                 doc.setFontSize(8);
                 doc.text(deliveryInfo, margin, finalY);
                 doc.text(`OS: ${serviceOrder.serviceNumber}`, pageWidth - margin, finalY, { align: 'right' });
                 finalY += 8;
-
+    
+                // Tabla Contenido
                 const containerItems = pickingState.itemStates.filter(item => item.containerId === container.id);
                 const tableBody = containerItems.map(item => {
-                    const loteInfo = allOFs.find(of => of.id === item.ofId);
-                    const receta = getRecetaForElaboracion(loteInfo?.elaboracionId || '', osId);
-                    const nombre = `${loteInfo?.elaboracionNombre || 'N/A'}${receta !== 'Directa' ? ` (${receta})` : ''}`;
+                    const loteInfo = lotesNecesarios.find(l => l.id === item.ofId);
+                    const recetaNombre = getRecetaForElaboracion(loteInfo?.elaboracionId || '', osId);
+                    const nombre = `${loteInfo?.elaboracionNombre || 'N/A'}${recetaNombre !== 'Directa' ? ` (${recetaNombre})` : ''}`;
                     const cantidad = `${formatNumber(item.quantity, 2)} ${formatUnit(loteInfo?.unidad || 'Uds')}`;
                     return [nombre, cantidad];
                 });
     
-                 autoTable(doc, {
+                autoTable(doc, {
                     startY: finalY,
                     head: [['PRODUCTO', 'CANTIDAD']],
                     body: tableBody,
@@ -496,10 +498,10 @@ export default function PickingDetailPage() {
                 finalY = (doc as any).lastAutoTable.finalY + 10;
             });
     
-             doc.save(`Etiquetas_${serviceOrder.serviceNumber}_${hito.descripcion.replace(/\s+/g, '_')}.pdf`);
+            doc.save(`Etiquetas_${serviceOrder.serviceNumber}_${hito.descripcion.replace(/\s+/g, '_')}.pdf`);
     
         } catch (error) {
-             console.error("Error al generar etiquetas:", error);
+            console.error("Error al generar etiquetas:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el PDF de etiquetas.' });
         } finally {
             setIsPrinting(false);
