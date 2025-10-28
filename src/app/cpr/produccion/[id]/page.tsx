@@ -62,6 +62,18 @@ export default function ProduccionDetallePage() {
             const erpMap = new Map(storedErp.map(i => [i.idreferenciaerp, i]));
             const combinedIngredientes = storedInternos.map(ing => ({ ...ing, erp: erpMap.get(ing.productoERPlinkId) }));
             setIngredientesData(new Map(combinedIngredientes.map(i => [i.id, i])));
+
+            // Load saved consumosReales
+            if(currentOF.consumosReales) {
+                setConsumosReales(currentOF.consumosReales);
+            } else if (currentElab) {
+                 // Initialize with theoretical values if not present
+                const initialConsumos = currentElab.componentes.map(comp => ({
+                    componenteId: comp.id,
+                    cantidadReal: comp.cantidad * (currentOF.cantidadTotal / currentElab.produccionTotal),
+                }));
+                setConsumosReales(initialConsumos);
+            }
         }
         setIsMounted(true);
     }, [id]);
@@ -109,7 +121,7 @@ export default function ProduccionDetallePage() {
                 }
                 updatedOF.fechaFinalizacion = new Date().toISOString();
                 updatedOF.cantidadReal = finalQuantity;
-                // updatedOF.consumosReales = consumosReales; // Future implementation
+                updatedOF.consumosReales = consumosReales;
                 setShowFinalizeDialog(false);
                 router.push('/cpr/produccion');
             }
@@ -138,13 +150,17 @@ export default function ProduccionDetallePage() {
 
     const handleConsumoChange = (componenteId: string, cantidad: number) => {
         setConsumosReales(prev => {
-            const existingIndex = prev.findIndex(c => c.componenteId === componenteId);
-            if (existingIndex > -1) {
-                const newConsumos = [...prev];
-                newConsumos[existingIndex] = { ...newConsumos[existingIndex], cantidadReal: cantidad };
-                return newConsumos;
+            const newConsumos = prev.map(c => 
+                c.componenteId === componenteId ? { ...c, cantidadReal: cantidad } : c
+            );
+            // Auto-save to localStorage
+            const allOFs = JSON.parse(localStorage.getItem('ordenesFabricacion') || '[]') as OrdenFabricacion[];
+            const index = allOFs.findIndex(of => of.id === id);
+            if (index > -1) {
+                allOFs[index].consumosReales = newConsumos;
+                localStorage.setItem('ordenesFabricacion', JSON.stringify(allOFs));
             }
-            return [...prev, { componenteId, cantidadReal: cantidad }];
+            return newConsumos;
         });
     }
 
@@ -205,7 +221,8 @@ export default function ProduccionDetallePage() {
                                                               step="0.01" 
                                                               placeholder={ceilToTwoDecimals(cantNecesaria)}
                                                               className="h-8 text-right"
-                                                              onChange={(e) => handleConsumoChange(comp.id, parseFloat(e.target.value) || 0)}
+                                                              defaultValue={consumo?.cantidadReal}
+                                                              onBlur={(e) => handleConsumoChange(comp.id, parseFloat(e.target.value) || 0)}
                                                             />
                                                         </TableCell>
                                                     </TableRow>
@@ -367,3 +384,4 @@ export default function ProduccionDetallePage() {
         </div>
     );
 }
+
