@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Package, ArrowLeft, Thermometer, Box, Snowflake, PlusCircle, Printer, Loader2, Trash2, Check, Utensils, Building, Phone, Sprout, AlertTriangle, FileText, Tags, Menu } from 'lucide-react';
+import { Package, ArrowLeft, Thermometer, Box, Snowflake, PlusCircle, Printer, Loader2, Trash2, Check, Utensils, Building, Phone, Sprout, AlertTriangle, FileText, Tags, Menu, FilePenLine } from 'lucide-react';
 import { format } from 'date-fns';
 import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio, ComercialBriefingItem, ContenedorDinamico, Alergeno, IngredienteInterno, ArticuloERP } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -368,6 +369,7 @@ export default function PickingDetailPage() {
     }
     
     const handlePrintHito = (hito: ComercialBriefingItem) => {
+      if (!serviceOrder) return;
       setIsPrinting(true);
       try {
         const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
@@ -376,7 +378,7 @@ export default function PickingDetailPage() {
         let finalY = margin;
 
         const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
-        const expedicionNumero = `${serviceOrder?.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
+        const expedicionNumero = `${serviceOrder.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
 
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
@@ -386,7 +388,7 @@ export default function PickingDetailPage() {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.text(`Servicio: ${hito.descripcion} - ${format(new Date(hito.fecha), 'dd/MM/yyyy')} ${hito.horaInicio}`, margin, finalY);
-        finalY += 15;
+        finalY += 20;
         
         const body = pickingState.itemStates
             .filter(item => item.hitoId === hito.id)
@@ -431,7 +433,7 @@ export default function PickingDetailPage() {
     
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'normal');
-                doc.text('DE: MICE CATERING CPR', margin, finalY);
+                doc.text('DE: MICE', margin, finalY);
                 
                 const hitoIndex = hitosConNecesidades.findIndex(h => h.id === hito.id);
                 const expedicionNumero = `${serviceOrder.serviceNumber}.${(hitoIndex + 1).toString().padStart(2, '0')}`;
@@ -692,3 +694,4 @@ export default function PickingDetailPage() {
         </TooltipProvider>
     );
 }
+
