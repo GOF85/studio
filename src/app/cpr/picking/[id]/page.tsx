@@ -2,13 +2,13 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Package, ArrowLeft, Thermometer, Box, Snowflake, PlusCircle, Printer, Loader2, Trash2, Check, Utensils, Building, Phone, Sprout, AlertTriangle, FileText, Tags, Menu, FilePenLine } from 'lucide-react';
+import { ArrowLeft, Package, ListChecks, AlertTriangle, PlusCircle, Camera, Upload, Trash2, GripVertical, FileText, Printer, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import type { ServiceOrder, OrdenFabricacion, ContenedorIsotermo, PickingState, LoteAsignado, Elaboracion, ComercialBriefing, GastronomyOrder, Receta, PickingStatus, Espacio, ComercialBriefingItem, ContenedorDinamico, Alergeno, IngredienteInterno, ArticuloERP } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
@@ -21,7 +21,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -31,13 +32,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatNumber, formatUnit } from '@/lib/utils';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { ChevronsUpDown } from 'lucide-react';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { AllergenBadge } from '@/components/icons/allergen-badge';
 import { Separator } from '@/components/ui/separator';
-
 
 type LotePendiente = {
     ofId: string;
@@ -52,9 +48,9 @@ type LotePendiente = {
 };
 
 const expeditionTypeMap = {
-    REFRIGERADO: { title: "Refrigerado", icon: Thermometer, className: "bg-blue-100 border-blue-200" },
-    CONGELADO: { title: "Congelado", icon: Snowflake, className: "bg-sky-100 border-sky-200" },
-    SECO: { title: "Seco", icon: Box, className: "bg-yellow-100 border-yellow-200" },
+    REFRIGERADO: { title: "Refrigerado", icon: Package, className: "bg-blue-100 border-blue-200" },
+    CONGELADO: { title: "Congelado", icon: Package, className: "bg-sky-100 border-sky-200" },
+    SECO: { title: "Seco", icon: Package, className: "bg-yellow-100 border-yellow-200" },
 };
 
 export const statusOptions: PickingStatus[] = ['Pendiente', 'Preparado'];
@@ -146,6 +142,7 @@ const calculateElabAlergenos = (elaboracion: Elaboracion, ingredientesMap: Map<s
     return Array.from(elabAlergenos);
 };
 
+
 function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pickingState }: { hito: ComercialBriefingItem, serviceOrder: ServiceOrder, allOFs: OrdenFabricacion[], getRecetaForElaboracion: (elabId: string, osId: string) => string, pickingState: PickingState }) {
     const [isOpen, setIsOpen] = useState(false);
 
@@ -170,7 +167,7 @@ function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pick
             doc.setFontSize(14);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor('#1f2937');
-            doc.text(containerInfo.title, margin, finalY);
+            doc.text(containerInfo.title.replace('Carambuco ', ''), margin, finalY);
 
             doc.setFontSize(28);
             doc.setFont('helvetica', 'bold');
@@ -184,8 +181,7 @@ function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pick
             
             doc.setFontSize(10);
             doc.setFont('helvetica', 'bold');
-            let clientText = `${serviceOrder.client}${serviceOrder.finalClient ? ` / ${serviceOrder.finalClient}` : ''}`;
-            if(hito.sala) clientText += ` (${hito.sala})`
+            let clientText = `${serviceOrder.space}${hito.sala ? ` (${hito.sala})` : ''}`;
 
             const clientLines = doc.splitTextToSize(clientText, width - margin * 2 - 15);
             doc.text(clientLines, margin, finalY);
@@ -223,7 +219,10 @@ function PrintDialog({ hito, serviceOrder, allOFs, getRecetaForElaboracion, pick
                 theme: 'grid',
                 headStyles: { fillColor: '#374151', textColor: '#FFFFFF', fontSize: 7, fontStyle: 'bold', cellPadding: 1 },
                 styles: { fontSize: 8, cellPadding: 2, overflow: 'hidden', valign: 'middle' },
-                columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 30, halign: 'right' } },
+                columnStyles: { 
+                    0: { cellWidth: 'auto' }, 
+                    1: { cellWidth: 30, halign: 'right' }
+                },
             });
         });
 
@@ -271,21 +270,6 @@ function PickingPageContent() {
     const hitoId = searchParams.get('hitoId');
     const { toast } = useToast();
 
-    const savePickingState = useCallback((newState: Partial<PickingState>) => {
-        if (!osId) return;
-        const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
-        const currentState = allPickingStates[osId] || { osId, status: 'Pendiente', assignedContainers: [], itemStates: [] };
-        const updatedState = { ...currentState, ...newState };
-        allPickingStates[osId] = updatedState;
-        localStorage.setItem('pickingStates', JSON.stringify(allPickingStates));
-        setPickingState(updatedState);
-    }, [osId]);
-
-    const handleStatusChange = (newStatus: PickingStatus) => {
-        savePickingState({ status: newStatus });
-        toast({title: "Estado Actualizado", description: `El estado del picking es ahora: ${newStatus}`});
-    }
-    
     const getRecetaForElaboracion = useCallback((elaboracionId: string, osId: string): string => {
         const gastroOrders = (JSON.parse(localStorage.getItem('gastronomyOrders') || '[]') as GastronomyOrder[]).filter(o => o.osId === osId);
         const recetas = JSON.parse(localStorage.getItem('recetas') || '[]') as Receta[];
@@ -301,6 +285,21 @@ function PickingPageContent() {
         }
         return 'Directa';
     }, []);
+
+    const savePickingState = useCallback((newState: Partial<PickingState>) => {
+        if (!osId) return;
+        const allPickingStates = JSON.parse(localStorage.getItem('pickingStates') || '{}') as {[key: string]: PickingState};
+        const currentState = allPickingStates[osId] || { osId, status: 'Pendiente', assignedContainers: [], itemStates: [] };
+        const updatedState = { ...currentState, ...newState };
+        allPickingStates[osId] = updatedState;
+        localStorage.setItem('pickingStates', JSON.stringify(allPickingStates));
+        setPickingState(updatedState);
+    }, [osId]);
+
+    const handleStatusChange = (newStatus: PickingStatus) => {
+        savePickingState({ status: newStatus });
+        toast({title: "Estado Actualizado", description: `El estado del picking es ahora: ${newStatus}`});
+    }
 
     const lotesNecesarios = useMemo(() => {
         if (!isMounted) return [];
@@ -494,7 +493,7 @@ function PickingPageContent() {
                         <Separator orientation="vertical" className="h-6"/>
                         <p>{serviceOrder.client}</p>
                         <Separator orientation="vertical" className="h-6"/>
-                        <p className="flex items-center gap-2 text-muted-foreground"><Building className="h-4 w-4"/> {serviceOrder.space}</p>
+                        <p className="flex items-center gap-2 text-muted-foreground"><Package className="h-4 w-4"/> {serviceOrder.space}</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <Select onValueChange={(value: PickingStatus) => handleStatusChange(value)} value={pickingState.status}>
@@ -547,7 +546,7 @@ function PickingPageContent() {
                             <Card key={hito.id} className="print-section">
                                 <CardHeader className="flex-row items-center justify-between">
                                 <div>
-                                    <CardTitle className="flex items-center gap-3"><Utensils />Necesidades para: {hito.descripcion}</CardTitle>
+                                    <CardTitle className="flex items-center gap-3"><Package />Necesidades para: {hito.descripcion}</CardTitle>
                                     <CardDescription>Fecha: {format(new Date(hito.fecha), 'dd/MM/yyyy')} a las {hito.horaInicio}</CardDescription>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -670,5 +669,3 @@ export default function PickingDetailPageWrapper() {
     </Suspense>
   )
 }
-    
-```
