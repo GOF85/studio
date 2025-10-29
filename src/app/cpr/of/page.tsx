@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Factory, Search, PlusCircle, Trash2, Calendar as CalendarIcon, ChefHat } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -248,11 +249,12 @@ export default function OfPage() {
             } catch(e) { return false; }
         });
         
-        // La cantidad planificada es lo que las OFs dicen que van a producir o lo que ya han producido
-        const cantidadYaPlanificada = ofsExistentes.reduce((sum:number, of:OrdenFabricacion) => sum + (of.cantidadReal ?? of.cantidadTotal), 0);
+        const cantidadYaPlanificada = ofsExistentes.reduce((sum: number, of: OrdenFabricacion) => {
+            const cantidad = of.cantidadReal ?? of.cantidadTotal; // Prioritize real produced quantity
+            return sum + (cantidad || 0);
+        }, 0);
         
         const stockTotalBruto = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
-        // El stock disponible REAL es el total menos todo lo que ya está "prometido" en algún picking
         const stockDisponibleReal = stockTotalBruto - (stockAsignadoGlobal[necesidad.id] || 0);
         
         const cantidadNeta = necesidad.cantidadNecesariaTotal - (cantidadYaPlanificada + stockDisponibleReal);
@@ -289,11 +291,17 @@ export default function OfPage() {
         if (dateRange?.from && item.fechaProduccionPrevista) {
             try {
                 const itemDate = parseISO(item.fechaProduccionPrevista);
-                if (dateRange.to) {
-                    dateMatch = isWithinInterval(itemDate, { start: startOfDay(dateRange.from), end: endOfDay(dateRange.to) });
-                } else {
-                    dateMatch = isSameDay(itemDate, dateRange.from);
+                const from = startOfDay(dateRange.from);
+                const to = endOfDay(dateRange.to || dateRange.from);
+
+                if (item.estado === 'Pendiente' || item.estado === 'Asignada') {
+                    // Include if its planned date is in range
+                    return isWithinInterval(itemDate, { start: from, end: to });
                 }
+                
+                const finalizationDate = item.fechaFinalizacion ? parseISO(item.fechaFinalizacion) : null;
+                return finalizationDate && isWithinInterval(finalizationDate, { start: from, end: to });
+
             } catch(e) {
                 dateMatch = false;
             }
@@ -399,11 +407,12 @@ export default function OfPage() {
   }
 
   return (
-    <TooltipProvider>
+    <>
       <Tabs defaultValue="planificacion">
-        <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="planificacion">Planificación y Creación</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="planificacion">Planificación</TabsTrigger>
             <TabsTrigger value="creadas">OF Creadas</TabsTrigger>
+            <TabsTrigger value="asignacion">Asignación de Órdenes</TabsTrigger>
         </TabsList>
         <div className="flex flex-col md:flex-row gap-4 my-4">
             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
@@ -429,6 +438,7 @@ export default function OfPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="border rounded-lg">
+                        <TooltipProvider>
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -445,28 +455,30 @@ export default function OfPage() {
                             </TableHeader>
                             <TableBody>
                                 {necesidades.length > 0 ? necesidades.map(item => (
-                                <Tooltip key={item.id}>
-                                    <TooltipTrigger asChild>
-                                        <TableRow>
-                                            <TableCell><Checkbox checked={selectedNecesidades.has(item.id)} onCheckedChange={(checked) => handleSelectNecesidad(item.id, !!checked)}/></TableCell>
-                                            <TableCell><span className="font-semibold cursor-help">{item.nombre}</span></TableCell>
-                                            <TableCell><Badge variant="secondary">{item.partida}</Badge></TableCell>
-                                            <TableCell className="text-right font-mono font-bold">{formatNumber(item.cantidadNeta, 2)} {formatUnit(item.unidad)}</TableCell>
-                                            <TableCell className="text-right font-mono">{formatNumber(item.stockDisponible || 0, 2)} {formatUnit(item.unidad)}</TableCell>
-                                            <TableCell className="text-right font-mono">{formatNumber(item.cantidadPlanificada || 0, 2)} {formatUnit(item.unidad)}</TableCell>
-                                        </TableRow>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="p-2 max-w-md">
-                                        <div className="space-y-1">
-                                            <p className="font-bold mb-1">Recetas que requieren esta elaboración:</p>
-                                            {item.desgloseCompleto.map((d, i) => (
-                                                <p key={i} className="text-xs">
-                                                    {format(new Date(d.fecha), 'dd/MM')}: {d.cantidadReceta} x "{d.recetaNombre}" &rarr; {formatNumber(d.cantidadElaboracion, 2)} {formatUnit(item.unidad)}
-                                                </p>
-                                            ))}
-                                        </div>
-                                    </TooltipContent>
-                                </Tooltip>
+                                <TableRow key={item.id}>
+                                    <TableCell><Checkbox checked={selectedNecesidades.has(item.id)} onCheckedChange={(checked) => handleSelectNecesidad(item.id, !!checked)}/></TableCell>
+                                    <TableCell>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <span className="font-semibold cursor-help">{item.nombre}</span>
+                                            </TooltipTrigger>
+                                            <TooltipContent className="p-2 max-w-md">
+                                                <div className="space-y-1">
+                                                    <p className="font-bold mb-1">Recetas que requieren esta elaboración:</p>
+                                                    {item.desgloseCompleto.map((d, i) => (
+                                                        <p key={i} className="text-xs">
+                                                            {format(new Date(d.fecha), 'dd/MM')}: {d.cantidadReceta} x "{d.recetaNombre}" &rarr; {formatNumber(d.cantidadElaboracion, 2)} {formatUnit(item.unidad)}
+                                                        </p>
+                                                    ))}
+                                                </div>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TableCell>
+                                    <TableCell><Badge variant="secondary">{item.partida}</Badge></TableCell>
+                                    <TableCell className="text-right font-mono font-bold">{formatNumber(item.cantidadNeta, 2)} {formatUnit(item.unidad)}</TableCell>
+                                    <TableCell className="text-right font-mono">{formatNumber(item.stockDisponible || 0, 2)} {formatUnit(item.unidad)}</TableCell>
+                                    <TableCell className="text-right font-mono">{formatNumber(item.cantidadPlanificada || 0, 2)} {formatUnit(item.unidad)}</TableCell>
+                                </TableRow>
                                 )) : (
                                     <TableRow>
                                         <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
@@ -476,6 +488,7 @@ export default function OfPage() {
                                 )}
                             </TableBody>
                         </Table>
+                        </TooltipProvider>
                     </div>
                 </CardContent>
             </Card>
@@ -653,6 +666,6 @@ export default function OfPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </TooltipProvider>
+    </>
   );
 }
