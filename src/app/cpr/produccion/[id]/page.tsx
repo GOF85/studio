@@ -8,7 +8,7 @@ import { ArrowLeft, Play, CheckCircle, Info, ChefHat, Package, Timer, Camera } f
 import Image from 'next/image';
 import type { OrdenFabricacion, Elaboracion, ComponenteElaboracion, IngredienteInterno, ArticuloERP } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { LoadingSkeleton } from '@/components/layout/loading-skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { format, formatDistanceToNowStrict } from 'date-fns';
@@ -83,7 +83,7 @@ export default function ProduccionDetallePage() {
         if (orden?.estado === 'En Proceso' && orden.fechaInicioProduccion) {
             const updateElapsedTime = () => {
                 const startTime = new Date(orden.fechaInicioProduccion!);
-                setElapsedTime(formatDistanceToNowStrict(startTime, { locale: es, addSuffix: false }));
+                setElapsedTime(formatDistanceToNowStrict(startTime, { locale: es }));
             }
             updateElapsedTime();
             timer = setInterval(updateElapsedTime, 1000);
@@ -384,4 +384,3 @@ export default function ProduccionDetallePage() {
         </div>
     );
 }
-

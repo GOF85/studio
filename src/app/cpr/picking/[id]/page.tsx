@@ -694,3 +694,4 @@ function PickingDetailPageWrapper() {
 }
 
 export default PickingDetailPageWrapper;
+
