@@ -1,10 +1,10 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { Factory, Search, PlusCircle, Trash2, Calendar as CalendarIcon, ChefHat, Info, RefreshCw } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { PlusCircle, Factory, Search, RefreshCw, Info, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle, AlertTriangle, Layers } from 'lucide-react';
 import type { OrdenFabricacion, PartidaProduccion, ServiceOrder, ComercialBriefing, ComercialBriefingItem, GastronomyOrder, Receta, Elaboracion, ExcedenteProduccion, StockElaboracion, Personal, PickingState } from '@/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,10 +37,8 @@ import {
 } from '@/components/ui/select';
 import { format, parseISO, startOfDay, endOfDay, isWithinInterval, addDays, isSameDay, eachDayOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
-import Link from 'next/link';
 import { formatNumber, formatUnit, formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -123,6 +121,14 @@ const partidaColorClasses: Record<PartidaProduccion, string> = {
     PASTELERIA: 'bg-blue-100/50 hover:bg-blue-100/80',
     EXPEDICION: 'bg-yellow-100/50 hover:bg-yellow-100/80'
 };
+
+const partidaColorCircles: Record<PartidaProduccion, string> = {
+    FRIO: 'bg-green-500',
+    CALIENTE: 'bg-red-500',
+    PASTELERIA: 'bg-blue-500',
+    EXPEDICION: 'bg-yellow-500'
+};
+
 
 const partidas: PartidaProduccion[] = ['FRIO', 'CALIENTE', 'PASTELERIA', 'EXPEDICION'];
 const statusOptions = Object.keys(statusVariant) as OrdenFabricacion['estado'][];
@@ -293,17 +299,21 @@ export default function OfPage() {
             } catch(e) { return false; }
         });
         
-        const cantidadPlanificada = ofsExistentes.reduce((sum, of) => sum + (of.cantidadReal ?? of.cantidadTotal), 0);
+        const cantidadPlanificada = ofsExistentes.reduce((sum, of) => {
+          const isFinalizado = of.estado === 'Finalizado' || of.estado === 'Validado';
+          return sum + (isFinalizado && of.cantidadReal ? of.cantidadReal : of.cantidadTotal)
+        }, 0);
         
         const stockTotalBruto = stockElaboraciones[necesidad.id]?.cantidadTotal || 0;
-        const stockDisponibleReal = Math.max(0, stockTotalBruto - (stockAsignadoGlobal[necesidad.id] || 0));
+        const stockAsignado = stockAsignadoGlobal[necesidad.id] || 0;
+        const stockDisponible = Math.max(0, stockTotalBruto - stockAsignado);
         
-        const stockAUtilizar = Math.min(necesidad.cantidadNecesariaTotal, stockDisponibleReal);
+        const stockAUtilizar = Math.min(necesidad.cantidadNecesariaTotal, stockDisponible);
         const cantidadNeta = necesidad.cantidadNecesariaTotal - stockAUtilizar - cantidadPlanificada;
 
         return {
           ...necesidad,
-          stockDisponible: stockAUtilizar > 0 ? stockAUtilizar : 0,
+          stockDisponible: stockAUtilizar,
           cantidadPlanificada,
           cantidadNeta,
           desgloseDiario: necesidad.desgloseDiario.sort((a,b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
@@ -386,7 +396,7 @@ export default function OfPage() {
             ...resumen,
             contratos: resumen.contratos.size,
             referencias: recetasInforme.size + elaboracionesInforme.size,
-            unidades: 0,
+            unidades: 0, // This needs to be calculated properly if needed
         };
 
         setReporteData({
@@ -710,11 +720,6 @@ export default function OfPage() {
                                     <TableCell>
                                     <Badge variant={statusVariant[of.estado]}>{of.estado}</Badge>
                                     </TableCell>
-                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={(e) => { e.stopPropagation(); setOrderToDelete(of.id)}}>
-                                            <Trash2 className="h-4 w-4"/>
-                                        </Button>
-                                    </TableCell>
                                 </TableRow>
                                 )})
                             ) : (
@@ -751,7 +756,7 @@ export default function OfPage() {
                             {ordenes.filter(o => o.estado === 'Pendiente').length > 0 ? (
                                 ordenes.filter(o => o.estado === 'Pendiente').map(of => (
                                     <TableRow key={of.id} className="hover:bg-muted/30">
-                                        <TableCell><Badge variant="outline">{of.id}</TableCell>
+                                        <TableCell><Badge variant="outline">{of.id}</Badge></TableCell>
                                         <TableCell className="font-medium">{of.elaboracionNombre}</TableCell>
                                         <TableCell>{format(new Date(of.fechaProduccionPrevista), 'dd/MM/yyyy')}</TableCell>
                                         <TableCell><Badge variant="secondary">{of.partidaAsignada}</Badge></TableCell>
@@ -779,7 +784,7 @@ export default function OfPage() {
                 </CardContent>
              </Card>
         </TabsContent>
-         <TabsContent value="informe-necesidades" className="mt-4">
+        <TabsContent value="informe-necesidades" className="mt-4">
           <Card>
             <CardHeader className="flex-row items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">Informe Detallado de Necesidades</CardTitle>
@@ -792,7 +797,7 @@ export default function OfPage() {
                         {partidas.map(p => (
                              <SelectItem key={p} value={p}>
                                 <div className="flex items-center gap-2">
-                                    <span className={cn("h-2 w-2 rounded-full", partidaColorClasses[p].replace('hover:', '').replace('/50','').replace('/80',''))}/>
+                                    <span className={cn("h-2 w-2 rounded-full", partidaColorCircles[p])}/>
                                     {p}
                                 </div>
                             </SelectItem>
@@ -830,7 +835,7 @@ export default function OfPage() {
                                     </TableRow>
                                     {reporteData.recetas.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
                                         <TableRow key={item.id} className={cn(partidaColorClasses[item.partida as PartidaProduccion] || '')}>
-                                            <TableCell className="sticky left-0 bg-inherit p-1.5 font-semibold text-center"><Badge variant="outline" className="bg-white">{item.partida}</Badge></TableCell>
+                                            <TableCell className="sticky left-0 bg-inherit p-1.5 font-semibold text-center"><Badge variant="outline" className="bg-white"><div className={cn("h-2 w-2 rounded-full mr-1.5", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
                                             <TableCell className="sticky left-24 bg-inherit font-semibold p-1.5">
                                                 <Tooltip><TooltipTrigger asChild>
                                                     <span className="cursor-help">{item.nombre}</span>
@@ -851,7 +856,7 @@ export default function OfPage() {
                                      <TableRow className="bg-muted hover:bg-muted"><TableCell colSpan={3 + reporteData.fechas.length} className="p-1 font-bold text-center">ELABORACIONES</TableCell></TableRow>
                                     {reporteData.elaboraciones.filter(item => partidaInformeFilter === 'all' || item.partida === partidaInformeFilter).map(item => (
                                          <TableRow key={item.id} className={cn(partidaColorClasses[item.partida as PartidaProduccion] || '')}>
-                                            <TableCell className="sticky left-0 bg-inherit p-1.5 font-semibold text-center"><Badge variant="outline" className="bg-white">{item.partida}</Badge></TableCell>
+                                            <TableCell className="sticky left-0 bg-inherit p-1.5 font-semibold text-center"><Badge variant="outline" className="bg-white"><div className={cn("h-2 w-2 rounded-full mr-1.5", partidaColorCircles[item.partida as PartidaProduccion])}/>{item.partida}</Badge></TableCell>
                                             <TableCell className="sticky left-24 bg-inherit font-semibold p-1.5">
                                                 <Tooltip><TooltipTrigger asChild>
                                                     <span className="cursor-help">{item.nombre}</span>
@@ -900,3 +905,5 @@ export default function OfPage() {
     </TooltipProvider>
   );
 }
+
+    
