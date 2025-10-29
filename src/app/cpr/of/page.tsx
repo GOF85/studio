@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -290,7 +291,7 @@ export default function OfPage() {
 
     // --- STAGE 4: CALCULATE NET NEEDS ---
     const stockAsignadoGlobal: Record<string, number> = {};
-    Object.values(allPickingStates).forEach(state => {
+    Object.values(allPickingStatesData).forEach(state => {
       (state.itemStates || []).forEach(assigned => {
         const of = allOFs.find(o => o.id === assigned.ofId);
         if (of) {
@@ -568,10 +569,6 @@ export default function OfPage() {
     });
   };
 
-  if (!isMounted) {
-    return <LoadingSkeleton title="Cargando Órdenes de Fabricación..." />;
-  }
-  
   const getPickingInfo = (ofId: string): { osId: string; containerId: string } | null => {
       for (const osId in pickingStates) {
           const state = pickingStates[osId];
@@ -583,9 +580,13 @@ export default function OfPage() {
       return null;
   };
 
+  if (!isMounted) {
+    return <LoadingSkeleton title="Cargando Órdenes de Fabricación..." />;
+  }
+
   return (
     <TooltipProvider>
-      <div className="flex items-center justify-between gap-4 mb-4 p-4 border rounded-lg bg-card">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 p-4 border rounded-lg bg-card">
         <div className="flex-grow">
             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
             <PopoverTrigger asChild>
@@ -627,7 +628,7 @@ export default function OfPage() {
             <Button variant="secondary" onClick={handleClearFilters}>Limpiar Filtros</Button>
         </div>
       </div>
-      <Tabs defaultValue="tabla-necesidades">
+      <Tabs defaultValue="planificacion">
         <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="tabla-necesidades">Tabla Necesidades</TabsTrigger>
             <TabsTrigger value="planificacion">Planificación</TabsTrigger>
@@ -819,7 +820,7 @@ export default function OfPage() {
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     type="search"
-                                    placeholder="Buscar por Nº de Lote, Elaboración o Responsable..."
+                                    placeholder="Buscar por Nº de Lote, Elaboración..."
                                     className="pl-8 w-full"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
